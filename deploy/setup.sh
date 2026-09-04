@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# WEDOS ShieldTest — déploiement/mise à jour idempotent sur le serveur.
+# Usage :
+#   bash deploy/setup.sh                 # build + (re)start, allowlist inchangée
+#   ALLOWED_TARGETS="127.0.0.1,host.test.interne" bash deploy/setup.sh
+#
+# Ne fait AUCUNE exposition publique : l'API écoute sur 127.0.0.1 (accès via
+# tunnel SSH). N'ajoute une cible que si tu la passes explicitement en env.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICE="ddostester"
+PORT="${PORT:-8080}"
+HOST="${HOST:-127.0.0.1}"
+ALLOWED_TARGETS="${ALLOWED_TARGETS:-127.0.0.1,localhost}"
+RUN_USER="${SUDO_USER:-$(id -un)}"
+
+echo "==> Répertoire : $REPO_DIR"
+echo "==> Cibles autorisées (allowlist) : $ALLOWED_TARGETS"
+
+cd "$REPO_DIR"
+echo "==> git pull"
+git pull --ff-only || echo "   (pull ignoré : dépôt local modifié ou hors-ligne)"
+
+echo "==> npm install + build + test"
+npm install
+npm run build
+npm test
+
+echo "==> Écriture du service systemd"
+sudo tee "/etc/systemd/system/${SERVICE}.service" >/dev/null <<UNIT
+[Unit]
+Description=WEDOS ShieldTest control plane
+After=network.target
+
+[Service]
+Type=simple
+User=${RUN_USER}
+WorkingDirectory=${REPO_DIR}/backend
+Environment=PORT=${PORT}
+Environment=HOST=${HOST}
+Environment=ALLOWED_TARGETS=${ALLOWED_TARGETS}
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+echo "==> (re)démarrage du service"
+sudo systemctl daemon-reload
+sudo systemctl enable --now "${SERVICE}"
+sudo systemctl restart "${SERVICE}"
+sleep 1
+
+echo "==> Vérification bind loopback (doit être UNIQUEMENT ${HOST}:${PORT})"
+if command -v ss >/dev/null; then ss -tlnp 2>/dev/null | grep ":${PORT}" || true; fi
+
+echo "==> Health check"
+curl -fsS "http://${HOST}:${PORT}/health" && echo
+
+cat <<MSG
+
+✅ Déployé. L'API + l'UI écoutent sur http://${HOST}:${PORT} (loopback).
+   Accès depuis ton poste (tunnel SSH, aucune exposition publique) :
+
+     ssh -L ${PORT}:127.0.0.1:${PORT} ${RUN_USER}@<IP-publique-du-serveur>
+
+   puis ouvre http://localhost:${PORT} dans ton navigateur.
+MSG

@@ -1,5 +1,9 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import { store } from './store.js';
 import {
   createCampaign,
@@ -25,6 +29,14 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
+
+// Sert l'UI React buildée (frontend/dist) sur la même origine que l'API : un
+// seul service, un seul tunnel SSH. Ignoré si le build front est absent.
+const frontendDist = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'frontend', 'dist');
+if (existsSync(frontendDist)) {
+  await app.register(fastifyStatic, { root: frontendDist });
+  app.log.info(`UI servie depuis ${frontendDist}`);
+}
 
 function fail(err: unknown, reply: import('fastify').FastifyReply) {
   if (err instanceof CampaignError) return reply.code(400).send({ error: err.message });

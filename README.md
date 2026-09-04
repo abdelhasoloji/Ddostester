@@ -44,6 +44,14 @@ npm run dev:web               # UI sur :5173 (proxy /api → :8080)
 npm test                      # tests backend
 ```
 
+Déploiement serveur (Ubuntu, Node 22, systemd) — un seul service qui sert l'API **et** l'UI, en loopback :
+
+```bash
+bash deploy/setup.sh              # build + service + health check
+# accès distant, sans exposition publique :
+ssh -L 8080:127.0.0.1:8080 user@serveur   # puis http://localhost:8080
+```
+
 Docker :
 
 ```bash
