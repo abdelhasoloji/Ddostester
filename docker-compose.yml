@@ -1,0 +1,15 @@
+# WEDOS ShieldTest — control plane (dev/interne).
+# L'API n'est exposée qu'en loopback : à placer derrière un reverse-proxy interne.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ddostester-api:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PORT: 8080
+      # Renseigner UNIQUEMENT des hôtes internes / mandatés.
+      ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
