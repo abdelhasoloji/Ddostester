@@ -14,6 +14,10 @@ import { renderCampaignReportHtml } from './modules/reports/report.js';
 import type { CampaignInput } from './modules/campaigns/model.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
+// Adresse d'écoute. Défaut : loopback uniquement — l'outil ne doit JAMAIS être
+// exposé publiquement (pas d'auth). Pour un accès distant, passer par un tunnel
+// SSH plutôt que binder sur 0.0.0.0.
+const HOST = process.env.HOST ?? '127.0.0.1';
 const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .split(',')
   .map((s) => s.trim())
@@ -114,7 +118,7 @@ app.get('/api/runs/:runId/report', async (req, reply) => {
 });
 
 app
-  .listen({ port: PORT, host: '0.0.0.0' })
+  .listen({ port: PORT, host: HOST })
   .then((addr) =>
     app.log.info(`ShieldTest control plane sur ${addr} — cibles: ${ALLOWED_TARGETS.join(', ')}`),
   )
