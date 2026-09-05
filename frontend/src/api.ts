@@ -146,7 +146,13 @@ export interface LiveProgressData {
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
-      json<{ status: string; allowedTargets: string[]; storage: string; authRequired: boolean }>(r),
+      json<{
+        status: string;
+        allowedTargets: string[];
+        storage: string;
+        authRequired: boolean;
+        agent?: string;
+      }>(r),
     ),
   login: (email: string, password: string) =>
     post<{ token: string; email: string; role: Role }>('/api/auth/login', { email, password }),

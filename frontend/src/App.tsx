@@ -221,6 +221,7 @@ function BrandHeader({ right }: { right: React.ReactNode }) {
 
 export function App() {
   const [allowed, setAllowed] = useState<string[]>([]);
+  const [agentName, setAgentName] = useState<string>('');
   const [authRequired, setAuthRequired] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -258,6 +259,7 @@ export function App() {
       .health()
       .then(async (h) => {
         setAllowed(h.allowedTargets);
+        setAgentName(h.agent ?? '');
         setAuthRequired(h.authRequired);
         if (h.authRequired && getToken()) {
           try {
@@ -475,8 +477,14 @@ export function App() {
           }
         />
         <p className="subtitle" style={{ marginBottom: '.5rem' }}>
-          Cibles autorisées : <code>{allowed.join(', ') || '—'}</code> · générateur HTTP borné
-          (aucun vecteur volumétrique).
+          Cibles autorisées : <code>{allowed.join(', ') || '—'}</code>
+          {agentName && (
+            <>
+              {' '}
+              · agent <code>{agentName}</code>
+            </>
+          )}{' '}
+          · générateur HTTP borné (aucun vecteur volumétrique).
         </p>
 
         {canCreate && (
