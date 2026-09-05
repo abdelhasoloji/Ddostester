@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { api, complianceUrl, reportUrl } from './api.js';
-import type { Campaign, ManagedUser, Playbook, Role, WrsBreakdown } from './api.js';
+import { api, complianceUrl, reportUrl, suiteReportUrl } from './api.js';
+import type { Campaign, ManagedUser, Playbook, Role, SuiteSummary, WrsBreakdown } from './api.js';
 import { useApp, canDo } from './context.js';
 import {
   ApproveModal,
@@ -340,6 +340,65 @@ export function CampaignsPage() {
 }
 
 // ---------- Reports ----------
+function SuitesSection() {
+  const [suites, setSuites] = useState<SuiteSummary[]>([]);
+  const app = useApp();
+  useEffect(() => {
+    api
+      .suites()
+      .then(setSuites)
+      .catch(() => undefined);
+    // Re-read when the campaign list changes (new suites / new scores).
+  }, [app.campaigns]);
+  if (suites.length === 0) return null;
+  return (
+    <>
+      <h2 className="section-title">Assessment suites</h2>
+      <div className="card" style={{ display: 'grid', gap: '.75rem', marginBottom: '1rem' }}>
+        {suites.map((s) => (
+          <div key={s.suiteId} className="wrs-hist">
+            <div className="wrs-hist-main">
+              <b>{s.suiteName}</b>
+              <code>{s.target}</code>
+              {s.wrs ? (
+                <span className={`wrs ${wrsClass(s.wrs.level)}`} title="Aggregate: worst-step WRS">
+                  <span className="wrs-score">{s.wrs.min}</span> {s.wrs.level}
+                  <span className="hint" style={{ marginLeft: '.4rem' }}>
+                    avg {s.wrs.avg}
+                  </span>
+                </span>
+              ) : (
+                <span className="hint">not scored yet</span>
+              )}
+              <span className="hint">
+                {s.completed}/{s.total} done
+                {s.pending ? ` · ${s.pending} pending` : ''}
+                {s.running ? ` · ${s.running} running` : ''}
+              </span>
+              <a
+                className="btn btn-sm btn-ghost"
+                href={suiteReportUrl(s.suiteId)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Suite report ↗
+              </a>
+            </div>
+            <div className="suite-steps">
+              {s.members.map((m) => (
+                <span key={m.id} className="chip-xs" title={m.status}>
+                  {m.order + 1}. {m.name.split(' — ').pop()}
+                  {m.wrs != null ? ` · ${m.wrs} ${m.level}` : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function ReportsPage() {
   const app = useApp();
   const withRun = app.campaigns.filter((c) => c.runId);
@@ -347,8 +406,9 @@ export function ReportsPage() {
     <>
       <PageHead
         title="Reports"
-        sub="Campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
+        sub="Assessment suites, campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
       />
+      <SuitesSection />
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2>Aggregated compliance</h2>
         <p className="hint">

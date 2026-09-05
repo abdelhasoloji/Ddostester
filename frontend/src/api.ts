@@ -183,6 +183,12 @@ export function complianceUrl(): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL of an assessment suite's consolidated HTML report. */
+export function suiteReportUrl(suiteId: string): string {
+  const u = `/api/suites/${suiteId}/report`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
 /** URL of a campaign's real-time progress SSE stream (EventSource). */
 export function streamUrl(campaignId: string): string {
   const u = `/api/campaigns/${campaignId}/stream`;
@@ -235,7 +241,30 @@ export const api = {
   playbooks: () => get<Playbook[]>('/api/playbooks'),
   instantiatePlaybook: (id: string, body: { target: string; probeUrl?: string }) =>
     post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
+  suites: () => get<SuiteSummary[]>('/api/suites'),
 };
+
+export interface SuiteSummary {
+  suiteId: string;
+  suiteName: string;
+  target: string;
+  createdAt: string;
+  total: number;
+  pending: number;
+  approved: number;
+  running: number;
+  completed: number;
+  members: {
+    id: string;
+    name: string;
+    order: number;
+    status: CampaignStatus;
+    wrs?: number;
+    level?: WrsBreakdown['level'];
+    runId?: string;
+  }[];
+  wrs: { avg: number; min: number; level: WrsBreakdown['level']; scored: number } | null;
+}
 
 export interface ManagedUser {
   email: string;

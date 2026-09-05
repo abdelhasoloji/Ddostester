@@ -43,6 +43,7 @@ import type { Notifier } from './modules/notify/types.js';
 import { noopProtectionProvider } from './modules/protection/provider.js';
 import type { ProtectionProvider } from './modules/protection/types.js';
 import { PLAYBOOKS, getPlaybook, buildSuiteCampaigns } from './modules/playbooks/playbooks.js';
+import { buildSuites, renderSuiteReportHtml } from './modules/playbooks/suites.js';
 
 export interface BuildOptions {
   store: Store;
@@ -497,6 +498,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return { status: 'KILLED_MANUAL' };
     },
   );
+
+  // Consolidated assessment suites (campaigns grouped by playbook run).
+  app.get('/api/suites', { preHandler: guard('campaign:read') }, async () =>
+    buildSuites(await store.listCampaigns()),
+  );
+
+  app.get('/api/suites/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    const suite = buildSuites(await store.listCampaigns()).find(
+      (s) => s.suiteId === (req.params as { id: string }).id,
+    );
+    return suite ?? reply.code(404).send({ error: 'suite not found' });
+  });
+
+  app.get('/api/suites/:id/report', async (req, reply) => {
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    const suite = buildSuites(await store.listCampaigns()).find(
+      (s) => s.suiteId === (req.params as { id: string }).id,
+    );
+    if (!suite) return reply.code(404).send({ error: 'suite not found' });
+    return reply.type('text/html').send(renderSuiteReportHtml(suite));
+  });
 
   app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);

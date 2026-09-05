@@ -1231,6 +1231,13 @@ input.invalid {
   opacity: 0.7;
 }
 
+/* Assessment suite steps (Reports) */
+.suite-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 /* Assessment playbook steps (Guide) */
 .playbook-steps {
   margin: 0.5rem 0 0.75rem;
