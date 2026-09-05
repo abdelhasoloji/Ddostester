@@ -35,10 +35,12 @@ Navigateur (via tunnel SSH)
 |--------|---------|------|
 | CAM | `backend/src/modules/campaigns/{model,service}.ts` | Création, validation, workflow d'approbation, plafonds durs |
 | Runner | `backend/src/modules/campaigns/runner.ts` | Orchestre générateur + sonde + kill switch, agrège les métriques, calcule le WRS |
-| GEN | `backend/src/engine/loadTest.ts` | Générateur HTTP borné (allowlist, plafond RPS, respect du kill switch) |
+| GEN | `backend/src/engine/loadTest.ts` | Générateur HTTP borné (allowlist, plafond RPS, phases, kill switch) |
+| Scénarios | `backend/src/engine/loadTest.ts` (phases) | Profils bornés multi-phases : ramp-up, vagues (GEN-03) |
 | PROBE | `backend/src/modules/probe/probe.ts` | Sonde de disponibilité/latence + kill switch 3 niveaux |
-| WRS | `backend/src/modules/wrs/scoring.ts` | Fonction pure de scoring (aucun trafic généré) |
-| RPT | `backend/src/modules/reports/report.ts` | Rapport HTML traçable |
+| WRS | `backend/src/modules/wrs/{scoring,history}.ts` | Scoring (fonction pure) + historique par cible & régressions (WRS-03) |
+| RPT | `backend/src/modules/reports/{report,compliance}.ts` | Rapport de campagne + rapport de conformité DORA/NIS2 (HTML/PDF) |
+| Metrics | `backend/src/modules/metrics/prometheus.ts` | Exposition Prometheus `/metrics` |
 | Store | `backend/src/store/` | Persistance : PostgreSQL (`DATABASE_URL`) ou mémoire (repli) |
 | Server | `backend/src/server.ts` | Routes HTTP, service UI, bind loopback, ordonnanceur |
 | Scheduler | `backend/src/modules/campaigns/scheduler.ts` | Exécution planifiée des campagnes approuvées (CAM-01) |

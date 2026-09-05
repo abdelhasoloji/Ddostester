@@ -12,6 +12,7 @@ documentation technique et opérationnelle.
 | [auth.md](./auth.md) | Authentification JWT, rôles (RBAC), séparation des rôles |
 | [wrs.md](./wrs.md) | Formule et interprétation du WEDOS Resiliency Score |
 | [safeguards.md](./safeguards.md) | Modèle de sécurité, périmètre, ce qui n'est pas implémenté |
+| [stack-vs-tsd.md](./stack-vs-tsd.md) | Correspondance stack réalisé vs spécifications TSD |
 
 > ⚠️ **Périmètre défensif.** Cet outil orchestre, mesure et score des tests de
 > charge **HTTP bornés** contre une infrastructure autorisée. Il n'implémente
