@@ -15,7 +15,7 @@ const cfg: LoadTestConfig = {
 };
 
 describe('buildK6Script', () => {
-  it('génère un scénario constant borné au débit', () => {
+  it('generates a constant scenario capped at the rate', () => {
     const s = buildK6Script(cfg);
     expect(s).toContain("executor: 'constant-arrival-rate'");
     expect(s).toContain('rate: 50');
@@ -23,7 +23,7 @@ describe('buildK6Script', () => {
     expect(s).toContain('http.request("GET", "http://127.0.0.1/health"');
     expect(s).toContain('X-WEDOS-TEST');
   });
-  it('génère des phases (ramping) si scénario', () => {
+  it('generates ramping phases when a scenario is given', () => {
     const s = buildK6Script({
       ...cfg,
       phases: [
@@ -42,7 +42,7 @@ describe('buildK6Script', () => {
 });
 
 describe('parseK6Summary', () => {
-  it('mappe les métriques k6 en LoadTestResult', () => {
+  it('maps k6 metrics into a LoadTestResult', () => {
     const summary = {
       metrics: {
         http_reqs: { count: 500, rate: 49.8 },
@@ -58,7 +58,7 @@ describe('parseK6Summary', () => {
     expect(r.latencyMs.p95).toBe(12);
     expect(r.latencyMs.p99).toBe(20);
   });
-  it('reste robuste sur un résumé vide', () => {
+  it('stays robust on an empty summary', () => {
     const r = parseK6Summary({}, { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' });
     expect(r.totalRequests).toBe(0);
     expect(r.failed).toBe(0);
@@ -66,7 +66,7 @@ describe('parseK6Summary', () => {
 });
 
 describe('selectAgent', () => {
-  it('builtin par défaut', () => {
+  it('builtin by default', () => {
     expect(selectAgent({} as NodeJS.ProcessEnv).name).toBe('builtin-http');
   });
   it('k6 si AGENT=k6', () => {

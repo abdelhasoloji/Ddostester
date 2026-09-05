@@ -6,7 +6,7 @@ import { loadUsers } from '../src/auth/users.js';
 import { initAuth, login, identityFromRequest } from '../src/auth/guard.js';
 
 describe('passwords', () => {
-  it('hache et vérifie', () => {
+  it('hashes and verifies', () => {
     const h = hashPassword('s3cret!');
     expect(verifyPassword('s3cret!', h)).toBe(true);
     expect(verifyPassword('wrong', h)).toBe(false);
@@ -14,24 +14,24 @@ describe('passwords', () => {
 });
 
 describe('jwt', () => {
-  it('signe et vérifie', () => {
+  it('signs and verifies', () => {
     const t = signJwt({ sub: 'a@wedos', role: 'officer' }, 'secret');
     const p = verifyJwt(t, 'secret');
     expect(p?.sub).toBe('a@wedos');
     expect(p?.role).toBe('officer');
   });
-  it('rejette une mauvaise signature', () => {
+  it('rejects a bad signature', () => {
     const t = signJwt({ sub: 'a@wedos', role: 'officer' }, 'secret');
     expect(verifyJwt(t, 'autre')).toBeNull();
   });
-  it('rejette un token expiré', () => {
+  it('rejects an expired token', () => {
     const t = signJwt({ sub: 'a', role: 'viewer' }, 'secret', -1);
     expect(verifyJwt(t, 'secret')).toBeNull();
   });
 });
 
 describe('rbac', () => {
-  it('officier approuve, ingénieur non', () => {
+  it('officer can approve, engineer cannot', () => {
     expect(can('officer', 'campaign:approve')).toBe(true);
     expect(can('engineer', 'campaign:approve')).toBe(false);
     expect(can('engineer', 'campaign:create')).toBe(true);
@@ -44,13 +44,13 @@ describe('users + login', () => {
   const users = JSON.stringify([
     { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('pw1') },
   ]);
-  it('charge les utilisateurs', () => {
+  it('loads users', () => {
     expect(loadUsers(users).size).toBe(1);
   });
-  it('rejette un rôle invalide', () => {
+  it('rejects an invalid role', () => {
     expect(() => loadUsers('[{"email":"x","role":"root","passwordHash":"h"}]')).toThrow();
   });
-  it('login + identité depuis le token', () => {
+  it('login + identity from the token', () => {
     const state = initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv);
     expect(state.enabled).toBe(true);
     const res = login(state, 'off@wedos', 'pw1');
@@ -61,7 +61,7 @@ describe('users + login', () => {
     expect(id?.email).toBe('off@wedos');
     expect(login(state, 'off@wedos', 'bad')).toBeNull();
   });
-  it('désactivée sans secret', () => {
+  it('disabled without a secret', () => {
     expect(initAuth({} as NodeJS.ProcessEnv).enabled).toBe(false);
   });
 });

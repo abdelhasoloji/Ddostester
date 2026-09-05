@@ -15,17 +15,17 @@ const base: LoadTestConfig = {
 };
 
 describe('validateConfig', () => {
-  it('accepte une cible autorisée', () => {
+  it('accepts an allowed target', () => {
     expect(() => validateConfig(base, ['localhost'])).not.toThrow();
   });
 
-  it('refuse un test non autorisé', () => {
+  it('rejects an unauthorized test', () => {
     expect(() => validateConfig({ ...base, authorized: false }, ['localhost'])).toThrow(
       InvalidConfigError,
     );
   });
 
-  it('refuse une cible hors liste blanche', () => {
+  it('rejects a target outside the allowlist', () => {
     expect(() => validateConfig({ ...base, url: 'http://example.com/' }, ['localhost'])).toThrow(
       TargetNotAllowedError,
     );

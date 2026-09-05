@@ -21,7 +21,7 @@ const meta = {
 };
 
 describe('vegeta', () => {
-  it('construit la cible avec méthode, url et en-têtes', () => {
+  it('builds the target with method, url and headers', () => {
     const t = buildVegetaTarget(cfg);
     expect(t).toContain('GET http://127.0.0.1/health');
     expect(t).toContain('X-WEDOS-TEST: abc');
@@ -41,7 +41,7 @@ describe('vegeta', () => {
     expect(r.statusCounts['2xx']).toBe(490);
     expect(r.statusCounts['5xx']).toBe(10);
   });
-  it('fusionne des phases séquentielles', () => {
+  it('merges sequential phases', () => {
     const a = parseVegetaReport(
       {
         requests: 100,
@@ -67,7 +67,7 @@ describe('vegeta', () => {
 });
 
 describe('locust', () => {
-  it('génère un locustfile borné (constant_pacing)', () => {
+  it('generates a bounded locustfile (constant_pacing)', () => {
     const f = buildLocustfile(cfg);
     expect(f).toContain('constant_pacing(');
     expect(f).toContain('self.client.request("GET", "/health"');
@@ -90,7 +90,7 @@ describe('selectAgent', () => {
   it('expose la liste des agents', () => {
     expect(AGENTS).toEqual(['builtin', 'k6', 'vegeta', 'locust', 'jmeter', 'gatling']);
   });
-  it('sélectionne chaque agent', () => {
+  it('selects each agent', () => {
     expect(selectAgent({ AGENT: 'vegeta' } as NodeJS.ProcessEnv).name).toBe('vegeta');
     expect(selectAgent({ AGENT: 'locust' } as NodeJS.ProcessEnv).name).toBe('locust');
     expect(selectAgent({ AGENT: 'k6' } as NodeJS.ProcessEnv).name).toBe('k6');

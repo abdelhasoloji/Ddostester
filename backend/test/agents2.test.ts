@@ -21,7 +21,7 @@ const meta = {
 };
 
 describe('jmeter', () => {
-  it('génère un JMX borné (Constant Throughput Timer = rps*60)', () => {
+  it('generates a bounded JMX (Constant Throughput Timer = rps*60)', () => {
     const x = buildJmxPlan(cfg);
     expect(x).toContain('<jmeterTestPlan');
     expect(x).toContain('ConstantThroughputTimer');
@@ -47,7 +47,7 @@ describe('jmeter', () => {
 });
 
 describe('gatling', () => {
-  it('génère une simulation Java bornée (constantUsersPerSec)', () => {
+  it('generates a bounded Java simulation (constantUsersPerSec)', () => {
     const s = buildGatlingSim(cfg);
     expect(s).toContain('class ShieldTestSimulation extends Simulation');
     expect(s).toContain('constantUsersPerSec(50).during(10)');
@@ -72,7 +72,7 @@ describe('selectAgent (complet)', () => {
   it('liste les 6 agents', () => {
     expect(AGENTS).toEqual(['builtin', 'k6', 'vegeta', 'locust', 'jmeter', 'gatling']);
   });
-  it('sélectionne jmeter et gatling', () => {
+  it('selects jmeter and gatling', () => {
     expect(selectAgent({ AGENT: 'jmeter' } as NodeJS.ProcessEnv).name).toBe('jmeter');
     expect(selectAgent({ AGENT: 'gatling' } as NodeJS.ProcessEnv).name).toBe('gatling');
   });

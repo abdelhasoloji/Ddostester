@@ -17,7 +17,7 @@ const campaignBody = {
   authorized: true,
 };
 
-describe('API — auth désactivée', () => {
+describe('API — auth disabled', () => {
   let app: FastifyInstance;
   beforeAll(async () => {
     const built = await buildApp({
@@ -30,7 +30,7 @@ describe('API — auth désactivée', () => {
     app = built.app;
   });
 
-  it('health : authRequired=false, storage=memory', async () => {
+  it('health: authRequired=false, storage=memory', async () => {
     const r = await app.inject({ method: 'GET', url: '/health' });
     expect(r.statusCode).toBe(200);
     const b = r.json();
@@ -38,7 +38,7 @@ describe('API — auth désactivée', () => {
     expect(b.storage).toBe('memory');
   });
 
-  it('crée puis approuve une campagne', async () => {
+  it('creates then approves a campaign', async () => {
     const c = await app.inject({
       method: 'POST',
       url: '/api/campaigns',
@@ -55,7 +55,7 @@ describe('API — auth désactivée', () => {
     expect(a.json().status).toBe('APPROVED');
   });
 
-  it('refuse une cible hors allowlist (400)', async () => {
+  it('rejects a target outside the allowlist (400)', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/campaigns',
@@ -64,23 +64,23 @@ describe('API — auth désactivée', () => {
     expect(r.statusCode).toBe(400);
   });
 
-  it('404 sur campagne inconnue', async () => {
-    const r = await app.inject({ method: 'GET', url: '/api/campaigns/inconnue' });
+  it('404 on an unknown campaign', async () => {
+    const r = await app.inject({ method: 'GET', url: '/api/campaigns/unknown' });
     expect(r.statusCode).toBe(404);
   });
 
-  it('expose /metrics et /api/audit', async () => {
+  it('exposes /metrics and /api/audit', async () => {
     const m = await app.inject({ method: 'GET', url: '/metrics' });
     expect(m.statusCode).toBe(200);
     expect(m.body).toContain('shieldtest_campaigns');
     const au = await app.inject({ method: 'GET', url: '/api/audit' });
     expect(au.statusCode).toBe(200);
-    // au moins la création + approbation du test précédent
+    // at least the create + approve from the previous test
     expect(au.json().length).toBeGreaterThanOrEqual(2);
   });
 });
 
-describe('API — auth + RBAC activées', () => {
+describe('API — auth + RBAC enabled', () => {
   let app: FastifyInstance;
   const users = JSON.stringify([
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('engpw') },
@@ -106,12 +106,12 @@ describe('API — auth + RBAC activées', () => {
     app = built.app;
   });
 
-  it('401 sans token', async () => {
+  it('401 without a token', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/campaigns' });
     expect(r.statusCode).toBe(401);
   });
 
-  it('login invalide → 401', async () => {
+  it('invalid login → 401', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
@@ -120,7 +120,7 @@ describe('API — auth + RBAC activées', () => {
     expect(r.statusCode).toBe(401);
   });
 
-  it('verrou anti-brute-force après 5 échecs (429)', async () => {
+  it('anti-brute-force lock after 5 failures (429)', async () => {
     const bad = { email: 'lock@wedos', password: 'x' };
     for (let i = 0; i < 5; i++)
       await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
@@ -128,7 +128,7 @@ describe('API — auth + RBAC activées', () => {
     expect(locked.statusCode).toBe(429);
   });
 
-  it('createdBy dérivé du token (anti-usurpation)', async () => {
+  it('createdBy derived from the token (anti-spoofing)', async () => {
     const t = await token('eng@wedos', 'engpw');
     const c = await app.inject({
       method: 'POST',
@@ -140,7 +140,7 @@ describe('API — auth + RBAC activées', () => {
     expect(c.json().createdBy).toBe('eng@wedos');
   });
 
-  it('RBAC : engineer ne peut pas approuver (403), officer oui', async () => {
+  it('RBAC: engineer cannot approve (403), officer can', async () => {
     const te = await token('eng@wedos', 'engpw');
     const to = await token('off@wedos', 'offpw');
     const c = await app.inject({

@@ -666,6 +666,31 @@ input.invalid {
   font-family: var(--mono);
   font-size: 0.85rem;
 }
+.wrs-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.wrs-legend-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.wrs-legend-row:last-child {
+  border-bottom: 0;
+}
+.wrs-legend-row .wrs {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  justify-content: center;
+}
+.wrs-legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
 .spark {
   background: var(--surface-2);
   border-radius: 6px;
@@ -709,7 +734,7 @@ input.invalid {
   outline: none;
 }
 
-/* ===== Gabarit avec barre latérale ===== */
+/* ===== Sidebar layout ===== */
 .shell {
   display: grid;
   grid-template-columns: 244px 1fr;
@@ -854,7 +879,7 @@ input.invalid {
   margin-top: 0.2rem;
 }
 
-/* Paires clé/valeur (Paramètres) */
+/* Key/value pairs (Settings) */
 .kv {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1346,7 +1371,7 @@ input.invalid {
   margin: 0.3rem 0;
 }
 
-/* Progression temps réel */
+/* Real-time progress */
 .live-bar {
   height: 10px;
   background: var(--surface-2);

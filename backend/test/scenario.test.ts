@@ -27,11 +27,11 @@ describe('validateConfig phases', () => {
       ),
     ).not.toThrow();
   });
-  it('rejette trop de phases', () => {
+  it('rejects too many phases', () => {
     const phases = Array.from({ length: 13 }, () => ({ maxRps: 10, durationSec: 1 }));
     expect(() => validateConfig({ ...cfg, phases }, ['localhost'])).toThrow(InvalidConfigError);
   });
-  it('rejette une phase à rps nul', () => {
+  it('rejects a phase with zero rps', () => {
     expect(() =>
       validateConfig({ ...cfg, phases: [{ maxRps: 0, durationSec: 5 }] }, ['localhost']),
     ).toThrow(InvalidConfigError);
@@ -51,7 +51,7 @@ const base: CampaignInput = {
 };
 
 describe('createCampaign scenario', () => {
-  it('normalise maxRps/durée depuis le scénario', () => {
+  it('normalizes maxRps/duration from the scenario', () => {
     const c = createCampaign(
       {
         ...base,
@@ -65,12 +65,12 @@ describe('createCampaign scenario', () => {
     expect(c.maxRps).toBe(40);
     expect(c.maxDurationSec).toBe(30);
   });
-  it('refuse un scénario dépassant le plafond de durée', () => {
+  it('rejects a scenario exceeding the duration cap', () => {
     expect(() =>
       createCampaign({ ...base, scenario: [{ maxRps: 10, durationSec: 1000 }] }, ['localhost']),
     ).toThrow(CampaignError);
   });
-  it('refuse une phase au-dessus du plafond RPS', () => {
+  it('rejects a phase above the RPS cap', () => {
     expect(() =>
       createCampaign({ ...base, scenario: [{ maxRps: 99999, durationSec: 5 }] }, ['localhost']),
     ).toThrow(CampaignError);

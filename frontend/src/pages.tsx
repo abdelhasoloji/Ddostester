@@ -708,6 +708,51 @@ const STEPS = [
   },
 ];
 
+// How to read a WRS grade, and what to do about it.
+const WRS_LEVELS: {
+  level: WrsBreakdown['level'];
+  range: string;
+  meaning: string;
+  action: string;
+}[] = [
+  {
+    level: 'A+',
+    range: '90–100',
+    meaning: 'Excellent — the service absorbed the load with negligible impact.',
+    action: 'Keep a recurring baseline check to catch regressions early.',
+  },
+  {
+    level: 'A',
+    range: '80–89',
+    meaning: 'Strong resilience; minor degradation under load.',
+    action: 'Good state. Re-test after significant infra or config changes.',
+  },
+  {
+    level: 'B',
+    range: '70–79',
+    meaning: 'Acceptable, but detection/mitigation or availability has room to improve.',
+    action: 'Review the breakdown; tune autoscaling/caching, then re-test.',
+  },
+  {
+    level: 'C',
+    range: '55–69',
+    meaning: 'Noticeable impact on legitimate traffic during the run.',
+    action: 'Investigate the weakest WRS component; plan a mitigation and re-test.',
+  },
+  {
+    level: 'D',
+    range: '40–54',
+    meaning: 'Poor — availability dropped materially under a bounded, lawful load.',
+    action: 'Prioritise remediation; verify protection/kill-switch timings.',
+  },
+  {
+    level: 'F',
+    range: '0–39',
+    meaning: 'Failing — the service could not sustain the test.',
+    action: 'Escalate; treat as a resilience defect before any production exposure.',
+  },
+];
+
 export function GuidePage() {
   const app = useApp();
   const navigate = useNavigate();
@@ -735,6 +780,34 @@ export function GuidePage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <h2 className="section-title">Reading the WRS</h2>
+      <div className="card">
+        <p className="subtitle" style={{ marginBottom: '.75rem' }}>
+          The <b>WEDOS Resiliency Score</b> (0–100) blends detection, mitigation, availability and
+          collateral impact (<code>WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C</code>). Higher is
+          better. A drop of more than 10 points versus the previous run on the same target is
+          flagged as a <b>regression</b> (and can notify your team).
+        </p>
+        <div className="wrs-legend">
+          {WRS_LEVELS.map((l) => (
+            <div key={l.level} className="wrs-legend-row">
+              <span className={`wrs ${wrsClass(l.level)}`}>
+                <span className="wrs-score">{l.range}</span> {l.level}
+              </span>
+              <div className="wrs-legend-text">
+                <div>{l.meaning}</div>
+                <div className="hint">{l.action}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="hint" style={{ marginTop: '.75rem' }}>
+          When there is no protection integration, Detection and Mitigation are conservative
+          estimates (the report marks the score as <i>estimated</i>). Focus on the lowest component
+          in the breakdown to decide what to improve first.
+        </p>
       </div>
 
       <h2 className="section-title">Recommended configurations</h2>
