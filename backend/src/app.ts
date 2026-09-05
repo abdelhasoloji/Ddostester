@@ -78,9 +78,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return async (req: FastifyRequest, reply: FastifyReply) => {
       if (!auth.enabled) return;
       const id = identityFromRequest(auth, req);
-      if (!id) return reply.code(401).send({ error: 'authentification requise' });
+      if (!id) return reply.code(401).send({ error: 'authentication required' });
       req.authUser = id;
-      if (!can(id.role, perm)) return reply.code(403).send({ error: `droit ${perm} manquant` });
+      if (!can(id.role, perm)) return reply.code(403).send({ error: `missing ${perm} permission` });
     };
   }
 
@@ -106,12 +106,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     );
     if (existsSync(frontendDist)) {
       await app.register(fastifyStatic, { root: frontendDist });
-      app.log.info(`UI servie depuis ${frontendDist}`);
-      // Fallback SPA : les routes navigateur (react-router) qui ne sont ni /api
-      // ni /metrics renvoient index.html (deep-links comme /campagnes).
+      app.log.info(`UI served from ${frontendDist}`);
+      // SPA fallback: browser routes (react-router) that are neither /api nor
+      // /metrics return index.html (deep links such as /campaigns).
       app.setNotFoundHandler((req, reply) => {
         if (req.raw.url && (req.raw.url.startsWith('/api') || req.raw.url.startsWith('/metrics'))) {
-          return reply.code(404).send({ error: 'introuvable' });
+          return reply.code(404).send({ error: 'not found' });
         }
         return reply.sendFile('index.html');
       });
@@ -122,7 +122,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (err instanceof CampaignError) return reply.code(400).send({ error: err.message });
     if (err instanceof AgentError) return reply.code(503).send({ error: err.message });
     app.log.error(err);
-    return reply.code(500).send({ error: 'erreur interne' });
+    return reply.code(500).send({ error: 'internal error' });
   }
 
   async function auditAs(
@@ -141,7 +141,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         detail,
       });
     } catch (err) {
-      app.log.error({ err }, 'échec écriture audit');
+      app.log.error({ err }, 'failed to write audit entry');
     }
   }
   const audit = (
@@ -191,18 +191,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const LOCK_MS = 60_000;
 
   app.post('/api/auth/login', async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentification désactivée' });
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication disabled' });
     const { email, password } = req.body as { email?: string; password?: string };
-    if (!email || !password) return reply.code(400).send({ error: 'email et mot de passe requis' });
+    if (!email || !password) return reply.code(400).send({ error: 'email and password required' });
     const key = `${email.toLowerCase()}|${req.ip}`;
     const entry = loginFails.get(key);
     if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
-      return reply.code(429).send({ error: 'trop de tentatives — réessaie plus tard' });
+      return reply.code(429).send({ error: 'too many attempts — try again later' });
     }
     const res = login(auth, email, password);
     if (!res) {
       loginFails.set(key, { count: (entry?.count ?? 0) + 1, until: Date.now() + LOCK_MS });
-      return reply.code(401).send({ error: 'identifiants invalides' });
+      return reply.code(401).send({ error: 'invalid credentials' });
     }
     loginFails.delete(key);
     return res;
@@ -218,7 +218,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/campaigns/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const c = await store.getCampaign((req.params as { id: string }).id);
-    return c ?? reply.code(404).send({ error: 'campagne introuvable' });
+    return c ?? reply.code(404).send({ error: 'campaign not found' });
   });
 
   app.post('/api/campaigns', { preHandler: guard('campaign:create') }, async (req, reply) => {
@@ -240,7 +240,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       try {
         const c = await store.getCampaign((req.params as { id: string }).id);
-        if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
+        if (!c) return reply.code(404).send({ error: 'campaign not found' });
         const body = req.body as {
           approvedBy?: string;
           decision: 'APPROVED' | 'REJECTED';
@@ -267,7 +267,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     { preHandler: guard('campaign:execute') },
     async (req, reply) => {
       const c = await store.getCampaign((req.params as { id: string }).id);
-      if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
+      if (!c) return reply.code(404).send({ error: 'campaign not found' });
       try {
         assertExecutable(c);
       } catch (err) {
@@ -284,7 +284,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentification requise' });
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
     reply.hijack();
     const res = reply.raw;
     res.writeHead(200, {
@@ -312,7 +312,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       const id = (req.params as { id: string }).id;
       const kill = kills.get(id);
-      if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
+      if (!kill) return reply.code(404).send({ error: 'no run in progress' });
       kill.trigger('KILLED_MANUAL');
       await audit(req, 'campaign.kill', id);
       return { status: 'KILLED_MANUAL' };
@@ -341,22 +341,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const r = await store.getRun((req.params as { runId: string }).runId);
-    return r ?? reply.code(404).send({ error: 'run introuvable' });
+    return r ?? reply.code(404).send({ error: 'run not found' });
   });
 
   app.get('/api/reports/compliance', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentification requise' });
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
     const { from, to } = req.query as { from?: string; to?: string };
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     return reply.type('text/html').send(renderComplianceHtml(campaigns, runs, { from, to }));
   });
 
   app.get('/api/runs/:runId/report', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentification requise' });
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
     const r = await store.getRun((req.params as { runId: string }).runId);
-    if (!r) return reply.code(404).send({ error: 'run introuvable' });
+    if (!r) return reply.code(404).send({ error: 'run not found' });
     const c = await store.getCampaign(r.campaignId);
-    if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
+    if (!c) return reply.code(404).send({ error: 'campaign not found' });
     return reply.type('text/html').send(renderCampaignReportHtml(c, r));
   });
 

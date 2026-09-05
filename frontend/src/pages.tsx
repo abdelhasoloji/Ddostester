@@ -22,13 +22,13 @@ function wrsClass(level: WrsBreakdown['level']): string {
   return 'wrs-' + level.replace('+', 'p');
 }
 
-// ---------- barre latérale + gabarit ----------
+// ---------- sidebar + layout ----------
 const NAV = [
-  { to: '/', label: 'Vue d’ensemble', icon: '▚', end: true },
-  { to: '/campagnes', label: 'Campagnes', icon: '◇', end: false },
-  { to: '/rapports', label: 'Rapports', icon: '▤', end: false },
-  { to: '/audit', label: 'Journal d’audit', icon: '☰', end: false },
-  { to: '/parametres', label: 'Paramètres', icon: '⚙', end: false },
+  { to: '/', label: 'Overview', icon: '▚', end: true },
+  { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
+  { to: '/reports', label: 'Reports', icon: '▤', end: false },
+  { to: '/audit', label: 'Audit log', icon: '☰', end: false },
+  { to: '/settings', label: 'Settings', icon: '⚙', end: false },
 ];
 
 export function Layout() {
@@ -68,12 +68,12 @@ export function Layout() {
                   <b>{roleLabel[app.identity.role]}</b>
                 </span>
                 <button className="btn btn-sm btn-ghost" onClick={app.logout}>
-                  Déconnexion
+                  Sign out
                 </button>
               </>
             ) : (
               <span className="hint">
-                Mode dev · opérateur <b>{app.operator || '—'}</b>
+                Dev mode · operator <b>{app.operator || '—'}</b>
               </span>
             )}
           </div>
@@ -106,7 +106,7 @@ function PageHead({ title, sub }: { title: string; sub?: React.ReactNode }) {
   );
 }
 
-// ---------- Vue d'ensemble ----------
+// ---------- Overview ----------
 export function OverviewPage() {
   const app = useApp();
   const c = app.campaigns;
@@ -123,17 +123,17 @@ export function OverviewPage() {
   return (
     <>
       <PageHead
-        title="Vue d’ensemble"
+        title="Overview"
         sub={
           <>
-            Cibles autorisées : <code>{app.allowed.join(', ') || '—'}</code>
+            Allowed targets: <code>{app.allowed.join(', ') || '—'}</code>
             {app.agentName && (
               <>
                 {' '}
                 · agent <code>{app.agentName}</code>
               </>
             )}{' '}
-            · générateur HTTP borné (aucun vecteur volumétrique).
+            · bounded HTTP generator (no volumetric vector).
           </>
         }
       />
@@ -141,29 +141,29 @@ export function OverviewPage() {
       <div className="kpis">
         <div className="kpi">
           <div className="kpi-v">{c.length}</div>
-          <div className="kpi-k">Campagnes</div>
+          <div className="kpi-k">Campaigns</div>
         </div>
         <div className="kpi">
           <div className="kpi-v">{running}</div>
-          <div className="kpi-k">En cours</div>
+          <div className="kpi-k">Running</div>
         </div>
         <div className="kpi">
           <div className="kpi-v">{pending}</div>
-          <div className="kpi-k">En attente</div>
+          <div className="kpi-k">Pending</div>
         </div>
         <div className="kpi">
           <div className="kpi-v">{completed}</div>
-          <div className="kpi-k">Terminées</div>
+          <div className="kpi-k">Completed</div>
         </div>
         <div className="kpi">
           <div className="kpi-v">{avgWrs ?? '—'}</div>
-          <div className="kpi-k">WRS moyen</div>
+          <div className="kpi-k">Avg. WRS</div>
         </div>
       </div>
 
-      <h2 className="section-title">Historique WRS par cible</h2>
+      <h2 className="section-title">WRS history by target</h2>
       {app.wrsSeries.length === 0 ? (
-        <div className="empty">Aucune exécution notée pour l’instant.</div>
+        <div className="empty">No scored runs yet.</div>
       ) : (
         <div className="card" style={{ display: 'grid', gap: '.75rem' }}>
           {app.wrsSeries.map((s) => {
@@ -175,10 +175,10 @@ export function OverviewPage() {
                   <span className={`wrs ${wrsClass(last.level as WrsBreakdown['level'])}`}>
                     <span className="wrs-score">{last.wrs}</span> {last.level}
                   </span>
-                  <span className="hint">{s.points.length} exécution(s)</span>
+                  <span className="hint">{s.points.length} run(s)</span>
                   {s.regression && (
-                    <span className="badge badge-REJECTED" title="Chute de plus de 10 points">
-                      ▼ Régression −{s.drop}
+                    <span className="badge badge-REJECTED" title="Drop of more than 10 points">
+                      ▼ Regression −{s.drop}
                     </span>
                   )}
                 </div>
@@ -192,19 +192,16 @@ export function OverviewPage() {
   );
 }
 
-// ---------- Campagnes ----------
+// ---------- Campaigns ----------
 export function CampaignsPage() {
   const app = useApp();
   return (
     <>
-      <PageHead
-        title="Campagnes"
-        sub={app.anyRunning ? 'Actualisation automatique en cours…' : undefined}
-      />
+      <PageHead title="Campaigns" sub={app.anyRunning ? 'Auto-refreshing…' : undefined} />
       <NewCampaignForm />
-      <h2 className="section-title">Liste des campagnes</h2>
+      <h2 className="section-title">Campaign list</h2>
       <div className="campaigns">
-        {app.campaigns.length === 0 && <div className="empty">Aucune campagne pour l’instant.</div>}
+        {app.campaigns.length === 0 && <div className="empty">No campaigns yet.</div>}
         {app.campaigns.map((c) => (
           <CampaignCard key={c.id} c={c} />
         ))}
@@ -213,30 +210,30 @@ export function CampaignsPage() {
   );
 }
 
-// ---------- Rapports ----------
+// ---------- Reports ----------
 export function ReportsPage() {
   const app = useApp();
   const withRun = app.campaigns.filter((c) => c.runId);
   return (
     <>
       <PageHead
-        title="Rapports"
-        sub="Rapports de campagne (HTML/PDF) et conformité agrégée DORA / NIS2."
+        title="Reports"
+        sub="Campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
       />
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2>Conformité agrégée</h2>
+        <h2>Aggregated compliance</h2>
         <p className="hint">
-          Synthèse de toutes les campagnes exécutées, alignée sur les exigences de résilience
-          opérationnelle (DORA) et de gestion des risques (NIS2).
+          Summary of every executed campaign, aligned with operational resilience (DORA) and risk
+          management (NIS2) requirements.
         </p>
         <a className="btn btn-primary" href={complianceUrl()} target="_blank" rel="noreferrer">
-          Ouvrir le rapport de conformité ↗
+          Open compliance report ↗
         </a>
       </div>
 
-      <h2 className="section-title">Rapports de campagne</h2>
+      <h2 className="section-title">Campaign reports</h2>
       {withRun.length === 0 ? (
-        <div className="empty">Aucune campagne exécutée — pas encore de rapport.</div>
+        <div className="empty">No campaign has run yet — no report available.</div>
       ) : (
         <div className="card" style={{ display: 'grid', gap: '.5rem' }}>
           {withRun.map((c) => (
@@ -250,7 +247,7 @@ export function ReportsPage() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Rapport ↗
+                Report ↗
               </a>
             </div>
           ))}
@@ -260,7 +257,7 @@ export function ReportsPage() {
   );
 }
 
-// ---------- Journal d'audit ----------
+// ---------- Audit log ----------
 export function AuditPage() {
   const app = useApp();
   const { loadAudit } = app;
@@ -271,17 +268,17 @@ export function AuditPage() {
   return (
     <>
       <PageHead
-        title="Journal d’audit"
-        sub="Trace immuable des actions (création, approbation, exécution, kill switch)."
+        title="Audit log"
+        sub="Immutable trace of actions (creation, approval, run, kill switch)."
       />
       <div className="page-actions">
         <button className="btn btn-sm" onClick={app.loadAudit}>
-          Rafraîchir
+          Refresh
         </button>
       </div>
       <div className="card">
-        {rows === null && <span className="hint">Chargement…</span>}
-        {rows !== null && rows.length === 0 && <span className="hint">Aucune entrée.</span>}
+        {rows === null && <span className="hint">Loading…</span>}
+        {rows !== null && rows.length === 0 && <span className="hint">No entries.</span>}
         {rows?.map((a) => (
           <div key={a.id} className="audit-row">
             <span className="audit-time">{new Date(a.at).toLocaleString()}</span>
@@ -295,70 +292,65 @@ export function AuditPage() {
   );
 }
 
-// ---------- Paramètres ----------
+// ---------- Settings ----------
 export function SettingsPage() {
   const app = useApp();
   return (
     <>
-      <PageHead
-        title="Paramètres"
-        sub="Configuration du control plane (lecture seule côté client)."
-      />
+      <PageHead title="Settings" sub="Control plane configuration (read-only on the client)." />
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2>Session</h2>
         {app.authRequired && app.identity ? (
           <div className="kv">
             <div>
-              <span className="k">Utilisateur</span>
+              <span className="k">User</span>
               <span className="v">{app.identity.email}</span>
             </div>
             <div>
-              <span className="k">Rôle</span>
+              <span className="k">Role</span>
               <span className="v">{roleLabel[app.identity.role]}</span>
             </div>
           </div>
         ) : (
           <div className="field" style={{ maxWidth: 360 }}>
-            <label htmlFor="op">Opérateur (mode dev)</label>
+            <label htmlFor="op">Operator (dev mode)</label>
             <input
               id="op"
-              placeholder="prenom.nom@wedos"
+              placeholder="first.last@wedos"
               value={app.operator}
               onChange={(e) => app.setOperator(e.target.value)}
             />
-            <span className="hint">
-              Utilisé comme auteur/approbateur tant que l’authentification n’est pas activée.
-            </span>
+            <span className="hint">Used as author/approver while authentication is disabled.</span>
           </div>
         )}
       </div>
 
       <div className="card">
-        <h2>Moteur & sécurité</h2>
+        <h2>Engine &amp; security</h2>
         <div className="kv">
           <div>
-            <span className="k">Agent actif</span>
+            <span className="k">Active agent</span>
             <span className="v">
               <code>{app.agentName || 'builtin-http'}</code>
             </span>
           </div>
           <div>
-            <span className="k">Authentification</span>
+            <span className="k">Authentication</span>
             <span className="v">
-              {app.authRequired ? 'JWT / RBAC activé' : 'Mode dev (désactivée)'}
+              {app.authRequired ? 'JWT / RBAC enabled' : 'Dev mode (disabled)'}
             </span>
           </div>
           <div>
-            <span className="k">Cibles autorisées</span>
+            <span className="k">Allowed targets</span>
             <span className="v">
               <code>{app.allowed.join(', ') || '—'}</code>
             </span>
           </div>
         </div>
         <p className="hint" style={{ marginTop: '.75rem' }}>
-          Générateur HTTP borné uniquement (GET/POST, plafonné, liste blanche). Aucun vecteur
-          volumétrique ou d’épuisement n’est implémenté. La liste blanche et l’agent se configurent
-          côté serveur (variables d’environnement).
+          Bounded HTTP generator only (GET/POST, rate-capped, allowlisted). No volumetric or
+          exhaustion vector is implemented. The allowlist and the agent are configured server-side
+          (environment variables).
         </p>
       </div>
     </>

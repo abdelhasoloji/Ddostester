@@ -130,8 +130,8 @@ export class K6Agent implements AttackAgent {
     validateConfig(config, allowedHosts);
     if (!(await this.available())) {
       throw new AgentError(
-        `Agent k6 indisponible (binaire « ${this.bin} » introuvable). Installer k6 ` +
-          `sur l'hôte ou choisir AGENT=builtin.`,
+        `k6 agent unavailable (binary "${this.bin}" not found). Install k6 ` +
+          `on the host or choose AGENT=builtin.`,
       );
     }
 

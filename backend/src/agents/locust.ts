@@ -122,12 +122,12 @@ export class LocustAgent implements AttackAgent {
     validateConfig(config, allowedHosts);
     if (config.phases?.length) {
       throw new AgentError(
-        "Scénario multi-phases non supporté par l'agent locust — utiliser AGENT=k6 ou vegeta.",
+        'Multi-phase scenario not supported by the locust agent — use AGENT=k6 or vegeta.',
       );
     }
     if (!(await this.available())) {
       throw new AgentError(
-        `Agent locust indisponible (binaire « ${this.bin} »). Installer Locust ou choisir AGENT=builtin.`,
+        `locust agent unavailable (binary "${this.bin}"). Install Locust or choose AGENT=builtin.`,
       );
     }
     const dir = await mkdtemp(join(tmpdir(), 'shieldtest-locust-'));

@@ -6,13 +6,13 @@ import { useApp, canDo } from './context.js';
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
 const badgeLabel: Record<CampaignStatus, string> = {
-  PENDING_APPROVAL: 'En attente',
-  APPROVED: 'Approuvée',
-  REJECTED: 'Rejetée',
-  RUNNING: 'En cours',
-  COMPLETED: 'Terminée',
-  KILLED_AUTO: 'Kill auto',
-  KILLED_MANUAL: 'Kill manuel',
+  PENDING_APPROVAL: 'Pending',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  RUNNING: 'Running',
+  COMPLETED: 'Completed',
+  KILLED_AUTO: 'Auto-killed',
+  KILLED_MANUAL: 'Manually killed',
 };
 
 export function StatusBadge({ status }: { status: CampaignStatus }) {
@@ -90,7 +90,7 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
   if (!p)
     return (
       <div className="details">
-        <span className="hint">Démarrage de l’exécution…</span>
+        <span className="hint">Starting run…</span>
       </div>
     );
   const pct = Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100));
@@ -103,10 +103,10 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
         <span>
           ⏱ {p.elapsedSec}s / {p.maxDurationSec}s
         </span>
-        <span>{p.sent} requêtes</span>
+        <span>{p.sent} requests</span>
         <span>{p.actualRps} rps</span>
         <span>
-          {p.successful} ok · {p.failed} échec
+          {p.successful} ok · {p.failed} failed
         </span>
       </div>
     </div>
@@ -128,7 +128,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
         <div className="campaign-actions">
           {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
             <button className="btn btn-sm" disabled={isBusy} onClick={() => app.setApproveFor(c)}>
-              Approuver / Rejeter
+              Approve / Reject
             </button>
           )}
           {c.status === 'APPROVED' && canDo(role, 'execute', ar) && (
@@ -137,7 +137,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
               disabled={isBusy}
               onClick={() => app.setConfirmExec(c)}
             >
-              {isBusy ? <span className="spin" /> : null}Exécuter
+              {isBusy ? <span className="spin" /> : null}Run
             </button>
           )}
           {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
@@ -152,31 +152,31 @@ export function CampaignCard({ c }: { c: Campaign }) {
               target="_blank"
               rel="noreferrer"
             >
-              Rapport ↗
+              Report ↗
             </a>
           )}
           {(run || c.runId) && (
             <button className="btn btn-sm btn-ghost" onClick={() => app.toggleDetails(c)}>
-              {app.expanded === c.id ? 'Masquer' : 'Détails'}
+              {app.expanded === c.id ? 'Hide' : 'Details'}
             </button>
           )}
         </div>
       </div>
       <div className="campaign-meta">
         <span>
-          Cible : <code>{c.target}</code>
+          Target: <code>{c.target}</code>
         </span>
         <span>{c.vector}</span>
         <span>
           {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
-          {c.scenario && c.scenario.length > 1 ? ` · scénario ${c.scenario.length} phases` : ''}
+          {c.scenario && c.scenario.length > 1 ? ` · scenario ${c.scenario.length} phases` : ''}
         </span>
         <span>
-          par {c.createdBy}
+          by {c.createdBy}
           {c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}
         </span>
         {c.scheduledAt && (
-          <span title="Exécution planifiée">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
+          <span title="Scheduled run">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
         )}
       </div>
 
@@ -186,29 +186,29 @@ export function CampaignCard({ c }: { c: Campaign }) {
         <div className="details">
           <div className="metrics">
             <div className="metric">
-              <div className="k">Requêtes</div>
+              <div className="k">Requests</div>
               <div className="v">{run.generator.totalRequests}</div>
             </div>
             <div className="metric">
-              <div className="k">Succès / échecs</div>
+              <div className="k">Success / failures</div>
               <div className="v">
                 {run.generator.successful} / {run.generator.failed}
               </div>
             </div>
             <div className="metric">
-              <div className="k">RPS réel</div>
+              <div className="k">Actual RPS</div>
               <div className="v">{run.generator.actualRps}</div>
             </div>
             <div className="metric">
-              <div className="k">Latence p95</div>
+              <div className="k">Latency p95</div>
               <div className="v">{run.generator.latencyMs.p95} ms</div>
             </div>
             <div className="metric">
-              <div className="k">Sonde 5xx</div>
+              <div className="k">Probe 5xx</div>
               <div className="v">{run.probe.errorRate5xx}%</div>
             </div>
             <div className="metric">
-              <div className="k">Dispo sonde</div>
+              <div className="k">Probe availability</div>
               <div className="v">
                 {run.probe.available}/{run.probe.samples}
               </div>
@@ -216,29 +216,29 @@ export function CampaignCard({ c }: { c: Campaign }) {
           </div>
           <div className="wrs-breakdown">
             <span>
-              Détection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
+              Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
             </span>
             <span>
               Mitigation{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.mitigation}</b>
             </span>
             <span>
-              Disponibilité <b>{run.wrs.availability}</b>
+              Availability <b>{run.wrs.availability}</b>
             </span>
             <span>
-              Collatéral <b>{run.wrs.collateral}</b>
+              Collateral <b>{run.wrs.collateral}</b>
             </span>
           </div>
           {run.wrs.estimated && (
             <p className="hint" style={{ marginTop: '.5rem' }}>
-              Détection et Mitigation sont <b>estimées</b> (pas d’intégration protection) :
-              constantes, le WRS reflète surtout la disponibilité mesurée.
+              Detection and Mitigation are <b>estimated</b> (no protection integration): they are
+              constant, so the WRS mostly reflects measured availability.
             </p>
           )}
         </div>
       )}
       {app.expanded === c.id && !run && (
         <div className="details">
-          <span className="hint">Aucune métrique détaillée disponible.</span>
+          <span className="hint">No detailed metrics available.</span>
         </div>
       )}
     </div>
@@ -341,10 +341,10 @@ export function NewCampaignForm() {
   if (!canCreate) return null;
   return (
     <section className="card">
-      <h2>Nouvelle campagne</h2>
+      <h2>New campaign</h2>
       <form className="grid" onSubmit={submit}>
         <div className="field">
-          <label>Nom</label>
+          <label>Name</label>
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -352,7 +352,7 @@ export function NewCampaignForm() {
           />
         </div>
         <div className="field">
-          <label>Vecteur</label>
+          <label>Vector</label>
           <select
             value={form.vector}
             onChange={(e) => setForm({ ...form, vector: e.target.value })}
@@ -362,7 +362,7 @@ export function NewCampaignForm() {
           </select>
         </div>
         <div className="field">
-          <label>Cible (URL)</label>
+          <label>Target (URL)</label>
           <input
             className={form.target && !targetAllowed ? 'invalid' : ''}
             value={form.target}
@@ -370,12 +370,12 @@ export function NewCampaignForm() {
           />
           {form.target && !targetAllowed && (
             <span className="hint" style={{ color: 'var(--danger)' }}>
-              Hôte hors liste blanche — sera refusé.
+              Host not in allowlist — will be rejected.
             </span>
           )}
         </div>
         <div className="field">
-          <label>Sonde (URL)</label>
+          <label>Probe (URL)</label>
           <input
             className={form.probeUrl && !probeAllowed ? 'invalid' : ''}
             value={form.probeUrl}
@@ -383,7 +383,7 @@ export function NewCampaignForm() {
           />
           {form.probeUrl && !probeAllowed && (
             <span className="hint" style={{ color: 'var(--danger)' }}>
-              Hôte hors liste blanche — sera refusé.
+              Host not in allowlist — will be rejected.
             </span>
           )}
         </div>
@@ -394,10 +394,10 @@ export function NewCampaignForm() {
             value={form.maxRps}
             onChange={(e) => setForm({ ...form, maxRps: Number(e.target.value) })}
           />
-          <span className="hint">plafond {HARD_CAPS.maxRps}</span>
+          <span className="hint">cap {HARD_CAPS.maxRps}</span>
         </div>
         <div className="field">
-          <label>Concurrence</label>
+          <label>Concurrency</label>
           <input
             type="number"
             value={form.concurrency}
@@ -406,7 +406,7 @@ export function NewCampaignForm() {
           <span className="hint">1–{HARD_CAPS.concurrency}</span>
         </div>
         <div className="field">
-          <label>Durée max (s)</label>
+          <label>Max duration (s)</label>
           <input
             type="number"
             value={form.maxDurationSec}
@@ -415,28 +415,28 @@ export function NewCampaignForm() {
           <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
         </div>
         <div className="field">
-          <label>Profil de charge</label>
+          <label>Load profile</label>
           <select
             value={form.profile}
             onChange={(e) => setForm({ ...form, profile: e.target.value })}
           >
             <option value="constant">Constant</option>
-            <option value="ramp">Montée progressive (25→50→100 %)</option>
-            <option value="wave">Vagues (100→20→100 %)</option>
+            <option value="ramp">Ramp-up (25→50→100%)</option>
+            <option value="wave">Waves (100→20→100%)</option>
           </select>
         </div>
         <div className="field">
-          <label>Planifier (optionnel)</label>
+          <label>Schedule (optional)</label>
           <input
             type="datetime-local"
             value={form.scheduledAt}
             onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
           />
-          <span className="hint">exécution auto une fois approuvée</span>
+          <span className="hint">auto-run once approved</span>
         </div>
         {form.vector === 'http-post' && (
           <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>Corps de la requête (POST)</label>
+            <label>Request body (POST)</label>
             <textarea
               rows={3}
               value={form.body}
@@ -451,12 +451,12 @@ export function NewCampaignForm() {
             onChange={(e) => setAttested(e.target.checked)}
           />
           <span>
-            J’atteste que la cible m’appartient ou que je dispose d’un <b>mandat écrit</b> pour la
-            tester (interne WEDOS / périmètre autorisé).
+            I attest that I own the target or hold a <b>written authorization</b> to test it
+            (internal WEDOS / authorized scope).
           </span>
         </label>
         <button type="submit" className="btn btn-primary btn-block" disabled={!formValid}>
-          Soumettre pour approbation
+          Submit for approval
         </button>
       </form>
     </section>
@@ -470,18 +470,18 @@ export function ExecuteModal() {
   return (
     <div className="overlay" onClick={() => app.setConfirmExec(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Confirmer l’exécution</h3>
+        <h3>Confirm run</h3>
         <p>
-          Tu vas générer une charge HTTP bornée de <b>{c.maxRps} rps</b> ({c.concurrency} en
-          parallèle) pendant <b>{c.maxDurationSec}s</b> vers{' '}
-          <span className="modal-target">{c.target}</span>. Le kill switch reste disponible.
+          You are about to generate a bounded HTTP load of <b>{c.maxRps} rps</b> ({c.concurrency} in
+          parallel) for <b>{c.maxDurationSec}s</b> against{' '}
+          <span className="modal-target">{c.target}</span>. The kill switch stays available.
         </p>
         <div className="btn-row">
           <button className="btn" onClick={() => app.setConfirmExec(null)}>
-            Annuler
+            Cancel
           </button>
           <button className="btn btn-primary" onClick={() => app.execute(c)}>
-            Lancer la campagne
+            Launch campaign
           </button>
         </div>
       </div>
@@ -504,15 +504,15 @@ export function ApproveModal() {
   return (
     <div className="overlay" onClick={() => app.setApproveFor(null)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Approbation — {c.name}</h3>
-        <p>Séparation des rôles : l’approbateur doit être différent de l’auteur ({c.createdBy}).</p>
+        <h3>Approval — {c.name}</h3>
+        <p>Separation of duties: the approver must differ from the author ({c.createdBy}).</p>
         {app.authRequired ? (
           <p className="hint">
-            Approbateur : <b>{app.identity?.email}</b>
+            Approver: <b>{app.identity?.email}</b>
           </p>
         ) : (
           <div className="field" style={{ marginBottom: '.75rem' }}>
-            <label>Approbateur (Security Officer)</label>
+            <label>Approver (Security Officer)</label>
             <input
               className={sameAsAuthor ? 'invalid' : ''}
               value={approver}
@@ -520,32 +520,32 @@ export function ApproveModal() {
             />
             {sameAsAuthor && (
               <span className="hint" style={{ color: 'var(--danger)' }}>
-                Doit différer de l’auteur.
+                Must differ from the author.
               </span>
             )}
           </div>
         )}
         <div className="field">
-          <label>Motif (requis pour un rejet)</label>
+          <label>Reason (required for rejection)</label>
           <input value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
         <div className="btn-row">
           <button className="btn" onClick={() => app.setApproveFor(null)}>
-            Annuler
+            Cancel
           </button>
           <button
             className="btn btn-danger"
             disabled={sameAsAuthor || !reason.trim()}
             onClick={() => app.approve(c, effective.trim(), 'REJECTED', reason)}
           >
-            Rejeter
+            Reject
           </button>
           <button
             className="btn btn-primary"
             disabled={sameAsAuthor || (!app.authRequired && !approver.trim())}
             onClick={() => app.approve(c, effective.trim(), 'APPROVED', reason)}
           >
-            Approuver
+            Approve
           </button>
         </div>
       </div>
@@ -573,7 +573,7 @@ export function Login() {
   };
   return (
     <section className="card" style={{ maxWidth: 420, margin: '2rem auto' }}>
-      <h2>Connexion</h2>
+      <h2>Sign in</h2>
       {error && (
         <p
           style={{
@@ -597,7 +597,7 @@ export function Login() {
           />
         </div>
         <div className="field">
-          <label>Mot de passe</label>
+          <label>Password</label>
           <input
             type="password"
             value={password}
@@ -607,7 +607,7 @@ export function Login() {
           />
         </div>
         <button type="submit" className="btn btn-primary" disabled={busy || !email || !password}>
-          {busy ? <span className="spin" /> : null}Se connecter
+          {busy ? <span className="spin" /> : null}Sign in
         </button>
       </form>
     </section>

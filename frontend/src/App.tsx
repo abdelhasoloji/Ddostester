@@ -11,9 +11,8 @@ import {
 } from './pages.js';
 
 /**
- * Portail d'authentification : tant que l'auth est activée et que l'opérateur
- * n'est pas connecté, on affiche l'écran de connexion (avec la barre d'accent
- * WEDOS) au lieu de l'application routée.
+ * Authentication gate: while auth is enabled and the operator is not signed in,
+ * show the sign-in screen (with the WEDOS accent bar) instead of the routed app.
  */
 function Gate() {
   const app = useApp();
@@ -21,7 +20,7 @@ function Gate() {
     return (
       <div className="app">
         <p className="hint" style={{ margin: '2rem' }}>
-          Chargement…
+          Loading…
         </p>
       </div>
     );
@@ -40,10 +39,10 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<OverviewPage />} />
-        <Route path="campagnes" element={<CampaignsPage />} />
-        <Route path="rapports" element={<ReportsPage />} />
+        <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />
-        <Route path="parametres" element={<SettingsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

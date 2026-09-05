@@ -9,15 +9,15 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
   try {
     parsed = new URL(rawUrl);
   } catch {
-    throw new CampaignError(`${label} : URL invalide (${rawUrl}).`);
+    throw new CampaignError(`${label}: invalid URL (${rawUrl}).`);
   }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new CampaignError(`${label} : seuls http/https sont supportés.`);
+    throw new CampaignError(`${label}: only http/https are supported.`);
   }
   if (!allowedHosts.includes(parsed.hostname)) {
     throw new CampaignError(
-      `${label} : hôte « ${parsed.hostname} » hors liste blanche. ` +
-        `Seules les cibles pré-validées (internes / mandatées) sont acceptées.`,
+      `${label}: host "${parsed.hostname}" is not in the allowlist. ` +
+        `Only pre-approved targets (internal / mandated) are accepted.`,
     );
   }
 }
@@ -30,43 +30,43 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
 export function createCampaign(input: CampaignInput, allowedHosts: string[]): Campaign {
   if (!input.authorized) {
     throw new CampaignError(
-      "La campagne doit être attestée autorisée (authorized=true) par l'auteur.",
+      'The campaign must be attested as authorized (authorized=true) by its author.',
     );
   }
-  if (!input.name?.trim()) throw new CampaignError('Nom de campagne requis.');
-  if (!input.createdBy?.trim()) throw new CampaignError('Auteur (createdBy) requis.');
+  if (!input.name?.trim()) throw new CampaignError('Campaign name is required.');
+  if (!input.createdBy?.trim()) throw new CampaignError('Author (createdBy) is required.');
 
-  assertHostAllowed(input.target, allowedHosts, 'Cible');
-  assertHostAllowed(input.probeUrl, allowedHosts, 'Sonde');
+  assertHostAllowed(input.target, allowedHosts, 'Target');
+  assertHostAllowed(input.probeUrl, allowedHosts, 'Probe');
 
   if (!(input.maxRps > 0) || input.maxRps > HARD_CAPS.maxRps) {
-    throw new CampaignError(`maxRps doit être dans ]0, ${HARD_CAPS.maxRps}].`);
+    throw new CampaignError(`maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
   }
   if (input.concurrency < 1 || input.concurrency > HARD_CAPS.maxConcurrency) {
-    throw new CampaignError(`concurrency doit être dans [1, ${HARD_CAPS.maxConcurrency}].`);
+    throw new CampaignError(`concurrency must be within [1, ${HARD_CAPS.maxConcurrency}].`);
   }
   if (input.maxDurationSec < 1 || input.maxDurationSec > HARD_CAPS.maxDurationSec) {
-    throw new CampaignError(`maxDurationSec doit être dans [1, ${HARD_CAPS.maxDurationSec}].`);
+    throw new CampaignError(`maxDurationSec must be within [1, ${HARD_CAPS.maxDurationSec}].`);
   }
 
   if (input.scheduledAt !== undefined && Number.isNaN(Date.parse(input.scheduledAt))) {
-    throw new CampaignError('scheduledAt : date ISO invalide.');
+    throw new CampaignError('scheduledAt: invalid ISO date.');
   }
 
   if (input.scenario) {
     if (input.scenario.length < 1 || input.scenario.length > 12) {
-      throw new CampaignError('Un scénario doit comporter entre 1 et 12 phases.');
+      throw new CampaignError('A scenario must have between 1 and 12 phases.');
     }
     let totalDur = 0;
     for (const p of input.scenario) {
       if (!(p.maxRps > 0) || p.maxRps > HARD_CAPS.maxRps) {
-        throw new CampaignError(`Phase : maxRps doit être dans ]0, ${HARD_CAPS.maxRps}].`);
+        throw new CampaignError(`Phase: maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
       }
-      if (p.durationSec < 1) throw new CampaignError('Phase : durée ≥ 1 s.');
+      if (p.durationSec < 1) throw new CampaignError('Phase: duration ≥ 1 s.');
       totalDur += p.durationSec;
     }
     if (totalDur > HARD_CAPS.maxDurationSec) {
-      throw new CampaignError(`Durée totale du scénario ≤ ${HARD_CAPS.maxDurationSec}s.`);
+      throw new CampaignError(`Total scenario duration ≤ ${HARD_CAPS.maxDurationSec}s.`);
     }
     // Normalise les champs agrégés pour l'affichage/metrics.
     input.maxRps = Math.max(...input.scenario.map((p) => p.maxRps));
@@ -93,14 +93,14 @@ export function approveCampaign(
   reason?: string,
 ): Campaign {
   if (campaign.status !== 'PENDING_APPROVAL') {
-    throw new CampaignError(`Campagne non approuvable (statut ${campaign.status}).`);
+    throw new CampaignError(`Campaign is not approvable (status ${campaign.status}).`);
   }
-  if (!approvedBy?.trim()) throw new CampaignError('Approbateur requis.');
+  if (!approvedBy?.trim()) throw new CampaignError('Approver is required.');
   if (approvedBy === campaign.createdBy) {
-    throw new CampaignError('Séparation des rôles : approbateur ≠ auteur.');
+    throw new CampaignError('Separation of duties: approver ≠ author.');
   }
   if (decision === 'REJECTED' && !reason?.trim()) {
-    throw new CampaignError('Un rejet doit être motivé.');
+    throw new CampaignError('A rejection must include a reason.');
   }
 
   const approvalExpiresAt =
@@ -112,10 +112,10 @@ export function approveCampaign(
 /** Vérifie qu'une campagne est exécutable maintenant (approuvée, non expirée). */
 export function assertExecutable(campaign: Campaign): void {
   if (campaign.status !== 'APPROVED') {
-    throw new CampaignError(`Campagne non exécutable (statut ${campaign.status}).`);
+    throw new CampaignError(`Campaign is not executable (status ${campaign.status}).`);
   }
   if (campaign.approvalExpiresAt && Date.parse(campaign.approvalExpiresAt) < Date.now()) {
-    throw new CampaignError("L'approbation a expiré (validité 24h) — à re-soumettre.");
+    throw new CampaignError('Approval has expired (valid for 24h) — please re-submit.');
   }
 }
 

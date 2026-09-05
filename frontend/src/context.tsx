@@ -69,7 +69,7 @@ interface Ctx {
 const AppCtx = createContext<Ctx | null>(null);
 export function useApp(): Ctx {
   const c = useContext(AppCtx);
-  if (!c) throw new Error('useApp hors provider');
+  if (!c) throw new Error('useApp used outside provider');
   return c;
 }
 
@@ -170,7 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createCampaign = async (payload: Record<string, unknown>) => {
     await api.createCampaign({ ...payload, createdBy: authRequired ? identity?.email : operator });
-    push('success', 'Campagne créée — en attente d’approbation.');
+    push('success', 'Campaign created — awaiting approval.');
     refresh();
   };
 
@@ -184,7 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBusyFor(c.id, true);
     try {
       await api.approve(c.id, { approvedBy, decision, reason: reason || undefined });
-      push('success', decision === 'APPROVED' ? 'Campagne approuvée.' : 'Campagne rejetée.');
+      push('success', decision === 'APPROVED' ? 'Campaign approved.' : 'Campaign rejected.');
       refresh();
     } catch (err) {
       push('error', (err as Error).message);
@@ -203,7 +203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setExpanded(c.id);
       push(
         run.status === 'COMPLETED' ? 'success' : 'info',
-        `Exécution ${run.status} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,
+        `Run ${run.status} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,
       );
       refresh();
       loadHistory();
@@ -218,7 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const kill = async (c: Campaign) => {
     try {
       await api.kill(c.id);
-      push('info', 'Kill switch déclenché.');
+      push('info', 'Kill switch triggered.');
       refresh();
     } catch (err) {
       push('error', (err as Error).message);
@@ -236,7 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const run = await api.getRun(c.runId);
         setRuns((r) => ({ ...r, [c.id]: run }));
       } catch {
-        /* pas de run détaillé */
+        /* no detailed run available */
       }
     }
   };

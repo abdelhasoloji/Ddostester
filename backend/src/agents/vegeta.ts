@@ -134,7 +134,7 @@ export class VegetaAgent implements AttackAgent {
     validateConfig(config, allowedHosts);
     if (!(await this.available())) {
       throw new AgentError(
-        `Agent vegeta indisponible (binaire « ${this.bin} »). Installer Vegeta ou choisir AGENT=builtin.`,
+        `vegeta agent unavailable (binary "${this.bin}"). Install Vegeta or choose AGENT=builtin.`,
       );
     }
     const dir = await mkdtemp(join(tmpdir(), 'shieldtest-vegeta-'));

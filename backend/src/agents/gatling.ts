@@ -114,12 +114,12 @@ export class GatlingAgent implements AttackAgent {
     validateConfig(config, allowedHosts);
     if (config.phases?.length) {
       throw new AgentError(
-        "Scénario multi-phases non supporté par l'agent gatling — utiliser AGENT=k6 ou vegeta.",
+        'Multi-phase scenario not supported by the gatling agent — use AGENT=k6 or vegeta.',
       );
     }
     if (!(await this.available())) {
       throw new AgentError(
-        `Agent gatling indisponible (binaire « ${this.bin} »). Installer Gatling ou choisir AGENT=builtin.`,
+        `gatling agent unavailable (binary "${this.bin}"). Install Gatling or choose AGENT=builtin.`,
       );
     }
     const dir = await mkdtemp(join(tmpdir(), 'shieldtest-gatling-'));

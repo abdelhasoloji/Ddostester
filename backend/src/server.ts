@@ -35,16 +35,16 @@ if (SCHEDULER) {
     try {
       const campaigns = await store.listCampaigns();
       for (const c of dueCampaigns(campaigns, Date.now())) {
-        if (kills.get(c.id)) continue; // déjà en cours
-        app.log.info(`ordonnanceur : exécution planifiée de ${c.id}`);
+        if (kills.get(c.id)) continue; // already running
+        app.log.info(`scheduler: running scheduled campaign ${c.id}`);
         try {
           await runCampaign(c, 'scheduler');
         } catch (err) {
-          app.log.error({ err }, `échec exécution planifiée ${c.id}`);
+          app.log.error({ err }, `scheduled run failed ${c.id}`);
         }
       }
     } catch (err) {
-      app.log.error({ err }, 'échec tick ordonnanceur');
+      app.log.error({ err }, 'scheduler tick failed');
     } finally {
       ticking = false;
     }
@@ -56,12 +56,12 @@ let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  app.log.info(`arrêt en cours (${signal})…`);
+  app.log.info(`shutting down (${signal})…`);
   try {
     await app.close();
     await store.close();
   } catch (err) {
-    app.log.error({ err }, 'erreur pendant l’arrêt');
+    app.log.error({ err }, 'error during shutdown');
   } finally {
     process.exit(0);
   }
@@ -74,7 +74,7 @@ app
   .listen({ port: PORT, host: HOST })
   .then((addr) =>
     app.log.info(
-      `ShieldTest control plane sur ${addr} — stockage: ${store.backend} — ordonnanceur: ${SCHEDULER ? 'on' : 'off'} — cibles: ${ALLOWED_TARGETS.join(', ')}`,
+      `ShieldTest control plane on ${addr} — storage: ${store.backend} — scheduler: ${SCHEDULER ? 'on' : 'off'} — targets: ${ALLOWED_TARGETS.join(', ')}`,
     ),
   )
   .catch((err) => {
