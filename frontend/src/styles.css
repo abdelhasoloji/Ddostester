@@ -5,9 +5,9 @@
   --border: #e2e5ea;
   --text: #1a1d21;
   --muted: #6b7280;
-  /* Marque WEDOS — ajuster --brand au hex officiel si besoin. */
-  --brand: #1565c0;
-  --brand-2: #0d47a1;
+  /* Marque WEDOS — couleur officielle extraite du logo. */
+  --brand: #003484;
+  --brand-2: #002a6b;
   --accent: #f5a623;
   --primary: var(--brand);
   --primary-hover: var(--brand-2);
@@ -31,11 +31,11 @@
     --border: #2a2f3a;
     --text: #e6e8eb;
     --muted: #9aa3af;
-    --brand: #42a5f5;
-    --brand-2: #1e88e5;
+    --brand: #4f8fdb;
+    --brand-2: #003484;
     --accent: #f5a623;
     --primary: var(--brand);
-    --primary-hover: #90caf9;
+    --primary-hover: #7cabe6;
     --danger: #f87171;
     --danger-bg: #2a1414;
     --success: #4ade80;
@@ -56,7 +56,12 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 /* Brand bar */
 .brandbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 0 .75rem; border-bottom: 1px solid var(--border); margin-bottom: .75rem; }
 .brand-lockup { display: flex; align-items: center; gap: .7rem; }
-.brand-logo { height: 40px; width: auto; display: block; }
+.brand-logo { height: 34px; width: auto; display: block; }
+.logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  .logo-light { display: none; }
+  .logo-dark { display: block; }
+}
 .brand-tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--brand); border: 1px solid var(--brand); border-radius: 999px; padding: .18rem .55rem; }
 
 /* Header */

@@ -215,8 +215,9 @@ export function App() {
     <div className="app">
       <header className="brandbar">
         <div className="brand-lockup">
-          <img className="brand-logo" src="/wedos-logo.svg" alt="WEDOS ShieldTest" />
-          <span className="brand-tag">Control Plane</span>
+          <img className="brand-logo logo-light" src="/wedos-logo.png" alt="WEDOS" />
+          <img className="brand-logo logo-dark" src="/wedos-logo-white.png" alt="WEDOS" />
+          <span className="brand-tag">ShieldTest · Control Plane</span>
         </div>
         <div className="identity">
           <label htmlFor="op">Opérateur</label>
