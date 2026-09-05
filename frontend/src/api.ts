@@ -55,26 +55,60 @@ export interface CampaignRun {
   wrs: WrsBreakdown;
 }
 
+export type Role = 'engineer' | 'officer' | 'viewer';
+
+let token: string | null = localStorage.getItem('token');
+export function setToken(t: string | null): void {
+  token = t;
+  if (t) localStorage.setItem('token', t);
+  else localStorage.removeItem('token');
+}
+export function getToken(): string | null {
+  return token;
+}
+
+function authHeaders(base: Record<string, string> = {}): Record<string, string> {
+  return token ? { ...base, authorization: `Bearer ${token}` } : base;
+}
+
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
+  if (!res.ok) {
+    if (res.status === 401) setToken(null);
+    throw new Error((data as { error?: string }).error ?? res.statusText);
+  }
   return data as T;
 }
 
+function get<T>(url: string): Promise<T> {
+  return fetch(url, { headers: authHeaders() }).then((r) => json<T>(r));
+}
 function post<T>(url: string, body?: unknown): Promise<T> {
   return fetch(url, {
     method: 'POST',
-    headers: body ? { 'content-type': 'application/json' } : undefined,
+    headers: authHeaders(body ? { 'content-type': 'application/json' } : {}),
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => json<T>(r));
 }
 
+/** URL du rapport pour un lien navigateur (token en query si auth activée). */
+export function reportUrl(runId: string): string {
+  const u = `/api/runs/${runId}/report`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
 export const api = {
-  health: () => fetch('/health').then((r) => json<{ status: string; allowedTargets: string[] }>(r)),
-  listCampaigns: () => fetch('/api/campaigns').then((r) => json<Campaign[]>(r)),
+  health: () =>
+    fetch('/health').then((r) =>
+      json<{ status: string; allowedTargets: string[]; storage: string; authRequired: boolean }>(r),
+    ),
+  login: (email: string, password: string) =>
+    post<{ token: string; email: string; role: Role }>('/api/auth/login', { email, password }),
+  me: () => get<{ email: string | null; role: Role | null }>('/api/auth/me'),
+  listCampaigns: () => get<Campaign[]>('/api/campaigns'),
   createCampaign: (body: unknown) => post<Campaign>('/api/campaigns', body),
   approve: (id: string, body: unknown) => post<Campaign>(`/api/campaigns/${id}/approval`, body),
   execute: (id: string) => post<CampaignRun>(`/api/campaigns/${id}/execute`),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
-  getRun: (runId: string) => fetch(`/api/runs/${runId}`).then((r) => json<CampaignRun>(r)),
+  getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
 };

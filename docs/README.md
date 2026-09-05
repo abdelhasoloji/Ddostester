@@ -9,6 +9,7 @@ documentation technique et opérationnelle.
 | [deployment.md](./deployment.md) | Déploiement serveur, systemd, tunnel SSH, mise à jour |
 | [usage.md](./usage.md) | Parcours complet : créer → approuver → exécuter → rapport |
 | [api.md](./api.md) | Référence des endpoints REST avec exemples `curl` |
+| [auth.md](./auth.md) | Authentification JWT, rôles (RBAC), séparation des rôles |
 | [wrs.md](./wrs.md) | Formule et interprétation du WEDOS Resiliency Score |
 | [safeguards.md](./safeguards.md) | Modèle de sécurité, périmètre, ce qui n'est pas implémenté |
 

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api } from './api.js';
-import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown } from './api.js';
+import { useCallback, useEffect, useState } from 'react';
+import { api, setToken, getToken, reportUrl } from './api.js';
+import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role } from './api.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
@@ -23,6 +23,26 @@ function useToasts() {
 }
 
 // ---------- helpers ----------
+interface Identity {
+  email: string;
+  role: Role;
+}
+type Perm = 'create' | 'approve' | 'execute' | 'kill';
+const PERMS: Record<Role, Perm[]> = {
+  officer: ['create', 'approve', 'execute', 'kill'],
+  engineer: ['create', 'execute', 'kill'],
+  viewer: ['kill'],
+};
+const roleLabel: Record<Role, string> = {
+  officer: 'Security Officer',
+  engineer: 'Security Engineer',
+  viewer: 'SOC / NOC',
+};
+function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
+  if (!authRequired) return true; // mode dev : toutes les actions
+  return role ? PERMS[role].includes(perm) : false;
+}
+
 function hostOf(url: string): string | null {
   try {
     return new URL(url).hostname;
@@ -73,8 +93,24 @@ const emptyForm = {
   body: '',
 };
 
+function BrandHeader({ right }: { right: React.ReactNode }) {
+  return (
+    <header className="brandbar">
+      <div className="brand-lockup">
+        <img className="brand-logo logo-light" src="/wedos-logo.png" alt="WEDOS" />
+        <img className="brand-logo logo-dark" src="/wedos-logo-white.png" alt="WEDOS" />
+        <span className="brand-tag">ShieldTest · Control Plane</span>
+      </div>
+      {right}
+    </header>
+  );
+}
+
 export function App() {
   const [allowed, setAllowed] = useState<string[]>([]);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [identity, setIdentity] = useState<Identity | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [operator, setOperator] = useState(() => localStorage.getItem('operator') ?? '');
   const [form, setForm] = useState({ ...emptyForm });
@@ -86,22 +122,43 @@ export function App() {
   const [approveFor, setApproveFor] = useState<Campaign | null>(null);
   const { toasts, push } = useToasts();
 
+  const role = identity?.role ?? null;
+
   const refresh = useCallback(() => {
     api.listCampaigns().then(setCampaigns).catch((e) => push('error', e.message));
   }, [push]);
 
   useEffect(() => {
-    api.health().then((h) => setAllowed(h.allowedTargets)).catch(() => undefined);
-    refresh();
-  }, [refresh]);
+    api
+      .health()
+      .then(async (h) => {
+        setAllowed(h.allowedTargets);
+        setAuthRequired(h.authRequired);
+        if (h.authRequired && getToken()) {
+          try {
+            const me = await api.me();
+            if (me.email && me.role) setIdentity({ email: me.email, role: me.role });
+            else setToken(null);
+          } catch {
+            setToken(null);
+          }
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setAuthChecked(true));
+  }, []);
 
-  // Auto-refresh tant qu'une campagne tourne.
+  const ready = authChecked && (!authRequired || identity !== null);
+  useEffect(() => {
+    if (ready) refresh();
+  }, [ready, refresh]);
+
   const anyRunning = campaigns.some((c) => c.status === 'RUNNING');
   useEffect(() => {
-    if (!anyRunning) return;
+    if (!anyRunning || !ready) return;
     const t = setInterval(refresh, 2000);
     return () => clearInterval(t);
-  }, [anyRunning, refresh]);
+  }, [anyRunning, ready, refresh]);
 
   useEffect(() => localStorage.setItem('operator', operator), [operator]);
 
@@ -118,13 +175,21 @@ export function App() {
     form.concurrency <= HARD_CAPS.concurrency &&
     form.maxDurationSec >= 1 &&
     form.maxDurationSec <= HARD_CAPS.maxDurationSec;
+  const identityOk = authRequired ? identity !== null : operator.trim() !== '';
+  const canCreate = canDo(role, 'create', authRequired);
   const formValid =
-    form.name.trim() !== '' &&
-    operator.trim() !== '' &&
-    targetAllowed &&
-    probeAllowed &&
-    capsOk &&
-    attested;
+    form.name.trim() !== '' && identityOk && targetAllowed && probeAllowed && capsOk && attested && canCreate;
+
+  const login = async (email: string, password: string) => {
+    const r = await api.login(email, password);
+    setToken(r.token);
+    setIdentity({ email: r.email, role: r.role });
+  };
+  const logout = () => {
+    setToken(null);
+    setIdentity(null);
+    setCampaigns([]);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +197,7 @@ export function App() {
     try {
       await api.createCampaign({
         name: form.name,
-        createdBy: operator,
+        createdBy: authRequired ? identity?.email : operator,
         target: form.target,
         probeUrl: form.probeUrl,
         vector: form.vector,
@@ -173,7 +238,10 @@ export function App() {
       const run = await api.execute(c.id);
       setRuns((r) => ({ ...r, [c.id]: run }));
       setExpanded(c.id);
-      push(run.status === 'COMPLETED' ? 'success' : 'info', `Exécution ${badgeLabel[run.status]} — WRS ${run.wrs.wrs} (${run.wrs.level}).`);
+      push(
+        run.status === 'COMPLETED' ? 'success' : 'info',
+        `Exécution ${badgeLabel[run.status]} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,
+      );
       refresh();
     } catch (err) {
       push('error', (err as Error).message);
@@ -209,218 +277,301 @@ export function App() {
     }
   };
 
+  // --- écran de connexion (auth activée, non connecté) ---
+  if (authChecked && authRequired && !identity) {
+    return (
+      <>
+        <div className="accent-line" />
+        <div className="app">
+          <BrandHeader right={null} />
+          <Login onLogin={login} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-    <div className="accent-line" />
-    <div className="app">
-      <header className="brandbar">
-        <div className="brand-lockup">
-          <img className="brand-logo logo-light" src="/wedos-logo.png" alt="WEDOS" />
-          <img className="brand-logo logo-dark" src="/wedos-logo-white.png" alt="WEDOS" />
-          <span className="brand-tag">ShieldTest · Control Plane</span>
+      <div className="accent-line" />
+      <div className="app">
+        <BrandHeader
+          right={
+            authRequired && identity ? (
+              <div className="identity">
+                <span className="hint">
+                  {identity.email} · <b>{roleLabel[identity.role]}</b>
+                </span>
+                <button className="btn btn-sm btn-ghost" onClick={logout}>
+                  Déconnexion
+                </button>
+              </div>
+            ) : (
+              <div className="identity">
+                <label htmlFor="op">Opérateur</label>
+                <input
+                  id="op"
+                  placeholder="prenom.nom@wedos"
+                  value={operator}
+                  onChange={(e) => setOperator(e.target.value)}
+                />
+              </div>
+            )
+          }
+        />
+        <p className="subtitle" style={{ marginBottom: '.5rem' }}>
+          Cibles autorisées : <code>{allowed.join(', ') || '—'}</code> · générateur HTTP borné
+          (aucun vecteur volumétrique).
+        </p>
+
+        {canCreate && (
+          <section className="card">
+            <h2>Nouvelle campagne</h2>
+            <form className="grid" onSubmit={submit}>
+              <div className="field">
+                <label>Nom</label>
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="field">
+                <label>Vecteur</label>
+                <select value={form.vector} onChange={(e) => setForm({ ...form, vector: e.target.value })}>
+                  <option value="http-get">http-get</option>
+                  <option value="http-post">http-post</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label>Cible (URL)</label>
+                <input
+                  className={form.target && !targetAllowed ? 'invalid' : ''}
+                  value={form.target}
+                  onChange={(e) => setForm({ ...form, target: e.target.value })}
+                />
+                {form.target && !targetAllowed && (
+                  <span className="hint" style={{ color: 'var(--danger)' }}>
+                    Hôte hors liste blanche — sera refusé.
+                  </span>
+                )}
+              </div>
+              <div className="field">
+                <label>Sonde (URL)</label>
+                <input
+                  className={form.probeUrl && !probeAllowed ? 'invalid' : ''}
+                  value={form.probeUrl}
+                  onChange={(e) => setForm({ ...form, probeUrl: e.target.value })}
+                />
+                {form.probeUrl && !probeAllowed && (
+                  <span className="hint" style={{ color: 'var(--danger)' }}>
+                    Hôte hors liste blanche — sera refusé.
+                  </span>
+                )}
+              </div>
+
+              <div className="field">
+                <label>Max RPS</label>
+                <input
+                  type="number"
+                  value={form.maxRps}
+                  onChange={(e) => setForm({ ...form, maxRps: Number(e.target.value) })}
+                />
+                <span className="hint">plafond {HARD_CAPS.maxRps}</span>
+              </div>
+              <div className="field">
+                <label>Concurrence</label>
+                <input
+                  type="number"
+                  value={form.concurrency}
+                  onChange={(e) => setForm({ ...form, concurrency: Number(e.target.value) })}
+                />
+                <span className="hint">1–{HARD_CAPS.concurrency}</span>
+              </div>
+              <div className="field">
+                <label>Durée max (s)</label>
+                <input
+                  type="number"
+                  value={form.maxDurationSec}
+                  onChange={(e) => setForm({ ...form, maxDurationSec: Number(e.target.value) })}
+                />
+                <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
+              </div>
+
+              {form.vector === 'http-post' && (
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label>Corps de la requête (POST)</label>
+                  <textarea rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+                </div>
+              )}
+
+              <label className="attest">
+                <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} />
+                <span>
+                  J’atteste que la cible m’appartient ou que je dispose d’un <b>mandat écrit</b> pour la
+                  tester (interne WEDOS / périmètre autorisé).
+                </span>
+              </label>
+
+              <button type="submit" className="btn btn-primary btn-block" disabled={!formValid}>
+                Soumettre pour approbation
+              </button>
+            </form>
+          </section>
+        )}
+
+        <h2 className="section-title">
+          Campagnes {anyRunning && <span className="hint">· actualisation auto…</span>}
+        </h2>
+        <div className="campaigns">
+          {campaigns.length === 0 && <div className="empty">Aucune campagne pour l’instant.</div>}
+          {campaigns.map((c) => {
+            const run = runs[c.id];
+            const isBusy = busy[c.id];
+            return (
+              <div className="campaign" key={c.id}>
+                <div className="campaign-head">
+                  <span className="campaign-name">{c.name}</span>
+                  <StatusBadge status={c.status} />
+                  {c.wrs && <WrsPill wrs={c.wrs} />}
+                  <div className="campaign-actions">
+                    {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', authRequired) && (
+                      <button className="btn btn-sm" disabled={isBusy} onClick={() => setApproveFor(c)}>
+                        Approuver / Rejeter
+                      </button>
+                    )}
+                    {c.status === 'APPROVED' && canDo(role, 'execute', authRequired) && (
+                      <button className="btn btn-sm btn-primary" disabled={isBusy} onClick={() => setConfirmExec(c)}>
+                        {isBusy ? <span className="spin" /> : null}Exécuter
+                      </button>
+                    )}
+                    {c.status === 'RUNNING' && canDo(role, 'kill', authRequired) && (
+                      <button className="btn btn-sm btn-danger" onClick={() => doKill(c)}>
+                        Kill switch
+                      </button>
+                    )}
+                    {c.runId && (
+                      <a className="btn btn-sm btn-ghost" href={reportUrl(c.runId)} target="_blank" rel="noreferrer">
+                        Rapport ↗
+                      </a>
+                    )}
+                    {(run || c.runId) && (
+                      <button className="btn btn-sm btn-ghost" onClick={() => toggleDetails(c)}>
+                        {expanded === c.id ? 'Masquer' : 'Détails'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="campaign-meta">
+                  <span>
+                    Cible : <code>{c.target}</code>
+                  </span>
+                  <span>{c.vector}</span>
+                  <span>
+                    {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
+                  </span>
+                  <span>
+                    par {c.createdBy}
+                    {c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}
+                  </span>
+                </div>
+
+                {expanded === c.id && run && (
+                  <div className="details">
+                    <div className="metrics">
+                      <div className="metric"><div className="k">Requêtes</div><div className="v">{run.generator.totalRequests}</div></div>
+                      <div className="metric"><div className="k">Succès / échecs</div><div className="v">{run.generator.successful} / {run.generator.failed}</div></div>
+                      <div className="metric"><div className="k">RPS réel</div><div className="v">{run.generator.actualRps}</div></div>
+                      <div className="metric"><div className="k">Latence p95</div><div className="v">{run.generator.latencyMs.p95} ms</div></div>
+                      <div className="metric"><div className="k">Sonde 5xx</div><div className="v">{run.probe.errorRate5xx}%</div></div>
+                      <div className="metric"><div className="k">Dispo sonde</div><div className="v">{run.probe.available}/{run.probe.samples}</div></div>
+                    </div>
+                    <div className="wrs-breakdown">
+                      <span>Détection <b>{run.wrs.detection}</b></span>
+                      <span>Mitigation <b>{run.wrs.mitigation}</b></span>
+                      <span>Disponibilité <b>{run.wrs.availability}</b></span>
+                      <span>Collatéral <b>{run.wrs.collateral}</b></span>
+                    </div>
+                  </div>
+                )}
+                {expanded === c.id && !run && (
+                  <div className="details"><span className="hint">Aucune métrique détaillée disponible.</span></div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div className="identity">
-          <label htmlFor="op">Opérateur</label>
+
+        {confirmExec && (
+          <ExecuteModal
+            campaign={confirmExec}
+            onCancel={() => setConfirmExec(null)}
+            onConfirm={() => doExecute(confirmExec)}
+          />
+        )}
+        {approveFor && (
+          <ApproveModal
+            campaign={approveFor}
+            authRequired={authRequired}
+            identityEmail={identity?.email ?? operator}
+            onCancel={() => setApproveFor(null)}
+            onDecide={doApprove}
+          />
+        )}
+
+        <div className="toasts">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.kind}`}>{t.msg}</div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Login({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card" style={{ maxWidth: 420, margin: '2rem auto' }}>
+      <h2>Connexion</h2>
+      {error && (
+        <p style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '.5rem .75rem', borderRadius: 6 }}>
+          {error}
+        </p>
+      )}
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+        <div className="field">
+          <label>Email</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
+        </div>
+        <div className="field">
+          <label>Mot de passe</label>
           <input
-            id="op"
-            placeholder="prenom.nom@wedos"
-            value={operator}
-            onChange={(e) => setOperator(e.target.value)}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
           />
         </div>
-      </header>
-      <p className="subtitle" style={{ marginBottom: '.5rem' }}>
-        Cibles autorisées : <code>{allowed.join(', ') || '—'}</code> · générateur HTTP borné
-        (aucun vecteur volumétrique).
-      </p>
-
-      <section className="card">
-        <h2>Nouvelle campagne</h2>
-        <form className="grid" onSubmit={submit}>
-          <div className="field">
-            <label>Nom</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </div>
-          <div className="field">
-            <label>Vecteur</label>
-            <select value={form.vector} onChange={(e) => setForm({ ...form, vector: e.target.value })}>
-              <option value="http-get">http-get</option>
-              <option value="http-post">http-post</option>
-            </select>
-          </div>
-
-          <div className="field">
-            <label>Cible (URL)</label>
-            <input
-              className={form.target && !targetAllowed ? 'invalid' : ''}
-              value={form.target}
-              onChange={(e) => setForm({ ...form, target: e.target.value })}
-            />
-            {form.target && !targetAllowed && (
-              <span className="hint" style={{ color: 'var(--danger)' }}>
-                Hôte hors liste blanche — sera refusé.
-              </span>
-            )}
-          </div>
-          <div className="field">
-            <label>Sonde (URL)</label>
-            <input
-              className={form.probeUrl && !probeAllowed ? 'invalid' : ''}
-              value={form.probeUrl}
-              onChange={(e) => setForm({ ...form, probeUrl: e.target.value })}
-            />
-            {form.probeUrl && !probeAllowed && (
-              <span className="hint" style={{ color: 'var(--danger)' }}>
-                Hôte hors liste blanche — sera refusé.
-              </span>
-            )}
-          </div>
-
-          <div className="field">
-            <label>Max RPS</label>
-            <input
-              type="number"
-              value={form.maxRps}
-              onChange={(e) => setForm({ ...form, maxRps: Number(e.target.value) })}
-            />
-            <span className="hint">plafond {HARD_CAPS.maxRps}</span>
-          </div>
-          <div className="field">
-            <label>Concurrence</label>
-            <input
-              type="number"
-              value={form.concurrency}
-              onChange={(e) => setForm({ ...form, concurrency: Number(e.target.value) })}
-            />
-            <span className="hint">1–{HARD_CAPS.concurrency}</span>
-          </div>
-          <div className="field">
-            <label>Durée max (s)</label>
-            <input
-              type="number"
-              value={form.maxDurationSec}
-              onChange={(e) => setForm({ ...form, maxDurationSec: Number(e.target.value) })}
-            />
-            <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
-          </div>
-
-          {form.vector === 'http-post' && (
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label>Corps de la requête (POST)</label>
-              <textarea rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-            </div>
-          )}
-
-          <label className="attest">
-            <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} />
-            <span>
-              J’atteste que la cible m’appartient ou que je dispose d’un <b>mandat écrit</b> pour la
-              tester (interne WEDOS / périmètre autorisé).
-            </span>
-          </label>
-
-          <button type="submit" className="btn btn-primary btn-block" disabled={!formValid}>
-            Soumettre pour approbation
-          </button>
-        </form>
-      </section>
-
-      <h2 className="section-title">Campagnes {anyRunning && <span className="hint">· actualisation auto…</span>}</h2>
-      <div className="campaigns">
-        {campaigns.length === 0 && <div className="empty">Aucune campagne pour l’instant.</div>}
-        {campaigns.map((c) => {
-          const run = runs[c.id];
-          const isBusy = busy[c.id];
-          return (
-            <div className="campaign" key={c.id}>
-              <div className="campaign-head">
-                <span className="campaign-name">{c.name}</span>
-                <StatusBadge status={c.status} />
-                {c.wrs && <WrsPill wrs={c.wrs} />}
-                <div className="campaign-actions">
-                  {c.status === 'PENDING_APPROVAL' && (
-                    <button className="btn btn-sm" disabled={isBusy} onClick={() => setApproveFor(c)}>
-                      Approuver / Rejeter
-                    </button>
-                  )}
-                  {c.status === 'APPROVED' && (
-                    <button className="btn btn-sm btn-primary" disabled={isBusy} onClick={() => setConfirmExec(c)}>
-                      {isBusy ? <span className="spin" /> : null}Exécuter
-                    </button>
-                  )}
-                  {c.status === 'RUNNING' && (
-                    <button className="btn btn-sm btn-danger" onClick={() => doKill(c)}>
-                      Kill switch
-                    </button>
-                  )}
-                  {c.runId && (
-                    <a className="btn btn-sm btn-ghost" href={`/api/runs/${c.runId}/report`} target="_blank" rel="noreferrer">
-                      Rapport ↗
-                    </a>
-                  )}
-                  {(run || c.runId) && (
-                    <button className="btn btn-sm btn-ghost" onClick={() => toggleDetails(c)}>
-                      {expanded === c.id ? 'Masquer' : 'Détails'}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="campaign-meta">
-                <span>Cible : <code>{c.target}</code></span>
-                <span>{c.vector}</span>
-                <span>{c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s</span>
-                <span>par {c.createdBy}{c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}</span>
-              </div>
-
-              {expanded === c.id && run && (
-                <div className="details">
-                  <div className="metrics">
-                    <div className="metric"><div className="k">Requêtes</div><div className="v">{run.generator.totalRequests}</div></div>
-                    <div className="metric"><div className="k">Succès / échecs</div><div className="v">{run.generator.successful} / {run.generator.failed}</div></div>
-                    <div className="metric"><div className="k">RPS réel</div><div className="v">{run.generator.actualRps}</div></div>
-                    <div className="metric"><div className="k">Latence p95</div><div className="v">{run.generator.latencyMs.p95} ms</div></div>
-                    <div className="metric"><div className="k">Sonde 5xx</div><div className="v">{run.probe.errorRate5xx}%</div></div>
-                    <div className="metric"><div className="k">Dispo sonde</div><div className="v">{run.probe.available}/{run.probe.samples}</div></div>
-                  </div>
-                  <div className="wrs-breakdown">
-                    <span>Détection <b>{run.wrs.detection}</b></span>
-                    <span>Mitigation <b>{run.wrs.mitigation}</b></span>
-                    <span>Disponibilité <b>{run.wrs.availability}</b></span>
-                    <span>Collatéral <b>{run.wrs.collateral}</b></span>
-                  </div>
-                </div>
-              )}
-              {expanded === c.id && !run && (
-                <div className="details"><span className="hint">Aucune métrique détaillée disponible.</span></div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {confirmExec && (
-        <ExecuteModal
-          campaign={confirmExec}
-          onCancel={() => setConfirmExec(null)}
-          onConfirm={() => doExecute(confirmExec)}
-        />
-      )}
-      {approveFor && (
-        <ApproveModal
-          campaign={approveFor}
-          operator={operator}
-          onCancel={() => setApproveFor(null)}
-          onDecide={doApprove}
-        />
-      )}
-
-      <div className="toasts">
-        {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.kind}`}>{t.msg}</div>
-        ))}
-      </div>
-    </div>
-    </>
+        <button type="submit" className="btn btn-primary" disabled={busy || !email || !password}>
+          {busy ? <span className="spin" /> : null}Se connecter
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -454,29 +605,39 @@ function ExecuteModal({
 
 function ApproveModal({
   campaign,
-  operator,
+  authRequired,
+  identityEmail,
   onCancel,
   onDecide,
 }: {
   campaign: Campaign;
-  operator: string;
+  authRequired: boolean;
+  identityEmail: string;
   onCancel: () => void;
   onDecide: (c: Campaign, approvedBy: string, decision: 'APPROVED' | 'REJECTED', reason: string) => void;
 }) {
-  const [approver, setApprover] = useState(operator);
+  const [approver, setApprover] = useState(identityEmail);
   const [reason, setReason] = useState('');
-  const sameAsAuthor = approver.trim() !== '' && approver.trim() === campaign.createdBy;
+  // En mode auth, l'approbateur EST l'utilisateur connecté (non modifiable).
+  const effectiveApprover = authRequired ? identityEmail : approver;
+  const sameAsAuthor = effectiveApprover.trim() !== '' && effectiveApprover.trim() === campaign.createdBy;
 
   return (
     <div className="overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Approbation — {campaign.name}</h3>
         <p>Séparation des rôles : l’approbateur doit être différent de l’auteur ({campaign.createdBy}).</p>
-        <div className="field" style={{ marginBottom: '.75rem' }}>
-          <label>Approbateur (Security Officer)</label>
-          <input className={sameAsAuthor ? 'invalid' : ''} value={approver} onChange={(e) => setApprover(e.target.value)} />
-          {sameAsAuthor && <span className="hint" style={{ color: 'var(--danger)' }}>Doit différer de l’auteur.</span>}
-        </div>
+        {authRequired ? (
+          <p className="hint">
+            Approbateur : <b>{identityEmail}</b>
+          </p>
+        ) : (
+          <div className="field" style={{ marginBottom: '.75rem' }}>
+            <label>Approbateur (Security Officer)</label>
+            <input className={sameAsAuthor ? 'invalid' : ''} value={approver} onChange={(e) => setApprover(e.target.value)} />
+            {sameAsAuthor && <span className="hint" style={{ color: 'var(--danger)' }}>Doit différer de l’auteur.</span>}
+          </div>
+        )}
         <div className="field">
           <label>Motif (requis pour un rejet)</label>
           <input value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -485,15 +646,15 @@ function ApproveModal({
           <button className="btn" onClick={onCancel}>Annuler</button>
           <button
             className="btn btn-danger"
-            disabled={!approver.trim() || sameAsAuthor || !reason.trim()}
-            onClick={() => onDecide(campaign, approver.trim(), 'REJECTED', reason)}
+            disabled={sameAsAuthor || !reason.trim()}
+            onClick={() => onDecide(campaign, effectiveApprover.trim(), 'REJECTED', reason)}
           >
             Rejeter
           </button>
           <button
             className="btn btn-primary"
-            disabled={!approver.trim() || sameAsAuthor}
-            onClick={() => onDecide(campaign, approver.trim(), 'APPROVED', reason)}
+            disabled={sameAsAuthor || (!authRequired && !approver.trim())}
+            onClick={() => onDecide(campaign, effectiveApprover.trim(), 'APPROVED', reason)}
           >
             Approuver
           </button>

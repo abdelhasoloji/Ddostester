@@ -16,6 +16,9 @@ ALLOWED_TARGETS="${ALLOWED_TARGETS:-127.0.0.1,localhost}"
 # Persistance : si DATABASE_URL est défini, l'API utilise PostgreSQL ; sinon,
 # stockage en mémoire (perdu au redémarrage).
 DATABASE_URL="${DATABASE_URL:-}"
+# Auth (optionnelle) : si AUTH_JWT_SECRET est défini, l'auth+RBAC est activée.
+AUTH_JWT_SECRET="${AUTH_JWT_SECRET:-}"
+AUTH_USERS="${AUTH_USERS:-}"
 RUN_USER="${SUDO_USER:-$(id -un)}"
 
 echo "==> Répertoire : $REPO_DIR"
@@ -30,6 +33,20 @@ npm install
 npm run build
 npm test
 
+echo "==> Écriture des secrets (EnvironmentFile, chmod 600)"
+# Les valeurs sensibles/complexes (secret JWT, utilisateurs JSON, DSN base) vont
+# dans un fichier d'environnement protégé, pas dans l'unité systemd (lisible par
+# tous). Les lignes ne sont écrites que si la variable est fournie.
+ENVFILE="/etc/${SERVICE}.env"
+sudo touch "$ENVFILE"
+sudo chmod 600 "$ENVFILE"
+{
+  echo "# Généré par deploy/setup.sh — secrets runtime (ne pas committer)."
+  [ -n "$DATABASE_URL" ] && echo "DATABASE_URL=$DATABASE_URL"
+  [ -n "$AUTH_JWT_SECRET" ] && echo "AUTH_JWT_SECRET=$AUTH_JWT_SECRET"
+  [ -n "$AUTH_USERS" ] && echo "AUTH_USERS=$AUTH_USERS"
+} | sudo tee "$ENVFILE" >/dev/null
+
 echo "==> Écriture du service systemd"
 sudo tee "/etc/systemd/system/${SERVICE}.service" >/dev/null <<UNIT
 [Unit]
@@ -43,7 +60,7 @@ WorkingDirectory=${REPO_DIR}/backend
 Environment=PORT=${PORT}
 Environment=HOST=${HOST}
 Environment=ALLOWED_TARGETS=${ALLOWED_TARGETS}
-Environment=DATABASE_URL=${DATABASE_URL}
+EnvironmentFile=-${ENVFILE}
 ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure
 

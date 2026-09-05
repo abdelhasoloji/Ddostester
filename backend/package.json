@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "hash-password": "node scripts/hash-password.mjs"
   },
   "dependencies": {
     "fastify": "^5.2.0",

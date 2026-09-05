@@ -17,6 +17,9 @@ import { executeCampaign } from './modules/campaigns/runner.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { renderCampaignReportHtml } from './modules/reports/report.js';
 import type { CampaignInput } from './modules/campaigns/model.js';
+import { initAuth, login, identityFromRequest } from './auth/guard.js';
+import { can } from './auth/rbac.js';
+import type { Permission } from './auth/rbac.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Adresse d'écoute. Défaut : loopback uniquement — l'outil ne doit JAMAIS être
@@ -29,9 +32,25 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .filter(Boolean);
 
 const store = await createStore();
+const auth = initAuth();
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
+
+/**
+ * Garde de permission. Si l'auth est désactivée (mode dev, pas de secret),
+ * laisse passer. Sinon exige un token valide et le droit correspondant, et
+ * attache l'identité à la requête.
+ */
+function guard(perm: Permission) {
+  return async (req: import('fastify').FastifyRequest, reply: import('fastify').FastifyReply) => {
+    if (!auth.enabled) return;
+    const id = identityFromRequest(auth, req);
+    if (!id) return reply.code(401).send({ error: 'authentification requise' });
+    req.authUser = id;
+    if (!can(id.role, perm)) return reply.code(403).send({ error: `droit ${perm} manquant` });
+  };
+}
 
 // Sert l'UI React buildée (frontend/dist) sur la même origine que l'API : un
 // seul service, un seul tunnel SSH. Ignoré si le build front est absent.
@@ -51,19 +70,37 @@ app.get('/health', async () => ({
   status: 'ok',
   allowedTargets: ALLOWED_TARGETS,
   storage: store.backend,
+  authRequired: auth.enabled,
 }));
 
-// --- CAM : gestion des campagnes -------------------------------------------
-app.get('/api/campaigns', async () => store.listCampaigns());
+// --- Auth -------------------------------------------------------------------
+app.post('/api/auth/login', async (req, reply) => {
+  if (!auth.enabled) return reply.code(400).send({ error: 'authentification désactivée' });
+  const { email, password } = req.body as { email?: string; password?: string };
+  if (!email || !password) return reply.code(400).send({ error: 'email et mot de passe requis' });
+  const res = login(auth, email, password);
+  if (!res) return reply.code(401).send({ error: 'identifiants invalides' });
+  return res;
+});
 
-app.get('/api/campaigns/:id', async (req, reply) => {
+app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
+  return req.authUser ?? { email: null, role: null, authRequired: false };
+});
+
+// --- CAM : gestion des campagnes -------------------------------------------
+app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () => store.listCampaigns());
+
+app.get('/api/campaigns/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
   const c = await store.getCampaign((req.params as { id: string }).id);
   return c ?? reply.code(404).send({ error: 'campagne introuvable' });
 });
 
-app.post('/api/campaigns', async (req, reply) => {
+app.post('/api/campaigns', { preHandler: guard('campaign:create') }, async (req, reply) => {
   try {
-    const campaign = createCampaign(req.body as CampaignInput, ALLOWED_TARGETS);
+    const input = req.body as CampaignInput;
+    // En mode auth, l'auteur est l'utilisateur authentifié (pas le corps).
+    if (req.authUser) input.createdBy = req.authUser.email;
+    const campaign = createCampaign(input, ALLOWED_TARGETS);
     await store.saveCampaign(campaign);
     return reply.code(201).send(campaign);
   } catch (err) {
@@ -71,16 +108,14 @@ app.post('/api/campaigns', async (req, reply) => {
   }
 });
 
-app.post('/api/campaigns/:id/approval', async (req, reply) => {
+app.post('/api/campaigns/:id/approval', { preHandler: guard('campaign:approve') }, async (req, reply) => {
   try {
     const c = await store.getCampaign((req.params as { id: string }).id);
     if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
-    const { approvedBy, decision, reason } = req.body as {
-      approvedBy: string;
-      decision: 'APPROVED' | 'REJECTED';
-      reason?: string;
-    };
-    const updated = approveCampaign(c, approvedBy, decision, reason);
+    const body = req.body as { approvedBy?: string; decision: 'APPROVED' | 'REJECTED'; reason?: string };
+    // En mode auth, l'approbateur est l'utilisateur authentifié.
+    const approvedBy = req.authUser?.email ?? body.approvedBy ?? '';
+    const updated = approveCampaign(c, approvedBy, body.decision, body.reason);
     await store.saveCampaign(updated);
     return updated;
   } catch (err) {
@@ -89,7 +124,7 @@ app.post('/api/campaigns/:id/approval', async (req, reply) => {
 });
 
 // --- Exécution + kill switch manuel ----------------------------------------
-app.post('/api/campaigns/:id/execute', async (req, reply) => {
+app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }, async (req, reply) => {
   const c = await store.getCampaign((req.params as { id: string }).id);
   if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
   try {
@@ -115,7 +150,7 @@ app.post('/api/campaigns/:id/execute', async (req, reply) => {
 });
 
 // Kill switch niveau 2 : arrêt manuel (SOC/NOC).
-app.post('/api/campaigns/:id/kill', async (req, reply) => {
+app.post('/api/campaigns/:id/kill', { preHandler: guard('campaign:kill') }, async (req, reply) => {
   const kill = kills.get((req.params as { id: string }).id);
   if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
   kill.trigger('KILLED_MANUAL');
@@ -123,17 +158,25 @@ app.post('/api/campaigns/:id/kill', async (req, reply) => {
 });
 
 // --- RPT : runs & rapport ---------------------------------------------------
-app.get('/api/runs', async (req) => {
+app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {
   const { campaignId } = req.query as { campaignId?: string };
   return store.listRuns(campaignId);
 });
 
-app.get('/api/runs/:runId', async (req, reply) => {
+app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
   const r = await store.getRun((req.params as { runId: string }).runId);
   return r ?? reply.code(404).send({ error: 'run introuvable' });
 });
 
 app.get('/api/runs/:runId/report', async (req, reply) => {
+  // Le rapport s'ouvre dans un onglet (pas d'en-tête Authorization) : en mode
+  // auth, on accepte le token en query (?token=) pour ce lien navigateur.
+  if (auth.enabled) {
+    const { token } = req.query as { token?: string };
+    const id = token ? identityFromRequest(auth, { headers: { authorization: `Bearer ${token}` } } as import('fastify').FastifyRequest) : null;
+    if (!id) return reply.code(401).send({ error: 'authentification requise' });
+    if (!can(id.role, 'campaign:read')) return reply.code(403).send({ error: 'droit manquant' });
+  }
   const r = await store.getRun((req.params as { runId: string }).runId);
   if (!r) return reply.code(404).send({ error: 'run introuvable' });
   const c = await store.getCampaign(r.campaignId);
