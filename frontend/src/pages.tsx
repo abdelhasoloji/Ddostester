@@ -638,6 +638,16 @@ export function SettingsPage() {
             </span>
           </div>
           <div>
+            <span className="k">Protection integration</span>
+            <span className="v">
+              {app.protection ? (
+                <span className="engine-badge ok">Measured WRS</span>
+              ) : (
+                <span className="engine-badge no">Estimated WRS</span>
+              )}
+            </span>
+          </div>
+          <div>
             <span className="k">Allowed targets</span>
             <span className="v">
               <code>{app.allowed.join(', ') || '—'}</code>

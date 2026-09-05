@@ -4,6 +4,10 @@ import { kills } from './runtime/kills.js';
 import { dueCampaigns } from './modules/campaigns/scheduler.js';
 import { selectAgent } from './agents/index.js';
 import { createNotifier, notifyConfigFromEnv } from './modules/notify/notifier.js';
+import {
+  createProtectionProvider,
+  protectionConfigFromEnv,
+} from './modules/protection/provider.js';
 import { buildApp } from './app.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -21,12 +25,14 @@ const store = await createStore();
 const auth = initAuth();
 const agent = selectAgent();
 const notifier = createNotifier(notifyConfigFromEnv());
+const protection = createProtectionProvider(protectionConfigFromEnv());
 const { app, runCampaign } = await buildApp({
   store,
   auth,
   allowedTargets: ALLOWED_TARGETS,
   agent,
   notifier,
+  protection,
 });
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------

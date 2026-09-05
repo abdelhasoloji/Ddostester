@@ -30,6 +30,7 @@ interface Ctx {
   allowed: string[];
   agentName: string;
   notifications: string[];
+  protection: boolean;
   agents: AgentInfo[];
   authRequired: boolean;
   authChecked: boolean;
@@ -85,6 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [agentName, setAgentName] = useState('');
   const [notifications, setNotifications] = useState<string[]>([]);
+  const [protection, setProtection] = useState(false);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [authRequired, setAuthRequired] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -135,6 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAllowed(h.allowedTargets);
         setAgentName(h.agent ?? '');
         setNotifications(h.notifications ?? []);
+        setProtection(h.protection ?? false);
         setAuthRequired(h.authRequired);
         if (h.authRequired && getToken()) {
           try {
@@ -274,6 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     allowed,
     agentName,
     notifications,
+    protection,
     agents,
     authRequired,
     authChecked,

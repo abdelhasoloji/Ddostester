@@ -35,6 +35,28 @@ Example (TSD §5.4): detection 10 s → D = 95; mitigation 30 s → M = 90;
 - **A** and **C** come directly from the **probe** (availability measured on the
   target and neighbouring endpoints).
 - **D** and **M**: with no protection integration, the runner derives
-  conservative estimates from the kill-switch state. They can be replaced by the
-  real detection/mitigation timings reported by WEDOS Protection (extension point
-  in `runner.ts`).
+  conservative estimates from the kill-switch state (the score is then flagged
+  `estimated`).
+
+## Protection integration (measured D & M)
+
+Set `PROTECTION_WEBHOOK_URL` to make the WRS reflect **real** timings instead of
+estimates. At the end of each run the control plane POSTs the run window to that
+endpoint:
+
+```json
+{ "campaignId": "…", "target": "https://…", "startedAt": "…", "finishedAt": "…" }
+```
+
+and expects your WAF / scrubbing / cloud-protection integration to answer with
+the measured timings:
+
+```json
+{ "detectionTimeSec": 4, "mitigationTimeSec": 11, "source": "cloudflare" }
+```
+
+When a valid response comes back, Detection and Mitigation use those values and
+the score is no longer `estimated`; on any error, timeout, or invalid payload it
+silently falls back to the estimate. This is **inbound measurement only** — it
+generates no traffic. `GET /health` reports `protection: true|false`, and
+**Settings → Engine & security** shows _Measured WRS_ vs _Estimated WRS_.

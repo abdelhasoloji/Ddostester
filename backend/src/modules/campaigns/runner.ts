@@ -6,6 +6,8 @@ import { computeWrs } from '../wrs/scoring.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import { BuiltinHttpAgent } from '../../agents/builtin.js';
 import type { AttackAgent } from '../../agents/types.js';
+import { noopProtectionProvider } from '../protection/provider.js';
+import type { ProtectionProvider } from '../protection/types.js';
 import type { Campaign } from './model.js';
 
 export interface CampaignRun {
@@ -32,6 +34,7 @@ export async function executeCampaign(
   killSwitch: KillSwitch,
   onProgress?: (p: LoadProgress) => void,
   agent: AttackAgent = new BuiltinHttpAgent(),
+  protection: ProtectionProvider = noopProtectionProvider,
 ): Promise<CampaignRun> {
   // Kill switch level 3: absolute time-based timeout.
   const timeoutTimer = setTimeout(
@@ -99,15 +102,33 @@ export async function executeCampaign(
   const availabilityRatio = probeMetrics.samples
     ? probeMetrics.available / probeMetrics.samples
     : 1;
+  // Real detection/mitigation timings from the protection layer, when a source
+  // is configured; otherwise conservative estimates (WRS marked as estimated).
+  const measured = await protection
+    .measure({
+      campaignId: campaign.id,
+      target: campaign.target,
+      startedAt: new Date(startedMs).toISOString(),
+      finishedAt: new Date().toISOString(),
+    })
+    .catch(() => null);
   const wrs = computeWrs({
-    detectionTimeSec: killSwitch.reason === 'KILLED_AUTO' ? 30 : 10,
-    mitigationTimeSec: killSwitch.reason === 'KILLED_AUTO' ? 60 : 20,
+    detectionTimeSec: measured
+      ? measured.detectionTimeSec
+      : killSwitch.reason === 'KILLED_AUTO'
+        ? 30
+        : 10,
+    mitigationTimeSec: measured
+      ? measured.mitigationTimeSec
+      : killSwitch.reason === 'KILLED_AUTO'
+        ? 60
+        : 20,
     legitimateSuccessful: probeMetrics.successful,
     legitimateTotal: probeMetrics.samples,
     adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),
   });
-  // No protection integration here → Detection/Mitigation are estimated.
-  wrs.estimated = true;
+  // Estimated unless a protection source reported the real timings.
+  wrs.estimated = !measured;
 
   const status: CampaignRun['status'] =
     killSwitch.reason === 'KILLED_MANUAL'

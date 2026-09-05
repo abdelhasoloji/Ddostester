@@ -40,6 +40,8 @@ import { AgentError, type AttackAgent } from './agents/types.js';
 import { buildRunNotifications } from './modules/notify/events.js';
 import { noopNotifier } from './modules/notify/notifier.js';
 import type { Notifier } from './modules/notify/types.js';
+import { noopProtectionProvider } from './modules/protection/provider.js';
+import type { ProtectionProvider } from './modules/protection/types.js';
 
 export interface BuildOptions {
   store: Store;
@@ -51,6 +53,8 @@ export interface BuildOptions {
   agent?: AttackAgent;
   /** Notification sink (default: no-op — notifications are opt-in). */
   notifier?: Notifier;
+  /** Protection integration for real detection/mitigation (default: no-op). */
+  protection?: ProtectionProvider;
 }
 
 export interface BuiltApp {
@@ -63,6 +67,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const { store, auth, allowedTargets } = opts;
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
+  const protection = opts.protection ?? noopProtectionProvider;
 
   const app = Fastify({
     logger:
@@ -176,7 +181,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         engine: runAgent.name,
       });
     try {
-      const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent);
+      const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent, protection);
       await store.saveRun(run);
       // Recurring campaigns re-arm for their next run (within the approval
       // window); otherwise the campaign settles into its terminal run status.
@@ -231,6 +236,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     authRequired: auth.enabled,
     agent: agent.name,
     notifications: notifier.sinks,
+    protection: protection.configured,
   }));
 
   // Send a test notification so operators can verify their sink is wired up.

@@ -179,6 +179,7 @@ export const api = {
         authRequired: boolean;
         agent?: string;
         notifications?: string[];
+        protection?: boolean;
       }>(r),
     ),
   login: (email: string, password: string) =>
