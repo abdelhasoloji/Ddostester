@@ -132,6 +132,21 @@ export function createCampaign(
     }
   }
 
+  if (input.acceptance) {
+    const a = input.acceptance;
+    if (a.maxP95Ms != null && a.maxP95Ms < 0) {
+      throw new CampaignError('acceptance.maxP95Ms must be >= 0.');
+    }
+    const pct = (v: number | undefined, name: string): void => {
+      if (v != null && (v < 0 || v > 100)) {
+        throw new CampaignError(`acceptance.${name} must be within [0, 100].`);
+      }
+    };
+    pct(a.maxErrorRatePct, 'maxErrorRatePct');
+    pct(a.minAvailabilityPct, 'minAvailabilityPct');
+    pct(a.minWrs, 'minWrs');
+  }
+
   // Validate the chosen load engine when the caller supplies the agent list.
   if (input.agent && agents) {
     const chosen = agents.find((a) => a.id === input.agent);

@@ -9,6 +9,8 @@ import { BuiltinHttpAgent } from '../../agents/builtin.js';
 import type { AttackAgent } from '../../agents/types.js';
 import { noopProtectionProvider } from '../protection/provider.js';
 import type { ProtectionProvider } from '../protection/types.js';
+import { evaluateAcceptance } from './acceptance.js';
+import type { AcceptanceResult } from './acceptance.js';
 import type { Campaign } from './model.js';
 
 export interface CampaignRun {
@@ -20,6 +22,8 @@ export interface CampaignRun {
   wrs: WrsBreakdown;
   /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
   posture?: PostureReport;
+  /** SLO verdict against the campaign's acceptance criteria, when set. */
+  acceptance?: AcceptanceResult;
 }
 
 /**
@@ -140,6 +144,17 @@ export async function executeCampaign(
         ? 'KILLED_AUTO'
         : 'COMPLETED';
 
+  const total = generator.totalRequests;
+  const acceptance =
+    evaluateAcceptance(campaign.acceptance, {
+      p95Ms: generator.latencyMs.p95,
+      errorRatePct: total > 0 ? (generator.failed / total) * 100 : 0,
+      availabilityPct: probeMetrics.samples
+        ? (probeMetrics.available / probeMetrics.samples) * 100
+        : 100,
+      wrs: wrs.wrs,
+    }) ?? undefined;
+
   return {
     runId: generator.id,
     campaignId: campaign.id,
@@ -148,5 +163,6 @@ export async function executeCampaign(
     probe: probeMetrics,
     wrs,
     posture: probe.posture(),
+    acceptance,
   };
 }

@@ -1202,6 +1202,19 @@ input.invalid {
   font-size: 0.75rem;
 }
 
+/* Acceptance criteria (SLO) inputs + failures */
+.slo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.4rem;
+}
+.slo-failures {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--danger);
+}
+
 /* Protection posture (RunDetails) */
 .posture {
   margin-top: 0.75rem;

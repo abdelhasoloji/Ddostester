@@ -16,6 +16,7 @@ export interface SuiteMember {
   status: Campaign['status'];
   wrs?: number;
   level?: WrsLevel;
+  verdict?: 'PASS' | 'FAIL';
   runId?: string;
 }
 
@@ -32,6 +33,8 @@ export interface SuiteSummary {
   members: SuiteMember[];
   /** Aggregate WRS over scored members, or null if none scored yet. */
   wrs: { avg: number; min: number; level: WrsLevel; scored: number } | null;
+  /** Aggregate SLO verdict: FAIL if any member failed, PASS if any judged and none failed, else null. */
+  verdict: 'PASS' | 'FAIL' | null;
 }
 
 const TERMINAL = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL'];
@@ -77,9 +80,15 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
         status: c.status,
         wrs: c.wrs?.wrs,
         level: c.wrs?.level,
+        verdict: c.acceptanceResult?.verdict,
         runId: c.runId,
       })),
       wrs,
+      verdict: (() => {
+        const judged = members.filter((c) => c.acceptanceResult);
+        if (judged.length === 0) return null;
+        return judged.some((c) => c.acceptanceResult!.verdict === 'FAIL') ? 'FAIL' : 'PASS';
+      })(),
     });
   }
   suites.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -93,9 +102,10 @@ export function renderSuiteReportHtml(suite: SuiteSummary): string {
       (m) =>
         `<tr><td>${m.order + 1}</td><td>${esc(m.name)}</td><td>${m.status}</td><td>${
           m.wrs != null ? `${m.wrs} (${m.level})` : '—'
-        }</td></tr>`,
+        }</td><td>${m.verdict ?? '—'}</td></tr>`,
     )
     .join('\n');
+  const verdictLine = suite.verdict ? `<p><b>SLO verdict: ${suite.verdict}</b></p>` : '';
   const overall = suite.wrs
     ? `<span class="score">${suite.wrs.avg}</span> avg / <span class="score">${suite.wrs.min}</span> min &nbsp; <span class="level">worst level ${suite.wrs.level}</span> &nbsp;(${suite.wrs.scored}/${suite.total} scored)`
     : 'No scored runs yet.';
@@ -112,8 +122,9 @@ export function renderSuiteReportHtml(suite: SuiteSummary): string {
 <p class="muted">Target: <code>${esc(suite.target)}</code> · ${suite.total} campaigns · created ${esc(suite.createdAt)}</p>
 <h2>Overall resilience</h2>
 <p>${overall}</p>
+${verdictLine}
 <h2>Steps</h2>
-<table><tr><th>#</th><th>Campaign</th><th>Status</th><th>WRS</th></tr>
+<table><tr><th>#</th><th>Campaign</th><th>Status</th><th>WRS</th><th>SLO</th></tr>
 ${rows}
 </table>
 <p class="muted">Consolidated assessment — WEDOS internal use only. Every step is a bounded,

@@ -34,11 +34,25 @@ export interface Campaign {
   agent?: string;
   recurrence?: { intervalMin: number; until?: string };
   flow?: RequestStep[];
+  acceptance?: AcceptanceCriteria;
+  acceptanceResult?: AcceptanceResult;
   suiteId?: string;
   suiteName?: string;
   suiteOrder?: number;
   wrs?: WrsBreakdown;
   runId?: string;
+}
+
+export interface AcceptanceCriteria {
+  maxP95Ms?: number;
+  maxErrorRatePct?: number;
+  minAvailabilityPct?: number;
+  minWrs?: number;
+}
+
+export interface AcceptanceResult {
+  verdict: 'PASS' | 'FAIL';
+  failures: string[];
 }
 
 export interface Playbook {
@@ -99,6 +113,7 @@ export interface CampaignRun {
     successful: number;
   };
   wrs: WrsBreakdown;
+  acceptance?: AcceptanceResult;
   posture?: {
     waf: boolean;
     cdn: boolean;
@@ -267,9 +282,11 @@ export interface SuiteSummary {
     status: CampaignStatus;
     wrs?: number;
     level?: WrsBreakdown['level'];
+    verdict?: 'PASS' | 'FAIL';
     runId?: string;
   }[];
   wrs: { avg: number; min: number; level: WrsBreakdown['level']; scored: number } | null;
+  verdict: 'PASS' | 'FAIL' | null;
 }
 
 export interface ManagedUser {

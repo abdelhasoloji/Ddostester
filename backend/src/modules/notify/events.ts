@@ -45,13 +45,21 @@ export function buildRunNotifications(
     { label: 'Requests', value: `${total} (${failed} failed)` },
     { label: 'Availability', value: `${availability}%` },
   ];
+  if (run.acceptance) {
+    baseFields.push({ label: 'SLO verdict', value: run.acceptance.verdict });
+  }
 
   if (run.status === 'COMPLETED') {
+    const failed_slo = run.acceptance?.verdict === 'FAIL';
     events.push({
       kind: 'campaign.completed',
-      severity: 'info',
-      title: `✅ Campaign completed — ${campaign.name}`,
-      text: `“${campaign.name}” finished against ${host}: WRS ${run.wrs.wrs} (${run.wrs.level}).`,
+      severity: failed_slo ? 'warning' : 'info',
+      title: failed_slo
+        ? `❌ SLO FAILED — ${campaign.name}`
+        : `✅ Campaign completed — ${campaign.name}`,
+      text: failed_slo
+        ? `“${campaign.name}” did not meet its SLO against ${host}: ${run.acceptance!.failures.join('; ')}.`
+        : `“${campaign.name}” finished against ${host}: WRS ${run.wrs.wrs} (${run.wrs.level})${run.acceptance ? ' — SLO PASS' : ''}.`,
       at,
       campaignId: campaign.id,
       fields: baseFields,

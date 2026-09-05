@@ -220,6 +220,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         status: rearm ? 'APPROVED' : run.status,
         scheduledAt: rearm ? rearm.scheduledAt : c.scheduledAt,
         wrs: run.wrs,
+        acceptanceResult: run.acceptance,
         runId: run.runId,
       });
       await auditAs(

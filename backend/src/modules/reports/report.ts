@@ -59,6 +59,17 @@ ${
     : ''
 }
 
+${
+  run.acceptance
+    ? `<h2>SLO verdict</h2>
+<p><span class="level">${run.acceptance.verdict}</span></p>${
+        run.acceptance.failures.length
+          ? `<ul>${run.acceptance.failures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>`
+          : '<p class="muted">All acceptance criteria met.</p>'
+      }`
+    : ''
+}
+
 <h2>Load generator</h2>
 <table>
  <tr><th>Total requests</th><td>${g.totalRequests}</td></tr>

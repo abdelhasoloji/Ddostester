@@ -38,6 +38,17 @@ export function wrsClass(level: WrsBreakdown['level']): string {
   return 'wrs-' + level.replace('+', 'p');
 }
 
+export function VerdictBadge({ verdict }: { verdict: 'PASS' | 'FAIL' }) {
+  return (
+    <span
+      className={`badge ${verdict === 'PASS' ? 'badge-APPROVED' : 'badge-REJECTED'}`}
+      title="SLO acceptance verdict"
+    >
+      SLO {verdict}
+    </span>
+  );
+}
+
 export function WrsPill({ wrs }: { wrs: WrsBreakdown }) {
   return (
     <span className={`wrs ${wrsClass(wrs.level)}`} title="WEDOS Resiliency Score">
@@ -198,6 +209,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
         <span className="campaign-name">{c.name}</span>
         <StatusBadge status={c.status} />
         {c.wrs && <WrsPill wrs={c.wrs} />}
+        {c.acceptanceResult && <VerdictBadge verdict={c.acceptanceResult.verdict} />}
         <div className="campaign-actions">
           {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
             <button className="btn btn-sm" disabled={isBusy} onClick={() => app.setApproveFor(c)}>
@@ -328,6 +340,20 @@ function RunDetails({ run }: { run: CampaignRun }) {
           Detection and Mitigation are <b>estimated</b> (no protection integration): they are
           constant, so the WRS mostly reflects measured availability.
         </p>
+      )}
+      {run.acceptance && (
+        <div className="posture">
+          <div className="posture-title">
+            SLO verdict <VerdictBadge verdict={run.acceptance.verdict} />
+          </div>
+          {run.acceptance.failures.length > 0 && (
+            <ul className="slo-failures">
+              {run.acceptance.failures.map((f, i) => (
+                <li key={i}>{f}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       {run.posture && (
         <div className="posture">
@@ -529,7 +555,26 @@ const emptyForm = {
   body: '',
   flow: '',
   flowAdvanced: false,
+  sloP95: '',
+  sloErr: '',
+  sloAvail: '',
+  sloWrs: '',
 };
+
+/** Builds the acceptance criteria from the (optional) SLO form fields. */
+function buildAcceptance(f: {
+  sloP95: string;
+  sloErr: string;
+  sloAvail: string;
+  sloWrs: string;
+}): Record<string, number> | undefined {
+  const a: Record<string, number> = {};
+  if (f.sloP95) a.maxP95Ms = Number(f.sloP95);
+  if (f.sloErr) a.maxErrorRatePct = Number(f.sloErr);
+  if (f.sloAvail) a.minAvailabilityPct = Number(f.sloAvail);
+  if (f.sloWrs) a.minWrs = Number(f.sloWrs);
+  return Object.keys(a).length ? a : undefined;
+}
 
 /** Parses the advanced flow editor (raw JSON RequestStep[]). Throws on error. */
 function parseFlowJson(raw: string): RequestStep[] | undefined {
@@ -711,6 +756,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               ? parseFlowJson(form.flow)
               : parseFlow(form.flow, targetOrigin)
             : undefined,
+        acceptance: buildAcceptance(form),
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -978,6 +1024,39 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             </div>
           )
         )}
+        <div className="field" style={{ gridColumn: '1 / -1' }}>
+          <label>Acceptance criteria — SLO pass/fail (optional)</label>
+          <div className="slo-grid">
+            <input
+              type="number"
+              placeholder="max p95 ms"
+              value={form.sloP95}
+              onChange={(e) => setForm({ ...form, sloP95: e.target.value })}
+            />
+            <input
+              type="number"
+              placeholder="max errors %"
+              value={form.sloErr}
+              onChange={(e) => setForm({ ...form, sloErr: e.target.value })}
+            />
+            <input
+              type="number"
+              placeholder="min avail %"
+              value={form.sloAvail}
+              onChange={(e) => setForm({ ...form, sloAvail: e.target.value })}
+            />
+            <input
+              type="number"
+              placeholder="min WRS"
+              value={form.sloWrs}
+              onChange={(e) => setForm({ ...form, sloWrs: e.target.value })}
+            />
+          </div>
+          <span className="hint">
+            Leave blank to skip. Each run gets a <b>PASS/FAIL</b> verdict against the criteria you
+            set.
+          </span>
+        </div>
         <label className="attest">
           <input
             type="checkbox"

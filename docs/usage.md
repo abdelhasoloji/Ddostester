@@ -99,6 +99,22 @@ They are stored, marked `custom`, and deletable (`DELETE /api/playbooks/:id`);
 curated playbooks are read-only. Assessments run consolidated in **Reports →
 Assessment suites**, with a single HTML report.
 
+## Acceptance criteria — SLO pass/fail
+
+Set thresholds on a campaign and each run gets an explicit **PASS/FAIL verdict**
+(the missing link between "we measured" and "the target is resilient"):
+
+- `maxP95Ms` — max generator latency p95,
+- `maxErrorRatePct` — max error rate,
+- `minAvailabilityPct` — min probe availability,
+- `minWrs` — min WRS.
+
+The verdict is computed from metrics we already collect, so it works with **any
+engine**. It shows as an **SLO PASS/FAIL** badge on the campaign and run,
+lists the breached criteria, is included in notifications (a failed SLO raises
+the completion alert), and aggregates at the **suite** level (an assessment is
+PASS only if no member failed). Leave the criteria empty to skip.
+
 ## Protection posture (inferred, passive)
 
 Every run now infers the target's protection posture **from the legitimate

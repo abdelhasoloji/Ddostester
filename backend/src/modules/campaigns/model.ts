@@ -1,7 +1,9 @@
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import type { ScenarioPhase, RequestStep } from '../../engine/types.js';
+import type { AcceptanceCriteria, AcceptanceResult } from './acceptance.js';
 
 export type { ScenarioPhase, RequestStep };
+export type { AcceptanceCriteria, AcceptanceResult };
 
 /**
  * The only load vector supported by this control plane: bounded application
@@ -58,6 +60,11 @@ export interface CampaignInput {
    * a single request to `target`. The caps still bound the total request rate.
    */
   flow?: RequestStep[];
+  /**
+   * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
+   * verdict against these thresholds (latency, error rate, availability, WRS).
+   */
+  acceptance?: AcceptanceCriteria;
   /** Assessment suite linkage (set when created from a playbook). */
   suiteId?: string;
   suiteName?: string;
@@ -87,6 +94,8 @@ export interface Campaign extends CampaignInput {
   approvalReason?: string;
   approvalExpiresAt?: string;
   wrs?: WrsBreakdown;
+  /** SLO verdict of the latest run (set alongside wrs/runId). */
+  acceptanceResult?: AcceptanceResult;
   runId?: string;
 }
 

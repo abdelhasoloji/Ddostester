@@ -9,6 +9,7 @@ import {
   CampaignDrawer,
   ExecuteModal,
   NewCampaignForm,
+  VerdictBadge,
   WrsPill,
   WrsTrend,
   hostOf,
@@ -368,6 +369,7 @@ function SuitesSection() {
               ) : (
                 <span className="hint">not scored yet</span>
               )}
+              {s.verdict && <VerdictBadge verdict={s.verdict} />}
               <span className="hint">
                 {s.completed}/{s.total} done
                 {s.pending ? ` · ${s.pending} pending` : ''}
