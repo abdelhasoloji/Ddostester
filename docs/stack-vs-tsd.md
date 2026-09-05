@@ -8,8 +8,8 @@
 |--------|----------------|---------|------|
 | API | FastAPI (Python) | Fastify 5 (Node 22 / TS) | ✅ équivalent |
 | Frontend | Vue.js 3 | React 18 + Vite 7 | ✅ équivalent |
-| Base de données | PostgreSQL + TimescaleDB | PostgreSQL (repli mémoire) | ✅ (Timescale non requis) |
-| Auth / SSO | Keycloak + mTLS | JWT HS256 + RBAC (compatible Keycloak) | ✅ (mTLS via tunnel/reverse-proxy) |
+| Base de données | PostgreSQL + TimescaleDB | PostgreSQL (+ TimescaleDB optionnel : hypertable wrs_samples) | ✅ |
+| Auth / SSO | Keycloak + mTLS | JWT HS256 + RBAC (compatible Keycloak) ; mTLS via reverse-proxy Caddy (profil) | ✅ |
 | Ordonnanceur | Celery + Redis | Ordonnanceur in-process (CAM-01) | ✅ équivalent |
 | Monitoring | Prometheus + Grafana | `/metrics` Prometheus | ✅ (Grafana = conf. externe) |
 | Reporting | PDF + HTML | HTML + PDF (impression navigateur) | ✅ |
@@ -47,6 +47,4 @@ façon maîtrisée. Le seul vecteur fourni est un générateur HTTP applicatif b
 
 ## Restant possible (légitime, non prioritaire)
 
-- TimescaleDB (hypertables) pour séries temporelles fines.
 - Dashboards Grafana pré-provisionnés sur `/metrics`.
-- mTLS applicatif (aujourd'hui : loopback + tunnel SSH / reverse-proxy interne).

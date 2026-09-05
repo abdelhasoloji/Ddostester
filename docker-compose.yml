@@ -2,7 +2,8 @@
 # L'API n'est exposée qu'en loopback : à placer derrière un reverse-proxy interne.
 services:
   db:
-    image: postgres:16
+    # PostgreSQL par défaut ; pour TimescaleDB : DB_IMAGE=timescale/timescaledb:latest-pg16
+    image: ${DB_IMAGE:-postgres:16}
     restart: unless-stopped
     environment:
       POSTGRES_DB: shieldtest
@@ -57,6 +58,24 @@ services:
       - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
 
+  # --- Reverse-proxy TLS / mTLS (optionnel) : docker compose --profile proxy up -d
+  proxy:
+    image: caddy:2
+    profiles: ["proxy"]
+    restart: unless-stopped
+    depends_on: [api]
+    ports:
+      - "443:443"
+    environment:
+      SHIELDTEST_DOMAIN: ${SHIELDTEST_DOMAIN:-shieldtest.internal}
+    volumes:
+      - ./deploy/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # - ./deploy/proxy/ca.crt:/etc/caddy/ca.crt:ro   # décommenter pour mTLS
+      - caddy-data:/data
+      - caddy-config:/config
+
 volumes:
   pgdata:
   grafana-data:
+  caddy-data:
+  caddy-config:

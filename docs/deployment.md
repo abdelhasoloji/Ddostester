@@ -121,3 +121,34 @@ service** et redéployer avec `HOST=127.0.0.1`.
 | API sur IP publique | `ss -tlnp \| grep 8080` | redéployer avec `HOST=127.0.0.1` |
 | Campagne refusée (403/400) | message d'erreur de l'API | cible hors allowlist, non approuvée, ou plafond dépassé |
 | Campagne bloquée en RUNNING | sonde/kill switch | `POST /api/campaigns/:id/kill` puis vérifier logs |
+
+## TLS / mTLS (reverse-proxy)
+
+Le TSD prévoit « HTTPS + mTLS ». Un reverse-proxy Caddy est fourni (profil Docker) :
+
+```bash
+SHIELDTEST_DOMAIN=shieldtest.interne POSTGRES_PASSWORD=... \
+  docker compose --profile proxy up -d --build
+```
+
+- Termine TLS devant l'API (certificat interne auto-signé par défaut ; pour des
+  certificats réels, ajuster `deploy/proxy/Caddyfile`).
+- **mTLS** : décommenter le bloc `client_auth` du Caddyfile + monter la CA
+  interne (`deploy/proxy/ca.crt`) pour exiger un certificat client WEDOS.
+
+Alternative sans Docker : placer l'API loopback derrière le reverse-proxy interne
+existant (Caddy/nginx) qui assure TLS et, si besoin, l'authentification mutuelle.
+
+## Base : PostgreSQL ou TimescaleDB
+
+Par défaut `postgres:16`. Pour activer TimescaleDB (séries temporelles WRS en
+hypertable) :
+
+```bash
+DB_IMAGE=timescale/timescaledb:latest-pg16 POSTGRES_PASSWORD=... \
+  docker compose up -d --build
+```
+
+L'application détecte l'extension au démarrage : si présente, `wrs_samples`
+devient une hypertable ; sinon elle reste une table PostgreSQL standard
+(fonctionnement identique). Aucun changement de configuration applicative requis.

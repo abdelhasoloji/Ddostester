@@ -15,6 +15,9 @@ export class PostgresStore implements Store {
   readonly backend = 'postgres' as const;
   private pool: pg.Pool;
 
+  /** true si l'extension TimescaleDB est disponible (wrs_samples devient hypertable). */
+  private timescale = false;
+
   constructor(connectionString: string) {
     this.pool = new Pool({ connectionString });
   }
@@ -51,7 +54,27 @@ export class PostgresStore implements Store {
         detail      text
       );
       CREATE INDEX IF NOT EXISTS idx_audit_at ON audit(at DESC);
+      -- Séries temporelles WRS (append-only) : hypertable si TimescaleDB présent.
+      CREATE TABLE IF NOT EXISTS wrs_samples (
+        at      timestamptz NOT NULL DEFAULT now(),
+        target  text NOT NULL,
+        wrs     double precision NOT NULL,
+        level   text NOT NULL,
+        run_id  uuid NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_wrs_samples ON wrs_samples(target, at DESC);
     `);
+
+    // Active TimescaleDB si disponible (sinon PostgreSQL standard, table normale).
+    try {
+      await this.pool.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
+      await this.pool.query(
+        "SELECT create_hypertable('wrs_samples', 'at', if_not_exists => TRUE, migrate_data => TRUE)",
+      );
+      this.timescale = true;
+    } catch {
+      this.timescale = false;
+    }
   }
 
   async saveCampaign(c: Campaign): Promise<void> {
@@ -82,6 +105,17 @@ export class PostgresStore implements Store {
        ON CONFLICT (run_id) DO UPDATE SET
          status=$4, wrs=$5, wrs_level=$6, data=$7`,
       [run.runId, run.campaignId, target, run.status, run.wrs.wrs, run.wrs.level, JSON.stringify(run)],
+    );
+    // Point de série temporelle WRS (hypertable si TimescaleDB).
+    let host = target;
+    try {
+      host = new URL(target).hostname;
+    } catch {
+      /* garde brut */
+    }
+    await this.pool.query(
+      'INSERT INTO wrs_samples (at, target, wrs, level, run_id) VALUES (now(),$1,$2,$3,$4)',
+      [host, run.wrs.wrs, run.wrs.level, run.runId],
     );
   }
 
