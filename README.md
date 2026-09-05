@@ -77,6 +77,10 @@ Docker:
 docker compose up --build
 ```
 
+**Continuous deployment:** once the server runs a self-hosted GitHub Actions
+runner, every push to `main` that passes CI deploys itself — no manual commands.
+See [docs/ci-cd.md](./docs/ci-cd.md).
+
 ## API
 
 | Method | Route                         | Purpose                              |
