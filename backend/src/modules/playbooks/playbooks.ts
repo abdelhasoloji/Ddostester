@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { HARD_CAPS } from '../campaigns/model.js';
 import type { CampaignInput, ScenarioPhase } from '../campaigns/model.js';
+
+export class PlaybookError extends Error {}
 
 /**
  * Assessment playbooks: curated, ordered sequences of BOUNDED campaigns that
@@ -30,6 +33,68 @@ export interface Playbook {
   /** When to run this assessment. */
   when: string;
   steps: PlaybookStep[];
+  /** true for user-defined playbooks (curated ones are read-only). */
+  custom?: boolean;
+}
+
+const PROFILES = ['constant', 'ramp', 'wave'];
+const MAX_STEPS = 12;
+
+/**
+ * Validates a user-submitted playbook and returns a clean, stored Playbook.
+ * Every step must stay within HARD_CAPS — a custom playbook can never widen the
+ * bounds. Throws PlaybookError on any problem.
+ */
+export function validatePlaybookInput(input: unknown): Playbook {
+  const o = (input ?? {}) as Record<string, unknown>;
+  const name = typeof o.name === 'string' ? o.name.trim() : '';
+  if (!name) throw new PlaybookError('Playbook name is required.');
+  const steps = Array.isArray(o.steps) ? o.steps : [];
+  if (steps.length < 1 || steps.length > MAX_STEPS) {
+    throw new PlaybookError(`A playbook must have between 1 and ${MAX_STEPS} steps.`);
+  }
+  const cleanSteps: PlaybookStep[] = steps.map((raw, i) => {
+    const s = (raw ?? {}) as Record<string, unknown>;
+    const maxRps = Number(s.maxRps);
+    const concurrency = Number(s.concurrency);
+    const maxDurationSec = Number(s.maxDurationSec);
+    const profile = String(s.profile ?? 'constant');
+    const label = `Step ${i + 1}`;
+    if (!(maxRps > 0) || maxRps > HARD_CAPS.maxRps) {
+      throw new PlaybookError(`${label}: maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
+    }
+    if (!(concurrency >= 1) || concurrency > HARD_CAPS.maxConcurrency) {
+      throw new PlaybookError(
+        `${label}: concurrency must be within [1, ${HARD_CAPS.maxConcurrency}].`,
+      );
+    }
+    if (!(maxDurationSec >= 1) || maxDurationSec > HARD_CAPS.maxDurationSec) {
+      throw new PlaybookError(
+        `${label}: maxDurationSec must be within [1, ${HARD_CAPS.maxDurationSec}].`,
+      );
+    }
+    if (!PROFILES.includes(profile)) {
+      throw new PlaybookError(`${label}: profile must be one of ${PROFILES.join(', ')}.`);
+    }
+    return {
+      name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : label,
+      summary: typeof s.summary === 'string' ? s.summary : '',
+      maxRps,
+      concurrency,
+      maxDurationSec,
+      profile: profile as LoadProfile,
+      agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
+    };
+  });
+  return {
+    id: `custom-${randomUUID()}`,
+    name,
+    category: typeof o.category === 'string' && o.category.trim() ? o.category.trim() : 'Custom',
+    summary: typeof o.summary === 'string' ? o.summary : '',
+    when: typeof o.when === 'string' ? o.when : '',
+    steps: cleanSteps,
+    custom: true,
+  };
 }
 
 export const PLAYBOOKS: Playbook[] = [

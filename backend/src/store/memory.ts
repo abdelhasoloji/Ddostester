@@ -2,6 +2,7 @@ import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
+import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -10,6 +11,7 @@ export class MemoryStore implements Store {
   private runs = new Map<string, CampaignRun>();
   private audit: AuditEntry[] = [];
   private users = new Map<string, User>();
+  private playbooks = new Map<string, Playbook>();
 
   async init(): Promise<void> {}
   async saveCampaign(c: Campaign): Promise<void> {
@@ -47,6 +49,18 @@ export class MemoryStore implements Store {
   }
   async deleteUser(email: string): Promise<void> {
     this.users.delete(email.toLowerCase());
+  }
+  async listPlaybooks(): Promise<Playbook[]> {
+    return [...this.playbooks.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  async getPlaybook(id: string): Promise<Playbook | undefined> {
+    return this.playbooks.get(id);
+  }
+  async savePlaybook(p: Playbook): Promise<void> {
+    this.playbooks.set(p.id, p);
+  }
+  async deletePlaybook(id: string): Promise<void> {
+    this.playbooks.delete(id);
   }
   async close(): Promise<void> {}
 }

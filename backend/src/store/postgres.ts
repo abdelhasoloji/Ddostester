@@ -3,6 +3,7 @@ import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
+import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { isRole } from '../auth/rbac.js';
 import type { Store } from './types.js';
 
@@ -71,6 +72,13 @@ export class PostgresStore implements Store {
         role          text NOT NULL,
         password_hash text NOT NULL,
         created_at    timestamptz NOT NULL DEFAULT now()
+      );
+      -- User-defined assessment playbooks (additive to the curated ones).
+      CREATE TABLE IF NOT EXISTS playbooks (
+        id         text PRIMARY KEY,
+        name       text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        data       jsonb NOT NULL
       );
     `);
 
@@ -217,6 +225,30 @@ export class PostgresStore implements Store {
 
   async deleteUser(email: string): Promise<void> {
     await this.pool.query('DELETE FROM users WHERE email=$1', [email.toLowerCase()]);
+  }
+
+  async listPlaybooks(): Promise<Playbook[]> {
+    const r = await this.pool.query<{ data: Playbook }>('SELECT data FROM playbooks ORDER BY name');
+    return r.rows.map((x) => x.data);
+  }
+
+  async getPlaybook(id: string): Promise<Playbook | undefined> {
+    const r = await this.pool.query<{ data: Playbook }>('SELECT data FROM playbooks WHERE id=$1', [
+      id,
+    ]);
+    return r.rows[0]?.data;
+  }
+
+  async savePlaybook(p: Playbook): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO playbooks (id, name, data) VALUES ($1,$2,$3)
+       ON CONFLICT (id) DO UPDATE SET name=$2, data=$3`,
+      [p.id, p.name, JSON.stringify(p)],
+    );
+  }
+
+  async deletePlaybook(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM playbooks WHERE id=$1', [id]);
   }
 
   async close(): Promise<void> {

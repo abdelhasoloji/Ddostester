@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLAYBOOKS,
+  PlaybookError,
   buildScenario,
   buildSuiteCampaigns,
   getPlaybook,
+  validatePlaybookInput,
 } from '../src/modules/playbooks/playbooks.js';
 import { createCampaign } from '../src/modules/campaigns/service.js';
 
@@ -50,6 +52,31 @@ describe('playbooks', () => {
     expect(ramp.agent).toBe('k6');
     const baseline = inputs.find((c) => c.name.includes('Baseline'))!;
     expect(baseline.agent).toBeUndefined(); // vegeta not installed → server default
+  });
+
+  it('validatePlaybookInput accepts a valid custom playbook and marks it custom', () => {
+    const pb = validatePlaybookInput({
+      name: 'My assessment',
+      steps: [
+        { name: 'Warm', maxRps: 50, concurrency: 10, maxDurationSec: 60, profile: 'constant' },
+      ],
+    });
+    expect(pb.custom).toBe(true);
+    expect(pb.id.startsWith('custom-')).toBe(true);
+    expect(pb.steps).toHaveLength(1);
+  });
+
+  it('validatePlaybookInput rejects a name-less playbook, no steps, and over-cap steps', () => {
+    expect(() =>
+      validatePlaybookInput({ steps: [{ maxRps: 1, concurrency: 1, maxDurationSec: 1 }] }),
+    ).toThrow(PlaybookError);
+    expect(() => validatePlaybookInput({ name: 'x', steps: [] })).toThrow(PlaybookError);
+    expect(() =>
+      validatePlaybookInput({
+        name: 'x',
+        steps: [{ maxRps: 999999, concurrency: 10, maxDurationSec: 60, profile: 'constant' }],
+      }),
+    ).toThrow(/maxRps/);
   });
 
   it('produces campaigns that pass createCampaign validation (PENDING_APPROVAL)', () => {

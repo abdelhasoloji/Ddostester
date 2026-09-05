@@ -42,7 +42,13 @@ import { noopNotifier } from './modules/notify/notifier.js';
 import type { Notifier } from './modules/notify/types.js';
 import { noopProtectionProvider } from './modules/protection/provider.js';
 import type { ProtectionProvider } from './modules/protection/types.js';
-import { PLAYBOOKS, getPlaybook, buildSuiteCampaigns } from './modules/playbooks/playbooks.js';
+import {
+  PLAYBOOKS,
+  getPlaybook,
+  buildSuiteCampaigns,
+  validatePlaybookInput,
+  PlaybookError,
+} from './modules/playbooks/playbooks.js';
 import { buildSuites, renderSuiteReportHtml } from './modules/playbooks/suites.js';
 
 export interface BuildOptions {
@@ -373,14 +379,43 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
-  // Assessment playbooks: curated sequences of bounded campaigns.
-  app.get('/api/playbooks', { preHandler: guard('campaign:read') }, async () => PLAYBOOKS);
+  // Assessment playbooks: curated + user-defined sequences of bounded campaigns.
+  app.get('/api/playbooks', { preHandler: guard('campaign:read') }, async () => {
+    const curated = PLAYBOOKS.map((p) => ({ ...p, custom: false }));
+    const custom = await store.listPlaybooks();
+    return [...curated, ...custom];
+  });
+
+  app.post('/api/playbooks', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    try {
+      const pb = validatePlaybookInput(req.body);
+      await store.savePlaybook(pb);
+      await audit(req, 'playbook.upsert', undefined, `${pb.name} (${pb.steps.length} steps)`);
+      return reply.code(201).send(pb);
+    } catch (err) {
+      if (err instanceof PlaybookError) return reply.code(400).send({ error: err.message });
+      return fail(err, reply);
+    }
+  });
+
+  app.delete('/api/playbooks/:id', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    if (!id.startsWith('custom-')) {
+      return reply.code(400).send({ error: 'only custom playbooks can be deleted' });
+    }
+    const existing = await store.getPlaybook(id);
+    if (!existing) return reply.code(404).send({ error: 'playbook not found' });
+    await store.deletePlaybook(id);
+    await audit(req, 'playbook.delete', undefined, existing.name);
+    return { deleted: id };
+  });
 
   app.post(
     '/api/playbooks/:id/instantiate',
     { preHandler: guard('campaign:create') },
     async (req, reply) => {
-      const pb = getPlaybook((req.params as { id: string }).id);
+      const id = (req.params as { id: string }).id;
+      const pb = getPlaybook(id) ?? (await store.getPlaybook(id));
       if (!pb) return reply.code(404).send({ error: 'playbook not found' });
       const body = req.body as { target?: string; probeUrl?: string };
       if (!body.target) return reply.code(400).send({ error: 'target is required' });

@@ -837,15 +837,47 @@ function PlaybooksSection() {
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
+  const [newPb, setNewPb] = useState({ ...emptyNew });
 
-  useEffect(() => {
+  const load = () => {
     api
       .playbooks()
       .then(setPlaybooks)
       .catch(() => undefined);
-  }, []);
+  };
+  useEffect(load, []);
 
   const canCreate = canDo(app.role, 'create', app.authRequired);
+
+  const createPlaybook = async () => {
+    try {
+      const steps = JSON.parse(newPb.stepsJson || '[]');
+      await api.createPlaybook({
+        name: newPb.name,
+        category: newPb.category,
+        summary: newPb.summary,
+        when: newPb.when,
+        steps,
+      });
+      app.push('success', `Playbook "${newPb.name}" created.`);
+      setNewPb({ ...emptyNew });
+      setShowNew(false);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
+  const removePlaybook = async (pb: Playbook) => {
+    try {
+      await api.deletePlaybook(pb.id);
+      app.push('success', `Playbook "${pb.name}" deleted.`);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
   const targetHost = hostOfUrl(target);
   const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
 
@@ -908,6 +940,7 @@ function PlaybooksSection() {
           <div key={pb.id} className="preset-card">
             <div className="preset-head">
               <span className="preset-name">{pb.name}</span>
+              {pb.custom && <span className="engine-badge ok">custom</span>}
             </div>
             <p className="preset-summary">{pb.summary}</p>
             <p className="preset-when">{pb.when}</p>
@@ -919,17 +952,85 @@ function PlaybooksSection() {
               ))}
             </ol>
             {canCreate && (
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={!targetAllowed || busy === pb.id}
-                onClick={() => launch(pb)}
-              >
-                {busy === pb.id ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
-              </button>
+              <div className="btn-row">
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={!targetAllowed || busy === pb.id}
+                  onClick={() => launch(pb)}
+                >
+                  {busy === pb.id ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
+                </button>
+                {pb.custom && (
+                  <button className="btn btn-sm btn-ghost" onClick={() => removePlaybook(pb)}>
+                    Delete
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ))}
       </div>
+
+      {canCreate && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="card-head">
+            <h2>Custom playbook</h2>
+            <button className="btn btn-sm" onClick={() => setShowNew((v) => !v)}>
+              {showNew ? 'Cancel' : '＋ New playbook'}
+            </button>
+          </div>
+          {showNew && (
+            <div className="grid">
+              <div className="field">
+                <label>Name</label>
+                <input
+                  value={newPb.name}
+                  onChange={(e) => setNewPb({ ...newPb, name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Category</label>
+                <input
+                  value={newPb.category}
+                  onChange={(e) => setNewPb({ ...newPb, category: e.target.value })}
+                />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Summary</label>
+                <input
+                  value={newPb.summary}
+                  onChange={(e) => setNewPb({ ...newPb, summary: e.target.value })}
+                />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Steps (JSON)</label>
+                <textarea
+                  rows={7}
+                  placeholder={
+                    '[\n  {"name":"Baseline","maxRps":100,"concurrency":20,"maxDurationSec":120,"profile":"constant","agent":"vegeta"},\n  {"name":"Ramp","maxRps":300,"concurrency":50,"maxDurationSec":180,"profile":"ramp","agent":"k6"}\n]'
+                  }
+                  value={newPb.stepsJson}
+                  onChange={(e) => setNewPb({ ...newPb, stepsJson: e.target.value })}
+                  style={{ fontFamily: 'var(--mono, monospace)' }}
+                />
+                <span className="hint">
+                  Each step: <code>name, maxRps, concurrency, maxDurationSec, profile</code>{' '}
+                  (constant/ramp/wave), optional <code>agent</code>. All within the caps.
+                </span>
+              </div>
+              <div className="field" style={{ alignSelf: 'end' }}>
+                <button
+                  className="btn btn-primary"
+                  disabled={!newPb.name.trim() || !newPb.stepsJson.trim()}
+                  onClick={createPlaybook}
+                >
+                  Save playbook
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

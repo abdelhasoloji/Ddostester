@@ -91,6 +91,14 @@ campaign is created `PENDING_APPROVAL` and still needs an officer's approval
 before it runs. `GET /api/playbooks` lists them; `POST /api/playbooks/:id/instantiate`
 (`{ "target": "https://…" }`) creates the suite.
 
+**Custom playbooks.** Beyond the curated ones, you can define your own from
+**Guide → Custom playbook** (or `POST /api/playbooks`): a name and a JSON list of
+steps (`name, maxRps, concurrency, maxDurationSec, profile, agent?`). Every step
+is validated against the caps — a custom playbook can never widen the bounds.
+They are stored, marked `custom`, and deletable (`DELETE /api/playbooks/:id`);
+curated playbooks are read-only. Assessments run consolidated in **Reports →
+Assessment suites**, with a single HTML report.
+
 ## Protection posture (inferred, passive)
 
 Every run now infers the target's protection posture **from the legitimate

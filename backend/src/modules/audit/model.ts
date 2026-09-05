@@ -10,7 +10,9 @@ export interface AuditEntry {
     | 'campaign.execute'
     | 'campaign.kill'
     | 'user.upsert'
-    | 'user.delete';
+    | 'user.delete'
+    | 'playbook.upsert'
+    | 'playbook.delete';
   campaignId?: string;
   detail?: string;
 }

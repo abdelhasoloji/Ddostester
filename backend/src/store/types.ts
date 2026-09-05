@@ -2,6 +2,7 @@ import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
+import type { Playbook } from '../modules/playbooks/playbooks.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
@@ -28,5 +29,10 @@ export interface Store {
   getUser(email: string): Promise<User | undefined>;
   saveUser(u: User): Promise<void>;
   deleteUser(email: string): Promise<void>;
+  /** User-defined assessment playbooks (additive to the curated ones). */
+  listPlaybooks(): Promise<Playbook[]>;
+  getPlaybook(id: string): Promise<Playbook | undefined>;
+  savePlaybook(p: Playbook): Promise<void>;
+  deletePlaybook(id: string): Promise<void>;
   close(): Promise<void>;
 }
