@@ -7,6 +7,7 @@ import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
+import { percentile } from '../engine/stats.js';
 
 /**
  * Adapter to Gatling (Java DSL, headless), operated by the team. Bounded HTTP
@@ -68,12 +69,6 @@ public class ${className} extends Simulation {
   }
 }
 `;
-}
-
-function percentile(sorted: number[], p: number): number {
-  if (!sorted.length) return 0;
-  const i = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return Number(sorted[Math.max(0, i)].toFixed(2));
 }
 
 /** Parses Gatling's simulation.log (best-effort) → LoadTestResult. Pure function. */

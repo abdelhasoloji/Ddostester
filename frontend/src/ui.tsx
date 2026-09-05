@@ -34,7 +34,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
   );
 }
 
-function wrsClass(level: WrsBreakdown['level']): string {
+export function wrsClass(level: WrsBreakdown['level']): string {
   return 'wrs-' + level.replace('+', 'p');
 }
 
@@ -565,7 +565,7 @@ function parseFlow(raw: string, origin: string): RequestStep[] | undefined {
   });
 }
 
-function hostOf(url: string): string | null {
+export function hostOf(url: string): string | null {
   try {
     return new URL(url).hostname;
   } catch {

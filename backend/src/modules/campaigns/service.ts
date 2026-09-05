@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
-import { MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
+import { HTTP_METHODS, MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
 import { flowUsesCorrelation } from '../../engine/correlation.js';
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const EXTRACT_SOURCES = ['json', 'header', 'regex'];
 
 export class CampaignError extends Error {}

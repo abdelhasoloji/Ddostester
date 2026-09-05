@@ -1,5 +1,6 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { htmlEscape as esc } from '../../util/text.js';
 
 /**
  * RPT — Campaign report generation (TSD §5.5). Produces a self-contained,
@@ -9,8 +10,6 @@ import type { CampaignRun } from '../campaigns/runner.js';
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
   const w = run.wrs;
-  const esc = (s: string): string =>
-    s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">

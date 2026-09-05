@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { LoadTestConfig, LoadTestResult } from './types.js';
-import { MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
+import { HTTP_METHODS, MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
 import { substitute, extractValue } from './correlation.js';
+import { percentile } from './stats.js';
 
 export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
-
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 
 /**
  * Effective arrival rate for engines that count ITERATIONS rather than requests:
@@ -89,12 +88,6 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       }
     }
   }
-}
-
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return sorted[Math.max(0, idx)];
 }
 
 /**

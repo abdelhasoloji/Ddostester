@@ -9,6 +9,7 @@
 
 import { analyzePosture } from '../posture/analyze.js';
 import type { PostureReport } from '../posture/analyze.js';
+import { percentile } from '../../engine/stats.js';
 
 export interface ProbeSample {
   at: number;
@@ -28,12 +29,6 @@ export interface ProbeMetrics {
 export type KillReason = 'KILLED_AUTO' | 'KILLED_MANUAL' | 'TIMEOUT' | null;
 
 const AUTO_KILL_UNAVAILABLE_MS = 30_000;
-
-function percentile(sorted: number[], p: number): number {
-  if (!sorted.length) return 0;
-  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return Number(sorted[Math.max(0, idx)].toFixed(2));
-}
 
 export class KillSwitch {
   reason: KillReason = null;

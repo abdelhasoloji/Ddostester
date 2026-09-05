@@ -1,6 +1,7 @@
 import type { Campaign } from '../campaigns/model.js';
 import { wrsLevel } from '../wrs/scoring.js';
 import type { WrsLevel } from '../wrs/scoring.js';
+import { htmlEscape as esc } from '../../util/text.js';
 
 /**
  * Consolidated view of an assessment suite (campaigns created from one
@@ -84,12 +85,6 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
   suites.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return suites;
 }
-
-const esc = (s: string): string =>
-  s.replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
-  );
 
 /** Renders an aggregated HTML report for one assessment suite. */
 export function renderSuiteReportHtml(suite: SuiteSummary): string {

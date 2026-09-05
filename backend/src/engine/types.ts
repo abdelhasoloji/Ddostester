@@ -6,6 +6,16 @@ export interface ScenarioPhase {
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 
+/** Supported HTTP methods (bounded, application-layer only). */
+export const HTTP_METHODS: readonly HttpMethod[] = [
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'HEAD',
+];
+
 /**
  * One step of a bounded request flow (L7 user journey): a single HTTP request
  * to an allowlisted host, optionally followed by a think-time pause. Flows make

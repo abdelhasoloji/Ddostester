@@ -11,6 +11,8 @@ import {
   NewCampaignForm,
   WrsPill,
   WrsTrend,
+  hostOf,
+  wrsClass,
 } from './ui.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -22,10 +24,6 @@ const roleLabel: Record<Role, string> = {
   engineer: 'Security Engineer',
   viewer: 'SOC / NOC',
 };
-
-function wrsClass(level: WrsBreakdown['level']): string {
-  return 'wrs-' + level.replace('+', 'p');
-}
 
 // ---------- sidebar + layout ----------
 const NAV = [
@@ -823,14 +821,6 @@ const WRS_LEVELS: {
   },
 ];
 
-function hostOfUrl(url: string): string | null {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
-
 function PlaybooksSection() {
   const app = useApp();
   const navigate = useNavigate();
@@ -879,7 +869,7 @@ function PlaybooksSection() {
       app.push('error', (err as Error).message);
     }
   };
-  const targetHost = hostOfUrl(target);
+  const targetHost = hostOf(target);
   const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
 
   const launch = async (pb: Playbook) => {

@@ -7,18 +7,14 @@ import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
+import { percentile } from '../engine/stats.js';
+import { htmlEscape as xmlEsc } from '../util/text.js';
 
 /**
  * Adapter to Apache JMeter (headless), operated by the team. Bounded HTTP load:
  * rate capped via a (shared) Constant Throughput Timer. Multi-phase scenarios
  * are delegated to k6/vegeta.
  */
-
-const xmlEsc = (s: string): string =>
-  s.replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
-  );
 
 /** Builds a JMeter test plan (.jmx) — bounded HTTP load. Pure function. */
 export function buildJmxPlan(config: LoadTestConfig): string {
@@ -117,12 +113,6 @@ ${samplers}
   </hashTree>
 </jmeterTestPlan>
 `;
-}
-
-function percentile(sorted: number[], p: number): number {
-  if (!sorted.length) return 0;
-  const i = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return Number(sorted[Math.max(0, i)].toFixed(2));
 }
 
 /** Parses a JMeter JTL file (CSV) → LoadTestResult. Pure function. */
