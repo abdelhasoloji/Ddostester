@@ -1,6 +1,7 @@
 import pg from 'pg';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
+import type { AuditEntry } from '../modules/audit/model.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
@@ -41,6 +42,15 @@ export class PostgresStore implements Store {
       );
       CREATE INDEX IF NOT EXISTS idx_runs_campaign ON runs(campaign_id);
       CREATE INDEX IF NOT EXISTS idx_runs_target ON runs(target, created_at DESC);
+      CREATE TABLE IF NOT EXISTS audit (
+        id          uuid PRIMARY KEY,
+        at          timestamptz NOT NULL,
+        actor       text NOT NULL,
+        action      text NOT NULL,
+        campaign_id uuid,
+        detail      text
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_at ON audit(at DESC);
     `);
   }
 
@@ -88,6 +98,30 @@ export class PostgresStore implements Store {
         )
       : await this.pool.query<{ data: CampaignRun }>('SELECT data FROM runs ORDER BY created_at DESC');
     return r.rows.map((x) => x.data);
+  }
+
+  async saveAudit(e: AuditEntry): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO audit (id, at, actor, action, campaign_id, detail)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [e.id, e.at, e.actor, e.action, e.campaignId ?? null, e.detail ?? null],
+    );
+  }
+
+  async listAudit(limit = 200): Promise<AuditEntry[]> {
+    const r = await this.pool.query(
+      `SELECT id, at, actor, action, campaign_id AS "campaignId", detail
+       FROM audit ORDER BY at DESC LIMIT $1`,
+      [limit],
+    );
+    return r.rows.map((x) => ({
+      id: x.id,
+      at: (x.at instanceof Date ? x.at.toISOString() : String(x.at)),
+      actor: x.actor,
+      action: x.action,
+      campaignId: x.campaignId ?? undefined,
+      detail: x.detail ?? undefined,
+    })) as AuditEntry[];
   }
 
   async close(): Promise<void> {

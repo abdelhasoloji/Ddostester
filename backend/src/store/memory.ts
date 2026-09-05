@@ -1,11 +1,13 @@
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
+import type { AuditEntry } from '../modules/audit/model.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
   readonly backend = 'memory' as const;
   private campaigns = new Map<string, Campaign>();
   private runs = new Map<string, CampaignRun>();
+  private audit: AuditEntry[] = [];
 
   async init(): Promise<void> {}
   async saveCampaign(c: Campaign): Promise<void> {
@@ -25,6 +27,12 @@ export class MemoryStore implements Store {
   }
   async listRuns(campaignId?: string): Promise<CampaignRun[]> {
     return [...this.runs.values()].filter((r) => !campaignId || r.campaignId === campaignId);
+  }
+  async saveAudit(e: AuditEntry): Promise<void> {
+    this.audit.push(e);
+  }
+  async listAudit(limit = 200): Promise<AuditEntry[]> {
+    return [...this.audit].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
   }
   async close(): Promise<void> {}
 }

@@ -57,6 +57,15 @@ export interface CampaignRun {
 
 export type Role = 'engineer' | 'officer' | 'viewer';
 
+export interface AuditEntry {
+  id: string;
+  at: string;
+  actor: string;
+  action: string;
+  campaignId?: string;
+  detail?: string;
+}
+
 let token: string | null = localStorage.getItem('token');
 export function setToken(t: string | null): void {
   token = t;
@@ -111,4 +120,5 @@ export const api = {
   execute: (id: string) => post<CampaignRun>(`/api/campaigns/${id}/execute`),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
+  audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
 };

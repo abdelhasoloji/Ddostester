@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, setToken, getToken, reportUrl } from './api.js';
-import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role } from './api.js';
+import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role, AuditEntry } from './api.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
@@ -120,6 +120,7 @@ export function App() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmExec, setConfirmExec] = useState<Campaign | null>(null);
   const [approveFor, setApproveFor] = useState<Campaign | null>(null);
+  const [auditRows, setAuditRows] = useState<AuditEntry[] | null>(null);
   const { toasts, push } = useToasts();
 
   const role = identity?.role ?? null;
@@ -256,6 +257,18 @@ export function App() {
       await api.kill(c.id);
       push('info', 'Kill switch déclenché.');
       refresh();
+    } catch (err) {
+      push('error', (err as Error).message);
+    }
+  };
+
+  const toggleAudit = async () => {
+    if (auditRows !== null) {
+      setAuditRows(null);
+      return;
+    }
+    try {
+      setAuditRows(await api.audit(100));
     } catch (err) {
       push('error', (err as Error).message);
     }
@@ -497,6 +510,26 @@ export function App() {
             );
           })}
         </div>
+
+        <h2 className="section-title">
+          Journal d’audit{' '}
+          <button className="btn btn-sm btn-ghost" onClick={toggleAudit}>
+            {auditRows !== null ? 'Masquer' : 'Afficher'}
+          </button>
+        </h2>
+        {auditRows !== null && (
+          <div className="card" style={{ marginTop: '.5rem' }}>
+            {auditRows.length === 0 && <span className="hint">Aucune entrée.</span>}
+            {auditRows.map((a) => (
+              <div key={a.id} className="audit-row">
+                <span className="audit-time">{new Date(a.at).toLocaleString()}</span>
+                <span className="audit-actor">{a.actor}</span>
+                <span className={`audit-action a-${a.action.replace('.', '-')}`}>{a.action}</span>
+                <span className="audit-detail">{a.detail ?? ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {confirmExec && (
           <ExecuteModal

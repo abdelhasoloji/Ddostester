@@ -1,5 +1,6 @@
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
+import type { AuditEntry } from '../modules/audit/model.js';
 
 /**
  * Couche de persistance. Deux implémentations : mémoire (dev/tests) et
@@ -16,5 +17,7 @@ export interface Store {
   getRun(runId: string): Promise<CampaignRun | undefined>;
   /** Historique des runs (tous, ou filtrés par campagne), du plus récent au plus ancien. */
   listRuns(campaignId?: string): Promise<CampaignRun[]>;
+  saveAudit(e: AuditEntry): Promise<void>;
+  listAudit(limit?: number): Promise<AuditEntry[]>;
   close(): Promise<void>;
 }

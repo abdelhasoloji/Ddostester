@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
@@ -66,6 +67,27 @@ function fail(err: unknown, reply: import('fastify').FastifyReply) {
   return reply.code(500).send({ error: 'erreur interne' });
 }
 
+/** Enregistre une entrée d'audit (best-effort, ne bloque pas la réponse). */
+async function audit(
+  req: import('fastify').FastifyRequest,
+  action: import('./modules/audit/model.js').AuditEntry['action'],
+  campaignId?: string,
+  detail?: string,
+) {
+  try {
+    await store.saveAudit({
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      actor: req.authUser?.email ?? 'dev',
+      action,
+      campaignId,
+      detail,
+    });
+  } catch (err) {
+    app.log.error({ err }, 'échec écriture audit');
+  }
+}
+
 app.get('/health', async () => ({
   status: 'ok',
   allowedTargets: ALLOWED_TARGETS,
@@ -102,6 +124,7 @@ app.post('/api/campaigns', { preHandler: guard('campaign:create') }, async (req,
     if (req.authUser) input.createdBy = req.authUser.email;
     const campaign = createCampaign(input, ALLOWED_TARGETS);
     await store.saveCampaign(campaign);
+    await audit(req, 'campaign.create', campaign.id, `${campaign.name} → ${campaign.target}`);
     return reply.code(201).send(campaign);
   } catch (err) {
     return fail(err, reply);
@@ -117,6 +140,12 @@ app.post('/api/campaigns/:id/approval', { preHandler: guard('campaign:approve') 
     const approvedBy = req.authUser?.email ?? body.approvedBy ?? '';
     const updated = approveCampaign(c, approvedBy, body.decision, body.reason);
     await store.saveCampaign(updated);
+    await audit(
+      req,
+      body.decision === 'APPROVED' ? 'campaign.approve' : 'campaign.reject',
+      c.id,
+      body.reason,
+    );
     return updated;
   } catch (err) {
     return fail(err, reply);
@@ -140,6 +169,7 @@ app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }
     const run = await executeCampaign(c, ALLOWED_TARGETS, kill);
     await store.saveRun(run);
     await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
+    await audit(req, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
     return reply.code(201).send(run);
   } catch (err) {
     await store.saveCampaign(transition(c, 'APPROVED'));
@@ -151,10 +181,18 @@ app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }
 
 // Kill switch niveau 2 : arrêt manuel (SOC/NOC).
 app.post('/api/campaigns/:id/kill', { preHandler: guard('campaign:kill') }, async (req, reply) => {
-  const kill = kills.get((req.params as { id: string }).id);
+  const id = (req.params as { id: string }).id;
+  const kill = kills.get(id);
   if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
   kill.trigger('KILLED_MANUAL');
+  await audit(req, 'campaign.kill', id);
   return { status: 'KILLED_MANUAL' };
+});
+
+// --- Audit ------------------------------------------------------------------
+app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
+  const { limit } = req.query as { limit?: string };
+  return store.listAudit(limit ? Number(limit) : 200);
 });
 
 // --- RPT : runs & rapport ---------------------------------------------------
