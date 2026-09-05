@@ -168,7 +168,7 @@ export function OverviewPage() {
             {app.agentName && (
               <>
                 {' '}
-                · agent <code>{app.agentName}</code>
+                · default engine <code>{app.agentName}</code>
               </>
             )}{' '}
             · bounded HTTP generator (no volumetric vector).
@@ -503,7 +503,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Create',
-    body: 'Fill the new-campaign form (or start from a preset below). Target and probe must be in the allowlist; you attest you are authorized to test them.',
+    body: 'Fill the new-campaign form (or start from a preset), and pick a load engine. Target and probe must be in the allowlist; you attest you are authorized to test them.',
   },
   {
     n: 2,
@@ -587,6 +587,38 @@ export function GuidePage() {
             </button>
           </div>
         ))}
+      </div>
+
+      <h2 className="section-title">Load engines</h2>
+      <div className="card">
+        <p className="subtitle" style={{ marginBottom: '.75rem' }}>
+          Every campaign runs on a <b>load engine</b>. The built-in one needs nothing installed; the
+          others delegate to team-operated tools (k6, Vegeta, Locust, JMeter, Gatling). All produce{' '}
+          <b>bounded HTTP</b> load only — no volumetric or exhaustion vector. Pick one per campaign
+          in the form; engines not installed on the server are greyed out, and constant-only engines
+          can't run ramp/wave profiles.
+        </p>
+        {app.agents.length === 0 ? (
+          <span className="hint">No engine information available.</span>
+        ) : (
+          <div className="engines">
+            {app.agents.map((a) => (
+              <div key={a.id} className="engine-row">
+                <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
+                <span className="engine-name">{a.name}</span>
+                <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
+                  {a.available ? 'Installed' : 'Not installed'}
+                </span>
+                {!a.multiPhase && <span className="engine-cap">constant only</span>}
+                <span className="engine-desc">{a.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="hint" style={{ marginTop: '.75rem' }}>
+          Installed status is also shown in <b>Settings → Load engines</b>. To enable an external
+          engine, install its binary on the server; it then becomes selectable here.
+        </p>
       </div>
 
       <div className="card" style={{ marginTop: '1.25rem' }}>

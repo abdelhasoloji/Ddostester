@@ -71,6 +71,17 @@ In the form, “Load profile” translates Max RPS + duration into phases:
 Each phase remains subject to the caps (`maxRps ≤ 2000`, total duration ≤ 900 s).
 No volumetric vector: these are only modulated, bounded HTTP rates.
 
+## Load engines (per campaign)
+
+The form's **Load engine** selector chooses which generator runs the campaign:
+the built-in engine (no install), or a team-operated external tool (k6, Vegeta,
+Locust, JMeter, Gatling) — all bounded HTTP. Engines not installed on the server
+are greyed out; constant-only engines (locust/jmeter/gatling) disable the
+ramp/wave profiles. The **Guide** and **Settings → Load engines** pages show each
+engine's install status and capabilities. See
+[offensive-integration.md](./offensive-integration.md) for how engines are wired
+and governed.
+
 ## PDF export of reports (RPT-01)
 
 Each report (campaign and compliance) has a **“Print / PDF”** button that opens

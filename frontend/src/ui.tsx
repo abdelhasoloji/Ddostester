@@ -219,6 +219,11 @@ export function CampaignCard({ c }: { c: Campaign }) {
           Target: <code>{c.target}</code>
         </span>
         <span>{c.vector}</span>
+        {c.agent && c.agent !== 'builtin' && (
+          <span title="Load engine" className="engine-tag">
+            ⚙ {c.agent}
+          </span>
+        )}
         <span>
           {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
           {c.scenario && c.scenario.length > 1 ? ` · scenario ${c.scenario.length} phases` : ''}
