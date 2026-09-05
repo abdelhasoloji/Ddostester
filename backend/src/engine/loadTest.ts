@@ -1,8 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import type { LoadTestConfig, LoadTestResult } from './types.js';
+import { MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
 
 export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
+
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
+
+/**
+ * Effective arrival rate for engines that count ITERATIONS rather than requests:
+ * a flow of N steps run at `iterations/s` produces N·iterations/s requests, so
+ * the iteration rate is capped at maxRps/N to keep the total request rate ≤
+ * maxRps. Always ≥ 1.
+ */
+export function iterationRate(maxRps: number, stepCount: number): number {
+  return Math.max(1, Math.floor(maxRps / Math.max(1, stepCount)));
+}
 
 /**
  * Validates the config. Rejects any target outside the allowlist and any test
@@ -46,6 +59,33 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
     for (const p of config.phases) {
       if (!(p.maxRps > 0)) throw new InvalidConfigError('Each phase must have maxRps > 0.');
       if (p.durationSec < 1) throw new InvalidConfigError('Each phase must last ≥ 1 s.');
+    }
+  }
+  if (config.flow) {
+    if (config.flow.length === 0 || config.flow.length > MAX_FLOW_STEPS) {
+      throw new InvalidConfigError(`A flow must have between 1 and ${MAX_FLOW_STEPS} steps.`);
+    }
+    for (const step of config.flow) {
+      if (!HTTP_METHODS.includes(step.method)) {
+        throw new InvalidConfigError(`Flow step: unsupported method "${step.method}".`);
+      }
+      let stepUrl: URL;
+      try {
+        stepUrl = new URL(step.url);
+      } catch {
+        throw new InvalidConfigError(`Flow step: invalid URL (${step.url}).`);
+      }
+      if (!['http:', 'https:'].includes(stepUrl.protocol)) {
+        throw new InvalidConfigError('Flow step: only http and https are supported.');
+      }
+      if (!allowedHosts.includes(stepUrl.hostname)) {
+        throw new TargetNotAllowedError(
+          `Flow step host "${stepUrl.hostname}" is not in the ALLOWED_TARGETS allowlist.`,
+        );
+      }
+      if (step.thinkMs != null && (step.thinkMs < 0 || step.thinkMs > MAX_THINK_MS)) {
+        throw new InvalidConfigError(`Flow step: thinkMs must be within [0, ${MAX_THINK_MS}].`);
+      }
     }
   }
 }
@@ -131,35 +171,61 @@ export async function runLoadTest(
     return false;
   }
 
+  // A single bounded HTTP request (counts toward the global rate cap).
+  async function doRequest(method: string, url: string, body: string | undefined): Promise<void> {
+    const t0 = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: config.headers,
+        body: method === 'GET' || method === 'HEAD' ? undefined : body,
+        signal: controller.signal,
+      });
+      latencies.push(performance.now() - t0);
+      sent++;
+      const bucket = `${Math.floor(res.status / 100)}xx`;
+      statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
+      if (res.ok) successful++;
+      else failed++;
+      // Drain the body to release the connection.
+      await res.arrayBuffer().catch(() => undefined);
+    } catch (err) {
+      sent++;
+      failed++;
+      const name = err instanceof Error ? err.name : 'UnknownError';
+      errors[name] = (errors[name] ?? 0) + 1;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Think-time between steps: bounded, and responsive to the kill switch.
+  async function think(ms: number): Promise<void> {
+    const deadlineMs = Date.now() + ms;
+    while (Date.now() < deadlineMs && !shouldStop()) {
+      await new Promise((r) => setTimeout(r, Math.min(200, deadlineMs - Date.now())));
+    }
+  }
+
   async function worker(): Promise<void> {
+    const flow = config.flow?.length ? config.flow : null;
     while (!shouldStop()) {
-      const ok = await reserveSlot();
-      if (!ok) return;
-      const t0 = performance.now();
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const res = await fetch(config.url, {
-          method: config.method ?? 'GET',
-          headers: config.headers,
-          body: config.body,
-          signal: controller.signal,
-        });
-        latencies.push(performance.now() - t0);
-        sent++;
-        const bucket = `${Math.floor(res.status / 100)}xx`;
-        statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
-        if (res.ok) successful++;
-        else failed++;
-        // Drain the body to release the connection.
-        await res.arrayBuffer().catch(() => undefined);
-      } catch (err) {
-        sent++;
-        failed++;
-        const name = err instanceof Error ? err.name : 'UnknownError';
-        errors[name] = (errors[name] ?? 0) + 1;
-      } finally {
-        clearTimeout(timer);
+      if (flow) {
+        // Iterate the flow steps in order; each request is rate-limited, so the
+        // global maxRps caps the TOTAL request rate across all steps.
+        for (const step of flow) {
+          if (shouldStop()) return;
+          const ok = await reserveSlot();
+          if (!ok) return;
+          await doRequest(step.method, step.url, step.body);
+          if (step.thinkMs) await think(step.thinkMs);
+        }
+      } else {
+        const ok = await reserveSlot();
+        if (!ok) return;
+        await doRequest(config.method ?? 'GET', config.url, config.body);
       }
     }
   }

@@ -54,6 +54,7 @@ export async function executeCampaign(
     durationSec: campaign.maxDurationSec,
     maxRps: campaign.maxRps,
     phases: campaign.scenario,
+    flow: campaign.flow,
     authorized: campaign.authorized,
   };
 

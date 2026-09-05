@@ -18,6 +18,8 @@ export interface AttackAgent {
   readonly name: string;
   /** Whether the agent supports bounded multi-phase scenarios (ramp/waves). */
   readonly multiPhase: boolean;
+  /** Whether the agent can run a multi-step request flow (L7 journey). */
+  readonly flowCapable: boolean;
   /** Short human-readable description shown in the UI. */
   readonly description: string;
   /** Whether the agent is usable in the current environment. */

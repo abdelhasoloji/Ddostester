@@ -4,6 +4,7 @@ import type {
   Campaign,
   CampaignRun,
   CampaignStatus,
+  RequestStep,
   WrsBreakdown,
   WrsPoint,
   LiveProgressData,
@@ -258,6 +259,9 @@ export function CampaignCard({ c }: { c: Campaign }) {
             🔁 every {formatInterval(c.recurrence.intervalMin)}
           </span>
         )}
+        {c.flow && c.flow.length > 0 && (
+          <span title="Multi-step L7 flow">🧭 {c.flow.length} steps</span>
+        )}
       </div>
 
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
@@ -439,6 +443,30 @@ export function CampaignDrawer() {
               <dd>every {formatInterval(c.recurrence.intervalMin)}</dd>
             </div>
           )}
+          {c.flow && c.flow.length > 0 && (
+            <div>
+              <dt>Flow</dt>
+              <dd>
+                {c.flow.map((s, i) => {
+                  let path = s.url;
+                  try {
+                    const u = new URL(s.url);
+                    path = u.pathname + u.search;
+                  } catch {
+                    /* keep raw */
+                  }
+                  return (
+                    <div key={i}>
+                      <code>
+                        {s.method} {path}
+                      </code>
+                      {s.thinkMs ? ` · think ${s.thinkMs}ms` : ''}
+                    </div>
+                  );
+                })}
+              </dd>
+            </div>
+          )}
         </dl>
 
         {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
@@ -469,7 +497,33 @@ const emptyForm = {
   profile: 'constant',
   agent: '',
   body: '',
+  flow: '',
 };
+
+/**
+ * Parses a flow editor (one step per line: "METHOD /path [thinkMs]") into
+ * bounded RequestStep[]. Each step keeps the target's host, so it stays within
+ * the allowlist. Returns undefined when empty.
+ */
+function parseFlow(raw: string, origin: string): RequestStep[] | undefined {
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return undefined;
+  return lines.map((line) => {
+    const [m, p, t] = line.split(/\s+/);
+    const method = (m || 'GET').toUpperCase();
+    let url = origin;
+    try {
+      url = new URL(p || '/', origin).href;
+    } catch {
+      /* keep origin */
+    }
+    const thinkMs = t ? Number(t) : undefined;
+    return { method, url, thinkMs: Number.isFinite(thinkMs) ? thinkMs : undefined };
+  });
+}
 
 function hostOf(url: string): string | null {
   try {
@@ -547,6 +601,16 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
   // Selected load engine (empty = server default) and its multi-phase support.
   const selectedAgent = app.agents.find((a) => a.id === form.agent);
   const multiPhaseOk = !selectedAgent || selectedAgent.multiPhase;
+  // Flow editor only when the selected engine (or the default builtin) can run
+  // multi-step flows.
+  const flowSupported = selectedAgent ? selectedAgent.flowCapable : true;
+  const targetOrigin = (() => {
+    try {
+      return new URL(form.target).origin;
+    } catch {
+      return '';
+    }
+  })();
   // Switching to a constant-only engine resets a ramp/wave profile.
   const setAgent = (id: string) => {
     const a = app.agents.find((x) => x.id === id);
@@ -601,6 +665,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
         recurrence: form.recurrenceMin ? { intervalMin: Number(form.recurrenceMin) } : undefined,
+        flow: flowSupported && form.flow.trim() ? parseFlow(form.flow, targetOrigin) : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -818,6 +883,32 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               onChange={(e) => setForm({ ...form, body: e.target.value })}
             />
           </div>
+        )}
+        {flowSupported ? (
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>Request flow — L7 journey (optional)</label>
+            <textarea
+              rows={4}
+              placeholder={'GET /\nPOST /login 500\nGET /dashboard\nGET /logout'}
+              value={form.flow}
+              onChange={(e) => setForm({ ...form, flow: e.target.value })}
+              style={{ fontFamily: 'var(--mono, monospace)' }}
+            />
+            <span className="hint">
+              One step per line: <code>METHOD /path [thinkMs]</code>. Each step hits the target host
+              (allowlisted); the rate cap still bounds total req/s. Leave empty for a single
+              request.
+            </span>
+          </div>
+        ) : (
+          form.agent && (
+            <div className="field" style={{ gridColumn: '1 / -1' }}>
+              <span className="hint">
+                Engine <b>{selectedAgent?.name}</b> doesn&apos;t support multi-step flows — choose
+                builtin/k6/jmeter/gatling/locust to define an L7 journey.
+              </span>
+            </div>
+          )
         )}
         <label className="attest">
           <input

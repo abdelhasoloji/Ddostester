@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { validateConfig } from '../engine/loadTest.js';
+import { validateConfig, iterationRate } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
@@ -16,45 +16,69 @@ import { AgentError, type AttackAgent } from './types.js';
  * same safeguards apply (validateConfig).
  */
 
+/** One k6 request statement for a method/url/body. */
+function k6Call(method: string, url: string, body: string | undefined): string {
+  const u = JSON.stringify(url);
+  const b = body != null ? JSON.stringify(body) : 'null';
+  return method === 'GET' || method === 'HEAD'
+    ? `http.request(${JSON.stringify(method)}, ${u}, null, params)`
+    : `http.request(${JSON.stringify(method)}, ${u}, ${b}, params)`;
+}
+
 /** Builds the k6 script (bounded HTTP load) from the config. Pure function. */
 export function buildK6Script(config: LoadTestConfig): string {
   const method = (config.method ?? 'GET').toUpperCase();
-  const url = JSON.stringify(config.url);
   const headers = JSON.stringify(config.headers ?? {});
-  const body = config.body != null ? JSON.stringify(config.body) : 'null';
   const vus = Math.max(1, config.concurrency);
+  const flow = config.flow?.length ? config.flow : null;
+  // When a flow runs N requests per iteration, cap the ITERATION rate at
+  // maxRps/N so the total request rate stays ≤ maxRps.
+  const div = flow ? flow.length : 1;
+  const rate = (rps: number): number => (flow ? iterationRate(rps, div) : rps);
 
   const scenario = config.phases?.length
     ? `{
       executor: 'ramping-arrival-rate',
-      startRate: ${config.phases[0].maxRps},
+      startRate: ${rate(config.phases[0].maxRps)},
       timeUnit: '1s',
       preAllocatedVUs: ${vus},
       maxVUs: ${vus},
-      stages: [${config.phases.map((p) => `{ target: ${p.maxRps}, duration: '${p.durationSec}s' }`).join(', ')}],
+      stages: [${config.phases.map((p) => `{ target: ${rate(p.maxRps)}, duration: '${p.durationSec}s' }`).join(', ')}],
     }`
     : `{
       executor: 'constant-arrival-rate',
-      rate: ${config.maxRps},
+      rate: ${rate(config.maxRps)},
       timeUnit: '1s',
       duration: '${config.durationSec}s',
       preAllocatedVUs: ${vus},
       maxVUs: ${vus},
     }`;
 
-  const call =
-    method === 'POST'
-      ? `http.post(${url}, ${body}, params)`
-      : `http.request(${JSON.stringify(method)}, ${url}, null, params)`;
+  const needsSleep = flow?.some((s) => s.thinkMs) ?? false;
+  const imports = `import http from 'k6/http';${needsSleep ? "\nimport { sleep } from 'k6';" : ''}`;
 
-  return `import http from 'k6/http';
+  let bodyFn: string;
+  if (flow) {
+    bodyFn = flow
+      .map((s) => {
+        const call = `  ${k6Call(s.method.toUpperCase(), s.url, s.body)};`;
+        return s.thinkMs ? `${call}\n  sleep(${(s.thinkMs / 1000).toFixed(3)});` : call;
+      })
+      .join('\n');
+  } else {
+    bodyFn = `  ${k6Call(method, config.url, config.body)};`;
+  }
+
+  return `${imports}
 export const options = {
   discardResponseBodies: true,
   summaryTrendStats: ['min', 'med', 'avg', 'p(95)', 'p(99)', 'max'],
   scenarios: { load: ${scenario} },
 };
 const params = { headers: ${headers} };
-export default function () { ${call}; }
+export default function () {
+${bodyFn}
+}
 `;
 }
 
@@ -111,7 +135,9 @@ export function parseK6Summary(
 export class K6Agent implements AttackAgent {
   readonly name = 'k6';
   readonly multiPhase = true;
-  readonly description = 'k6 (external) — arrival-rate load, supports ramping scenarios.';
+  readonly flowCapable = true;
+  readonly description =
+    'k6 (external) — arrival-rate load, supports ramping scenarios and multi-step flows.';
   constructor(private readonly bin = process.env.K6_BIN ?? 'k6') {}
 
   async available(): Promise<boolean> {

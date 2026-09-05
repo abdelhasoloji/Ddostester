@@ -22,8 +22,31 @@ export function buildLocustfile(config: LoadTestConfig): string {
   const method = JSON.stringify((config.method ?? 'GET').toUpperCase());
   const headers = JSON.stringify(config.headers ?? {});
   const users = Math.max(1, config.concurrency);
-  const pacing = Math.max(0.001, users / config.maxRps); // users/pacing ≈ maxRps
   const dataArg = config.body != null ? `, data=${JSON.stringify(config.body)}` : '';
+  const flow = config.flow?.length ? config.flow : null;
+
+  if (flow) {
+    // Each task iteration runs N requests, so pace so that
+    // users / pacing * N ≈ maxRps  ⇒  pacing = users * N / maxRps.
+    const pacing = Math.max(0.001, (users * flow.length) / config.maxRps);
+    const lines = flow.flatMap((s) => {
+      const sp = JSON.stringify(new URL(s.url).pathname + new URL(s.url).search);
+      const sm = JSON.stringify(s.method.toUpperCase());
+      const sd = s.body != null ? `, data=${JSON.stringify(s.body)}` : '';
+      const call = `        self.client.request(${sm}, ${sp}, headers=${headers}${sd}, name=${sp})`;
+      return s.thinkMs ? [call, `        time.sleep(${(s.thinkMs / 1000).toFixed(3)})`] : [call];
+    });
+    return `import time
+from locust import HttpUser, task, constant_pacing
+class ShieldTestUser(HttpUser):
+    wait_time = constant_pacing(${pacing})
+    @task
+    def run(self):
+${lines.join('\n')}
+`;
+  }
+
+  const pacing = Math.max(0.001, users / config.maxRps); // users/pacing ≈ maxRps
   return `from locust import HttpUser, task, constant_pacing
 class ShieldTestUser(HttpUser):
     wait_time = constant_pacing(${pacing})
@@ -108,8 +131,9 @@ function splitCsv(line: string): string[] {
 export class LocustAgent implements AttackAgent {
   readonly name = 'locust';
   readonly multiPhase = false;
+  readonly flowCapable = true;
   readonly description =
-    'Locust (external, headless) — constant rate only; use k6/vegeta for phases.';
+    'Locust (external, headless) — constant rate, supports multi-step flows; use k6/vegeta for phases.';
   constructor(private readonly bin = process.env.LOCUST_BIN ?? 'locust') {}
 
   available(): Promise<boolean> {

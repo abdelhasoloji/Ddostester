@@ -75,6 +75,27 @@ so automation never bypasses the approval workflow or separation of duties.
 Combine it with [notifications](./notifications.md) to be alerted on completion
 or a WRS regression instead of watching the UI.
 
+## Request flows — L7 journeys (bounded)
+
+A campaign can send a realistic multi-step **journey** instead of hammering one
+URL — e.g. `GET /` → `POST /login` → `GET /dashboard` → `GET /logout`. In the
+form's **Request flow** editor, one line per step:
+
+```
+METHOD /path [thinkMs]
+```
+
+- Each step hits the campaign target's host, so it stays inside the allowlist.
+- The global `maxRps` still caps the **total** request rate: engines that count
+  iterations run at `maxRps / steps` iterations per second, so N steps ≈ `maxRps`
+  requests per second, never more.
+- `thinkMs` is an optional pause **between** complete requests — it only lowers
+  load (it is not a slow-loris style vector).
+
+Supported by the built-in engine and k6, JMeter, Gatling and Locust. Vegeta is
+fixed-rate single-request only. Flows combine with load profiles (the profile
+shapes the rate over time; the flow defines what each iteration does).
+
 ## Load profiles (bounded scenarios — GEN-03)
 
 In the form, “Load profile” translates Max RPS + duration into phases:

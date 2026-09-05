@@ -42,12 +42,17 @@ export interface AgentInfo {
   available: boolean;
   /** Whether the agent supports bounded multi-phase scenarios (ramp/waves). */
   multiPhase: boolean;
+  /** Whether the agent can run a multi-step request flow (L7 journey). */
+  flowCapable: boolean;
   description: string;
 }
 
 /** Agent ids + capabilities without probing availability (cheap, sync). */
-export function agentChoices(): { id: string; multiPhase: boolean }[] {
-  return Object.keys(FACTORIES).map((id) => ({ id, multiPhase: FACTORIES[id]().multiPhase }));
+export function agentChoices(): { id: string; multiPhase: boolean; flowCapable: boolean }[] {
+  return Object.keys(FACTORIES).map((id) => {
+    const a = FACTORIES[id]();
+    return { id, multiPhase: a.multiPhase, flowCapable: a.flowCapable };
+  });
 }
 
 /** Describes every agent with live availability (probes each tool). */
@@ -57,7 +62,14 @@ export async function describeAgents(): Promise<AgentInfo[]> {
     ids.map(async (id) => {
       const a = FACTORIES[id]();
       const available = await a.available().catch(() => false);
-      return { id, name: a.name, available, multiPhase: a.multiPhase, description: a.description };
+      return {
+        id,
+        name: a.name,
+        available,
+        multiPhase: a.multiPhase,
+        flowCapable: a.flowCapable,
+        description: a.description,
+      };
     }),
   );
 }

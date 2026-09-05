@@ -22,10 +22,6 @@ const xmlEsc = (s: string): string =>
 
 /** Builds a JMeter test plan (.jmx) — bounded HTTP load. Pure function. */
 export function buildJmxPlan(config: LoadTestConfig): string {
-  const u = new URL(config.url);
-  const method = (config.method ?? 'GET').toUpperCase();
-  const port = u.port || (u.protocol === 'https:' ? '443' : '80');
-  const path = u.pathname + u.search;
   const throughputPerMin = config.maxRps * 60; // Constant Throughput Timer = req/min
   const headerRows = Object.entries(config.headers ?? {})
     .map(
@@ -35,7 +31,58 @@ export function buildJmxPlan(config: LoadTestConfig): string {
 </elementProp>`,
     )
     .join('\n');
-  const body = method === 'POST' && config.body != null ? config.body : '';
+
+  // A flow is a sequence of samplers; a single request is a 1-step flow. The
+  // SHARED Constant Throughput Timer (calcMode 3) caps the TOTAL samples/min
+  // across all samplers, so the request rate stays ≤ maxRps regardless of the
+  // number of steps.
+  const steps = config.flow?.length
+    ? config.flow
+    : [{ method: config.method ?? 'GET', url: config.url, body: config.body, thinkMs: undefined }];
+
+  const sampler = (
+    step: { method: string; url: string; body?: string; thinkMs?: number },
+    i: number,
+  ): string => {
+    const su = new URL(step.url);
+    const method = step.method.toUpperCase();
+    const port = su.port || (su.protocol === 'https:' ? '443' : '80');
+    const path = su.pathname + su.search;
+    const body =
+      (method === 'POST' || method === 'PUT' || method === 'PATCH') && step.body != null
+        ? step.body
+        : '';
+    const think = step.thinkMs
+      ? `
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="think" enabled="true">
+            <stringProp name="ConstantTimer.delay">${step.thinkMs}</stringProp>
+          </ConstantTimer>
+          <hashTree/>`
+      : '';
+    return `        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="step-${i + 1}" enabled="true">
+          <stringProp name="HTTPSampler.domain">${xmlEsc(su.hostname)}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+          <stringProp name="HTTPSampler.protocol">${su.protocol.replace(':', '')}</stringProp>
+          <stringProp name="HTTPSampler.path">${xmlEsc(path)}</stringProp>
+          <stringProp name="HTTPSampler.method">${method}</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">${body ? 'true' : 'false'}</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">${
+              body
+                ? `<elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">${xmlEsc(body)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>`
+                : ''
+            }</collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="headers" enabled="true">
+            <collectionProp name="HeaderManager.headers">${headerRows}</collectionProp>
+          </HeaderManager>
+          <hashTree/>${think}
+        </hashTree>`;
+  };
+
+  const samplers = steps.map(sampler).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0">
@@ -59,32 +106,12 @@ export function buildJmxPlan(config: LoadTestConfig): string {
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="req" enabled="true">
-          <stringProp name="HTTPSampler.domain">${xmlEsc(u.hostname)}</stringProp>
-          <stringProp name="HTTPSampler.port">${port}</stringProp>
-          <stringProp name="HTTPSampler.protocol">${u.protocol.replace(':', '')}</stringProp>
-          <stringProp name="HTTPSampler.path">${xmlEsc(path)}</stringProp>
-          <stringProp name="HTTPSampler.method">${method}</stringProp>
-          <boolProp name="HTTPSampler.postBodyRaw">${body ? 'true' : 'false'}</boolProp>
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
-            <collectionProp name="Arguments.arguments">${
-              body
-                ? `<elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">${xmlEsc(body)}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp>`
-                : ''
-            }</collectionProp>
-          </elementProp>
-        </HTTPSamplerProxy>
-        <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="headers" enabled="true">
-            <collectionProp name="HeaderManager.headers">${headerRows}</collectionProp>
-          </HeaderManager>
-          <hashTree/>
-          <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="rate" enabled="true">
-            <doubleProp><name>throughput</name><value>${throughputPerMin}</value></doubleProp>
-            <intProp name="calcMode">3</intProp>
-          </ConstantThroughputTimer>
-          <hashTree/>
-        </hashTree>
+${samplers}
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="rate" enabled="true">
+          <doubleProp><name>throughput</name><value>${throughputPerMin}</value></doubleProp>
+          <intProp name="calcMode">3</intProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
       </hashTree>
     </hashTree>
   </hashTree>
@@ -171,7 +198,9 @@ function empty(meta: {
 export class JMeterAgent implements AttackAgent {
   readonly name = 'jmeter';
   readonly multiPhase = false;
-  readonly description = 'Apache JMeter (external, headless) — constant throughput; heavy (JVM).';
+  readonly flowCapable = true;
+  readonly description =
+    'Apache JMeter (external, headless) — constant throughput, supports multi-step flows; heavy (JVM).';
   constructor(private readonly bin = process.env.JMETER_BIN ?? 'jmeter') {}
 
   available(): Promise<boolean> {

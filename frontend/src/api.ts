@@ -33,8 +33,17 @@ export interface Campaign {
   scenario?: { maxRps: number; durationSec: number }[];
   agent?: string;
   recurrence?: { intervalMin: number; until?: string };
+  flow?: RequestStep[];
   wrs?: WrsBreakdown;
   runId?: string;
+}
+
+export interface RequestStep {
+  method: string;
+  url: string;
+  body?: string;
+  thinkMs?: number;
+  name?: string;
 }
 
 export interface AgentInfo {
@@ -42,6 +51,7 @@ export interface AgentInfo {
   name: string;
   available: boolean;
   multiPhase: boolean;
+  flowCapable: boolean;
   description: string;
 }
 

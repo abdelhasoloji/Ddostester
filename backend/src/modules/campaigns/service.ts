@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
+import { MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
+
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 
 export class CampaignError extends Error {}
 
@@ -31,6 +34,7 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
 export interface AgentChoice {
   id: string;
   multiPhase: boolean;
+  flowCapable: boolean;
 }
 
 export function createCampaign(
@@ -98,6 +102,21 @@ export function createCampaign(
     input.maxDurationSec = totalDur;
   }
 
+  if (input.flow) {
+    if (input.flow.length < 1 || input.flow.length > MAX_FLOW_STEPS) {
+      throw new CampaignError(`A flow must have between 1 and ${MAX_FLOW_STEPS} steps.`);
+    }
+    for (const step of input.flow) {
+      if (!HTTP_METHODS.includes(step.method)) {
+        throw new CampaignError(`Flow step: unsupported method "${step.method}".`);
+      }
+      assertHostAllowed(step.url, allowedHosts, 'Flow step');
+      if (step.thinkMs != null && (step.thinkMs < 0 || step.thinkMs > MAX_THINK_MS)) {
+        throw new CampaignError(`Flow step: thinkMs must be within [0, ${MAX_THINK_MS}].`);
+      }
+    }
+  }
+
   // Validate the chosen load engine when the caller supplies the agent list.
   if (input.agent && agents) {
     const chosen = agents.find((a) => a.id === input.agent);
@@ -108,6 +127,12 @@ export function createCampaign(
       throw new CampaignError(
         `Load engine "${input.agent}" does not support multi-phase scenarios — ` +
           `use a constant profile or choose k6/vegeta/builtin.`,
+      );
+    }
+    if (input.flow && input.flow.length > 0 && !chosen.flowCapable) {
+      throw new CampaignError(
+        `Load engine "${input.agent}" does not support multi-step flows — ` +
+          `choose builtin/k6/jmeter/gatling/locust.`,
       );
     }
   }

@@ -1,7 +1,7 @@
 import type { WrsBreakdown } from '../wrs/scoring.js';
-import type { ScenarioPhase } from '../../engine/types.js';
+import type { ScenarioPhase, RequestStep } from '../../engine/types.js';
 
-export type { ScenarioPhase };
+export type { ScenarioPhase, RequestStep };
 
 /**
  * The only load vector supported by this control plane: bounded application
@@ -52,6 +52,12 @@ export interface CampaignInput {
    * server default agent. All engines produce bounded HTTP load only.
    */
   agent?: string;
+  /**
+   * Optional bounded request flow (L7 journey): an ordered list of steps, each
+   * an HTTP request to an allowlisted host, optionally with think-time. Absent =
+   * a single request to `target`. The caps still bound the total request rate.
+   */
+  flow?: RequestStep[];
   /**
    * Optional recurrence: once APPROVED, re-run the campaign every
    * `intervalMin` minutes. Recurrence only fires while the approval is valid

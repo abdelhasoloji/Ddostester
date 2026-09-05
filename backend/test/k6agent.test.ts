@@ -35,9 +35,28 @@ describe('buildK6Script', () => {
     expect(s).toContain("{ target: 10, duration: '5s' }");
     expect(s).toContain("{ target: 40, duration: '5s' }");
   });
-  it('utilise http.post avec un corps pour POST', () => {
+  it('sends a body for POST', () => {
     const s = buildK6Script({ ...cfg, method: 'POST', body: '{"a":1}' });
-    expect(s).toContain('http.post(');
+    expect(s).toContain('http.request("POST", "http://127.0.0.1/health"');
+    expect(s).toContain('{\\"a\\":1}');
+  });
+
+  it('renders a multi-step flow and caps the iteration rate at maxRps/steps', () => {
+    const s = buildK6Script({
+      ...cfg,
+      maxRps: 60,
+      flow: [
+        { method: 'GET', url: 'http://127.0.0.1/a' },
+        { method: 'POST', url: 'http://127.0.0.1/b', body: '{}', thinkMs: 500 },
+        { method: 'GET', url: 'http://127.0.0.1/c' },
+      ],
+    });
+    // 60 rps / 3 steps = 20 iterations/s → ~60 requests/s total.
+    expect(s).toContain('rate: 20');
+    expect(s).toContain('http.request("GET", "http://127.0.0.1/a"');
+    expect(s).toContain('http.request("POST", "http://127.0.0.1/b"');
+    expect(s).toContain('sleep(0.500)');
+    expect(s).toContain("import { sleep } from 'k6'");
   });
 });
 
@@ -69,10 +88,10 @@ describe('selectAgent', () => {
   it('builtin by default', () => {
     expect(selectAgent({} as NodeJS.ProcessEnv).name).toBe('builtin-http');
   });
-  it('k6 si AGENT=k6', () => {
+  it('k6 when AGENT=k6', () => {
     expect(selectAgent({ AGENT: 'k6' } as NodeJS.ProcessEnv).name).toBe('k6');
   });
-  it("l'agent intégré est toujours disponible", async () => {
+  it('the built-in agent is always available', async () => {
     expect(await new BuiltinHttpAgent().available()).toBe(true);
   });
 });

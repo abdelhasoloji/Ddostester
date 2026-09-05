@@ -29,7 +29,7 @@ describe('jmeter', () => {
     expect(x).toContain('<stringProp name="HTTPSampler.domain">127.0.0.1</stringProp>');
     expect(x).toContain('X-WEDOS-TEST');
   });
-  it('parse un JTL et calcule les percentiles', () => {
+  it('parses a JTL and computes percentiles', () => {
     const csv = [
       'timeStamp,elapsed,label,responseCode,responseMessage,success',
       '1,10,req,200,OK,true',
@@ -54,7 +54,7 @@ describe('gatling', () => {
     expect(s).toContain('baseUrl("http://127.0.0.1:8080")');
     expect(s).toContain('.get("/health")');
   });
-  it('parse simulation.log (best-effort)', () => {
+  it('parses simulation.log (best-effort)', () => {
     const log = [
       'RUN\t...',
       'REQUEST\treq\t1700000000000\t1700000000012\tOK\t',
@@ -68,8 +68,8 @@ describe('gatling', () => {
   });
 });
 
-describe('selectAgent (complet)', () => {
-  it('liste les 6 agents', () => {
+describe('selectAgent (full)', () => {
+  it('lists the 6 agents', () => {
     expect(AGENTS).toEqual(['builtin', 'k6', 'vegeta', 'locust', 'jmeter', 'gatling']);
   });
   it('selects jmeter and gatling', () => {

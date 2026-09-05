@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { validateConfig } from '../engine/loadTest.js';
+import { validateConfig, iterationRate } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
@@ -29,8 +29,32 @@ export function buildGatlingSim(
     .join('');
   const bodyChain =
     method === 'post' && config.body != null ? `.body(StringBody(${jStr(config.body)}))` : '';
+
+  const flow = config.flow?.length ? config.flow : null;
+  // A flow runs N requests per user, so cap the user arrival rate at maxRps/N.
+  const usersPerSec = flow ? iterationRate(config.maxRps, flow.length) : config.maxRps;
+
+  let chain: string;
+  let extraImport = '';
+  if (flow) {
+    extraImport = '\nimport java.time.Duration;';
+    chain = flow
+      .map((s, i) => {
+        const m = s.method.toLowerCase();
+        const stepBody =
+          (m === 'post' || m === 'put' || m === 'patch') && s.body != null
+            ? `.body(StringBody(${jStr(s.body)}))`
+            : '';
+        const exec = `.exec(http(${jStr(s.name ?? `step-${i + 1}`)}).${m}(${jStr(s.url)})${headers}${stepBody})`;
+        return s.thinkMs ? `${exec}\n      .pause(Duration.ofMillis(${s.thinkMs}))` : exec;
+      })
+      .join('\n      ');
+  } else {
+    chain = `.exec(http("req").${method}(${jStr(path)})${headers}${bodyChain})`;
+  }
+
   return `import io.gatling.javaapi.core.*;
-import io.gatling.javaapi.http.*;
+import io.gatling.javaapi.http.*;${extraImport}
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
 
@@ -38,8 +62,8 @@ public class ${className} extends Simulation {
   {
     HttpProtocolBuilder httpProtocol = http.baseUrl(${jStr(u.origin)});
     ScenarioBuilder scn = scenario("shieldtest")
-      .exec(http("req").${method}(${jStr(path)})${headers}${bodyChain});
-    setUp(scn.injectOpen(constantUsersPerSec(${config.maxRps}).during(${config.durationSec})))
+      ${chain};
+    setUp(scn.injectOpen(constantUsersPerSec(${usersPerSec}).during(${config.durationSec})))
       .protocols(httpProtocol);
   }
 }
@@ -100,7 +124,9 @@ export function parseGatlingLog(
 export class GatlingAgent implements AttackAgent {
   readonly name = 'gatling';
   readonly multiPhase = false;
-  readonly description = 'Gatling (external, headless) — constant users/sec; heavy (JVM).';
+  readonly flowCapable = true;
+  readonly description =
+    'Gatling (external, headless) — constant users/sec, supports multi-step flows; heavy (JVM).';
   constructor(private readonly bin = process.env.GATLING_BIN ?? 'gatling.sh') {}
 
   available(): Promise<boolean> {
