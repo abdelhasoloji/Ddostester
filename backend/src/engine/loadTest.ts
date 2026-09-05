@@ -39,6 +39,15 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
   if (!(config.maxRps > 0)) {
     throw new InvalidConfigError('maxRps doit être > 0 (plafond de sécurité obligatoire).');
   }
+  if (config.phases) {
+    if (config.phases.length === 0 || config.phases.length > 12) {
+      throw new InvalidConfigError('Un scénario doit comporter entre 1 et 12 phases.');
+    }
+    for (const p of config.phases) {
+      if (!(p.maxRps > 0)) throw new InvalidConfigError('Chaque phase doit avoir maxRps > 0.');
+      if (p.durationSec < 1) throw new InvalidConfigError('Chaque phase doit durer ≥ 1 s.');
+    }
+  }
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -62,8 +71,23 @@ export async function runLoadTest(
   const id = randomUUID();
   const startedAt = new Date();
   const timeoutMs = config.timeoutMs ?? 10_000;
-  const deadline = startedAt.getTime() + config.durationSec * 1000;
+  // Phases : par défaut une seule phase (durationSec @ maxRps).
+  const phases = config.phases?.length
+    ? config.phases
+    : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
+  const totalMs = phases.reduce((s, p) => s + p.durationSec * 1000, 0);
+  const deadline = startedAt.getTime() + totalMs;
   const shouldStop = (): boolean => Date.now() >= deadline || killSignal?.aborted === true;
+
+  /** Débit autorisé à l'instant courant selon la phase en cours. */
+  function currentMaxRps(): number {
+    let t = Date.now() - startedAt.getTime();
+    for (const p of phases) {
+      if (t < p.durationSec * 1000) return p.maxRps;
+      t -= p.durationSec * 1000;
+    }
+    return phases[phases.length - 1].maxRps;
+  }
 
   const latencies: number[] = [];
   const statusCounts: Record<string, number> = {};
@@ -83,7 +107,7 @@ export async function runLoadTest(
         windowStart = now;
         windowCount = 0;
       }
-      if (windowCount < config.maxRps) {
+      if (windowCount < currentMaxRps()) {
         windowCount++;
         return true;
       }

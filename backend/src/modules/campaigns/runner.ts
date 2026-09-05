@@ -48,6 +48,7 @@ export async function executeCampaign(
     concurrency: campaign.concurrency,
     durationSec: campaign.maxDurationSec,
     maxRps: campaign.maxRps,
+    phases: campaign.scenario,
     authorized: campaign.authorized,
   };
 

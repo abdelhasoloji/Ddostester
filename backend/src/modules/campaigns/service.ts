@@ -53,6 +53,26 @@ export function createCampaign(input: CampaignInput, allowedHosts: string[]): Ca
     throw new CampaignError('scheduledAt : date ISO invalide.');
   }
 
+  if (input.scenario) {
+    if (input.scenario.length < 1 || input.scenario.length > 12) {
+      throw new CampaignError('Un scénario doit comporter entre 1 et 12 phases.');
+    }
+    let totalDur = 0;
+    for (const p of input.scenario) {
+      if (!(p.maxRps > 0) || p.maxRps > HARD_CAPS.maxRps) {
+        throw new CampaignError(`Phase : maxRps doit être dans ]0, ${HARD_CAPS.maxRps}].`);
+      }
+      if (p.durationSec < 1) throw new CampaignError('Phase : durée ≥ 1 s.');
+      totalDur += p.durationSec;
+    }
+    if (totalDur > HARD_CAPS.maxDurationSec) {
+      throw new CampaignError(`Durée totale du scénario ≤ ${HARD_CAPS.maxDurationSec}s.`);
+    }
+    // Normalise les champs agrégés pour l'affichage/metrics.
+    input.maxRps = Math.max(...input.scenario.map((p) => p.maxRps));
+    input.maxDurationSec = totalDur;
+  }
+
   return {
     ...input,
     id: randomUUID(),

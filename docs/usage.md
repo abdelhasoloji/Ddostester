@@ -41,3 +41,13 @@ le service lui-même (`127.0.0.1`, déjà dans l'allowlist).
 - Garder un onglet sur les métriques de la cible en parallèle.
 - Le **kill switch manuel** est là en cas de doute : `POST /api/campaigns/:id/kill`.
 - Ne jamais viser une cible hors du périmètre mandaté (l'allowlist le garantit).
+
+## Profils de charge (scénarios bornés — GEN-03)
+
+Dans le formulaire, « Profil de charge » traduit Max RPS + durée en phases :
+- **Constant** — débit unique (défaut).
+- **Montée progressive** — 25 % → 50 % → 100 % du Max RPS sur trois tiers.
+- **Vagues** — 100 % → 20 % → 100 %.
+
+Chaque phase reste soumise aux plafonds (`maxRps ≤ 2000`, durée totale ≤ 900 s).
+Aucun vecteur volumétrique : ce ne sont que des débits HTTP bornés modulés.

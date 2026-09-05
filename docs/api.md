@@ -28,6 +28,7 @@ Corps :
 | `maxDurationSec` | number | 1..900 |
 | `authorized` | bool | doit être `true` (attestation) |
 | `scheduledAt` | string ISO | optionnel — exécution auto par l'ordonnanceur une fois approuvée (CAM-01) |
+| `scenario` | phase[] | optionnel — scénario borné (GEN-03) : `[{maxRps,durationSec}, …]` (≤12 phases). Normalise `maxRps`=max, `maxDurationSec`=somme |
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json' -d '{

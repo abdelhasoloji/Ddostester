@@ -1,4 +1,7 @@
 import type { WrsBreakdown } from '../wrs/scoring.js';
+import type { ScenarioPhase } from '../../engine/types.js';
+
+export type { ScenarioPhase };
 
 /**
  * Seul vecteur de charge supporté par ce control plane : requêtes HTTP
@@ -39,6 +42,11 @@ export interface CampaignInput {
    * (CAM-01). Absent = exécution manuelle.
    */
   scheduledAt?: string;
+  /**
+   * Scénario de charge borné optionnel (GEN-03) : phases séquentielles
+   * (ramp-up, vagues…). Absent = charge constante (maxRps/maxDurationSec).
+   */
+  scenario?: ScenarioPhase[];
 }
 
 export interface Campaign extends CampaignInput {

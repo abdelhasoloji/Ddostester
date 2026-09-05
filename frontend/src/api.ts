@@ -29,6 +29,7 @@ export interface Campaign {
   concurrency: number;
   maxDurationSec: number;
   scheduledAt?: string;
+  scenario?: { maxRps: number; durationSec: number }[];
   wrs?: WrsBreakdown;
   runId?: string;
 }

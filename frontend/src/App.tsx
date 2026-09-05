@@ -91,8 +91,30 @@ const emptyForm = {
   concurrency: 5,
   maxDurationSec: 30,
   scheduledAt: '',
+  profile: 'constant',
   body: '',
 };
+
+/** Traduit un profil de charge en phases bornées (GEN-03). */
+function buildScenario(profile: string, maxRps: number, durationSec: number): { maxRps: number; durationSec: number }[] | undefined {
+  const third = Math.max(1, Math.round(durationSec / 3));
+  const pct = (p: number) => Math.max(1, Math.round((maxRps * p) / 100));
+  if (profile === 'ramp') {
+    return [
+      { maxRps: pct(25), durationSec: third },
+      { maxRps: pct(50), durationSec: third },
+      { maxRps: pct(100), durationSec: third },
+    ];
+  }
+  if (profile === 'wave') {
+    return [
+      { maxRps: pct(100), durationSec: third },
+      { maxRps: pct(20), durationSec: third },
+      { maxRps: pct(100), durationSec: third },
+    ];
+  }
+  return undefined; // constant
+}
 
 function Sparkline({ points, regression }: { points: { wrs: number }[]; regression: boolean }) {
   const w = 180;
@@ -237,6 +259,7 @@ export function App() {
         concurrency: Number(form.concurrency),
         maxDurationSec: Number(form.maxDurationSec),
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
+        scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -440,6 +463,15 @@ export function App() {
               </div>
 
               <div className="field">
+                <label>Profil de charge</label>
+                <select value={form.profile} onChange={(e) => setForm({ ...form, profile: e.target.value })}>
+                  <option value="constant">Constant</option>
+                  <option value="ramp">Montée progressive (25→50→100 %)</option>
+                  <option value="wave">Vagues (100→20→100 %)</option>
+                </select>
+                <span className="hint">borné : max = Max RPS, réparti sur la durée</span>
+              </div>
+              <div className="field">
                 <label>Planifier (optionnel)</label>
                 <input
                   type="datetime-local"
@@ -557,6 +589,7 @@ export function App() {
                   <span>{c.vector}</span>
                   <span>
                     {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
+                    {c.scenario && c.scenario.length > 1 ? ` · scénario ${c.scenario.length} phases` : ''}
                   </span>
                   <span>
                     par {c.createdBy}
