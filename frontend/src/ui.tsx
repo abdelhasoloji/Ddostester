@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { reportUrl, streamUrl } from './api.js';
-import type { Campaign, CampaignStatus, WrsBreakdown, LiveProgressData } from './api.js';
+import type {
+  Campaign,
+  CampaignRun,
+  CampaignStatus,
+  WrsBreakdown,
+  LiveProgressData,
+} from './api.js';
 import { useApp, canDo } from './context.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -117,7 +123,6 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
 
 export function CampaignCard({ c }: { c: Campaign }) {
   const app = useApp();
-  const run = app.runs[c.id];
   const isBusy = app.busy[c.id];
   const role = app.role;
   const ar = app.authRequired;
@@ -157,11 +162,9 @@ export function CampaignCard({ c }: { c: Campaign }) {
               Report ↗
             </a>
           )}
-          {(run || c.runId) && (
-            <button className="btn btn-sm btn-ghost" onClick={() => app.toggleDetails(c)}>
-              {app.expanded === c.id ? 'Hide' : 'Details'}
-            </button>
-          )}
+          <button className="btn btn-sm btn-ghost" onClick={() => app.openDetail(c)}>
+            Details
+          </button>
         </div>
       </div>
       <div className="campaign-meta">
@@ -183,66 +186,187 @@ export function CampaignCard({ c }: { c: Campaign }) {
       </div>
 
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} />}
+    </div>
+  );
+}
 
-      {app.expanded === c.id && run && (
-        <div className="details">
-          <div className="metrics">
-            <div className="metric">
-              <div className="k">Requests</div>
-              <div className="v">{run.generator.totalRequests}</div>
-            </div>
-            <div className="metric">
-              <div className="k">Success / failures</div>
-              <div className="v">
-                {run.generator.successful} / {run.generator.failed}
-              </div>
-            </div>
-            <div className="metric">
-              <div className="k">Actual RPS</div>
-              <div className="v">{run.generator.actualRps}</div>
-            </div>
-            <div className="metric">
-              <div className="k">Latency p95</div>
-              <div className="v">{run.generator.latencyMs.p95} ms</div>
-            </div>
-            <div className="metric">
-              <div className="k">Probe 5xx</div>
-              <div className="v">{run.probe.errorRate5xx}%</div>
-            </div>
-            <div className="metric">
-              <div className="k">Probe availability</div>
-              <div className="v">
-                {run.probe.available}/{run.probe.samples}
-              </div>
-            </div>
+/** Measured metrics + WRS breakdown for a finished run (used in the drawer). */
+function RunDetails({ run }: { run: CampaignRun }) {
+  return (
+    <div className="details">
+      <div className="metrics">
+        <div className="metric">
+          <div className="k">Requests</div>
+          <div className="v">{run.generator.totalRequests}</div>
+        </div>
+        <div className="metric">
+          <div className="k">Success / failures</div>
+          <div className="v">
+            {run.generator.successful} / {run.generator.failed}
           </div>
-          <div className="wrs-breakdown">
-            <span>
-              Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
-            </span>
-            <span>
-              Mitigation{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.mitigation}</b>
-            </span>
-            <span>
-              Availability <b>{run.wrs.availability}</b>
-            </span>
-            <span>
-              Collateral <b>{run.wrs.collateral}</b>
-            </span>
+        </div>
+        <div className="metric">
+          <div className="k">Actual RPS</div>
+          <div className="v">{run.generator.actualRps}</div>
+        </div>
+        <div className="metric">
+          <div className="k">Latency p95</div>
+          <div className="v">{run.generator.latencyMs.p95} ms</div>
+        </div>
+        <div className="metric">
+          <div className="k">Probe 5xx</div>
+          <div className="v">{run.probe.errorRate5xx}%</div>
+        </div>
+        <div className="metric">
+          <div className="k">Probe availability</div>
+          <div className="v">
+            {run.probe.available}/{run.probe.samples}
           </div>
-          {run.wrs.estimated && (
-            <p className="hint" style={{ marginTop: '.5rem' }}>
-              Detection and Mitigation are <b>estimated</b> (no protection integration): they are
-              constant, so the WRS mostly reflects measured availability.
-            </p>
+        </div>
+      </div>
+      <div className="wrs-breakdown">
+        <span>
+          Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
+        </span>
+        <span>
+          Mitigation{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.mitigation}</b>
+        </span>
+        <span>
+          Availability <b>{run.wrs.availability}</b>
+        </span>
+        <span>
+          Collateral <b>{run.wrs.collateral}</b>
+        </span>
+      </div>
+      {run.wrs.estimated && (
+        <p className="hint" style={{ marginTop: '.5rem' }}>
+          Detection and Mitigation are <b>estimated</b> (no protection integration): they are
+          constant, so the WRS mostly reflects measured availability.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Right-side detail panel for the campaign selected via "Details". */
+export function CampaignDrawer() {
+  const app = useApp();
+  const id = app.expanded;
+  const c = app.campaigns.find((x) => x.id === id);
+  const role = app.role;
+  const ar = app.authRequired;
+
+  useEffect(() => {
+    if (!id) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') app.setExpanded(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [id, app]);
+
+  if (!id || !c) return null;
+  const run = app.runs[c.id];
+  return (
+    <div className="drawer-overlay" onClick={() => app.setExpanded(null)}>
+      <aside
+        className="drawer"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Campaign details"
+      >
+        <div className="drawer-head">
+          <div className="drawer-title">
+            <span className="campaign-name">{c.name}</span>
+            <StatusBadge status={c.status} />
+            {c.wrs && <WrsPill wrs={c.wrs} />}
+          </div>
+          <button className="drawer-close" aria-label="Close" onClick={() => app.setExpanded(null)}>
+            ×
+          </button>
+        </div>
+
+        <div className="drawer-actions">
+          {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
+            <button className="btn btn-sm" onClick={() => app.setApproveFor(c)}>
+              Approve / Reject
+            </button>
+          )}
+          {c.status === 'APPROVED' && canDo(role, 'execute', ar) && (
+            <button className="btn btn-sm btn-primary" onClick={() => app.setConfirmExec(c)}>
+              Run
+            </button>
+          )}
+          {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
+            <button className="btn btn-sm btn-danger" onClick={() => app.kill(c)}>
+              Kill switch
+            </button>
+          )}
+          {c.runId && (
+            <a
+              className="btn btn-sm btn-ghost"
+              href={reportUrl(c.runId)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Report ↗
+            </a>
           )}
         </div>
-      )}
-      {app.expanded === c.id && !run && (
-        <div className="details">
-          <span className="hint">No detailed metrics available.</span>
-        </div>
-      )}
+
+        <dl className="drawer-meta">
+          <div>
+            <dt>Target</dt>
+            <dd>
+              <code>{c.target}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Probe</dt>
+            <dd>
+              <code>{c.probeUrl}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Vector</dt>
+            <dd>{c.vector}</dd>
+          </div>
+          <div>
+            <dt>Load</dt>
+            <dd>
+              {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
+              {c.scenario && c.scenario.length > 1 ? ` · ${c.scenario.length}-phase scenario` : ''}
+            </dd>
+          </div>
+          <div>
+            <dt>Author</dt>
+            <dd>{c.createdBy}</dd>
+          </div>
+          {c.approvedBy && (
+            <div>
+              <dt>Approver</dt>
+              <dd>{c.approvedBy}</dd>
+            </div>
+          )}
+          {c.scheduledAt && (
+            <div>
+              <dt>Scheduled</dt>
+              <dd>{new Date(c.scheduledAt).toLocaleString()}</dd>
+            </div>
+          )}
+        </dl>
+
+        {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} />}
+        {run ? (
+          <RunDetails run={run} />
+        ) : (
+          c.status !== 'RUNNING' && (
+            <p className="hint" style={{ marginTop: '.75rem' }}>
+              No run yet — execute the campaign to see measured metrics and its WRS.
+            </p>
+          )
+        )}
+      </aside>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useApp } from './context.js';
 import {
   ApproveModal,
   CampaignCard,
+  CampaignDrawer,
   ExecuteModal,
   NewCampaignForm,
   Sparkline,
@@ -120,6 +121,7 @@ export function Layout() {
         </main>
       </div>
 
+      <CampaignDrawer />
       <ExecuteModal />
       <ApproveModal />
       <div className="toasts">

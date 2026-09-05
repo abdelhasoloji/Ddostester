@@ -69,6 +69,7 @@ interface Ctx {
   execute: (c: Campaign) => Promise<void>;
   kill: (c: Campaign) => Promise<void>;
   toggleDetails: (c: Campaign) => Promise<void>;
+  openDetail: (c: Campaign) => Promise<void>;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -234,12 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleDetails = async (c: Campaign) => {
-    if (expanded === c.id) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(c.id);
+  const fetchRun = async (c: Campaign) => {
     if (!runs[c.id] && c.runId) {
       try {
         const run = await api.getRun(c.runId);
@@ -248,6 +244,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         /* no detailed run available */
       }
     }
+  };
+
+  const toggleDetails = async (c: Campaign) => {
+    if (expanded === c.id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(c.id);
+    await fetchRun(c);
+  };
+
+  /** Open the detail drawer for a campaign (always opens, never toggles). */
+  const openDetail = async (c: Campaign) => {
+    setExpanded(c.id);
+    await fetchRun(c);
   };
 
   const value: Ctx = {
@@ -287,6 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     execute,
     kill,
     toggleDetails,
+    openDetail,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
