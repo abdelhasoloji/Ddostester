@@ -2,10 +2,10 @@
 
 Two GitHub Actions workflows drive integration and deployment.
 
-| Workflow | File                           | Trigger                             | Purpose                           |
-| -------- | ------------------------------ | ----------------------------------- | --------------------------------- |
-| CI       | `.github/workflows/ci.yml`     | push to `main`, every pull request  | lint → typecheck → test → build   |
-| Deploy   | `.github/workflows/deploy.yml` | after CI succeeds on `main`; manual | SSH into the server and update it |
+| Workflow | File                           | Trigger                             | Purpose                          |
+| -------- | ------------------------------ | ----------------------------------- | -------------------------------- |
+| CI       | `.github/workflows/ci.yml`     | push to `main`, every pull request  | lint → typecheck → test → build  |
+| Deploy   | `.github/workflows/deploy.yml` | after CI succeeds on `main`; manual | update the service on the server |
 
 ## Flow
 
@@ -13,13 +13,27 @@ Two GitHub Actions workflows drive integration and deployment.
 push / PR ──► CI (lint, typecheck, test, build)
                      │ success on main
                      ▼
-              Deploy ──SSH──► server: deploy/update.sh
-                                (fetch main, npm ci, build, test, restart)
+              Deploy ──► self-hosted runner on the server:
+                         deploy/update.sh
+                         (fetch main, npm ci, build, test, restart)
 ```
 
 Deploy runs **only** when CI is green on `main`, so a red build never reaches the
-server. It can also be started manually from the Actions tab
-(**Run workflow**), optionally choosing a branch to deploy (rollback).
+server. It can also be started manually from the Actions tab (**Run workflow**),
+optionally choosing a branch to deploy (rollback). Once set up, **no manual
+deploy commands are needed** — every green push to `main` deploys itself.
+
+## Deployment model: self-hosted runner
+
+Deploy runs on a **self-hosted GitHub Actions runner installed on the WEDOS
+server**. The runner polls GitHub outbound (HTTPS 443), so:
+
+- no inbound SSH and no firewall changes — the app stays loopback-only,
+- no SSH key or deploy secrets stored in GitHub,
+- the deploy runs locally, updating the existing `~/ddostester` clone in place.
+
+The job runs `deploy/update.sh` in the service repo (default `~/ddostester`,
+override with the `DDOSTESTER_DIR` env var on the runner).
 
 ## Provisioning vs update
 
@@ -29,45 +43,39 @@ server. It can also be started manually from the Actions tab
   `npm ci`, build, test, restarts the service. It **never** touches the systemd
   unit or the secrets file, so automated deploys can't erase your configuration.
 
-## Required secrets
+## One-time server setup
 
-Add these under **Settings → Secrets and variables → Actions** (repository, or
-scoped to a `production` environment for extra protection rules):
+Run as the deploy user (the one that owns `~/ddostester` and runs the service,
+e.g. `at264`).
 
-| Secret               | Required | Description                                                          |
-| -------------------- | -------- | -------------------------------------------------------------------- |
-| `DEPLOY_HOST`        | yes      | Server hostname or IP reachable over SSH                             |
-| `DEPLOY_USER`        | yes      | SSH user (see sudo requirement below)                                |
-| `DEPLOY_SSH_KEY`     | yes      | Private SSH key (PEM) whose public half is authorized on the server  |
-| `DEPLOY_PORT`        | no       | SSH port (default `22`)                                              |
-| `DEPLOY_PATH`        | no       | Repo clone path on the server (default `~/ddostester`)               |
-| `DEPLOY_KNOWN_HOSTS` | no       | Server host key(s). If absent, the runner trusts on first use (TOFU) |
-
-Get the host key for `DEPLOY_KNOWN_HOSTS` (pinned host verification, recommended):
+**1. Passwordless sudo for the restart** (`update.sh` runs `sudo -n systemctl restart ddostester`):
 
 ```bash
-ssh-keyscan -p 22 <server-host>
+echo "$USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart ddostester" \
+  | sudo tee /etc/sudoers.d/ddostester-deploy
+sudo chmod 440 /etc/sudoers.d/ddostester-deploy
 ```
 
-## Server prerequisites
+**2. Install the self-hosted runner.** In GitHub: **repo → Settings → Actions →
+Runners → New self-hosted runner** (Linux x64). Copy the exact download + token
+commands it shows (the token is single-use), which look like:
 
-1. **A dedicated deploy SSH key.** Generate a keypair, add the public key to the
-   deploy user's `~/.ssh/authorized_keys`, and store the private key as
-   `DEPLOY_SSH_KEY`.
-2. **Passwordless sudo for the restart.** `deploy/update.sh` runs
-   `sudo -n systemctl restart ddostester` non-interactively. Grant only that:
+```bash
+mkdir -p ~/actions-runner && cd ~/actions-runner
+curl -o runner.tar.gz -L https://github.com/actions/runner/releases/download/vX.Y.Z/actions-runner-linux-x64-X.Y.Z.tar.gz
+tar xzf runner.tar.gz
+./config.sh --url https://github.com/abdelhasoloji/Ddostester --token <TOKEN> --unattended
+```
 
-   ```bash
-   # /etc/sudoers.d/ddostester-deploy  (edit with: sudo visudo -f ...)
-   deployuser ALL=(root) NOPASSWD: /usr/bin/systemctl restart ddostester
-   ```
+Then install it as a service so it survives reboots and runs as the deploy user:
 
-3. **The clone can fetch `origin`.** The repo at `DEPLOY_PATH` must be able to
-   `git fetch origin` (deploy key with read access — see `deployment.md`).
-4. **Network reachability.** GitHub-hosted runners connect from GitHub's IP
-   ranges. If the server's SSH is firewalled, either allow those ranges or use a
-   [self-hosted runner](https://docs.github.com/actions/hosting-your-own-runners)
-   inside the network. Only SSH is used — the app itself stays loopback-only.
+```bash
+sudo ./svc.sh install "$USER"
+sudo ./svc.sh start
+```
+
+The runner needs `git`, `node`/`npm` and `bash` on its PATH (already present from
+the standard server setup). That's it — no secrets to add in GitHub.
 
 ## Rollback
 
@@ -77,11 +85,16 @@ ssh-keyscan -p 22 <server-host>
 
 ## Security notes
 
-- The workflow uses least privilege (`permissions: contents: read`) and never
-  prints secrets (they are passed via masked env vars, not interpolated into the
-  script).
-- The private key is written only to the runner's `~/.ssh` and removed after the
-  run.
+- Least privilege: `permissions: contents: read`, and no inbound network exposure
+  (the runner dials out to GitHub; nothing dials into the server).
+- No SSH keys or deploy secrets are stored in GitHub.
+- Passwordless sudo is scoped to exactly one command (`systemctl restart ddostester`).
 - A `concurrency` group serializes deploys so two never overlap.
-- Prefer setting `DEPLOY_KNOWN_HOSTS` so the runner verifies the server's
-  identity instead of trusting it on first use.
+
+## Alternative: SSH from a GitHub-hosted runner
+
+If you prefer not to run a self-hosted runner and the server's SSH is reachable
+from GitHub's IP ranges, the deploy job can instead SSH in from a GitHub-hosted
+runner (`runs-on: ubuntu-latest`) using `DEPLOY_HOST` / `DEPLOY_USER` /
+`DEPLOY_SSH_KEY` secrets and running `deploy/update.sh` over SSH. The self-hosted
+model above is recommended for this internal, loopback-only tool.
