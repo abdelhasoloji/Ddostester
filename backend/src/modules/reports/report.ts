@@ -47,11 +47,18 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
 <h2>Score de résilience (WRS)</h2>
 <p><span class="score">${w.wrs}</span> / 100 &nbsp; <span class="level">Niveau ${w.level}</span></p>
 <table>
- <tr><th>Détection (D)</th><td>${w.detection}</td></tr>
- <tr><th>Mitigation (M)</th><td>${w.mitigation}</td></tr>
+ <tr><th>Détection (D)${w.estimated ? ' *' : ''}</th><td>${w.detection}</td></tr>
+ <tr><th>Mitigation (M)${w.estimated ? ' *' : ''}</th><td>${w.mitigation}</td></tr>
  <tr><th>Disponibilité (A)</th><td>${w.availability}</td></tr>
  <tr><th>Dommages collatéraux (C)</th><td>${w.collateral}</td></tr>
 </table>
+${
+  w.estimated
+    ? `<p class="muted">* Détection et Mitigation sont <strong>estimées</strong> (aucune intégration
+       avec la protection ne remonte les temps réels) : elles sont constantes et le WRS reflète
+       surtout la Disponibilité et les Dommages collatéraux mesurés.</p>`
+    : ''
+}
 
 <h2>Générateur de charge</h2>
 <table>

@@ -767,10 +767,10 @@ export function App() {
                     </div>
                     <div className="wrs-breakdown">
                       <span>
-                        Détection <b>{run.wrs.detection}</b>
+                        Détection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
                       </span>
                       <span>
-                        Mitigation <b>{run.wrs.mitigation}</b>
+                        Mitigation{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.mitigation}</b>
                       </span>
                       <span>
                         Disponibilité <b>{run.wrs.availability}</b>
@@ -779,6 +779,12 @@ export function App() {
                         Collatéral <b>{run.wrs.collateral}</b>
                       </span>
                     </div>
+                    {run.wrs.estimated && (
+                      <p className="hint" style={{ marginTop: '.5rem' }}>
+                        Détection et Mitigation sont <b>estimées</b> (pas d’intégration protection)
+                        : constantes, le WRS reflète surtout la disponibilité mesurée.
+                      </p>
+                    )}
                   </div>
                 )}
                 {expanded === c.id && !run && (

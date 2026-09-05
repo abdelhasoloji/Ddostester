@@ -14,6 +14,7 @@ export interface WrsBreakdown {
   collateral: number;
   wrs: number;
   level: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
+  estimated?: boolean;
 }
 
 export interface Campaign {

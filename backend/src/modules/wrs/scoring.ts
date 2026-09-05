@@ -28,6 +28,12 @@ export interface WrsBreakdown {
   collateral: number; // C
   wrs: number;
   level: WrsLevel;
+  /**
+   * true si Détection/Mitigation sont des estimations par défaut (aucune
+   * intégration avec la protection ne remonte les vrais temps). Dans ce cas,
+   * D et M sont constants : le WRS reflète surtout Disponibilité/Collatéral.
+   */
+  estimated?: boolean;
 }
 
 export type WrsLevel = 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';

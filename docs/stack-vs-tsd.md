@@ -16,22 +16,22 @@
 
 ## Fonctionnel
 
-| Élément (TSD)                                   | Réalisé                                            | État            |
-| ----------------------------------------------- | -------------------------------------------------- | --------------- |
-| CAM-01 création + fenêtre planifiée             | oui + ordonnanceur                                 | ✅              |
-| CAM-02 approbation (séparation des rôles, 24 h) | oui                                                | ✅              |
-| CAM-03 exécution                                | oui (manuelle + planifiée)                         | ✅              |
-| CAM-04 visualisation temps réel                 | progression live SSE (barre + compteurs)           | ✅              |
-| PROBE sonde légitime                            | oui                                                | ✅              |
-| Kill switch 3 niveaux                           | auto / manuel / temporel                           | ✅              |
-| WRS scoring                                     | oui (formule TSD)                                  | ✅              |
-| WRS-03 historique + régressions                 | oui (sparklines + alerte)                          | ✅              |
-| RPT-01 rapport campagne (PDF)                   | HTML + PDF                                         | ✅              |
-| RPT-02 rapport conformité DORA/NIS2             | oui (agrégé)                                       | ✅              |
-| GEN-03 scénarios combinés                       | ramp-up / vagues **bornés HTTP**                   | ✅ (borné)      |
+| Élément (TSD)                                   | Réalisé                                                                          | État            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- | --------------- |
+| CAM-01 création + fenêtre planifiée             | oui + ordonnanceur                                                               | ✅              |
+| CAM-02 approbation (séparation des rôles, 24 h) | oui                                                                              | ✅              |
+| CAM-03 exécution                                | oui (manuelle + planifiée)                                                       | ✅              |
+| CAM-04 visualisation temps réel                 | progression live SSE (barre + compteurs)                                         | ✅              |
+| PROBE sonde légitime                            | oui                                                                              | ✅              |
+| Kill switch 3 niveaux                           | auto / manuel / temporel                                                         | ✅              |
+| WRS scoring                                     | oui (formule TSD)                                                                | ✅              |
+| WRS-03 historique + régressions                 | oui (sparklines + alerte)                                                        | ✅              |
+| RPT-01 rapport campagne (PDF)                   | HTML + PDF                                                                       | ✅              |
+| RPT-02 rapport conformité DORA/NIS2             | oui (agrégé)                                                                     | ✅              |
+| GEN-03 scénarios combinés                       | ramp-up / vagues **bornés HTTP**                                                 | ✅ (borné)      |
 | Génération de charge externe (agents)           | interface AttackAgent + adaptateurs k6/Vegeta/Locust/JMeter/Gatling (HTTP borné) | ✅ (délégation) |
-| Journal d'audit / traçabilité                   | oui (persistant)                                   | ✅              |
-| Marquage de trafic `X-WEDOS-TEST`               | oui                                                | ✅              |
+| Journal d'audit / traçabilité                   | oui (persistant)                                                                 | ✅              |
+| Marquage de trafic `X-WEDOS-TEST`               | oui                                                                              | ✅              |
 
 ## Volontairement NON réalisé (hors périmètre défensif)
 

@@ -76,6 +76,8 @@ export async function executeCampaign(
     legitimateTotal: probeMetrics.samples,
     adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),
   });
+  // Aucune intégration protection ici → Détection/Mitigation sont estimées.
+  wrs.estimated = true;
 
   const status: CampaignRun['status'] =
     killSwitch.reason === 'KILLED_MANUAL'
