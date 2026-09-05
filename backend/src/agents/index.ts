@@ -44,14 +44,26 @@ export interface AgentInfo {
   multiPhase: boolean;
   /** Whether the agent can run a multi-step request flow (L7 journey). */
   flowCapable: boolean;
+  /** Whether the agent supports flow correlation. */
+  correlationCapable: boolean;
   description: string;
 }
 
 /** Agent ids + capabilities without probing availability (cheap, sync). */
-export function agentChoices(): { id: string; multiPhase: boolean; flowCapable: boolean }[] {
+export function agentChoices(): {
+  id: string;
+  multiPhase: boolean;
+  flowCapable: boolean;
+  correlationCapable: boolean;
+}[] {
   return Object.keys(FACTORIES).map((id) => {
     const a = FACTORIES[id]();
-    return { id, multiPhase: a.multiPhase, flowCapable: a.flowCapable };
+    return {
+      id,
+      multiPhase: a.multiPhase,
+      flowCapable: a.flowCapable,
+      correlationCapable: a.correlationCapable,
+    };
   });
 }
 
@@ -68,6 +80,7 @@ export async function describeAgents(): Promise<AgentInfo[]> {
         available,
         multiPhase: a.multiPhase,
         flowCapable: a.flowCapable,
+        correlationCapable: a.correlationCapable,
         description: a.description,
       };
     }),

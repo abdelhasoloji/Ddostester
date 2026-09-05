@@ -132,6 +132,7 @@ export class LocustAgent implements AttackAgent {
   readonly name = 'locust';
   readonly multiPhase = false;
   readonly flowCapable = true;
+  readonly correlationCapable = false;
   readonly description =
     'Locust (external, headless) — constant rate, supports multi-step flows; use k6/vegeta for phases.';
   constructor(private readonly bin = process.env.LOCUST_BIN ?? 'locust') {}

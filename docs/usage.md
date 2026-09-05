@@ -105,6 +105,34 @@ Supported by the built-in engine and k6, JMeter, Gatling and Locust. Vegeta is
 fixed-rate single-request only. Flows combine with load profiles (the profile
 shapes the rate over time; the flow defines what each iteration does).
 
+### Correlation — authenticated journeys (built-in engine)
+
+Switch the flow editor to **Advanced (JSON)** to author steps with per-step
+headers and **correlation**: extract a value from a step's response and reuse it
+in later steps as `{{name}}`. Example — log in, then call an authenticated
+endpoint with the returned token:
+
+```json
+[
+  {
+    "method": "POST",
+    "url": "https://staging.example.com/login",
+    "body": "{\"user\":\"probe\",\"pass\":\"…\"}",
+    "extract": { "name": "token", "from": "json", "expr": "data.token" }
+  },
+  {
+    "method": "GET",
+    "url": "https://staging.example.com/api/me",
+    "headers": { "Authorization": "Bearer {{token}}" }
+  }
+]
+```
+
+`extract.from` is `json` (dot-path), `header`, or `regex` (first capture group).
+Correlation runs on the **built-in engine** (it is applied per virtual user);
+other engines run flows without correlation. Still bounded HTTP to allowlisted
+hosts under the same caps.
+
 ## Load profiles (bounded scenarios — GEN-03)
 
 In the form, “Load profile” translates Max RPS + duration into phases:

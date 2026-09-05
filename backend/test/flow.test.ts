@@ -105,8 +105,21 @@ describe('createCampaign flow validation', () => {
     authorized: true,
   };
   const agents = [
-    { id: 'builtin', multiPhase: true, flowCapable: true },
-    { id: 'vegeta', multiPhase: true, flowCapable: false },
+    { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
+    { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+    { id: 'vegeta', multiPhase: true, flowCapable: false, correlationCapable: false },
+  ];
+  const corrFlow = [
+    {
+      method: 'POST' as const,
+      url: 'http://127.0.0.1/login',
+      extract: { name: 'token', from: 'json' as const, expr: 'token' },
+    },
+    {
+      method: 'GET' as const,
+      url: 'http://127.0.0.1/me',
+      headers: { Authorization: 'Bearer {{token}}' },
+    },
   ];
 
   it('accepts a flow on a flow-capable engine', () => {
@@ -121,6 +134,37 @@ describe('createCampaign flow validation', () => {
   it('rejects a flow step outside the allowlist', () => {
     expect(() =>
       createCampaign({ ...base, flow: [{ method: 'GET', url: 'http://evil.example/' }] }, allowed),
+    ).toThrow(CampaignError);
+  });
+
+  it('accepts correlation on the built-in engine', () => {
+    const c = createCampaign({ ...base, agent: 'builtin', flow: corrFlow }, allowed, agents);
+    expect(c.flow?.[0].extract?.name).toBe('token');
+  });
+
+  it('rejects correlation on a flow-capable but non-correlation engine (k6)', () => {
+    expect(() => createCampaign({ ...base, agent: 'k6', flow: corrFlow }, allowed, agents)).toThrow(
+      /correlation/,
+    );
+  });
+
+  it('rejects an invalid extract rule', () => {
+    expect(() =>
+      createCampaign(
+        {
+          ...base,
+          agent: 'builtin',
+          flow: [
+            {
+              method: 'GET',
+              url: 'http://127.0.0.1/a',
+              extract: { name: '', from: 'json', expr: 'x' },
+            },
+          ],
+        },
+        allowed,
+        agents,
+      ),
     ).toThrow(CampaignError);
   });
 });

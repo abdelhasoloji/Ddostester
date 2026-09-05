@@ -199,6 +199,7 @@ export class JMeterAgent implements AttackAgent {
   readonly name = 'jmeter';
   readonly multiPhase = false;
   readonly flowCapable = true;
+  readonly correlationCapable = false;
   readonly description =
     'Apache JMeter (external, headless) — constant throughput, supports multi-step flows; heavy (JVM).';
   constructor(private readonly bin = process.env.JMETER_BIN ?? 'jmeter') {}

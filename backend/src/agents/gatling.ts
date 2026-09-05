@@ -125,6 +125,7 @@ export class GatlingAgent implements AttackAgent {
   readonly name = 'gatling';
   readonly multiPhase = false;
   readonly flowCapable = true;
+  readonly correlationCapable = false;
   readonly description =
     'Gatling (external, headless) — constant users/sec, supports multi-step flows; heavy (JVM).';
   constructor(private readonly bin = process.env.GATLING_BIN ?? 'gatling.sh') {}

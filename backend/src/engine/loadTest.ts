@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { LoadTestConfig, LoadTestResult } from './types.js';
 import { MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
+import { substitute, extractValue } from './correlation.js';
 
 export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
@@ -171,15 +172,22 @@ export async function runLoadTest(
     return false;
   }
 
-  // A single bounded HTTP request (counts toward the global rate cap).
-  async function doRequest(method: string, url: string, body: string | undefined): Promise<void> {
+  // A single bounded HTTP request (counts toward the global rate cap). Returns
+  // response data when `wantBody` is set (for flow correlation), else null.
+  async function doRequest(
+    method: string,
+    url: string,
+    body: string | undefined,
+    headers: Record<string, string> | undefined,
+    wantBody = false,
+  ): Promise<{ bodyText: string; headers: Record<string, string> } | null> {
     const t0 = performance.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         method,
-        headers: config.headers,
+        headers: headers ?? config.headers,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
         signal: controller.signal,
       });
@@ -189,13 +197,23 @@ export async function runLoadTest(
       statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
       if (res.ok) successful++;
       else failed++;
+      if (wantBody) {
+        const h: Record<string, string> = {};
+        res.headers.forEach((v, k) => {
+          h[k.toLowerCase()] = v;
+        });
+        const bodyText = await res.text().catch(() => '');
+        return { bodyText, headers: h };
+      }
       // Drain the body to release the connection.
       await res.arrayBuffer().catch(() => undefined);
+      return null;
     } catch (err) {
       sent++;
       failed++;
       const name = err instanceof Error ? err.name : 'UnknownError';
       errors[name] = (errors[name] ?? 0) + 1;
+      return null;
     } finally {
       clearTimeout(timer);
     }
@@ -214,18 +232,34 @@ export async function runLoadTest(
     while (!shouldStop()) {
       if (flow) {
         // Iterate the flow steps in order; each request is rate-limited, so the
-        // global maxRps caps the TOTAL request rate across all steps.
+        // global maxRps caps the TOTAL request rate across all steps. Per-worker
+        // variables carry correlated values (e.g. a login token) between steps.
+        const vars: Record<string, string> = {};
         for (const step of flow) {
           if (shouldStop()) return;
           const ok = await reserveSlot();
           if (!ok) return;
-          await doRequest(step.method, step.url, step.body);
+          const url = substitute(step.url, vars);
+          const body = step.body != null ? substitute(step.body, vars) : undefined;
+          let headers = config.headers;
+          if (step.headers) {
+            headers = { ...config.headers };
+            for (const [k, v] of Object.entries(step.headers)) headers[k] = substitute(v, vars);
+          }
+          const res = await doRequest(step.method, url, body, headers, step.extract != null);
+          if (step.extract && res) {
+            const val = extractValue(step.extract.from, step.extract.expr, {
+              body: res.bodyText,
+              headers: res.headers,
+            });
+            if (val != null) vars[step.extract.name] = val;
+          }
           if (step.thinkMs) await think(step.thinkMs);
         }
       } else {
         const ok = await reserveSlot();
         if (!ok) return;
-        await doRequest(config.method ?? 'GET', config.url, config.body);
+        await doRequest(config.method ?? 'GET', config.url, config.body, config.headers);
       }
     }
   }

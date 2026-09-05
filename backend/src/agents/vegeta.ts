@@ -121,6 +121,7 @@ export class VegetaAgent implements AttackAgent {
   readonly name = 'vegeta';
   readonly multiPhase = true;
   readonly flowCapable = false;
+  readonly correlationCapable = false;
   readonly description =
     'Vegeta (external) — fixed-rate load, runs phases sequentially (no multi-step flows).';
   constructor(private readonly bin = process.env.VEGETA_BIN ?? 'vegeta') {}

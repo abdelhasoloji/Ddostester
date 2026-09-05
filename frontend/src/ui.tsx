@@ -484,6 +484,7 @@ export function CampaignDrawer() {
                         {s.method} {path}
                       </code>
                       {s.thinkMs ? ` · think ${s.thinkMs}ms` : ''}
+                      {s.extract ? ` · ⇒ {{${s.extract.name}}}` : ''}
                     </div>
                   );
                 })}
@@ -521,7 +522,17 @@ const emptyForm = {
   agent: '',
   body: '',
   flow: '',
+  flowAdvanced: false,
 };
+
+/** Parses the advanced flow editor (raw JSON RequestStep[]). Throws on error. */
+function parseFlowJson(raw: string): RequestStep[] | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  const parsed = JSON.parse(t);
+  if (!Array.isArray(parsed)) throw new Error('Flow (JSON) must be an array of steps.');
+  return parsed as RequestStep[];
+}
 
 /**
  * Parses a flow editor (one step per line: "METHOD /path [thinkMs]") into
@@ -688,7 +699,12 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
         recurrence: form.recurrenceMin ? { intervalMin: Number(form.recurrenceMin) } : undefined,
-        flow: flowSupported && form.flow.trim() ? parseFlow(form.flow, targetOrigin) : undefined,
+        flow:
+          flowSupported && form.flow.trim()
+            ? form.flowAdvanced
+              ? parseFlowJson(form.flow)
+              : parseFlow(form.flow, targetOrigin)
+            : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -909,18 +925,41 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
         )}
         {flowSupported ? (
           <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>Request flow — L7 journey (optional)</label>
+            <label>
+              Request flow — L7 journey (optional)
+              <label className="hint" style={{ marginLeft: '.75rem', fontWeight: 400 }}>
+                <input
+                  type="checkbox"
+                  checked={form.flowAdvanced}
+                  onChange={(e) => setForm({ ...form, flowAdvanced: e.target.checked })}
+                />{' '}
+                Advanced (JSON: headers + correlation)
+              </label>
+            </label>
             <textarea
-              rows={4}
-              placeholder={'GET /\nPOST /login 500\nGET /dashboard\nGET /logout'}
+              rows={form.flowAdvanced ? 8 : 4}
+              placeholder={
+                form.flowAdvanced
+                  ? `[\n  {"method":"POST","url":"${targetOrigin || 'http://host'}/login","extract":{"name":"token","from":"json","expr":"token"}},\n  {"method":"GET","url":"${targetOrigin || 'http://host'}/me","headers":{"Authorization":"Bearer {{token}}"}}\n]`
+                  : 'GET /\nPOST /login 500\nGET /dashboard\nGET /logout'
+              }
               value={form.flow}
               onChange={(e) => setForm({ ...form, flow: e.target.value })}
               style={{ fontFamily: 'var(--mono, monospace)' }}
             />
             <span className="hint">
-              One step per line: <code>METHOD /path [thinkMs]</code>. Each step hits the target host
-              (allowlisted); the rate cap still bounds total req/s. Leave empty for a single
-              request.
+              {form.flowAdvanced ? (
+                <>
+                  JSON array of steps (<code>method, url, body?, headers?, thinkMs?, extract?</code>
+                  ). Correlation: <code>extract</code> a value (json/header/regex) and reuse it as{' '}
+                  <code>{'{{name}}'}</code> in later steps — needs the built-in engine.
+                </>
+              ) : (
+                <>
+                  One step per line: <code>METHOD /path [thinkMs]</code>. Each step hits the target
+                  host (allowlisted); the rate cap still bounds total req/s.
+                </>
+              )}
             </span>
           </div>
         ) : (

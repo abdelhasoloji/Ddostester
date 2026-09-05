@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
 import { MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
+import { flowUsesCorrelation } from '../../engine/correlation.js';
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
+const EXTRACT_SOURCES = ['json', 'header', 'regex'];
 
 export class CampaignError extends Error {}
 
@@ -35,6 +37,7 @@ export interface AgentChoice {
   id: string;
   multiPhase: boolean;
   flowCapable: boolean;
+  correlationCapable: boolean;
 }
 
 export function createCampaign(
@@ -114,6 +117,19 @@ export function createCampaign(
       if (step.thinkMs != null && (step.thinkMs < 0 || step.thinkMs > MAX_THINK_MS)) {
         throw new CampaignError(`Flow step: thinkMs must be within [0, ${MAX_THINK_MS}].`);
       }
+      if (step.extract) {
+        if (!step.extract.name?.trim()) {
+          throw new CampaignError('Flow step: extract.name is required.');
+        }
+        if (!EXTRACT_SOURCES.includes(step.extract.from)) {
+          throw new CampaignError(
+            `Flow step: extract.from must be one of ${EXTRACT_SOURCES.join(', ')}.`,
+          );
+        }
+        if (!step.extract.expr?.trim()) {
+          throw new CampaignError('Flow step: extract.expr is required.');
+        }
+      }
     }
   }
 
@@ -133,6 +149,12 @@ export function createCampaign(
       throw new CampaignError(
         `Load engine "${input.agent}" does not support multi-step flows — ` +
           `choose builtin/k6/jmeter/gatling/locust.`,
+      );
+    }
+    if (flowUsesCorrelation(input.flow) && !chosen.correlationCapable) {
+      throw new CampaignError(
+        `Load engine "${input.agent}" does not support flow correlation ` +
+          `({{vars}} / extract) — use the built-in engine.`,
       );
     }
   }

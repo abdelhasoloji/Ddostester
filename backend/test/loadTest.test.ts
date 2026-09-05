@@ -31,11 +31,11 @@ describe('validateConfig', () => {
     );
   });
 
-  it('exige un plafond maxRps positif', () => {
+  it('requires a positive maxRps cap', () => {
     expect(() => validateConfig({ ...base, maxRps: 0 }, ['localhost'])).toThrow(InvalidConfigError);
   });
 
-  it('borne la concurrence', () => {
+  it('bounds concurrency', () => {
     expect(() => validateConfig({ ...base, concurrency: 5000 }, ['localhost'])).toThrow(
       InvalidConfigError,
     );

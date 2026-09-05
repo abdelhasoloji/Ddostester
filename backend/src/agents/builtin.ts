@@ -8,7 +8,9 @@ export class BuiltinHttpAgent implements AttackAgent {
   readonly name = 'builtin-http';
   readonly multiPhase = true;
   readonly flowCapable = true;
-  readonly description = 'Built-in bounded HTTP generator (no external tool required).';
+  readonly correlationCapable = true;
+  readonly description =
+    'Built-in bounded HTTP generator (no external tool required) — flows with correlation.';
   async available(): Promise<boolean> {
     return true;
   }

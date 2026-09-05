@@ -19,10 +19,25 @@ export interface RequestStep {
   /** Full URL; its host must be in the allowlist (validated like `url`). */
   url: string;
   body?: string;
+  /** Per-step headers (merged over the campaign headers); support `{{vars}}`. */
+  headers?: Record<string, string>;
   /** Pause after this step, in ms (0..MAX_THINK_MS). Only reduces load. */
   thinkMs?: number;
   /** Optional label for reports. */
   name?: string;
+  /**
+   * Correlation: extract a value from this step's response into a variable that
+   * later steps can reference via `{{name}}` (realistic authenticated journeys).
+   */
+  extract?: RequestExtract;
+}
+
+/** Extraction rule: pull `name` from the response body (JSON path / regex) or a header. */
+export interface RequestExtract {
+  name: string;
+  from: 'json' | 'header' | 'regex';
+  /** JSON dot-path, header name, or regex (first capture group, else full match). */
+  expr: string;
 }
 
 /** Bounds for request flows (defense in depth). */

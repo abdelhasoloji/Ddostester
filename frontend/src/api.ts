@@ -42,8 +42,10 @@ export interface RequestStep {
   method: string;
   url: string;
   body?: string;
+  headers?: Record<string, string>;
   thinkMs?: number;
   name?: string;
+  extract?: { name: string; from: 'json' | 'header' | 'regex'; expr: string };
 }
 
 export interface AgentInfo {
