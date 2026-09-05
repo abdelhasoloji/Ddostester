@@ -33,6 +33,9 @@ import type { Permission } from './auth/rbac.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices } from './agents/index.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
+import { buildRunNotifications } from './modules/notify/events.js';
+import { noopNotifier } from './modules/notify/notifier.js';
+import type { Notifier } from './modules/notify/types.js';
 
 export interface BuildOptions {
   store: Store;
@@ -42,6 +45,8 @@ export interface BuildOptions {
   serveStatic?: boolean;
   /** Load agent (default: built-in bounded HTTP generator). */
   agent?: AttackAgent;
+  /** Notification sink (default: no-op — notifications are opt-in). */
+  notifier?: Notifier;
 }
 
 export interface BuiltApp {
@@ -53,6 +58,7 @@ export interface BuiltApp {
 export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const { store, auth, allowedTargets } = opts;
   const agent = opts.agent ?? new BuiltinHttpAgent();
+  const notifier = opts.notifier ?? noopNotifier;
 
   const app = Fastify({
     logger:
@@ -175,6 +181,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         c.id,
         `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`,
       );
+      // Notify the team (opt-in sink): outcome + regression. Never let a failing
+      // sink break the run — notifications are best-effort.
+      try {
+        const [allCampaigns, allRuns] = await Promise.all([
+          store.listCampaigns(),
+          store.listRuns(),
+        ]);
+        let host = c.target;
+        try {
+          host = new URL(c.target).hostname;
+        } catch {
+          /* keep raw */
+        }
+        const series = buildWrsHistory(allCampaigns, allRuns).find((s) => s.target === host);
+        for (const ev of buildRunNotifications(c, run, series)) {
+          await notifier.notify(ev);
+        }
+      } catch (err) {
+        app.log.error({ err }, 'failed to emit notifications');
+      }
       return run;
     } catch (err) {
       await store.saveCampaign(transition(c, 'APPROVED'));
@@ -191,7 +217,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     storage: store.backend,
     authRequired: auth.enabled,
     agent: agent.name,
+    notifications: notifier.sinks,
   }));
+
+  // Send a test notification so operators can verify their sink is wired up.
+  app.post('/api/notify/test', { preHandler: guard('campaign:create') }, async (_req, reply) => {
+    if (notifier.sinks.length === 0) {
+      return reply.code(400).send({ error: 'no notification sink configured' });
+    }
+    await notifier.notify({
+      kind: notifier.events[0] ?? 'campaign.completed',
+      severity: 'info',
+      title: '🔔 ShieldTest test notification',
+      text: 'Test notification from WEDOS ShieldTest — your sink is wired up correctly.',
+      at: new Date().toISOString(),
+      fields: [{ label: 'Sinks', value: notifier.sinks.join(', ') }],
+    });
+    return { delivered: true, sinks: notifier.sinks };
+  });
 
   // Load engines and their live availability (bounded HTTP, delegated tools).
   app.get('/api/agents', async () => {

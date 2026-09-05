@@ -164,6 +164,7 @@ export const api = {
         storage: string;
         authRequired: boolean;
         agent?: string;
+        notifications?: string[];
       }>(r),
     ),
   login: (email: string, password: string) =>
@@ -178,4 +179,5 @@ export const api = {
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
+  notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
 };

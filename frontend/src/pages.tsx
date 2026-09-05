@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { complianceUrl, reportUrl } from './api.js';
+import { api, complianceUrl, reportUrl } from './api.js';
 import type { Campaign, Role, WrsBreakdown } from './api.js';
 import { useApp, canDo } from './context.js';
 import {
@@ -422,6 +422,63 @@ export function AuditPage() {
 }
 
 // ---------- Settings ----------
+function NotificationsCard() {
+  const app = useApp();
+  const [testing, setTesting] = useState(false);
+  const configured = app.notifications.length > 0;
+  const canTest = canDo(app.role, 'create', app.authRequired);
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const r = await api.notifyTest();
+      app.push('success', `Test notification sent to: ${r.sinks.join(', ')}`);
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setTesting(false);
+    }
+  };
+  return (
+    <div className="card">
+      <h2>Notifications</h2>
+      <div className="kv">
+        <div>
+          <span className="k">Status</span>
+          <span className="v">
+            {configured ? (
+              <span className="engine-badge ok">On</span>
+            ) : (
+              <span className="engine-badge no">Off</span>
+            )}
+          </span>
+        </div>
+        <div>
+          <span className="k">Sinks</span>
+          <span className="v">
+            <code>{configured ? app.notifications.join(', ') : '—'}</code>
+          </span>
+        </div>
+      </div>
+      <p className="hint" style={{ marginTop: '.75rem' }}>
+        The control plane can push a message to your team when a campaign completes, a run is
+        killed, or a target&apos;s WRS regresses. Sinks (a Slack incoming webhook and/or a generic
+        JSON webhook) are configured server-side via <code>NOTIFY_SLACK_WEBHOOK_URL</code> /{' '}
+        <code>NOTIFY_WEBHOOK_URL</code>. See <code>docs/notifications.md</code>.
+      </p>
+      {configured && canTest && (
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={sendTest}
+          disabled={testing}
+          style={{ marginTop: '.5rem' }}
+        >
+          {testing ? 'Sending…' : 'Send test notification'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const app = useApp();
   return (
@@ -482,6 +539,8 @@ export function SettingsPage() {
           server-side (environment variables).
         </p>
       </div>
+
+      <NotificationsCard />
 
       <div className="card">
         <h2>Load engines</h2>

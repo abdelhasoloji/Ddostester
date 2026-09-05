@@ -3,6 +3,7 @@ import { initAuth } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
 import { dueCampaigns } from './modules/campaigns/scheduler.js';
 import { selectAgent } from './agents/index.js';
+import { createNotifier, notifyConfigFromEnv } from './modules/notify/notifier.js';
 import { buildApp } from './app.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -19,11 +20,13 @@ const SCHEDULER_INTERVAL_MS = Number(process.env.SCHEDULER_INTERVAL_MS ?? 30_000
 const store = await createStore();
 const auth = initAuth();
 const agent = selectAgent();
+const notifier = createNotifier(notifyConfigFromEnv());
 const { app, runCampaign } = await buildApp({
   store,
   auth,
   allowedTargets: ALLOWED_TARGETS,
   agent,
+  notifier,
 });
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------
@@ -74,7 +77,7 @@ app
   .listen({ port: PORT, host: HOST })
   .then((addr) =>
     app.log.info(
-      `ShieldTest control plane on ${addr} — storage: ${store.backend} — scheduler: ${SCHEDULER ? 'on' : 'off'} — targets: ${ALLOWED_TARGETS.join(', ')}`,
+      `ShieldTest control plane on ${addr} — storage: ${store.backend} — scheduler: ${SCHEDULER ? 'on' : 'off'} — notifications: ${notifier.sinks.length ? notifier.sinks.join('+') : 'off'} — targets: ${ALLOWED_TARGETS.join(', ')}`,
     ),
   )
   .catch((err) => {

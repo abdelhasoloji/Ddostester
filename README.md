@@ -23,6 +23,7 @@ authorization to test**.
 - **Scheduler** — scheduled campaign execution (CAM-01).
 - **Audit** — persistent audit log of every action.
 - **Monitoring** — Prometheus `/metrics` endpoint.
+- **Notifications** — opt-in Slack / webhook alerts on completion, kill and WRS regression.
 
 ## Architecture
 
@@ -93,6 +94,7 @@ See [docs/ci-cd.md](./docs/ci-cd.md).
 | POST   | `/api/campaigns/:id/kill`     | manual kill switch                   |
 | GET    | `/api/runs/:runId`            | run result + WRS                     |
 | GET    | `/api/runs/:runId/report`     | HTML report                          |
+| POST   | `/api/notify/test`            | send a test notification             |
 
 ## WRS — WEDOS Resiliency Score
 
@@ -123,6 +125,7 @@ Full documentation in [`docs/`](./docs/):
 [usage](./docs/usage.md) ·
 [API](./docs/api.md) ·
 [WRS](./docs/wrs.md) ·
+[notifications](./docs/notifications.md) ·
 [security & scope](./docs/safeguards.md).
 
 ## License
