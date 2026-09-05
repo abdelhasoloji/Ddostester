@@ -107,6 +107,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (existsSync(frontendDist)) {
       await app.register(fastifyStatic, { root: frontendDist });
       app.log.info(`UI servie depuis ${frontendDist}`);
+      // Fallback SPA : les routes navigateur (react-router) qui ne sont ni /api
+      // ni /metrics renvoient index.html (deep-links comme /campagnes).
+      app.setNotFoundHandler((req, reply) => {
+        if (req.raw.url && (req.raw.url.startsWith('/api') || req.raw.url.startsWith('/metrics'))) {
+          return reply.code(404).send({ error: 'introuvable' });
+        }
+        return reply.sendFile('index.html');
+      });
     }
   }
 
