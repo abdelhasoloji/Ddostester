@@ -21,7 +21,8 @@ authorization to test**.
 - **Auth + RBAC** — JWT, engineer / officer / viewer roles (toggleable), runtime
   user management (officer) on top of immutable env-defined users.
 - **Persistence** — PostgreSQL (memory fallback).
-- **Scheduler** — scheduled campaign execution (CAM-01).
+- **Scheduler** — scheduled + recurring campaign execution (CAM-01).
+- **Playbooks** — one-click curated assessment sequences (bounded, still governed).
 - **Audit** — persistent audit log of every action.
 - **Monitoring** — Prometheus `/metrics` endpoint.
 - **Notifications** — opt-in Slack / webhook alerts on completion, kill and WRS regression.

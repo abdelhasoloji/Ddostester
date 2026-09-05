@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api, complianceUrl, reportUrl } from './api.js';
-import type { Campaign, ManagedUser, Role, WrsBreakdown } from './api.js';
+import type { Campaign, ManagedUser, Playbook, Role, WrsBreakdown } from './api.js';
 import { useApp, canDo } from './context.js';
 import {
   ApproveModal,
@@ -763,6 +763,117 @@ const WRS_LEVELS: {
   },
 ];
 
+function hostOfUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function PlaybooksSection() {
+  const app = useApp();
+  const navigate = useNavigate();
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [target, setTarget] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .playbooks()
+      .then(setPlaybooks)
+      .catch(() => undefined);
+  }, []);
+
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const targetHost = hostOfUrl(target);
+  const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
+
+  const launch = async (pb: Playbook) => {
+    if (!targetAllowed) return;
+    setBusy(pb.id);
+    try {
+      const r = await api.instantiatePlaybook(pb.id, { target });
+      app.push(
+        'success',
+        `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
+      );
+      await app.refresh();
+      navigate('/campaigns');
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (playbooks.length === 0) return null;
+
+  return (
+    <>
+      <h2 className="section-title">Assessment playbooks</h2>
+      <p className="subtitle" style={{ marginBottom: '.75rem' }}>
+        One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole
+        assessment is created — each campaign still goes through approval before it runs.
+      </p>
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="field">
+          <label>Target for the assessment</label>
+          <input
+            placeholder="https://staging.example.com/"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          />
+          {app.allowed.length > 0 && (
+            <div className="allowed-chips">
+              {app.allowed.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="chip-xs"
+                  onClick={() => setTarget(`https://${h}/`)}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          )}
+          {target && !targetAllowed && (
+            <span className="hint">Host is not in the allowlist — pick one above.</span>
+          )}
+        </div>
+      </div>
+      <div className="preset-cards">
+        {playbooks.map((pb) => (
+          <div key={pb.id} className="preset-card">
+            <div className="preset-head">
+              <span className="preset-name">{pb.name}</span>
+            </div>
+            <p className="preset-summary">{pb.summary}</p>
+            <p className="preset-when">{pb.when}</p>
+            <ol className="playbook-steps">
+              {pb.steps.map((s, i) => (
+                <li key={i}>
+                  <b>{s.name}</b> — {s.maxRps} rps · {s.maxDurationSec}s · {s.profile}
+                </li>
+              ))}
+            </ol>
+            {canCreate && (
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={!targetAllowed || busy === pb.id}
+                onClick={() => launch(pb)}
+              >
+                {busy === pb.id ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function GuidePage() {
   const app = useApp();
   const navigate = useNavigate();
@@ -791,6 +902,8 @@ export function GuidePage() {
           </div>
         ))}
       </div>
+
+      <PlaybooksSection />
 
       <h2 className="section-title">Reading the WRS</h2>
       <div className="card">

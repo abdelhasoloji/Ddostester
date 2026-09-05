@@ -75,6 +75,22 @@ so automation never bypasses the approval workflow or separation of duties.
 Combine it with [notifications](./notifications.md) to be alerted on completion
 or a WRS regression instead of watching the UI.
 
+## Assessment playbooks (one-click sequences)
+
+Instead of building campaigns one by one, launch a **curated assessment** — an
+ordered sequence of bounded campaigns — from **Guide → Assessment playbooks**:
+
+- _Quick readiness check_ — smoke → baseline.
+- _Capacity assessment_ — baseline → ramp → capacity ceiling.
+- _Burst resilience_ — baseline → spikes/waves.
+- _Endurance / soak_ — a long gentle load.
+
+Pick an allowlisted target and launch: the whole set of campaigns is created
+(linked by a suite id, shown with a 📋 badge). **Governance is unchanged** — each
+campaign is created `PENDING_APPROVAL` and still needs an officer's approval
+before it runs. `GET /api/playbooks` lists them; `POST /api/playbooks/:id/instantiate`
+(`{ "target": "https://…" }`) creates the suite.
+
 ## Protection posture (inferred, passive)
 
 Every run now infers the target's protection posture **from the legitimate

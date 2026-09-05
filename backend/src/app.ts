@@ -42,6 +42,7 @@ import { noopNotifier } from './modules/notify/notifier.js';
 import type { Notifier } from './modules/notify/types.js';
 import { noopProtectionProvider } from './modules/protection/provider.js';
 import type { ProtectionProvider } from './modules/protection/types.js';
+import { PLAYBOOKS, getPlaybook, buildSuiteCampaigns } from './modules/playbooks/playbooks.js';
 
 export interface BuildOptions {
   store: Store;
@@ -370,6 +371,47 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return fail(err, reply);
     }
   });
+
+  // Assessment playbooks: curated sequences of bounded campaigns.
+  app.get('/api/playbooks', { preHandler: guard('campaign:read') }, async () => PLAYBOOKS);
+
+  app.post(
+    '/api/playbooks/:id/instantiate',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      const pb = getPlaybook((req.params as { id: string }).id);
+      if (!pb) return reply.code(404).send({ error: 'playbook not found' });
+      const body = req.body as { target?: string; probeUrl?: string };
+      if (!body.target) return reply.code(400).send({ error: 'target is required' });
+      try {
+        const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+        const inputs = buildSuiteCampaigns(
+          pb,
+          {
+            target: body.target,
+            probeUrl: body.probeUrl || body.target,
+            createdBy: req.authUser?.email ?? 'dev',
+          },
+          engines,
+        );
+        const created: Campaign[] = [];
+        for (const input of inputs) {
+          const campaign = createCampaign(input, allowedTargets, agentChoices());
+          await store.saveCampaign(campaign);
+          created.push(campaign);
+        }
+        await audit(
+          req,
+          'campaign.create',
+          undefined,
+          `playbook "${pb.name}" → ${created.length} campaigns (suite ${created[0]?.suiteId})`,
+        );
+        return reply.code(201).send({ suiteId: created[0]?.suiteId, campaigns: created });
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
 
   app.post(
     '/api/campaigns/:id/approval',

@@ -34,8 +34,28 @@ export interface Campaign {
   agent?: string;
   recurrence?: { intervalMin: number; until?: string };
   flow?: RequestStep[];
+  suiteId?: string;
+  suiteName?: string;
+  suiteOrder?: number;
   wrs?: WrsBreakdown;
   runId?: string;
+}
+
+export interface Playbook {
+  id: string;
+  name: string;
+  category: string;
+  summary: string;
+  when: string;
+  steps: {
+    name: string;
+    summary: string;
+    maxRps: number;
+    concurrency: number;
+    maxDurationSec: number;
+    profile: string;
+    agent?: string;
+  }[];
 }
 
 export interface RequestStep {
@@ -212,6 +232,9 @@ export const api = {
     post<ManagedUser>('/api/users', body),
   deleteUser: (email: string) =>
     del<{ deleted: string }>(`/api/users/${encodeURIComponent(email)}`),
+  playbooks: () => get<Playbook[]>('/api/playbooks'),
+  instantiatePlaybook: (id: string, body: { target: string; probeUrl?: string }) =>
+    post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
 };
 
 export interface ManagedUser {

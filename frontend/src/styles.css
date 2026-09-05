@@ -1231,6 +1231,16 @@ input.invalid {
   opacity: 0.7;
 }
 
+/* Assessment playbook steps (Guide) */
+.playbook-steps {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: grid;
+  gap: 0.2rem;
+}
+
 /* Preset category grouping (Guide) */
 .preset-group {
   margin-bottom: 1rem;

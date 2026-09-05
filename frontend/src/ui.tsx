@@ -262,6 +262,12 @@ export function CampaignCard({ c }: { c: Campaign }) {
         {c.flow && c.flow.length > 0 && (
           <span title="Multi-step L7 flow">🧭 {c.flow.length} steps</span>
         )}
+        {c.suiteName && (
+          <span title="Assessment playbook">
+            📋 {c.suiteName}
+            {typeof c.suiteOrder === 'number' ? ` #${c.suiteOrder + 1}` : ''}
+          </span>
+        )}
       </div>
 
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}

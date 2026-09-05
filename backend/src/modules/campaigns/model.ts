@@ -58,6 +58,10 @@ export interface CampaignInput {
    * a single request to `target`. The caps still bound the total request rate.
    */
   flow?: RequestStep[];
+  /** Assessment suite linkage (set when created from a playbook). */
+  suiteId?: string;
+  suiteName?: string;
+  suiteOrder?: number;
   /**
    * Optional recurrence: once APPROVED, re-run the campaign every
    * `intervalMin` minutes. Recurrence only fires while the approval is valid
