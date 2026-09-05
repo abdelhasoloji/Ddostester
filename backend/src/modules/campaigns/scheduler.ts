@@ -1,9 +1,9 @@
 import type { Campaign } from './model.js';
 
 /**
- * Sélectionne les campagnes à exécuter maintenant (CAM-01) : approuvées, avec
- * une fenêtre planifiée échue, dont l'approbation n'a pas expiré. Fonction pure
- * (testable) ; l'orchestration (timer) est dans le serveur.
+ * Selects the campaigns to run now (CAM-01): approved, with a due scheduled
+ * window, whose approval has not expired. Pure function (testable); the
+ * orchestration (timer) lives in the server.
  */
 export function dueCampaigns(campaigns: Campaign[], nowMs: number): Campaign[] {
   return campaigns.filter((c) => {

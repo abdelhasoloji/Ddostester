@@ -7,15 +7,15 @@ import type { Store } from './types.js';
 const { Pool } = pg;
 
 /**
- * Persistance PostgreSQL. Les objets Campaign / CampaignRun sont stockés en
- * jsonb (souples), avec quelques colonnes dédiées pour le filtrage et l'ordre
- * (statut, cible, WRS, dates) — base d'un historique WRS par cible (TSD §5.4).
+ * PostgreSQL persistence. Campaign / CampaignRun objects are stored as jsonb
+ * (flexible), with a few dedicated columns for filtering and ordering (status,
+ * target, WRS, dates) — the basis of a per-target WRS history (TSD §5.4).
  */
 export class PostgresStore implements Store {
   readonly backend = 'postgres' as const;
   private pool: pg.Pool;
 
-  /** true si l'extension TimescaleDB est disponible (wrs_samples devient hypertable). */
+  /** true if the TimescaleDB extension is available (wrs_samples becomes a hypertable). */
   private timescale = false;
 
   constructor(connectionString: string) {
@@ -54,7 +54,7 @@ export class PostgresStore implements Store {
         detail      text
       );
       CREATE INDEX IF NOT EXISTS idx_audit_at ON audit(at DESC);
-      -- Séries temporelles WRS (append-only) : hypertable si TimescaleDB présent.
+      -- WRS time series (append-only): hypertable if TimescaleDB is present.
       CREATE TABLE IF NOT EXISTS wrs_samples (
         at      timestamptz NOT NULL DEFAULT now(),
         target  text NOT NULL,
@@ -65,7 +65,7 @@ export class PostgresStore implements Store {
       CREATE INDEX IF NOT EXISTS idx_wrs_samples ON wrs_samples(target, at DESC);
     `);
 
-    // Active TimescaleDB si disponible (sinon PostgreSQL standard, table normale).
+    // Enable TimescaleDB if available (otherwise standard PostgreSQL, plain table).
     try {
       await this.pool.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
       await this.pool.query(
@@ -118,12 +118,12 @@ export class PostgresStore implements Store {
         JSON.stringify(run),
       ],
     );
-    // Point de série temporelle WRS (hypertable si TimescaleDB).
+    // WRS time-series point (hypertable if TimescaleDB).
     let host = target;
     try {
       host = new URL(target).hostname;
     } catch {
-      /* garde brut */
+      /* keep raw */
     }
     await this.pool.query(
       'INSERT INTO wrs_samples (at, target, wrs, level, run_id) VALUES (now(),$1,$2,$3,$4)',

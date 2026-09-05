@@ -1,81 +1,81 @@
 # Architecture
 
-## Vue d'ensemble
+## Overview
 
-WEDOS ShieldTest (control plane) est une application full-stack :
+WEDOS ShieldTest (control plane) is a full-stack application:
 
-- **Backend** — API REST Fastify/TypeScript. Elle sert aussi l'UI buildée
-  (même origine → un seul service, un seul tunnel).
-- **Frontend** — SPA React/Vite (tableau de bord des campagnes).
+- **Backend** — Fastify/TypeScript REST API. It also serves the built UI
+  (same origin → a single service, a single tunnel).
+- **Frontend** — React/Vite SPA (campaign dashboard).
 
 ```
-Navigateur (via tunnel SSH)
+Browser (via SSH tunnel)
         │
         ▼
 ┌─────────────────────────────────────────────┐
-│  Backend Fastify (127.0.0.1:8080)            │
+│  Fastify backend (127.0.0.1:8080)            │
 │                                              │
-│  UI statique  ──  /            (frontend/dist)│
+│  Static UI    ──  /            (frontend/dist)│
 │                                              │
 │  API                                         │
-│   ├─ CAM    campagnes + workflow d'approbation│
-│   ├─ GEN    générateur HTTP borné            │
-│   ├─ PROBE  sonde légitime + kill switch     │
-│   ├─ WRS    scoring de résilience (pur)      │
-│   └─ RPT    rapport HTML                      │
+│   ├─ CAM    campaigns + approval workflow     │
+│   ├─ GEN    bounded HTTP generator           │
+│   ├─ PROBE  legitimate probe + kill switch   │
+│   ├─ WRS    resilience scoring (pure)        │
+│   └─ RPT    HTML report                       │
 └─────────────────────────────────────────────┘
-        │ requêtes HTTP bornées + sonde
+        │ bounded HTTP requests + probe
         ▼
-   Cible autorisée (allowlist ALLOWED_TARGETS)
+   Authorized target (allowlist ALLOWED_TARGETS)
 ```
 
-## Modules backend
+## Backend modules
 
-| Module    | Fichier                                              | Rôle                                                                             |
-| --------- | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
-| CAM       | `backend/src/modules/campaigns/{model,service}.ts`   | Création, validation, workflow d'approbation, plafonds durs                      |
-| Runner    | `backend/src/modules/campaigns/runner.ts`            | Orchestre générateur + sonde + kill switch, agrège les métriques, calcule le WRS |
-| GEN       | `backend/src/engine/loadTest.ts`                     | Générateur HTTP borné (allowlist, plafond RPS, phases, kill switch)              |
-| Scénarios | `backend/src/engine/loadTest.ts` (phases)            | Profils bornés multi-phases : ramp-up, vagues (GEN-03)                           |
-| PROBE     | `backend/src/modules/probe/probe.ts`                 | Sonde de disponibilité/latence + kill switch 3 niveaux                           |
-| WRS       | `backend/src/modules/wrs/{scoring,history}.ts`       | Scoring (fonction pure) + historique par cible & régressions (WRS-03)            |
-| RPT       | `backend/src/modules/reports/{report,compliance}.ts` | Rapport de campagne + rapport de conformité DORA/NIS2 (HTML/PDF)                 |
-| Metrics   | `backend/src/modules/metrics/prometheus.ts`          | Exposition Prometheus `/metrics`                                                 |
-| Store     | `backend/src/store/`                                 | Persistance : PostgreSQL (`DATABASE_URL`) ou mémoire (repli)                     |
-| App       | `backend/src/app.ts`                                 | Fabrique `buildApp()` : routes + logique (testable via inject), logs sans token  |
-| Server    | `backend/src/server.ts`                              | Point d'entrée : store, auth, ordonnanceur, écoute                               |
-| Scheduler | `backend/src/modules/campaigns/scheduler.ts`         | Exécution planifiée des campagnes approuvées (CAM-01)                            |
-| Auth      | `backend/src/auth/`                                  | JWT + RBAC (engineer/officer/viewer)                                             |
-| Audit     | `backend/src/modules/audit/`                         | Journal d'audit persistant                                                       |
+| Module    | File                                                 | Purpose                                                                        |
+| --------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| CAM       | `backend/src/modules/campaigns/{model,service}.ts`   | Creation, validation, approval workflow, hard caps                             |
+| Runner    | `backend/src/modules/campaigns/runner.ts`            | Orchestrates generator + probe + kill switch, aggregates metrics, computes WRS |
+| GEN       | `backend/src/engine/loadTest.ts`                     | Bounded HTTP generator (allowlist, RPS cap, phases, kill switch)               |
+| Scenarios | `backend/src/engine/loadTest.ts` (phases)            | Bounded multi-phase profiles: ramp-up, waves (GEN-03)                          |
+| PROBE     | `backend/src/modules/probe/probe.ts`                 | Availability/latency probe + 3-level kill switch                               |
+| WRS       | `backend/src/modules/wrs/{scoring,history}.ts`       | Scoring (pure function) + per-target history & regressions (WRS-03)            |
+| RPT       | `backend/src/modules/reports/{report,compliance}.ts` | Campaign report + DORA/NIS2 compliance report (HTML/PDF)                       |
+| Metrics   | `backend/src/modules/metrics/prometheus.ts`          | Prometheus `/metrics` exposition                                               |
+| Store     | `backend/src/store/`                                 | Persistence: PostgreSQL (`DATABASE_URL`) or memory (fallback)                  |
+| App       | `backend/src/app.ts`                                 | `buildApp()` factory: routes + logic (testable via inject), token-free logs    |
+| Server    | `backend/src/server.ts`                              | Entry point: store, auth, scheduler, listen                                    |
+| Scheduler | `backend/src/modules/campaigns/scheduler.ts`         | Scheduled execution of approved campaigns (CAM-01)                             |
+| Auth      | `backend/src/auth/`                                  | JWT + RBAC (engineer/officer/viewer)                                           |
+| Audit     | `backend/src/modules/audit/`                         | Persistent audit log                                                           |
 
-## Flux d'une campagne
+## Campaign flow
 
 ```
-1. Création           POST /api/campaigns          → PENDING_APPROVAL
-   (validation : allowlist, attestation, plafonds HARD_CAPS)
-2. Approbation        POST /api/campaigns/:id/approval → APPROVED / REJECTED
-   (séparation des rôles, validité 24 h, rejet motivé)
-3. Exécution          POST /api/campaigns/:id/execute → RUNNING
-   ├─ générateur HTTP borné  ─┐
-   ├─ sonde légitime          ├─ en parallèle, sous kill switch
-   └─ kill switch (3 niveaux) ─┘
+1. Creation           POST /api/campaigns          → PENDING_APPROVAL
+   (validation: allowlist, attestation, HARD_CAPS caps)
+2. Approval           POST /api/campaigns/:id/approval → APPROVED / REJECTED
+   (separation of duties, 24 h validity, rejection with reason)
+3. Execution          POST /api/campaigns/:id/execute → RUNNING
+   ├─ bounded HTTP generator ─┐
+   ├─ legitimate probe        ├─ in parallel, under the kill switch
+   └─ kill switch (3 levels)  ─┘
    → COMPLETED / KILLED_AUTO / KILLED_MANUAL
-4. Scoring            calcul WRS à partir des métriques mesurées
-5. Rapport            GET /api/runs/:runId/report  → HTML
+4. Scoring            WRS computed from the measured metrics
+5. Report             GET /api/runs/:runId/report  → HTML
 ```
 
-## Kill switch (3 niveaux)
+## Kill switch (3 levels)
 
-1. **Auto** — la sonde détecte une indisponibilité consécutive > 30 s.
-2. **Manuel** — `POST /api/campaigns/:id/kill` (bouton SOC/NOC).
-3. **Temporel** — timeout absolu = `maxDurationSec` (borné à 900 s / 15 min).
+1. **Auto** — the probe detects consecutive unavailability > 30 s.
+2. **Manual** — `POST /api/campaigns/:id/kill` (SOC/NOC button).
+3. **Time-based** — absolute timeout = `maxDurationSec` (capped at 900 s / 15 min).
 
-Le kill switch propage un `AbortSignal` : générateur et sonde s'arrêtent net.
+The kill switch propagates an `AbortSignal`: generator and probe stop immediately.
 
-## Stack technique
+## Technical stack
 
 - Node ≥ 22, TypeScript strict, ESM.
 - Fastify 5, `@fastify/static`, `@fastify/cors`.
 - React 18, Vite 6.
-- Persistance : PostgreSQL via `pg` (repli mémoire), schéma auto-créé.
-- Tests : Vitest.
+- Persistence: PostgreSQL via `pg` (memory fallback), schema auto-created.
+- Tests: Vitest.

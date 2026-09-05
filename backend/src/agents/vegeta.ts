@@ -9,11 +9,11 @@ import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
 
 /**
- * Adaptateur vers Vegeta (générateur de charge HTTP au débit fixe, opéré par
- * l'équipe). Débit plafonné via `-rate` ; charge HTTP bornée uniquement.
+ * Adapter to Vegeta (fixed-rate HTTP load generator, operated by the team).
+ * Rate capped via `-rate`; bounded HTTP load only.
  */
 
-/** Construit le fichier de cibles Vegeta (une requête). Fonction pure. */
+/** Builds the Vegeta targets file (one request). Pure function. */
 export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): string {
   const method = (config.method ?? 'GET').toUpperCase();
   const lines = [`${method} ${config.url}`];
@@ -40,7 +40,7 @@ interface VegetaReport {
 
 const nsToMs = (n: number | undefined): number => Number(((n ?? 0) / 1e6).toFixed(2));
 
-/** Convertit un rapport Vegeta (report -type=json) en LoadTestResult. Fonction pure. */
+/** Converts a Vegeta report (report -type=json) into a LoadTestResult. Pure function. */
 export function parseVegetaReport(
   rep: VegetaReport,
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
@@ -78,7 +78,7 @@ export function parseVegetaReport(
   };
 }
 
-/** Additionne plusieurs rapports (phases séquentielles). Fonction pure. */
+/** Sums several reports (sequential phases). Pure function. */
 export function mergeResults(
   parts: LoadTestResult[],
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },

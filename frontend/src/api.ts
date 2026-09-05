@@ -116,19 +116,19 @@ function post<T>(url: string, body?: unknown): Promise<T> {
   }).then((r) => json<T>(r));
 }
 
-/** URL du rapport pour un lien navigateur (token en query si auth activée). */
+/** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
   const u = `/api/runs/${runId}/report`;
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
-/** URL du rapport de conformité agrégé (DORA/NIS2). */
+/** URL of the aggregated compliance report (DORA/NIS2). */
 export function complianceUrl(): string {
   const u = `/api/reports/compliance`;
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
-/** URL du flux SSE de progression temps réel d'une campagne (EventSource). */
+/** URL of a campaign's real-time progress SSE stream (EventSource). */
 export function streamUrl(campaignId: string): string {
   const u = `/api/campaigns/${campaignId}/stream`;
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;

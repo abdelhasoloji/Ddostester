@@ -1,10 +1,10 @@
 /**
- * PROBE — sonde légitime (TSD §5.3). Mesure la disponibilité et la latence
- * d'un endpoint pendant une campagne, et pilote le KILL SWITCH à 3 niveaux :
- *   1. auto-kill : indisponibilité consécutive > 30 s
- *   2. manuel    : appel de KillSwitch.trigger('KILLED_MANUAL')
- *   3. temporel  : timeout absolu (fixé par l'appelant, ≤ 15 min)
- * Elle n'émet aucune charge d'attaque : ce sont des requêtes légitimes de mesure.
+ * PROBE — legitimate probe (TSD §5.3). Measures the availability and latency of
+ * an endpoint during a campaign, and drives the 3-level KILL SWITCH:
+ *   1. auto-kill: consecutive unavailability > 30 s
+ *   2. manual   : call to KillSwitch.trigger('KILLED_MANUAL')
+ *   3. time     : absolute timeout (set by the caller, ≤ 15 min)
+ * It emits no attack load: these are legitimate measurement requests.
  */
 
 export interface ProbeSample {
@@ -88,7 +88,7 @@ export class Probe {
     this.evaluateAutoKill(sample);
   }
 
-  /** Niveau 1 du kill switch : > 30 s d'indisponibilité consécutive. */
+  /** Kill switch level 1: > 30 s of consecutive unavailability. */
   private evaluateAutoKill(sample: ProbeSample): void {
     if (sample.ok) {
       this.unavailableSince = null;

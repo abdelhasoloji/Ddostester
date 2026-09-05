@@ -1,55 +1,55 @@
 # CLAUDE.md — WEDOS ShieldTest (control plane)
 
-Guide pour agents/contributeurs travaillant sur ce dépôt.
+Guide for agents/contributors working on this repository.
 
-## Ce qu'est ce projet
+## What this project is
 
-Plan de contrôle interne de **test de résilience** : orchestration, gouvernance,
-mesure et scoring de campagnes de charge contre une infrastructure **autorisée**.
-Full-stack : backend Fastify/TypeScript (ESM, Node ≥ 22), frontend React/Vite.
+Internal **resilience testing** control plane: orchestration, governance,
+measurement and scoring of load campaigns against **authorized** infrastructure.
+Full-stack: Fastify/TypeScript backend (ESM, Node ≥ 22), React/Vite frontend.
 
-## Limite non négociable (à respecter absolument)
+## Non-negotiable boundary (must be respected absolutely)
 
-Ce dépôt **n'implémente aucun vecteur d'attaque** : pas de flood L3/L4, pas
-d'amplification (DNS/NTP/SSDP/CLDAP), pas de Smurf, pas d'épuisement L7
-(Slowloris, RUDY, WebSocket flood, XML bomb, browser botnet). Le **seul** vecteur
-est un générateur **HTTP borné** (GET/POST, débit plafonné, cible en liste
-blanche). La génération de charge externe passe par des **adaptateurs**
-(`backend/src/agents/`) qui délèguent à des outils licenciés (k6, Vegeta, Locust)
-opérés par l'équipe — jamais du code offensif ici. Toute contribution ajoutant un
-vecteur volumétrique/épuisement est hors périmètre. Voir `docs/safeguards.md`.
+This repository **implements no attack vector**: no L3/L4 flood, no
+amplification (DNS/NTP/SSDP/CLDAP), no Smurf, no L7 exhaustion (Slowloris,
+RUDY, WebSocket flood, XML bomb, browser botnet). The **only** vector is a
+**bounded HTTP generator** (GET/POST, rate-capped, allowlisted target). External
+load generation goes through **adapters** (`backend/src/agents/`) that delegate
+to licensed tools (k6, Vegeta, Locust) operated by the team — never offensive
+code here. Any contribution adding a volumetric/exhaustion vector is out of
+scope. See `docs/safeguards.md`.
 
-## Commandes
+## Commands
 
 ```bash
 npm install
 npm run typecheck        # backend + frontend
-npm test                 # tests backend (Vitest)
+npm test                 # backend tests (Vitest)
 npm run build            # build backend + frontend
-npm run dev:api          # API en watch (tsx)
-npm run dev:web          # UI Vite
-npm run lint             # ESLint (si configuré)
+npm run dev:api          # API in watch mode (tsx)
+npm run dev:web          # Vite UI
+npm run lint             # ESLint (if configured)
 ```
 
-Déploiement : `bash deploy/setup.sh` (systemd, loopback). Voir `docs/deployment.md`.
+Deployment: `bash deploy/setup.sh` (systemd, loopback). See `docs/deployment.md`.
 
-## Architecture (résumé)
+## Architecture (summary)
 
-- `backend/src/app.ts` — `buildApp()` : routes + logique (injectable pour tests).
-- `backend/src/server.ts` — point d'entrée : store, auth, ordonnanceur, écoute, arrêt gracieux.
-- `backend/src/engine/loadTest.ts` — générateur HTTP borné (phases, plafond RPS, kill switch).
-- `backend/src/agents/` — contrat `AttackAgent` + adaptateurs builtin/k6/vegeta/locust.
-- `backend/src/modules/` — campaigns (CAM + ordonnanceur), probe (+ kill switch), wrs (scoring + historique), reports (campagne + conformité), metrics, audit.
-- `backend/src/store/` — persistance PostgreSQL (+ TimescaleDB best-effort) ou mémoire.
+- `backend/src/app.ts` — `buildApp()`: routes + logic (injectable for tests).
+- `backend/src/server.ts` — entry point: store, auth, scheduler, listen, graceful shutdown.
+- `backend/src/engine/loadTest.ts` — bounded HTTP generator (phases, RPS cap, kill switch).
+- `backend/src/agents/` — `AttackAgent` contract + builtin/k6/vegeta/locust adapters.
+- `backend/src/modules/` — campaigns (CAM + scheduler), probe (+ kill switch), wrs (scoring + history), reports (campaign + compliance), metrics, audit.
+- `backend/src/store/` — PostgreSQL persistence (+ best-effort TimescaleDB) or memory.
 - `backend/src/auth/` — JWT HS256 + RBAC (engineer/officer/viewer).
-- `frontend/src/` — dashboard React (login, campagnes, WRS, audit, progression live SSE).
+- `frontend/src/` — React dashboard (login, campaigns, WRS, audit, live SSE progress).
 
-Doc complète : `docs/` (index dans `docs/README.md`).
+Full docs: `docs/` (index in `docs/README.md`).
 
 ## Conventions
 
-- TypeScript strict, ESM (imports en `.js`). Commentaires en français (cohérence repo).
-- Garde-fous d'abord : allowlist, plafonds `HARD_CAPS`, attestation, approbation,
-  kill switch, audit — ne jamais les contourner ni les affaiblir.
-- Tout changement : `npm run typecheck && npm test && npm run build` doivent passer.
-- Secrets jamais commités ; tokens jamais loggués (serializer de requête).
+- TypeScript strict, ESM (imports end in `.js`). Comments in English.
+- Safeguards first: allowlist, `HARD_CAPS`, attestation, approval, kill switch,
+  audit — never bypass or weaken them.
+- Every change: `npm run typecheck && npm test && npm run build` must pass.
+- Secrets are never committed; tokens are never logged (request serializer).

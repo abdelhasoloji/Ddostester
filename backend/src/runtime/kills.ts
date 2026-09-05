@@ -1,9 +1,9 @@
 import type { KillSwitch } from '../modules/probe/probe.js';
 
 /**
- * Registre en mémoire des kill switches des campagnes en cours. Ce sont des
- * objets runtime (AbortController) non persistables : ils ne vivent que le
- * temps de l'exécution, indépendamment du store.
+ * In-memory registry of the kill switches of running campaigns. These are
+ * runtime objects (AbortController) that cannot be persisted: they only live for
+ * the duration of the execution, independently of the store.
  */
 const active = new Map<string, KillSwitch>();
 

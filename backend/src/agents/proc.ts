@@ -6,7 +6,7 @@ export interface ProcResult {
   stderr: string;
 }
 
-/** Lance un binaire externe, capture stdout/stderr, gère l'arrêt via killSignal. */
+/** Runs an external binary, captures stdout/stderr, handles abort via killSignal. */
 export function runProcess(
   bin: string,
   args: string[],
@@ -32,7 +32,7 @@ export function runProcess(
   });
 }
 
-/** Vrai si `bin <versionArg>` se termine avec succès (outil présent). */
+/** True if `bin <versionArg>` exits successfully (tool present). */
 export function binaryAvailable(bin: string, versionArg = '--version'): Promise<boolean> {
   return new Promise((resolve) => {
     const p = spawn(bin, [versionArg], { stdio: 'ignore' });

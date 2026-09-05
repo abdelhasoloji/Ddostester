@@ -5,47 +5,47 @@ export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
 
 /**
- * Valide la config. Refuse toute cible hors liste blanche et tout test non
- * explicitement autorisé. C'est la barrière anti-usage abusif : l'outil ne
- * peut viser que des hôtes que l'opérateur a déclarés siens.
+ * Validates the config. Rejects any target outside the allowlist and any test
+ * not explicitly authorized. This is the anti-abuse barrier: the tool can only
+ * aim at hosts the operator has declared as their own.
  */
 export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): void {
   if (!config.authorized) {
     throw new InvalidConfigError(
-      "Le test doit être explicitement autorisé (authorized=true) : confirme que la cible t'appartient.",
+      'The test must be explicitly authorized (authorized=true): confirm the target belongs to you.',
     );
   }
   let parsed: URL;
   try {
     parsed = new URL(config.url);
   } catch {
-    throw new InvalidConfigError(`URL invalide : ${config.url}`);
+    throw new InvalidConfigError(`Invalid URL: ${config.url}`);
   }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new InvalidConfigError('Seuls http et https sont supportés.');
+    throw new InvalidConfigError('Only http and https are supported.');
   }
   if (!allowedHosts.includes(parsed.hostname)) {
     throw new TargetNotAllowedError(
-      `Cible « ${parsed.hostname} » absente de la liste blanche ALLOWED_TARGETS. ` +
-        `Ajoute uniquement des hôtes que tu possèdes ou pour lesquels tu es autorisé.`,
+      `Target "${parsed.hostname}" is not in the ALLOWED_TARGETS allowlist. ` +
+        `Only add hosts you own or are authorized to test.`,
     );
   }
   if (config.concurrency < 1 || config.concurrency > 1000) {
-    throw new InvalidConfigError('concurrency doit être entre 1 et 1000.');
+    throw new InvalidConfigError('concurrency must be between 1 and 1000.');
   }
   if (config.durationSec < 1 || config.durationSec > 3600) {
-    throw new InvalidConfigError('durationSec doit être entre 1 et 3600.');
+    throw new InvalidConfigError('durationSec must be between 1 and 3600.');
   }
   if (!(config.maxRps > 0)) {
-    throw new InvalidConfigError('maxRps doit être > 0 (plafond de sécurité obligatoire).');
+    throw new InvalidConfigError('maxRps must be > 0 (mandatory safety cap).');
   }
   if (config.phases) {
     if (config.phases.length === 0 || config.phases.length > 12) {
-      throw new InvalidConfigError('Un scénario doit comporter entre 1 et 12 phases.');
+      throw new InvalidConfigError('A scenario must have between 1 and 12 phases.');
     }
     for (const p of config.phases) {
-      if (!(p.maxRps > 0)) throw new InvalidConfigError('Chaque phase doit avoir maxRps > 0.');
-      if (p.durationSec < 1) throw new InvalidConfigError('Chaque phase doit durer ≥ 1 s.');
+      if (!(p.maxRps > 0)) throw new InvalidConfigError('Each phase must have maxRps > 0.');
+      if (p.durationSec < 1) throw new InvalidConfigError('Each phase must last ≥ 1 s.');
     }
   }
 }
@@ -57,9 +57,9 @@ function percentile(sorted: number[], p: number): number {
 }
 
 /**
- * Exécute un test de charge : `concurrency` boucles en parallèle envoient des
- * requêtes pendant `durationSec`, en respectant un plafond global `maxRps`
- * (throttling par fenêtre glissante simple).
+ * Runs a load test: `concurrency` parallel loops send requests for
+ * `durationSec`, honouring a global `maxRps` cap (simple sliding-window
+ * throttling).
  */
 export interface LoadProgress {
   sent: number;
@@ -80,7 +80,7 @@ export async function runLoadTest(
   const id = randomUUID();
   const startedAt = new Date();
   const timeoutMs = config.timeoutMs ?? 10_000;
-  // Phases : par défaut une seule phase (durationSec @ maxRps).
+  // Phases: by default a single phase (durationSec @ maxRps).
   const phases = config.phases?.length
     ? config.phases
     : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
@@ -88,7 +88,7 @@ export async function runLoadTest(
   const deadline = startedAt.getTime() + totalMs;
   const shouldStop = (): boolean => Date.now() >= deadline || killSignal?.aborted === true;
 
-  /** Débit autorisé à l'instant courant selon la phase en cours. */
+  /** Rate allowed at the current instant based on the ongoing phase. */
   function currentMaxRps(): number {
     let t = Date.now() - startedAt.getTime();
     for (const p of phases) {
@@ -105,7 +105,7 @@ export async function runLoadTest(
   let failed = 0;
   let sent = 0;
 
-  // Throttle: on ne dépasse jamais maxRps requêtes par seconde (global).
+  // Throttle: never exceed maxRps requests per second (global).
   let windowStart = Date.now();
   let windowCount = 0;
 
@@ -145,7 +145,7 @@ export async function runLoadTest(
         statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
         if (res.ok) successful++;
         else failed++;
-        // Draine le corps pour libérer la connexion.
+        // Drain the body to release the connection.
         await res.arrayBuffer().catch(() => undefined);
       } catch (err) {
         sent++;
@@ -158,7 +158,7 @@ export async function runLoadTest(
     }
   }
 
-  // Émission de la progression ~1×/s (temps réel, CAM-04).
+  // Emit progress ~1×/s (real-time, CAM-04).
   let progressTimer: ReturnType<typeof setInterval> | undefined;
   if (onProgress) {
     progressTimer = setInterval(() => {

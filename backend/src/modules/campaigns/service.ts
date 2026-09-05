@@ -23,9 +23,9 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
 }
 
 /**
- * Valide et crée une campagne au statut PENDING_APPROVAL. Applique les
- * garde-fous : autorisation attestée, cible et sonde dans la liste blanche,
- * intensité/durée bornées par HARD_CAPS.
+ * Validates and creates a campaign with status PENDING_APPROVAL. Applies the
+ * safeguards: attested authorization, target and probe in the allowlist,
+ * intensity/duration bounded by HARD_CAPS.
  */
 export function createCampaign(input: CampaignInput, allowedHosts: string[]): Campaign {
   if (!input.authorized) {
@@ -68,7 +68,7 @@ export function createCampaign(input: CampaignInput, allowedHosts: string[]): Ca
     if (totalDur > HARD_CAPS.maxDurationSec) {
       throw new CampaignError(`Total scenario duration ≤ ${HARD_CAPS.maxDurationSec}s.`);
     }
-    // Normalise les champs agrégés pour l'affichage/metrics.
+    // Normalize the aggregated fields for display/metrics.
     input.maxRps = Math.max(...input.scenario.map((p) => p.maxRps));
     input.maxDurationSec = totalDur;
   }
@@ -82,9 +82,9 @@ export function createCampaign(input: CampaignInput, allowedHosts: string[]): Ca
 }
 
 /**
- * Workflow d'approbation (TSD §5.1 CAM-02) : le Security Officer approuve ou
- * rejette. L'approbation est valable 24h. Séparation des rôles : l'approbateur
- * doit être différent de l'auteur.
+ * Approval workflow (TSD §5.1 CAM-02): the Security Officer approves or rejects.
+ * Approval is valid for 24h. Separation of duties: the approver must differ from
+ * the author.
  */
 export function approveCampaign(
   campaign: Campaign,
@@ -109,7 +109,7 @@ export function approveCampaign(
   return { ...campaign, status: decision, approvedBy, approvalReason: reason, approvalExpiresAt };
 }
 
-/** Vérifie qu'une campagne est exécutable maintenant (approuvée, non expirée). */
+/** Checks a campaign is executable now (approved, not expired). */
 export function assertExecutable(campaign: Campaign): void {
   if (campaign.status !== 'APPROVED') {
     throw new CampaignError(`Campaign is not executable (status ${campaign.status}).`);

@@ -9,14 +9,14 @@ import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
 
 /**
- * Adaptateur vers Gatling (DSL Java, headless), opéré par l'équipe. Charge HTTP
- * bornée via constantUsersPerSec (≈ RPS). Le parsing de simulation.log est
- * best-effort (format tab-séparé sensible à la version de Gatling).
+ * Adapter to Gatling (Java DSL, headless), operated by the team. Bounded HTTP
+ * load via constantUsersPerSec (≈ RPS). Parsing of simulation.log is
+ * best-effort (tab-separated format sensitive to the Gatling version).
  */
 
 const jStr = (s: string): string => JSON.stringify(s);
 
-/** Génère une simulation Gatling (Java) — charge HTTP bornée. Fonction pure. */
+/** Builds a Gatling simulation (Java) — bounded HTTP load. Pure function. */
 export function buildGatlingSim(
   config: LoadTestConfig,
   className = 'ShieldTestSimulation',
@@ -52,7 +52,7 @@ function percentile(sorted: number[], p: number): number {
   return Number(sorted[Math.max(0, i)].toFixed(2));
 }
 
-/** Parse simulation.log de Gatling (best-effort) → LoadTestResult. Fonction pure. */
+/** Parses Gatling's simulation.log (best-effort) → LoadTestResult. Pure function. */
 export function parseGatlingLog(
   text: string,
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
@@ -127,7 +127,7 @@ export class GatlingAgent implements AttackAgent {
     const resDir = join(dir, 'results');
     const startedAt = new Date().toISOString();
     try {
-      // Gatling compile les sources trouvées dans -sf : on y place la simulation.
+      // Gatling compiles the sources found in -sf: we place the simulation there.
       await mkdir(simDir, { recursive: true });
       await writeFile(join(simDir, 'ShieldTestSimulation.java'), buildGatlingSim(config), 'utf8');
       await runProcess(
@@ -156,7 +156,7 @@ async function findSimulationLog(resDir: string): Promise<string> {
       if (log) return log;
     }
   } catch {
-    /* rien */
+    /* nothing */
   }
   return '';
 }

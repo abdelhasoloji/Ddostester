@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** JWT HS256 minimal, auto-porté (aucune dépendance). */
+/** Minimal, self-contained HS256 JWT (no dependency). */
 export interface JwtPayload {
   sub: string; // email
   role: string;

@@ -11,7 +11,7 @@ export interface AuthState {
   users: Map<string, User>;
 }
 
-/** Auth activée uniquement si AUTH_JWT_SECRET est défini (sinon mode dev). */
+/** Auth enabled only if AUTH_JWT_SECRET is set (otherwise dev mode). */
 export function initAuth(env = process.env): AuthState {
   const secret = env.AUTH_JWT_SECRET ?? '';
   const users = loadUsers(env.AUTH_USERS);

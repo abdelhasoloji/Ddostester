@@ -6,8 +6,8 @@ import { selectAgent } from './agents/index.js';
 import { buildApp } from './app.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
-// Adresse d'écoute. Défaut : loopback uniquement — l'outil ne doit JAMAIS être
-// exposé publiquement sans reverse-proxy TLS/mTLS. Accès distant via tunnel SSH.
+// Listen address. Default: loopback only — the tool must NEVER be exposed
+// publicly without a TLS/mTLS reverse proxy. Remote access via SSH tunnel.
 const HOST = process.env.HOST ?? '127.0.0.1';
 const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .split(',')
@@ -26,7 +26,7 @@ const { app, runCampaign } = await buildApp({
   agent,
 });
 
-// --- Ordonnanceur (CAM-01) : exécute les campagnes planifiées échues ---------
+// --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------
 if (SCHEDULER) {
   let ticking = false;
   setInterval(async () => {
@@ -51,7 +51,7 @@ if (SCHEDULER) {
   }, SCHEDULER_INTERVAL_MS).unref();
 }
 
-// Arrêt gracieux : ferme l'API puis le store (connexions DB) proprement.
+// Graceful shutdown: closes the API then the store (DB connections) cleanly.
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;

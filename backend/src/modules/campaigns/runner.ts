@@ -17,12 +17,13 @@ export interface CampaignRun {
 }
 
 /**
- * Exécute une campagne approuvée : lance en parallèle le générateur HTTP borné
- * et la sonde légitime, sous le contrôle d'un kill switch (auto/manuel/temporel).
- * À la fin, agrège les métriques et calcule le WRS.
+ * Executes an approved campaign: runs the bounded HTTP generator and the
+ * legitimate probe in parallel, under the control of a kill switch
+ * (auto/manual/time-based). At the end, aggregates the metrics and computes the
+ * WRS.
  *
- * `killSwitch` est fourni par l'appelant pour permettre l'arrêt manuel (SOC/NOC)
- * en cours d'exécution.
+ * `killSwitch` is provided by the caller to allow manual stop (SOC/NOC) during
+ * execution.
  */
 export async function executeCampaign(
   campaign: Campaign,
@@ -31,7 +32,7 @@ export async function executeCampaign(
   onProgress?: (p: import('../../engine/loadTest.js').LoadProgress) => void,
   agent: AttackAgent = new BuiltinHttpAgent(),
 ): Promise<CampaignRun> {
-  // Niveau 3 du kill switch : timeout temporel absolu.
+  // Kill switch level 3: absolute time-based timeout.
   const timeoutTimer = setTimeout(
     () => killSwitch.trigger('TIMEOUT'),
     campaign.maxDurationSec * 1000,
@@ -43,7 +44,7 @@ export async function executeCampaign(
     url: campaign.target,
     method: campaign.vector === 'http-post' ? 'POST' : 'GET',
     headers: {
-      // Marquage de trafic obligatoire (TSD §5.2) : chaque requête est traçable.
+      // Mandatory traffic tagging (TSD §5.2): every request is traceable.
       'X-WEDOS-TEST': `${campaign.id}:${Date.now()}`,
       ...campaign.headers,
     },
@@ -63,9 +64,9 @@ export async function executeCampaign(
 
   const probeMetrics = probe.metrics();
 
-  // Détection/mitigation : en l'absence d'intégration avec la protection, on
-  // dérive des estimations conservatrices des mesures de la sonde. Ces valeurs
-  // peuvent être remplacées par les temps réels remontés par WEDOS Protection.
+  // Detection/mitigation: with no protection integration, we derive
+  // conservative estimates from the probe's measurements. These values can be
+  // replaced by the real timings reported by WEDOS Protection.
   const availabilityRatio = probeMetrics.samples
     ? probeMetrics.available / probeMetrics.samples
     : 1;
@@ -76,7 +77,7 @@ export async function executeCampaign(
     legitimateTotal: probeMetrics.samples,
     adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),
   });
-  // Aucune intégration protection ici → Détection/Mitigation sont estimées.
+  // No protection integration here → Detection/Mitigation are estimated.
   wrs.estimated = true;
 
   const status: CampaignRun['status'] =

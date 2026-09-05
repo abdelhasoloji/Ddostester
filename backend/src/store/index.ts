@@ -5,8 +5,8 @@ import type { Store } from './types.js';
 export type { Store } from './types.js';
 
 /**
- * Sélectionne l'implémentation : PostgreSQL si DATABASE_URL est défini,
- * sinon stockage en mémoire (dev / tests). Initialise le schéma au démarrage.
+ * Selects the implementation: PostgreSQL if DATABASE_URL is set, otherwise
+ * in-memory storage (dev / tests). Initializes the schema at startup.
  */
 export async function createStore(): Promise<Store> {
   const url = process.env.DATABASE_URL;

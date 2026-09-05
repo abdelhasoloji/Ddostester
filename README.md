@@ -1,76 +1,77 @@
 # WEDOS ShieldTest — Control Plane
 
-Plateforme interne de **test de résilience** (control plane) inspirée du TSD
-_WEDOS ShieldTest v1.0_. Elle sert à orchestrer, gouverner, mesurer et scorer
-des campagnes de test de charge contre une infrastructure **que l'organisation
-possède ou pour laquelle elle dispose d'un mandat écrit**.
+Internal **resilience testing** platform (control plane) inspired by the TSD
+_WEDOS ShieldTest v1.0_. It orchestrates, governs, measures and scores load-test
+campaigns against infrastructure **that the organization owns or holds a written
+authorization to test**.
 
-> ⚠️ **Périmètre volontairement défensif.** Ce dépôt implémente le _plan de
-> contrôle_ : gestion de campagnes, workflow d'approbation, sonde de mesure,
-> kill switch, scoring WRS et rapports. Le **seul vecteur de charge** fourni est
-> un générateur **HTTP applicatif borné** (GET/POST) soumis à liste blanche et
-> plafond de débit. Voir [« Ce qui n'est pas implémenté »](#ce-qui-nest-pas-implémenté).
+> ⚠️ **Deliberately defensive scope.** This repository implements the _control
+> plane_: campaign management, approval workflow, measurement probe, kill
+> switch, WRS scoring and reports. The **only load vector** provided is a
+> **bounded application HTTP generator** (GET/POST) subject to an allowlist and a
+> rate cap. See [“What is NOT implemented”](#what-is-not-implemented).
 
-## Fonctionnalités
+## Features
 
-- **CAM** — campagnes + workflow d'approbation (séparation des rôles, validité 24 h).
-- **GEN** — générateur HTTP borné (allowlist + plafond RPS), seul vecteur.
-- **PROBE** — sonde légitime + kill switch 3 niveaux (auto / manuel / temporel).
-- **WRS** — scoring de résilience + **historique par cible & détection de régression**.
-- **RPT** — rapport de campagne HTML + **rapport de conformité agrégé (DORA/NIS2)**.
-- **Auth + RBAC** — JWT, rôles engineer / officer / viewer (activable).
-- **Persistance** — PostgreSQL (repli mémoire).
-- **Ordonnanceur** — exécution planifiée des campagnes (CAM-01).
-- **Audit** — journal d'audit persistant de toutes les actions.
-- **Monitoring** — endpoint Prometheus `/metrics`.
+- **CAM** — campaigns + approval workflow (separation of duties, 24 h validity).
+- **GEN** — bounded HTTP generator (allowlist + RPS cap), the only vector.
+- **PROBE** — legitimate probe + 3-level kill switch (auto / manual / time-based).
+- **WRS** — resilience scoring + **per-target history & regression detection**.
+- **RPT** — HTML campaign report + **aggregated compliance report (DORA/NIS2)**.
+- **Auth + RBAC** — JWT, engineer / officer / viewer roles (toggleable).
+- **Persistence** — PostgreSQL (memory fallback).
+- **Scheduler** — scheduled campaign execution (CAM-01).
+- **Audit** — persistent audit log of every action.
+- **Monitoring** — Prometheus `/metrics` endpoint.
 
 ## Architecture
 
 ```
-Frontend (React/Vite)  ──►  API (Fastify/TS)  ──►  PostgreSQL (ou mémoire)
+Frontend (React/Vite)  ──►  API (Fastify/TS)  ──►  PostgreSQL (or memory)
    login + RBAC              ├─ Auth (JWT) + RBAC
-   dashboard + WRS chart     ├─ CAM  campagnes + approbation
-                             ├─ GEN  générateur HTTP borné (allowlist + RPS cap)
-                             ├─ PROBE sonde + kill switch (auto/manuel/temporel)
-                             ├─ WRS  scoring + historique + régressions
-                             ├─ RPT  rapport campagne + conformité DORA/NIS2
-                             ├─ Scheduler  exécution planifiée (CAM-01)
-                             ├─ Audit  journal persistant
+   dashboard + WRS chart     ├─ CAM  campaigns + approval
+                             ├─ GEN  bounded HTTP generator (allowlist + RPS cap)
+                             ├─ PROBE probe + kill switch (auto/manual/time-based)
+                             ├─ WRS  scoring + history + regressions
+                             ├─ RPT  campaign report + DORA/NIS2 compliance
+                             ├─ Scheduler  scheduled execution (CAM-01)
+                             ├─ Audit  persistent log
                              └─ /metrics  Prometheus
 ```
 
-## Garde-fous (safeguards)
+## Safeguards
 
-- **Liste blanche obligatoire** (`ALLOWED_TARGETS`) : toute cible ou sonde hors
-  liste est refusée. Seuls `http`/`https` sont acceptés.
-- **Attestation d'autorisation** : une campagne exige `authorized: true`.
-- **Plafonds durs non contournables** (`HARD_CAPS`) : `maxRps ≤ 2000`,
-  `concurrency ≤ 500`, `durée ≤ 900 s` (timeout temporel absolu = 15 min).
-- **Workflow d'approbation** : PENDING_APPROVAL → APPROVED/REJECTED, séparation
-  des rôles (approbateur ≠ auteur), validité 24 h, rejet motivé.
-- **Kill switch 3 niveaux** : auto (indispo > 30 s), manuel (SOC/NOC), temporel.
-- **Marquage de trafic** : chaque requête porte l'en-tête `X-WEDOS-TEST`.
+- **Mandatory allowlist** (`ALLOWED_TARGETS`): any target or probe outside the
+  list is rejected. Only `http`/`https` are accepted.
+- **Authorization attestation**: a campaign requires `authorized: true`.
+- **Hard, non-bypassable caps** (`HARD_CAPS`): `maxRps ≤ 2000`,
+  `concurrency ≤ 500`, `duration ≤ 900 s` (absolute time-based timeout = 15 min).
+- **Approval workflow**: PENDING_APPROVAL → APPROVED/REJECTED, separation of
+  duties (approver ≠ author), 24 h validity, rejection with a reason.
+- **3-level kill switch**: auto (unavailable > 30 s), manual (SOC/NOC), time-based.
+- **Traffic tagging**: every request carries the `X-WEDOS-TEST` header.
 
-## Démarrage
+## Getting started
 
 ```bash
 npm install
-cp .env.example .env          # renseigner ALLOWED_TARGETS
-npm run dev:api               # API sur :8080
-npm run dev:web               # UI sur :5173 (proxy /api → :8080)
-npm test                      # tests backend
-# Persistance : définir DATABASE_URL (PostgreSQL) ; sinon stockage mémoire.
+cp .env.example .env          # set ALLOWED_TARGETS
+npm run dev:api               # API on :8080
+npm run dev:web               # UI on :5173 (proxy /api → :8080)
+npm test                      # backend tests
+# Persistence: set DATABASE_URL (PostgreSQL); otherwise in-memory storage.
 ```
 
-Déploiement serveur (Ubuntu, Node 22, systemd) — un seul service qui sert l'API **et** l'UI, en loopback :
+Server deployment (Ubuntu, Node 22, systemd) — a single service serving the API
+**and** the UI, on loopback:
 
 ```bash
 bash deploy/setup.sh              # build + service + health check
-# accès distant, sans exposition publique :
-ssh -L 8080:127.0.0.1:8080 user@serveur   # puis http://localhost:8080
+# remote access, without public exposure:
+ssh -L 8080:127.0.0.1:8080 user@server   # then http://localhost:8080
 ```
 
-Docker :
+Docker:
 
 ```bash
 docker compose up --build
@@ -78,48 +79,48 @@ docker compose up --build
 
 ## API
 
-| Méthode | Route                         | Rôle                                  |
-| ------- | ----------------------------- | ------------------------------------- |
-| GET     | `/health`                     | état + cibles autorisées              |
-| POST    | `/api/campaigns`              | créer une campagne (PENDING_APPROVAL) |
-| GET     | `/api/campaigns`              | lister                                |
-| POST    | `/api/campaigns/:id/approval` | approuver / rejeter                   |
-| POST    | `/api/campaigns/:id/execute`  | exécuter une campagne approuvée       |
-| POST    | `/api/campaigns/:id/kill`     | kill switch manuel                    |
-| GET     | `/api/runs/:runId`            | résultat d'exécution + WRS            |
-| GET     | `/api/runs/:runId/report`     | rapport HTML                          |
+| Method | Route                         | Purpose                              |
+| ------ | ----------------------------- | ------------------------------------ |
+| GET    | `/health`                     | status + allowed targets             |
+| POST   | `/api/campaigns`              | create a campaign (PENDING_APPROVAL) |
+| GET    | `/api/campaigns`              | list                                 |
+| POST   | `/api/campaigns/:id/approval` | approve / reject                     |
+| POST   | `/api/campaigns/:id/execute`  | execute an approved campaign         |
+| POST   | `/api/campaigns/:id/kill`     | manual kill switch                   |
+| GET    | `/api/runs/:runId`            | run result + WRS                     |
+| GET    | `/api/runs/:runId/report`     | HTML report                          |
 
 ## WRS — WEDOS Resiliency Score
 
-`WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C` (TSD §5.4), fonction pure et testée
-(`backend/src/modules/wrs/scoring.ts`). Elle ne génère aucun trafic : elle
-agrège des métriques mesurées.
+`WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C` (TSD §5.4), a pure, tested function
+(`backend/src/modules/wrs/scoring.ts`). It generates no traffic: it aggregates
+measured metrics.
 
-## Ce qui n'est PAS implémenté
+## What is NOT implemented
 
-Par choix de conception, ce control plane **n'inclut aucun vecteur d'attaque**.
-Sont donc **absents** (et hors périmètre de ce dépôt) :
+By design, this control plane **includes no attack vector**. The following are
+therefore **absent** (and out of scope for this repository):
 
-- Vecteurs volumétriques L3/L4 : UDP/ICMP/SYN/ACK/RST flood, fragmentation,
-  GRE/DTLS flood, réflexion/amplification DNS/NTP/SSDP/CLDAP.
-- Vecteurs d'épuisement L7 : Slowloris, RUDY, cache-bypass, brute-force,
-  WebSocket flood, GraphQL abuse, XML bomb, « browser botnet ».
-- Toute génération de trafic à débit non borné ou vers une cible hors allowlist.
+- L3/L4 volumetric vectors: UDP/ICMP/SYN/ACK/RST flood, fragmentation,
+  GRE/DTLS flood, DNS/NTP/SSDP/CLDAP reflection/amplification.
+- L7 exhaustion vectors: Slowloris, RUDY, cache-bypass, brute-force,
+  WebSocket flood, GraphQL abuse, XML bomb, “browser botnet”.
+- Any traffic generation at an unbounded rate or toward a target outside the
+  allowlist.
 
-Le générateur fourni se limite à des requêtes HTTP applicatives licites,
-plafonnées et traçables, adaptées à la mesure de résilience d'un service qu'on
-administre.
+The provided generator is limited to lawful, capped and traceable application
+HTTP requests, suitable for measuring the resilience of a service you operate.
 
 ## Documentation
 
-Documentation complète dans [`docs/`](./docs/) :
+Full documentation in [`docs/`](./docs/):
 [architecture](./docs/architecture.md) ·
-[déploiement](./docs/deployment.md) ·
-[utilisation](./docs/usage.md) ·
+[deployment](./docs/deployment.md) ·
+[usage](./docs/usage.md) ·
 [API](./docs/api.md) ·
 [WRS](./docs/wrs.md) ·
-[sécurité & périmètre](./docs/safeguards.md).
+[security & scope](./docs/safeguards.md).
 
-## Licence
+## License
 
-MIT — voir [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).

@@ -3,7 +3,7 @@ import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import type { AttackAgent } from './types.js';
 
-/** Agent par défaut : générateur HTTP borné intégré (GET/POST, plafond RPS). */
+/** Default agent: built-in bounded HTTP generator (GET/POST, RPS cap). */
 export class BuiltinHttpAgent implements AttackAgent {
   readonly name = 'builtin-http';
   async available(): Promise<boolean> {

@@ -8,10 +8,10 @@ import type { AttackAgent } from './types.js';
 
 export type { AttackAgent } from './types.js';
 
-/** Agents de charge disponibles (tous en charge HTTP bornée). */
+/** Available load agents (all bounded HTTP load). */
 export const AGENTS = ['builtin', 'k6', 'vegeta', 'locust', 'jmeter', 'gatling'] as const;
 
-/** Sélectionne l'agent de charge selon AGENT (builtin par défaut). */
+/** Selects the load agent based on AGENT (builtin by default). */
 export function selectAgent(env = process.env): AttackAgent {
   switch ((env.AGENT ?? 'builtin').toLowerCase()) {
     case 'k6':

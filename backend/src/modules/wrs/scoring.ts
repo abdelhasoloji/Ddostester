@@ -1,22 +1,22 @@
 /**
  * WRS — WEDOS Resiliency Score.
- * Fonction PURE de scoring de résilience (défensif) : elle NE génère aucun
- * trafic. Elle agrège des métriques mesurées pour produire un score 0-100.
- * Formule issue du TSD ShieldTest §5.4.
+ * A PURE resilience-scoring function (defensive): it generates NO traffic. It
+ * aggregates measured metrics to produce a 0-100 score. Formula from the
+ * ShieldTest TSD §5.4.
  */
 
 export interface WrsInputs {
-  /** Temps de détection de l'incident par la protection, en secondes. */
+  /** Time for the protection to detect the incident, in seconds. */
   detectionTimeSec: number;
-  /** Temps de mitigation (retour à la normale), en secondes. */
+  /** Mitigation time (return to normal), in seconds. */
   mitigationTimeSec: number;
-  /** Requêtes légitimes servies avec succès pendant la campagne. */
+  /** Legitimate requests served successfully during the campaign. */
   legitimateSuccessful: number;
-  /** Requêtes légitimes totales émises par la sonde. */
+  /** Total legitimate requests emitted by the probe. */
   legitimateTotal: number;
   /**
-   * Impact sur les services adjacents (0 = aucun, 100 = effondrement).
-   * Mesuré par la sonde sur des endpoints voisins.
+   * Impact on adjacent services (0 = none, 100 = collapse). Measured by the
+   * probe on neighbouring endpoints.
    */
   adjacentImpactScore: number;
 }
@@ -29,9 +29,9 @@ export interface WrsBreakdown {
   wrs: number;
   level: WrsLevel;
   /**
-   * true si Détection/Mitigation sont des estimations par défaut (aucune
-   * intégration avec la protection ne remonte les vrais temps). Dans ce cas,
-   * D et M sont constants : le WRS reflète surtout Disponibilité/Collatéral.
+   * true if Detection/Mitigation are default estimates (no protection
+   * integration reports the real timings). In that case D and M are constant:
+   * the WRS mostly reflects Availability/Collateral.
    */
   estimated?: boolean;
 }

@@ -1,22 +1,21 @@
-# Politique de sécurité et d'usage
+# Security and usage policy
 
-Cet outil est réservé à un **usage interne autorisé** : test de résilience
-d'infrastructures que l'organisation possède ou pour lesquelles elle détient un
-mandat écrit.
+This tool is reserved for **authorized internal use**: resilience testing of
+infrastructure the organization owns or holds a written authorization to test.
 
-## Usage acceptable
+## Acceptable use
 
-- Cibles inscrites dans la liste blanche `ALLOWED_TARGETS`.
-- Campagnes approuvées par un rôle distinct de l'auteur (Security Officer).
-- Débit et durée dans les plafonds `HARD_CAPS`.
+- Targets listed in the `ALLOWED_TARGETS` allowlist.
+- Campaigns approved by a role distinct from the author (Security Officer).
+- Rate and duration within the `HARD_CAPS` limits.
 
-## Usage interdit
+## Prohibited use
 
-- Toute campagne contre un système tiers sans autorisation écrite.
-- Tout contournement des garde-fous (allowlist, plafonds, approbation).
-- Toute extension ajoutant des vecteurs volumétriques ou d'épuisement destinés
-  à saturer un service tiers.
+- Any campaign against a third-party system without written authorization.
+- Any bypass of the safeguards (allowlist, caps, approval).
+- Any extension adding volumetric or exhaustion vectors intended to saturate a
+  third-party service.
 
-## Signalement
+## Reporting
 
-Signaler tout abus ou faille via le canal sécurité interne WEDOS.
+Report any abuse or vulnerability through the WEDOS internal security channel.

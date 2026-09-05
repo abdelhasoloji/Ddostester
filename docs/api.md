@@ -1,11 +1,11 @@
-# Référence API
+# API reference
 
-Base : `http://127.0.0.1:8080` (via tunnel SSH). Réponses JSON, sauf le rapport
-(HTML). Aucun trafic n'est émis vers une cible hors `ALLOWED_TARGETS`.
+Base: `http://127.0.0.1:8080` (via SSH tunnel). JSON responses, except the report
+(HTML). No traffic is emitted toward a target outside `ALLOWED_TARGETS`.
 
 ## `GET /health`
 
-État du service et cibles autorisées.
+Service status and allowed targets.
 
 ```bash
 curl -s localhost:8080/health
@@ -14,29 +14,29 @@ curl -s localhost:8080/health
 
 ## `POST /api/campaigns`
 
-Crée une campagne au statut `PENDING_APPROVAL`.
+Creates a campaign with status `PENDING_APPROVAL`.
 
-Corps :
+Body:
 
-| Champ            | Type                      | Notes                                                                                                                          |
-| ---------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `name`           | string                    | requis                                                                                                                         |
-| `createdBy`      | string                    | requis (auteur)                                                                                                                |
-| `target`         | string (URL)              | doit être dans l'allowlist                                                                                                     |
-| `probeUrl`       | string (URL)              | endpoint sondé, dans l'allowlist                                                                                               |
-| `vector`         | `http-get` \| `http-post` | seuls vecteurs supportés                                                                                                       |
-| `body`           | string                    | pour `http-post`                                                                                                               |
-| `headers`        | objet                     | en-têtes additionnels                                                                                                          |
-| `maxRps`         | number                    | > 0, ≤ 2000                                                                                                                    |
-| `concurrency`    | number                    | 1..500                                                                                                                         |
-| `maxDurationSec` | number                    | 1..900                                                                                                                         |
-| `authorized`     | bool                      | doit être `true` (attestation)                                                                                                 |
-| `scheduledAt`    | string ISO                | optionnel — exécution auto par l'ordonnanceur une fois approuvée (CAM-01)                                                      |
-| `scenario`       | phase[]                   | optionnel — scénario borné (GEN-03) : `[{maxRps,durationSec}, …]` (≤12 phases). Normalise `maxRps`=max, `maxDurationSec`=somme |
+| Field            | Type                      | Notes                                                                                                                         |
+| ---------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `name`           | string                    | required                                                                                                                      |
+| `createdBy`      | string                    | required (author)                                                                                                             |
+| `target`         | string (URL)              | must be in the allowlist                                                                                                      |
+| `probeUrl`       | string (URL)              | probed endpoint, in the allowlist                                                                                             |
+| `vector`         | `http-get` \| `http-post` | only supported vectors                                                                                                        |
+| `body`           | string                    | for `http-post`                                                                                                               |
+| `headers`        | object                    | additional headers                                                                                                            |
+| `maxRps`         | number                    | > 0, ≤ 2000                                                                                                                   |
+| `concurrency`    | number                    | 1..500                                                                                                                        |
+| `maxDurationSec` | number                    | 1..900                                                                                                                        |
+| `authorized`     | bool                      | must be `true` (attestation)                                                                                                  |
+| `scheduledAt`    | string ISO                | optional — auto-run by the scheduler once approved (CAM-01)                                                                   |
+| `scenario`       | phase[]                   | optional — bounded scenario (GEN-03): `[{maxRps,durationSec}, …]` (≤12 phases). Normalizes `maxRps`=max, `maxDurationSec`=sum |
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json' -d '{
-  "name":"Résilience UAT",
+  "name":"Resilience UAT",
   "createdBy":"eng@wedos",
   "target":"http://127.0.0.1:8080/health",
   "probeUrl":"http://127.0.0.1:8080/health",
@@ -46,23 +46,23 @@ curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json'
 }'
 ```
 
-## `GET /api/campaigns` — liste
+## `GET /api/campaigns` — list
 
-## `GET /api/campaigns/:id` — détail
+## `GET /api/campaigns/:id` — detail
 
 ## `POST /api/campaigns/:id/approval`
 
-Approuve ou rejette (Security Officer). Séparation des rôles : `approvedBy` ≠ auteur.
+Approve or reject (Security Officer). Separation of duties: `approvedBy` ≠ author.
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/approval -H 'content-type: application/json' \
   -d '{"approvedBy":"officer@wedos","decision":"APPROVED"}'
-# rejet : {"approvedBy":"officer@wedos","decision":"REJECTED","reason":"hors fenêtre"}
+# rejection: {"approvedBy":"officer@wedos","decision":"REJECTED","reason":"out of window"}
 ```
 
 ## `POST /api/campaigns/:id/execute`
 
-Exécute une campagne `APPROVED`. Renvoie le run (générateur + sonde + WRS).
+Executes an `APPROVED` campaign. Returns the run (generator + probe + WRS).
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/execute
@@ -70,45 +70,45 @@ curl -s -X POST localhost:8080/api/campaigns/<id>/execute
 
 ## `GET /api/campaigns/:id/stream`
 
-Flux SSE de progression temps réel pendant l'exécution (CAM-04) : événements
+Real-time progress SSE stream during execution (CAM-04): events
 `{sent, successful, failed, elapsedSec, actualRps, maxDurationSec, status}` ~1×/s,
-puis `{status:"done"}`. Token via `?token=` (EventSource).
+then `{status:"done"}`. Token via `?token=` (EventSource).
 
 ## `POST /api/campaigns/:id/kill`
 
-Kill switch manuel (niveau 2) d'une campagne en cours.
+Manual kill switch (level 2) of a running campaign.
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/kill
 # {"status":"KILLED_MANUAL"}
 ```
 
-## `GET /api/runs/:runId` — résultat brut d'exécution
+## `GET /api/runs/:runId` — raw run result
 
-## `GET /api/runs/:runId/report` — rapport HTML
+## `GET /api/runs/:runId/report` — HTML report
 
 ```bash
-curl -s localhost:8080/api/runs/<runId>/report -o rapport.html
+curl -s localhost:8080/api/runs/<runId>/report -o report.html
 ```
 
-## Codes d'erreur
+## Error codes
 
-| Code | Cause                                                                                                |
-| ---- | ---------------------------------------------------------------------------------------------------- |
-| 400  | config invalide (attestation manquante, plafond dépassé, cible hors allowlist, transition interdite) |
-| 404  | campagne / run introuvable                                                                           |
-| 500  | erreur interne                                                                                       |
+| Code | Cause                                                                                              |
+| ---- | -------------------------------------------------------------------------------------------------- |
+| 400  | invalid config (missing attestation, cap exceeded, target outside allowlist, forbidden transition) |
+| 404  | campaign / run not found                                                                           |
+| 500  | internal error                                                                                     |
 
 ## `GET /metrics`
 
-Métriques Prometheus (format texte 0.0.4) : campagnes par statut, total des
-runs, dernier WRS par cible. Non authentifié (loopback, agrégats non sensibles).
+Prometheus metrics (text format 0.0.4): campaigns by status, total runs, last WRS
+per target. Unauthenticated (loopback, non-sensitive aggregates).
 
 ## `GET /api/reports/compliance`
 
-Rapport de conformité agrégé (DORA/NIS2/ISO 27001) en HTML. Query optionnelle
-`from`/`to` (ISO). Token en `?token=` accepté pour l'ouverture navigateur.
+Aggregated compliance report (DORA/NIS2/ISO 27001) in HTML. Optional `from`/`to`
+query (ISO). Token via `?token=` accepted for browser opening.
 
 ## `GET /api/audit`
 
-Journal d'audit (lecture). Query `limit` (défaut 200).
+Audit log (read). `limit` query (default 200).

@@ -9,9 +9,9 @@ import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
 
 /**
- * Adaptateur vers Apache JMeter (headless), opéré par l'équipe. Charge HTTP
- * bornée : débit plafonné via un Constant Throughput Timer (partagé). Les
- * scénarios multi-phases sont délégués à k6/vegeta.
+ * Adapter to Apache JMeter (headless), operated by the team. Bounded HTTP load:
+ * rate capped via a (shared) Constant Throughput Timer. Multi-phase scenarios
+ * are delegated to k6/vegeta.
  */
 
 const xmlEsc = (s: string): string =>
@@ -20,7 +20,7 @@ const xmlEsc = (s: string): string =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
   );
 
-/** Génère un plan de test JMeter (.jmx) — charge HTTP bornée. Fonction pure. */
+/** Builds a JMeter test plan (.jmx) — bounded HTTP load. Pure function. */
 export function buildJmxPlan(config: LoadTestConfig): string {
   const u = new URL(config.url);
   const method = (config.method ?? 'GET').toUpperCase();
@@ -98,7 +98,7 @@ function percentile(sorted: number[], p: number): number {
   return Number(sorted[Math.max(0, i)].toFixed(2));
 }
 
-/** Parse un fichier JTL (CSV) JMeter → LoadTestResult. Fonction pure. */
+/** Parses a JMeter JTL file (CSV) → LoadTestResult. Pure function. */
 export function parseJtl(
   csv: string,
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },

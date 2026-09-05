@@ -1,40 +1,40 @@
 # WRS — WEDOS Resiliency Score
 
-Score de résilience 0–100 calculé **à partir de métriques mesurées**. La fonction
-est pure (`backend/src/modules/wrs/scoring.ts`) : elle ne génère aucun trafic.
+Resilience score 0–100 computed **from measured metrics**. The function is pure
+(`backend/src/modules/wrs/scoring.ts`): it generates no traffic.
 
-## Formule
+## Formula
 
 ```
 WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C
 ```
 
-| Comp. | Nom                  | Calcul                                     | Borné   |
-| ----- | -------------------- | ------------------------------------------ | ------- |
-| D     | Détection            | `100 − détection_s / 2`                    | [0,100] |
-| M     | Mitigation           | `100 − mitigation_s / 3`                   | [0,100] |
-| A     | Disponibilité        | `succès_légitimes / total_légitimes × 100` | [0,100] |
-| C     | Dommages collatéraux | `100 − impact_services_adjacents`          | [0,100] |
+| Comp. | Name              | Computation                                   | Bounded |
+| ----- | ----------------- | --------------------------------------------- | ------- |
+| D     | Detection         | `100 − detection_s / 2`                       | [0,100] |
+| M     | Mitigation        | `100 − mitigation_s / 3`                      | [0,100] |
+| A     | Availability      | `legitimate_success / legitimate_total × 100` | [0,100] |
+| C     | Collateral damage | `100 − adjacent_service_impact`               | [0,100] |
 
-Exemple (TSD §5.4) : détection 10 s → D = 95 ; mitigation 30 s → M = 90 ;
-99,5 % de dispo → A = 99,5 ; aucun impact → C = 100 → **WRS ≈ 95,85 (A+)**.
+Example (TSD §5.4): detection 10 s → D = 95; mitigation 30 s → M = 90;
+99.5 % availability → A = 99.5; no impact → C = 100 → **WRS ≈ 95.85 (A+)**.
 
-## Niveaux
+## Levels
 
-| WRS    | Niveau | Interprétation            |
-| ------ | ------ | ------------------------- |
-| 95–100 | A+     | résilience exceptionnelle |
-| 85–94  | A      | excellente                |
-| 70–84  | B      | acceptable                |
-| 50–69  | C      | faiblesses identifiées    |
-| 30–49  | D      | insuffisante              |
-| 0–29   | F      | non résilient             |
+| WRS    | Level | Interpretation         |
+| ------ | ----- | ---------------------- |
+| 95–100 | A+    | exceptional resilience |
+| 85–94  | A     | excellent              |
+| 70–84  | B     | acceptable             |
+| 50–69  | C     | identified weaknesses  |
+| 30–49  | D     | insufficient           |
+| 0–29   | F     | not resilient          |
 
-## Origine des entrées
+## Origin of the inputs
 
-- **A** et **C** proviennent directement de la **sonde** (disponibilité mesurée
-  sur la cible et les endpoints voisins).
-- **D** et **M** : en l'absence d'intégration avec la protection, le runner
-  dérive des estimations conservatrices depuis l'état du kill switch. Elles
-  peuvent être remplacées par les temps réels de détection/mitigation remontés
-  par WEDOS Protection (point d'extension du `runner.ts`).
+- **A** and **C** come directly from the **probe** (availability measured on the
+  target and neighbouring endpoints).
+- **D** and **M**: with no protection integration, the runner derives
+  conservative estimates from the kill-switch state. They can be replaced by the
+  real detection/mitigation timings reported by WEDOS Protection (extension point
+  in `runner.ts`).

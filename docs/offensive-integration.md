@@ -1,49 +1,49 @@
-# Intégration de la génération de charge (« offensif »)
+# Load generation integration (“offensive”)
 
-Comment adresser la partie génération de trafic du TSD **de façon responsable**,
-en gardant ShieldTest comme plan de contrôle et en déléguant l'émission de charge
-à un outil dédié opéré par l'équipe.
+How to address the traffic-generation part of the TSD **responsibly**, keeping
+ShieldTest as the control plane and delegating load emission to a dedicated tool
+operated by the team.
 
-## Principe : séparer gouverner/mesurer de générer
+## Principle: separate govern/measure from generate
 
-ShieldTest fournit autorisation, allowlist, plafonds, kill switch, sonde, WRS,
-audit, conformité. Il **délègue** la production de charge à un **agent** via une
-interface (`AttackAgent`). Aucun vecteur d'attaque n'est codé dans ce dépôt :
+ShieldTest provides authorization, allowlist, caps, kill switch, probe, WRS,
+audit, compliance. It **delegates** load production to an **agent** through an
+interface (`AttackAgent`). No attack vector is coded in this repository:
 
-Sélection : `AGENT=builtin|k6|vegeta|locust` (défaut `builtin`). Tous produisent
-une **charge HTTP bornée** ; les trois derniers délèguent à un outil externe
-installé et opéré par l'équipe.
+Selection: `AGENT=builtin|k6|vegeta|locust` (default `builtin`). All produce a
+**bounded HTTP load**; the last three delegate to an external tool installed and
+operated by the team.
 
-| Agent          | Outil                                       | Débit plafonné               | Multi-phases               | Sortie parsée       |
-| -------------- | ------------------------------------------- | ---------------------------- | -------------------------- | ------------------- |
-| `builtin-http` | intégré                                     | oui (fenêtre glissante)      | oui (phases)               | interne             |
-| `k6`           | [k6](https://k6.io)                         | oui (arrival-rate)           | oui (ramping)              | `--summary-export`  |
-| `vegeta`       | [Vegeta](https://github.com/tsenart/vegeta) | oui (`-rate`)                | oui (phases séquentielles) | `report -type=json` |
-| `locust`       | [Locust](https://locust.io)                 | approché (`constant_pacing`) | non (→ k6/vegeta)          | `--csv`             |
+| Agent          | Tool                                        | Rate-capped                     | Multi-phase             | Parsed output       |
+| -------------- | ------------------------------------------- | ------------------------------- | ----------------------- | ------------------- |
+| `builtin-http` | built-in                                    | yes (sliding window)            | yes (phases)            | internal            |
+| `k6`           | [k6](https://k6.io)                         | yes (arrival-rate)              | yes (ramping)           | `--summary-export`  |
+| `vegeta`       | [Vegeta](https://github.com/tsenart/vegeta) | yes (`-rate`)                   | yes (sequential phases) | `report -type=json` |
+| `locust`       | [Locust](https://locust.io)                 | approximate (`constant_pacing`) | no (→ k6/vegeta)        | `--csv`             |
 
-Chaque adaptateur applique `validateConfig` (allowlist + plafonds), respecte le
-kill switch, et renvoie **503** avec un message clair si l'outil externe est absent.
+Each adapter applies `validateConfig` (allowlist + caps), honours the kill
+switch, and returns **503** with a clear message if the external tool is absent.
 
-### Outils volontairement non scaffoldés
+### Tools deliberately not scaffolded
 
-- **wrk / hey** : conçus pour le débit **maximal** (pas de plafond de débit
-  simple) — contraires au modèle borné de ShieldTest. Intégrables via le contrat
-  `AttackAgent` en imposant un plafond, mais non fournis pour cette raison.
+- **wrk / hey**: designed for **maximum** throughput (no simple rate cap) —
+  contrary to ShieldTest's bounded model. They can be integrated via the
+  `AttackAgent` contract by imposing a cap, but are not provided for that reason.
 
-> JMeter et Gatling sont lourds (JVM) : à réserver aux cas où l'équipe les
-> utilise déjà. k6 ou Vegeta restent recommandés pour la plupart des tests.
+> JMeter and Gatling are heavy (JVM): reserve them for cases where the team
+> already uses them. k6 or Vegeta remain recommended for most tests.
 
-## Prérequis de gouvernance (avant toute campagne)
+## Governance prerequisites (before any campaign)
 
-1. **Autorisation écrite** interne + périmètre signé (Security Officer), fenêtre datée.
-2. **Environnement isolé** (miroir UAT), jamais la production ni un tiers.
-3. **Coordination amont** : hébergeur / opérateur réseau, et pour du volumétrique,
-   le transit/upstream, afin d'éviter un incident ou le déclenchement de protections.
-4. **Blast radius** : IP de test dédiées, trafic marqué (`X-WEDOS-TEST`), plan de rollback.
+1. **Written internal authorization** + signed scope (Security Officer), dated window.
+2. **Isolated environment** (UAT mirror), never production nor a third party.
+3. **Upstream coordination**: hosting provider / network operator, and for
+   volumetric traffic, transit/upstream, to avoid an incident or triggering protections.
+4. **Blast radius**: dedicated test IPs, tagged traffic (`X-WEDOS-TEST`), rollback plan.
 
-Ces prérequis sont la condition de légitimité — indépendamment de l'outil.
+These prerequisites are the condition of legitimacy — independent of the tool.
 
-## Le contrat d'agent
+## The agent contract
 
 ```ts
 interface AttackAgent {
@@ -53,31 +53,31 @@ interface AttackAgent {
 }
 ```
 
-Un agent **doit** : valider la config (allowlist + plafonds via `validateConfig`),
-respecter le `killSignal`, et ne produire que la charge décrite. L'agent hérite
-ainsi automatiquement des garde-fous du control plane.
+An agent **must**: validate the config (allowlist + caps via `validateConfig`),
+honour the `killSignal`, and produce only the described load. The agent thus
+automatically inherits the control plane's safeguards.
 
-## Brancher k6
+## Wiring k6
 
 ```bash
-# 1) installer k6 sur l'hôte (doc officielle k6)
-# 2) activer l'adaptateur
-AGENT=k6 bash deploy/setup.sh      # ou AGENT=k6 dans l'environnement du service
+# 1) install k6 on the host (official k6 docs)
+# 2) enable the adapter
+AGENT=k6 bash deploy/setup.sh      # or AGENT=k6 in the service environment
 ```
 
-`GET /health` renvoie l'agent actif (`"agent":"k6"`). Si le binaire k6 est absent,
-l'exécution renvoie **503** avec un message explicite (pas de plantage).
+`GET /health` returns the active agent (`"agent":"k6"`). If the k6 binary is
+absent, execution returns **503** with an explicit message (no crash).
 
-## Charge volumétrique L3/L4
+## L3/L4 volumetric load
 
-Hors périmètre applicatif : à réaliser par l'**équipe réseau** sur banc isolé
-(générateurs de paquets de labo : TRex, MoonGen, pktgen), ou via un **prestataire
-de simulation DDoS sous contrat**. ShieldTest peut orchestrer/mesurer/scorer le
-résultat, mais **ne fournit pas** ces générateurs. Un nouvel agent peut être
-ajouté en implémentant `AttackAgent` autour de l'outil retenu — le générateur
-volumétrique vient alors de cet outil externe, jamais de ce dépôt.
+Out of the application scope: to be run by the **network team** on an isolated
+bench (lab packet generators: TRex, MoonGen, pktgen), or via a **contracted DDoS
+simulation provider**. ShieldTest can orchestrate/measure/score the result, but
+**does not provide** these generators. A new agent can be added by implementing
+`AttackAgent` around the chosen tool — the volumetric generator then comes from
+that external tool, never from this repository.
 
-## Ce qui n'est pas fourni
+## What is not provided
 
-Aucun vecteur flood/amplification/épuisement. Voir [safeguards.md](./safeguards.md)
-et [security-review.md](./security-review.md).
+No flood/amplification/exhaustion vector. See [safeguards.md](./safeguards.md)
+and [security-review.md](./security-review.md).

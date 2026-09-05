@@ -39,7 +39,7 @@ export interface BuildOptions {
   allowedTargets: string[];
   logger?: boolean;
   serveStatic?: boolean;
-  /** Agent de charge (défaut : générateur HTTP borné intégré). */
+  /** Load agent (default: built-in bounded HTTP generator). */
   agent?: AttackAgent;
 }
 
@@ -48,7 +48,7 @@ export interface BuiltApp {
   runCampaign: (c: Campaign, actor: string) => Promise<CampaignRun>;
 }
 
-/** Construit l'app Fastify (routes + logique) sans démarrer l'écoute. */
+/** Builds the Fastify app (routes + logic) without starting to listen. */
 export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const { store, auth, allowedTargets } = opts;
   const agent = opts.agent ?? new BuiltinHttpAgent();
@@ -58,7 +58,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       opts.logger === false
         ? false
         : {
-            // Ne jamais logguer les tokens passés en query (?token=) ni l'en-tête Authorization.
+            // Never log tokens passed in the query (?token=) or the Authorization header.
             serializers: {
               req(req) {
                 return {
@@ -84,7 +84,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     };
   }
 
-  /** Vérifie un token de lecture passé en query (liens navigateur : rapport, SSE). */
+  /** Verifies a read token passed in the query (browser links: report, SSE). */
   function readTokenAllowed(req: FastifyRequest): boolean {
     if (!auth.enabled) return true;
     const { token } = req.query as { token?: string };
@@ -185,7 +185,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     agent: agent.name,
   }));
 
-  // Anti-brute-force : verrou temporaire après plusieurs échecs (par email+IP).
+  // Anti-brute-force: temporary lock after several failures (per email+IP).
   const loginFails = new Map<string, { count: number; until: number }>();
   const MAX_FAILS = 5;
   const LOCK_MS = 60_000;

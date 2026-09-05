@@ -8,9 +8,9 @@ export interface User {
 }
 
 /**
- * Charge les utilisateurs depuis AUTH_USERS (JSON) :
+ * Loads users from AUTH_USERS (JSON):
  *   [{"email":"a@wedos","role":"officer","passwordHash":"scrypt$..."}]
- * Générer un hash : `npm run hash-password -w backend -- <motdepasse>`.
+ * Generate a hash: `npm run hash-password -w backend -- <password>`.
  */
 export function loadUsers(raw: string | undefined): Map<string, User> {
   const map = new Map<string, User>();
@@ -19,12 +19,12 @@ export function loadUsers(raw: string | undefined): Map<string, User> {
   try {
     arr = JSON.parse(raw);
   } catch {
-    throw new Error('AUTH_USERS : JSON invalide.');
+    throw new Error('AUTH_USERS: invalid JSON.');
   }
-  if (!Array.isArray(arr)) throw new Error('AUTH_USERS : tableau attendu.');
+  if (!Array.isArray(arr)) throw new Error('AUTH_USERS: array expected.');
   for (const u of arr as User[]) {
     if (!u.email || !u.passwordHash || !isRole(u.role)) {
-      throw new Error(`AUTH_USERS : entrée invalide (${JSON.stringify(u)}).`);
+      throw new Error(`AUTH_USERS: invalid entry (${JSON.stringify(u)}).`);
     }
     map.set(u.email.toLowerCase(), u);
   }

@@ -1,51 +1,51 @@
-# Stack réalisé vs spécifications (TSD WEDOS ShieldTest v1.0)
+# Implemented stack vs specification (TSD WEDOS ShieldTest v1.0)
 
-État de correspondance entre le TSD et l'implémentation actuelle.
+Mapping between the TSD and the current implementation.
 
-## Control plane (couches)
+## Control plane (layers)
 
-| Couche          | Spécifié (TSD)           | Réalisé                                                                        | État                         |
-| --------------- | ------------------------ | ------------------------------------------------------------------------------ | ---------------------------- |
-| API             | FastAPI (Python)         | Fastify 5 (Node 22 / TS)                                                       | ✅ équivalent                |
-| Frontend        | Vue.js 3                 | React 18 + Vite 7                                                              | ✅ équivalent                |
-| Base de données | PostgreSQL + TimescaleDB | PostgreSQL (+ TimescaleDB optionnel : hypertable wrs_samples)                  | ✅                           |
-| Auth / SSO      | Keycloak + mTLS          | JWT HS256 + RBAC (compatible Keycloak) ; mTLS via reverse-proxy Caddy (profil) | ✅                           |
-| Ordonnanceur    | Celery + Redis           | Ordonnanceur in-process (CAM-01)                                               | ✅ équivalent                |
-| Monitoring      | Prometheus + Grafana     | `/metrics` Prometheus                                                          | ✅ (Grafana = conf. externe) |
-| Reporting       | PDF + HTML               | HTML + PDF (impression navigateur)                                             | ✅                           |
+| Layer      | Specified (TSD)          | Implemented                                                                    | State                         |
+| ---------- | ------------------------ | ------------------------------------------------------------------------------ | ----------------------------- |
+| API        | FastAPI (Python)         | Fastify 5 (Node 22 / TS)                                                       | ✅ equivalent                 |
+| Frontend   | Vue.js 3                 | React 18 + Vite 7                                                              | ✅ equivalent                 |
+| Database   | PostgreSQL + TimescaleDB | PostgreSQL (+ optional TimescaleDB: wrs_samples hypertable)                    | ✅                            |
+| Auth / SSO | Keycloak + mTLS          | JWT HS256 + RBAC (Keycloak-compatible); mTLS via Caddy reverse proxy (profile) | ✅                            |
+| Scheduler  | Celery + Redis           | In-process scheduler (CAM-01)                                                  | ✅ equivalent                 |
+| Monitoring | Prometheus + Grafana     | Prometheus `/metrics`                                                          | ✅ (Grafana = external conf.) |
+| Reporting  | PDF + HTML               | HTML + PDF (browser print)                                                     | ✅                            |
 
-## Fonctionnel
+## Functional
 
-| Élément (TSD)                                   | Réalisé                                                                          | État            |
-| ----------------------------------------------- | -------------------------------------------------------------------------------- | --------------- |
-| CAM-01 création + fenêtre planifiée             | oui + ordonnanceur                                                               | ✅              |
-| CAM-02 approbation (séparation des rôles, 24 h) | oui                                                                              | ✅              |
-| CAM-03 exécution                                | oui (manuelle + planifiée)                                                       | ✅              |
-| CAM-04 visualisation temps réel                 | progression live SSE (barre + compteurs)                                         | ✅              |
-| PROBE sonde légitime                            | oui                                                                              | ✅              |
-| Kill switch 3 niveaux                           | auto / manuel / temporel                                                         | ✅              |
-| WRS scoring                                     | oui (formule TSD)                                                                | ✅              |
-| WRS-03 historique + régressions                 | oui (sparklines + alerte)                                                        | ✅              |
-| RPT-01 rapport campagne (PDF)                   | HTML + PDF                                                                       | ✅              |
-| RPT-02 rapport conformité DORA/NIS2             | oui (agrégé)                                                                     | ✅              |
-| GEN-03 scénarios combinés                       | ramp-up / vagues **bornés HTTP**                                                 | ✅ (borné)      |
-| Génération de charge externe (agents)           | interface AttackAgent + adaptateurs k6/Vegeta/Locust/JMeter/Gatling (HTTP borné) | ✅ (délégation) |
-| Journal d'audit / traçabilité                   | oui (persistant)                                                                 | ✅              |
-| Marquage de trafic `X-WEDOS-TEST`               | oui                                                                              | ✅              |
+| Item (TSD)                                   | Implemented                                                                     | State           |
+| -------------------------------------------- | ------------------------------------------------------------------------------- | --------------- |
+| CAM-01 creation + scheduled window           | yes + scheduler                                                                 | ✅              |
+| CAM-02 approval (separation of duties, 24 h) | yes                                                                             | ✅              |
+| CAM-03 execution                             | yes (manual + scheduled)                                                        | ✅              |
+| CAM-04 real-time visualization               | live SSE progress (bar + counters)                                              | ✅              |
+| PROBE legitimate probe                       | yes                                                                             | ✅              |
+| 3-level kill switch                          | auto / manual / time-based                                                      | ✅              |
+| WRS scoring                                  | yes (TSD formula)                                                               | ✅              |
+| WRS-03 history + regressions                 | yes (sparklines + alert)                                                        | ✅              |
+| RPT-01 campaign report (PDF)                 | HTML + PDF                                                                      | ✅              |
+| RPT-02 DORA/NIS2 compliance report           | yes (aggregated)                                                                | ✅              |
+| GEN-03 combined scenarios                    | ramp-up / waves **bounded HTTP**                                                | ✅ (bounded)    |
+| External load generation (agents)            | AttackAgent interface + k6/Vegeta/Locust/JMeter/Gatling adapters (bounded HTTP) | ✅ (delegation) |
+| Audit log / traceability                     | yes (persistent)                                                                | ✅              |
+| `X-WEDOS-TEST` traffic tagging               | yes                                                                             | ✅              |
 
-## Volontairement NON réalisé (hors périmètre défensif)
+## Deliberately NOT implemented (outside the defensive scope)
 
-| Élément (TSD §5.2)                                                                           | État     |
-| -------------------------------------------------------------------------------------------- | -------- |
-| GEN-01 vecteurs L3/L4 (UDP/ICMP/SYN/ACK/RST flood, fragmentation, GRE/DTLS)                  | ❌ exclu |
-| Amplification/réflexion DNS/NTP/SSDP/CLDAP, Smurf                                            | ❌ exclu |
-| GEN-02 vecteurs L7 d'épuisement (Slowloris, RUDY, WebSocket flood, XML bomb, browser botnet) | ❌ exclu |
-| Débit non borné / cible hors allowlist                                                       | ❌ exclu |
+| Item (TSD §5.2)                                                                           | State       |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| GEN-01 L3/L4 vectors (UDP/ICMP/SYN/ACK/RST flood, fragmentation, GRE/DTLS)                | ❌ excluded |
+| DNS/NTP/SSDP/CLDAP amplification/reflection, Smurf                                        | ❌ excluded |
+| GEN-02 L7 exhaustion vectors (Slowloris, RUDY, WebSocket flood, XML bomb, browser botnet) | ❌ excluded |
+| Unbounded rate / target outside allowlist                                                 | ❌ excluded |
 
-Ces vecteurs servent à **saturer** un service, pas à mesurer sa résilience de
-façon maîtrisée. Le seul vecteur fourni est un générateur HTTP applicatif borné
-(GET/POST), plafonné et traçable. Voir [safeguards.md](./safeguards.md).
+These vectors serve to **saturate** a service, not to measure its resilience in a
+controlled way. The only provided vector is a bounded application HTTP generator
+(GET/POST), capped and traceable. See [safeguards.md](./safeguards.md).
 
-## Restant possible (légitime, non prioritaire)
+## Still possible (legitimate, not prioritized)
 
-- Dashboards Grafana pré-provisionnés sur `/metrics`.
+- Pre-provisioned Grafana dashboards on `/metrics`.

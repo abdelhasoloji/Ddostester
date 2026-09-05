@@ -1,34 +1,34 @@
-/** Phase d'un scénario borné : un débit maintenu pendant une durée. */
+/** Phase of a bounded scenario: a rate held for a duration. */
 export interface ScenarioPhase {
   maxRps: number;
   durationSec: number;
 }
 
 export interface LoadTestConfig {
-  /** URL cible complète (ex: http://localhost:3000/health). */
+  /** Full target URL (e.g. http://localhost:3000/health). */
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
   headers?: Record<string, string>;
   body?: string;
-  /** Nombre de requêtes concurrentes (workers virtuels). */
+  /** Number of concurrent requests (virtual workers). */
   concurrency: number;
-  /** Durée du test en secondes (phase unique ; ignorée si `phases` est fourni). */
+  /** Test duration in seconds (single phase; ignored if `phases` is provided). */
   durationSec: number;
   /**
-   * Plafond de requêtes/seconde (obligatoire) : garde-fou pour ne pas
-   * saturer involontairement une infra. Doit être > 0. En multi-phases,
-   * représente le débit maximal parmi les phases.
+   * Requests-per-second cap (mandatory): a safeguard against accidentally
+   * saturating an infrastructure. Must be > 0. In multi-phase mode, it is the
+   * maximum rate across the phases.
    */
   maxRps: number;
   /**
-   * Scénario borné optionnel (GEN-03) : phases séquentielles (ramp-up, vagues…).
-   * Chaque phase reste soumise aux mêmes plafonds. Absent = phase unique.
+   * Optional bounded scenario (GEN-03): sequential phases (ramp-up, waves…).
+   * Each phase remains subject to the same caps. Absent = single phase.
    */
   phases?: ScenarioPhase[];
   /**
-   * Accusé de responsabilité : l'utilisateur confirme que la cible lui
-   * appartient ou qu'il dispose d'une autorisation écrite. Sans ce flag,
-   * le test est refusé.
+   * Responsibility acknowledgement: the user confirms the target belongs to
+   * them or that they hold a written authorization. Without this flag, the test
+   * is refused.
    */
   authorized: boolean;
   timeoutMs?: number;

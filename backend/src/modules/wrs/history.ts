@@ -12,14 +12,14 @@ export interface WrsPoint {
 export interface WrsSeries {
   target: string;
   points: WrsPoint[];
-  /** Régression si le WRS a chuté de plus de 10 points vs l'exécution précédente (WRS-03). */
+  /** Regression if WRS dropped by more than 10 points vs the previous run (WRS-03). */
   regression: boolean;
   drop: number;
 }
 
 const REGRESSION_THRESHOLD = 10;
 
-/** Construit l'historique WRS par cible (ancien → récent) + détection de régression. */
+/** Builds the per-target WRS history (old → recent) + regression detection. */
 export function buildWrsHistory(campaigns: Campaign[], runs: CampaignRun[]): WrsSeries[] {
   const targetOf = new Map(campaigns.map((c) => [c.id, c.target]));
   const byTarget = new Map<string, WrsPoint[]>();
@@ -29,7 +29,7 @@ export function buildWrsHistory(campaigns: Campaign[], runs: CampaignRun[]): Wrs
     try {
       host = new URL(host).hostname;
     } catch {
-      /* garde brut */
+      /* keep raw */
     }
     const arr = byTarget.get(host) ?? [];
     arr.push({ at: r.generator.finishedAt, wrs: r.wrs.wrs, level: r.wrs.level, runId: r.runId });

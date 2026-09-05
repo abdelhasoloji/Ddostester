@@ -4,10 +4,10 @@ import type { ScenarioPhase } from '../../engine/types.js';
 export type { ScenarioPhase };
 
 /**
- * Seul vecteur de charge supporté par ce control plane : requêtes HTTP
- * applicatives bornées (GET/POST) vers une cible autorisée. Les vecteurs
- * volumétriques L3/L4 (floods, amplification) et d'épuisement L7 (Slowloris,
- * RUDY, XML bomb…) du TSD §5.2 ne sont PAS implémentés — voir README.
+ * The only load vector supported by this control plane: bounded application
+ * HTTP requests (GET/POST) toward an authorized target. The L3/L4 volumetric
+ * vectors (floods, amplification) and L7 exhaustion vectors (Slowloris, RUDY,
+ * XML bomb…) from TSD §5.2 are NOT implemented — see README.
  */
 export type LoadVector = 'http-get' | 'http-post';
 
@@ -23,7 +23,7 @@ export type CampaignStatus =
 export interface CampaignInput {
   name: string;
   description?: string;
-  /** URL cible (doit appartenir à la liste blanche). */
+  /** Target URL (must be in the allowlist). */
   target: string;
   vector: LoadVector;
   body?: string;
@@ -31,20 +31,20 @@ export interface CampaignInput {
   maxRps: number;
   concurrency: number;
   maxDurationSec: number;
-  /** Endpoint sondé pour mesurer l'impact (souvent la cible elle-même). */
+  /** Probed endpoint to measure impact (often the target itself). */
   probeUrl: string;
   createdBy: string;
-  /** L'auteur atteste que la cible est autorisée (interne WEDOS / mandat écrit). */
+  /** The author attests the target is authorized (internal WEDOS / written mandate). */
   authorized: boolean;
   /**
-   * Fenêtre d'exécution planifiée (ISO). Si définie, la campagne, une fois
-   * APPROVED, est exécutée automatiquement par l'ordonnanceur à cette heure
-   * (CAM-01). Absent = exécution manuelle.
+   * Scheduled execution window (ISO). If set, the campaign — once APPROVED — is
+   * executed automatically by the scheduler at this time (CAM-01). Absent =
+   * manual execution.
    */
   scheduledAt?: string;
   /**
-   * Scénario de charge borné optionnel (GEN-03) : phases séquentielles
-   * (ramp-up, vagues…). Absent = charge constante (maxRps/maxDurationSec).
+   * Optional bounded load scenario (GEN-03): sequential phases (ramp-up,
+   * waves…). Absent = constant load (maxRps/maxDurationSec).
    */
   scenario?: ScenarioPhase[];
 }
@@ -60,9 +60,9 @@ export interface Campaign extends CampaignInput {
   runId?: string;
 }
 
-/** Plafonds durs, non contournables par l'API (défense en profondeur). */
+/** Hard caps, non-bypassable via the API (defense in depth). */
 export const HARD_CAPS = {
   maxRps: 2000,
   maxConcurrency: 500,
-  maxDurationSec: 900, // timeout temporel absolu (15 min, TSD §5.1)
+  maxDurationSec: 900, // absolute time-based timeout (15 min, TSD §5.1)
 } as const;

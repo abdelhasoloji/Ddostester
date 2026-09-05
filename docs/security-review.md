@@ -1,45 +1,45 @@
-# Revue de sécurité (auto-évaluation)
+# Security review (self-assessment)
 
-Synthèse de la posture de sécurité du control plane. Outil **interne**, à
-n'exposer que derrière loopback + tunnel SSH ou reverse-proxy TLS/mTLS.
+Summary of the control plane's security posture. **Internal** tool, to be exposed
+only behind loopback + SSH tunnel or a TLS/mTLS reverse proxy.
 
-## Modèle de menace
+## Threat model
 
-| Menace                            | Traitement                                                                |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| Usage de l'outil contre des tiers | Allowlist obligatoire + attestation ; hors périmètre = refus 400/403      |
-| Exposition publique de l'API      | Bind loopback par défaut ; reverse-proxy TLS/mTLS pour tout accès distant |
-| Élévation de privilèges           | RBAC (engineer/officer/viewer) sur chaque route ; séparation des rôles    |
-| Usurpation d'auteur/approbateur   | Dérivés du token JWT, jamais du corps de requête                          |
-| Vol d'identifiants                | Mots de passe scrypt ; verrou anti-brute-force (5 échecs → 60 s)          |
-| Fuite de token dans les logs      | Redaction `?token=` + en-tête Authorization non loggué                    |
-| Injection SQL                     | Requêtes 100 % paramétrées (`pg`)                                         |
-| Charge non maîtrisée              | Plafonds durs (RPS ≤ 2000, durée ≤ 900 s), kill switch 3 niveaux          |
+| Threat                        | Handling                                                               |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| Using the tool against others | Mandatory allowlist + attestation; out of scope = 400/403 rejection    |
+| Public exposure of the API    | Loopback bind by default; TLS/mTLS reverse proxy for any remote access |
+| Privilege escalation          | RBAC (engineer/officer/viewer) on every route; separation of duties    |
+| Author/approver spoofing      | Derived from the JWT token, never from the request body                |
+| Credential theft              | scrypt passwords; anti-brute-force lock (5 failures → 60 s)            |
+| Token leak in logs            | `?token=` redaction + Authorization header not logged                  |
+| SQL injection                 | 100 % parameterized queries (`pg`)                                     |
+| Uncontrolled load             | Hard caps (RPS ≤ 2000, duration ≤ 900 s), 3-level kill switch          |
 
-## Points vérifiés
+## Verified points
 
-- **JWT HS256** : signature recalculée et comparée en temps constant
-  (`timingSafeEqual`) ; `exp` vérifié ; l'algorithme du header n'est pas
-  utilisé pour choisir la vérification (pas de faille `alg:none`).
-- **Gardes de permission** sur toutes les routes `/api` (tests d'intégration :
-  401 sans token, 403 selon le rôle).
-- **Séparation des rôles** à l'approbation (approbateur ≠ auteur), testée.
-- **Liste blanche** cible + sonde ; protocoles `http`/`https` seulement.
-- **Rapport / SSE** : token de lecture accepté en query pour les liens
-  navigateur, vérifié via la même logique de permission.
+- **JWT HS256**: signature recomputed and compared in constant time
+  (`timingSafeEqual`); `exp` checked; the header algorithm is not used to choose
+  the verification (no `alg:none` flaw).
+- **Permission guards** on all `/api` routes (integration tests: 401 without a
+  token, 403 depending on the role).
+- **Separation of duties** at approval (approver ≠ author), tested.
+- **Allowlist** for target + probe; `http`/`https` protocols only.
+- **Report / SSE**: read token accepted as a query param for browser links,
+  verified through the same permission logic.
 
-## Risques résiduels (acceptés / à traiter par l'exploitant)
+## Residual risks (accepted / to be handled by the operator)
 
-- **Pas d'authentification sur `/metrics`** (agrégats non sensibles ; réseau
-  interne). À protéger via le reverse-proxy si nécessaire.
-- **CORS `origin: true`** : nécessaire au dev (UI Vite sur un autre port).
-  Sans cookies (auth Bearer), pas de CSRF ; en prod l'UI est servie en même
-  origine. Restreindre via le proxy si souhaité.
-- **Attestation d'autorisation** : barrière déclarative — la responsabilité
-  du périmètre incombe à l'opérateur (cf. SECURITY.md).
-- **mTLS** : fourni au niveau du reverse-proxy (Caddy), pas applicatif.
+- **No authentication on `/metrics`** (non-sensitive aggregates; internal
+  network). Protect via the reverse proxy if needed.
+- **CORS `origin: true`**: needed in dev (Vite UI on another port). Without
+  cookies (Bearer auth), no CSRF; in prod the UI is served same-origin.
+  Restrict via the proxy if desired.
+- **Authorization attestation**: a declarative barrier — responsibility for the
+  scope lies with the operator (cf. SECURITY.md).
+- **mTLS**: provided at the reverse-proxy level (Caddy), not in the application.
 
-## Ce que l'outil ne fait pas (par conception)
+## What the tool does not do (by design)
 
-Aucun vecteur d'attaque (floods L3/L4, amplification, épuisement L7). Le seul
-générateur est HTTP borné. Voir [safeguards.md](./safeguards.md).
+No attack vector (L3/L4 floods, amplification, L7 exhaustion). The only generator
+is bounded HTTP. See [safeguards.md](./safeguards.md).

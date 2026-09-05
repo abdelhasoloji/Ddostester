@@ -1,8 +1,8 @@
-/** Entrée du journal d'audit (traçabilité des actions — TSD §5.5 / gouvernance). */
+/** Audit log entry (action traceability — TSD §5.5 / governance). */
 export interface AuditEntry {
   id: string;
   at: string; // ISO
-  actor: string; // email authentifié, ou 'dev' si auth désactivée
+  actor: string; // authenticated email, or 'dev' if auth is disabled
   action:
     | 'campaign.create'
     | 'campaign.approve'

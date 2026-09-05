@@ -9,13 +9,13 @@ import { AgentError, type AttackAgent } from './types.js';
 import { runProcess, binaryAvailable } from './proc.js';
 
 /**
- * Adaptateur vers Locust (headless), opéré par l'équipe. Charge HTTP bornée :
- * le débit est approché via `constant_pacing` (users / pacing ≈ RPS). Les
- * scénarios multi-phases sont délégués à k6/vegeta (Locust nécessiterait un
- * LoadTestShape) — refus explicite pour ne pas dépasser le débit voulu.
+ * Adapter to Locust (headless), operated by the team. Bounded HTTP load: the
+ * rate is approximated via `constant_pacing` (users / pacing ≈ RPS). Multi-phase
+ * scenarios are delegated to k6/vegeta (Locust would need a LoadTestShape) —
+ * explicitly refused so as not to exceed the intended rate.
  */
 
-/** Génère le locustfile (charge HTTP bornée constante). Fonction pure. */
+/** Builds the locustfile (constant bounded HTTP load). Pure function. */
 export function buildLocustfile(config: LoadTestConfig): string {
   const u = new URL(config.url);
   const path = JSON.stringify(u.pathname + u.search);
@@ -33,7 +33,7 @@ class ShieldTestUser(HttpUser):
 `;
 }
 
-/** Parse le CSV Locust (<prefix>_stats.csv), ligne « Aggregated ». Fonction pure. */
+/** Parses the Locust CSV (<prefix>_stats.csv), the “Aggregated” row. Pure function. */
 export function parseLocustStats(
   csv: string,
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
@@ -90,7 +90,7 @@ export function parseLocustStats(
 }
 
 function splitCsv(line: string): string[] {
-  // CSV simple avec champs éventuellement entre guillemets.
+  // Simple CSV with fields optionally quoted.
   const out: string[] = [];
   let cur = '';
   let q = false;

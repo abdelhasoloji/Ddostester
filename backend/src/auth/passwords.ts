@@ -1,8 +1,8 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 /**
- * Hachage de mot de passe via scrypt (intégré à Node, pas de dépendance).
- * Format stocké : scrypt$<saltHex>$<hashHex>.
+ * Password hashing via scrypt (built into Node, no dependency).
+ * Stored format: scrypt$<saltHex>$<hashHex>.
  */
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);

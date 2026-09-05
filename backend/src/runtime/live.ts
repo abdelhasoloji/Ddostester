@@ -1,6 +1,6 @@
 import type { LoadProgress } from '../engine/loadTest.js';
 
-/** Progression live d'une campagne en cours (temps réel, CAM-04). */
+/** Live progress of a running campaign (real-time, CAM-04). */
 export interface LiveProgress extends LoadProgress {
   maxDurationSec: number;
   status: 'RUNNING';

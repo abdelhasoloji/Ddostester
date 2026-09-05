@@ -9,14 +9,14 @@ import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
 
 /**
- * Adaptateur vers k6 (outil de test de charge externe, licencié/opéré par
- * l'équipe). Ne génère QUE de la charge HTTP bornée (GET/POST) : k6 est piloté
- * en constant/ramping-arrival-rate au débit plafonné de la campagne. Aucun
- * vecteur d'attaque n'est produit par ce code — k6 est un générateur de charge
- * applicative standard. Les mêmes garde-fous s'appliquent (validateConfig).
+ * Adapter to k6 (external load-testing tool, licensed/operated by the team).
+ * Generates ONLY bounded HTTP load (GET/POST): k6 is driven in
+ * constant/ramping-arrival-rate at the campaign's capped rate. No attack vector
+ * is produced by this code — k6 is a standard application-load generator. The
+ * same safeguards apply (validateConfig).
  */
 
-/** Génère le script k6 (charge HTTP bornée) à partir de la config. Fonction pure. */
+/** Builds the k6 script (bounded HTTP load) from the config. Pure function. */
 export function buildK6Script(config: LoadTestConfig): string {
   const method = (config.method ?? 'GET').toUpperCase();
   const url = JSON.stringify(config.url);
@@ -74,7 +74,7 @@ interface K6Summary {
   };
 }
 
-/** Convertit le résumé k6 (--summary-export) en LoadTestResult. Fonction pure. */
+/** Converts the k6 summary (--summary-export) into a LoadTestResult. Pure function. */
 export function parseK6Summary(
   summary: K6Summary,
   meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
@@ -126,7 +126,7 @@ export class K6Agent implements AttackAgent {
     killSignal?: AbortSignal,
     _onProgress?: (p: LoadProgress) => void,
   ): Promise<LoadTestResult> {
-    // Mêmes garde-fous que le générateur intégré (allowlist, plafonds, protocole).
+    // Same safeguards as the built-in generator (allowlist, caps, protocol).
     validateConfig(config, allowedHosts);
     if (!(await this.available())) {
       throw new AgentError(
@@ -150,7 +150,7 @@ export class K6Agent implements AttackAgent {
         p.on('error', reject);
         p.on('close', () => {
           killSignal?.removeEventListener('abort', onAbort);
-          resolve(); // k6 sort non-zéro si des seuils échouent ; on lit le résumé quand même
+          resolve(); // k6 exits non-zero if thresholds fail; we read the summary anyway
         });
       });
       const raw = await readFile(summaryPath, 'utf8').catch(() => '{}');
