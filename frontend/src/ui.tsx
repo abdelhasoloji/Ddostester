@@ -302,6 +302,14 @@ function RunDetails({ run }: { run: CampaignRun }) {
             {run.generator.successful} / {run.generator.failed}
           </div>
         </div>
+        {run.generator.assertionsChecked ? (
+          <div className="metric">
+            <div className="k">Assertion failures</div>
+            <div className="v">
+              {run.generator.assertionFailures ?? 0} / {run.generator.assertionsChecked}
+            </div>
+          </div>
+        ) : null}
         <div className="metric">
           <div className="k">Actual RPS</div>
           <div className="v">{run.generator.actualRps}</div>
@@ -559,6 +567,9 @@ const emptyForm = {
   sloErr: '',
   sloAvail: '',
   sloWrs: '',
+  sloAssert: '',
+  assertStatus: '',
+  assertBody: '',
 };
 
 /** Builds the acceptance criteria from the (optional) SLO form fields. */
@@ -567,12 +578,25 @@ function buildAcceptance(f: {
   sloErr: string;
   sloAvail: string;
   sloWrs: string;
+  sloAssert: string;
 }): Record<string, number> | undefined {
   const a: Record<string, number> = {};
   if (f.sloP95) a.maxP95Ms = Number(f.sloP95);
   if (f.sloErr) a.maxErrorRatePct = Number(f.sloErr);
   if (f.sloAvail) a.minAvailabilityPct = Number(f.sloAvail);
   if (f.sloWrs) a.minWrs = Number(f.sloWrs);
+  if (f.sloAssert) a.maxAssertionFailurePct = Number(f.sloAssert);
+  return Object.keys(a).length ? a : undefined;
+}
+
+/** Builds the per-response assertion (built-in engine only) from form fields. */
+function buildAssertion(f: {
+  assertStatus: string;
+  assertBody: string;
+}): Record<string, unknown> | undefined {
+  const a: Record<string, unknown> = {};
+  if (f.assertStatus) a.status = Number(f.assertStatus);
+  if (f.assertBody.trim()) a.bodyContains = f.assertBody.trim();
   return Object.keys(a).length ? a : undefined;
 }
 
@@ -689,6 +713,8 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
   // Flow editor only when the selected engine (or the default builtin) can run
   // multi-step flows.
   const flowSupported = selectedAgent ? selectedAgent.flowCapable : true;
+  // Response assertions are evaluated by the built-in engine only.
+  const assertionSupported = form.agent === '' || form.agent === 'builtin';
   const targetOrigin = (() => {
     try {
       return new URL(form.target).origin;
@@ -757,6 +783,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               : parseFlow(form.flow, targetOrigin)
             : undefined,
         acceptance: buildAcceptance(form),
+        assertion: assertionSupported ? buildAssertion(form) : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -1051,12 +1078,43 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               value={form.sloWrs}
               onChange={(e) => setForm({ ...form, sloWrs: e.target.value })}
             />
+            {assertionSupported && (
+              <input
+                type="number"
+                placeholder="max assertion fail %"
+                value={form.sloAssert}
+                onChange={(e) => setForm({ ...form, sloAssert: e.target.value })}
+              />
+            )}
           </div>
           <span className="hint">
             Leave blank to skip. Each run gets a <b>PASS/FAIL</b> verdict against the criteria you
             set.
           </span>
         </div>
+        {assertionSupported && (
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>Response assertion — validate each response (optional)</label>
+            <div className="slo-grid">
+              <input
+                type="number"
+                placeholder="expected status"
+                value={form.assertStatus}
+                onChange={(e) => setForm({ ...form, assertStatus: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="body contains…"
+                value={form.assertBody}
+                onChange={(e) => setForm({ ...form, assertBody: e.target.value })}
+              />
+            </div>
+            <span className="hint">
+              Built-in engine only. Every response is checked; the failure rate feeds the SLO
+              verdict above.
+            </span>
+          </div>
+        )}
         <label className="attest">
           <input
             type="checkbox"

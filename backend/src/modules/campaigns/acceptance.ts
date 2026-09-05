@@ -15,6 +15,8 @@ export interface AcceptanceCriteria {
   minAvailabilityPct?: number;
   /** Min acceptable WRS. */
   minWrs?: number;
+  /** Max acceptable response-assertion failure rate (%). */
+  maxAssertionFailurePct?: number;
 }
 
 export interface AcceptanceResult {
@@ -29,6 +31,8 @@ export interface AcceptanceMetrics {
   errorRatePct: number;
   availabilityPct: number;
   wrs: number;
+  /** Response-assertion failure rate (%); 0 when no assertion was set. */
+  assertionFailurePct: number;
 }
 
 /** True if at least one criterion is set. */
@@ -38,7 +42,8 @@ export function hasCriteria(c?: AcceptanceCriteria): boolean {
     (c.maxP95Ms != null ||
       c.maxErrorRatePct != null ||
       c.minAvailabilityPct != null ||
-      c.minWrs != null)
+      c.minWrs != null ||
+      c.maxAssertionFailurePct != null)
   );
 }
 
@@ -65,6 +70,11 @@ export function evaluateAcceptance(
   }
   if (c!.minWrs != null && m.wrs < c!.minWrs) {
     failures.push(`WRS ${round(m.wrs)} < ${c!.minWrs}`);
+  }
+  if (c!.maxAssertionFailurePct != null && m.assertionFailurePct > c!.maxAssertionFailurePct) {
+    failures.push(
+      `assertion failures ${round(m.assertionFailurePct)}% > ${c!.maxAssertionFailurePct}%`,
+    );
   }
   return { verdict: failures.length ? 'FAIL' : 'PASS', failures };
 }

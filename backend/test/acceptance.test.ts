@@ -4,7 +4,13 @@ import { createCampaign, CampaignError } from '../src/modules/campaigns/service.
 import { buildSuites } from '../src/modules/playbooks/suites.js';
 import type { CampaignInput, Campaign } from '../src/modules/campaigns/model.js';
 
-const metrics = { p95Ms: 200, errorRatePct: 0.5, availabilityPct: 99.9, wrs: 92 };
+const metrics = {
+  p95Ms: 200,
+  errorRatePct: 0.5,
+  availabilityPct: 99.9,
+  wrs: 92,
+  assertionFailurePct: 0,
+};
 
 describe('evaluateAcceptance', () => {
   it('returns null when no criteria are set', () => {
@@ -29,6 +35,16 @@ describe('evaluateAcceptance', () => {
     expect(r.verdict).toBe('FAIL');
     expect(r.failures).toHaveLength(4);
     expect(r.failures[0]).toContain('p95 latency');
+  });
+
+  it('flags a breached assertion-failure rate', () => {
+    const r = evaluateAcceptance(
+      { maxAssertionFailurePct: 1 },
+      { ...metrics, assertionFailurePct: 5 },
+    )!;
+    expect(r.verdict).toBe('FAIL');
+    expect(r.failures[0]).toContain('assertion failures');
+    expect(hasCriteria({ maxAssertionFailurePct: 1 })).toBe(true);
   });
 });
 

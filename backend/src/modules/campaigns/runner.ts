@@ -65,6 +65,7 @@ export async function executeCampaign(
     maxRps: campaign.maxRps,
     phases: campaign.scenario,
     flow: campaign.flow,
+    assertion: campaign.assertion,
     authorized: campaign.authorized,
   };
 
@@ -145,6 +146,7 @@ export async function executeCampaign(
         : 'COMPLETED';
 
   const total = generator.totalRequests;
+  const checked = generator.assertionsChecked ?? 0;
   const acceptance =
     evaluateAcceptance(campaign.acceptance, {
       p95Ms: generator.latencyMs.p95,
@@ -153,6 +155,7 @@ export async function executeCampaign(
         ? (probeMetrics.available / probeMetrics.samples) * 100
         : 100,
       wrs: wrs.wrs,
+      assertionFailurePct: checked > 0 ? ((generator.assertionFailures ?? 0) / checked) * 100 : 0,
     }) ?? undefined;
 
   return {

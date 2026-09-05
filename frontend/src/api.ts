@@ -35,6 +35,7 @@ export interface Campaign {
   recurrence?: { intervalMin: number; until?: string };
   flow?: RequestStep[];
   acceptance?: AcceptanceCriteria;
+  assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;
   suiteId?: string;
   suiteName?: string;
@@ -48,6 +49,12 @@ export interface AcceptanceCriteria {
   maxErrorRatePct?: number;
   minAvailabilityPct?: number;
   minWrs?: number;
+  maxAssertionFailurePct?: number;
+}
+
+export interface ResponseAssertion {
+  status?: number;
+  bodyContains?: string;
 }
 
 export interface AcceptanceResult {
@@ -104,6 +111,8 @@ export interface CampaignRun {
     latencyMs: { min: number; max: number; mean: number; p50: number; p95: number; p99: number };
     statusCounts: Record<string, number>;
     errors: Record<string, number>;
+    assertionsChecked?: number;
+    assertionFailures?: number;
   };
   probe: {
     samples: number;

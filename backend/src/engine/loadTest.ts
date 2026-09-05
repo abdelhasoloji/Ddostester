@@ -144,6 +144,9 @@ export async function runLoadTest(
   let successful = 0;
   let failed = 0;
   let sent = 0;
+  let assertionsChecked = 0;
+  let assertionFailures = 0;
+  const assertion = config.assertion;
 
   // Throttle: never exceed maxRps requests per second (global).
   let windowStart = Date.now();
@@ -190,16 +193,24 @@ export async function runLoadTest(
       statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
       if (res.ok) successful++;
       else failed++;
+      // Read the body once when a correlation extract or a body assertion needs it.
+      const needText = wantBody || assertion?.bodyContains != null;
+      let text = '';
+      if (needText) text = await res.text().catch(() => '');
+      else await res.arrayBuffer().catch(() => undefined); // drain to free the connection
+      if (assertion) {
+        assertionsChecked++;
+        const statusOk = assertion.status == null || res.status === assertion.status;
+        const bodyOk = assertion.bodyContains == null || text.includes(assertion.bodyContains);
+        if (!statusOk || !bodyOk) assertionFailures++;
+      }
       if (wantBody) {
         const h: Record<string, string> = {};
         res.headers.forEach((v, k) => {
           h[k.toLowerCase()] = v;
         });
-        const bodyText = await res.text().catch(() => '');
-        return { bodyText, headers: h };
+        return { bodyText: text, headers: h };
       }
-      // Drain the body to release the connection.
-      await res.arrayBuffer().catch(() => undefined);
       return null;
     } catch (err) {
       sent++;
@@ -303,5 +314,7 @@ export async function runLoadTest(
     },
     actualRps: Number((sent / Math.max(elapsedSec, 0.001)).toFixed(2)),
     errors,
+    assertionsChecked,
+    assertionFailures,
   };
 }

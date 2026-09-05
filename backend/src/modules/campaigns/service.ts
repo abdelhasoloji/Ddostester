@@ -145,6 +145,21 @@ export function createCampaign(
     pct(a.maxErrorRatePct, 'maxErrorRatePct');
     pct(a.minAvailabilityPct, 'minAvailabilityPct');
     pct(a.minWrs, 'minWrs');
+    pct(a.maxAssertionFailurePct, 'maxAssertionFailurePct');
+  }
+
+  if (input.assertion) {
+    const { status, bodyContains } = input.assertion;
+    if (status == null && !bodyContains?.trim()) {
+      throw new CampaignError('assertion: set a status and/or bodyContains.');
+    }
+    if (status != null && (status < 100 || status > 599)) {
+      throw new CampaignError('assertion.status must be within [100, 599].');
+    }
+    // Assertions are evaluated by the built-in engine only.
+    if (input.agent && input.agent !== 'builtin') {
+      throw new CampaignError('Response assertions require the built-in engine.');
+    }
   }
 
   // Validate the chosen load engine when the caller supplies the agent list.

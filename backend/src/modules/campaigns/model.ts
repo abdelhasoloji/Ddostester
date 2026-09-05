@@ -1,8 +1,8 @@
 import type { WrsBreakdown } from '../wrs/scoring.js';
-import type { ScenarioPhase, RequestStep } from '../../engine/types.js';
+import type { ScenarioPhase, RequestStep, ResponseAssertion } from '../../engine/types.js';
 import type { AcceptanceCriteria, AcceptanceResult } from './acceptance.js';
 
-export type { ScenarioPhase, RequestStep };
+export type { ScenarioPhase, RequestStep, ResponseAssertion };
 export type { AcceptanceCriteria, AcceptanceResult };
 
 /**
@@ -65,6 +65,8 @@ export interface CampaignInput {
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */
   acceptance?: AcceptanceCriteria;
+  /** Optional per-response assertion (built-in engine only). */
+  assertion?: ResponseAssertion;
   /** Assessment suite linkage (set when created from a playbook). */
   suiteId?: string;
   suiteName?: string;

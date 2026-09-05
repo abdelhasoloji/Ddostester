@@ -54,6 +54,18 @@ export interface RequestExtract {
 export const MAX_FLOW_STEPS = 20;
 export const MAX_THINK_MS = 30_000;
 
+/**
+ * Optional response assertion (functional health under load): every generator
+ * response is checked against it, so "HTTP 200 but broken page" is caught. Read
+ * only — it asserts on responses already received, it changes nothing sent.
+ */
+export interface ResponseAssertion {
+  /** Expected HTTP status (e.g. 200). */
+  status?: number;
+  /** Substring the response body must contain. */
+  bodyContains?: string;
+}
+
 export interface LoadTestConfig {
   /** Full target URL (e.g. http://localhost:3000/health). */
   url: string;
@@ -83,6 +95,8 @@ export interface LoadTestConfig {
    * of steps). Absent = single request to `url`.
    */
   flow?: RequestStep[];
+  /** Optional per-response assertion (built-in engine only). */
+  assertion?: ResponseAssertion;
   /**
    * Responsibility acknowledgement: the user confirms the target belongs to
    * them or that they hold a written authorization. Without this flag, the test
@@ -104,4 +118,8 @@ export interface LoadTestResult {
   latencyMs: { min: number; max: number; mean: number; p50: number; p95: number; p99: number };
   actualRps: number;
   errors: Record<string, number>;
+  /** Number of responses checked against the assertion (0 if none set). */
+  assertionsChecked?: number;
+  /** Number of responses that failed the assertion. */
+  assertionFailures?: number;
 }

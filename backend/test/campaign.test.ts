@@ -57,6 +57,29 @@ describe('CAM workflow', () => {
   });
 });
 
+describe('response assertion validation', () => {
+  it('accepts a status assertion on the built-in engine', () => {
+    const c = createCampaign({ ...base, assertion: { status: 200 } }, allowed);
+    expect(c.assertion?.status).toBe(200);
+  });
+
+  it('rejects an empty assertion', () => {
+    expect(() => createCampaign({ ...base, assertion: {} }, allowed)).toThrow(CampaignError);
+  });
+
+  it('rejects an out-of-range status', () => {
+    expect(() => createCampaign({ ...base, assertion: { status: 99 } }, allowed)).toThrow(
+      CampaignError,
+    );
+  });
+
+  it('rejects an assertion on a non-builtin engine', () => {
+    expect(() =>
+      createCampaign({ ...base, agent: 'k6', assertion: { status: 200 } }, allowed),
+    ).toThrow(/built-in engine/);
+  });
+});
+
 describe('recurrence validation', () => {
   it('accepts a valid recurrence', () => {
     const c = createCampaign({ ...base, recurrence: { intervalMin: 60 } }, allowed);
