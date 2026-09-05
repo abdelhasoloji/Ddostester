@@ -23,8 +23,10 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Dark palette. Applied when the OS prefers dark AND the user hasn't forced
+   light, or when the user explicitly forces dark via the theme toggle. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1115;
     --surface: #171a20;
     --surface-2: #1e222a;
@@ -43,6 +45,25 @@
     --warning-bg: #2a2010;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
+}
+:root[data-theme='dark'] {
+  --bg: #0f1115;
+  --surface: #171a20;
+  --surface-2: #1e222a;
+  --border: #2a2f3a;
+  --text: #e6e8eb;
+  --muted: #9aa3af;
+  --brand: #4f8fdb;
+  --brand-2: #003484;
+  --accent: #f5a623;
+  --primary: var(--brand);
+  --primary-hover: #7cabe6;
+  --danger: #f87171;
+  --danger-bg: #2a1414;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --warning-bg: #2a2010;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -839,6 +860,87 @@ input.invalid {
 }
 .report-row .btn {
   margin-left: auto;
+}
+
+/* Theme toggle (sidebar) */
+.theme-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  align-self: flex-start;
+}
+.theme-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0.3rem 0.55rem;
+  border-right: 1px solid var(--border);
+}
+.theme-btn:last-child {
+  border-right: 0;
+}
+.theme-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.theme-btn.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+/* Filter bar (campaign list) */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+.filter-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.chip-count {
+  display: inline-block;
+  min-width: 1.1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 0 0.35rem;
+  margin-left: 0.15rem;
+}
+.chip-active .chip-count {
+  color: var(--brand);
+  background: #fff;
+}
+.filter-tools {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.filter-search {
+  width: auto;
+  min-width: 200px;
+}
+.filter-tools select {
+  width: auto;
+}
+@media (max-width: 620px) {
+  .filter-tools {
+    width: 100%;
+  }
+  .filter-search {
+    flex: 1;
+  }
 }
 
 /* Preset quick-picker (new-campaign form) */

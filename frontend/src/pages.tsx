@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { complianceUrl, reportUrl } from './api.js';
-import type { Role, WrsBreakdown } from './api.js';
+import type { Campaign, Role, WrsBreakdown } from './api.js';
 import { useApp } from './context.js';
 import {
   ApproveModal,
@@ -13,6 +13,8 @@ import {
 } from './ui.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
+import { getTheme, setTheme as persistTheme } from './theme.js';
+import type { Theme } from './theme.js';
 
 const roleLabel: Record<Role, string> = {
   officer: 'Security Officer',
@@ -33,6 +35,36 @@ const NAV = [
   { to: '/guide', label: 'Guide', icon: '❔', end: false },
   { to: '/settings', label: 'Settings', icon: '⚙', end: false },
 ];
+
+const THEME_OPTS: [Theme, string, string][] = [
+  ['light', '☀', 'Light'],
+  ['system', '🖥', 'System'],
+  ['dark', '☾', 'Dark'],
+];
+
+function ThemeToggle() {
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  const choose = (t: Theme) => {
+    setThemeState(t);
+    persistTheme(t);
+  };
+  return (
+    <div className="theme-toggle" role="group" aria-label="Theme">
+      {THEME_OPTS.map(([v, icon, label]) => (
+        <button
+          key={v}
+          type="button"
+          className={`theme-btn${theme === v ? ' active' : ''}`}
+          title={`Theme: ${label}`}
+          aria-pressed={theme === v}
+          onClick={() => choose(v)}
+        >
+          <span aria-hidden="true">{icon}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function Layout() {
   const app = useApp();
@@ -63,6 +95,7 @@ export function Layout() {
             ))}
           </nav>
           <div className="sidebar-foot">
+            <ThemeToggle />
             {app.authRequired && app.identity ? (
               <>
                 <span className="hint">
@@ -196,16 +229,93 @@ export function OverviewPage() {
 }
 
 // ---------- Campaigns ----------
+type StatusFilterId = 'all' | 'pending' | 'approved' | 'running' | 'done' | 'rejected';
+const STATUS_FILTERS: { id: StatusFilterId; label: string; match: (c: Campaign) => boolean }[] = [
+  { id: 'all', label: 'All', match: () => true },
+  { id: 'pending', label: 'Pending', match: (c) => c.status === 'PENDING_APPROVAL' },
+  { id: 'approved', label: 'Approved', match: (c) => c.status === 'APPROVED' },
+  { id: 'running', label: 'Running', match: (c) => c.status === 'RUNNING' },
+  {
+    id: 'done',
+    label: 'Done',
+    match: (c) => ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL'].includes(c.status),
+  },
+  { id: 'rejected', label: 'Rejected', match: (c) => c.status === 'REJECTED' },
+];
+type SortId = 'recent' | 'name' | 'wrs';
+
 export function CampaignsPage() {
   const app = useApp();
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<StatusFilterId>('all');
+  const [sort, setSort] = useState<SortId>('recent');
+
+  const filtered = useMemo(() => {
+    const matchStatus = STATUS_FILTERS.find((f) => f.id === status)!.match;
+    let list = app.campaigns.filter(matchStatus);
+    const term = q.trim().toLowerCase();
+    if (term) {
+      list = list.filter(
+        (c) => c.name.toLowerCase().includes(term) || c.target.toLowerCase().includes(term),
+      );
+    }
+    if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === 'wrs')
+      list = [...list].sort((a, b) => (b.wrs?.wrs ?? -1) - (a.wrs?.wrs ?? -1));
+    return list;
+  }, [app.campaigns, status, q, sort]);
+
+  const hasCampaigns = app.campaigns.length > 0;
+
   return (
     <>
       <PageHead title="Campaigns" sub={app.anyRunning ? 'Auto-refreshing…' : undefined} />
       <NewCampaignForm />
-      <h2 className="section-title">Campaign list</h2>
+
+      <h2 className="section-title">
+        Campaign list <span className="hint">({filtered.length})</span>
+      </h2>
+
+      {hasCampaigns && (
+        <div className="filter-bar">
+          <div className="filter-chips">
+            {STATUS_FILTERS.map((f) => {
+              const n = app.campaigns.filter(f.match).length;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`chip${status === f.id ? ' chip-active' : ''}`}
+                  onClick={() => setStatus(f.id)}
+                >
+                  {f.label} <span className="chip-count">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="filter-tools">
+            <input
+              className="filter-search"
+              type="search"
+              placeholder="Search name or target…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortId)}>
+              <option value="recent">Most recent</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="wrs">WRS (high→low)</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <div className="campaigns">
-        {app.campaigns.length === 0 && <div className="empty">No campaigns yet.</div>}
-        {app.campaigns.map((c) => (
+        {!hasCampaigns && <div className="empty">No campaigns yet.</div>}
+        {hasCampaigns && filtered.length === 0 && (
+          <div className="empty">No campaigns match your filters.</div>
+        )}
+        {filtered.map((c) => (
           <CampaignCard key={c.id} c={c} />
         ))}
       </div>
