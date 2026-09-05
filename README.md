@@ -92,6 +92,16 @@ Le générateur fourni se limite à des requêtes HTTP applicatives licites,
 plafonnées et traçables, adaptées à la mesure de résilience d'un service qu'on
 administre.
 
+## Documentation
+
+Documentation complète dans [`docs/`](./docs/) :
+[architecture](./docs/architecture.md) ·
+[déploiement](./docs/deployment.md) ·
+[utilisation](./docs/usage.md) ·
+[API](./docs/api.md) ·
+[WRS](./docs/wrs.md) ·
+[sécurité & périmètre](./docs/safeguards.md).
+
 ## Licence
 
 MIT — voir [LICENSE](./LICENSE).
