@@ -76,6 +76,16 @@ export interface CampaignRun {
     successful: number;
   };
   wrs: WrsBreakdown;
+  posture?: {
+    waf: boolean;
+    cdn: boolean;
+    rateLimiting: boolean;
+    loadBalancer: boolean;
+    hsts: boolean;
+    securityHeaders: string[];
+    server?: string;
+    signals: string[];
+  };
 }
 
 export type Role = 'engineer' | 'officer' | 'viewer';

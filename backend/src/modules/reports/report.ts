@@ -75,7 +75,20 @@ ${
  <tr><th>5xx error rate</th><td>${run.probe.errorRate5xx}%</td></tr>
  <tr><th>Probe latency p50 / p95 / p99 (ms)</th><td>${run.probe.latencyMs.p50} / ${run.probe.latencyMs.p95} / ${run.probe.latencyMs.p99}</td></tr>
 </table>
-
+${
+  run.posture
+    ? `<h2>Protection posture (inferred)</h2>
+<table>
+ <tr><th>WAF</th><td>${run.posture.waf ? 'detected' : 'not detected'}</td></tr>
+ <tr><th>CDN</th><td>${run.posture.cdn ? 'detected' : 'not detected'}</td></tr>
+ <tr><th>Rate limiting</th><td>${run.posture.rateLimiting ? 'detected' : 'not detected'}</td></tr>
+ <tr><th>Load balancer</th><td>${run.posture.loadBalancer ? 'detected' : 'not detected'}</td></tr>
+ <tr><th>HSTS</th><td>${run.posture.hsts ? 'enabled' : 'not set'}</td></tr>
+ <tr><th>Hardening headers</th><td>${run.posture.securityHeaders.join(', ') || '—'}</td></tr>
+</table>
+<p class="muted">Inferred passively from the legitimate probe's own responses (no scanning).</p>`
+    : ''
+}
 <p class="muted">Traceable report — WEDOS internal use only. No volumetric or
 exhaustion vector is implemented by this control plane.</p>
 </body></html>`;

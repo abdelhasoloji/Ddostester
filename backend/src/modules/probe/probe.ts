@@ -7,6 +7,9 @@
  * It emits no attack load: these are legitimate measurement requests.
  */
 
+import { analyzePosture } from '../posture/analyze.js';
+import type { PostureReport } from '../posture/analyze.js';
+
 export interface ProbeSample {
   at: number;
   ok: boolean;
@@ -49,9 +52,13 @@ export class KillSwitch {
   }
 }
 
+const MAX_HEADER_SNAPSHOTS = 8;
+
 export class Probe {
   private samples: ProbeSample[] = [];
   private unavailableSince: number | null = null;
+  /** A bounded set of response-header snapshots for posture inference. */
+  private headerSnapshots: Record<string, string>[] = [];
 
   constructor(
     private readonly url: string,
@@ -77,6 +84,13 @@ export class Probe {
       const res = await fetch(this.url, { signal: ac.signal });
       status = res.status;
       ok = res.ok;
+      if (this.headerSnapshots.length < MAX_HEADER_SNAPSHOTS) {
+        const snap: Record<string, string> = {};
+        res.headers.forEach((v, k) => {
+          snap[k] = v;
+        });
+        this.headerSnapshots.push(snap);
+      }
       await res.arrayBuffer().catch(() => undefined);
     } catch {
       ok = false;
@@ -112,6 +126,14 @@ export class Probe {
       latencyMs: { p50: percentile(lat, 50), p95: percentile(lat, 95), p99: percentile(lat, 99) },
       successful: available,
     };
+  }
+
+  /** Infers the target's protection posture from the probe's own responses. */
+  posture(): PostureReport {
+    return analyzePosture(
+      this.headerSnapshots,
+      this.samples.map((s) => s.status),
+    );
   }
 
   private sleep(ms: number): Promise<void> {

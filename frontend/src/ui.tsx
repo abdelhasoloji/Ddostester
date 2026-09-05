@@ -323,6 +323,29 @@ function RunDetails({ run }: { run: CampaignRun }) {
           constant, so the WRS mostly reflects measured availability.
         </p>
       )}
+      {run.posture && (
+        <div className="posture">
+          <div className="posture-title">Protection posture (inferred from probe responses)</div>
+          <div className="posture-chips">
+            <span className={`chip-xs ${run.posture.waf ? 'on' : 'off'}`}>
+              WAF {run.posture.waf ? '✓' : '—'}
+            </span>
+            <span className={`chip-xs ${run.posture.cdn ? 'on' : 'off'}`}>
+              CDN {run.posture.cdn ? '✓' : '—'}
+            </span>
+            <span className={`chip-xs ${run.posture.rateLimiting ? 'on' : 'off'}`}>
+              Rate limit {run.posture.rateLimiting ? '✓' : '—'}
+            </span>
+            <span className={`chip-xs ${run.posture.loadBalancer ? 'on' : 'off'}`}>
+              Load balancer {run.posture.loadBalancer ? '✓' : '—'}
+            </span>
+            <span className={`chip-xs ${run.posture.hsts ? 'on' : 'off'}`}>
+              HSTS {run.posture.hsts ? '✓' : '—'}
+            </span>
+          </div>
+          {run.posture.server && <div className="hint">Server: {run.posture.server}</div>}
+        </div>
+      )}
     </div>
   );
 }

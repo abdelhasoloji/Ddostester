@@ -75,6 +75,15 @@ so automation never bypasses the approval workflow or separation of duties.
 Combine it with [notifications](./notifications.md) to be alerted on completion
 or a WRS regression instead of watching the UI.
 
+## Protection posture (inferred, passive)
+
+Every run now infers the target's protection posture **from the legitimate
+probe's own responses** — no scanning, no extra traffic. It flags whether a
+**WAF/CDN**, **rate limiting**, a **load balancer** and **HSTS**/hardening
+headers are present, plus the reported `Server`. It appears in the run details
+and the HTML report. This is the safe equivalent of Avydos' misconfiguration
+detection: it reads response metadata already returned to the probe.
+
 ## Request flows — L7 journeys (bounded)
 
 A campaign can send a realistic multi-step **journey** instead of hammering one

@@ -1202,6 +1202,35 @@ input.invalid {
   font-size: 0.75rem;
 }
 
+/* Protection posture (RunDetails) */
+.posture {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+.posture-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.posture-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.posture-chips .chip-xs {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.posture-chips .chip-xs.on {
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
+  border-color: var(--brand);
+}
+.posture-chips .chip-xs.off {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
 /* Preset category grouping (Guide) */
 .preset-group {
   margin-bottom: 1rem;

@@ -2,6 +2,7 @@ import type { LoadTestConfig, LoadTestResult } from '../../engine/types.js';
 import type { LoadProgress } from '../../engine/loadTest.js';
 import { KillSwitch, Probe } from '../probe/probe.js';
 import type { ProbeMetrics } from '../probe/probe.js';
+import type { PostureReport } from '../posture/analyze.js';
 import { computeWrs } from '../wrs/scoring.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import { BuiltinHttpAgent } from '../../agents/builtin.js';
@@ -17,6 +18,8 @@ export interface CampaignRun {
   generator: LoadTestResult;
   probe: ProbeMetrics;
   wrs: WrsBreakdown;
+  /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
+  posture?: PostureReport;
 }
 
 /**
@@ -144,5 +147,6 @@ export async function executeCampaign(
     generator,
     probe: probeMetrics,
     wrs,
+    posture: probe.posture(),
   };
 }
