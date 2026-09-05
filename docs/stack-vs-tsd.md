@@ -29,7 +29,7 @@
 | RPT-01 rapport campagne (PDF)                   | HTML + PDF                                         | ✅              |
 | RPT-02 rapport conformité DORA/NIS2             | oui (agrégé)                                       | ✅              |
 | GEN-03 scénarios combinés                       | ramp-up / vagues **bornés HTTP**                   | ✅ (borné)      |
-| Génération de charge externe (agents)           | interface AttackAgent + adaptateur k6 (HTTP borné) | ✅ (délégation) |
+| Génération de charge externe (agents)           | interface AttackAgent + adaptateurs k6/Vegeta/Locust/JMeter/Gatling (HTTP borné) | ✅ (délégation) |
 | Journal d'audit / traçabilité                   | oui (persistant)                                   | ✅              |
 | Marquage de trafic `X-WEDOS-TEST`               | oui                                                | ✅              |
 

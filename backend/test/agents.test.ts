@@ -88,7 +88,7 @@ describe('locust', () => {
 
 describe('selectAgent', () => {
   it('expose la liste des agents', () => {
-    expect(AGENTS).toEqual(['builtin', 'k6', 'vegeta', 'locust']);
+    expect(AGENTS).toEqual(['builtin', 'k6', 'vegeta', 'locust', 'jmeter', 'gatling']);
   });
   it('sélectionne chaque agent', () => {
     expect(selectAgent({ AGENT: 'vegeta' } as NodeJS.ProcessEnv).name).toBe('vegeta');

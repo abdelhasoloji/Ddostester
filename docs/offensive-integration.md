@@ -27,9 +27,11 @@ kill switch, et renvoie **503** avec un message clair si l'outil externe est abs
 ### Outils volontairement non scaffoldés
 
 - **wrk / hey** : conçus pour le débit **maximal** (pas de plafond de débit
-  simple) — contraires au modèle borné de ShieldTest.
-- **Gatling / JMeter** : lourds (JVM/XML) ; intégrables via le même contrat
-  `AttackAgent` si l'équipe le souhaite, mais non fournis par défaut.
+  simple) — contraires au modèle borné de ShieldTest. Intégrables via le contrat
+  `AttackAgent` en imposant un plafond, mais non fournis pour cette raison.
+
+> JMeter et Gatling sont lourds (JVM) : à réserver aux cas où l'équipe les
+> utilise déjà. k6 ou Vegeta restent recommandés pour la plupart des tests.
 
 ## Prérequis de gouvernance (avant toute campagne)
 
