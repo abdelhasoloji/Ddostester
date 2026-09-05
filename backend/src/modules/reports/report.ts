@@ -17,14 +17,20 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
 <title>Rapport ShieldTest — ${esc(campaign.name)}</title>
 <style>
  body{font:14px system-ui,sans-serif;margin:2rem;color:#111;max-width:900px}
- h1{border-bottom:2px solid #333;padding-bottom:.3rem}
+ .brand{display:flex;align-items:center;gap:.6rem;border-bottom:3px solid #0d47a1;padding-bottom:.6rem;margin-bottom:1rem}
+ .brand h1{font-size:1.25rem;margin:0;border:0}
+ .brand .wm{font-weight:800;color:#0d47a1}
  table{border-collapse:collapse;width:100%;margin:1rem 0}
  th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}
- .score{font-size:2rem;font-weight:700}
- .level{padding:.2rem .6rem;border-radius:4px;background:#eee}
+ h2{color:#0d47a1}
+ .score{font-size:2rem;font-weight:700;color:#0d47a1}
+ .level{padding:.2rem .6rem;border-radius:4px;background:#e3f0fc;color:#0d47a1;font-weight:700}
  .muted{color:#666}
 </style></head><body>
-<h1>Rapport de campagne — WEDOS ShieldTest</h1>
+<div class="brand">
+  <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e88e5"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h1><span class="wm">WEDOS ShieldTest</span> — Rapport de campagne</h1>
+</div>
 <p class="muted">Généré le ${new Date().toISOString()}</p>
 <table>
  <tr><th>Campagne</th><td>${esc(campaign.name)} <span class="muted">(${campaign.id})</span></td></tr>

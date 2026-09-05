@@ -210,14 +210,13 @@ export function App() {
   };
 
   return (
+    <>
+    <div className="accent-line" />
     <div className="app">
-      <header className="header">
-        <div>
-          <h1>WEDOS ShieldTest — Control Plane</h1>
-          <p className="subtitle">
-            Cibles autorisées : <code>{allowed.join(', ') || '—'}</code> · générateur HTTP borné
-            (aucun vecteur volumétrique).
-          </p>
+      <header className="brandbar">
+        <div className="brand-lockup">
+          <img className="brand-logo" src="/wedos-logo.svg" alt="WEDOS ShieldTest" />
+          <span className="brand-tag">Control Plane</span>
         </div>
         <div className="identity">
           <label htmlFor="op">Opérateur</label>
@@ -229,6 +228,10 @@ export function App() {
           />
         </div>
       </header>
+      <p className="subtitle" style={{ marginBottom: '.5rem' }}>
+        Cibles autorisées : <code>{allowed.join(', ') || '—'}</code> · générateur HTTP borné
+        (aucun vecteur volumétrique).
+      </p>
 
       <section className="card">
         <h2>Nouvelle campagne</h2>
@@ -416,6 +419,7 @@ export function App() {
         ))}
       </div>
     </div>
+    </>
   );
 }
 

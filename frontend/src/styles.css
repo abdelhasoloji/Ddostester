@@ -5,8 +5,12 @@
   --border: #e2e5ea;
   --text: #1a1d21;
   --muted: #6b7280;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  /* Marque WEDOS — ajuster --brand au hex officiel si besoin. */
+  --brand: #1565c0;
+  --brand-2: #0d47a1;
+  --accent: #f5a623;
+  --primary: var(--brand);
+  --primary-hover: var(--brand-2);
   --primary-contrast: #ffffff;
   --danger: #dc2626;
   --danger-bg: #fef2f2;
@@ -27,8 +31,11 @@
     --border: #2a2f3a;
     --text: #e6e8eb;
     --muted: #9aa3af;
-    --primary: #3b82f6;
-    --primary-hover: #60a5fa;
+    --brand: #42a5f5;
+    --brand-2: #1e88e5;
+    --accent: #f5a623;
+    --primary: var(--brand);
+    --primary-hover: #90caf9;
     --danger: #f87171;
     --danger-bg: #2a1414;
     --success: #4ade80;
@@ -41,7 +48,16 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; }
 
-.app { max-width: 1040px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+.app { max-width: 1040px; margin: 0 auto; padding: 1rem 1.25rem 4rem; }
+
+/* Brand accent line (full width, top) */
+.accent-line { height: 4px; background: linear-gradient(90deg, var(--brand-2), var(--brand), var(--accent)); }
+
+/* Brand bar */
+.brandbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 0 .75rem; border-bottom: 1px solid var(--border); margin-bottom: .75rem; }
+.brand-lockup { display: flex; align-items: center; gap: .7rem; }
+.brand-logo { height: 40px; width: auto; display: block; }
+.brand-tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--brand); border: 1px solid var(--brand); border-radius: 999px; padding: .18rem .55rem; }
 
 /* Header */
 .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: .5rem; }
