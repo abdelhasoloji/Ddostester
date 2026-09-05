@@ -46,6 +46,25 @@ if (SCHEDULER) {
   }, SCHEDULER_INTERVAL_MS).unref();
 }
 
+// Arrêt gracieux : ferme l'API puis le store (connexions DB) proprement.
+let shuttingDown = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  app.log.info(`arrêt en cours (${signal})…`);
+  try {
+    await app.close();
+    await store.close();
+  } catch (err) {
+    app.log.error({ err }, 'erreur pendant l’arrêt');
+  } finally {
+    process.exit(0);
+  }
+}
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(sig, () => void shutdown(sig));
+}
+
 app
   .listen({ port: PORT, host: HOST })
   .then((addr) =>
