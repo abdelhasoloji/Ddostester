@@ -26,7 +26,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  .score{font-size:2rem;font-weight:700;color:#003484}
  .level{padding:.2rem .6rem;border-radius:4px;background:#e3f0fc;color:#003484;font-weight:700}
  .muted{color:#666}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
+ @media print{.print-btn{display:none}body{margin:0}}
 </style></head><body>
+<button class="print-btn" onclick="window.print()">Imprimer / PDF</button>
 <div class="brand">
   <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h1><span class="wm">WEDOS ShieldTest</span> — Rapport de campagne</h1>

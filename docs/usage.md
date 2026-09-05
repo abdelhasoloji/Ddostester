@@ -51,3 +51,10 @@ Dans le formulaire, « Profil de charge » traduit Max RPS + durée en phases :
 
 Chaque phase reste soumise aux plafonds (`maxRps ≤ 2000`, durée totale ≤ 900 s).
 Aucun vecteur volumétrique : ce ne sont que des débits HTTP bornés modulés.
+
+## Export PDF des rapports (RPT-01)
+
+Chaque rapport (campagne et conformité) porte un bouton **« Imprimer / PDF »**
+qui ouvre la boîte d'impression du navigateur → « Enregistrer en PDF ». Une
+feuille de style d'impression masque les contrôles et met en page proprement,
+sans dépendance serveur (pas de moteur headless à installer sur la cible).
