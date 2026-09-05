@@ -11,15 +11,32 @@ possède ou pour laquelle elle dispose d'un mandat écrit**.
 > un générateur **HTTP applicatif borné** (GET/POST) soumis à liste blanche et
 > plafond de débit. Voir [« Ce qui n'est pas implémenté »](#ce-qui-nest-pas-implémenté).
 
+## Fonctionnalités
+
+- **CAM** — campagnes + workflow d'approbation (séparation des rôles, validité 24 h).
+- **GEN** — générateur HTTP borné (allowlist + plafond RPS), seul vecteur.
+- **PROBE** — sonde légitime + kill switch 3 niveaux (auto / manuel / temporel).
+- **WRS** — scoring de résilience + **historique par cible & détection de régression**.
+- **RPT** — rapport de campagne HTML + **rapport de conformité agrégé (DORA/NIS2)**.
+- **Auth + RBAC** — JWT, rôles engineer / officer / viewer (activable).
+- **Persistance** — PostgreSQL (repli mémoire).
+- **Ordonnanceur** — exécution planifiée des campagnes (CAM-01).
+- **Audit** — journal d'audit persistant de toutes les actions.
+- **Monitoring** — endpoint Prometheus `/metrics`.
+
 ## Architecture
 
 ```
-Frontend (React/Vite)  ──►  API (Fastify/TS)
-                              ├─ CAM     campagnes + workflow d'approbation
-                              ├─ GEN     générateur HTTP borné (allowlist + RPS cap)
-                              ├─ PROBE   sonde légitime + kill switch (auto/manuel/temporel)
-                              ├─ WRS     scoring de résilience (fonction pure)
-                              └─ RPT     rapport HTML traçable
+Frontend (React/Vite)  ──►  API (Fastify/TS)  ──►  PostgreSQL (ou mémoire)
+   login + RBAC              ├─ Auth (JWT) + RBAC
+   dashboard + WRS chart     ├─ CAM  campagnes + approbation
+                             ├─ GEN  générateur HTTP borné (allowlist + RPS cap)
+                             ├─ PROBE sonde + kill switch (auto/manuel/temporel)
+                             ├─ WRS  scoring + historique + régressions
+                             ├─ RPT  rapport campagne + conformité DORA/NIS2
+                             ├─ Scheduler  exécution planifiée (CAM-01)
+                             ├─ Audit  journal persistant
+                             └─ /metrics  Prometheus
 ```
 
 ## Garde-fous (safeguards)
