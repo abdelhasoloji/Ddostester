@@ -32,6 +32,7 @@ export interface Campaign {
   scheduledAt?: string;
   scenario?: { maxRps: number; durationSec: number }[];
   agent?: string;
+  recurrence?: { intervalMin: number; until?: string };
   wrs?: WrsBreakdown;
   runId?: string;
 }

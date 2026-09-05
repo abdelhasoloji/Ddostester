@@ -9,7 +9,7 @@ import type { CampaignInput } from '../src/modules/campaigns/model.js';
 
 const allowed = ['localhost'];
 const base: CampaignInput = {
-  name: 'Test résilience',
+  name: 'Resilience test',
   target: 'http://localhost:3000/',
   vector: 'http-get',
   maxRps: 100,
@@ -21,38 +21,66 @@ const base: CampaignInput = {
 };
 
 describe('CAM workflow', () => {
-  it('crée une campagne PENDING_APPROVAL', () => {
+  it('creates a PENDING_APPROVAL campaign', () => {
     const c = createCampaign(base, allowed);
     expect(c.status).toBe('PENDING_APPROVAL');
   });
 
-  it('refuse une cible hors liste blanche', () => {
+  it('rejects a target outside the allowlist', () => {
     expect(() => createCampaign({ ...base, target: 'http://victim.example/' }, allowed)).toThrow(
       CampaignError,
     );
   });
 
-  it('refuse sans attestation d’autorisation', () => {
+  it('rejects a campaign without an authorization attestation', () => {
     expect(() => createCampaign({ ...base, authorized: false }, allowed)).toThrow(CampaignError);
   });
 
-  it('plafonne l’intensité (HARD_CAPS)', () => {
+  it('caps intensity (HARD_CAPS)', () => {
     expect(() => createCampaign({ ...base, maxRps: 999_999 }, allowed)).toThrow(CampaignError);
   });
 
-  it('impose la séparation des rôles à l’approbation', () => {
+  it('enforces separation of duties at approval', () => {
     const c = createCampaign(base, allowed);
     expect(() => approveCampaign(c, base.createdBy, 'APPROVED')).toThrow(CampaignError);
   });
 
-  it('approuve et rend exécutable', () => {
+  it('approves and makes the campaign executable', () => {
     const c = approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
     expect(c.status).toBe('APPROVED');
     expect(() => assertExecutable(c)).not.toThrow();
   });
 
-  it('exige un motif pour un rejet', () => {
+  it('requires a reason for a rejection', () => {
     const c = createCampaign(base, allowed);
     expect(() => approveCampaign(c, 'officer@wedos', 'REJECTED')).toThrow(CampaignError);
+  });
+});
+
+describe('recurrence validation', () => {
+  it('accepts a valid recurrence', () => {
+    const c = createCampaign({ ...base, recurrence: { intervalMin: 60 } }, allowed);
+    expect(c.recurrence?.intervalMin).toBe(60);
+  });
+
+  it('rejects an interval below the minimum', () => {
+    expect(() => createCampaign({ ...base, recurrence: { intervalMin: 5 } }, allowed)).toThrow(
+      CampaignError,
+    );
+  });
+
+  it('rejects a non-integer interval', () => {
+    expect(() => createCampaign({ ...base, recurrence: { intervalMin: 22.5 } }, allowed)).toThrow(
+      CampaignError,
+    );
+  });
+
+  it('rejects an "until" in the past', () => {
+    expect(() =>
+      createCampaign(
+        { ...base, recurrence: { intervalMin: 30, until: '2000-01-01T00:00:00Z' } },
+        allowed,
+      ),
+    ).toThrow(CampaignError);
   });
 });

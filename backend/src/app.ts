@@ -18,6 +18,7 @@ import {
   CampaignError,
 } from './modules/campaigns/service.js';
 import { executeCampaign } from './modules/campaigns/runner.js';
+import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
@@ -174,7 +175,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent);
       await store.saveRun(run);
-      await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
+      // Recurring campaigns re-arm for their next run (within the approval
+      // window); otherwise the campaign settles into its terminal run status.
+      const rearm = reArmRecurring(c, Date.now());
+      await store.saveCampaign({
+        ...c,
+        status: rearm ? 'APPROVED' : run.status,
+        scheduledAt: rearm ? rearm.scheduledAt : c.scheduledAt,
+        wrs: run.wrs,
+        runId: run.runId,
+      });
       await auditAs(
         actor,
         'campaign.execute',

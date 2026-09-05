@@ -52,6 +52,21 @@ export interface CampaignInput {
    * server default agent. All engines produce bounded HTTP load only.
    */
   agent?: string;
+  /**
+   * Optional recurrence: once APPROVED, re-run the campaign every
+   * `intervalMin` minutes. Recurrence only fires while the approval is valid
+   * (24 h) and, if set, before `until` — so it never bypasses the approval
+   * window or separation of duties. Absent = single run.
+   */
+  recurrence?: Recurrence;
+}
+
+/** A recurring schedule bounded by the approval window (CAM-01). */
+export interface Recurrence {
+  /** Minutes between runs (>= MIN_RECURRENCE_MIN). */
+  intervalMin: number;
+  /** Optional ISO end time; recurrence also stops when approval expires. */
+  until?: string;
 }
 
 export interface Campaign extends CampaignInput {
@@ -71,3 +86,6 @@ export const HARD_CAPS = {
   maxConcurrency: 500,
   maxDurationSec: 900, // absolute time-based timeout (15 min, TSD §5.1)
 } as const;
+
+/** Minimum spacing between recurring runs (avoids hammering a target). */
+export const MIN_RECURRENCE_MIN = 15;

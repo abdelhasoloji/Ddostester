@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { HARD_CAPS } from './model.js';
+import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
 
 export class CampaignError extends Error {}
@@ -61,6 +61,21 @@ export function createCampaign(
 
   if (input.scheduledAt !== undefined && Number.isNaN(Date.parse(input.scheduledAt))) {
     throw new CampaignError('scheduledAt: invalid ISO date.');
+  }
+
+  if (input.recurrence) {
+    const { intervalMin, until } = input.recurrence;
+    if (!Number.isFinite(intervalMin) || !Number.isInteger(intervalMin)) {
+      throw new CampaignError('recurrence.intervalMin must be an integer number of minutes.');
+    }
+    if (intervalMin < MIN_RECURRENCE_MIN) {
+      throw new CampaignError(`recurrence.intervalMin must be >= ${MIN_RECURRENCE_MIN} minutes.`);
+    }
+    if (until !== undefined) {
+      const t = Date.parse(until);
+      if (Number.isNaN(t)) throw new CampaignError('recurrence.until: invalid ISO date.');
+      if (t <= Date.now()) throw new CampaignError('recurrence.until must be in the future.');
+    }
   }
 
   if (input.scenario) {

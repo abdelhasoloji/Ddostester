@@ -60,6 +60,21 @@ before submitting it. Start with the smoke test, then move up as the target hold
 - The **manual kill switch** is there in case of doubt: `POST /api/campaigns/:id/kill`.
 - Never aim at a target outside the mandated scope (the allowlist guarantees this).
 
+## Scheduling & recurrence (CAM-01)
+
+A campaign can run manually, once at a scheduled time, or repeatedly:
+
+- **Schedule** — set a start time; once approved, the scheduler runs it then.
+- **Repeat every** — pick an interval (15 min – 12 h) to re-run the campaign on a
+  cadence (e.g. a nightly staging check). After each run it re-arms for the next.
+
+Recurrence is deliberately bounded by governance: it **only fires while the
+approval is still valid** (24 h) and, if set, before its end time. When the
+approval window closes, recurrence stops and the campaign must be re-approved —
+so automation never bypasses the approval workflow or separation of duties.
+Combine it with [notifications](./notifications.md) to be alerted on completion
+or a WRS regression instead of watching the UI.
+
 ## Load profiles (bounded scenarios — GEN-03)
 
 In the form, “Load profile” translates Max RPS + duration into phases:

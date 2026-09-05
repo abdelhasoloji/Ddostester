@@ -253,6 +253,11 @@ export function CampaignCard({ c }: { c: Campaign }) {
         {c.scheduledAt && (
           <span title="Scheduled run">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
         )}
+        {c.recurrence && (
+          <span title="Recurring campaign">
+            🔁 every {formatInterval(c.recurrence.intervalMin)}
+          </span>
+        )}
       </div>
 
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
@@ -424,8 +429,14 @@ export function CampaignDrawer() {
           )}
           {c.scheduledAt && (
             <div>
-              <dt>Scheduled</dt>
+              <dt>{c.recurrence ? 'Next run' : 'Scheduled'}</dt>
               <dd>{new Date(c.scheduledAt).toLocaleString()}</dd>
+            </div>
+          )}
+          {c.recurrence && (
+            <div>
+              <dt>Repeats</dt>
+              <dd>every {formatInterval(c.recurrence.intervalMin)}</dd>
             </div>
           )}
         </dl>
@@ -454,6 +465,7 @@ const emptyForm = {
   concurrency: 5,
   maxDurationSec: 30,
   scheduledAt: '',
+  recurrenceMin: '',
   profile: 'constant',
   agent: '',
   body: '',
@@ -465,6 +477,10 @@ function hostOf(url: string): string | null {
   } catch {
     return null;
   }
+}
+function formatInterval(min: number): string {
+  if (min % 60 === 0) return `${min / 60} h`;
+  return `${min} min`;
 }
 function buildScenario(profile: string, maxRps: number, durationSec: number) {
   const third = Math.max(1, Math.round(durationSec / 3));
@@ -584,6 +600,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
+        recurrence: form.recurrenceMin ? { intervalMin: Number(form.recurrenceMin) } : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -775,6 +792,22 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
           />
           <span className="hint">auto-run once approved</span>
+        </div>
+        <div className="field">
+          <label>Repeat every (optional)</label>
+          <select
+            value={form.recurrenceMin}
+            onChange={(e) => setForm({ ...form, recurrenceMin: e.target.value })}
+          >
+            <option value="">No repeat (single run)</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="180">3 hours</option>
+            <option value="360">6 hours</option>
+            <option value="720">12 hours</option>
+          </select>
+          <span className="hint">re-runs within the 24 h approval window</span>
         </div>
         {form.vector === 'http-post' && (
           <div className="field" style={{ gridColumn: '1 / -1' }}>

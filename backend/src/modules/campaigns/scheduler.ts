@@ -14,3 +14,16 @@ export function dueCampaigns(campaigns: Campaign[], nowMs: number): Campaign[] {
     return true;
   });
 }
+
+/**
+ * After a recurring campaign runs, computes the next scheduled time — or null
+ * when it should stop. Recurrence never outlives the approval window (24 h) or
+ * the optional `until`, so it can't bypass approval or separation of duties.
+ */
+export function reArmRecurring(c: Campaign, nowMs: number): { scheduledAt: string } | null {
+  if (!c.recurrence) return null;
+  const next = nowMs + c.recurrence.intervalMin * 60_000;
+  if (c.recurrence.until && Date.parse(c.recurrence.until) < next) return null;
+  if (c.approvalExpiresAt && Date.parse(c.approvalExpiresAt) < next) return null;
+  return { scheduledAt: new Date(next).toISOString() };
+}
