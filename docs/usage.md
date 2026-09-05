@@ -35,6 +35,24 @@ aiming at the service itself (`127.0.0.1`, already in the allowlist).
 5. Increase intensity **gradually** only if the environment holds up, and within
    the caps (`maxRps ≤ 2000`, `duration ≤ 900 s`).
 
+## Recommended configurations (presets)
+
+The in-app **Guide** page proposes ready-made, bounded configurations and applies
+them to the new-campaign form in one click (**Use this configuration**). Each
+preset sets the load shape only — rate, concurrency, duration, profile — never
+the target, so it is safe to apply to any allowlisted host.
+
+| Preset              | Rate    | Conc. | Duration | Profile  | When to use                                        |
+| ------------------- | ------- | ----- | -------- | -------- | -------------------------------------------------- |
+| Smoke test          | 10 rps  | 3     | 20 s     | Constant | First run / confirm the pipeline works             |
+| Baseline / capacity | 100 rps | 20    | 120 s    | Constant | Reference latency & availability under steady load |
+| Ramp-up (find knee) | 300 rps | 50    | 180 s    | Ramp-up  | Find where latency/errors start climbing           |
+| Spike / waves       | 500 rps | 100   | 180 s    | Waves    | Test reaction to sudden bursts, then recovery      |
+| Soak / endurance    | 50 rps  | 20    | 900 s    | Constant | Reveal slow degradation / leaks over time          |
+
+The form also shows an estimated request volume so you know the size of a run
+before submitting it. Start with the smoke test, then move up as the target holds.
+
 ## Best practices
 
 - Always start low and increase in steps.

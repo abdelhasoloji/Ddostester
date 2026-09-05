@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react';
 import { api, setToken, getToken } from './api.js';
 import type { Campaign, CampaignRun, Role, AuditEntry, WrsSeries } from './api.js';
+import type { Preset } from './presets.js';
 
 export interface Identity {
   email: string;
@@ -44,6 +45,10 @@ interface Ctx {
   confirmExec: Campaign | null;
   approveFor: Campaign | null;
   toasts: Toast[];
+  /** A preset queued (e.g. from the Guide) for the new-campaign form to apply. */
+  draftPreset: Preset | null;
+  applyPreset: (p: Preset) => void;
+  clearDraftPreset: () => void;
   setOperator: (v: string) => void;
   setExpanded: (id: string | null) => void;
   setConfirmExec: (c: Campaign | null) => void;
@@ -89,6 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [auditRows, setAuditRows] = useState<AuditEntry[] | null>(null);
   const [wrsSeries, setWrsSeries] = useState<WrsSeries[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [draftPreset, setDraftPreset] = useState<Preset | null>(null);
 
   const role = identity?.role ?? null;
 
@@ -156,6 +162,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem('operator', operator), [operator]);
 
   const setBusyFor = (id: string, v: boolean) => setBusy((b) => ({ ...b, [id]: v }));
+
+  const applyPreset = useCallback((p: Preset) => setDraftPreset(p), []);
+  const clearDraftPreset = useCallback(() => setDraftPreset(null), []);
 
   const login = async (email: string, password: string) => {
     const r = await api.login(email, password);
@@ -260,6 +269,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     confirmExec,
     approveFor,
     toasts,
+    draftPreset,
+    applyPreset,
+    clearDraftPreset,
     setOperator,
     setExpanded,
     setConfirmExec,

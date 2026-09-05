@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { complianceUrl, reportUrl } from './api.js';
 import type { Role, WrsBreakdown } from './api.js';
 import { useApp } from './context.js';
@@ -11,6 +11,8 @@ import {
   Sparkline,
   WrsPill,
 } from './ui.js';
+import { PRESETS, estimatedRequests, formatCount } from './presets.js';
+import type { Preset } from './presets.js';
 
 const roleLabel: Record<Role, string> = {
   officer: 'Security Officer',
@@ -28,6 +30,7 @@ const NAV = [
   { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
   { to: '/reports', label: 'Reports', icon: '▤', end: false },
   { to: '/audit', label: 'Audit log', icon: '☰', end: false },
+  { to: '/guide', label: 'Guide', icon: '❔', end: false },
   { to: '/settings', label: 'Settings', icon: '⚙', end: false },
 ];
 
@@ -352,6 +355,116 @@ export function SettingsPage() {
           exhaustion vector is implemented. The allowlist and the agent are configured server-side
           (environment variables).
         </p>
+      </div>
+    </>
+  );
+}
+
+// ---------- Guide ----------
+const STEPS = [
+  {
+    n: 1,
+    title: 'Create',
+    body: 'Fill the new-campaign form (or start from a preset below). Target and probe must be in the allowlist; you attest you are authorized to test them.',
+  },
+  {
+    n: 2,
+    title: 'Approve',
+    body: 'A Security Officer (different from the author) approves the campaign. Approval is valid for 24 h.',
+  },
+  {
+    n: 3,
+    title: 'Execute',
+    body: 'Run it manually or on a schedule. The bounded HTTP generator and the legitimate probe run in parallel, under a 3-level kill switch.',
+  },
+  {
+    n: 4,
+    title: 'Score & report',
+    body: 'Get the WEDOS Resiliency Score (WRS) and an HTML/PDF report; track WRS history and regressions per target.',
+  },
+];
+
+export function GuidePage() {
+  const app = useApp();
+  const navigate = useNavigate();
+
+  const use = (p: Preset) => {
+    app.applyPreset(p);
+    navigate('/campaigns');
+  };
+
+  return (
+    <>
+      <PageHead
+        title="Guide"
+        sub="How a campaign works, and ready-made configurations you can apply in one click."
+      />
+
+      <h2 className="section-title">The four steps</h2>
+      <div className="steps">
+        {STEPS.map((s) => (
+          <div key={s.n} className="step">
+            <div className="step-n">{s.n}</div>
+            <div>
+              <div className="step-title">{s.title}</div>
+              <div className="step-body">{s.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="section-title">Recommended configurations</h2>
+      <p className="subtitle" style={{ marginBottom: '.75rem' }}>
+        Each preset sets the load shape only (rate, concurrency, duration, profile) — never the
+        target — and stays well within the safety caps. Start low, then increase gradually.
+      </p>
+      <div className="preset-cards">
+        {PRESETS.map((p) => (
+          <div key={p.id} className="preset-card">
+            <div className="preset-head">
+              <span className="preset-icon" aria-hidden="true">
+                {p.icon}
+              </span>
+              <span className="preset-name">{p.name}</span>
+            </div>
+            <p className="preset-summary">{p.summary}</p>
+            <p className="preset-when">{p.when}</p>
+            <div className="preset-specs">
+              <span>
+                <b>{p.maxRps}</b> rps
+              </span>
+              <span>
+                <b>{p.concurrency}</b> conc
+              </span>
+              <span>
+                <b>{p.maxDurationSec}</b>s
+              </span>
+              <span className="preset-profile">{p.profile}</span>
+            </div>
+            <div className="preset-est">
+              ≈ {formatCount(estimatedRequests(p.maxRps, p.maxDurationSec, p.profile))} requests
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => use(p)}>
+              Use this configuration →
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginTop: '1.25rem' }}>
+        <h2>Safety reminders</h2>
+        <ul className="guide-list">
+          <li>Only allowlisted targets can be tested; everything else is rejected server-side.</li>
+          <li>
+            Hard caps apply to every run: ≤ 2000 rps, ≤ 500 concurrent, ≤ 900 s (15 min absolute
+            timeout).
+          </li>
+          <li>
+            The manual <b>kill switch</b> is always available during a run — use it if the target
+            starts to struggle.
+          </li>
+          <li>Keep an eye on the probe (5xx rate, availability) while a campaign runs.</li>
+        </ul>
       </div>
     </>
   );

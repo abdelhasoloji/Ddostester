@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { reportUrl, streamUrl } from './api.js';
 import type { Campaign, CampaignStatus, WrsBreakdown, LiveProgressData } from './api.js';
 import { useApp, canDo } from './context.js';
+import { PRESETS, estimatedRequests, formatCount } from './presets.js';
+import type { Preset } from './presets.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
@@ -287,6 +289,30 @@ export function NewCampaignForm() {
   const app = useApp();
   const [form, setForm] = useState({ ...emptyForm });
   const [attested, setAttested] = useState(false);
+  const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
+
+  // Apply a preset's load shape (rate/concurrency/duration/profile) — never the
+  // target — keeping whatever the operator already typed for name/target/probe.
+  const applyPreset = (p: Preset) => {
+    setForm((f) => ({
+      ...f,
+      name: f.name.trim() || p.name,
+      maxRps: p.maxRps,
+      concurrency: p.concurrency,
+      maxDurationSec: p.maxDurationSec,
+      profile: p.profile,
+    }));
+    setAppliedPreset(p.id);
+  };
+
+  // Consume a preset queued from another page (e.g. the Guide).
+  const { draftPreset, clearDraftPreset } = app;
+  useEffect(() => {
+    if (draftPreset) {
+      applyPreset(draftPreset);
+      clearDraftPreset();
+    }
+  }, [draftPreset]);
 
   const targetAllowed = (() => {
     const h = hostOf(form.target);
@@ -342,6 +368,20 @@ export function NewCampaignForm() {
   return (
     <section className="card">
       <h2>New campaign</h2>
+      <div className="presets-row">
+        <span className="presets-label">Start from a preset:</span>
+        {PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`chip${appliedPreset === p.id ? ' chip-active' : ''}`}
+            title={p.when}
+            onClick={() => applyPreset(p)}
+          >
+            <span aria-hidden="true">{p.icon}</span> {p.name}
+          </button>
+        ))}
+      </div>
       <form className="grid" onSubmit={submit}>
         <div className="field">
           <label>Name</label>
@@ -392,7 +432,10 @@ export function NewCampaignForm() {
           <input
             type="number"
             value={form.maxRps}
-            onChange={(e) => setForm({ ...form, maxRps: Number(e.target.value) })}
+            onChange={(e) => {
+              setForm({ ...form, maxRps: Number(e.target.value) });
+              setAppliedPreset(null);
+            }}
           />
           <span className="hint">cap {HARD_CAPS.maxRps}</span>
         </div>
@@ -401,7 +444,10 @@ export function NewCampaignForm() {
           <input
             type="number"
             value={form.concurrency}
-            onChange={(e) => setForm({ ...form, concurrency: Number(e.target.value) })}
+            onChange={(e) => {
+              setForm({ ...form, concurrency: Number(e.target.value) });
+              setAppliedPreset(null);
+            }}
           />
           <span className="hint">1–{HARD_CAPS.concurrency}</span>
         </div>
@@ -410,7 +456,10 @@ export function NewCampaignForm() {
           <input
             type="number"
             value={form.maxDurationSec}
-            onChange={(e) => setForm({ ...form, maxDurationSec: Number(e.target.value) })}
+            onChange={(e) => {
+              setForm({ ...form, maxDurationSec: Number(e.target.value) });
+              setAppliedPreset(null);
+            }}
           />
           <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
         </div>
@@ -418,7 +467,10 @@ export function NewCampaignForm() {
           <label>Load profile</label>
           <select
             value={form.profile}
-            onChange={(e) => setForm({ ...form, profile: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, profile: e.target.value });
+              setAppliedPreset(null);
+            }}
           >
             <option value="constant">Constant</option>
             <option value="ramp">Ramp-up (25→50→100%)</option>
@@ -455,6 +507,14 @@ export function NewCampaignForm() {
             (internal WEDOS / authorized scope).
           </span>
         </label>
+        {capsOk && (
+          <p className="estimate">
+            ≈{' '}
+            <b>{formatCount(estimatedRequests(form.maxRps, form.maxDurationSec, form.profile))}</b>{' '}
+            requests over {form.maxDurationSec}s, peak {form.maxRps} rps · {form.concurrency}{' '}
+            concurrent. Bounded HTTP — kill switch stays available.
+          </p>
+        )}
         <button type="submit" className="btn btn-primary btn-block" disabled={!formValid}>
           Submit for approval
         </button>
