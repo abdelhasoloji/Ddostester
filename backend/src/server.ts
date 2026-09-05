@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
-import { store } from './store.js';
+import { createStore } from './store/index.js';
+import { kills } from './runtime/kills.js';
 import {
   createCampaign,
   approveCampaign,
@@ -27,6 +28,8 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .map((s) => s.trim())
   .filter(Boolean);
 
+const store = await createStore();
+
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
 
@@ -44,20 +47,24 @@ function fail(err: unknown, reply: import('fastify').FastifyReply) {
   return reply.code(500).send({ error: 'erreur interne' });
 }
 
-app.get('/health', async () => ({ status: 'ok', allowedTargets: ALLOWED_TARGETS }));
+app.get('/health', async () => ({
+  status: 'ok',
+  allowedTargets: ALLOWED_TARGETS,
+  storage: store.backend,
+}));
 
 // --- CAM : gestion des campagnes -------------------------------------------
 app.get('/api/campaigns', async () => store.listCampaigns());
 
 app.get('/api/campaigns/:id', async (req, reply) => {
-  const c = store.getCampaign((req.params as { id: string }).id);
+  const c = await store.getCampaign((req.params as { id: string }).id);
   return c ?? reply.code(404).send({ error: 'campagne introuvable' });
 });
 
 app.post('/api/campaigns', async (req, reply) => {
   try {
     const campaign = createCampaign(req.body as CampaignInput, ALLOWED_TARGETS);
-    store.saveCampaign(campaign);
+    await store.saveCampaign(campaign);
     return reply.code(201).send(campaign);
   } catch (err) {
     return fail(err, reply);
@@ -66,7 +73,7 @@ app.post('/api/campaigns', async (req, reply) => {
 
 app.post('/api/campaigns/:id/approval', async (req, reply) => {
   try {
-    const c = store.getCampaign((req.params as { id: string }).id);
+    const c = await store.getCampaign((req.params as { id: string }).id);
     if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
     const { approvedBy, decision, reason } = req.body as {
       approvedBy: string;
@@ -74,7 +81,7 @@ app.post('/api/campaigns/:id/approval', async (req, reply) => {
       reason?: string;
     };
     const updated = approveCampaign(c, approvedBy, decision, reason);
-    store.saveCampaign(updated);
+    await store.saveCampaign(updated);
     return updated;
   } catch (err) {
     return fail(err, reply);
@@ -83,7 +90,7 @@ app.post('/api/campaigns/:id/approval', async (req, reply) => {
 
 // --- Exécution + kill switch manuel ----------------------------------------
 app.post('/api/campaigns/:id/execute', async (req, reply) => {
-  const c = store.getCampaign((req.params as { id: string }).id);
+  const c = await store.getCampaign((req.params as { id: string }).id);
   if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
   try {
     assertExecutable(c);
@@ -92,39 +99,44 @@ app.post('/api/campaigns/:id/execute', async (req, reply) => {
   }
 
   const kill = new KillSwitch();
-  store.setActiveKill(c.id, kill);
-  store.saveCampaign(transition(c, 'RUNNING'));
+  kills.set(c.id, kill);
+  await store.saveCampaign(transition(c, 'RUNNING'));
   try {
     const run = await executeCampaign(c, ALLOWED_TARGETS, kill);
-    store.saveRun(run);
-    store.saveCampaign({ ...store.getCampaign(c.id)!, status: run.status, wrs: run.wrs, runId: run.runId });
+    await store.saveRun(run);
+    await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
     return reply.code(201).send(run);
   } catch (err) {
-    store.saveCampaign(transition(store.getCampaign(c.id)!, 'APPROVED'));
+    await store.saveCampaign(transition(c, 'APPROVED'));
     return fail(err, reply);
   } finally {
-    store.clearActiveKill(c.id);
+    kills.clear(c.id);
   }
 });
 
 // Kill switch niveau 2 : arrêt manuel (SOC/NOC).
 app.post('/api/campaigns/:id/kill', async (req, reply) => {
-  const kill = store.getActiveKill((req.params as { id: string }).id);
+  const kill = kills.get((req.params as { id: string }).id);
   if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
   kill.trigger('KILLED_MANUAL');
   return { status: 'KILLED_MANUAL' };
 });
 
-// --- RPT : rapport ----------------------------------------------------------
+// --- RPT : runs & rapport ---------------------------------------------------
+app.get('/api/runs', async (req) => {
+  const { campaignId } = req.query as { campaignId?: string };
+  return store.listRuns(campaignId);
+});
+
 app.get('/api/runs/:runId', async (req, reply) => {
-  const r = store.getRun((req.params as { runId: string }).runId);
+  const r = await store.getRun((req.params as { runId: string }).runId);
   return r ?? reply.code(404).send({ error: 'run introuvable' });
 });
 
 app.get('/api/runs/:runId/report', async (req, reply) => {
-  const r = store.getRun((req.params as { runId: string }).runId);
+  const r = await store.getRun((req.params as { runId: string }).runId);
   if (!r) return reply.code(404).send({ error: 'run introuvable' });
-  const c = store.getCampaign(r.campaignId);
+  const c = await store.getCampaign(r.campaignId);
   if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
   return reply.type('text/html').send(renderCampaignReportHtml(c, r));
 });
@@ -132,7 +144,9 @@ app.get('/api/runs/:runId/report', async (req, reply) => {
 app
   .listen({ port: PORT, host: HOST })
   .then((addr) =>
-    app.log.info(`ShieldTest control plane sur ${addr} — cibles: ${ALLOWED_TARGETS.join(', ')}`),
+    app.log.info(
+      `ShieldTest control plane sur ${addr} — stockage: ${store.backend} — cibles: ${ALLOWED_TARGETS.join(', ')}`,
+    ),
   )
   .catch((err) => {
     app.log.error(err);

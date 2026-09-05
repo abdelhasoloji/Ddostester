@@ -42,6 +42,7 @@ cp .env.example .env          # renseigner ALLOWED_TARGETS
 npm run dev:api               # API sur :8080
 npm run dev:web               # UI sur :5173 (proxy /api → :8080)
 npm test                      # tests backend
+# Persistance : définir DATABASE_URL (PostgreSQL) ; sinon stockage mémoire.
 ```
 
 Déploiement serveur (Ubuntu, Node 22, systemd) — un seul service qui sert l'API **et** l'UI, en loopback :

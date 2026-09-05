@@ -55,6 +55,29 @@ Ajouter une cible autorisée :
 ALLOWED_TARGETS="127.0.0.1,host-de-test.interne" bash deploy/setup.sh
 ```
 
+## Persistance (PostgreSQL)
+
+Par défaut, sans `DATABASE_URL`, l'API stocke campagnes et runs **en mémoire**
+(perdus au redémarrage — pratique en dev/tests). Pour persister, fournir une
+base PostgreSQL :
+
+```bash
+# option A — Postgres géré/installé, puis :
+DATABASE_URL="postgresql://shieldtest:motdepasse@127.0.0.1:5432/shieldtest" \
+  bash deploy/setup.sh
+
+# option B — pile complète via Docker (API + Postgres) :
+POSTGRES_PASSWORD=... ALLOWED_TARGETS="127.0.0.1,host.test" docker compose up -d --build
+```
+
+Le schéma (`campaigns`, `runs`) est créé automatiquement au démarrage
+(idempotent). Les runs conservent `wrs`/`wrs_level` et la cible, base d'un
+historique WRS par cible. Vérifier le backend actif :
+
+```bash
+curl -s localhost:8080/health   # {"storage":"postgres", ...}
+```
+
 ## Accès à l'interface (tunnel SSH)
 
 Depuis le **poste local** (pas le serveur) :

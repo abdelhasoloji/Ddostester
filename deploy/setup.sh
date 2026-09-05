@@ -13,6 +13,9 @@ SERVICE="ddostester"
 PORT="${PORT:-8080}"
 HOST="${HOST:-127.0.0.1}"
 ALLOWED_TARGETS="${ALLOWED_TARGETS:-127.0.0.1,localhost}"
+# Persistance : si DATABASE_URL est défini, l'API utilise PostgreSQL ; sinon,
+# stockage en mémoire (perdu au redémarrage).
+DATABASE_URL="${DATABASE_URL:-}"
 RUN_USER="${SUDO_USER:-$(id -un)}"
 
 echo "==> Répertoire : $REPO_DIR"
@@ -40,6 +43,7 @@ WorkingDirectory=${REPO_DIR}/backend
 Environment=PORT=${PORT}
 Environment=HOST=${HOST}
 Environment=ALLOWED_TARGETS=${ALLOWED_TARGETS}
+Environment=DATABASE_URL=${DATABASE_URL}
 ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure
 

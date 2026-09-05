@@ -39,7 +39,7 @@ Navigateur (via tunnel SSH)
 | PROBE | `backend/src/modules/probe/probe.ts` | Sonde de disponibilité/latence + kill switch 3 niveaux |
 | WRS | `backend/src/modules/wrs/scoring.ts` | Fonction pure de scoring (aucun trafic généré) |
 | RPT | `backend/src/modules/reports/report.ts` | Rapport HTML traçable |
-| Store | `backend/src/store.ts` | Stockage en mémoire (MVP) |
+| Store | `backend/src/store/` | Persistance : PostgreSQL (`DATABASE_URL`) ou mémoire (repli) |
 | Server | `backend/src/server.ts` | Routes HTTP, service UI, bind loopback |
 
 ## Flux d'une campagne
@@ -71,4 +71,5 @@ Le kill switch propage un `AbortSignal` : générateur et sonde s'arrêtent net.
 - Node ≥ 22, TypeScript strict, ESM.
 - Fastify 5, `@fastify/static`, `@fastify/cors`.
 - React 18, Vite 6.
+- Persistance : PostgreSQL via `pg` (repli mémoire), schéma auto-créé.
 - Tests : Vitest.

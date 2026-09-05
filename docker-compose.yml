@@ -1,15 +1,37 @@
 # WEDOS ShieldTest — control plane (dev/interne).
 # L'API n'est exposée qu'en loopback : à placer derrière un reverse-proxy interne.
 services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shieldtest
+      POSTGRES_USER: shieldtest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shieldtest"]
+      interval: 5s
+      retries: 10
+
   api:
     build:
       context: .
       dockerfile: backend/Dockerfile
     image: ddostester-api:latest
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       PORT: 8080
+      HOST: 0.0.0.0   # OK ici : publié uniquement en loopback via le mapping ci-dessus
       # Renseigner UNIQUEMENT des hôtes internes / mandatés.
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
+      DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
+
+volumes:
+  pgdata:
