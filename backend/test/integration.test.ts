@@ -100,6 +100,13 @@ describe('API — auth + RBAC activées', () => {
     expect(r.statusCode).toBe(401);
   });
 
+  it('verrou anti-brute-force après 5 échecs (429)', async () => {
+    const bad = { email: 'lock@wedos', password: 'x' };
+    for (let i = 0; i < 5; i++) await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
+    const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
+    expect(locked.statusCode).toBe(429);
+  });
+
   it('createdBy dérivé du token (anti-usurpation)', async () => {
     const t = await token('eng@wedos', 'engpw');
     const c = await app.inject({

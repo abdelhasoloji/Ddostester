@@ -140,12 +140,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     authRequired: auth.enabled,
   }));
 
+  // Anti-brute-force : verrou temporaire après plusieurs échecs (par email+IP).
+  const loginFails = new Map<string, { count: number; until: number }>();
+  const MAX_FAILS = 5;
+  const LOCK_MS = 60_000;
+
   app.post('/api/auth/login', async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentification désactivée' });
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) return reply.code(400).send({ error: 'email et mot de passe requis' });
+    const key = `${email.toLowerCase()}|${req.ip}`;
+    const entry = loginFails.get(key);
+    if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
+      return reply.code(429).send({ error: 'trop de tentatives — réessaie plus tard' });
+    }
     const res = login(auth, email, password);
-    if (!res) return reply.code(401).send({ error: 'identifiants invalides' });
+    if (!res) {
+      loginFails.set(key, { count: (entry?.count ?? 0) + 1, until: Date.now() + LOCK_MS });
+      return reply.code(401).send({ error: 'identifiants invalides' });
+    }
+    loginFails.delete(key);
     return res;
   });
 
