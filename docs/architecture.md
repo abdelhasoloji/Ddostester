@@ -40,7 +40,10 @@ Navigateur (via tunnel SSH)
 | WRS | `backend/src/modules/wrs/scoring.ts` | Fonction pure de scoring (aucun trafic généré) |
 | RPT | `backend/src/modules/reports/report.ts` | Rapport HTML traçable |
 | Store | `backend/src/store/` | Persistance : PostgreSQL (`DATABASE_URL`) ou mémoire (repli) |
-| Server | `backend/src/server.ts` | Routes HTTP, service UI, bind loopback |
+| Server | `backend/src/server.ts` | Routes HTTP, service UI, bind loopback, ordonnanceur |
+| Scheduler | `backend/src/modules/campaigns/scheduler.ts` | Exécution planifiée des campagnes approuvées (CAM-01) |
+| Auth | `backend/src/auth/` | JWT + RBAC (engineer/officer/viewer) |
+| Audit | `backend/src/modules/audit/` | Journal d'audit persistant |
 
 ## Flux d'une campagne
 

@@ -27,6 +27,7 @@ Corps :
 | `concurrency` | number | 1..500 |
 | `maxDurationSec` | number | 1..900 |
 | `authorized` | bool | doit être `true` (attestation) |
+| `scheduledAt` | string ISO | optionnel — exécution auto par l'ordonnanceur une fois approuvée (CAM-01) |
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json' -d '{

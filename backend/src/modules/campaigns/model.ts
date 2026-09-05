@@ -33,6 +33,12 @@ export interface CampaignInput {
   createdBy: string;
   /** L'auteur atteste que la cible est autorisée (interne WEDOS / mandat écrit). */
   authorized: boolean;
+  /**
+   * Fenêtre d'exécution planifiée (ISO). Si définie, la campagne, une fois
+   * APPROVED, est exécutée automatiquement par l'ordonnanceur à cette heure
+   * (CAM-01). Absent = exécution manuelle.
+   */
+  scheduledAt?: string;
 }
 
 export interface Campaign extends CampaignInput {

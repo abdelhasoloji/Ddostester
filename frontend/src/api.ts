@@ -28,6 +28,7 @@ export interface Campaign {
   maxRps: number;
   concurrency: number;
   maxDurationSec: number;
+  scheduledAt?: string;
   wrs?: WrsBreakdown;
   runId?: string;
 }

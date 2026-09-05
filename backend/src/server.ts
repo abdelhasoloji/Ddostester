@@ -15,6 +15,8 @@ import {
   CampaignError,
 } from './modules/campaigns/service.js';
 import { executeCampaign } from './modules/campaigns/runner.js';
+import { dueCampaigns } from './modules/campaigns/scheduler.js';
+import type { Campaign } from './modules/campaigns/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { renderCampaignReportHtml } from './modules/reports/report.js';
 import { renderMetrics } from './modules/metrics/prometheus.js';
@@ -71,23 +73,44 @@ function fail(err: unknown, reply: import('fastify').FastifyReply) {
 }
 
 /** Enregistre une entrée d'audit (best-effort, ne bloque pas la réponse). */
-async function audit(
-  req: import('fastify').FastifyRequest,
+async function auditAs(
+  actor: string,
   action: import('./modules/audit/model.js').AuditEntry['action'],
   campaignId?: string,
   detail?: string,
 ) {
   try {
-    await store.saveAudit({
-      id: randomUUID(),
-      at: new Date().toISOString(),
-      actor: req.authUser?.email ?? 'dev',
-      action,
-      campaignId,
-      detail,
-    });
+    await store.saveAudit({ id: randomUUID(), at: new Date().toISOString(), actor, action, campaignId, detail });
   } catch (err) {
     app.log.error({ err }, 'échec écriture audit');
+  }
+}
+const audit = (
+  req: import('fastify').FastifyRequest,
+  action: import('./modules/audit/model.js').AuditEntry['action'],
+  campaignId?: string,
+  detail?: string,
+) => auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
+
+/**
+ * Cœur d'exécution partagé (route manuelle + ordonnanceur). Gère le kill switch,
+ * les transitions de statut, la persistance du run et l'audit.
+ */
+async function runCampaign(c: Campaign, actor: string): Promise<import('./modules/campaigns/runner.js').CampaignRun> {
+  const kill = new KillSwitch();
+  kills.set(c.id, kill);
+  await store.saveCampaign(transition(c, 'RUNNING'));
+  try {
+    const run = await executeCampaign(c, ALLOWED_TARGETS, kill);
+    await store.saveRun(run);
+    await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
+    await auditAs(actor, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
+    return run;
+  } catch (err) {
+    await store.saveCampaign(transition(c, 'APPROVED'));
+    throw err;
+  } finally {
+    kills.clear(c.id);
   }
 }
 
@@ -165,20 +188,11 @@ app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }
     return fail(err, reply);
   }
 
-  const kill = new KillSwitch();
-  kills.set(c.id, kill);
-  await store.saveCampaign(transition(c, 'RUNNING'));
   try {
-    const run = await executeCampaign(c, ALLOWED_TARGETS, kill);
-    await store.saveRun(run);
-    await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
-    await audit(req, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
+    const run = await runCampaign(c, req.authUser?.email ?? 'dev');
     return reply.code(201).send(run);
   } catch (err) {
-    await store.saveCampaign(transition(c, 'APPROVED'));
     return fail(err, reply);
-  } finally {
-    kills.clear(c.id);
   }
 });
 
@@ -252,11 +266,39 @@ app.get('/api/runs/:runId/report', async (req, reply) => {
   return reply.type('text/html').send(renderCampaignReportHtml(c, r));
 });
 
+// --- Ordonnanceur (CAM-01) : exécute les campagnes planifiées échues ---------
+// Remplace Celery/Redis du TSD par une boucle in-process simple.
+const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
+const SCHEDULER_INTERVAL_MS = Number(process.env.SCHEDULER_INTERVAL_MS ?? 30_000);
+if (SCHEDULER) {
+  let ticking = false;
+  setInterval(async () => {
+    if (ticking) return;
+    ticking = true;
+    try {
+      const campaigns = await store.listCampaigns();
+      for (const c of dueCampaigns(campaigns, Date.now())) {
+        if (kills.get(c.id)) continue; // déjà en cours
+        app.log.info(`ordonnanceur : exécution planifiée de ${c.id}`);
+        try {
+          await runCampaign(c, 'scheduler');
+        } catch (err) {
+          app.log.error({ err }, `échec exécution planifiée ${c.id}`);
+        }
+      }
+    } catch (err) {
+      app.log.error({ err }, 'échec tick ordonnanceur');
+    } finally {
+      ticking = false;
+    }
+  }, SCHEDULER_INTERVAL_MS).unref();
+}
+
 app
   .listen({ port: PORT, host: HOST })
   .then((addr) =>
     app.log.info(
-      `ShieldTest control plane sur ${addr} — stockage: ${store.backend} — cibles: ${ALLOWED_TARGETS.join(', ')}`,
+      `ShieldTest control plane sur ${addr} — stockage: ${store.backend} — ordonnanceur: ${SCHEDULER ? 'on' : 'off'} — cibles: ${ALLOWED_TARGETS.join(', ')}`,
     ),
   )
   .catch((err) => {

@@ -49,6 +49,10 @@ export function createCampaign(input: CampaignInput, allowedHosts: string[]): Ca
     throw new CampaignError(`maxDurationSec doit être dans [1, ${HARD_CAPS.maxDurationSec}].`);
   }
 
+  if (input.scheduledAt !== undefined && Number.isNaN(Date.parse(input.scheduledAt))) {
+    throw new CampaignError('scheduledAt : date ISO invalide.');
+  }
+
   return {
     ...input,
     id: randomUUID(),

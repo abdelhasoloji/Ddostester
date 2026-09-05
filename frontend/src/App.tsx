@@ -90,6 +90,7 @@ const emptyForm = {
   maxRps: 20,
   concurrency: 5,
   maxDurationSec: 30,
+  scheduledAt: '',
   body: '',
 };
 
@@ -235,6 +236,7 @@ export function App() {
         maxRps: Number(form.maxRps),
         concurrency: Number(form.concurrency),
         maxDurationSec: Number(form.maxDurationSec),
+        scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -437,6 +439,16 @@ export function App() {
                 <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
               </div>
 
+              <div className="field">
+                <label>Planifier (optionnel)</label>
+                <input
+                  type="datetime-local"
+                  value={form.scheduledAt}
+                  onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+                />
+                <span className="hint">exécution auto à cette heure une fois approuvée</span>
+              </div>
+
               {form.vector === 'http-post' && (
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label>Corps de la requête (POST)</label>
@@ -550,6 +562,9 @@ export function App() {
                     par {c.createdBy}
                     {c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}
                   </span>
+                  {c.scheduledAt && (
+                    <span title="Exécution planifiée">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
+                  )}
                 </div>
 
                 {expanded === c.id && run && (
