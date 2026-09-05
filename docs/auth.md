@@ -6,11 +6,11 @@ main). Conçue pour accepter plus tard des tokens Keycloak (même schéma).
 
 ## Rôles (TSD §4.1)
 
-| Rôle | Droits |
-|------|--------|
-| `engineer` (Security Engineer) | créer, exécuter, kill, lecture |
-| `officer` (Security Officer) | **approuver/rejeter** + tout ce que fait l'engineer |
-| `viewer` (SOC / NOC) | lecture + **kill switch** d'urgence |
+| Rôle                           | Droits                                              |
+| ------------------------------ | --------------------------------------------------- |
+| `engineer` (Security Engineer) | créer, exécuter, kill, lecture                      |
+| `officer` (Security Officer)   | **approuver/rejeter** + tout ce que fait l'engineer |
+| `viewer` (SOC / NOC)           | lecture + **kill switch** d'urgence                 |
 
 - **Séparation des rôles** : l'approbateur (officer) doit être différent de
   l'auteur ; l'auteur et l'approbateur sont **dérivés du token** (non usurpables
@@ -41,15 +41,15 @@ AUTH_JWT_SECRET="$AUTH_JWT_SECRET" AUTH_USERS="$AUTH_USERS" bash deploy/setup.sh
 
 ## Endpoints
 
-| Méthode | Route | Rôle requis |
-|--------|-------|-------------|
-| POST | `/api/auth/login` | — (retourne un token) |
-| GET | `/api/auth/me` | authentifié |
-| POST | `/api/campaigns` | engineer/officer |
-| POST | `/api/campaigns/:id/approval` | **officer** |
-| POST | `/api/campaigns/:id/execute` | engineer/officer |
-| POST | `/api/campaigns/:id/kill` | tous |
-| GET | `/api/campaigns`, `/api/runs`, rapport | tous (lecture) |
+| Méthode | Route                                  | Rôle requis           |
+| ------- | -------------------------------------- | --------------------- |
+| POST    | `/api/auth/login`                      | — (retourne un token) |
+| GET     | `/api/auth/me`                         | authentifié           |
+| POST    | `/api/campaigns`                       | engineer/officer      |
+| POST    | `/api/campaigns/:id/approval`          | **officer**           |
+| POST    | `/api/campaigns/:id/execute`           | engineer/officer      |
+| POST    | `/api/campaigns/:id/kill`              | tous                  |
+| GET     | `/api/campaigns`, `/api/runs`, rapport | tous (lecture)        |
 
 Envoyer le token via l'en-tête `Authorization: Bearer <token>`. Le rapport
 (ouvert dans un onglet) accepte aussi `?token=<token>`.

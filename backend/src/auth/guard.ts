@@ -23,7 +23,11 @@ export interface Identity {
   role: Role;
 }
 
-export function login(state: AuthState, email: string, password: string): { token: string; email: string; role: Role } | null {
+export function login(
+  state: AuthState,
+  email: string,
+  password: string,
+): { token: string; email: string; role: Role } | null {
   const u = state.users.get(email.toLowerCase());
   if (!u || !verifyPassword(password, u.passwordHash)) return null;
   const token = signJwt({ sub: u.email, role: u.role }, state.secret);

@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -23,7 +23,14 @@ export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): st
 }
 
 interface VegetaReport {
-  latencies?: { mean?: number; '50th'?: number; '95th'?: number; '99th'?: number; max?: number; min?: number };
+  latencies?: {
+    mean?: number;
+    '50th'?: number;
+    '95th'?: number;
+    '99th'?: number;
+    max?: number;
+    min?: number;
+  };
   requests?: number;
   rate?: number;
   success?: number;
@@ -72,18 +79,24 @@ export function parseVegetaReport(
 }
 
 /** Additionne plusieurs rapports (phases séquentielles). Fonction pure. */
-export function mergeResults(parts: LoadTestResult[], meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string }): LoadTestResult {
+export function mergeResults(
+  parts: LoadTestResult[],
+  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
+): LoadTestResult {
   if (parts.length === 1) return { ...parts[0], ...meta };
   const total = parts.reduce((s, p) => s + p.totalRequests, 0);
   const failed = parts.reduce((s, p) => s + p.failed, 0);
   const statusCounts: Record<string, number> = {};
   const errors: Record<string, number> = {};
   for (const p of parts) {
-    for (const [k, v] of Object.entries(p.statusCounts)) statusCounts[k] = (statusCounts[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(p.statusCounts))
+      statusCounts[k] = (statusCounts[k] ?? 0) + v;
     for (const [k, v] of Object.entries(p.errors)) errors[k] = (errors[k] ?? 0) + v;
   }
   const wmean = (sel: (r: LoadTestResult) => number) =>
-    total ? Number((parts.reduce((s, p) => s + sel(p) * p.totalRequests, 0) / total).toFixed(2)) : 0;
+    total
+      ? Number((parts.reduce((s, p) => s + sel(p) * p.totalRequests, 0) / total).toFixed(2))
+      : 0;
   const elapsed = (Date.parse(meta.finishedAt) - Date.parse(meta.startedAt)) / 1000;
   return {
     ...meta,
@@ -120,7 +133,9 @@ export class VegetaAgent implements AttackAgent {
   ): Promise<LoadTestResult> {
     validateConfig(config, allowedHosts);
     if (!(await this.available())) {
-      throw new AgentError(`Agent vegeta indisponible (binaire « ${this.bin} »). Installer Vegeta ou choisir AGENT=builtin.`);
+      throw new AgentError(
+        `Agent vegeta indisponible (binaire « ${this.bin} »). Installer Vegeta ou choisir AGENT=builtin.`,
+      );
     }
     const dir = await mkdtemp(join(tmpdir(), 'shieldtest-vegeta-'));
     const startedAt = new Date().toISOString();
@@ -144,10 +159,22 @@ export class VegetaAgent implements AttackAgent {
         const resultsBin = join(dir, `r${i}.bin`);
         await runProcess(
           this.bin,
-          ['attack', '-targets', targetsFile, '-rate', `${ph.maxRps}/1s`, '-duration', `${ph.durationSec}s`, '-output', resultsBin],
+          [
+            'attack',
+            '-targets',
+            targetsFile,
+            '-rate',
+            `${ph.maxRps}/1s`,
+            '-duration',
+            `${ph.durationSec}s`,
+            '-output',
+            resultsBin,
+          ],
           { killSignal },
         );
-        const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], { killSignal });
+        const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], {
+          killSignal,
+        });
         parts.push(
           parseVegetaReport(JSON.parse(rep.stdout || '{}'), {
             id: `p${i}`,
@@ -171,8 +198,16 @@ export class VegetaAgent implements AttackAgent {
 
 function emptyResult(config: LoadTestConfig, startedAt: string): LoadTestResult {
   return {
-    id: 'empty', config, startedAt, finishedAt: startedAt,
-    totalRequests: 0, successful: 0, failed: 0, statusCounts: {},
-    latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 }, actualRps: 0, errors: {},
+    id: 'empty',
+    config,
+    startedAt,
+    finishedAt: startedAt,
+    totalRequests: 0,
+    successful: 0,
+    failed: 0,
+    statusCounts: {},
+    latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
+    actualRps: 0,
+    errors: {},
   };
 }

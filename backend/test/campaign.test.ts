@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createCampaign, approveCampaign, assertExecutable, CampaignError } from '../src/modules/campaigns/service.js';
+import {
+  createCampaign,
+  approveCampaign,
+  assertExecutable,
+  CampaignError,
+} from '../src/modules/campaigns/service.js';
 import type { CampaignInput } from '../src/modules/campaigns/model.js';
 
 const allowed = ['localhost'];

@@ -88,12 +88,16 @@ export class PostgresStore implements Store {
   }
 
   async getCampaign(id: string): Promise<Campaign | undefined> {
-    const r = await this.pool.query<{ data: Campaign }>('SELECT data FROM campaigns WHERE id=$1', [id]);
+    const r = await this.pool.query<{ data: Campaign }>('SELECT data FROM campaigns WHERE id=$1', [
+      id,
+    ]);
     return r.rows[0]?.data;
   }
 
   async listCampaigns(): Promise<Campaign[]> {
-    const r = await this.pool.query<{ data: Campaign }>('SELECT data FROM campaigns ORDER BY created_at DESC');
+    const r = await this.pool.query<{ data: Campaign }>(
+      'SELECT data FROM campaigns ORDER BY created_at DESC',
+    );
     return r.rows.map((x) => x.data);
   }
 
@@ -104,7 +108,15 @@ export class PostgresStore implements Store {
        VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (run_id) DO UPDATE SET
          status=$4, wrs=$5, wrs_level=$6, data=$7`,
-      [run.runId, run.campaignId, target, run.status, run.wrs.wrs, run.wrs.level, JSON.stringify(run)],
+      [
+        run.runId,
+        run.campaignId,
+        target,
+        run.status,
+        run.wrs.wrs,
+        run.wrs.level,
+        JSON.stringify(run),
+      ],
     );
     // Point de série temporelle WRS (hypertable si TimescaleDB).
     let host = target;
@@ -120,7 +132,10 @@ export class PostgresStore implements Store {
   }
 
   async getRun(runId: string): Promise<CampaignRun | undefined> {
-    const r = await this.pool.query<{ data: CampaignRun }>('SELECT data FROM runs WHERE run_id=$1', [runId]);
+    const r = await this.pool.query<{ data: CampaignRun }>(
+      'SELECT data FROM runs WHERE run_id=$1',
+      [runId],
+    );
     return r.rows[0]?.data;
   }
 
@@ -130,7 +145,9 @@ export class PostgresStore implements Store {
           'SELECT data FROM runs WHERE campaign_id=$1 ORDER BY created_at DESC',
           [campaignId],
         )
-      : await this.pool.query<{ data: CampaignRun }>('SELECT data FROM runs ORDER BY created_at DESC');
+      : await this.pool.query<{ data: CampaignRun }>(
+          'SELECT data FROM runs ORDER BY created_at DESC',
+        );
     return r.rows.map((x) => x.data);
   }
 
@@ -150,7 +167,7 @@ export class PostgresStore implements Store {
     );
     return r.rows.map((x) => ({
       id: x.id,
-      at: (x.at instanceof Date ? x.at.toISOString() : String(x.at)),
+      at: x.at instanceof Date ? x.at.toISOString() : String(x.at),
       actor: x.actor,
       action: x.action,
       campaignId: x.campaignId ?? undefined,

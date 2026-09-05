@@ -55,7 +55,9 @@ describe('users + login', () => {
     expect(state.enabled).toBe(true);
     const res = login(state, 'off@wedos', 'pw1');
     expect(res?.role).toBe('officer');
-    const id = identityFromRequest(state, { headers: { authorization: `Bearer ${res!.token}` } } as never);
+    const id = identityFromRequest(state, {
+      headers: { authorization: `Bearer ${res!.token}` },
+    } as never);
     expect(id?.email).toBe('off@wedos');
     expect(login(state, 'off@wedos', 'bad')).toBeNull();
   });

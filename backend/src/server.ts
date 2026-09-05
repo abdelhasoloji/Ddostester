@@ -19,7 +19,12 @@ const SCHEDULER_INTERVAL_MS = Number(process.env.SCHEDULER_INTERVAL_MS ?? 30_000
 const store = await createStore();
 const auth = initAuth();
 const agent = selectAgent();
-const { app, runCampaign } = await buildApp({ store, auth, allowedTargets: ALLOWED_TARGETS, agent });
+const { app, runCampaign } = await buildApp({
+  store,
+  auth,
+  allowedTargets: ALLOWED_TARGETS,
+  agent,
+});
 
 // --- Ordonnanceur (CAM-01) : exécute les campagnes planifiées échues ---------
 if (SCHEDULER) {

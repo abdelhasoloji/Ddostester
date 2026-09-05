@@ -105,7 +105,11 @@ const emptyForm = {
 };
 
 /** Traduit un profil de charge en phases bornées (GEN-03). */
-function buildScenario(profile: string, maxRps: number, durationSec: number): { maxRps: number; durationSec: number }[] | undefined {
+function buildScenario(
+  profile: string,
+  maxRps: number,
+  durationSec: number,
+): { maxRps: number; durationSec: number }[] | undefined {
   const third = Math.max(1, Math.round(durationSec / 3));
   const pct = (p: number) => Math.max(1, Math.round((maxRps * p) / 100));
   if (profile === 'ramp') {
@@ -142,7 +146,12 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
     return () => es.close();
   }, [campaignId]);
 
-  if (!p) return <div className="details"><span className="hint">Démarrage de l’exécution…</span></div>;
+  if (!p)
+    return (
+      <div className="details">
+        <span className="hint">Démarrage de l’exécution…</span>
+      </div>
+    );
   const pct = Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100));
   return (
     <div className="details">
@@ -150,10 +159,14 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
         <div className="live-fill" style={{ width: `${pct}%` }} />
       </div>
       <div className="live-stats">
-        <span>⏱ {p.elapsedSec}s / {p.maxDurationSec}s</span>
+        <span>
+          ⏱ {p.elapsedSec}s / {p.maxDurationSec}s
+        </span>
         <span>{p.sent} requêtes</span>
         <span>{p.actualRps} rps</span>
-        <span>{p.successful} ok · {p.failed} échec</span>
+        <span>
+          {p.successful} ok · {p.failed} échec
+        </span>
       </div>
     </div>
   );
@@ -173,8 +186,21 @@ function Sparkline({ points, regression }: { points: { wrs: number }[]; regressi
   const color = regression ? 'var(--danger)' : 'var(--brand)';
   return (
     <svg width={w} height={h} className="spark" aria-hidden="true">
-      <line x1={pad} y1={h - pad - (70 / 100) * (h - 2 * pad)} x2={w - pad} y2={h - pad - (70 / 100) * (h - 2 * pad)} className="spark-thresh" />
-      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <line
+        x1={pad}
+        y1={h - pad - (70 / 100) * (h - 2 * pad)}
+        x2={w - pad}
+        y2={h - pad - (70 / 100) * (h - 2 * pad)}
+        className="spark-thresh"
+      />
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
       <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3" fill={color} />
     </svg>
   );
@@ -214,11 +240,17 @@ export function App() {
   const role = identity?.role ?? null;
 
   const refresh = useCallback(() => {
-    api.listCampaigns().then(setCampaigns).catch((e) => push('error', e.message));
+    api
+      .listCampaigns()
+      .then(setCampaigns)
+      .catch((e) => push('error', e.message));
   }, [push]);
 
   const loadHistory = useCallback(() => {
-    api.wrsHistory().then(setWrsSeries).catch(() => undefined);
+    api
+      .wrsHistory()
+      .then(setWrsSeries)
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -274,7 +306,13 @@ export function App() {
   const identityOk = authRequired ? identity !== null : operator.trim() !== '';
   const canCreate = canDo(role, 'create', authRequired);
   const formValid =
-    form.name.trim() !== '' && identityOk && targetAllowed && probeAllowed && capsOk && attested && canCreate;
+    form.name.trim() !== '' &&
+    identityOk &&
+    targetAllowed &&
+    probeAllowed &&
+    capsOk &&
+    attested &&
+    canCreate;
 
   const login = async (email: string, password: string) => {
     const r = await api.login(email, password);
@@ -314,7 +352,12 @@ export function App() {
     }
   };
 
-  const doApprove = async (c: Campaign, approvedBy: string, decision: 'APPROVED' | 'REJECTED', reason: string) => {
+  const doApprove = async (
+    c: Campaign,
+    approvedBy: string,
+    decision: 'APPROVED' | 'REJECTED',
+    reason: string,
+  ) => {
     setApproveFor(null);
     setBusyFor(c.id, true);
     try {
@@ -442,11 +485,18 @@ export function App() {
             <form className="grid" onSubmit={submit}>
               <div className="field">
                 <label>Nom</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               </div>
               <div className="field">
                 <label>Vecteur</label>
-                <select value={form.vector} onChange={(e) => setForm({ ...form, vector: e.target.value })}>
+                <select
+                  value={form.vector}
+                  onChange={(e) => setForm({ ...form, vector: e.target.value })}
+                >
                   <option value="http-get">http-get</option>
                   <option value="http-post">http-post</option>
                 </select>
@@ -509,7 +559,10 @@ export function App() {
 
               <div className="field">
                 <label>Profil de charge</label>
-                <select value={form.profile} onChange={(e) => setForm({ ...form, profile: e.target.value })}>
+                <select
+                  value={form.profile}
+                  onChange={(e) => setForm({ ...form, profile: e.target.value })}
+                >
                   <option value="constant">Constant</option>
                   <option value="ramp">Montée progressive (25→50→100 %)</option>
                   <option value="wave">Vagues (100→20→100 %)</option>
@@ -529,15 +582,23 @@ export function App() {
               {form.vector === 'http-post' && (
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label>Corps de la requête (POST)</label>
-                  <textarea rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+                  <textarea
+                    rows={3}
+                    value={form.body}
+                    onChange={(e) => setForm({ ...form, body: e.target.value })}
+                  />
                 </div>
               )}
 
               <label className="attest">
-                <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={attested}
+                  onChange={(e) => setAttested(e.target.checked)}
+                />
                 <span>
-                  J’atteste que la cible m’appartient ou que je dispose d’un <b>mandat écrit</b> pour la
-                  tester (interne WEDOS / périmètre autorisé).
+                  J’atteste que la cible m’appartient ou que je dispose d’un <b>mandat écrit</b>{' '}
+                  pour la tester (interne WEDOS / périmètre autorisé).
                 </span>
               </label>
 
@@ -601,12 +662,20 @@ export function App() {
                   {c.wrs && <WrsPill wrs={c.wrs} />}
                   <div className="campaign-actions">
                     {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', authRequired) && (
-                      <button className="btn btn-sm" disabled={isBusy} onClick={() => setApproveFor(c)}>
+                      <button
+                        className="btn btn-sm"
+                        disabled={isBusy}
+                        onClick={() => setApproveFor(c)}
+                      >
                         Approuver / Rejeter
                       </button>
                     )}
                     {c.status === 'APPROVED' && canDo(role, 'execute', authRequired) && (
-                      <button className="btn btn-sm btn-primary" disabled={isBusy} onClick={() => setConfirmExec(c)}>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        disabled={isBusy}
+                        onClick={() => setConfirmExec(c)}
+                      >
                         {isBusy ? <span className="spin" /> : null}Exécuter
                       </button>
                     )}
@@ -616,7 +685,12 @@ export function App() {
                       </button>
                     )}
                     {c.runId && (
-                      <a className="btn btn-sm btn-ghost" href={reportUrl(c.runId)} target="_blank" rel="noreferrer">
+                      <a
+                        className="btn btn-sm btn-ghost"
+                        href={reportUrl(c.runId)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         Rapport ↗
                       </a>
                     )}
@@ -634,14 +708,18 @@ export function App() {
                   <span>{c.vector}</span>
                   <span>
                     {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
-                    {c.scenario && c.scenario.length > 1 ? ` · scénario ${c.scenario.length} phases` : ''}
+                    {c.scenario && c.scenario.length > 1
+                      ? ` · scénario ${c.scenario.length} phases`
+                      : ''}
                   </span>
                   <span>
                     par {c.createdBy}
                     {c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}
                   </span>
                   {c.scheduledAt && (
-                    <span title="Exécution planifiée">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
+                    <span title="Exécution planifiée">
+                      🕒 {new Date(c.scheduledAt).toLocaleString()}
+                    </span>
                   )}
                 </div>
 
@@ -650,23 +728,55 @@ export function App() {
                 {expanded === c.id && run && (
                   <div className="details">
                     <div className="metrics">
-                      <div className="metric"><div className="k">Requêtes</div><div className="v">{run.generator.totalRequests}</div></div>
-                      <div className="metric"><div className="k">Succès / échecs</div><div className="v">{run.generator.successful} / {run.generator.failed}</div></div>
-                      <div className="metric"><div className="k">RPS réel</div><div className="v">{run.generator.actualRps}</div></div>
-                      <div className="metric"><div className="k">Latence p95</div><div className="v">{run.generator.latencyMs.p95} ms</div></div>
-                      <div className="metric"><div className="k">Sonde 5xx</div><div className="v">{run.probe.errorRate5xx}%</div></div>
-                      <div className="metric"><div className="k">Dispo sonde</div><div className="v">{run.probe.available}/{run.probe.samples}</div></div>
+                      <div className="metric">
+                        <div className="k">Requêtes</div>
+                        <div className="v">{run.generator.totalRequests}</div>
+                      </div>
+                      <div className="metric">
+                        <div className="k">Succès / échecs</div>
+                        <div className="v">
+                          {run.generator.successful} / {run.generator.failed}
+                        </div>
+                      </div>
+                      <div className="metric">
+                        <div className="k">RPS réel</div>
+                        <div className="v">{run.generator.actualRps}</div>
+                      </div>
+                      <div className="metric">
+                        <div className="k">Latence p95</div>
+                        <div className="v">{run.generator.latencyMs.p95} ms</div>
+                      </div>
+                      <div className="metric">
+                        <div className="k">Sonde 5xx</div>
+                        <div className="v">{run.probe.errorRate5xx}%</div>
+                      </div>
+                      <div className="metric">
+                        <div className="k">Dispo sonde</div>
+                        <div className="v">
+                          {run.probe.available}/{run.probe.samples}
+                        </div>
+                      </div>
                     </div>
                     <div className="wrs-breakdown">
-                      <span>Détection <b>{run.wrs.detection}</b></span>
-                      <span>Mitigation <b>{run.wrs.mitigation}</b></span>
-                      <span>Disponibilité <b>{run.wrs.availability}</b></span>
-                      <span>Collatéral <b>{run.wrs.collateral}</b></span>
+                      <span>
+                        Détection <b>{run.wrs.detection}</b>
+                      </span>
+                      <span>
+                        Mitigation <b>{run.wrs.mitigation}</b>
+                      </span>
+                      <span>
+                        Disponibilité <b>{run.wrs.availability}</b>
+                      </span>
+                      <span>
+                        Collatéral <b>{run.wrs.collateral}</b>
+                      </span>
                     </div>
                   </div>
                 )}
                 {expanded === c.id && !run && (
-                  <div className="details"><span className="hint">Aucune métrique détaillée disponible.</span></div>
+                  <div className="details">
+                    <span className="hint">Aucune métrique détaillée disponible.</span>
+                  </div>
                 )}
               </div>
             );
@@ -712,7 +822,9 @@ export function App() {
 
         <div className="toasts">
           {toasts.map((t) => (
-            <div key={t.id} className={`toast toast-${t.kind}`}>{t.msg}</div>
+            <div key={t.id} className={`toast toast-${t.kind}`}>
+              {t.msg}
+            </div>
           ))}
         </div>
       </div>
@@ -743,14 +855,26 @@ function Login({ onLogin }: { onLogin: (email: string, password: string) => Prom
     <section className="card" style={{ maxWidth: 420, margin: '2rem auto' }}>
       <h2>Connexion</h2>
       {error && (
-        <p style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '.5rem .75rem', borderRadius: 6 }}>
+        <p
+          style={{
+            background: 'var(--danger-bg)',
+            color: 'var(--danger)',
+            padding: '.5rem .75rem',
+            borderRadius: 6,
+          }}
+        >
           {error}
         </p>
       )}
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
         <div className="field">
           <label>Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            required
+          />
         </div>
         <div className="field">
           <label>Mot de passe</label>
@@ -784,14 +908,18 @@ function ExecuteModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Confirmer l’exécution</h3>
         <p>
-          Tu vas générer une charge HTTP bornée de <b>{campaign.maxRps} rps</b> ({campaign.concurrency}{' '}
-          en parallèle) pendant <b>{campaign.maxDurationSec}s</b> vers{' '}
+          Tu vas générer une charge HTTP bornée de <b>{campaign.maxRps} rps</b> (
+          {campaign.concurrency} en parallèle) pendant <b>{campaign.maxDurationSec}s</b> vers{' '}
           <span className="modal-target">{campaign.target}</span>. Le kill switch reste disponible
           pendant l’exécution.
         </p>
         <div className="btn-row">
-          <button className="btn" onClick={onCancel}>Annuler</button>
-          <button className="btn btn-primary" onClick={onConfirm}>Lancer la campagne</button>
+          <button className="btn" onClick={onCancel}>
+            Annuler
+          </button>
+          <button className="btn btn-primary" onClick={onConfirm}>
+            Lancer la campagne
+          </button>
         </div>
       </div>
     </div>
@@ -809,19 +937,28 @@ function ApproveModal({
   authRequired: boolean;
   identityEmail: string;
   onCancel: () => void;
-  onDecide: (c: Campaign, approvedBy: string, decision: 'APPROVED' | 'REJECTED', reason: string) => void;
+  onDecide: (
+    c: Campaign,
+    approvedBy: string,
+    decision: 'APPROVED' | 'REJECTED',
+    reason: string,
+  ) => void;
 }) {
   const [approver, setApprover] = useState(identityEmail);
   const [reason, setReason] = useState('');
   // En mode auth, l'approbateur EST l'utilisateur connecté (non modifiable).
   const effectiveApprover = authRequired ? identityEmail : approver;
-  const sameAsAuthor = effectiveApprover.trim() !== '' && effectiveApprover.trim() === campaign.createdBy;
+  const sameAsAuthor =
+    effectiveApprover.trim() !== '' && effectiveApprover.trim() === campaign.createdBy;
 
   return (
     <div className="overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Approbation — {campaign.name}</h3>
-        <p>Séparation des rôles : l’approbateur doit être différent de l’auteur ({campaign.createdBy}).</p>
+        <p>
+          Séparation des rôles : l’approbateur doit être différent de l’auteur ({campaign.createdBy}
+          ).
+        </p>
         {authRequired ? (
           <p className="hint">
             Approbateur : <b>{identityEmail}</b>
@@ -829,8 +966,16 @@ function ApproveModal({
         ) : (
           <div className="field" style={{ marginBottom: '.75rem' }}>
             <label>Approbateur (Security Officer)</label>
-            <input className={sameAsAuthor ? 'invalid' : ''} value={approver} onChange={(e) => setApprover(e.target.value)} />
-            {sameAsAuthor && <span className="hint" style={{ color: 'var(--danger)' }}>Doit différer de l’auteur.</span>}
+            <input
+              className={sameAsAuthor ? 'invalid' : ''}
+              value={approver}
+              onChange={(e) => setApprover(e.target.value)}
+            />
+            {sameAsAuthor && (
+              <span className="hint" style={{ color: 'var(--danger)' }}>
+                Doit différer de l’auteur.
+              </span>
+            )}
           </div>
         )}
         <div className="field">
@@ -838,7 +983,9 @@ function ApproveModal({
           <input value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
         <div className="btn-row">
-          <button className="btn" onClick={onCancel}>Annuler</button>
+          <button className="btn" onClick={onCancel}>
+            Annuler
+          </button>
           <button
             className="btn btn-danger"
             disabled={sameAsAuthor || !reason.trim()}

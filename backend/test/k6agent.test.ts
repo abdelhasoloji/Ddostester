@@ -24,7 +24,13 @@ describe('buildK6Script', () => {
     expect(s).toContain('X-WEDOS-TEST');
   });
   it('génère des phases (ramping) si scénario', () => {
-    const s = buildK6Script({ ...cfg, phases: [{ maxRps: 10, durationSec: 5 }, { maxRps: 40, durationSec: 5 }] });
+    const s = buildK6Script({
+      ...cfg,
+      phases: [
+        { maxRps: 10, durationSec: 5 },
+        { maxRps: 40, durationSec: 5 },
+      ],
+    });
     expect(s).toContain("executor: 'ramping-arrival-rate'");
     expect(s).toContain("{ target: 10, duration: '5s' }");
     expect(s).toContain("{ target: 40, duration: '5s' }");

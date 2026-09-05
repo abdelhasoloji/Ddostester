@@ -8,14 +8,17 @@ export interface JwtPayload {
   exp: number;
 }
 
-const b64url = (buf: Buffer | string): string =>
-  Buffer.from(buf).toString('base64url');
+const b64url = (buf: Buffer | string): string => Buffer.from(buf).toString('base64url');
 
 function sign(data: string, secret: string): string {
   return createHmac('sha256', secret).update(data).digest('base64url');
 }
 
-export function signJwt(payload: Omit<JwtPayload, 'iat' | 'exp'>, secret: string, ttlSec = 8 * 3600): string {
+export function signJwt(
+  payload: Omit<JwtPayload, 'iat' | 'exp'>,
+  secret: string,
+  ttlSec = 8 * 3600,
+): string {
   const now = Math.floor(Date.now() / 1000);
   const full: JwtPayload = { ...payload, iat: now, exp: now + ttlSec };
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));

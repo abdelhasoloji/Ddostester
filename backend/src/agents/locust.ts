@@ -41,14 +41,29 @@ export function parseLocustStats(
   const lines = csv.trim().split('\n');
   const header = splitCsv(lines[0]);
   const idx = (name: string) => header.indexOf(name);
-  const row = lines.slice(1).map(splitCsv).find((r) => r[idx('Name')] === 'Aggregated');
+  const row = lines
+    .slice(1)
+    .map(splitCsv)
+    .find((r) => r[idx('Name')] === 'Aggregated');
   const num = (r: string[], name: string) => {
     const i = idx(name);
     const v = i >= 0 ? Number(r[i]) : 0;
     return Number.isFinite(v) ? v : 0;
   };
   if (!row) {
-    return { id: meta.id, config: meta.config, startedAt: meta.startedAt, finishedAt: meta.finishedAt, totalRequests: 0, successful: 0, failed: 0, statusCounts: {}, latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 }, actualRps: 0, errors: {} };
+    return {
+      id: meta.id,
+      config: meta.config,
+      startedAt: meta.startedAt,
+      finishedAt: meta.finishedAt,
+      totalRequests: 0,
+      successful: 0,
+      failed: 0,
+      statusCounts: {},
+      latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
+      actualRps: 0,
+      errors: {},
+    };
   }
   const total = Math.round(num(row, 'Request Count'));
   const failed = Math.round(num(row, 'Failure Count'));
@@ -106,10 +121,14 @@ export class LocustAgent implements AttackAgent {
   ): Promise<LoadTestResult> {
     validateConfig(config, allowedHosts);
     if (config.phases?.length) {
-      throw new AgentError('Scénario multi-phases non supporté par l\'agent locust — utiliser AGENT=k6 ou vegeta.');
+      throw new AgentError(
+        "Scénario multi-phases non supporté par l'agent locust — utiliser AGENT=k6 ou vegeta.",
+      );
     }
     if (!(await this.available())) {
-      throw new AgentError(`Agent locust indisponible (binaire « ${this.bin} »). Installer Locust ou choisir AGENT=builtin.`);
+      throw new AgentError(
+        `Agent locust indisponible (binaire « ${this.bin} »). Installer Locust ou choisir AGENT=builtin.`,
+      );
     }
     const dir = await mkdtemp(join(tmpdir(), 'shieldtest-locust-'));
     const startedAt = new Date().toISOString();
@@ -120,12 +139,31 @@ export class LocustAgent implements AttackAgent {
       const prefix = join(dir, 'out');
       await runProcess(
         this.bin,
-        ['-f', file, '--headless', '-u', String(config.concurrency), '-r', String(config.concurrency),
-         '-t', `${config.durationSec}s`, '--host', origin, '--csv', prefix, '--only-summary'],
+        [
+          '-f',
+          file,
+          '--headless',
+          '-u',
+          String(config.concurrency),
+          '-r',
+          String(config.concurrency),
+          '-t',
+          `${config.durationSec}s`,
+          '--host',
+          origin,
+          '--csv',
+          prefix,
+          '--only-summary',
+        ],
         { killSignal },
       );
       const csv = await readFile(`${prefix}_stats.csv`, 'utf8').catch(() => '');
-      return parseLocustStats(csv, { id: randomUUID(), config, startedAt, finishedAt: new Date().toISOString() });
+      return parseLocustStats(csv, {
+        id: randomUUID(),
+        config,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      });
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined);
     }

@@ -5,16 +5,16 @@ n'exposer que derrière loopback + tunnel SSH ou reverse-proxy TLS/mTLS.
 
 ## Modèle de menace
 
-| Menace | Traitement |
-|--------|-----------|
-| Usage de l'outil contre des tiers | Allowlist obligatoire + attestation ; hors périmètre = refus 400/403 |
-| Exposition publique de l'API | Bind loopback par défaut ; reverse-proxy TLS/mTLS pour tout accès distant |
-| Élévation de privilèges | RBAC (engineer/officer/viewer) sur chaque route ; séparation des rôles |
-| Usurpation d'auteur/approbateur | Dérivés du token JWT, jamais du corps de requête |
-| Vol d'identifiants | Mots de passe scrypt ; verrou anti-brute-force (5 échecs → 60 s) |
-| Fuite de token dans les logs | Redaction `?token=` + en-tête Authorization non loggué |
-| Injection SQL | Requêtes 100 % paramétrées (`pg`) |
-| Charge non maîtrisée | Plafonds durs (RPS ≤ 2000, durée ≤ 900 s), kill switch 3 niveaux |
+| Menace                            | Traitement                                                                |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| Usage de l'outil contre des tiers | Allowlist obligatoire + attestation ; hors périmètre = refus 400/403      |
+| Exposition publique de l'API      | Bind loopback par défaut ; reverse-proxy TLS/mTLS pour tout accès distant |
+| Élévation de privilèges           | RBAC (engineer/officer/viewer) sur chaque route ; séparation des rôles    |
+| Usurpation d'auteur/approbateur   | Dérivés du token JWT, jamais du corps de requête                          |
+| Vol d'identifiants                | Mots de passe scrypt ; verrou anti-brute-force (5 échecs → 60 s)          |
+| Fuite de token dans les logs      | Redaction `?token=` + en-tête Authorization non loggué                    |
+| Injection SQL                     | Requêtes 100 % paramétrées (`pg`)                                         |
+| Charge non maîtrisée              | Plafonds durs (RPS ≤ 2000, durée ≤ 900 s), kill switch 3 niveaux          |
 
 ## Points vérifiés
 

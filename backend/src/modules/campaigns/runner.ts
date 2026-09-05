@@ -84,5 +84,12 @@ export async function executeCampaign(
         ? 'KILLED_AUTO'
         : 'COMPLETED';
 
-  return { runId: generator.id, campaignId: campaign.id, status, generator, probe: probeMetrics, wrs };
+  return {
+    runId: generator.id,
+    campaignId: campaign.id,
+    status,
+    generator,
+    probe: probeMetrics,
+    wrs,
+  };
 }

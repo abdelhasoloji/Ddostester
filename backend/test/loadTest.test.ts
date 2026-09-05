@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { validateConfig, InvalidConfigError, TargetNotAllowedError } from '../src/engine/loadTest.js';
+import {
+  validateConfig,
+  InvalidConfigError,
+  TargetNotAllowedError,
+} from '../src/engine/loadTest.js';
 import type { LoadTestConfig } from '../src/engine/types.js';
 
 const base: LoadTestConfig = {

@@ -104,9 +104,7 @@ export function approveCampaign(
   }
 
   const approvalExpiresAt =
-    decision === 'APPROVED'
-      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      : undefined;
+    decision === 'APPROVED' ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined;
 
   return { ...campaign, status: decision, approvedBy, approvalReason: reason, approvalExpiresAt };
 }

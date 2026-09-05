@@ -54,22 +54,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const agent = opts.agent ?? new BuiltinHttpAgent();
 
   const app = Fastify({
-    logger: opts.logger === false
-      ? false
-      : {
-          // Ne jamais logguer les tokens passés en query (?token=) ni l'en-tête Authorization.
-          serializers: {
-            req(req) {
-              return {
-                method: req.method,
-                url: String(req.url).replace(/([?&]token=)[^&]+/g, '$1REDACTED'),
-                hostname: req.hostname,
-                remoteAddress: req.ip,
-              };
+    logger:
+      opts.logger === false
+        ? false
+        : {
+            // Ne jamais logguer les tokens passés en query (?token=) ni l'en-tête Authorization.
+            serializers: {
+              req(req) {
+                return {
+                  method: req.method,
+                  url: String(req.url).replace(/([?&]token=)[^&]+/g, '$1REDACTED'),
+                  hostname: req.hostname,
+                  remoteAddress: req.ip,
+                };
+              },
             },
+            redact: ['req.headers.authorization'],
           },
-          redact: ['req.headers.authorization'],
-        },
   });
   await app.register(cors, { origin: true });
 
@@ -88,13 +89,21 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!auth.enabled) return true;
     const { token } = req.query as { token?: string };
     const id = token
-      ? identityFromRequest(auth, { headers: { authorization: `Bearer ${token}` } } as FastifyRequest)
+      ? identityFromRequest(auth, {
+          headers: { authorization: `Bearer ${token}` },
+        } as FastifyRequest)
       : identityFromRequest(auth, req);
     return id !== null && can(id.role, 'campaign:read');
   }
 
   if (opts.serveStatic !== false) {
-    const frontendDist = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'frontend', 'dist');
+    const frontendDist = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '..',
+      '..',
+      'frontend',
+      'dist',
+    );
     if (existsSync(frontendDist)) {
       await app.register(fastifyStatic, { root: frontendDist });
       app.log.info(`UI servie depuis ${frontendDist}`);
@@ -108,15 +117,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return reply.code(500).send({ error: 'erreur interne' });
   }
 
-  async function auditAs(actor: string, action: AuditEntry['action'], campaignId?: string, detail?: string) {
+  async function auditAs(
+    actor: string,
+    action: AuditEntry['action'],
+    campaignId?: string,
+    detail?: string,
+  ) {
     try {
-      await store.saveAudit({ id: randomUUID(), at: new Date().toISOString(), actor, action, campaignId, detail });
+      await store.saveAudit({
+        id: randomUUID(),
+        at: new Date().toISOString(),
+        actor,
+        action,
+        campaignId,
+        detail,
+      });
     } catch (err) {
       app.log.error({ err }, 'échec écriture audit');
     }
   }
-  const audit = (req: FastifyRequest, action: AuditEntry['action'], campaignId?: string, detail?: string) =>
-    auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
+  const audit = (
+    req: FastifyRequest,
+    action: AuditEntry['action'],
+    campaignId?: string,
+    detail?: string,
+  ) => auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
 
   async function runCampaign(c: Campaign, actor: string): Promise<CampaignRun> {
     const kill = new KillSwitch();
@@ -128,7 +153,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const run = await executeCampaign(c, allowedTargets, kill, onProgress, agent);
       await store.saveRun(run);
       await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
-      await auditAs(actor, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
+      await auditAs(
+        actor,
+        'campaign.execute',
+        c.id,
+        `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`,
+      );
       return run;
     } catch (err) {
       await store.saveCampaign(transition(c, 'APPROVED'));
@@ -174,7 +204,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return req.authUser ?? { email: null, role: null, authRequired: false };
   });
 
-  app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () => store.listCampaigns());
+  app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () =>
+    store.listCampaigns(),
+  );
 
   app.get('/api/campaigns/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const c = await store.getCampaign((req.params as { id: string }).id);
@@ -194,36 +226,53 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
-  app.post('/api/campaigns/:id/approval', { preHandler: guard('campaign:approve') }, async (req, reply) => {
-    try {
+  app.post(
+    '/api/campaigns/:id/approval',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      try {
+        const c = await store.getCampaign((req.params as { id: string }).id);
+        if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
+        const body = req.body as {
+          approvedBy?: string;
+          decision: 'APPROVED' | 'REJECTED';
+          reason?: string;
+        };
+        const approvedBy = req.authUser?.email ?? body.approvedBy ?? '';
+        const updated = approveCampaign(c, approvedBy, body.decision, body.reason);
+        await store.saveCampaign(updated);
+        await audit(
+          req,
+          body.decision === 'APPROVED' ? 'campaign.approve' : 'campaign.reject',
+          c.id,
+          body.reason,
+        );
+        return updated;
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
+
+  app.post(
+    '/api/campaigns/:id/execute',
+    { preHandler: guard('campaign:execute') },
+    async (req, reply) => {
       const c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
-      const body = req.body as { approvedBy?: string; decision: 'APPROVED' | 'REJECTED'; reason?: string };
-      const approvedBy = req.authUser?.email ?? body.approvedBy ?? '';
-      const updated = approveCampaign(c, approvedBy, body.decision, body.reason);
-      await store.saveCampaign(updated);
-      await audit(req, body.decision === 'APPROVED' ? 'campaign.approve' : 'campaign.reject', c.id, body.reason);
-      return updated;
-    } catch (err) {
-      return fail(err, reply);
-    }
-  });
-
-  app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }, async (req, reply) => {
-    const c = await store.getCampaign((req.params as { id: string }).id);
-    if (!c) return reply.code(404).send({ error: 'campagne introuvable' });
-    try {
-      assertExecutable(c);
-    } catch (err) {
-      return fail(err, reply);
-    }
-    try {
-      const run = await runCampaign(c, req.authUser?.email ?? 'dev');
-      return reply.code(201).send(run);
-    } catch (err) {
-      return fail(err, reply);
-    }
-  });
+      try {
+        assertExecutable(c);
+      } catch (err) {
+        return fail(err, reply);
+      }
+      try {
+        const run = await runCampaign(c, req.authUser?.email ?? 'dev');
+        return reply.code(201).send(run);
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
@@ -249,14 +298,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     req.raw.on('close', () => clearInterval(timer));
   });
 
-  app.post('/api/campaigns/:id/kill', { preHandler: guard('campaign:kill') }, async (req, reply) => {
-    const id = (req.params as { id: string }).id;
-    const kill = kills.get(id);
-    if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
-    kill.trigger('KILLED_MANUAL');
-    await audit(req, 'campaign.kill', id);
-    return { status: 'KILLED_MANUAL' };
-  });
+  app.post(
+    '/api/campaigns/:id/kill',
+    { preHandler: guard('campaign:kill') },
+    async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      const kill = kills.get(id);
+      if (!kill) return reply.code(404).send({ error: 'aucune exécution en cours' });
+      kill.trigger('KILLED_MANUAL');
+      await audit(req, 'campaign.kill', id);
+      return { status: 'KILLED_MANUAL' };
+    },
+  );
 
   app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);

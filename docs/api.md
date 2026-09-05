@@ -4,31 +4,35 @@ Base : `http://127.0.0.1:8080` (via tunnel SSH). Réponses JSON, sauf le rapport
 (HTML). Aucun trafic n'est émis vers une cible hors `ALLOWED_TARGETS`.
 
 ## `GET /health`
+
 État du service et cibles autorisées.
+
 ```bash
 curl -s localhost:8080/health
 # {"status":"ok","allowedTargets":["127.0.0.1","localhost"]}
 ```
 
 ## `POST /api/campaigns`
+
 Crée une campagne au statut `PENDING_APPROVAL`.
 
 Corps :
-| Champ | Type | Notes |
-|-------|------|-------|
-| `name` | string | requis |
-| `createdBy` | string | requis (auteur) |
-| `target` | string (URL) | doit être dans l'allowlist |
-| `probeUrl` | string (URL) | endpoint sondé, dans l'allowlist |
-| `vector` | `http-get` \| `http-post` | seuls vecteurs supportés |
-| `body` | string | pour `http-post` |
-| `headers` | objet | en-têtes additionnels |
-| `maxRps` | number | > 0, ≤ 2000 |
-| `concurrency` | number | 1..500 |
-| `maxDurationSec` | number | 1..900 |
-| `authorized` | bool | doit être `true` (attestation) |
-| `scheduledAt` | string ISO | optionnel — exécution auto par l'ordonnanceur une fois approuvée (CAM-01) |
-| `scenario` | phase[] | optionnel — scénario borné (GEN-03) : `[{maxRps,durationSec}, …]` (≤12 phases). Normalise `maxRps`=max, `maxDurationSec`=somme |
+
+| Champ            | Type                      | Notes                                                                                                                          |
+| ---------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `name`           | string                    | requis                                                                                                                         |
+| `createdBy`      | string                    | requis (auteur)                                                                                                                |
+| `target`         | string (URL)              | doit être dans l'allowlist                                                                                                     |
+| `probeUrl`       | string (URL)              | endpoint sondé, dans l'allowlist                                                                                               |
+| `vector`         | `http-get` \| `http-post` | seuls vecteurs supportés                                                                                                       |
+| `body`           | string                    | pour `http-post`                                                                                                               |
+| `headers`        | objet                     | en-têtes additionnels                                                                                                          |
+| `maxRps`         | number                    | > 0, ≤ 2000                                                                                                                    |
+| `concurrency`    | number                    | 1..500                                                                                                                         |
+| `maxDurationSec` | number                    | 1..900                                                                                                                         |
+| `authorized`     | bool                      | doit être `true` (attestation)                                                                                                 |
+| `scheduledAt`    | string ISO                | optionnel — exécution auto par l'ordonnanceur une fois approuvée (CAM-01)                                                      |
+| `scenario`       | phase[]                   | optionnel — scénario borné (GEN-03) : `[{maxRps,durationSec}, …]` (≤12 phases). Normalise `maxRps`=max, `maxDurationSec`=somme |
 
 ```bash
 curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json' -d '{
@@ -43,10 +47,13 @@ curl -s -X POST localhost:8080/api/campaigns -H 'content-type: application/json'
 ```
 
 ## `GET /api/campaigns` — liste
+
 ## `GET /api/campaigns/:id` — détail
 
 ## `POST /api/campaigns/:id/approval`
+
 Approuve ou rejette (Security Officer). Séparation des rôles : `approvedBy` ≠ auteur.
+
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/approval -H 'content-type: application/json' \
   -d '{"approvedBy":"officer@wedos","decision":"APPROVED"}'
@@ -54,43 +61,54 @@ curl -s -X POST localhost:8080/api/campaigns/<id>/approval -H 'content-type: app
 ```
 
 ## `POST /api/campaigns/:id/execute`
+
 Exécute une campagne `APPROVED`. Renvoie le run (générateur + sonde + WRS).
+
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/execute
 ```
 
 ## `GET /api/campaigns/:id/stream`
+
 Flux SSE de progression temps réel pendant l'exécution (CAM-04) : événements
 `{sent, successful, failed, elapsedSec, actualRps, maxDurationSec, status}` ~1×/s,
 puis `{status:"done"}`. Token via `?token=` (EventSource).
 
 ## `POST /api/campaigns/:id/kill`
+
 Kill switch manuel (niveau 2) d'une campagne en cours.
+
 ```bash
 curl -s -X POST localhost:8080/api/campaigns/<id>/kill
 # {"status":"KILLED_MANUAL"}
 ```
 
 ## `GET /api/runs/:runId` — résultat brut d'exécution
+
 ## `GET /api/runs/:runId/report` — rapport HTML
+
 ```bash
 curl -s localhost:8080/api/runs/<runId>/report -o rapport.html
 ```
 
 ## Codes d'erreur
-| Code | Cause |
-|------|-------|
-| 400 | config invalide (attestation manquante, plafond dépassé, cible hors allowlist, transition interdite) |
-| 404 | campagne / run introuvable |
-| 500 | erreur interne |
+
+| Code | Cause                                                                                                |
+| ---- | ---------------------------------------------------------------------------------------------------- |
+| 400  | config invalide (attestation manquante, plafond dépassé, cible hors allowlist, transition interdite) |
+| 404  | campagne / run introuvable                                                                           |
+| 500  | erreur interne                                                                                       |
 
 ## `GET /metrics`
+
 Métriques Prometheus (format texte 0.0.4) : campagnes par statut, total des
 runs, dernier WRS par cible. Non authentifié (loopback, agrégats non sensibles).
 
 ## `GET /api/reports/compliance`
+
 Rapport de conformité agrégé (DORA/NIS2/ISO 27001) en HTML. Query optionnelle
 `from`/`to` (ISO). Token en `?token=` accepté pour l'ouverture navigateur.
 
 ## `GET /api/audit`
+
 Journal d'audit (lecture). Query `limit` (défaut 200).

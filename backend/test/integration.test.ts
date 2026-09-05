@@ -39,16 +39,28 @@ describe('API — auth désactivée', () => {
   });
 
   it('crée puis approuve une campagne', async () => {
-    const c = await app.inject({ method: 'POST', url: '/api/campaigns', payload: { ...campaignBody, createdBy: 'eng@wedos' } });
+    const c = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      payload: { ...campaignBody, createdBy: 'eng@wedos' },
+    });
     expect(c.statusCode).toBe(201);
     const id = c.json().id;
-    const a = await app.inject({ method: 'POST', url: `/api/campaigns/${id}/approval`, payload: { approvedBy: 'off@wedos', decision: 'APPROVED' } });
+    const a = await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/approval`,
+      payload: { approvedBy: 'off@wedos', decision: 'APPROVED' },
+    });
     expect(a.statusCode).toBe(200);
     expect(a.json().status).toBe('APPROVED');
   });
 
   it('refuse une cible hors allowlist (400)', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/campaigns', payload: { ...campaignBody, createdBy: 'e', target: 'http://evil.example/' } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      payload: { ...campaignBody, createdBy: 'e', target: 'http://evil.example/' },
+    });
     expect(r.statusCode).toBe(400);
   });
 
@@ -75,7 +87,11 @@ describe('API — auth + RBAC activées', () => {
     { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('offpw') },
   ]);
   const token = async (email: string, password: string): Promise<string> => {
-    const r = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email, password },
+    });
     return r.json().token as string;
   };
 
@@ -96,13 +112,18 @@ describe('API — auth + RBAC activées', () => {
   });
 
   it('login invalide → 401', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'off@wedos', password: 'x' } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'off@wedos', password: 'x' },
+    });
     expect(r.statusCode).toBe(401);
   });
 
   it('verrou anti-brute-force après 5 échecs (429)', async () => {
     const bad = { email: 'lock@wedos', password: 'x' };
-    for (let i = 0; i < 5; i++) await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
+    for (let i = 0; i < 5; i++)
+      await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
     const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: bad });
     expect(locked.statusCode).toBe(429);
   });
@@ -122,11 +143,26 @@ describe('API — auth + RBAC activées', () => {
   it('RBAC : engineer ne peut pas approuver (403), officer oui', async () => {
     const te = await token('eng@wedos', 'engpw');
     const to = await token('off@wedos', 'offpw');
-    const c = await app.inject({ method: 'POST', url: '/api/campaigns', headers: { authorization: `Bearer ${te}` }, payload: campaignBody });
+    const c = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: { authorization: `Bearer ${te}` },
+      payload: campaignBody,
+    });
     const id = c.json().id;
-    const denied = await app.inject({ method: 'POST', url: `/api/campaigns/${id}/approval`, headers: { authorization: `Bearer ${te}` }, payload: { decision: 'APPROVED' } });
+    const denied = await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/approval`,
+      headers: { authorization: `Bearer ${te}` },
+      payload: { decision: 'APPROVED' },
+    });
     expect(denied.statusCode).toBe(403);
-    const ok = await app.inject({ method: 'POST', url: `/api/campaigns/${id}/approval`, headers: { authorization: `Bearer ${to}` }, payload: { decision: 'APPROVED' } });
+    const ok = await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/approval`,
+      headers: { authorization: `Bearer ${to}` },
+      payload: { decision: 'APPROVED' },
+    });
     expect(ok.statusCode).toBe(200);
     expect(ok.json().approvedBy).toBe('off@wedos');
   });

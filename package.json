@@ -3,13 +3,29 @@
   "private": true,
   "version": "0.1.0",
   "description": "Outil de load testing / stress testing pour infrastructure autorisée.",
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm run test -w backend",
     "build": "npm run build -w backend && npm run build -w frontend",
     "dev:api": "npm run dev -w backend",
-    "dev:web": "npm run dev -w frontend"
+    "dev:web": "npm run dev -w frontend",
+    "lint": "eslint . && prettier --check \"**/*.{ts,tsx,css,json,md,yml}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml}\""
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "globals": "^15.15.0",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.69.0"
+  },
+  "type": "module"
 }

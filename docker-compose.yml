@@ -12,7 +12,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U shieldtest"]
+      test: ['CMD-SHELL', 'pg_isready -U shieldtest']
       interval: 5s
       retries: 10
 
@@ -26,15 +26,19 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8080:8080"
+      - '127.0.0.1:8080:8080'
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:8080/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
       interval: 10s
       timeout: 3s
       retries: 5
     environment:
       PORT: 8080
-      HOST: 0.0.0.0   # OK ici : publié uniquement en loopback via le mapping ci-dessus
+      HOST: 0.0.0.0 # OK ici : publié uniquement en loopback via le mapping ci-dessus
       # Renseigner UNIQUEMENT des hôtes internes / mandatés.
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
@@ -42,7 +46,7 @@ services:
   # --- Monitoring (optionnel) : docker compose --profile monitoring up -d -----
   prometheus:
     image: prom/prometheus:latest
-    profiles: ["monitoring"]
+    profiles: ['monitoring']
     restart: unless-stopped
     volumes:
       - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -50,14 +54,14 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    profiles: ["monitoring"]
+    profiles: ['monitoring']
     restart: unless-stopped
     depends_on: [prometheus]
     ports:
-      - "127.0.0.1:3000:3000"   # accès via tunnel SSH, jamais public
+      - '127.0.0.1:3000:3000' # accès via tunnel SSH, jamais public
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -66,11 +70,11 @@ services:
   # --- Reverse-proxy TLS / mTLS (optionnel) : docker compose --profile proxy up -d
   proxy:
     image: caddy:2
-    profiles: ["proxy"]
+    profiles: ['proxy']
     restart: unless-stopped
     depends_on: [api]
     ports:
-      - "443:443"
+      - '443:443'
     environment:
       SHIELDTEST_DOMAIN: ${SHIELDTEST_DOMAIN:-shieldtest.internal}
     volumes:

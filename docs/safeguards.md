@@ -6,15 +6,15 @@ capacité offensive.
 
 ## Garde-fous techniques
 
-| Garde-fou | Mécanisme | Où |
-|-----------|-----------|-----|
-| Liste blanche | Cible **et** sonde doivent être dans `ALLOWED_TARGETS` ; sinon refus | `campaigns/service.ts`, `engine/loadTest.ts` |
-| Attestation | `authorized:true` obligatoire à la création | `campaigns/service.ts` |
-| Plafonds durs | `maxRps ≤ 2000`, `concurrency ≤ 500`, `durée ≤ 900 s` | `HARD_CAPS` |
-| Approbation | Workflow PENDING→APPROVED/REJECTED, **séparation des rôles**, validité 24 h, rejet motivé | `campaigns/service.ts` |
-| Kill switch | Auto (>30 s indispo) / manuel / temporel | `probe/probe.ts`, `runner.ts` |
-| Marquage | En-tête `X-WEDOS-TEST: <campaignId>:<ts>` sur chaque requête | `runner.ts` |
-| Protocoles | `http`/`https` uniquement | validations d'URL |
+| Garde-fou     | Mécanisme                                                                                 | Où                                           |
+| ------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Liste blanche | Cible **et** sonde doivent être dans `ALLOWED_TARGETS` ; sinon refus                      | `campaigns/service.ts`, `engine/loadTest.ts` |
+| Attestation   | `authorized:true` obligatoire à la création                                               | `campaigns/service.ts`                       |
+| Plafonds durs | `maxRps ≤ 2000`, `concurrency ≤ 500`, `durée ≤ 900 s`                                     | `HARD_CAPS`                                  |
+| Approbation   | Workflow PENDING→APPROVED/REJECTED, **séparation des rôles**, validité 24 h, rejet motivé | `campaigns/service.ts`                       |
+| Kill switch   | Auto (>30 s indispo) / manuel / temporel                                                  | `probe/probe.ts`, `runner.ts`                |
+| Marquage      | En-tête `X-WEDOS-TEST: <campaignId>:<ts>` sur chaque requête                              | `runner.ts`                                  |
+| Protocoles    | `http`/`https` uniquement                                                                 | validations d'URL                            |
 
 ## Garde-fous réseau / exploitation
 

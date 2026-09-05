@@ -34,7 +34,8 @@ git clone github-ddostester:abdelhasoloji/Ddostester.git ~/ddostester
 ## Déployer / mettre à jour
 
 Le script `deploy/setup.sh` est **idempotent** : pull + install + build + tests
-+ (ré)écriture du service systemd + vérification du bind loopback + health check.
+
+- (ré)écriture du service systemd + vérification du bind loopback + health check.
 
 ```bash
 cd ~/ddostester
@@ -43,11 +44,11 @@ bash deploy/setup.sh
 
 Variables surchargeables :
 
-| Variable | Défaut | Rôle |
-|----------|--------|------|
-| `PORT` | `8080` | Port d'écoute (loopback) |
-| `HOST` | `127.0.0.1` | Adresse d'écoute — **ne pas mettre `0.0.0.0`** |
-| `ALLOWED_TARGETS` | `127.0.0.1,localhost` | Liste blanche des cibles/sondes |
+| Variable          | Défaut                | Rôle                                           |
+| ----------------- | --------------------- | ---------------------------------------------- |
+| `PORT`            | `8080`                | Port d'écoute (loopback)                       |
+| `HOST`            | `127.0.0.1`           | Adresse d'écoute — **ne pas mettre `0.0.0.0`** |
+| `ALLOWED_TARGETS` | `127.0.0.1,localhost` | Liste blanche des cibles/sondes                |
 
 Ajouter une cible autorisée :
 
@@ -115,12 +116,12 @@ service** et redéployer avec `HOST=127.0.0.1`.
 
 ## Runbook incident
 
-| Symptôme | Diagnostic | Action |
-|----------|-----------|--------|
-| `/health` ne répond pas | `journalctl -u ddostester` | corriger l'erreur, `systemctl restart` |
-| API sur IP publique | `ss -tlnp \| grep 8080` | redéployer avec `HOST=127.0.0.1` |
-| Campagne refusée (403/400) | message d'erreur de l'API | cible hors allowlist, non approuvée, ou plafond dépassé |
-| Campagne bloquée en RUNNING | sonde/kill switch | `POST /api/campaigns/:id/kill` puis vérifier logs |
+| Symptôme                    | Diagnostic                 | Action                                                  |
+| --------------------------- | -------------------------- | ------------------------------------------------------- |
+| `/health` ne répond pas     | `journalctl -u ddostester` | corriger l'erreur, `systemctl restart`                  |
+| API sur IP publique         | `ss -tlnp \| grep 8080`    | redéployer avec `HOST=127.0.0.1`                        |
+| Campagne refusée (403/400)  | message d'erreur de l'API  | cible hors allowlist, non approuvée, ou plafond dépassé |
+| Campagne bloquée en RUNNING | sonde/kill switch          | `POST /api/campaigns/:id/kill` puis vérifier logs       |
 
 ## TLS / mTLS (reverse-proxy)
 

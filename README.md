@@ -1,12 +1,12 @@
 # WEDOS ShieldTest — Control Plane
 
 Plateforme interne de **test de résilience** (control plane) inspirée du TSD
-*WEDOS ShieldTest v1.0*. Elle sert à orchestrer, gouverner, mesurer et scorer
+_WEDOS ShieldTest v1.0_. Elle sert à orchestrer, gouverner, mesurer et scorer
 des campagnes de test de charge contre une infrastructure **que l'organisation
 possède ou pour laquelle elle dispose d'un mandat écrit**.
 
-> ⚠️ **Périmètre volontairement défensif.** Ce dépôt implémente le *plan de
-> contrôle* : gestion de campagnes, workflow d'approbation, sonde de mesure,
+> ⚠️ **Périmètre volontairement défensif.** Ce dépôt implémente le _plan de
+> contrôle_ : gestion de campagnes, workflow d'approbation, sonde de mesure,
 > kill switch, scoring WRS et rapports. Le **seul vecteur de charge** fourni est
 > un générateur **HTTP applicatif borné** (GET/POST) soumis à liste blanche et
 > plafond de débit. Voir [« Ce qui n'est pas implémenté »](#ce-qui-nest-pas-implémenté).
@@ -78,16 +78,16 @@ docker compose up --build
 
 ## API
 
-| Méthode | Route | Rôle |
-|--------|-------|------|
-| GET  | `/health` | état + cibles autorisées |
-| POST | `/api/campaigns` | créer une campagne (PENDING_APPROVAL) |
-| GET  | `/api/campaigns` | lister |
-| POST | `/api/campaigns/:id/approval` | approuver / rejeter |
-| POST | `/api/campaigns/:id/execute` | exécuter une campagne approuvée |
-| POST | `/api/campaigns/:id/kill` | kill switch manuel |
-| GET  | `/api/runs/:runId` | résultat d'exécution + WRS |
-| GET  | `/api/runs/:runId/report` | rapport HTML |
+| Méthode | Route                         | Rôle                                  |
+| ------- | ----------------------------- | ------------------------------------- |
+| GET     | `/health`                     | état + cibles autorisées              |
+| POST    | `/api/campaigns`              | créer une campagne (PENDING_APPROVAL) |
+| GET     | `/api/campaigns`              | lister                                |
+| POST    | `/api/campaigns/:id/approval` | approuver / rejeter                   |
+| POST    | `/api/campaigns/:id/execute`  | exécuter une campagne approuvée       |
+| POST    | `/api/campaigns/:id/kill`     | kill switch manuel                    |
+| GET     | `/api/runs/:runId`            | résultat d'exécution + WRS            |
+| GET     | `/api/runs/:runId/report`     | rapport HTML                          |
 
 ## WRS — WEDOS Resiliency Score
 

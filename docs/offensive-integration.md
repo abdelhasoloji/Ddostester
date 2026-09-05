@@ -14,12 +14,12 @@ Sélection : `AGENT=builtin|k6|vegeta|locust` (défaut `builtin`). Tous produise
 une **charge HTTP bornée** ; les trois derniers délèguent à un outil externe
 installé et opéré par l'équipe.
 
-| Agent | Outil | Débit plafonné | Multi-phases | Sortie parsée |
-|-------|-------|----------------|--------------|---------------|
-| `builtin-http` | intégré | oui (fenêtre glissante) | oui (phases) | interne |
-| `k6` | [k6](https://k6.io) | oui (arrival-rate) | oui (ramping) | `--summary-export` |
-| `vegeta` | [Vegeta](https://github.com/tsenart/vegeta) | oui (`-rate`) | oui (phases séquentielles) | `report -type=json` |
-| `locust` | [Locust](https://locust.io) | approché (`constant_pacing`) | non (→ k6/vegeta) | `--csv` |
+| Agent          | Outil                                       | Débit plafonné               | Multi-phases               | Sortie parsée       |
+| -------------- | ------------------------------------------- | ---------------------------- | -------------------------- | ------------------- |
+| `builtin-http` | intégré                                     | oui (fenêtre glissante)      | oui (phases)               | interne             |
+| `k6`           | [k6](https://k6.io)                         | oui (arrival-rate)           | oui (ramping)              | `--summary-export`  |
+| `vegeta`       | [Vegeta](https://github.com/tsenart/vegeta) | oui (`-rate`)                | oui (phases séquentielles) | `report -type=json` |
+| `locust`       | [Locust](https://locust.io)                 | approché (`constant_pacing`) | non (→ k6/vegeta)          | `--csv`             |
 
 Chaque adaptateur applique `validateConfig` (allowlist + plafonds), respecte le
 kill switch, et renvoie **503** avec un message clair si l'outil externe est absent.

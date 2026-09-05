@@ -14,8 +14,8 @@ le service lui-même (`127.0.0.1`, déjà dans l'allowlist).
    - Sonde : `http://127.0.0.1:8080/health`
    - Vecteur : `http-get`, Max RPS `20`, Concurrence `5`, Durée `30`
    - ☑ Attestation → **Soumettre**
-2. **Approuver** (colonne Actions). *(en UI, l'approbateur par défaut est
-   `officer@wedos` ; via l'API, il doit être différent de l'auteur.)*
+2. **Approuver** (colonne Actions). _(en UI, l'approbateur par défaut est
+   `officer@wedos` ; via l'API, il doit être différent de l'auteur.)_
 3. **Exécuter** → le générateur et la sonde tournent 30 s.
 4. **Rapport** → ouvre le HTML : WRS, latences, dispo, statut final.
 
@@ -45,6 +45,7 @@ le service lui-même (`127.0.0.1`, déjà dans l'allowlist).
 ## Profils de charge (scénarios bornés — GEN-03)
 
 Dans le formulaire, « Profil de charge » traduit Max RPS + durée en phases :
+
 - **Constant** — débit unique (défaut).
 - **Montée progressive** — 25 % → 50 % → 100 % du Max RPS sur trois tiers.
 - **Vagues** — 100 % → 20 % → 100 %.

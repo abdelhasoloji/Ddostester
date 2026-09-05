@@ -13,7 +13,12 @@ const cfg: LoadTestConfig = {
   maxRps: 50,
   authorized: true,
 };
-const meta = { id: 'x', config: cfg, startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:00:10Z' };
+const meta = {
+  id: 'x',
+  config: cfg,
+  startedAt: '2026-01-01T00:00:00Z',
+  finishedAt: '2026-01-01T00:00:10Z',
+};
 
 describe('vegeta', () => {
   it('construit la cible avec méthode, url et en-têtes', () => {
@@ -22,7 +27,13 @@ describe('vegeta', () => {
     expect(t).toContain('X-WEDOS-TEST: abc');
   });
   it('parse un rapport JSON (latences ns → ms)', () => {
-    const rep = { requests: 500, rate: 49.9, success: 0.98, latencies: { min: 1e6, mean: 6e6, '50th': 5e6, '95th': 12e6, '99th': 20e6, max: 40e6 }, status_codes: { '200': 490, '500': 10 } };
+    const rep = {
+      requests: 500,
+      rate: 49.9,
+      success: 0.98,
+      latencies: { min: 1e6, mean: 6e6, '50th': 5e6, '95th': 12e6, '99th': 20e6, max: 40e6 },
+      status_codes: { '200': 490, '500': 10 },
+    };
     const r = parseVegetaReport(rep, meta);
     expect(r.totalRequests).toBe(500);
     expect(r.failed).toBe(10);
@@ -31,8 +42,24 @@ describe('vegeta', () => {
     expect(r.statusCounts['5xx']).toBe(10);
   });
   it('fusionne des phases séquentielles', () => {
-    const a = parseVegetaReport({ requests: 100, rate: 10, success: 1, latencies: { mean: 5e6, '50th': 5e6, '95th': 8e6, '99th': 9e6, min: 1e6, max: 10e6 } }, meta);
-    const b = parseVegetaReport({ requests: 300, rate: 30, success: 0.9, latencies: { mean: 6e6, '50th': 6e6, '95th': 12e6, '99th': 15e6, min: 1e6, max: 20e6 } }, meta);
+    const a = parseVegetaReport(
+      {
+        requests: 100,
+        rate: 10,
+        success: 1,
+        latencies: { mean: 5e6, '50th': 5e6, '95th': 8e6, '99th': 9e6, min: 1e6, max: 10e6 },
+      },
+      meta,
+    );
+    const b = parseVegetaReport(
+      {
+        requests: 300,
+        rate: 30,
+        success: 0.9,
+        latencies: { mean: 6e6, '50th': 6e6, '95th': 12e6, '99th': 15e6, min: 1e6, max: 20e6 },
+      },
+      meta,
+    );
     const m = mergeResults([a, b], meta);
     expect(m.totalRequests).toBe(400);
     expect(m.failed).toBe(30);
