@@ -126,7 +126,7 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
   );
 }
 
-function LiveProgress({ campaignId }: { campaignId: string }) {
+function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: string }) {
   const [p, setP] = useState<LiveProgressData | null>(null);
   useEffect(() => {
     const es = new EventSource(streamUrl(campaignId));
@@ -142,10 +142,19 @@ function LiveProgress({ campaignId }: { campaignId: string }) {
     es.onerror = () => es.close();
     return () => es.close();
   }, [campaignId]);
+  // External engines (k6, vegeta…) don't stream live counters — show a clear
+  // running state instead of a misleading "Starting run…".
+  const external = !!agent && agent !== 'builtin';
   if (!p)
     return (
       <div className="details">
-        <span className="hint">Starting run…</span>
+        <span className="hint">
+          <span className="spin" />
+          {external
+            ? `Running via ${agent} — live counters aren't available for external engines; ` +
+              `results appear when it finishes.`
+            : 'Starting run…'}
+        </span>
       </div>
     );
   const pct = Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100));
@@ -237,7 +246,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
         )}
       </div>
 
-      {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} />}
+      {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
     </div>
   );
 }
@@ -412,7 +421,7 @@ export function CampaignDrawer() {
           )}
         </dl>
 
-        {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} />}
+        {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
         {run ? (
           <RunDetails run={run} />
         ) : (
