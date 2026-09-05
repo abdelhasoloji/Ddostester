@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { reportUrl, streamUrl } from './api.js';
 import type {
   Campaign,
   CampaignRun,
   CampaignStatus,
   WrsBreakdown,
+  WrsPoint,
   LiveProgressData,
 } from './api.js';
 import { useApp, canDo } from './context.js';
@@ -44,38 +45,84 @@ export function WrsPill({ wrs }: { wrs: WrsBreakdown }) {
   );
 }
 
-export function Sparkline({
-  points,
-  regression,
-}: {
-  points: { wrs: number }[];
-  regression: boolean;
-}) {
-  const w = 180;
-  const h = 40;
-  const pad = 5;
-  if (points.length === 0) return null;
+/**
+ * Full-width, interactive WRS trend for one target: hover a point for its
+ * date/score, click it to open that run's report. Scales to its container
+ * (viewBox matches measured pixel width, so points stay round).
+ */
+export function WrsTrend({ points, regression }: { points: WrsPoint[]; regression: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(640);
+  const [hover, setHover] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => setW(Math.max(240, entries[0].contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const H = 120;
+  const padX = 14;
+  const padY = 18;
+  const y = (v: number) => H - padY - (v / 100) * (H - 2 * padY);
   const xs =
     points.length > 1
-      ? points.map((_, i) => pad + (i * (w - 2 * pad)) / (points.length - 1))
+      ? points.map((_, i) => padX + (i * (w - 2 * padX)) / (points.length - 1))
       : [w / 2];
-  const ys = points.map((p) => h - pad - (p.wrs / 100) * (h - 2 * pad));
+  const ys = points.map((p) => y(p.wrs));
   const d = xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
   const color = regression ? 'var(--danger)' : 'var(--brand)';
-  const ty = h - pad - (70 / 100) * (h - 2 * pad);
+  const ty = y(70);
+
+  const tipW = 150;
+  const hi = hover;
+  const tipX = hi !== null ? Math.min(Math.max(xs[hi] - tipW / 2, 2), w - tipW - 2) : 0;
+  const tipAbove = hi !== null ? ys[hi] > 46 : true;
+  const tipY = hi !== null ? (tipAbove ? ys[hi] - 44 : ys[hi] + 10) : 0;
+
   return (
-    <svg width={w} height={h} className="spark" aria-hidden="true">
-      <line x1={pad} y1={ty} x2={w - pad} y2={ty} className="spark-thresh" />
-      <path
-        d={d}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3" fill={color} />
-    </svg>
+    <div className="wrs-trend" ref={ref}>
+      <svg viewBox={`0 0 ${w} ${H}`} width="100%" height={H} role="img" aria-label="WRS trend">
+        <line x1={padX} y1={ty} x2={w - padX} y2={ty} className="spark-thresh" />
+        <text x={padX} y={ty - 4} className="trend-thresh-label">
+          70
+        </text>
+        <path
+          d={d}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {xs.map((x, i) => (
+          <a key={i} href={reportUrl(points[i].runId)} target="_blank" rel="noreferrer">
+            <circle cx={x} cy={ys[i]} r={hover === i ? 5 : 3.5} fill={color} />
+            <circle
+              cx={x}
+              cy={ys[i]}
+              r="12"
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            />
+          </a>
+        ))}
+        {hi !== null && (
+          <g pointerEvents="none">
+            <rect className="trend-tip-box" x={tipX} y={tipY} width={tipW} height={34} rx="6" />
+            <text className="trend-tip-title" x={tipX + 8} y={tipY + 14}>
+              WRS {points[hi].wrs} ({points[hi].level})
+            </text>
+            <text className="trend-tip-sub" x={tipX + 8} y={tipY + 27}>
+              {new Date(points[hi].at).toLocaleString()}
+            </text>
+          </g>
+        )}
+      </svg>
+    </div>
   );
 }
 

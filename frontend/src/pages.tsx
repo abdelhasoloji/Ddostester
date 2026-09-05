@@ -9,8 +9,8 @@ import {
   CampaignDrawer,
   ExecuteModal,
   NewCampaignForm,
-  Sparkline,
   WrsPill,
+  WrsTrend,
 } from './ui.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -220,7 +220,7 @@ export function OverviewPage() {
                     </span>
                   )}
                 </div>
-                <Sparkline points={s.points} regression={s.regression} />
+                <WrsTrend points={s.points} regression={s.regression} />
               </div>
             );
           })}
