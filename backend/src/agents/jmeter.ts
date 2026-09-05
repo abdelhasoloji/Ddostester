@@ -170,6 +170,8 @@ function empty(meta: {
 
 export class JMeterAgent implements AttackAgent {
   readonly name = 'jmeter';
+  readonly multiPhase = false;
+  readonly description = 'Apache JMeter (external, headless) — constant throughput; heavy (JVM).';
   constructor(private readonly bin = process.env.JMETER_BIN ?? 'jmeter') {}
 
   available(): Promise<boolean> {

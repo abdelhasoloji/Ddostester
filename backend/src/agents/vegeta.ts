@@ -119,6 +119,8 @@ export function mergeResults(
 
 export class VegetaAgent implements AttackAgent {
   readonly name = 'vegeta';
+  readonly multiPhase = true;
+  readonly description = 'Vegeta (external) — fixed-rate load, runs phases sequentially.';
   constructor(private readonly bin = process.env.VEGETA_BIN ?? 'vegeta') {}
 
   available(): Promise<boolean> {

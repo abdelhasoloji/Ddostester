@@ -47,6 +47,11 @@ export interface CampaignInput {
    * waves…). Absent = constant load (maxRps/maxDurationSec).
    */
   scenario?: ScenarioPhase[];
+  /**
+   * Optional load engine id (e.g. 'builtin', 'k6', 'vegeta'). Absent = the
+   * server default agent. All engines produce bounded HTTP load only.
+   */
+  agent?: string;
 }
 
 export interface Campaign extends CampaignInput {

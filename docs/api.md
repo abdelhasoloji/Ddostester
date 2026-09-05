@@ -109,6 +109,20 @@ per target. Unauthenticated (loopback, non-sensitive aggregates).
 Aggregated compliance report (DORA/NIS2/ISO 27001) in HTML. Optional `from`/`to`
 query (ISO). Token via `?token=` accepted for browser opening.
 
+## `GET /api/agents`
+
+Load engines and their live availability. Returns `{ default, agents }` where
+each agent is `{ id, name, available, multiPhase, description }`. Used by the UI
+to populate the per-campaign engine selector and the Settings list. A campaign
+picks an engine via the optional `agent` field (its `id`, e.g. `"k6"`); absent =
+the server default. Creating a campaign with an unknown engine, or a multi-phase
+scenario on a constant-only engine, is rejected (400).
+
+```bash
+curl -s localhost:8080/api/agents
+# {"default":"builtin-http","agents":[{"id":"builtin","name":"builtin-http","available":true,"multiPhase":true,...}, ...]}
+```
+
 ## `GET /api/audit`
 
 Audit log (read). `limit` query (default 200).

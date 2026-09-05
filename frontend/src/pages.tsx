@@ -464,9 +464,35 @@ export function SettingsPage() {
         </div>
         <p className="hint" style={{ marginTop: '.75rem' }}>
           Bounded HTTP generator only (GET/POST, rate-capped, allowlisted). No volumetric or
-          exhaustion vector is implemented. The allowlist and the agent are configured server-side
-          (environment variables).
+          exhaustion vector is implemented. The allowlist and the default agent are configured
+          server-side (environment variables).
         </p>
+      </div>
+
+      <div className="card">
+        <h2>Load engines</h2>
+        <p className="hint" style={{ marginBottom: '.75rem' }}>
+          Third-party generators are operated by the team and delegated to via adapters — all
+          produce bounded HTTP load only. A campaign can pick any installed engine; unavailable ones
+          must be installed on the server.
+        </p>
+        {app.agents.length === 0 ? (
+          <span className="hint">No engine information available.</span>
+        ) : (
+          <div className="engines">
+            {app.agents.map((a) => (
+              <div key={a.id} className="engine-row">
+                <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
+                <span className="engine-name">{a.name}</span>
+                <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
+                  {a.available ? 'Installed' : 'Not installed'}
+                </span>
+                {!a.multiPhase && <span className="engine-cap">constant only</span>}
+                <span className="engine-desc">{a.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

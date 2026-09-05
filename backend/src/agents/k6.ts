@@ -110,6 +110,8 @@ export function parseK6Summary(
 
 export class K6Agent implements AttackAgent {
   readonly name = 'k6';
+  readonly multiPhase = true;
+  readonly description = 'k6 (external) — arrival-rate load, supports ramping scenarios.';
   constructor(private readonly bin = process.env.K6_BIN ?? 'k6') {}
 
   async available(): Promise<boolean> {

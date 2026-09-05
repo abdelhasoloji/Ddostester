@@ -27,7 +27,17 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
  * safeguards: attested authorization, target and probe in the allowlist,
  * intensity/duration bounded by HARD_CAPS.
  */
-export function createCampaign(input: CampaignInput, allowedHosts: string[]): Campaign {
+/** Minimal agent metadata used to validate a campaign's chosen engine. */
+export interface AgentChoice {
+  id: string;
+  multiPhase: boolean;
+}
+
+export function createCampaign(
+  input: CampaignInput,
+  allowedHosts: string[],
+  agents?: AgentChoice[],
+): Campaign {
   if (!input.authorized) {
     throw new CampaignError(
       'The campaign must be attested as authorized (authorized=true) by its author.',
@@ -71,6 +81,20 @@ export function createCampaign(input: CampaignInput, allowedHosts: string[]): Ca
     // Normalize the aggregated fields for display/metrics.
     input.maxRps = Math.max(...input.scenario.map((p) => p.maxRps));
     input.maxDurationSec = totalDur;
+  }
+
+  // Validate the chosen load engine when the caller supplies the agent list.
+  if (input.agent && agents) {
+    const chosen = agents.find((a) => a.id === input.agent);
+    if (!chosen) {
+      throw new CampaignError(`Unknown load engine "${input.agent}".`);
+    }
+    if (input.scenario && input.scenario.length > 1 && !chosen.multiPhase) {
+      throw new CampaignError(
+        `Load engine "${input.agent}" does not support multi-phase scenarios — ` +
+          `use a constant profile or choose k6/vegeta/builtin.`,
+      );
+    }
   }
 
   return {

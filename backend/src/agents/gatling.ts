@@ -99,6 +99,8 @@ export function parseGatlingLog(
 
 export class GatlingAgent implements AttackAgent {
   readonly name = 'gatling';
+  readonly multiPhase = false;
+  readonly description = 'Gatling (external, headless) — constant users/sec; heavy (JVM).';
   constructor(private readonly bin = process.env.GATLING_BIN ?? 'gatling.sh') {}
 
   available(): Promise<boolean> {

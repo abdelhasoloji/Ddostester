@@ -6,6 +6,8 @@ import type { AttackAgent } from './types.js';
 /** Default agent: built-in bounded HTTP generator (GET/POST, RPS cap). */
 export class BuiltinHttpAgent implements AttackAgent {
   readonly name = 'builtin-http';
+  readonly multiPhase = true;
+  readonly description = 'Built-in bounded HTTP generator (no external tool required).';
   async available(): Promise<boolean> {
     return true;
   }

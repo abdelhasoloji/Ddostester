@@ -16,6 +16,10 @@ export class AgentError extends Error {}
 
 export interface AttackAgent {
   readonly name: string;
+  /** Whether the agent supports bounded multi-phase scenarios (ramp/waves). */
+  readonly multiPhase: boolean;
+  /** Short human-readable description shown in the UI. */
+  readonly description: string;
   /** Whether the agent is usable in the current environment. */
   available(): Promise<boolean>;
   run(

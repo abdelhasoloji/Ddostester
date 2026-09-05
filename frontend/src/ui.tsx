@@ -379,6 +379,10 @@ export function CampaignDrawer() {
             <dd>{c.vector}</dd>
           </div>
           <div>
+            <dt>Engine</dt>
+            <dd>{c.agent ?? 'server default'}</dd>
+          </div>
+          <div>
             <dt>Load</dt>
             <dd>
               {c.maxRps} rps · {c.concurrency} conc · {c.maxDurationSec}s
@@ -428,6 +432,7 @@ const emptyForm = {
   maxDurationSec: 30,
   scheduledAt: '',
   profile: 'constant',
+  agent: '',
   body: '',
 };
 
@@ -485,6 +490,20 @@ export function NewCampaignForm() {
     }
   }, [draftPreset]);
 
+  // Selected load engine (empty = server default) and its multi-phase support.
+  const selectedAgent = app.agents.find((a) => a.id === form.agent);
+  const multiPhaseOk = !selectedAgent || selectedAgent.multiPhase;
+  // Switching to a constant-only engine resets a ramp/wave profile.
+  const setAgent = (id: string) => {
+    const a = app.agents.find((x) => x.id === id);
+    setForm((f) => ({
+      ...f,
+      agent: id,
+      profile: a && !a.multiPhase && f.profile !== 'constant' ? 'constant' : f.profile,
+    }));
+    setAppliedPreset(null);
+  };
+
   const targetAllowed = (() => {
     const h = hostOf(form.target);
     return h !== null && app.allowed.includes(h);
@@ -526,6 +545,7 @@ export function NewCampaignForm() {
         maxDurationSec: Number(form.maxDurationSec),
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
+        agent: form.agent || undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -644,9 +664,30 @@ export function NewCampaignForm() {
             }}
           >
             <option value="constant">Constant</option>
-            <option value="ramp">Ramp-up (25→50→100%)</option>
-            <option value="wave">Waves (100→20→100%)</option>
+            <option value="ramp" disabled={!multiPhaseOk}>
+              Ramp-up (25→50→100%)
+            </option>
+            <option value="wave" disabled={!multiPhaseOk}>
+              Waves (100→20→100%)
+            </option>
           </select>
+          {!multiPhaseOk && (
+            <span className="hint">{selectedAgent?.name} runs a constant rate only.</span>
+          )}
+        </div>
+        <div className="field">
+          <label>Load engine</label>
+          <select value={form.agent} onChange={(e) => setAgent(e.target.value)}>
+            <option value="">Server default ({app.agentName || 'builtin-http'})</option>
+            {app.agents.map((a) => (
+              <option key={a.id} value={a.id} disabled={!a.available}>
+                {a.name}
+                {a.available ? '' : ' — not installed'}
+                {a.multiPhase ? '' : ' (constant only)'}
+              </option>
+            ))}
+          </select>
+          {selectedAgent && <span className="hint">{selectedAgent.description}</span>}
         </div>
         <div className="field">
           <label>Schedule (optional)</label>

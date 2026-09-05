@@ -31,6 +31,7 @@ import { login, identityFromRequest } from './auth/guard.js';
 import { can } from './auth/rbac.js';
 import type { Permission } from './auth/rbac.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
+import { createAgent, describeAgents, agentChoices } from './agents/index.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
 
 export interface BuildOptions {
@@ -157,8 +158,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     await store.saveCampaign(transition(c, 'RUNNING'));
     const onProgress = (p: LoadProgress) =>
       liveProgress.set(c.id, { ...p, maxDurationSec: c.maxDurationSec, status: 'RUNNING' });
+    // Per-campaign engine, falling back to the server default agent.
+    const runAgent = createAgent(c.agent) ?? agent;
     try {
-      const run = await executeCampaign(c, allowedTargets, kill, onProgress, agent);
+      const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent);
       await store.saveRun(run);
       await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
       await auditAs(
@@ -184,6 +187,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     authRequired: auth.enabled,
     agent: agent.name,
   }));
+
+  // Load engines and their live availability (bounded HTTP, delegated tools).
+  app.get('/api/agents', async () => {
+    const list = await describeAgents();
+    return { default: agent.name, agents: list };
+  });
 
   // Anti-brute-force: temporary lock after several failures (per email+IP).
   const loginFails = new Map<string, { count: number; until: number }>();
@@ -225,7 +234,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const input = req.body as CampaignInput;
       if (req.authUser) input.createdBy = req.authUser.email;
-      const campaign = createCampaign(input, allowedTargets);
+      const campaign = createCampaign(input, allowedTargets, agentChoices());
       await store.saveCampaign(campaign);
       await audit(req, 'campaign.create', campaign.id, `${campaign.name} → ${campaign.target}`);
       return reply.code(201).send(campaign);

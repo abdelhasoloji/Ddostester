@@ -31,8 +31,17 @@ export interface Campaign {
   maxDurationSec: number;
   scheduledAt?: string;
   scenario?: { maxRps: number; durationSec: number }[];
+  agent?: string;
   wrs?: WrsBreakdown;
   runId?: string;
+}
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  available: boolean;
+  multiPhase: boolean;
+  description: string;
 }
 
 export interface CampaignRun {
@@ -166,4 +175,5 @@ export const api = {
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
+  agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
 };

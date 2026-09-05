@@ -107,6 +107,9 @@ function splitCsv(line: string): string[] {
 
 export class LocustAgent implements AttackAgent {
   readonly name = 'locust';
+  readonly multiPhase = false;
+  readonly description =
+    'Locust (external, headless) — constant rate only; use k6/vegeta for phases.';
   constructor(private readonly bin = process.env.LOCUST_BIN ?? 'locust') {}
 
   available(): Promise<boolean> {

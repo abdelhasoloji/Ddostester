@@ -10,9 +10,18 @@ ShieldTest provides authorization, allowlist, caps, kill switch, probe, WRS,
 audit, compliance. It **delegates** load production to an **agent** through an
 interface (`AttackAgent`). No attack vector is coded in this repository:
 
-Selection: `AGENT=builtin|k6|vegeta|locust` (default `builtin`). All produce a
-**bounded HTTP load**; the last three delegate to an external tool installed and
-operated by the team.
+Selection is two-tiered: `AGENT=builtin|k6|vegeta|locust|jmeter|gatling` sets the
+**server default** (default `builtin`), and each campaign may override it with an
+optional `agent` field, chosen in the UI from the installed engines. `GET
+/api/agents` reports every engine with live availability and capabilities, and
+the Settings page lists them (installed / not installed). All produce a **bounded
+HTTP load**; every engine but the built-in delegates to an external tool
+installed and operated by the team.
+
+Creating a campaign is validated against the engine list: an unknown engine, or a
+multi-phase scenario on a constant-only engine (locust/jmeter/gatling), is
+rejected at creation; an engine whose binary is absent fails at execution with a
+clear 503.
 
 | Agent          | Tool                                        | Rate-capped                     | Multi-phase             | Parsed output       |
 | -------------- | ------------------------------------------- | ------------------------------- | ----------------------- | ------------------- |

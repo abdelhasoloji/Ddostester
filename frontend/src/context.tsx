@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, setToken, getToken } from './api.js';
-import type { Campaign, CampaignRun, Role, AuditEntry, WrsSeries } from './api.js';
+import type { AgentInfo, Campaign, CampaignRun, Role, AuditEntry, WrsSeries } from './api.js';
 import type { Preset } from './presets.js';
 
 export interface Identity {
@@ -29,6 +29,7 @@ let toastSeq = 0;
 interface Ctx {
   allowed: string[];
   agentName: string;
+  agents: AgentInfo[];
   authRequired: boolean;
   authChecked: boolean;
   identity: Identity | null;
@@ -82,6 +83,7 @@ export function useApp(): Ctx {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [agentName, setAgentName] = useState('');
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [authRequired, setAuthRequired] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -143,6 +145,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => undefined)
       .finally(() => setAuthChecked(true));
+    api
+      .agents()
+      .then((r) => setAgents(r.agents))
+      .catch(() => undefined);
   }, []);
 
   const ready = authChecked && (!authRequired || identity !== null);
@@ -264,6 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     allowed,
     agentName,
+    agents,
     authRequired,
     authChecked,
     identity,
