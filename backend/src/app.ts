@@ -96,7 +96,28 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             redact: ['req.headers.authorization'],
           },
   });
-  await app.register(cors, { origin: true });
+  // Same-origin by default (UI is served by this server). Set CORS_ORIGIN
+  // (comma-separated) only if the UI is hosted on a different origin.
+  const corsOrigin = process.env.CORS_ORIGIN?.trim();
+  await app.register(cors, {
+    origin: corsOrigin ? corsOrigin.split(',').map((s) => s.trim()) : false,
+  });
+
+  // Security headers on every response (the app hardens itself, not just its
+  // targets). No external origins are used, so the CSP is strict; 'unsafe-inline'
+  // is limited to styles (the HTML reports embed a <style> block).
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; " +
+        "base-uri 'self'; form-action 'self'",
+    );
+    return payload;
+  });
 
   function guard(perm: Permission) {
     return async (req: FastifyRequest, reply: FastifyReply) => {
@@ -246,6 +267,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     notifications: notifier.sinks,
     protection: protection.configured,
   }));
+
+  // Readiness probe: 503 when the store is unreachable (e.g. DB down), so a
+  // load balancer / monitor can tell "process up" from "actually serving".
+  app.get('/ready', async (_req, reply) => {
+    const ok = await store.healthy();
+    return reply.code(ok ? 200 : 503).send({ ready: ok, storage: store.backend });
+  });
 
   // Send a test notification so operators can verify their sink is wired up.
   app.post('/api/notify/test', { preHandler: guard('campaign:create') }, async (_req, reply) => {

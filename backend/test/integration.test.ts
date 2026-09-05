@@ -38,6 +38,19 @@ describe('API — auth disabled', () => {
     expect(b.storage).toBe('memory');
   });
 
+  it('sets security headers on responses', async () => {
+    const r = await app.inject({ method: 'GET', url: '/health' });
+    expect(r.headers['x-content-type-options']).toBe('nosniff');
+    expect(r.headers['x-frame-options']).toBe('DENY');
+    expect(String(r.headers['content-security-policy'])).toContain("default-src 'self'");
+  });
+
+  it('readiness probe returns 200 when the store is healthy', async () => {
+    const r = await app.inject({ method: 'GET', url: '/ready' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().ready).toBe(true);
+  });
+
   it('creates then approves a campaign', async () => {
     const c = await app.inject({
       method: 'POST',

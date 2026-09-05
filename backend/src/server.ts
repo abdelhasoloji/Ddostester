@@ -10,7 +10,18 @@ import {
 } from './modules/protection/provider.js';
 import { buildApp } from './app.js';
 
-const PORT = Number(process.env.PORT ?? 8080);
+/** Reads a positive-integer env var, failing fast on an invalid value. */
+function intEnv(name: string, def: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return def;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+    throw new Error(`Invalid ${name}="${raw}" — expected a positive integer.`);
+  }
+  return n;
+}
+
+const PORT = intEnv('PORT', 8080);
 // Listen address. Default: loopback only — the tool must NEVER be exposed
 // publicly without a TLS/mTLS reverse proxy. Remote access via SSH tunnel.
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -18,8 +29,12 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+if (ALLOWED_TARGETS.length === 0) {
+  throw new Error('ALLOWED_TARGETS must list at least one host.');
+}
 const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
-const SCHEDULER_INTERVAL_MS = Number(process.env.SCHEDULER_INTERVAL_MS ?? 30_000);
+const SCHEDULER_INTERVAL_MS = intEnv('SCHEDULER_INTERVAL_MS', 30_000);
+const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90);
 
 const store = await createStore();
 const auth = initAuth();
@@ -58,6 +73,24 @@ if (SCHEDULER) {
       ticking = false;
     }
   }, SCHEDULER_INTERVAL_MS).unref();
+}
+
+// --- Data retention: prune old runs/audit/WRS samples once a day ------------
+if (RETENTION_DAYS > 0) {
+  const prune = async (): Promise<void> => {
+    try {
+      const removed = await store.pruneOldData(RETENTION_DAYS);
+      if (removed.runs || removed.audit || removed.samples) {
+        app.log.info(
+          `retention: pruned ${removed.runs} runs, ${removed.audit} audit, ${removed.samples} samples (> ${RETENTION_DAYS}d)`,
+        );
+      }
+    } catch (err) {
+      app.log.error({ err }, 'retention prune failed');
+    }
+  };
+  void prune();
+  setInterval(() => void prune(), 24 * 3600 * 1000).unref();
 }
 
 // Graceful shutdown: closes the API then the store (DB connections) cleanly.

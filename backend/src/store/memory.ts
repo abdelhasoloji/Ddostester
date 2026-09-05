@@ -14,6 +14,25 @@ export class MemoryStore implements Store {
   private playbooks = new Map<string, Playbook>();
 
   async init(): Promise<void> {}
+  async healthy(): Promise<boolean> {
+    return true;
+  }
+  async pruneOldData(
+    olderThanDays: number,
+  ): Promise<{ runs: number; audit: number; samples: number }> {
+    const cutoff = Date.now() - olderThanDays * 86_400_000;
+    let runs = 0;
+    for (const [id, r] of this.runs) {
+      const at = Date.parse(r.generator.finishedAt);
+      if (Number.isFinite(at) && at < cutoff) {
+        this.runs.delete(id);
+        runs++;
+      }
+    }
+    const before = this.audit.length;
+    this.audit = this.audit.filter((e) => Date.parse(e.at) >= cutoff);
+    return { runs, audit: before - this.audit.length, samples: 0 };
+  }
   async saveCampaign(c: Campaign): Promise<void> {
     this.campaigns.set(c.id, c);
   }

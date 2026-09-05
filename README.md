@@ -128,6 +128,7 @@ Full documentation in [`docs/`](./docs/):
 [API](./docs/api.md) ·
 [WRS](./docs/wrs.md) ·
 [notifications](./docs/notifications.md) ·
+[operations](./docs/operations.md) ·
 [security & scope](./docs/safeguards.md).
 
 ## License

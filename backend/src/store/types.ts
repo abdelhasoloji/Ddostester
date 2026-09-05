@@ -12,6 +12,13 @@ import type { Playbook } from '../modules/playbooks/playbooks.js';
 export interface Store {
   readonly backend: 'memory' | 'postgres';
   init(): Promise<void>;
+  /** Lightweight connectivity check for readiness probes. */
+  healthy(): Promise<boolean>;
+  /**
+   * Deletes runs, audit entries and WRS samples older than `olderThanDays`
+   * (data retention). Campaigns are kept. Returns the number of rows removed.
+   */
+  pruneOldData(olderThanDays: number): Promise<{ runs: number; audit: number; samples: number }>;
   saveCampaign(c: Campaign): Promise<void>;
   getCampaign(id: string): Promise<Campaign | undefined>;
   listCampaigns(): Promise<Campaign[]>;

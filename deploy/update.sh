@@ -19,27 +19,48 @@ HOST="${HOST:-127.0.0.1}"
 
 cd "$REPO_DIR"
 
+# Remember the currently-deployed commit so we can roll back on failure.
+PREV="$(git rev-parse HEAD)"
+
+build_and_restart() {
+  npm ci
+  npm run build
+  npm test
+  sudo -n systemctl restart "${SERVICE}"
+}
+
+# Health check with a few retries (the service needs a moment to bind).
+health_ok() {
+  for _ in 1 2 3 4 5; do
+    if curl -fsS "http://${HOST}:${PORT}/ready" >/dev/null 2>&1; then return 0; fi
+    sleep 2
+  done
+  return 1
+}
+
 echo "==> Fetching origin/${BRANCH}"
 git fetch --prune origin "${BRANCH}"
 # Match the remote exactly (discards local drift; gitignored dist/ & node_modules stay).
 git reset --hard "origin/${BRANCH}"
 
-echo "==> Installing dependencies (npm ci)"
-npm ci
-
-echo "==> Build + tests (deploy aborts here if anything fails)"
-npm run build
-npm test
-
-echo "==> Restarting ${SERVICE}"
-# Non-interactive: the deploy user needs passwordless sudo for this command.
-if ! sudo -n systemctl restart "${SERVICE}"; then
-  echo "ERROR: 'sudo -n systemctl restart ${SERVICE}' failed." >&2
-  echo "Grant the deploy user passwordless sudo for systemctl (see docs/ci-cd.md)." >&2
-  exit 1
+echo "==> Build + tests + restart (deploy aborts here if build/tests fail)"
+if ! build_and_restart; then
+  echo "ERROR: build/restart failed." >&2
+  echo "(If restart failed, grant the deploy user passwordless sudo — see docs/ci-cd.md.)" >&2
+  # fall through to rollback
 fi
-sleep 1
 
-echo "==> Health check"
-curl -fsS "http://${HOST}:${PORT}/health" && echo
-echo "✅ Update deployed on http://${HOST}:${PORT} (loopback)."
+echo "==> Health check (/ready)"
+if health_ok; then
+  echo "✅ Update deployed on http://${HOST}:${PORT} (loopback)."
+  exit 0
+fi
+
+echo "❌ Health check failed after deploy — rolling back to ${PREV}." >&2
+git reset --hard "${PREV}"
+if build_and_restart && health_ok; then
+  echo "↩️  Rolled back to ${PREV}; service healthy again." >&2
+else
+  echo "FATAL: rollback also failed — manual intervention required." >&2
+fi
+exit 1

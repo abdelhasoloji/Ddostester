@@ -94,6 +94,33 @@ export class PostgresStore implements Store {
     }
   }
 
+  async healthy(): Promise<boolean> {
+    try {
+      await this.pool.query('SELECT 1');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async pruneOldData(
+    olderThanDays: number,
+  ): Promise<{ runs: number; audit: number; samples: number }> {
+    const cutoff = `now() - make_interval(days => $1)`;
+    const runs = await this.pool.query(`DELETE FROM runs WHERE created_at < ${cutoff}`, [
+      olderThanDays,
+    ]);
+    const audit = await this.pool.query(`DELETE FROM audit WHERE at < ${cutoff}`, [olderThanDays]);
+    const samples = await this.pool.query(`DELETE FROM wrs_samples WHERE at < ${cutoff}`, [
+      olderThanDays,
+    ]);
+    return {
+      runs: runs.rowCount ?? 0,
+      audit: audit.rowCount ?? 0,
+      samples: samples.rowCount ?? 0,
+    };
+  }
+
   async saveCampaign(c: Campaign): Promise<void> {
     await this.pool.query(
       `INSERT INTO campaigns (id, name, status, target, created_by, created_at, data)
