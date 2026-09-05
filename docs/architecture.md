@@ -42,7 +42,8 @@ Navigateur (via tunnel SSH)
 | RPT | `backend/src/modules/reports/{report,compliance}.ts` | Rapport de campagne + rapport de conformité DORA/NIS2 (HTML/PDF) |
 | Metrics | `backend/src/modules/metrics/prometheus.ts` | Exposition Prometheus `/metrics` |
 | Store | `backend/src/store/` | Persistance : PostgreSQL (`DATABASE_URL`) ou mémoire (repli) |
-| Server | `backend/src/server.ts` | Routes HTTP, service UI, bind loopback, ordonnanceur |
+| App | `backend/src/app.ts` | Fabrique `buildApp()` : routes + logique (testable via inject), logs sans token |
+| Server | `backend/src/server.ts` | Point d'entrée : store, auth, ordonnanceur, écoute |
 | Scheduler | `backend/src/modules/campaigns/scheduler.ts` | Exécution planifiée des campagnes approuvées (CAM-01) |
 | Auth | `backend/src/auth/` | JWT + RBAC (engineer/officer/viewer) |
 | Audit | `backend/src/modules/audit/` | Journal d'audit persistant |
