@@ -1152,6 +1152,43 @@ input.invalid {
   }
 }
 
+/* Card header with an action (e.g. Cancel) */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.card-head h2 {
+  margin: 0;
+}
+
+/* Allowed-host quick chips (target/probe fields) */
+.allowed-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+.chip-xs {
+  padding: 0.12rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Preset category grouping (Guide) */
+.preset-group {
+  margin-bottom: 1rem;
+}
+.preset-cat {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0.75rem 0 0.5rem;
+}
+
 /* Preset quick-picker (new-campaign form) */
 .presets-row {
   display: flex;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { complianceUrl, reportUrl } from './api.js';
 import type { Campaign, Role, WrsBreakdown } from './api.js';
-import { useApp } from './context.js';
+import { useApp, canDo } from './context.js';
 import {
   ApproveModal,
   CampaignCard,
@@ -12,7 +12,7 @@ import {
   WrsPill,
   WrsTrend,
 } from './ui.js';
-import { PRESETS, estimatedRequests, formatCount } from './presets.js';
+import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
 import { getTheme, setTheme as persistTheme } from './theme.js';
 import type { Theme } from './theme.js';
@@ -268,11 +268,25 @@ export function CampaignsPage() {
   }, [app.campaigns, status, q, sort]);
 
   const hasCampaigns = app.campaigns.length > 0;
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const [showForm, setShowForm] = useState(false);
+  // Open the form automatically when a preset is queued from the Guide.
+  useEffect(() => {
+    if (app.draftPreset) setShowForm(true);
+  }, [app.draftPreset]);
 
   return (
     <>
       <PageHead title="Campaigns" sub={app.anyRunning ? 'Auto-refreshing…' : undefined} />
-      <NewCampaignForm />
+
+      {canCreate && !showForm && (
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            ＋ New campaign
+          </button>
+        </div>
+      )}
+      {showForm && <NewCampaignForm onDone={() => setShowForm(false)} />}
 
       <h2 className="section-title">
         Campaign list <span className="hint">({filtered.length})</span>
@@ -553,41 +567,56 @@ export function GuidePage() {
 
       <h2 className="section-title">Recommended configurations</h2>
       <p className="subtitle" style={{ marginBottom: '.75rem' }}>
-        Each preset sets the load shape only (rate, concurrency, duration, profile) — never the
-        target — and stays well within the safety caps. Start low, then increase gradually.
+        Grouped by intent. Each preset sets the load shape and a recommended engine (used if
+        installed, otherwise the server default) — never the target — and stays well within the
+        safety caps. Start low, then increase gradually.
       </p>
-      <div className="preset-cards">
-        {PRESETS.map((p) => (
-          <div key={p.id} className="preset-card">
-            <div className="preset-head">
-              <span className="preset-icon" aria-hidden="true">
-                {p.icon}
-              </span>
-              <span className="preset-name">{p.name}</span>
+      {PRESET_CATEGORIES.map((cat) => {
+        const items = PRESETS.filter((p) => p.category === cat);
+        if (items.length === 0) return null;
+        return (
+          <div key={cat} className="preset-group">
+            <h3 className="preset-cat">{cat}</h3>
+            <div className="preset-cards">
+              {items.map((p) => {
+                const eng = app.agents.find((a) => a.id === p.recommendedAgent);
+                return (
+                  <div key={p.id} className="preset-card">
+                    <div className="preset-head">
+                      <span className="preset-icon" aria-hidden="true">
+                        {p.icon}
+                      </span>
+                      <span className="preset-name">{p.name}</span>
+                    </div>
+                    <p className="preset-summary">{p.summary}</p>
+                    <p className="preset-when">{p.when}</p>
+                    <div className="preset-specs">
+                      <span>
+                        <b>{p.maxRps}</b> rps
+                      </span>
+                      <span>
+                        <b>{p.concurrency}</b> conc
+                      </span>
+                      <span>
+                        <b>{p.maxDurationSec}</b>s
+                      </span>
+                      <span className="preset-profile">{p.profile}</span>
+                    </div>
+                    <div className="preset-est">
+                      ≈ {formatCount(estimatedRequests(p.maxRps, p.maxDurationSec, p.profile))}{' '}
+                      requests · engine <b>{p.recommendedAgent}</b>
+                      {eng && !eng.available ? ' (not installed → default)' : ''}
+                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={() => use(p)}>
+                      Use this configuration →
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-            <p className="preset-summary">{p.summary}</p>
-            <p className="preset-when">{p.when}</p>
-            <div className="preset-specs">
-              <span>
-                <b>{p.maxRps}</b> rps
-              </span>
-              <span>
-                <b>{p.concurrency}</b> conc
-              </span>
-              <span>
-                <b>{p.maxDurationSec}</b>s
-              </span>
-              <span className="preset-profile">{p.profile}</span>
-            </div>
-            <div className="preset-est">
-              ≈ {formatCount(estimatedRequests(p.maxRps, p.maxDurationSec, p.profile))} requests
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={() => use(p)}>
-              Use this configuration →
-            </button>
           </div>
-        ))}
-      </div>
+        );
+      })}
 
       <h2 className="section-title">Load engines</h2>
       <div className="card">

@@ -475,15 +475,17 @@ function buildScenario(profile: string, maxRps: number, durationSec: number) {
   return undefined;
 }
 
-export function NewCampaignForm() {
+export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
   const app = useApp();
   const [form, setForm] = useState({ ...emptyForm });
   const [attested, setAttested] = useState(false);
   const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
 
-  // Apply a preset's load shape (rate/concurrency/duration/profile) — never the
-  // target — keeping whatever the operator already typed for name/target/probe.
+  // Apply a preset's load shape (rate/concurrency/duration/profile) and its
+  // recommended engine when installed — never the target — keeping whatever the
+  // operator already typed for name/target/probe.
   const applyPreset = (p: Preset) => {
+    const recAvailable = app.agents.some((a) => a.id === p.recommendedAgent && a.available);
     setForm((f) => ({
       ...f,
       name: f.name.trim() || p.name,
@@ -491,8 +493,21 @@ export function NewCampaignForm() {
       concurrency: p.concurrency,
       maxDurationSec: p.maxDurationSec,
       profile: p.profile,
+      agent: recAvailable ? p.recommendedAgent : f.agent,
     }));
     setAppliedPreset(p.id);
+  };
+
+  // Swap the host of a URL, preserving protocol/port/path (falls back to a
+  // bare http URL if the current value can't be parsed).
+  const withHost = (current: string, host: string): string => {
+    try {
+      const u = new URL(current);
+      u.hostname = host;
+      return u.toString();
+    } catch {
+      return `http://${host}/`;
+    }
   };
 
   // Consume a preset queued from another page (e.g. the Guide).
@@ -564,6 +579,7 @@ export function NewCampaignForm() {
       });
       setForm({ ...emptyForm });
       setAttested(false);
+      onDone?.();
     } catch (err) {
       app.push('error', (err as Error).message);
     }
@@ -572,7 +588,14 @@ export function NewCampaignForm() {
   if (!canCreate) return null;
   return (
     <section className="card">
-      <h2>New campaign</h2>
+      <div className="card-head">
+        <h2>New campaign</h2>
+        {onDone && (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={onDone}>
+            Cancel
+          </button>
+        )}
+      </div>
       <div className="presets-row">
         <span className="presets-label">Start from a preset:</span>
         {PRESETS.map((p) => (
@@ -613,6 +636,22 @@ export function NewCampaignForm() {
             value={form.target}
             onChange={(e) => setForm({ ...form, target: e.target.value })}
           />
+          {app.allowed.length > 0 && (
+            <div className="allowed-chips">
+              <span className="hint">Allowed hosts:</span>
+              {app.allowed.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="chip chip-xs"
+                  title={`Use ${h} (keeps port/path)`}
+                  onClick={() => setForm((f) => ({ ...f, target: withHost(f.target, h) }))}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          )}
           {form.target && !targetAllowed && (
             <span className="hint" style={{ color: 'var(--danger)' }}>
               Host not in allowlist — will be rejected.
@@ -626,6 +665,22 @@ export function NewCampaignForm() {
             value={form.probeUrl}
             onChange={(e) => setForm({ ...form, probeUrl: e.target.value })}
           />
+          {app.allowed.length > 0 && (
+            <div className="allowed-chips">
+              <span className="hint">Allowed hosts:</span>
+              {app.allowed.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="chip chip-xs"
+                  title={`Use ${h} (keeps port/path)`}
+                  onClick={() => setForm((f) => ({ ...f, probeUrl: withHost(f.probeUrl, h) }))}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          )}
           {form.probeUrl && !probeAllowed && (
             <span className="hint" style={{ color: 'var(--danger)' }}>
               Host not in allowlist — will be rejected.
