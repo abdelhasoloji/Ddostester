@@ -10,12 +10,26 @@ ShieldTest fournit autorisation, allowlist, plafonds, kill switch, sonde, WRS,
 audit, conformité. Il **délègue** la production de charge à un **agent** via une
 interface (`AttackAgent`). Aucun vecteur d'attaque n'est codé dans ce dépôt :
 
-- **`builtin-http`** (défaut) — générateur HTTP borné intégré (GET/POST, plafond RPS).
-- **`k6`** — adaptateur vers [k6](https://k6.io), outil de test de charge externe,
-  **installé et opéré par l'équipe**. Piloté en charge HTTP bornée (constant/
-  ramping-arrival-rate) au débit plafonné de la campagne.
+Sélection : `AGENT=builtin|k6|vegeta|locust` (défaut `builtin`). Tous produisent
+une **charge HTTP bornée** ; les trois derniers délèguent à un outil externe
+installé et opéré par l'équipe.
 
-Sélection : variable d'environnement `AGENT=builtin|k6` (défaut `builtin`).
+| Agent | Outil | Débit plafonné | Multi-phases | Sortie parsée |
+|-------|-------|----------------|--------------|---------------|
+| `builtin-http` | intégré | oui (fenêtre glissante) | oui (phases) | interne |
+| `k6` | [k6](https://k6.io) | oui (arrival-rate) | oui (ramping) | `--summary-export` |
+| `vegeta` | [Vegeta](https://github.com/tsenart/vegeta) | oui (`-rate`) | oui (phases séquentielles) | `report -type=json` |
+| `locust` | [Locust](https://locust.io) | approché (`constant_pacing`) | non (→ k6/vegeta) | `--csv` |
+
+Chaque adaptateur applique `validateConfig` (allowlist + plafonds), respecte le
+kill switch, et renvoie **503** avec un message clair si l'outil externe est absent.
+
+### Outils volontairement non scaffoldés
+
+- **wrk / hey** : conçus pour le débit **maximal** (pas de plafond de débit
+  simple) — contraires au modèle borné de ShieldTest.
+- **Gatling / JMeter** : lourds (JVM/XML) ; intégrables via le même contrat
+  `AttackAgent` si l'équipe le souhaite, mais non fournis par défaut.
 
 ## Prérequis de gouvernance (avant toute campagne)
 
