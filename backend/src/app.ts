@@ -29,8 +29,11 @@ import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
 import { login, identityFromRequest } from './auth/guard.js';
+import { signJwt } from './auth/jwt.js';
+import { hashPassword, verifyPassword } from './auth/passwords.js';
 import { can } from './auth/rbac.js';
-import type { Permission } from './auth/rbac.js';
+import type { Permission, Role } from './auth/rbac.js';
+import { assertDelete, assertUpsert, combineUsers, UserError } from './modules/users/service.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices } from './agents/index.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
@@ -266,7 +269,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
       return reply.code(429).send({ error: 'too many attempts — try again later' });
     }
-    const res = login(auth, email, password);
+    // Env-defined users first (unchanged path); then runtime store users.
+    let res = login(auth, email, password);
+    if (!res) {
+      const su = await store.getUser(email.toLowerCase());
+      if (su && verifyPassword(password, su.passwordHash)) {
+        res = {
+          token: signJwt({ sub: su.email, role: su.role }, auth.secret),
+          email: su.email,
+          role: su.role,
+        };
+      }
+    }
     if (!res) {
       loginFails.set(key, { count: (entry?.count ?? 0) + 1, until: Date.now() + LOCK_MS });
       return reply.code(401).send({ error: 'invalid credentials' });
@@ -277,6 +291,56 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
     return req.authUser ?? { email: null, role: null, authRequired: false };
+  });
+
+  // --- User management (officer only; env users are immutable) ---------------
+  const envUsers = (): { email: string; role: Role }[] =>
+    [...auth.users.values()].map((u) => ({ email: u.email, role: u.role }));
+  const envEmailSet = (): Set<string> => new Set([...auth.users.keys()]);
+
+  app.get('/api/users', { preHandler: guard('user:manage') }, async (_req, reply) => {
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+    const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
+    return combineUsers(envUsers(), store_);
+  });
+
+  app.post('/api/users', { preHandler: guard('user:manage') }, async (req, reply) => {
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+    try {
+      const body = req.body as { email?: string; role?: string; password?: string };
+      const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
+      const current = combineUsers(envUsers(), store_);
+      const { email, role } = assertUpsert(
+        { email: body.email ?? '', role: body.role ?? '', password: body.password ?? '' },
+        { envEmails: envEmailSet(), current, actorEmail: req.authUser?.email ?? '' },
+      );
+      await store.saveUser({ email, role, passwordHash: hashPassword(body.password ?? '') });
+      await audit(req, 'user.upsert', undefined, `${email} → ${role}`);
+      return reply.code(201).send({ email, role, source: 'store' });
+    } catch (err) {
+      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
+      return fail(err, reply);
+    }
+  });
+
+  app.delete('/api/users/:email', { preHandler: guard('user:manage') }, async (req, reply) => {
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+    try {
+      const raw = decodeURIComponent((req.params as { email: string }).email);
+      const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
+      const current = combineUsers(envUsers(), store_);
+      const email = assertDelete(raw, {
+        envEmails: envEmailSet(),
+        current,
+        actorEmail: req.authUser?.email ?? '',
+      });
+      await store.deleteUser(email);
+      await audit(req, 'user.delete', undefined, email);
+      return { deleted: email };
+    } catch (err) {
+      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
+      return fail(err, reply);
+    }
   });
 
   app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () =>

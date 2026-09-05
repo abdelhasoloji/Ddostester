@@ -18,7 +18,8 @@ authorization to test**.
 - **PROBE** — legitimate probe + 3-level kill switch (auto / manual / time-based).
 - **WRS** — resilience scoring + **per-target history & regression detection**.
 - **RPT** — HTML campaign report + **aggregated compliance report (DORA/NIS2)**.
-- **Auth + RBAC** — JWT, engineer / officer / viewer roles (toggleable).
+- **Auth + RBAC** — JWT, engineer / officer / viewer roles (toggleable), runtime
+  user management (officer) on top of immutable env-defined users.
 - **Persistence** — PostgreSQL (memory fallback).
 - **Scheduler** — scheduled campaign execution (CAM-01).
 - **Audit** — persistent audit log of every action.

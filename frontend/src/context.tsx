@@ -8,9 +8,9 @@ export interface Identity {
   email: string;
   role: Role;
 }
-export type Perm = 'create' | 'approve' | 'execute' | 'kill';
+export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage';
 const PERMS: Record<Role, Perm[]> = {
-  officer: ['create', 'approve', 'execute', 'kill'],
+  officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],
   viewer: ['kill'],
 };

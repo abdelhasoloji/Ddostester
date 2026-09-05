@@ -4,16 +4,23 @@ export type Role = 'engineer' | 'officer' | 'viewer';
 export const ROLES: readonly Role[] = ['engineer', 'officer', 'viewer'];
 
 export type Permission =
-  'campaign:read' | 'campaign:create' | 'campaign:approve' | 'campaign:execute' | 'campaign:kill';
+  | 'campaign:read'
+  | 'campaign:create'
+  | 'campaign:approve'
+  | 'campaign:execute'
+  | 'campaign:kill'
+  | 'user:manage';
 
 const MATRIX: Record<Role, Permission[]> = {
-  // The officer can do everything operationally (including approve).
+  // The officer can do everything operationally (including approve) and manages
+  // runtime users (governance).
   officer: [
     'campaign:read',
     'campaign:create',
     'campaign:approve',
     'campaign:execute',
     'campaign:kill',
+    'user:manage',
   ],
   // The engineer creates and executes, but does not approve (separation of duties).
   engineer: ['campaign:read', 'campaign:create', 'campaign:execute', 'campaign:kill'],

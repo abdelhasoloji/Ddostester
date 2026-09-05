@@ -1,6 +1,7 @@
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
+import type { User } from '../auth/users.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -8,6 +9,7 @@ export class MemoryStore implements Store {
   private campaigns = new Map<string, Campaign>();
   private runs = new Map<string, CampaignRun>();
   private audit: AuditEntry[] = [];
+  private users = new Map<string, User>();
 
   async init(): Promise<void> {}
   async saveCampaign(c: Campaign): Promise<void> {
@@ -33,6 +35,18 @@ export class MemoryStore implements Store {
   }
   async listAudit(limit = 200): Promise<AuditEntry[]> {
     return [...this.audit].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
+  }
+  async listUsers(): Promise<User[]> {
+    return [...this.users.values()].sort((a, b) => a.email.localeCompare(b.email));
+  }
+  async getUser(email: string): Promise<User | undefined> {
+    return this.users.get(email.toLowerCase());
+  }
+  async saveUser(u: User): Promise<void> {
+    this.users.set(u.email.toLowerCase(), u);
+  }
+  async deleteUser(email: string): Promise<void> {
+    this.users.delete(email.toLowerCase());
   }
   async close(): Promise<void> {}
 }

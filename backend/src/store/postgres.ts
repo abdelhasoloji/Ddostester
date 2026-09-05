@@ -2,6 +2,8 @@ import pg from 'pg';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
+import type { User } from '../auth/users.js';
+import { isRole } from '../auth/rbac.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
@@ -63,6 +65,13 @@ export class PostgresStore implements Store {
         run_id  uuid NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_wrs_samples ON wrs_samples(target, at DESC);
+      -- Runtime-managed users (additive to the immutable env AUTH_USERS).
+      CREATE TABLE IF NOT EXISTS users (
+        email         text PRIMARY KEY,
+        role          text NOT NULL,
+        password_hash text NOT NULL,
+        created_at    timestamptz NOT NULL DEFAULT now()
+      );
     `);
 
     // Enable TimescaleDB if available (otherwise standard PostgreSQL, plain table).
@@ -173,6 +182,41 @@ export class PostgresStore implements Store {
       campaignId: x.campaignId ?? undefined,
       detail: x.detail ?? undefined,
     })) as AuditEntry[];
+  }
+
+  async listUsers(): Promise<User[]> {
+    const r = await this.pool.query<{ email: string; role: string; password_hash: string }>(
+      'SELECT email, role, password_hash FROM users ORDER BY email',
+    );
+    return r.rows
+      .filter((x) => isRole(x.role))
+      .map((x) => ({
+        email: x.email,
+        role: x.role as User['role'],
+        passwordHash: x.password_hash,
+      }));
+  }
+
+  async getUser(email: string): Promise<User | undefined> {
+    const r = await this.pool.query<{ email: string; role: string; password_hash: string }>(
+      'SELECT email, role, password_hash FROM users WHERE email=$1',
+      [email.toLowerCase()],
+    );
+    const x = r.rows[0];
+    if (!x || !isRole(x.role)) return undefined;
+    return { email: x.email, role: x.role as User['role'], passwordHash: x.password_hash };
+  }
+
+  async saveUser(u: User): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO users (email, role, password_hash) VALUES ($1,$2,$3)
+       ON CONFLICT (email) DO UPDATE SET role=$2, password_hash=$3`,
+      [u.email.toLowerCase(), u.role, u.passwordHash],
+    );
+  }
+
+  async deleteUser(email: string): Promise<void> {
+    await this.pool.query('DELETE FROM users WHERE email=$1', [email.toLowerCase()]);
   }
 
   async close(): Promise<void> {

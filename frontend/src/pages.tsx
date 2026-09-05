@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api, complianceUrl, reportUrl } from './api.js';
-import type { Campaign, Role, WrsBreakdown } from './api.js';
+import type { Campaign, ManagedUser, Role, WrsBreakdown } from './api.js';
 import { useApp, canDo } from './context.js';
 import {
   ApproveModal,
@@ -422,6 +422,117 @@ export function AuditPage() {
 }
 
 // ---------- Settings ----------
+function UsersCard() {
+  const app = useApp();
+  const [users, setUsers] = useState<ManagedUser[] | null>(null);
+  const [form, setForm] = useState({ email: '', role: 'viewer' as Role, password: '' });
+  const [busy, setBusy] = useState(false);
+  const show = app.authRequired && canDo(app.role, 'manage', app.authRequired);
+
+  const load = () => {
+    api
+      .listUsers()
+      .then(setUsers)
+      .catch((err) => app.push('error', (err as Error).message));
+  };
+  useEffect(() => {
+    if (show) load();
+  }, [show]);
+
+  if (!show) return null;
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.createUser(form);
+      app.push('success', `User ${form.email} saved.`);
+      setForm({ email: '', role: 'viewer', password: '' });
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (email: string) => {
+    try {
+      await api.deleteUser(email);
+      app.push('success', `User ${email} removed.`);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
+
+  const me = app.identity?.email;
+  return (
+    <div className="card">
+      <h2>Users &amp; access</h2>
+      <p className="hint" style={{ marginBottom: '.75rem' }}>
+        Manage runtime users. Users defined in <code>AUTH_USERS</code> (env) are the immutable root
+        and are shown as <b>env</b>; they can&apos;t be edited here. Every change is audited.
+      </p>
+      {users === null ? (
+        <span className="hint">Loading…</span>
+      ) : (
+        <div className="engines" style={{ marginBottom: '1rem' }}>
+          {users.map((u) => (
+            <div key={u.email} className="engine-row">
+              <span className="engine-name">{u.email}</span>
+              <span className="engine-badge ok">{roleLabel[u.role]}</span>
+              <span className={`engine-badge ${u.source === 'env' ? 'no' : 'ok'}`}>{u.source}</span>
+              {u.source === 'store' && u.email !== me && (
+                <button className="btn btn-sm btn-ghost" onClick={() => remove(u.email)}>
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <form className="grid" onSubmit={add}>
+        <div className="field">
+          <label>Email</label>
+          <input
+            type="email"
+            placeholder="first.last@wedos"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+        </div>
+        <div className="field">
+          <label>Role</label>
+          <select
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+          >
+            <option value="viewer">SOC / NOC (read + kill)</option>
+            <option value="engineer">Security Engineer</option>
+            <option value="officer">Security Officer</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>Password</label>
+          <input
+            type="password"
+            placeholder="min. 8 characters"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
+          />
+        </div>
+        <div className="field" style={{ alignSelf: 'end' }}>
+          <button className="btn btn-primary" disabled={busy} type="submit">
+            {busy ? 'Saving…' : 'Add / update user'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function NotificationsCard() {
   const app = useApp();
   const [testing, setTesting] = useState(false);
@@ -539,6 +650,8 @@ export function SettingsPage() {
           server-side (environment variables).
         </p>
       </div>
+
+      <UsersCard />
 
       <NotificationsCard />
 

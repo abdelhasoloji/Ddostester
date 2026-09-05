@@ -167,3 +167,103 @@ describe('API — auth + RBAC activées', () => {
     expect(ok.json().approvedBy).toBe('off@wedos');
   });
 });
+
+describe('API — user management (officer only)', () => {
+  let app: FastifyInstance;
+  const users = JSON.stringify([
+    { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('engpw') },
+    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('offpw') },
+  ]);
+  const token = async (email: string, password: string): Promise<string> => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email, password },
+    });
+    return r.json().token as string;
+  };
+
+  beforeAll(async () => {
+    const built = await buildApp({
+      store: new MemoryStore(),
+      auth: initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv),
+      allowedTargets: allowed,
+      logger: false,
+      serveStatic: false,
+    });
+    app = built.app;
+  });
+
+  it('non-officer cannot list users (403)', async () => {
+    const te = await token('eng@wedos', 'engpw');
+    const r = await app.inject({
+      method: 'GET',
+      url: '/api/users',
+      headers: { authorization: `Bearer ${te}` },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
+  it('officer creates a store user who can then log in', async () => {
+    const to = await token('off@wedos', 'offpw');
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/users',
+      headers: { authorization: `Bearer ${to}` },
+      payload: { email: 'viewer@wedos', role: 'viewer', password: 'viewerpw1' },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({
+      email: 'viewer@wedos',
+      role: 'viewer',
+      source: 'store',
+    });
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'viewer@wedos', password: 'viewerpw1' },
+    });
+    expect(login.statusCode).toBe(200);
+    expect(login.json().role).toBe('viewer');
+  });
+
+  it('lists env + store users with source', async () => {
+    const to = await token('off@wedos', 'offpw');
+    const r = await app.inject({
+      method: 'GET',
+      url: '/api/users',
+      headers: { authorization: `Bearer ${to}` },
+    });
+    expect(r.statusCode).toBe(200);
+    const list = r.json() as { email: string; source: string }[];
+    expect(list.find((u) => u.email === 'off@wedos')?.source).toBe('env');
+    expect(list.find((u) => u.email === 'viewer@wedos')?.source).toBe('store');
+  });
+
+  it('cannot delete an env user (400)', async () => {
+    const to = await token('off@wedos', 'offpw');
+    const r = await app.inject({
+      method: 'DELETE',
+      url: '/api/users/off@wedos',
+      headers: { authorization: `Bearer ${to}` },
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('deletes a store user, who can no longer log in', async () => {
+    const to = await token('off@wedos', 'offpw');
+    const del = await app.inject({
+      method: 'DELETE',
+      url: '/api/users/viewer@wedos',
+      headers: { authorization: `Bearer ${to}` },
+    });
+    expect(del.statusCode).toBe(200);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'viewer@wedos', password: 'viewerpw1' },
+    });
+    expect(login.statusCode).toBe(401);
+  });
+});

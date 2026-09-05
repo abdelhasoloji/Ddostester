@@ -125,6 +125,9 @@ function post<T>(url: string, body?: unknown): Promise<T> {
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => json<T>(r));
 }
+function del<T>(url: string): Promise<T> {
+  return fetch(url, { method: 'DELETE', headers: authHeaders() }).then((r) => json<T>(r));
+}
 
 /** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
@@ -181,4 +184,15 @@ export const api = {
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
+  listUsers: () => get<ManagedUser[]>('/api/users'),
+  createUser: (body: { email: string; role: Role; password: string }) =>
+    post<ManagedUser>('/api/users', body),
+  deleteUser: (email: string) =>
+    del<{ deleted: string }>(`/api/users/${encodeURIComponent(email)}`),
 };
+
+export interface ManagedUser {
+  email: string;
+  role: Role;
+  source: 'env' | 'store';
+}

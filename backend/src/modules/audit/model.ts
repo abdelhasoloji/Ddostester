@@ -8,7 +8,9 @@ export interface AuditEntry {
     | 'campaign.approve'
     | 'campaign.reject'
     | 'campaign.execute'
-    | 'campaign.kill';
+    | 'campaign.kill'
+    | 'user.upsert'
+    | 'user.delete';
   campaignId?: string;
   detail?: string;
 }
