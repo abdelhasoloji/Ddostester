@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, setToken, getToken, reportUrl, complianceUrl } from './api.js';
-import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role, AuditEntry } from './api.js';
+import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role, AuditEntry, WrsSeries } from './api.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
@@ -93,6 +93,27 @@ const emptyForm = {
   body: '',
 };
 
+function Sparkline({ points, regression }: { points: { wrs: number }[]; regression: boolean }) {
+  const w = 180;
+  const h = 40;
+  const pad = 5;
+  if (points.length === 0) return null;
+  const xs =
+    points.length > 1
+      ? points.map((_, i) => pad + (i * (w - 2 * pad)) / (points.length - 1))
+      : [w / 2];
+  const ys = points.map((p) => h - pad - (p.wrs / 100) * (h - 2 * pad));
+  const d = xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const color = regression ? 'var(--danger)' : 'var(--brand)';
+  return (
+    <svg width={w} height={h} className="spark" aria-hidden="true">
+      <line x1={pad} y1={h - pad - (70 / 100) * (h - 2 * pad)} x2={w - pad} y2={h - pad - (70 / 100) * (h - 2 * pad)} className="spark-thresh" />
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3" fill={color} />
+    </svg>
+  );
+}
+
 function BrandHeader({ right }: { right: React.ReactNode }) {
   return (
     <header className="brandbar">
@@ -121,6 +142,7 @@ export function App() {
   const [confirmExec, setConfirmExec] = useState<Campaign | null>(null);
   const [approveFor, setApproveFor] = useState<Campaign | null>(null);
   const [auditRows, setAuditRows] = useState<AuditEntry[] | null>(null);
+  const [wrsSeries, setWrsSeries] = useState<WrsSeries[]>([]);
   const { toasts, push } = useToasts();
 
   const role = identity?.role ?? null;
@@ -128,6 +150,10 @@ export function App() {
   const refresh = useCallback(() => {
     api.listCampaigns().then(setCampaigns).catch((e) => push('error', e.message));
   }, [push]);
+
+  const loadHistory = useCallback(() => {
+    api.wrsHistory().then(setWrsSeries).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api
@@ -151,8 +177,11 @@ export function App() {
 
   const ready = authChecked && (!authRequired || identity !== null);
   useEffect(() => {
-    if (ready) refresh();
-  }, [ready, refresh]);
+    if (ready) {
+      refresh();
+      loadHistory();
+    }
+  }, [ready, refresh, loadHistory]);
 
   const anyRunning = campaigns.some((c) => c.status === 'RUNNING');
   useEffect(() => {
@@ -244,6 +273,7 @@ export function App() {
         `Exécution ${badgeLabel[run.status]} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,
       );
       refresh();
+      loadHistory();
     } catch (err) {
       push('error', (err as Error).message);
       refresh();
@@ -427,6 +457,34 @@ export function App() {
               </button>
             </form>
           </section>
+        )}
+
+        {wrsSeries.length > 0 && (
+          <>
+            <h2 className="section-title">Historique WRS par cible</h2>
+            <div className="card" style={{ display: 'grid', gap: '.75rem' }}>
+              {wrsSeries.map((s) => {
+                const last = s.points[s.points.length - 1];
+                return (
+                  <div key={s.target} className="wrs-hist">
+                    <div className="wrs-hist-main">
+                      <code>{s.target}</code>
+                      <span className={`wrs ${wrsClass(last.level as WrsBreakdown['level'])}`}>
+                        <span className="wrs-score">{last.wrs}</span> {last.level}
+                      </span>
+                      <span className="hint">{s.points.length} exécution(s)</span>
+                      {s.regression && (
+                        <span className="badge badge-REJECTED" title="Chute de plus de 10 points">
+                          ▼ Régression −{s.drop}
+                        </span>
+                      )}
+                    </div>
+                    <Sparkline points={s.points} regression={s.regression} />
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         <h2 className="section-title">

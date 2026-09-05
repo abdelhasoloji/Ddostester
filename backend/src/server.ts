@@ -19,6 +19,7 @@ import { KillSwitch } from './modules/probe/probe.js';
 import { renderCampaignReportHtml } from './modules/reports/report.js';
 import { renderMetrics } from './modules/metrics/prometheus.js';
 import { renderComplianceHtml } from './modules/reports/compliance.js';
+import { buildWrsHistory } from './modules/wrs/history.js';
 import type { CampaignInput } from './modules/campaigns/model.js';
 import { initAuth, login, identityFromRequest } from './auth/guard.js';
 import { can } from './auth/rbac.js';
@@ -189,6 +190,12 @@ app.post('/api/campaigns/:id/kill', { preHandler: guard('campaign:kill') }, asyn
   kill.trigger('KILLED_MANUAL');
   await audit(req, 'campaign.kill', id);
   return { status: 'KILLED_MANUAL' };
+});
+
+// --- Historique WRS + régressions (TSD §5.4 WRS-03) -------------------------
+app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {
+  const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+  return buildWrsHistory(campaigns, runs);
 });
 
 // --- Monitoring : métriques Prometheus (loopback, agrégats non sensibles) ---

@@ -66,6 +66,19 @@ export interface AuditEntry {
   detail?: string;
 }
 
+export interface WrsPoint {
+  at: string;
+  wrs: number;
+  level: string;
+  runId: string;
+}
+export interface WrsSeries {
+  target: string;
+  points: WrsPoint[];
+  regression: boolean;
+  drop: number;
+}
+
 let token: string | null = localStorage.getItem('token');
 export function setToken(t: string | null): void {
   token = t;
@@ -127,4 +140,5 @@ export const api = {
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
+  wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
 };

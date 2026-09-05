@@ -177,3 +177,11 @@ input.invalid { border-color: var(--danger); }
 .a-campaign-execute { color: var(--brand); }
 .audit-detail { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 620px) { .audit-row { grid-template-columns: 1fr; gap: .1rem; } }
+
+/* Historique WRS */
+.wrs-hist { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--border); }
+.wrs-hist:last-child { border-bottom: 0; }
+.wrs-hist-main { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.wrs-hist-main code { font-family: var(--mono); font-size: .85rem; }
+.spark { background: var(--surface-2); border-radius: 6px; }
+.spark-thresh { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .5; }
