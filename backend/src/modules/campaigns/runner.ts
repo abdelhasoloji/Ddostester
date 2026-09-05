@@ -27,6 +27,7 @@ export async function executeCampaign(
   campaign: Campaign,
   allowedHosts: string[],
   killSwitch: KillSwitch,
+  onProgress?: (p: import('../../engine/loadTest.js').LoadProgress) => void,
 ): Promise<CampaignRun> {
   // Niveau 3 du kill switch : timeout temporel absolu.
   const timeoutTimer = setTimeout(
@@ -53,7 +54,7 @@ export async function executeCampaign(
   };
 
   const [generator] = await Promise.all([
-    runLoadTest(genConfig, allowedHosts, killSwitch.signal),
+    runLoadTest(genConfig, allowedHosts, killSwitch.signal, onProgress),
     probe.run(),
   ]);
   clearTimeout(timeoutTimer);

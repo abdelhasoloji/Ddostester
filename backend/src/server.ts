@@ -7,6 +7,7 @@ import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { createStore } from './store/index.js';
 import { kills } from './runtime/kills.js';
+import { liveProgress } from './runtime/live.js';
 import {
   createCampaign,
   approveCampaign,
@@ -100,8 +101,10 @@ async function runCampaign(c: Campaign, actor: string): Promise<import('./module
   const kill = new KillSwitch();
   kills.set(c.id, kill);
   await store.saveCampaign(transition(c, 'RUNNING'));
+  const onProgress = (p: import('./engine/loadTest.js').LoadProgress) =>
+    liveProgress.set(c.id, { ...p, maxDurationSec: c.maxDurationSec, status: 'RUNNING' });
   try {
-    const run = await executeCampaign(c, ALLOWED_TARGETS, kill);
+    const run = await executeCampaign(c, ALLOWED_TARGETS, kill, onProgress);
     await store.saveRun(run);
     await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
     await auditAs(actor, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
@@ -110,6 +113,7 @@ async function runCampaign(c: Campaign, actor: string): Promise<import('./module
     await store.saveCampaign(transition(c, 'APPROVED'));
     throw err;
   } finally {
+    liveProgress.clear(c.id);
     kills.clear(c.id);
   }
 }
@@ -194,6 +198,39 @@ app.post('/api/campaigns/:id/execute', { preHandler: guard('campaign:execute') }
   } catch (err) {
     return fail(err, reply);
   }
+});
+
+// Progression temps réel (CAM-04) via SSE. Token en query (EventSource).
+app.get('/api/campaigns/:id/stream', async (req, reply) => {
+  const id = (req.params as { id: string }).id;
+  if (auth.enabled) {
+    const { token } = req.query as { token?: string };
+    const ident = token
+      ? identityFromRequest(auth, { headers: { authorization: `Bearer ${token}` } } as import('fastify').FastifyRequest)
+      : null;
+    if (!ident) return reply.code(401).send({ error: 'authentification requise' });
+    if (!can(ident.role, 'campaign:read')) return reply.code(403).send({ error: 'droit manquant' });
+  }
+  reply.hijack();
+  const res = reply.raw;
+  res.writeHead(200, {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache',
+    connection: 'keep-alive',
+  });
+  const send = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const p0 = liveProgress.get(id);
+  send(p0 ?? { status: 'idle' });
+  const timer = setInterval(() => {
+    const p = liveProgress.get(id);
+    if (p) send(p);
+    else {
+      send({ status: 'done' });
+      clearInterval(timer);
+      res.end();
+    }
+  }, 1000);
+  req.raw.on('close', () => clearInterval(timer));
 });
 
 // Kill switch niveau 2 : arrêt manuel (SOC/NOC).

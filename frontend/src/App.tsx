@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, setToken, getToken, reportUrl, complianceUrl } from './api.js';
-import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role, AuditEntry, WrsSeries } from './api.js';
+import { api, setToken, getToken, reportUrl, complianceUrl, streamUrl } from './api.js';
+import type {
+  Campaign,
+  CampaignRun,
+  CampaignStatus,
+  WrsBreakdown,
+  Role,
+  AuditEntry,
+  WrsSeries,
+  LiveProgressData,
+} from './api.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
 
@@ -114,6 +123,40 @@ function buildScenario(profile: string, maxRps: number, durationSec: number): { 
     ];
   }
   return undefined; // constant
+}
+
+function LiveProgress({ campaignId }: { campaignId: string }) {
+  const [p, setP] = useState<LiveProgressData | null>(null);
+  useEffect(() => {
+    const es = new EventSource(streamUrl(campaignId));
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.status === 'RUNNING') setP(d);
+        else if (d.status === 'done') es.close();
+      } catch {
+        /* ignore */
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [campaignId]);
+
+  if (!p) return <div className="details"><span className="hint">Démarrage de l’exécution…</span></div>;
+  const pct = Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100));
+  return (
+    <div className="details">
+      <div className="live-bar">
+        <div className="live-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="live-stats">
+        <span>⏱ {p.elapsedSec}s / {p.maxDurationSec}s</span>
+        <span>{p.sent} requêtes</span>
+        <span>{p.actualRps} rps</span>
+        <span>{p.successful} ok · {p.failed} échec</span>
+      </div>
+    </div>
+  );
 }
 
 function Sparkline({ points, regression }: { points: { wrs: number }[]; regression: boolean }) {
@@ -288,7 +331,9 @@ export function App() {
   const doExecute = async (c: Campaign) => {
     setConfirmExec(null);
     setBusyFor(c.id, true);
-    refresh();
+    // Optimiste : bascule la carte en RUNNING tout de suite pour afficher la
+    // progression live (le serveur confirmera le statut final au retour).
+    setCampaigns((list) => list.map((x) => (x.id === c.id ? { ...x, status: 'RUNNING' } : x)));
     try {
       const run = await api.execute(c.id);
       setRuns((r) => ({ ...r, [c.id]: run }));
@@ -599,6 +644,8 @@ export function App() {
                     <span title="Exécution planifiée">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
                   )}
                 </div>
+
+                {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} />}
 
                 {expanded === c.id && run && (
                   <div className="details">

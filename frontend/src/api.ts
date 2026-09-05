@@ -127,6 +127,22 @@ export function complianceUrl(): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL du flux SSE de progression temps réel d'une campagne (EventSource). */
+export function streamUrl(campaignId: string): string {
+  const u = `/api/campaigns/${campaignId}/stream`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
+export interface LiveProgressData {
+  sent: number;
+  successful: number;
+  failed: number;
+  elapsedSec: number;
+  actualRps: number;
+  maxDurationSec: number;
+  status: 'RUNNING';
+}
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>

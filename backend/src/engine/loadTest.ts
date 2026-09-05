@@ -61,10 +61,19 @@ function percentile(sorted: number[], p: number): number {
  * requêtes pendant `durationSec`, en respectant un plafond global `maxRps`
  * (throttling par fenêtre glissante simple).
  */
+export interface LoadProgress {
+  sent: number;
+  successful: number;
+  failed: number;
+  elapsedSec: number;
+  actualRps: number;
+}
+
 export async function runLoadTest(
   config: LoadTestConfig,
   allowedHosts: string[],
   killSignal?: AbortSignal,
+  onProgress?: (p: LoadProgress) => void,
 ): Promise<LoadTestResult> {
   validateConfig(config, allowedHosts);
 
@@ -149,7 +158,27 @@ export async function runLoadTest(
     }
   }
 
-  await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+  // Émission de la progression ~1×/s (temps réel, CAM-04).
+  let progressTimer: ReturnType<typeof setInterval> | undefined;
+  if (onProgress) {
+    progressTimer = setInterval(() => {
+      const elapsed = (Date.now() - startedAt.getTime()) / 1000;
+      onProgress({
+        sent,
+        successful,
+        failed,
+        elapsedSec: Number(elapsed.toFixed(1)),
+        actualRps: Number((sent / Math.max(elapsed, 0.001)).toFixed(2)),
+      });
+    }, 1000);
+    progressTimer.unref?.();
+  }
+
+  try {
+    await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+  } finally {
+    if (progressTimer) clearInterval(progressTimer);
+  }
 
   const finishedAt = new Date();
   const sorted = [...latencies].sort((a, b) => a - b);

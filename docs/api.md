@@ -59,6 +59,11 @@ Exécute une campagne `APPROVED`. Renvoie le run (générateur + sonde + WRS).
 curl -s -X POST localhost:8080/api/campaigns/<id>/execute
 ```
 
+## `GET /api/campaigns/:id/stream`
+Flux SSE de progression temps réel pendant l'exécution (CAM-04) : événements
+`{sent, successful, failed, elapsedSec, actualRps, maxDurationSec, status}` ~1×/s,
+puis `{status:"done"}`. Token via `?token=` (EventSource).
+
 ## `POST /api/campaigns/:id/kill`
 Kill switch manuel (niveau 2) d'une campagne en cours.
 ```bash

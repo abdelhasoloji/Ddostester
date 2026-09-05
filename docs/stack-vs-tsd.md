@@ -21,7 +21,7 @@
 | CAM-01 création + fenêtre planifiée | oui + ordonnanceur | ✅ |
 | CAM-02 approbation (séparation des rôles, 24 h) | oui | ✅ |
 | CAM-03 exécution | oui (manuelle + planifiée) | ✅ |
-| CAM-04 visualisation temps réel | dashboard + rafraîchissement auto | ✅ (partiel) |
+| CAM-04 visualisation temps réel | progression live SSE (barre + compteurs) | ✅ |
 | PROBE sonde légitime | oui | ✅ |
 | Kill switch 3 niveaux | auto / manuel / temporel | ✅ |
 | WRS scoring | oui (formule TSD) | ✅ |
