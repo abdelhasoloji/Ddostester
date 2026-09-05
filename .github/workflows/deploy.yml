@@ -1,0 +1,83 @@
+name: Deploy
+
+# Continuous deployment to the WEDOS server over SSH.
+#
+# Triggers automatically after the "CI" workflow succeeds on main, and can be
+# run manually (workflow_dispatch) for on-demand deploys / rollbacks.
+#
+# Required secrets (repo or "production" environment):
+#   DEPLOY_HOST         server hostname or IP reachable over SSH
+#   DEPLOY_USER         SSH user (needs passwordless sudo for systemctl restart)
+#   DEPLOY_SSH_KEY      private SSH key (PEM) authorized on the server
+# Optional:
+#   DEPLOY_PORT         SSH port (default 22)
+#   DEPLOY_PATH         repo clone path on the server (default ~/ddostester)
+#   DEPLOY_KNOWN_HOSTS  server host key(s); if absent, ssh-keyscan is used (TOFU)
+# See docs/ci-cd.md.
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch to deploy'
+        default: main
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; let a running deploy finish rather than cancel it.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Deploy only when the triggering CI passed, or when dispatched manually.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$DEPLOY_HOST" ]; then
+            echo "::error::Missing DEPLOY_SSH_KEY or DEPLOY_HOST secret. See docs/ci-cd.md."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::DEPLOY_KNOWN_HOSTS not set — trusting the host key on first use (TOFU). Set it for pinned host verification."
+            ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '~/ddostester' }}
+          DEPLOY_BRANCH: ${{ github.event.inputs.ref || 'main' }}
+        run: |
+          echo "Deploying '$DEPLOY_BRANCH' to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o IdentitiesOnly=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd $DEPLOY_PATH && DEPLOY_BRANCH='$DEPLOY_BRANCH' bash deploy/update.sh"
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

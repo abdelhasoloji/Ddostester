@@ -7,6 +7,7 @@ and operational documentation.
 | ------------------------------------------------------ | ---------------------------------------------------------------- |
 | [architecture.md](./architecture.md)                   | Overview, modules, campaign flow                                 |
 | [deployment.md](./deployment.md)                       | Server deployment, systemd, SSH tunnel, updates                  |
+| [ci-cd.md](./ci-cd.md)                                 | CI and CD pipelines, deploy secrets, rollback                    |
 | [usage.md](./usage.md)                                 | Full walkthrough: create → approve → execute → report            |
 | [api.md](./api.md)                                     | REST endpoint reference with `curl` examples                     |
 | [auth.md](./auth.md)                                   | JWT authentication, roles (RBAC), separation of duties           |
