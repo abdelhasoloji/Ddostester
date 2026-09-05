@@ -243,8 +243,10 @@ export const api = {
   createPlaybook: (body: unknown) => post<Playbook>('/api/playbooks', body),
   deletePlaybook: (id: string) =>
     del<{ deleted: string }>(`/api/playbooks/${encodeURIComponent(id)}`),
-  instantiatePlaybook: (id: string, body: { target: string; probeUrl?: string }) =>
-    post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
+  instantiatePlaybook: (
+    id: string,
+    body: { target: string; probeUrl?: string; recurrenceMin?: number },
+  ) => post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
   suites: () => get<SuiteSummary[]>('/api/suites'),
 };
 

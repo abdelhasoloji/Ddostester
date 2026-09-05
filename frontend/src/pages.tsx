@@ -836,6 +836,7 @@ function PlaybooksSection() {
   const navigate = useNavigate();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [target, setTarget] = useState('');
+  const [recurMin, setRecurMin] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
@@ -885,7 +886,10 @@ function PlaybooksSection() {
     if (!targetAllowed) return;
     setBusy(pb.id);
     try {
-      const r = await api.instantiatePlaybook(pb.id, { target });
+      const r = await api.instantiatePlaybook(pb.id, {
+        target,
+        recurrenceMin: recurMin ? Number(recurMin) : undefined,
+      });
       app.push(
         'success',
         `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
@@ -933,6 +937,18 @@ function PlaybooksSection() {
           {target && !targetAllowed && (
             <span className="hint">Host is not in the allowlist — pick one above.</span>
           )}
+        </div>
+        <div className="field">
+          <label>Repeat the assessment (optional)</label>
+          <select value={recurMin} onChange={(e) => setRecurMin(e.target.value)}>
+            <option value="">Run once</option>
+            <option value="60">Every hour</option>
+            <option value="360">Every 6 hours</option>
+            <option value="720">Every 12 hours</option>
+          </select>
+          <span className="hint">
+            Each campaign re-runs on this cadence, within its 24 h approval window.
+          </span>
         </div>
       </div>
       <div className="preset-cards">

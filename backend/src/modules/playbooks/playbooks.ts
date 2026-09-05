@@ -240,6 +240,8 @@ export interface SuiteTarget {
   target: string;
   probeUrl: string;
   createdBy: string;
+  /** Optional: make every campaign of the suite recurring (minutes between runs). */
+  recurrenceMin?: number;
 }
 
 /** Metadata for an installed engine (to only pick engines that are available). */
@@ -274,6 +276,7 @@ export function buildSuiteCampaigns(
     authorized: true,
     scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
     agent: isAvailable(step.agent) ? step.agent : undefined,
+    recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
     suiteId,
     suiteName: playbook.name,
     suiteOrder: i,

@@ -45,6 +45,17 @@ describe('playbooks', () => {
     expect(inputs.every((c) => c.target === target.target)).toBe(true);
   });
 
+  it('applies an optional recurrence to every campaign of the suite', () => {
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('quick-readiness')!,
+      { ...target, recurrenceMin: 360 },
+      engines,
+    );
+    expect(inputs.every((c) => c.recurrence?.intervalMin === 360)).toBe(true);
+    const once = buildSuiteCampaigns(getPlaybook('quick-readiness')!, target, engines);
+    expect(once.every((c) => c.recurrence === undefined)).toBe(true);
+  });
+
   it('only assigns an engine that is installed (else server default)', () => {
     const inputs = buildSuiteCampaigns(getPlaybook('capacity-assessment')!, target, engines);
     // steps prefer vegeta (unavailable) and k6 (available)

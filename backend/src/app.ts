@@ -417,7 +417,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const id = (req.params as { id: string }).id;
       const pb = getPlaybook(id) ?? (await store.getPlaybook(id));
       if (!pb) return reply.code(404).send({ error: 'playbook not found' });
-      const body = req.body as { target?: string; probeUrl?: string };
+      const body = req.body as { target?: string; probeUrl?: string; recurrenceMin?: number };
       if (!body.target) return reply.code(400).send({ error: 'target is required' });
       try {
         const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
@@ -427,6 +427,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             target: body.target,
             probeUrl: body.probeUrl || body.target,
             createdBy: req.authUser?.email ?? 'dev',
+            recurrenceMin: body.recurrenceMin,
           },
           engines,
         );
