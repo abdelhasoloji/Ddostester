@@ -156,10 +156,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     await store.saveCampaign(transition(c, 'RUNNING'));
-    const onProgress = (p: LoadProgress) =>
-      liveProgress.set(c.id, { ...p, maxDurationSec: c.maxDurationSec, status: 'RUNNING' });
     // Per-campaign engine, falling back to the server default agent.
     const runAgent = createAgent(c.agent) ?? agent;
+    const onProgress = (p: LoadProgress) =>
+      liveProgress.set(c.id, {
+        ...p,
+        maxDurationSec: c.maxDurationSec,
+        status: 'RUNNING',
+        engine: runAgent.name,
+      });
     try {
       const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent);
       await store.saveRun(run);

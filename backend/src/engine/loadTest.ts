@@ -67,6 +67,12 @@ export interface LoadProgress {
   failed: number;
   elapsedSec: number;
   actualRps: number;
+  /**
+   * Live probe snapshot, emitted by the runner for every engine (including
+   * external ones that don't report per-request counters), so a running
+   * campaign always shows target-health feedback.
+   */
+  probe?: { samples: number; available: number; errorRate5xx: number };
 }
 
 export async function runLoadTest(

@@ -142,22 +142,20 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
     es.onerror = () => es.close();
     return () => es.close();
   }, [campaignId]);
-  // External engines (k6, vegeta…) don't stream live counters — show a clear
-  // running state instead of a misleading "Starting run…".
-  const external = !!agent && agent !== 'builtin';
   if (!p)
     return (
       <div className="details">
         <span className="hint">
           <span className="spin" />
-          {external
-            ? `Running via ${agent} — live counters aren't available for external engines; ` +
-              `results appear when it finishes.`
-            : 'Starting run…'}
+          Starting run…
         </span>
       </div>
     );
   const pct = Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100));
+  const engine = p.engine ?? agent;
+  // The built-in engine reports per-request counters; external engines don't,
+  // so we always show elapsed time + the live probe health instead.
+  const hasCounters = p.sent > 0;
   return (
     <div className="details">
       <div className="live-bar">
@@ -167,11 +165,22 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         <span>
           ⏱ {p.elapsedSec}s / {p.maxDurationSec}s
         </span>
-        <span>{p.sent} requests</span>
-        <span>{p.actualRps} rps</span>
-        <span>
-          {p.successful} ok · {p.failed} failed
-        </span>
+        {hasCounters ? (
+          <>
+            <span>{p.sent} requests</span>
+            <span>{p.actualRps} rps</span>
+            <span>
+              {p.successful} ok · {p.failed} failed
+            </span>
+          </>
+        ) : (
+          engine && <span>engine {engine} · running</span>
+        )}
+        {p.probe && p.probe.samples > 0 && (
+          <span title="Legitimate probe against the target">
+            🩺 probe {p.probe.available}/{p.probe.samples} up · {p.probe.errorRate5xx}% 5xx
+          </span>
+        )}
       </div>
     </div>
   );

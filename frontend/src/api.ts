@@ -151,6 +151,8 @@ export interface LiveProgressData {
   actualRps: number;
   maxDurationSec: number;
   status: 'RUNNING';
+  engine?: string;
+  probe?: { samples: number; available: number; errorRate5xx: number };
 }
 
 export const api = {

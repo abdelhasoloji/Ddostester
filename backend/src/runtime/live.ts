@@ -4,6 +4,8 @@ import type { LoadProgress } from '../engine/loadTest.js';
 export interface LiveProgress extends LoadProgress {
   maxDurationSec: number;
   status: 'RUNNING';
+  /** Active load engine name (e.g. 'k6', 'builtin-http'). */
+  engine?: string;
 }
 
 const live = new Map<string, LiveProgress>();

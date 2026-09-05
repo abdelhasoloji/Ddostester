@@ -1,4 +1,5 @@
 import type { LoadTestConfig, LoadTestResult } from '../../engine/types.js';
+import type { LoadProgress } from '../../engine/loadTest.js';
 import { KillSwitch, Probe } from '../probe/probe.js';
 import type { ProbeMetrics } from '../probe/probe.js';
 import { computeWrs } from '../wrs/scoring.js';
@@ -29,7 +30,7 @@ export async function executeCampaign(
   campaign: Campaign,
   allowedHosts: string[],
   killSwitch: KillSwitch,
-  onProgress?: (p: import('../../engine/loadTest.js').LoadProgress) => void,
+  onProgress?: (p: LoadProgress) => void,
   agent: AttackAgent = new BuiltinHttpAgent(),
 ): Promise<CampaignRun> {
   // Kill switch level 3: absolute time-based timeout.
@@ -56,11 +57,38 @@ export async function executeCampaign(
     authorized: campaign.authorized,
   };
 
-  const [generator] = await Promise.all([
-    agent.run(genConfig, allowedHosts, killSwitch.signal, onProgress),
-    probe.run(),
-  ]);
-  clearTimeout(timeoutTimer);
+  // Emit live progress once a second for EVERY engine: elapsed time plus a live
+  // probe snapshot. The generator's own counters (only reported by the built-in
+  // engine) are merged in when available; external engines still get the
+  // elapsed bar and the probe health so a run is never a silent black box.
+  let gen: LoadProgress | undefined;
+  const startedMs = Date.now();
+  const ticker = setInterval(() => {
+    if (!onProgress) return;
+    const pm = probe.metrics();
+    onProgress({
+      sent: gen?.sent ?? 0,
+      successful: gen?.successful ?? 0,
+      failed: gen?.failed ?? 0,
+      actualRps: gen?.actualRps ?? 0,
+      elapsedSec: Number(((Date.now() - startedMs) / 1000).toFixed(1)),
+      probe: { samples: pm.samples, available: pm.available, errorRate5xx: pm.errorRate5xx },
+    });
+  }, 1000);
+  if (typeof ticker.unref === 'function') ticker.unref();
+
+  let generator: LoadTestResult;
+  try {
+    [generator] = await Promise.all([
+      agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
+        gen = p;
+      }),
+      probe.run(),
+    ]);
+  } finally {
+    clearTimeout(timeoutTimer);
+    clearInterval(ticker);
+  }
 
   const probeMetrics = probe.metrics();
 
