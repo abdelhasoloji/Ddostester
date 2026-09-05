@@ -45,8 +45,10 @@ pg_restore --clean --if-exists -d "$DATABASE_URL" shieldtest-YYYY-MM-DD.dump
 sudo cp /etc/ddostester.env /secure/backup/ddostester.env.$(date +%F)
 ```
 
-The schema is created idempotently on startup (`CREATE TABLE IF NOT EXISTS`), so
-a restore into a fresh database followed by a service start is sufficient.
+The schema is applied by **ordered migrations** at startup (tracked in
+`schema_migrations`, each run once in a transaction), so a restore into a fresh
+database followed by a service start brings it fully up to date. The baseline
+migration adopts an existing database cleanly.
 
 ## Deploy & automatic rollback
 

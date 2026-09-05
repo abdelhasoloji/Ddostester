@@ -10,23 +10,15 @@ import type { Store } from './types.js';
 const { Pool } = pg;
 
 /**
- * PostgreSQL persistence. Campaign / CampaignRun objects are stored as jsonb
- * (flexible), with a few dedicated columns for filtering and ordering (status,
- * target, WRS, dates) — the basis of a per-target WRS history (TSD §5.4).
+ * Ordered schema migrations. Each runs once, in a transaction, and is recorded
+ * in `schema_migrations`. Never edit an applied migration — add a new one. The
+ * baseline (id 1) uses CREATE ... IF NOT EXISTS, so it adopts an existing
+ * database cleanly (re-running it is a no-op).
  */
-export class PostgresStore implements Store {
-  readonly backend = 'postgres' as const;
-  private pool: pg.Pool;
-
-  /** true if the TimescaleDB extension is available (wrs_samples becomes a hypertable). */
-  private timescale = false;
-
-  constructor(connectionString: string) {
-    this.pool = new Pool({ connectionString });
-  }
-
-  async init(): Promise<void> {
-    await this.pool.query(`
+const MIGRATIONS: { id: number; sql: string }[] = [
+  {
+    id: 1,
+    sql: `
       CREATE TABLE IF NOT EXISTS campaigns (
         id          uuid PRIMARY KEY,
         name        text NOT NULL,
@@ -57,7 +49,6 @@ export class PostgresStore implements Store {
         detail      text
       );
       CREATE INDEX IF NOT EXISTS idx_audit_at ON audit(at DESC);
-      -- WRS time series (append-only): hypertable if TimescaleDB is present.
       CREATE TABLE IF NOT EXISTS wrs_samples (
         at      timestamptz NOT NULL DEFAULT now(),
         target  text NOT NULL,
@@ -66,21 +57,40 @@ export class PostgresStore implements Store {
         run_id  uuid NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_wrs_samples ON wrs_samples(target, at DESC);
-      -- Runtime-managed users (additive to the immutable env AUTH_USERS).
       CREATE TABLE IF NOT EXISTS users (
         email         text PRIMARY KEY,
         role          text NOT NULL,
         password_hash text NOT NULL,
         created_at    timestamptz NOT NULL DEFAULT now()
       );
-      -- User-defined assessment playbooks (additive to the curated ones).
       CREATE TABLE IF NOT EXISTS playbooks (
         id         text PRIMARY KEY,
         name       text NOT NULL,
         created_at timestamptz NOT NULL DEFAULT now(),
         data       jsonb NOT NULL
       );
-    `);
+    `,
+  },
+];
+
+/**
+ * PostgreSQL persistence. Campaign / CampaignRun objects are stored as jsonb
+ * (flexible), with a few dedicated columns for filtering and ordering (status,
+ * target, WRS, dates) — the basis of a per-target WRS history (TSD §5.4).
+ */
+export class PostgresStore implements Store {
+  readonly backend = 'postgres' as const;
+  private pool: pg.Pool;
+
+  /** true if the TimescaleDB extension is available (wrs_samples becomes a hypertable). */
+  private timescale = false;
+
+  constructor(connectionString: string) {
+    this.pool = new Pool({ connectionString });
+  }
+
+  async init(): Promise<void> {
+    await this.runMigrations();
 
     // Enable TimescaleDB if available (otherwise standard PostgreSQL, plain table).
     try {
@@ -91,6 +101,33 @@ export class PostgresStore implements Store {
       this.timescale = true;
     } catch {
       this.timescale = false;
+    }
+  }
+
+  /** Applies any pending schema migrations, each once, in a transaction. */
+  private async runMigrations(): Promise<void> {
+    await this.pool.query(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (
+         id int PRIMARY KEY,
+         applied_at timestamptz NOT NULL DEFAULT now()
+       )`,
+    );
+    const { rows } = await this.pool.query<{ id: number }>('SELECT id FROM schema_migrations');
+    const applied = new Set(rows.map((r) => r.id));
+    for (const m of MIGRATIONS) {
+      if (applied.has(m.id)) continue;
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(m.sql);
+        await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [m.id]);
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
     }
   }
 
