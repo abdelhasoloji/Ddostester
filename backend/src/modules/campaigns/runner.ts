@@ -1,9 +1,10 @@
-import { runLoadTest } from '../../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../../engine/types.js';
 import { KillSwitch, Probe } from '../probe/probe.js';
 import type { ProbeMetrics } from '../probe/probe.js';
 import { computeWrs } from '../wrs/scoring.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
+import { BuiltinHttpAgent } from '../../agents/builtin.js';
+import type { AttackAgent } from '../../agents/types.js';
 import type { Campaign } from './model.js';
 
 export interface CampaignRun {
@@ -28,6 +29,7 @@ export async function executeCampaign(
   allowedHosts: string[],
   killSwitch: KillSwitch,
   onProgress?: (p: import('../../engine/loadTest.js').LoadProgress) => void,
+  agent: AttackAgent = new BuiltinHttpAgent(),
 ): Promise<CampaignRun> {
   // Niveau 3 du kill switch : timeout temporel absolu.
   const timeoutTimer = setTimeout(
@@ -54,7 +56,7 @@ export async function executeCampaign(
   };
 
   const [generator] = await Promise.all([
-    runLoadTest(genConfig, allowedHosts, killSwitch.signal, onProgress),
+    agent.run(genConfig, allowedHosts, killSwitch.signal, onProgress),
     probe.run(),
   ]);
   clearTimeout(timeoutTimer);

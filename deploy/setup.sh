@@ -19,6 +19,8 @@ DATABASE_URL="${DATABASE_URL:-}"
 # Auth (optionnelle) : si AUTH_JWT_SECRET est défini, l'auth+RBAC est activée.
 AUTH_JWT_SECRET="${AUTH_JWT_SECRET:-}"
 AUTH_USERS="${AUTH_USERS:-}"
+# Agent de charge (builtin par défaut ; k6 délègue à l'outil externe).
+AGENT="${AGENT:-builtin}"
 RUN_USER="${SUDO_USER:-$(id -un)}"
 
 echo "==> Répertoire : $REPO_DIR"
@@ -60,6 +62,7 @@ WorkingDirectory=${REPO_DIR}/backend
 Environment=PORT=${PORT}
 Environment=HOST=${HOST}
 Environment=ALLOWED_TARGETS=${ALLOWED_TARGETS}
+Environment=AGENT=${AGENT}
 EnvironmentFile=-${ENVFILE}
 ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure

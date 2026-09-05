@@ -30,6 +30,8 @@ import type { LoadProgress } from './engine/loadTest.js';
 import { login, identityFromRequest } from './auth/guard.js';
 import { can } from './auth/rbac.js';
 import type { Permission } from './auth/rbac.js';
+import { BuiltinHttpAgent } from './agents/builtin.js';
+import { AgentError, type AttackAgent } from './agents/types.js';
 
 export interface BuildOptions {
   store: Store;
@@ -37,6 +39,8 @@ export interface BuildOptions {
   allowedTargets: string[];
   logger?: boolean;
   serveStatic?: boolean;
+  /** Agent de charge (défaut : générateur HTTP borné intégré). */
+  agent?: AttackAgent;
 }
 
 export interface BuiltApp {
@@ -47,6 +51,7 @@ export interface BuiltApp {
 /** Construit l'app Fastify (routes + logique) sans démarrer l'écoute. */
 export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const { store, auth, allowedTargets } = opts;
+  const agent = opts.agent ?? new BuiltinHttpAgent();
 
   const app = Fastify({
     logger: opts.logger === false
@@ -98,6 +103,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   function fail(err: unknown, reply: FastifyReply) {
     if (err instanceof CampaignError) return reply.code(400).send({ error: err.message });
+    if (err instanceof AgentError) return reply.code(503).send({ error: err.message });
     app.log.error(err);
     return reply.code(500).send({ error: 'erreur interne' });
   }
@@ -119,7 +125,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const onProgress = (p: LoadProgress) =>
       liveProgress.set(c.id, { ...p, maxDurationSec: c.maxDurationSec, status: 'RUNNING' });
     try {
-      const run = await executeCampaign(c, allowedTargets, kill, onProgress);
+      const run = await executeCampaign(c, allowedTargets, kill, onProgress, agent);
       await store.saveRun(run);
       await store.saveCampaign({ ...c, status: run.status, wrs: run.wrs, runId: run.runId });
       await auditAs(actor, 'campaign.execute', c.id, `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`);
@@ -138,6 +144,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     allowedTargets,
     storage: store.backend,
     authRequired: auth.enabled,
+    agent: agent.name,
   }));
 
   // Anti-brute-force : verrou temporaire après plusieurs échecs (par email+IP).

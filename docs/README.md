@@ -12,6 +12,7 @@ documentation technique et opérationnelle.
 | [auth.md](./auth.md) | Authentification JWT, rôles (RBAC), séparation des rôles |
 | [wrs.md](./wrs.md) | Formule et interprétation du WEDOS Resiliency Score |
 | [safeguards.md](./safeguards.md) | Modèle de sécurité, périmètre, ce qui n'est pas implémenté |
+| [offensive-integration.md](./offensive-integration.md) | Génération de charge : agents (builtin/k6), gouvernance, L3/L4 externe |
 | [security-review.md](./security-review.md) | Revue de sécurité (menaces, points vérifiés, risques résiduels) |
 | [monitoring.md](./monitoring.md) | Prometheus + Grafana (dashboard provisionné) |
 | [stack-vs-tsd.md](./stack-vs-tsd.md) | Correspondance stack réalisé vs spécifications TSD |
