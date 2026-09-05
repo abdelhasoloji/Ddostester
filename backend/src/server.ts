@@ -17,6 +17,8 @@ import {
 import { executeCampaign } from './modules/campaigns/runner.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { renderCampaignReportHtml } from './modules/reports/report.js';
+import { renderMetrics } from './modules/metrics/prometheus.js';
+import { renderComplianceHtml } from './modules/reports/compliance.js';
 import type { CampaignInput } from './modules/campaigns/model.js';
 import { initAuth, login, identityFromRequest } from './auth/guard.js';
 import { can } from './auth/rbac.js';
@@ -189,6 +191,12 @@ app.post('/api/campaigns/:id/kill', { preHandler: guard('campaign:kill') }, asyn
   return { status: 'KILLED_MANUAL' };
 });
 
+// --- Monitoring : métriques Prometheus (loopback, agrégats non sensibles) ---
+app.get('/metrics', async (_req, reply) => {
+  const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+  return reply.type('text/plain; version=0.0.4').send(renderMetrics(campaigns, runs.length));
+});
+
 // --- Audit ------------------------------------------------------------------
 app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
   const { limit } = req.query as { limit?: string };
@@ -204,6 +212,21 @@ app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {
 app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
   const r = await store.getRun((req.params as { runId: string }).runId);
   return r ?? reply.code(404).send({ error: 'run introuvable' });
+});
+
+// Rapport de conformité agrégé (DORA/NIS2). Token en query pour lien navigateur.
+app.get('/api/reports/compliance', async (req, reply) => {
+  if (auth.enabled) {
+    const { token } = req.query as { token?: string };
+    const id = token
+      ? identityFromRequest(auth, { headers: { authorization: `Bearer ${token}` } } as import('fastify').FastifyRequest)
+      : identityFromRequest(auth, req);
+    if (!id) return reply.code(401).send({ error: 'authentification requise' });
+    if (!can(id.role, 'campaign:read')) return reply.code(403).send({ error: 'droit manquant' });
+  }
+  const { from, to } = req.query as { from?: string; to?: string };
+  const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+  return reply.type('text/html').send(renderComplianceHtml(campaigns, runs, { from, to }));
 });
 
 app.get('/api/runs/:runId/report', async (req, reply) => {

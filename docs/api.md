@@ -76,3 +76,14 @@ curl -s localhost:8080/api/runs/<runId>/report -o rapport.html
 | 400 | config invalide (attestation manquante, plafond dépassé, cible hors allowlist, transition interdite) |
 | 404 | campagne / run introuvable |
 | 500 | erreur interne |
+
+## `GET /metrics`
+Métriques Prometheus (format texte 0.0.4) : campagnes par statut, total des
+runs, dernier WRS par cible. Non authentifié (loopback, agrégats non sensibles).
+
+## `GET /api/reports/compliance`
+Rapport de conformité agrégé (DORA/NIS2/ISO 27001) en HTML. Query optionnelle
+`from`/`to` (ISO). Token en `?token=` accepté pour l'ouverture navigateur.
+
+## `GET /api/audit`
+Journal d'audit (lecture). Query `limit` (défaut 200).

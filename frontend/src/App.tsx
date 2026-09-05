@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, setToken, getToken, reportUrl } from './api.js';
+import { api, setToken, getToken, reportUrl, complianceUrl } from './api.js';
 import type { Campaign, CampaignRun, CampaignStatus, WrsBreakdown, Role, AuditEntry } from './api.js';
 
 const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
@@ -431,6 +431,15 @@ export function App() {
 
         <h2 className="section-title">
           Campagnes {anyRunning && <span className="hint">· actualisation auto…</span>}
+          <a
+            className="btn btn-sm btn-ghost"
+            style={{ marginLeft: '.5rem' }}
+            href={complianceUrl()}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Rapport de conformité ↗
+          </a>
         </h2>
         <div className="campaigns">
           {campaigns.length === 0 && <div className="empty">Aucune campagne pour l’instant.</div>}

@@ -106,6 +106,12 @@ export function reportUrl(runId: string): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL du rapport de conformité agrégé (DORA/NIS2). */
+export function complianceUrl(): string {
+  const u = `/api/reports/compliance`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
