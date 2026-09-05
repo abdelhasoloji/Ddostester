@@ -33,5 +33,30 @@ services:
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
 
+  # --- Monitoring (optionnel) : docker compose --profile monitoring up -d -----
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    # Non exposé publiquement ; interrogé par Grafana via le réseau interne.
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    depends_on: [prometheus]
+    ports:
+      - "127.0.0.1:3000:3000"   # accès via tunnel SSH, jamais public
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
 volumes:
   pgdata:
+  grafana-data:
