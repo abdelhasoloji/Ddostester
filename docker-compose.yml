@@ -1,14 +1,17 @@
-# WEDOS ShieldTest — control plane (dev/interne).
-# L'API n'est exposée qu'en loopback : à placer derrière un reverse-proxy interne.
+# WEDOS ShieldTest — control plane (dev / internal).
+# The API is exposed on loopback only: put it behind an internal reverse proxy.
 services:
   db:
-    # PostgreSQL par défaut ; pour TimescaleDB : DB_IMAGE=timescale/timescaledb:latest-pg16
+    # PostgreSQL by default; for TimescaleDB: DB_IMAGE=timescale/timescaledb:latest-pg16
     image: ${DB_IMAGE:-postgres:16}
     restart: unless-stopped
     environment:
       POSTGRES_DB: shieldtest
       POSTGRES_USER: shieldtest
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    # Published on loopback only, so a host-run API (npm start) can reach it too.
+    ports:
+      - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,19 +41,19 @@ services:
       retries: 5
     environment:
       PORT: 8080
-      HOST: 0.0.0.0 # OK ici : publié uniquement en loopback via le mapping ci-dessus
-      # Renseigner UNIQUEMENT des hôtes internes / mandatés.
+      HOST: 0.0.0.0 # OK here: published on loopback only via the mapping above
+      # List ONLY internal / mandated hosts.
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
 
-  # --- Monitoring (optionnel) : docker compose --profile monitoring up -d -----
+  # --- Monitoring (optional): docker compose --profile monitoring up -d --------
   prometheus:
     image: prom/prometheus:latest
     profiles: ['monitoring']
     restart: unless-stopped
     volumes:
       - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    # Non exposé publiquement ; interrogé par Grafana via le réseau interne.
+    # Not exposed publicly; queried by Grafana over the internal network.
 
   grafana:
     image: grafana/grafana:latest
@@ -58,7 +61,7 @@ services:
     restart: unless-stopped
     depends_on: [prometheus]
     ports:
-      - '127.0.0.1:3000:3000' # accès via tunnel SSH, jamais public
+      - '127.0.0.1:3000:3000' # access via SSH tunnel, never public
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: 'false'
@@ -67,7 +70,7 @@ services:
       - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
 
-  # --- Reverse-proxy TLS / mTLS (optionnel) : docker compose --profile proxy up -d
+  # --- TLS / mTLS reverse proxy (optional): docker compose --profile proxy up -d
   proxy:
     image: caddy:2
     profiles: ['proxy']
@@ -79,7 +82,7 @@ services:
       SHIELDTEST_DOMAIN: ${SHIELDTEST_DOMAIN:-shieldtest.internal}
     volumes:
       - ./deploy/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
-      # - ./deploy/proxy/ca.crt:/etc/caddy/ca.crt:ro   # décommenter pour mTLS
+      # - ./deploy/proxy/ca.crt:/etc/caddy/ca.crt:ro   # uncomment for mTLS
       - caddy-data:/data
       - caddy-config:/config
 
