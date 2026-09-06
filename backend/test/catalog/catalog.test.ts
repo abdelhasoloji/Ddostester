@@ -1140,6 +1140,464 @@ describe('O. Round-trips & accepted variations', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Shared: run one bounded campaign end-to-end (create → approve → execute).
+// ---------------------------------------------------------------------------
+async function runOne(): Promise<{ id: string; runId: string }> {
+  const created = await hit(authed.app, 'POST', '/api/campaigns', {
+    token: authed.tokens.engineer,
+    body: campaign({ maxDurationSec: 1 }),
+  });
+  const id = (created.json() as { id: string }).id;
+  await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
+    token: authed.tokens.officer,
+    body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+  });
+  const run = await hit(authed.app, 'POST', `/api/campaigns/${id}/execute`, {
+    token: authed.tokens.engineer,
+  });
+  return { id, runId: (run.json() as { runId: string }).runId };
+}
+let sharedRun: { id: string; runId: string } | null = null;
+async function ensureRun(): Promise<{ id: string; runId: string }> {
+  if (!sharedRun) sharedRun = await runOne();
+  return sharedRun;
+}
+
+// ---------------------------------------------------------------------------
+// P. Exports & reports (SPEC-LIFE-4, catalog E2/E4/E5/E6/E7/E8).
+// ---------------------------------------------------------------------------
+describe('P. Exports & reports', () => {
+  it('a completed run exposes its detail, report, CSVs, WRS history and compliance', async () => {
+    const { runId } = await ensureRun();
+    const t = authed.tokens.officer;
+
+    const runs = await hit(authed.app, 'GET', '/api/runs', { token: t });
+    const inRuns = (runs.json() as { runId: string }[]).some((r) => r.runId === runId);
+    reg(
+      'EXPORT',
+      'GET /api/runs includes the run',
+      'SPEC-LIFE-4',
+      'present',
+      String(inRuns),
+      inRuns,
+    );
+    expect(inRuns).toBe(true);
+
+    const byId = await hit(authed.app, 'GET', `/api/runs/${runId}`, { token: t });
+    const run = byId.json() as { status: string; wrs?: { estimated?: boolean } };
+    const detailOk = byId.statusCode === 200 && !!run.wrs;
+    reg(
+      'EXPORT',
+      'GET /api/runs/:id → 200 with WRS',
+      'E2',
+      '200 + wrs',
+      String(byId.statusCode),
+      detailOk,
+    );
+    expect(detailOk).toBe(true);
+
+    const estimated = run.wrs?.estimated === true;
+    reg(
+      'EXPORT',
+      'WRS marked estimated (no protection source)',
+      'E4',
+      'estimated=true',
+      String(run.wrs?.estimated),
+      estimated,
+    );
+    expect(estimated).toBe(true);
+
+    const html = (r: { statusCode: number; headers: Record<string, unknown> }) =>
+      r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('text/html');
+    const csv = (r: { statusCode: number; headers: Record<string, unknown> }) =>
+      r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('csv');
+
+    const report = await hit(authed.app, 'GET', `/api/runs/${runId}/report?token=${t}`);
+    reg(
+      'EXPORT',
+      'run report HTML',
+      'E2',
+      '200 text/html',
+      String(report.statusCode),
+      html(report),
+    );
+    expect(html(report)).toBe(true);
+
+    const timeline = await hit(authed.app, 'GET', `/api/runs/${runId}/timeline.csv?token=${t}`);
+    reg('EXPORT', 'run timeline CSV', 'E6', '200 csv', String(timeline.statusCode), csv(timeline));
+    expect(csv(timeline)).toBe(true);
+
+    const runsCsv = await hit(authed.app, 'GET', `/api/runs.csv?token=${t}`);
+    reg('EXPORT', 'runs.csv export', 'E5', '200 csv', String(runsCsv.statusCode), csv(runsCsv));
+    expect(csv(runsCsv)).toBe(true);
+
+    const compliance = await hit(authed.app, 'GET', `/api/reports/compliance?token=${t}`);
+    reg(
+      'EXPORT',
+      'compliance report',
+      'E8',
+      '200 text/html',
+      String(compliance.statusCode),
+      html(compliance),
+    );
+    expect(html(compliance)).toBe(true);
+
+    const hist = await hit(authed.app, 'GET', '/api/wrs/history', { token: t });
+    const hasHistory = hist.statusCode === 200 && Array.isArray(hist.json());
+    reg(
+      'EXPORT',
+      'WRS history returns a series',
+      'E7',
+      '200 array',
+      String(hist.statusCode),
+      hasHistory,
+    );
+    expect(hasHistory).toBe(true);
+  }, 20_000);
+});
+
+// ---------------------------------------------------------------------------
+// Q. Audit export & growth (SPEC-AUDIT-1, catalog F4/F5).
+// ---------------------------------------------------------------------------
+describe('Q. Audit export & growth', () => {
+  it('the trail grows with activity and exports', async () => {
+    const t = authed.tokens.officer;
+    const len = async () =>
+      ((await hit(authed.app, 'GET', '/api/audit', { token: t })).json() as unknown[]).length;
+    const before = await len();
+    await hit(authed.app, 'POST', '/api/campaigns', {
+      token: authed.tokens.engineer,
+      body: campaign(),
+    });
+    const after = await len();
+    reg(
+      'AUDIT',
+      'trail grows after an audited action',
+      'SPEC-AUDIT-1',
+      'after > before',
+      `${before}→${after}`,
+      after > before,
+    );
+    expect(after).toBeGreaterThan(before);
+
+    const exp = await hit(authed.app, 'GET', '/api/audit/export', { token: t });
+    reg(
+      'AUDIT',
+      'audit export → 200',
+      'SPEC-AUDIT-1',
+      '200',
+      String(exp.statusCode),
+      exp.statusCode === 200,
+    );
+    expect(exp.statusCode).toBe(200);
+  }, 20_000);
+});
+
+// ---------------------------------------------------------------------------
+// R. Playbooks & suites (catalog G1/G2/G3/G4/G5/G6).
+// ---------------------------------------------------------------------------
+describe('R. Playbooks & suites', () => {
+  it('CRUD + instantiate + suite report', async () => {
+    const t = authed.tokens.officer;
+    const list = await hit(authed.app, 'GET', '/api/playbooks', { token: t });
+    const curated = (list.json() as { custom: boolean }[]).some((p) => p.custom === false);
+    reg(
+      'PLAYBK',
+      'built-in playbooks are listed',
+      'G1',
+      'curated present',
+      String(curated),
+      curated,
+    );
+    expect(curated).toBe(true);
+
+    const created = await hit(authed.app, 'POST', '/api/playbooks', {
+      token: t,
+      body: {
+        name: 'cat-pb',
+        steps: [{ maxRps: 10, concurrency: 2, maxDurationSec: 5, profile: 'constant' }],
+      },
+    });
+    const pbId = (created.json() as { id: string }).id;
+    const createdOk = created.statusCode === 201 && pbId.startsWith('custom-');
+    reg(
+      'PLAYBK',
+      'create a custom playbook',
+      'G2',
+      '201 custom-*',
+      `${created.statusCode} ${pbId}`,
+      createdOk,
+    );
+    expect(createdOk).toBe(true);
+
+    const empty = await hit(authed.app, 'POST', '/api/playbooks', {
+      token: t,
+      body: { name: 'x', steps: [] },
+    });
+    reg(
+      'PLAYBK',
+      'empty-steps playbook rejected',
+      'G2',
+      '400',
+      String(empty.statusCode),
+      empty.statusCode === 400,
+    );
+    expect(empty.statusCode).toBe(400);
+
+    const delBuiltin = await hit(authed.app, 'DELETE', '/api/playbooks/builtin-x', { token: t });
+    reg(
+      'PLAYBK',
+      'built-in playbook not deletable',
+      'G4',
+      '400',
+      String(delBuiltin.statusCode),
+      delBuiltin.statusCode === 400,
+    );
+    expect(delBuiltin.statusCode).toBe(400);
+
+    const inst = await hit(authed.app, 'POST', `/api/playbooks/${pbId}/instantiate`, {
+      token: t,
+      body: { target: 'http://127.0.0.1/' },
+    });
+    reg(
+      'PLAYBK',
+      'instantiate a custom playbook',
+      'G5',
+      '2xx',
+      String(inst.statusCode),
+      inst.statusCode < 300,
+    );
+    expect(inst.statusCode).toBeLessThan(300);
+
+    const inst404 = await hit(authed.app, 'POST', '/api/playbooks/nope/instantiate', {
+      token: t,
+      body: { target: 'http://127.0.0.1/' },
+    });
+    reg(
+      'PLAYBK',
+      'instantiate unknown playbook → 404',
+      'SPEC-LIFE-3',
+      '404',
+      String(inst404.statusCode),
+      inst404.statusCode === 404,
+    );
+    expect(inst404.statusCode).toBe(404);
+
+    const suites = await hit(authed.app, 'GET', '/api/suites', { token: t });
+    const suiteList = suites.json() as { suiteId: string }[];
+    const hasSuite = suiteList.length > 0;
+    reg(
+      'PLAYBK',
+      'a suite appears after instantiation',
+      'G6',
+      'suites > 0',
+      String(suiteList.length),
+      hasSuite,
+    );
+    expect(hasSuite).toBe(true);
+
+    const sid = suiteList[0].suiteId;
+    const sById = await hit(authed.app, 'GET', `/api/suites/${sid}`, { token: t });
+    reg(
+      'PLAYBK',
+      'GET /api/suites/:id → 200',
+      'G6',
+      '200',
+      String(sById.statusCode),
+      sById.statusCode === 200,
+    );
+    expect(sById.statusCode).toBe(200);
+
+    const sReport = await hit(authed.app, 'GET', `/api/suites/${sid}/report?token=${t}`);
+    const repOk =
+      sReport.statusCode === 200 &&
+      String(sReport.headers['content-type'] ?? '').includes('text/html');
+    reg('PLAYBK', 'suite report HTML', 'G6', '200 text/html', String(sReport.statusCode), repOk);
+    expect(repOk).toBe(true);
+
+    const del = await hit(authed.app, 'DELETE', `/api/playbooks/${pbId}`, { token: t });
+    reg(
+      'PLAYBK',
+      'delete a custom playbook → 200',
+      'G4',
+      '200',
+      String(del.statusCode),
+      del.statusCode === 200,
+    );
+    expect(del.statusCode).toBe(200);
+
+    const del2 = await hit(authed.app, 'DELETE', `/api/playbooks/${pbId}`, { token: t });
+    reg(
+      'PLAYBK',
+      're-delete → 404',
+      'SPEC-LIFE-3',
+      '404',
+      String(del2.statusCode),
+      del2.statusCode === 404,
+    );
+    expect(del2.statusCode).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S. User lifecycle (catalog H3/H4/H5).
+// ---------------------------------------------------------------------------
+describe('S. User lifecycle', () => {
+  it('create → login → role change → delete → login fails; self/env protected', async () => {
+    const t = authed.tokens.officer;
+    const email = `life-${Math.random().toString(36).slice(2)}@wedos`;
+    const pw = 'strong-pass-123';
+
+    const create = await hit(authed.app, 'POST', '/api/users', {
+      token: t,
+      body: { email, role: 'viewer', password: pw },
+    });
+    reg(
+      'ULIFE',
+      'create a store user',
+      'SPEC-USER-1',
+      '201',
+      String(create.statusCode),
+      create.statusCode === 201,
+    );
+    expect(create.statusCode).toBe(201);
+
+    const login1 = await hit(authed.app, 'POST', '/api/auth/login', {
+      body: { email, password: pw },
+    });
+    const asViewer =
+      login1.statusCode === 200 && (login1.json() as { role: string }).role === 'viewer';
+    reg(
+      'ULIFE',
+      'the new user can log in',
+      'SPEC-USER-1',
+      '200 viewer',
+      String(login1.statusCode),
+      asViewer,
+    );
+    expect(asViewer).toBe(true);
+
+    const patch = await hit(authed.app, 'PATCH', `/api/users/${encodeURIComponent(email)}`, {
+      token: t,
+      body: { role: 'engineer' },
+    });
+    const patched =
+      patch.statusCode === 200 && (patch.json() as { role: string }).role === 'engineer';
+    reg('ULIFE', 'change the user’s role', 'H4', '200 engineer', String(patch.statusCode), patched);
+    expect(patched).toBe(true);
+
+    const login2 = await hit(authed.app, 'POST', '/api/auth/login', {
+      body: { email, password: pw },
+    });
+    const nowEngineer = (login2.json() as { role: string }).role === 'engineer';
+    reg(
+      'ULIFE',
+      'role change takes effect at next login',
+      'H4',
+      'engineer',
+      String((login2.json() as { role: string }).role),
+      nowEngineer,
+    );
+    expect(nowEngineer).toBe(true);
+
+    const patchSelf = await hit(
+      authed.app,
+      'PATCH',
+      `/api/users/${encodeURIComponent(CREDS.officer.email)}`,
+      { token: t, body: { role: 'viewer' } },
+    );
+    reg(
+      'ULIFE',
+      'cannot modify your own / an env account',
+      'SPEC-USER-2',
+      '400',
+      String(patchSelf.statusCode),
+      patchSelf.statusCode === 400,
+    );
+    expect(patchSelf.statusCode).toBe(400);
+
+    const del = await hit(authed.app, 'DELETE', `/api/users/${encodeURIComponent(email)}`, {
+      token: t,
+    });
+    reg(
+      'ULIFE',
+      'delete the store user',
+      'SPEC-USER-1',
+      '200',
+      String(del.statusCode),
+      del.statusCode === 200,
+    );
+    expect(del.statusCode).toBe(200);
+
+    const login3 = await hit(authed.app, 'POST', '/api/auth/login', {
+      body: { email, password: pw },
+    });
+    reg(
+      'ULIFE',
+      'deleted user can no longer log in',
+      'SPEC-USER-1',
+      '401',
+      String(login3.statusCode),
+      login3.statusCode === 401,
+    );
+    expect(login3.statusCode).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T. Rejection reason & post-run state (catalog C5/D7).
+// ---------------------------------------------------------------------------
+describe('T. Rejection & post-run', () => {
+  it('a rejection records its reason on the campaign', async () => {
+    const created = await hit(authed.app, 'POST', '/api/campaigns', {
+      token: authed.tokens.engineer,
+      body: campaign(),
+    });
+    const id = (created.json() as { id: string }).id;
+    await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
+      token: authed.tokens.officer,
+      body: {
+        decision: 'REJECTED',
+        approvedBy: CREDS.officer.email,
+        reason: 'out-of-scope-target',
+      },
+    });
+    const c = (
+      await hit(authed.app, 'GET', `/api/campaigns/${id}`, { token: authed.tokens.viewer })
+    ).json() as {
+      status: string;
+      approvalReason?: string;
+    };
+    const ok = c.status === 'REJECTED' && c.approvalReason === 'out-of-scope-target';
+    reg(
+      'REJECT',
+      'rejection reason is persisted and readable',
+      'C5',
+      'REJECTED + reason',
+      `${c.status} / ${c.approvalReason}`,
+      ok,
+    );
+    expect(ok).toBe(true);
+  });
+
+  it('killing an already-finished campaign is 404 (no active run)', async () => {
+    const { id } = await ensureRun();
+    const k = await hit(authed.app, 'POST', `/api/campaigns/${id}/kill`, {
+      token: authed.tokens.viewer,
+    });
+    reg(
+      'POSTRUN',
+      'kill a finished campaign → 404',
+      'SPEC-LIFE-3',
+      '404',
+      String(k.statusCode),
+      k.statusCode === 404,
+    );
+    expect(k.statusCode).toBe(404);
+  }, 20_000);
+});
+
+// ---------------------------------------------------------------------------
 // Report writer — a durable, human-readable results table.
 // ---------------------------------------------------------------------------
 afterAll(() => {

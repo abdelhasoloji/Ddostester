@@ -19,7 +19,7 @@ implemented there are marked ✅ (e2e).
 
 **Executable catalog (data-driven).** Beyond this hand-written journey list, a
 combinatorial catalog crosses roles × routes × inputs × states as executable
-cases: **`backend/test/catalog/`** runs **304 cases** against a real Fastify
+cases: **`backend/test/catalog/`** runs **334 cases** against a real Fastify
 instance (`app.inject`), each with an expected result argued against
 **`docs/test-catalog/specification.md`** (numbered SPEC-\* rules). Run it with
 `npm test -w backend`; the run writes **`docs/test-catalog/results.md`** (counts,
@@ -257,18 +257,31 @@ would return 401/403.
   that ends the probe loop at `maxDurationSec`; mapping it to COMPLETED is
   correct by design.
 
-**Covered by the new Playwright suite (`e2e/`, 13 specs green):**
+**Covered by the Playwright suite (`e2e/`, 14 specs green):**
 
-- A1/A2/A3/A7 (auth + SPA fallback), navigation across all sections + E1 empty
-  state, K/C1 (viewer can't create, engineer can't approve), C3 (officer can't
-  approve own — separation of duties), the full B→C→D→E lifecycle
-  (create → approve → run → complete → shows in Reports = J1), and B3
-  (off-allowlist target flagged in the form).
+- A1/A2/A3/A5/A6/A7 (auth, session-persist, logout, SPA fallback), navigation
+  across all sections + E1 empty state, K/C1 (viewer can't create, engineer
+  can't approve), C3 (officer can't approve own), the full B→C→D→E lifecycle
+  (create → approve → **engineer** runs → complete → shows in Reports = J1) with
+  the officer having no Run action (SoD), and B3 (off-allowlist target flagged).
 
-**Still open / worth doing next:**
+**Now executed by the data-driven catalog (`backend/test/catalog/`, 334 cases):**
+
+- **Exports/reports** E2/E4/E5/E6/E7/E8 (run detail, HTML report, timeline.csv,
+  runs.csv, compliance, WRS history, estimated flag); **audit** F1/F2/F4 (list,
+  verify intact, export, grows with activity); **playbooks/suites**
+  G1/G2/G4/G5/G6 (list, create/delete custom, reject empty, instantiate, suite
+  report); **users** H3/H4 + full lifecycle (create → login → role change →
+  delete → login fails; self/env protected); **C5** (rejection reason persisted);
+  **D7** (kill a finished campaign → 404). Plus the whole RBAC matrix, allowlist
+  (4 fields), caps, attestation, login+lockout, read-token routes, unknown
+  routes, and scenario/flow/recurrence bounds.
+
+**Still open (need visual/tooling, not pure assertions):**
 
 - ⚠️ **B6/B7/B8 — client vs server cap coherence** (assert the form blocks
-  values the server would reject).
-- ❓ The remaining ❓ rows (exports, playbooks/suites, user management CRUD,
-  audit integrity in-browser, error/loading states, a11y, dark/light) are
-  written with expected results and are the next specs to add.
+  values the server would reject before submit).
+- ❓ **L1/L2 error & loading states** (needs route-interception UI assertions),
+  **L3 dark/light legibility**, **L4 English-only sweep**, **L5 a11y (axe)**,
+  **L6 reload mid-run**, **D2 live SSE reflected in the UI**. These are the
+  UI-rendering rows a future E2E/visual pass would close.
