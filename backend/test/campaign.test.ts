@@ -80,6 +80,44 @@ describe('response assertion validation', () => {
   });
 });
 
+describe('endpoint mix validation', () => {
+  it('accepts a valid mix on the built-in engine', () => {
+    const c = createCampaign(
+      {
+        ...base,
+        endpoints: [{ url: 'http://localhost/a', weight: 3 }, { url: 'http://localhost/b' }],
+      },
+      allowed,
+    );
+    expect(c.endpoints).toHaveLength(2);
+  });
+
+  it('rejects an endpoint outside the allowlist', () => {
+    expect(() =>
+      createCampaign({ ...base, endpoints: [{ url: 'http://victim.example/a' }] }, allowed),
+    ).toThrow(CampaignError);
+  });
+
+  it('rejects mixing flow and endpoints', () => {
+    expect(() =>
+      createCampaign(
+        {
+          ...base,
+          flow: [{ method: 'GET', url: 'http://localhost/a' }],
+          endpoints: [{ url: 'http://localhost/b' }],
+        },
+        allowed,
+      ),
+    ).toThrow(/flow or an endpoint mix/);
+  });
+
+  it('rejects a mix on a non-builtin engine', () => {
+    expect(() =>
+      createCampaign({ ...base, agent: 'k6', endpoints: [{ url: 'http://localhost/a' }] }, allowed),
+    ).toThrow(/built-in engine/);
+  });
+});
+
 describe('recurrence validation', () => {
   it('accepts a valid recurrence', () => {
     const c = createCampaign({ ...base, recurrence: { intervalMin: 60 } }, allowed);

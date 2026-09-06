@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
+  buildEndpointPicker,
   runLoadTest,
   validateConfig,
   InvalidConfigError,
@@ -42,6 +43,60 @@ describe('validateConfig', () => {
     expect(() => validateConfig({ ...base, concurrency: 5000 }, ['localhost'])).toThrow(
       InvalidConfigError,
     );
+  });
+});
+
+describe('buildEndpointPicker', () => {
+  const eps = [
+    { url: 'http://h/a', weight: 3 },
+    { url: 'http://h/b', weight: 1 },
+  ];
+  it('selects by cumulative weight', () => {
+    const pick = buildEndpointPicker(eps);
+    expect(pick(0).url).toBe('http://h/a'); // 0.0 → a
+    expect(pick(0.7).url).toBe('http://h/a'); // 0.7*4=2.8 < 3 → a
+    expect(pick(0.8).url).toBe('http://h/b'); // 0.8*4=3.2 ≥ 3 → b
+    expect(pick(0.999).url).toBe('http://h/b');
+  });
+  it('defaults missing weights to 1', () => {
+    const pick = buildEndpointPicker([{ url: 'http://h/x' }, { url: 'http://h/y' }]);
+    expect(pick(0.4).url).toBe('http://h/x');
+    expect(pick(0.6).url).toBe('http://h/y');
+  });
+});
+
+describe('validateConfig endpoint mix', () => {
+  const cfg = (over: Partial<LoadTestConfig>): LoadTestConfig => ({ ...base, ...over });
+  it('accepts a valid mix', () => {
+    expect(() =>
+      validateConfig(
+        cfg({
+          endpoints: [{ url: 'http://localhost/a' }, { url: 'http://localhost/b', weight: 2 }],
+        }),
+        ['localhost'],
+      ),
+    ).not.toThrow();
+  });
+  it('rejects an endpoint outside the allowlist', () => {
+    expect(() =>
+      validateConfig(cfg({ endpoints: [{ url: 'http://evil.example/a' }] }), ['localhost']),
+    ).toThrow(TargetNotAllowedError);
+  });
+  it('rejects mixing flow and endpoints', () => {
+    expect(() =>
+      validateConfig(
+        cfg({
+          flow: [{ method: 'GET', url: 'http://localhost/a' }],
+          endpoints: [{ url: 'http://localhost/b' }],
+        }),
+        ['localhost'],
+      ),
+    ).toThrow(InvalidConfigError);
+  });
+  it('rejects an all-zero weight mix', () => {
+    expect(() =>
+      validateConfig(cfg({ endpoints: [{ url: 'http://localhost/a', weight: 0 }] }), ['localhost']),
+    ).toThrow(InvalidConfigError);
   });
 });
 
@@ -95,4 +150,42 @@ describe('builtin engine — response assertions', () => {
     expect(r.assertionsChecked).toBe(0);
     expect(r.assertionFailures).toBe(0);
   });
+});
+
+describe('builtin engine — endpoint mix', () => {
+  let base: string;
+  const seen: Record<string, number> = {};
+  const server = createServer((req, res) => {
+    seen[req.url ?? ''] = (seen[req.url ?? ''] ?? 0) + 1;
+    res.statusCode = 200;
+    res.end('ok');
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  it('spreads requests across the weighted endpoints', async () => {
+    const r = await runLoadTest(
+      {
+        url: `${base}/`,
+        concurrency: 3,
+        durationSec: 2,
+        maxRps: 30,
+        authorized: true,
+        endpoints: [
+          { url: `${base}/a`, weight: 3 },
+          { url: `${base}/b`, weight: 1 },
+        ],
+      },
+      ['127.0.0.1'],
+    );
+    expect(r.totalRequests).toBeGreaterThan(0);
+    // Both endpoints were hit, and the heavier weight got more traffic.
+    expect(seen['/a']).toBeGreaterThan(0);
+    expect(seen['/b']).toBeGreaterThan(0);
+    expect(seen['/a']).toBeGreaterThan(seen['/b']);
+  }, 15000);
 });

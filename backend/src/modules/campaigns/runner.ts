@@ -86,6 +86,7 @@ export async function executeCampaign(
     maxRps: campaign.maxRps,
     phases: campaign.scenario,
     flow: campaign.flow,
+    endpoints: campaign.endpoints,
     assertion: campaign.assertion,
     authorized: campaign.authorized,
   };

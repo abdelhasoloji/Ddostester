@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
-import { HTTP_METHODS, MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
+import { HTTP_METHODS, MAX_ENDPOINTS, MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
 import { flowUsesCorrelation } from '../../engine/correlation.js';
 
 const EXTRACT_SOURCES = ['json', 'header', 'regex'];
@@ -146,6 +146,32 @@ export function createCampaign(
     pct(a.minAvailabilityPct, 'minAvailabilityPct');
     pct(a.minWrs, 'minWrs');
     pct(a.maxAssertionFailurePct, 'maxAssertionFailurePct');
+  }
+
+  if (input.endpoints) {
+    if (input.flow?.length) {
+      throw new CampaignError('Use either a request flow or an endpoint mix, not both.');
+    }
+    if (input.endpoints.length < 1 || input.endpoints.length > MAX_ENDPOINTS) {
+      throw new CampaignError(`An endpoint mix must have between 1 and ${MAX_ENDPOINTS} entries.`);
+    }
+    let totalWeight = 0;
+    for (const ep of input.endpoints) {
+      if (ep.method && !HTTP_METHODS.includes(ep.method)) {
+        throw new CampaignError(`Endpoint: unsupported method "${ep.method}".`);
+      }
+      assertHostAllowed(ep.url, allowedHosts, 'Endpoint');
+      if (ep.weight != null && (!Number.isFinite(ep.weight) || ep.weight < 0)) {
+        throw new CampaignError('Endpoint: weight must be a number >= 0.');
+      }
+      totalWeight += ep.weight == null ? 1 : ep.weight;
+    }
+    if (totalWeight <= 0) {
+      throw new CampaignError('Endpoint mix: at least one weight must be > 0.');
+    }
+    if (input.agent && input.agent !== 'builtin') {
+      throw new CampaignError('An endpoint mix requires the built-in engine.');
+    }
   }
 
   if (input.assertion) {

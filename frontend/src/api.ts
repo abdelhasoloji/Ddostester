@@ -34,6 +34,7 @@ export interface Campaign {
   agent?: string;
   recurrence?: { intervalMin: number; until?: string };
   flow?: RequestStep[];
+  endpoints?: WeightedEndpoint[];
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;
@@ -55,6 +56,13 @@ export interface AcceptanceCriteria {
 export interface ResponseAssertion {
   status?: number;
   bodyContains?: string;
+}
+
+export interface WeightedEndpoint {
+  method?: string;
+  url: string;
+  body?: string;
+  weight?: number;
 }
 
 export interface AcceptanceResult {

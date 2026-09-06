@@ -6,6 +6,7 @@ import type {
   CampaignStatus,
   RequestStep,
   RunSample,
+  WeightedEndpoint,
   WrsBreakdown,
   WrsPoint,
   LiveProgressData,
@@ -609,7 +610,28 @@ const emptyForm = {
   sloAssert: '',
   assertStatus: '',
   assertBody: '',
+  endpoints: '',
 };
+
+/** Parses the endpoint-mix editor: one per line, "[METHOD] url [weight]". */
+function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return undefined;
+  const methods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
+  return lines.map((line) => {
+    const parts = line.split(/\s+/);
+    let method: string | undefined;
+    if (methods.has(parts[0]?.toUpperCase())) method = parts.shift()!.toUpperCase();
+    let weight: number | undefined;
+    if (parts.length > 1 && /^\d+(\.\d+)?$/.test(parts[parts.length - 1])) {
+      weight = Number(parts.pop());
+    }
+    return { method, url: parts.join(' '), weight };
+  });
+}
 
 /** Builds the acceptance criteria from the (optional) SLO form fields. */
 function buildAcceptance(f: {
@@ -823,6 +845,8 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             : undefined,
         acceptance: buildAcceptance(form),
         assertion: assertionSupported ? buildAssertion(form) : undefined,
+        endpoints:
+          assertionSupported && form.endpoints.trim() ? parseEndpoints(form.endpoints) : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -1151,6 +1175,21 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             <span className="hint">
               Built-in engine only. Every response is checked; the failure rate feeds the SLO
               verdict above.
+            </span>
+          </div>
+        )}
+        {assertionSupported && !form.flow.trim() && (
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>Endpoint mix — spread load over several URLs (optional)</label>
+            <textarea
+              rows={3}
+              placeholder={`One per line: [METHOD] url [weight]\nhttp://127.0.0.1:8080/ 3\nhttp://127.0.0.1:8080/health 1`}
+              value={form.endpoints}
+              onChange={(e) => setForm({ ...form, endpoints: e.target.value })}
+            />
+            <span className="hint">
+              Built-in engine only. Each request picks one endpoint by weight (default 1). More
+              realistic than a single URL. Mutually exclusive with a flow.
             </span>
           </div>
         )}

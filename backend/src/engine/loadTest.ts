@@ -1,11 +1,37 @@
 import { randomUUID } from 'node:crypto';
-import type { LoadTestConfig, LoadTestResult } from './types.js';
-import { HTTP_METHODS, MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
+import type { LoadTestConfig, LoadTestResult, WeightedEndpoint } from './types.js';
+import { HTTP_METHODS, MAX_ENDPOINTS, MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
 import { substitute, extractValue } from './correlation.js';
 import { percentile } from './stats.js';
 
 export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
+
+/**
+ * Builds a weighted picker over endpoints. Returns a function that, given a
+ * random number in [0,1), yields the chosen endpoint in proportion to weights
+ * (default weight 1). Pure and deterministic for a given `rand`, so it is
+ * unit-testable.
+ */
+export function buildEndpointPicker(
+  endpoints: WeightedEndpoint[],
+): (rand: number) => WeightedEndpoint {
+  const weights = endpoints.map((e) => (e.weight == null ? 1 : e.weight));
+  const total = weights.reduce((s, w) => s + w, 0);
+  const cum: number[] = [];
+  let acc = 0;
+  for (const w of weights) {
+    acc += w;
+    cum.push(acc);
+  }
+  return (rand: number) => {
+    const x = rand * total;
+    for (let i = 0; i < cum.length; i++) {
+      if (x < cum[i]) return endpoints[i];
+    }
+    return endpoints[endpoints.length - 1];
+  };
+}
 
 /**
  * Effective arrival rate for engines that count ITERATIONS rather than requests:
@@ -86,6 +112,41 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       if (step.thinkMs != null && (step.thinkMs < 0 || step.thinkMs > MAX_THINK_MS)) {
         throw new InvalidConfigError(`Flow step: thinkMs must be within [0, ${MAX_THINK_MS}].`);
       }
+    }
+  }
+  if (config.endpoints) {
+    if (config.flow?.length) {
+      throw new InvalidConfigError('Use either a request flow or an endpoint mix, not both.');
+    }
+    if (config.endpoints.length === 0 || config.endpoints.length > MAX_ENDPOINTS) {
+      throw new InvalidConfigError(`An endpoint mix must have 1 to ${MAX_ENDPOINTS} entries.`);
+    }
+    let totalWeight = 0;
+    for (const ep of config.endpoints) {
+      if (ep.method && !HTTP_METHODS.includes(ep.method)) {
+        throw new InvalidConfigError(`Endpoint: unsupported method "${ep.method}".`);
+      }
+      let u: URL;
+      try {
+        u = new URL(ep.url);
+      } catch {
+        throw new InvalidConfigError(`Endpoint: invalid URL (${ep.url}).`);
+      }
+      if (!['http:', 'https:'].includes(u.protocol)) {
+        throw new InvalidConfigError('Endpoint: only http and https are supported.');
+      }
+      if (!allowedHosts.includes(u.hostname)) {
+        throw new TargetNotAllowedError(
+          `Endpoint host "${u.hostname}" is not in the ALLOWED_TARGETS allowlist.`,
+        );
+      }
+      if (ep.weight != null && ep.weight < 0) {
+        throw new InvalidConfigError('Endpoint: weight must be >= 0.');
+      }
+      totalWeight += ep.weight == null ? 1 : ep.weight;
+    }
+    if (totalWeight <= 0) {
+      throw new InvalidConfigError('Endpoint mix: at least one weight must be > 0.');
     }
   }
 }
@@ -231,6 +292,8 @@ export async function runLoadTest(
     }
   }
 
+  const pickEndpoint = config.endpoints?.length ? buildEndpointPicker(config.endpoints) : null;
+
   async function worker(): Promise<void> {
     const flow = config.flow?.length ? config.flow : null;
     while (!shouldStop()) {
@@ -260,6 +323,11 @@ export async function runLoadTest(
           }
           if (step.thinkMs) await think(step.thinkMs);
         }
+      } else if (pickEndpoint) {
+        const ok = await reserveSlot();
+        if (!ok) return;
+        const ep = pickEndpoint(Math.random());
+        await doRequest(ep.method ?? 'GET', ep.url, ep.body, config.headers);
       } else {
         const ok = await reserveSlot();
         if (!ok) return;

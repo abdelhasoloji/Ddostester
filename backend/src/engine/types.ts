@@ -50,9 +50,26 @@ export interface RequestExtract {
   expr: string;
 }
 
+/**
+ * One weighted endpoint in a traffic mix: each request picks an endpoint at
+ * random in proportion to its weight, so a run spreads over several URLs like
+ * real traffic instead of hammering one path. Still a single bounded request
+ * per pick — the global `maxRps` caps the total rate exactly as before.
+ */
+export interface WeightedEndpoint {
+  method?: HttpMethod;
+  /** Full URL; its host must be in the allowlist. */
+  url: string;
+  body?: string;
+  /** Relative share (>= 0). Absent = 1. At least one endpoint must be > 0. */
+  weight?: number;
+}
+
 /** Bounds for request flows (defense in depth). */
 export const MAX_FLOW_STEPS = 20;
 export const MAX_THINK_MS = 30_000;
+/** Max distinct endpoints in a traffic mix. */
+export const MAX_ENDPOINTS = 20;
 
 /**
  * Optional response assertion (functional health under load): every generator
@@ -95,6 +112,12 @@ export interface LoadTestConfig {
    * of steps). Absent = single request to `url`.
    */
   flow?: RequestStep[];
+  /**
+   * Optional weighted endpoint mix (built-in engine only). When present, each
+   * request targets one of these endpoints chosen by weight instead of `url`.
+   * Mutually exclusive with `flow`. The global `maxRps` still caps the rate.
+   */
+  endpoints?: WeightedEndpoint[];
   /** Optional per-response assertion (built-in engine only). */
   assertion?: ResponseAssertion;
   /**

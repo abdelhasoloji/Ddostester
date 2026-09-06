@@ -1,8 +1,13 @@
 import type { WrsBreakdown } from '../wrs/scoring.js';
-import type { ScenarioPhase, RequestStep, ResponseAssertion } from '../../engine/types.js';
+import type {
+  ScenarioPhase,
+  RequestStep,
+  ResponseAssertion,
+  WeightedEndpoint,
+} from '../../engine/types.js';
 import type { AcceptanceCriteria, AcceptanceResult } from './acceptance.js';
 
-export type { ScenarioPhase, RequestStep, ResponseAssertion };
+export type { ScenarioPhase, RequestStep, ResponseAssertion, WeightedEndpoint };
 export type { AcceptanceCriteria, AcceptanceResult };
 
 /**
@@ -60,6 +65,12 @@ export interface CampaignInput {
    * a single request to `target`. The caps still bound the total request rate.
    */
   flow?: RequestStep[];
+  /**
+   * Optional weighted endpoint mix (built-in engine only): spread the load over
+   * several URLs by weight instead of a single target. Mutually exclusive with
+   * `flow`. The caps still bound the total request rate.
+   */
+  endpoints?: WeightedEndpoint[];
   /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
