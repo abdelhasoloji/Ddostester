@@ -25,9 +25,10 @@ offensive capability.
 
 ## What is NOT implemented (by design)
 
-The **only** load vector is a **bounded application HTTP generator** (GET/POST,
+The **control plane** (`backend/` + `frontend/` — the deployed product) has a
+single load vector: a **bounded application HTTP generator** (GET/POST,
 rate-capped, allowlisted target). The following are **out of scope** and absent
-from the code:
+from the control plane:
 
 - **L3/L4 volumetric**: UDP/ICMP/SYN/ACK/RST flood, fragmentation, GRE/DTLS
   flood, DNS/NTP/SSDP/CLDAP reflection/amplification, Smurf.
@@ -36,8 +37,32 @@ from the code:
 - Any generation at an unbounded rate or toward a target outside the allowlist.
 
 These techniques serve to **saturate** a service, not to **measure** its
-resilience in a controlled way. A contribution adding them falls outside this
-repository's scope and must not be merged.
+resilience in a controlled way. A contribution adding an attack vector to the
+control plane falls outside this repository's scope and must not be merged.
+
+## The synthetic network lab (`lab/`)
+
+The repository also ships an **optional, closed research lab** that reproduces
+the _traffic shape and measurement problem_ of UDP amplification for defensive
+study — **not** a usable attack tool, and **not** part of the control plane.
+Its safety rests on concrete, code-level properties:
+
+- **No source-IP spoofing** — it uses ordinary UDP sockets and the reflection
+  target is fixed by configuration, never read from a packet's source address,
+  so it cannot reflect off third parties (the defining trait of a real
+  reflection attack).
+- **No real reflector protocols** — the protocol is a synthetic JSON message; no
+  DNS/NTP/SSDP/Memcached service is implemented.
+- **Hard caps** on byte factor, response size, packet factor, generator PPS and
+  duration; oversized requests are clamped.
+- **Network isolation** — the provided `docker compose --profile network-lab`
+  runs on an `internal: true` Docker network with **no published host ports**,
+  and the host guards target only an RFC1918 lab prefix.
+
+It exists to validate filtering, telemetry, detection delay, BAP and
+availability in a **closed** environment. It must **never** be attached to a
+production or public network, and running its components outside the isolated
+lab network is unsupported. See [network-lab.md](./network-lab.md).
 
 ## Usage responsibility
 

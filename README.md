@@ -106,8 +106,8 @@ measured metrics.
 
 ## What is NOT implemented
 
-By design, this control plane **includes no attack vector**. The following are
-therefore **absent** (and out of scope for this repository):
+By design, the **control plane** (the deployed product) **includes no attack
+vector**. The following are therefore **absent** from it:
 
 - L3/L4 volumetric vectors: UDP/ICMP/SYN/ACK/RST flood, fragmentation,
   GRE/DTLS flood, DNS/NTP/SSDP/CLDAP reflection/amplification.
@@ -116,8 +116,17 @@ therefore **absent** (and out of scope for this repository):
 - Any traffic generation at an unbounded rate or toward a target outside the
   allowlist.
 
-The provided generator is limited to lawful, capped and traceable application
-HTTP requests, suitable for measuring the resilience of a service you operate.
+The control-plane generator is limited to lawful, capped and traceable
+application HTTP requests, suitable for measuring the resilience of a service
+you operate.
+
+The repository additionally contains an **optional, closed synthetic network
+lab** (`lab/`) that models UDP-amplification traffic shape for **defensive
+measurement** — with no source-IP spoofing, no real reflector protocols, hard
+caps, and an isolated `internal` Docker network with no published host ports. It
+is separate from the control plane and must never be attached to a production or
+public network. See [“Isolated synthetic UDP network lab”](#isolated-synthetic-udp-network-lab)
+and [docs/safeguards.md](./docs/safeguards.md).
 
 ## Documentation
 

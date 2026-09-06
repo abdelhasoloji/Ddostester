@@ -7,7 +7,10 @@ be reconciled against this file, not the other way round.
 > Scope is fixed: this control plane implements **no attack vector** and never
 > weakens a safeguard (allowlist, HARD_CAPS, attestation, approval workflow,
 > 3-level kill switch, `X-WEDOS-TEST` tagging, audit). Every item below is
-> delivered **through** those safeguards. See [safeguards.md](./safeguards.md).
+> delivered **through** those safeguards. The repository also ships a **separate,
+> closed synthetic network lab** (`lab/`, no spoofing / isolated / hard-capped)
+> for defensive measurement — not part of the control plane. See
+> [safeguards.md](./safeguards.md) and [network-lab.md](./network-lab.md).
 
 Legend: ✅ done · 🟡 partial · ⬜ planned · 🔒 needs external infra (lab / cluster)
 

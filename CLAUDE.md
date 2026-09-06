@@ -10,14 +10,23 @@ Full-stack: Fastify/TypeScript backend (ESM, Node ≥ 22), React/Vite frontend.
 
 ## Non-negotiable boundary (must be respected absolutely)
 
-This repository **implements no attack vector**: no L3/L4 flood, no
-amplification (DNS/NTP/SSDP/CLDAP), no Smurf, no L7 exhaustion (Slowloris,
-RUDY, WebSocket flood, XML bomb, browser botnet). The **only** vector is a
-**bounded HTTP generator** (GET/POST, rate-capped, allowlisted target). External
-load generation goes through **adapters** (`backend/src/agents/`) that delegate
-to licensed tools (k6, Vegeta, Locust) operated by the team — never offensive
-code here. Any contribution adding a volumetric/exhaustion vector is out of
-scope. See `docs/safeguards.md`.
+The **control plane** (`backend/` + `frontend/` — the deployed product)
+**implements no attack vector**: no L3/L4 flood, no amplification
+(DNS/NTP/SSDP/CLDAP), no Smurf, no L7 exhaustion (Slowloris, RUDY, WebSocket
+flood, XML bomb, browser botnet). The **only** vector is a **bounded HTTP
+generator** (GET/POST, rate-capped, allowlisted target). External load
+generation goes through **adapters** (`backend/src/agents/`) that delegate to
+licensed tools (k6, Vegeta, Locust) operated by the team — never offensive code
+here. Any contribution adding a volumetric/exhaustion vector to the control
+plane is out of scope.
+
+The repository also ships a **closed synthetic network lab** (`lab/`) that models
+UDP-amplification traffic shape for defensive measurement: no source-IP spoofing
+(ordinary UDP, target fixed by config), no real reflector protocol, hard caps,
+and an isolated `internal` Docker network with no published host ports. It is
+**separate from the control plane**, must never touch a production/public
+network, and its safety properties must be preserved by any change. See
+`docs/safeguards.md` and `docs/network-lab.md`.
 
 ## Commands
 

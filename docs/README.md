@@ -15,6 +15,7 @@ and operational documentation.
 | [audit.md](./audit.md)                                 | Tamper-evident audit chain: verification and export              |
 | [roadmap.md](./roadmap.md)                             | Implementation status vs plan (source of truth)                  |
 | [safeguards.md](./safeguards.md)                       | Security model, scope, what is not implemented                   |
+| [network-lab.md](./network-lab.md)                     | Closed synthetic UDP-amplification lab (isolated, defensive)     |
 | [offensive-integration.md](./offensive-integration.md) | Load generation: agents (builtin/k6), governance, external L3/L4 |
 | [security-review.md](./security-review.md)             | Security review (threats, verified points, residual risks)       |
 | [monitoring.md](./monitoring.md)                       | Prometheus + Grafana (provisioned dashboard)                     |
