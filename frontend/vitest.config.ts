@@ -12,12 +12,12 @@ export default defineConfig({
       reporter: ['text-summary', 'html', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/main.tsx', 'src/vite-env.d.ts', 'src/**/*.test.{ts,tsx}'],
-      // Measurement only for now; a real floor lands with the component tests.
+      // Floor for the helper + component tests; rises as more UI is covered.
       thresholds: {
-        lines: 0,
-        functions: 0,
-        statements: 0,
-        branches: 0,
+        lines: 15,
+        functions: 30,
+        statements: 15,
+        branches: 60,
       },
     },
   },

@@ -352,7 +352,7 @@ function RunTimeline({ samples, csvHref }: { samples: RunSample[]; csvHref?: str
   );
 }
 
-function RunDetails({ run }: { run: CampaignRun }) {
+export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
   return (
     <div className="details">
@@ -645,7 +645,7 @@ const emptyForm = {
 };
 
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */
-function parseDataset(raw: string): Record<string, string>[] | undefined {
+export function parseDataset(raw: string): Record<string, string>[] | undefined {
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -663,7 +663,7 @@ function parseDataset(raw: string): Record<string, string>[] | undefined {
 }
 
 /** Parses the endpoint-mix editor: one per line, "[METHOD] url [weight]". */
-function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
+export function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -683,7 +683,7 @@ function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
 }
 
 /** Builds the acceptance criteria from the (optional) SLO form fields. */
-function buildAcceptance(f: {
+export function buildAcceptance(f: {
   sloP95: string;
   sloErr: string;
   sloAvail: string;
@@ -700,7 +700,7 @@ function buildAcceptance(f: {
 }
 
 /** Builds the per-response assertion (built-in engine only) from form fields. */
-function buildAssertion(f: {
+export function buildAssertion(f: {
   assertStatus: string;
   assertBody: string;
 }): Record<string, unknown> | undefined {
@@ -711,7 +711,7 @@ function buildAssertion(f: {
 }
 
 /** Parses the advanced flow editor (raw JSON RequestStep[]). Throws on error. */
-function parseFlowJson(raw: string): RequestStep[] | undefined {
+export function parseFlowJson(raw: string): RequestStep[] | undefined {
   const t = raw.trim();
   if (!t) return undefined;
   const parsed = JSON.parse(t);
@@ -724,7 +724,7 @@ function parseFlowJson(raw: string): RequestStep[] | undefined {
  * bounded RequestStep[]. Each step keeps the target's host, so it stays within
  * the allowlist. Returns undefined when empty.
  */
-function parseFlow(raw: string, origin: string): RequestStep[] | undefined {
+export function parseFlow(raw: string, origin: string): RequestStep[] | undefined {
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -751,11 +751,11 @@ export function hostOf(url: string): string | null {
     return null;
   }
 }
-function formatInterval(min: number): string {
+export function formatInterval(min: number): string {
   if (min % 60 === 0) return `${min / 60} h`;
   return `${min} min`;
 }
-function buildScenario(profile: string, maxRps: number, durationSec: number) {
+export function buildScenario(profile: string, maxRps: number, durationSec: number) {
   const third = Math.max(1, Math.round(durationSec / 3));
   const pct = (p: number) => Math.max(1, Math.round((maxRps * p) / 100));
   if (profile === 'ramp')
