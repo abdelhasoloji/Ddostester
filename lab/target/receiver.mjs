@@ -59,6 +59,15 @@ export function createTarget(env = process.env) {
     ].join('\n');
   }
 
+  /**
+   * Host-telemetry view for the control plane's TARGET_TELEMETRY pull connector.
+   * The lab target measures inbound load only, mapped to nicRxMbps; other host
+   * counters are not modelled here.
+   */
+  function telemetryJson() {
+    return { nicRxMbps: Number((metrics.avgBps / 1e6).toFixed(3)) };
+  }
+
   function start(onReady) {
     socket.bind(PORT, HOST, () => {
       console.log(
@@ -66,9 +75,15 @@ export function createTarget(env = process.env) {
       );
       if (METRICS_PORT > 0) {
         metricsServer = http.createServer((req, res) => {
-          if (req.url === '/metrics') {
+          const path = (req.url || '').split('?')[0];
+          if (path === '/metrics') {
             res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' });
             res.end(renderMetrics());
+          } else if (path === '/telemetry') {
+            // Closed loop: the control plane's TARGET_TELEMETRY_METRICS_URL pull
+            // connector consumes this JSON to correlate host load to a run.
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify(telemetryJson()));
           } else {
             res.writeHead(404);
             res.end();
@@ -90,7 +105,7 @@ export function createTarget(env = process.env) {
     if (metricsServer) metricsServer.close(settle);
   }
 
-  return { start, stop, metrics, renderMetrics };
+  return { start, stop, metrics, renderMetrics, telemetryJson };
 }
 
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;

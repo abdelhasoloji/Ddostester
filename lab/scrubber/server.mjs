@@ -158,6 +158,20 @@ export function createScrubber(env = process.env) {
     ].join('\n');
   }
 
+  /**
+   * Protection view for the control plane's measured-WRS pull connector.
+   * detectionTimeSec = measured delay to engage; mitigationTimeSec = same once
+   * engaged (0 while not mitigating). Never throws.
+   */
+  function protectionJson() {
+    const d = state.detectionDelaySec ?? 0;
+    return {
+      detectionTimeSec: d,
+      mitigationTimeSec: state.mitigating ? d : 0,
+      source: 'lab-scrubber',
+    };
+  }
+
   let ticker = null;
   function start(onReady) {
     inputSocket = dgram.createSocket('udp4');
@@ -169,9 +183,15 @@ export function createScrubber(env = process.env) {
       if (typeof ticker.unref === 'function') ticker.unref();
       if (METRICS_PORT > 0) {
         metricsServer = http.createServer((req, res) => {
-          if (req.url === '/metrics') {
+          const path = (req.url || '').split('?')[0];
+          if (path === '/metrics') {
             res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' });
             res.end(renderMetrics());
+          } else if (path === '/protection') {
+            // Closed loop: the control plane's PROTECTION_METRICS_URL pull
+            // connector consumes this JSON to feed a MEASURED WRS (D/M).
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify(protectionJson()));
           } else {
             res.writeHead(404);
             res.end();
@@ -195,7 +215,7 @@ export function createScrubber(env = process.env) {
     if (metricsServer) metricsServer.close(settle);
   }
 
-  return { start, stop, ingest, tick, metrics, renderMetrics };
+  return { start, stop, ingest, tick, metrics, renderMetrics, protectionJson };
 }
 
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;

@@ -34,6 +34,21 @@ The scrubber models a filtering appliance and makes the **detection/mitigation p
 Like every lab node, it only forwards toward a **private/loopback** target (hard
 gate) and generates no traffic of its own.
 
+## Closed loop with the control plane (measured WRS)
+
+The lab feeds the control plane by **measurement**, never by generating its
+traffic. Two lab endpoints speak the exact JSON the control-plane pull connectors
+expect:
+
+- scrubber `GET /protection` → `{ detectionTimeSec, mitigationTimeSec, source }`
+  — point `PROTECTION_METRICS_URL` at it so a run's WRS uses **measured** D/M;
+- target `GET /telemetry` → `{ nicRxMbps }` — point
+  `TARGET_TELEMETRY_METRICS_URL` at it to correlate host load to the run.
+
+So a bounded ShieldTest HTTP campaign against the lab target, run while the UDP
+amplification + scrubber are active, yields a **measured WRS end to end** — the
+control plane _measures_ the amplification, it never _produces_ it.
+
 ## Traffic shapes & legitimate background
 
 The generator supports a `PROFILE` (`constant` | `ramp` | `wave` | `burst`) that
