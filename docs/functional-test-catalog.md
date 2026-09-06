@@ -19,7 +19,7 @@ implemented there are marked ✅ (e2e).
 
 **Executable catalog (data-driven).** Beyond this hand-written journey list, a
 combinatorial catalog crosses roles × routes × inputs × states as executable
-cases: **`backend/test/catalog/`** runs **334 cases** against a real Fastify
+cases: **`backend/test/catalog/`** runs **367 cases** against a real Fastify
 instance (`app.inject`), each with an expected result argued against
 **`docs/test-catalog/specification.md`** (numbered SPEC-\* rules). Run it with
 `npm test -w backend`; the run writes **`docs/test-catalog/results.md`** (counts,
@@ -276,6 +276,15 @@ would return 401/403.
   **D7** (kill a finished campaign → 404). Plus the whole RBAC matrix, allowlist
   (4 fields), caps, attestation, login+lockout, read-token routes, unknown
   routes, and scenario/flow/recurrence bounds.
+- **Every campaign shape** (area SHAPE): created (201) for all vectors, profiles,
+  multi-phase scenario, flow (± correlation), endpoint mix, UA rotation, data
+  feeder, assertion, acceptance SLO, recurrence, scheduling and each engine
+  (builtin/k6/vegeta/locust/jmeter/gatling); engine-capability conflicts
+  rejected (400); and a representative set **run end-to-end to COMPLETED** with
+  its real feature signal (assertions checked, ≥2 UAs seen, dataset value
+  substituted, both endpoints hit, both flow steps hit, POST, multi-phase). An
+  **unavailable external engine now falls back to the built-in engine** at
+  execution (matching the UI's "→ default" hint) instead of failing the run.
 
 **Still open (need visual/tooling, not pure assertions):**
 

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
@@ -1595,6 +1597,284 @@ describe('T. Rejection & post-run', () => {
     );
     expect(k.statusCode).toBe(404);
   }, 20_000);
+});
+
+// ---------------------------------------------------------------------------
+// V. Campaign shapes — every campaign type, created and (representatively) run
+// end-to-end against a live local target so feature signals are real.
+// ---------------------------------------------------------------------------
+describe('V. Campaign shapes (all campaign types)', () => {
+  let base: string;
+  const seenPaths = new Set<string>();
+  const seenUAs = new Set<string>();
+  const server = createServer((req, res) => {
+    seenPaths.add(req.url ?? '');
+    if (req.headers['user-agent']) seenUAs.add(String(req.headers['user-agent']));
+    if ((req.url ?? '').startsWith('/login')) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ token: 'T-123' }));
+      return;
+    }
+    res.statusCode = 200;
+    res.end('ok');
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  const mk = (over: Record<string, unknown> = {}): Record<string, unknown> =>
+    campaign({ target: `${base}/`, probeUrl: `${base}/`, maxDurationSec: 1, ...over });
+  const create = (over: Record<string, unknown> = {}, token = authed.tokens.engineer) =>
+    hit(authed.app, 'POST', '/api/campaigns', { token, body: mk(over) });
+
+  async function runShape(over: Record<string, unknown>): Promise<{
+    status: number;
+    run: { status: string; generator: { totalRequests: number; assertionsChecked?: number } };
+  }> {
+    const c = (await create(over)).json() as { id: string };
+    await hit(authed.app, 'POST', `/api/campaigns/${c.id}/approval`, {
+      token: authed.tokens.officer,
+      body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+    });
+    const res = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
+      token: authed.tokens.engineer,
+    });
+    return { status: res.statusCode, run: res.json() as never };
+  }
+
+  it('every campaign shape is accepted at creation (201)', async () => {
+    const shapes: [string, Record<string, unknown>][] = [
+      ['http-get', { vector: 'http-get' }],
+      ['http-post + body', { vector: 'http-post', body: '{"x":1}' }],
+      [
+        'multi-phase scenario',
+        {
+          scenario: [
+            { maxRps: 10, durationSec: 2 },
+            { maxRps: 20, durationSec: 2 },
+          ],
+        },
+      ],
+      [
+        'multi-step flow',
+        {
+          flow: [
+            { method: 'GET', url: `${base}/a` },
+            { method: 'GET', url: `${base}/b` },
+          ],
+        },
+      ],
+      [
+        'flow with correlation',
+        {
+          flow: [
+            {
+              method: 'GET',
+              url: `${base}/login`,
+              extract: { name: 'tok', from: 'json', expr: 'token' },
+            },
+            { method: 'GET', url: `${base}/data?t={{tok}}` },
+          ],
+        },
+      ],
+      [
+        'endpoint mix',
+        {
+          endpoints: [
+            { url: `${base}/a`, weight: 1 },
+            { url: `${base}/b`, weight: 1 },
+          ],
+        },
+      ],
+      ['user-agent rotation', { userAgents: ['UA-One', 'UA-Two'] }],
+      ['data feeder', { target: `${base}/s?q={{q}}`, dataset: [{ q: 'alpha' }, { q: 'beta' }] }],
+      ['response assertion', { assertion: { status: 200 } }],
+      ['acceptance SLO', { acceptance: { maxP95Ms: 500, minWrs: 50 } }],
+      ['recurring', { recurrence: { intervalMin: 15 } }],
+      ['scheduled', { scheduledAt: new Date(Date.now() + 3_600_000).toISOString() }],
+      ['engine builtin', { agent: 'builtin' }],
+      ['engine k6', { agent: 'k6' }],
+      ['engine vegeta', { agent: 'vegeta' }],
+      ['engine locust', { agent: 'locust' }],
+      ['engine jmeter', { agent: 'jmeter' }],
+      ['engine gatling', { agent: 'gatling' }],
+    ];
+    for (const [title, over] of shapes) {
+      const res = await create(over);
+      const pass = res.statusCode === 201;
+      reg('SHAPE', `create: ${title}`, 'campaign shapes', '201', String(res.statusCode), pass);
+      expect(pass, `${title} → ${res.statusCode}`).toBe(true);
+    }
+  });
+
+  it('engine capability conflicts are rejected (400)', async () => {
+    const conflicts: [string, Record<string, unknown>][] = [
+      [
+        'endpoint mix requires builtin',
+        { agent: 'k6', endpoints: [{ url: `${base}/a`, weight: 1 }] },
+      ],
+      ['UA rotation requires builtin', { agent: 'k6', userAgents: ['A', 'B'] }],
+      ['data feeder requires builtin', { agent: 'k6', dataset: [{ q: 'a' }] }],
+      ['assertions require builtin', { agent: 'k6', assertion: { status: 200 } }],
+      [
+        'multi-phase needs a capable engine',
+        {
+          agent: 'gatling',
+          scenario: [
+            { maxRps: 10, durationSec: 2 },
+            { maxRps: 20, durationSec: 2 },
+          ],
+        },
+      ],
+      [
+        'correlation requires builtin',
+        {
+          agent: 'k6',
+          flow: [
+            {
+              method: 'GET',
+              url: `${base}/login`,
+              extract: { name: 'tok', from: 'json', expr: 'token' },
+            },
+            { method: 'GET', url: `${base}/d?t={{tok}}` },
+          ],
+        },
+      ],
+      ['unknown engine', { agent: 'nope-engine' }],
+    ];
+    for (const [title, over] of conflicts) {
+      const res = await create(over);
+      const pass = res.statusCode === 400;
+      reg('SHAPE', `reject: ${title}`, 'engine capabilities', '400', String(res.statusCode), pass);
+      expect(pass, `${title} → ${res.statusCode}`).toBe(true);
+    }
+  });
+
+  it('representative shapes run end-to-end to COMPLETED with their feature signal', async () => {
+    // A) builtin features together: assertion + UA rotation + data feeder.
+    const a = await runShape({
+      target: `${base}/s?q={{q}}`,
+      dataset: [{ q: 'alpha' }, { q: 'beta' }],
+      userAgents: ['UA-One', 'UA-Two'],
+      assertion: { status: 200 },
+    });
+    const aOk =
+      a.status === 201 &&
+      a.run.status === 'COMPLETED' &&
+      (a.run.generator.assertionsChecked ?? 0) > 0;
+    reg(
+      'SHAPE',
+      'run: assertion+UA+dataset → COMPLETED, assertions checked',
+      'exec',
+      'COMPLETED + checks>0',
+      `${a.run.status}/${a.run.generator.assertionsChecked}`,
+      aOk,
+    );
+    expect(aOk).toBe(true);
+    reg(
+      'SHAPE',
+      'run: UA rotation hit the target with >1 UA',
+      'exec',
+      '≥2 UAs',
+      String(seenUAs.size),
+      seenUAs.has('UA-One') && seenUAs.has('UA-Two'),
+    );
+    expect(seenUAs.has('UA-One') && seenUAs.has('UA-Two')).toBe(true);
+    reg(
+      'SHAPE',
+      'run: data feeder substituted the dataset value',
+      'exec',
+      'q=alpha seen',
+      String([...seenPaths].some((p) => p.includes('q=alpha'))),
+      [...seenPaths].some((p) => p.includes('q=alpha')),
+    );
+    expect([...seenPaths].some((p) => p.includes('q=alpha') || p.includes('q=beta'))).toBe(true);
+
+    // B) endpoint mix spreads across both paths.
+    const b = await runShape({
+      endpoints: [
+        { url: `${base}/mix-a`, weight: 1 },
+        { url: `${base}/mix-b`, weight: 1 },
+      ],
+    });
+    const bOk =
+      b.run.status === 'COMPLETED' &&
+      [...seenPaths].some((p) => p.includes('/mix-a')) &&
+      [...seenPaths].some((p) => p.includes('/mix-b'));
+    reg('SHAPE', 'run: endpoint mix hit both endpoints', 'exec', 'both paths', String(bOk), bOk);
+    expect(bOk).toBe(true);
+
+    // C) multi-phase scenario.
+    const c = await runShape({
+      scenario: [
+        { maxRps: 10, durationSec: 1 },
+        { maxRps: 20, durationSec: 1 },
+      ],
+    });
+    reg(
+      'SHAPE',
+      'run: multi-phase scenario → COMPLETED',
+      'exec',
+      'COMPLETED',
+      c.run.status,
+      c.run.status === 'COMPLETED',
+    );
+    expect(c.run.status).toBe('COMPLETED');
+
+    // D) multi-step flow with correlation.
+    const d = await runShape({
+      flow: [
+        {
+          method: 'GET',
+          url: `${base}/login`,
+          extract: { name: 'tok', from: 'json', expr: 'token' },
+        },
+        { method: 'GET', url: `${base}/flow-data?t={{tok}}` },
+      ],
+    });
+    const dOk =
+      d.run.status === 'COMPLETED' &&
+      [...seenPaths].some((p) => p.startsWith('/login')) &&
+      [...seenPaths].some((p) => p.startsWith('/flow-data'));
+    reg(
+      'SHAPE',
+      'run: flow + correlation executed both steps',
+      'exec',
+      'login + data seen',
+      String(dOk),
+      dOk,
+    );
+    expect(dOk).toBe(true);
+
+    // E) POST with a body.
+    const e = await runShape({ vector: 'http-post', body: '{"x":1}' });
+    reg(
+      'SHAPE',
+      'run: http-post → COMPLETED',
+      'exec',
+      'COMPLETED',
+      e.run.status,
+      e.run.status === 'COMPLETED',
+    );
+    expect(e.run.status).toBe('COMPLETED');
+
+    // F) external engine selected but not installed → falls back to builtin and completes.
+    const f = await runShape({ agent: 'k6' });
+    reg(
+      'SHAPE',
+      'run: unavailable engine falls back to builtin → COMPLETED',
+      'engine fallback',
+      'COMPLETED',
+      `${f.status}/${f.run.status}`,
+      f.status === 201 && f.run.status === 'COMPLETED',
+    );
+    expect(f.status, `k6 fallback → ${f.status}`).toBe(201);
+    expect(f.run.status).toBe('COMPLETED');
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------

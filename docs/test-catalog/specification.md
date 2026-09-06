@@ -81,6 +81,21 @@ maxDurationSec: 900 }`. Each cap is a whole number: a value that is
 - **SPEC-AUDIT-1** — Every privileged action appends an audit entry; the trail is
   a hash chain that `/api/audit/verify` reports as intact or broken-at-n.
 
+## Campaign shapes & engines
+
+- **SPEC-SHAPE-1** — A campaign supports these shapes, each accepted at creation
+  and executable: vector `http-get`/`http-post`, multi-phase `scenario`,
+  multi-step `flow` (with optional `{{var}}`/`extract` correlation), weighted
+  `endpoints` mix, `userAgents` rotation, `dataset` feeder, response `assertion`,
+  `acceptance` SLO, `recurrence`, and `scheduledAt`.
+- **SPEC-SHAPE-2** — Endpoint mix, UA rotation, data feeder and assertions
+  require the built-in engine; multi-phase and correlation require an engine that
+  advertises the capability. Incompatible engine + feature is rejected (400).
+- **SPEC-SHAPE-3** — Engines: `builtin`, `k6`, `vegeta`, `locust`, `jmeter`,
+  `gatling`. An unknown engine id is rejected (400). A known but **not-installed**
+  engine falls back to the built-in engine at execution (the UI's "→ default"),
+  so the run still completes.
+
 ## Observability
 
 - **SPEC-OBS-1** — `/health`, `/ready`, `/metrics` are open (no auth) for probes;

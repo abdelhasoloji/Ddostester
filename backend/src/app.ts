@@ -217,8 +217,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     await store.saveCampaign(transition(c, 'RUNNING'));
-    // Per-campaign engine, falling back to the server default agent.
-    const runAgent = createAgent(c.agent) ?? agent;
+    // Per-campaign engine, falling back to the server default agent for an
+    // unknown id. The UI offers engines that may not be installed ("→ default");
+    // honour that at execution too — fall back to the built-in engine rather than
+    // failing the run when the chosen external tool is unavailable.
+    let runAgent = createAgent(c.agent) ?? agent;
+    if (runAgent !== agent && !(await runAgent.available())) {
+      runAgent = agent;
+    }
     const onProgress = (p: LoadProgress) =>
       liveProgress.set(c.id, {
         ...p,
