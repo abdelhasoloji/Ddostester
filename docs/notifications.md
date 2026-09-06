@@ -6,11 +6,12 @@ is sent.
 
 ## Events
 
-| Event                | When                                                | Severity           |
-| -------------------- | --------------------------------------------------- | ------------------ |
-| `campaign.completed` | a run finished normally                             | info               |
-| `campaign.killed`    | a run hit the kill switch (auto or manual)          | critical / warning |
-| `wrs.regression`     | a target's WRS dropped > 10 points vs. the last run | warning            |
+| Event                | When                                                                                                              | Severity           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `campaign.completed` | a run finished normally                                                                                           | info               |
+| `campaign.killed`    | a run hit the kill switch (auto or manual)                                                                        | critical / warning |
+| `wrs.regression`     | a target's WRS dropped > 10 points vs. the last run                                                               | warning            |
+| `baseline.drift`     | a target's nominal baseline degraded vs. the previous run (availability −≥5 pts, or p95 latency +≥25% and ≥20 ms) | warning            |
 
 Each notification carries the campaign name, target, engine, WRS score and
 level, request/failure counts and probe availability.

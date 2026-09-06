@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRunNotifications,
+  detectBaselineDrift,
   genericPayload,
   slackPayload,
 } from '../src/modules/notify/events.js';
+import type { BaselineMetrics } from '../src/modules/campaigns/baseline.js';
 import {
   createNotifier,
   noopNotifier,
@@ -92,6 +94,67 @@ describe('buildRunNotifications', () => {
     };
     const events = buildRunNotifications(campaign(), run(), series);
     expect(events.map((e) => e.kind)).not.toContain('wrs.regression');
+  });
+
+  it('adds a baseline-drift event when nominal health degraded vs the previous run', () => {
+    const prev: BaselineMetrics = {
+      samples: 3,
+      availabilityPct: 100,
+      latencyMs: { p50: 5, p95: 10 },
+    };
+    const withBaseline = run({
+      baseline: { samples: 3, availabilityPct: 90, latencyMs: { p50: 6, p95: 12 } },
+    });
+    const events = buildRunNotifications(campaign(), withBaseline, undefined, prev);
+    const drift = events.find((e) => e.kind === 'baseline.drift');
+    expect(drift).toBeDefined();
+    expect(drift!.text).toContain('availability');
+  });
+
+  it('does not add a baseline-drift event when the baseline is stable', () => {
+    const prev: BaselineMetrics = {
+      samples: 3,
+      availabilityPct: 100,
+      latencyMs: { p50: 5, p95: 10 },
+    };
+    const withBaseline = run({
+      baseline: { samples: 3, availabilityPct: 100, latencyMs: { p50: 5, p95: 11 } },
+    });
+    const events = buildRunNotifications(campaign(), withBaseline, undefined, prev);
+    expect(events.map((e) => e.kind)).not.toContain('baseline.drift');
+  });
+});
+
+describe('detectBaselineDrift', () => {
+  const base: BaselineMetrics = {
+    samples: 3,
+    availabilityPct: 100,
+    latencyMs: { p50: 5, p95: 40 },
+  };
+
+  it('flags an availability drop of ≥ 5 points', () => {
+    const v = detectBaselineDrift(base, { ...base, availabilityPct: 94 });
+    expect(v.drifted).toBe(true);
+    expect(v.availabilityDeltaPct).toBe(-6);
+  });
+
+  it('flags a p95 latency rise beyond 25% and 20 ms', () => {
+    const v = detectBaselineDrift(base, { ...base, latencyMs: { p50: 5, p95: 70 } });
+    expect(v.drifted).toBe(true);
+    expect(v.latencyP95DeltaMs).toBe(30);
+  });
+
+  it('ignores a small latency rise under the absolute floor', () => {
+    const v = detectBaselineDrift(
+      { ...base, latencyMs: { p50: 1, p95: 4 } },
+      { ...base, latencyMs: { p50: 1, p95: 8 } },
+    );
+    // +4 ms is a big % but below the 20 ms floor → not drift.
+    expect(v.drifted).toBe(false);
+  });
+
+  it('is stable when nothing moved', () => {
+    expect(detectBaselineDrift(base, base).drifted).toBe(false);
   });
 });
 

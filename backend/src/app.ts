@@ -260,7 +260,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           /* keep raw */
         }
         const series = buildWrsHistory(allCampaigns, allRuns).find((s) => s.target === host);
-        for (const ev of buildRunNotifications(c, run, series)) {
+        // Baseline drift: the most recent previous run against the same target
+        // that carries a baseline (recurring campaigns re-run the same target).
+        const targetHostOf = (cid: string): string => {
+          const t = allCampaigns.find((cc) => cc.id === cid)?.target ?? '';
+          try {
+            return new URL(t).hostname;
+          } catch {
+            return t;
+          }
+        };
+        const previousBaseline = allRuns
+          .filter((r) => r.runId !== run.runId && r.baseline && targetHostOf(r.campaignId) === host)
+          .sort((a, b) =>
+            b.generator.finishedAt.localeCompare(a.generator.finishedAt),
+          )[0]?.baseline;
+        for (const ev of buildRunNotifications(c, run, series, previousBaseline)) {
           await notifier.notify(ev);
         }
       } catch (err) {

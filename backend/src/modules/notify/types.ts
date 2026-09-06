@@ -7,12 +7,14 @@
  */
 
 /** The events the control plane can emit. */
-export type NotificationKind = 'campaign.completed' | 'campaign.killed' | 'wrs.regression';
+export type NotificationKind =
+  'campaign.completed' | 'campaign.killed' | 'wrs.regression' | 'baseline.drift';
 
 export const NOTIFICATION_KINDS: readonly NotificationKind[] = [
   'campaign.completed',
   'campaign.killed',
   'wrs.regression',
+  'baseline.drift',
 ];
 
 export type Severity = 'info' | 'warning' | 'critical';

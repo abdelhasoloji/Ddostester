@@ -1,7 +1,54 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { computeBaselineDelta } from '../campaigns/baseline.js';
+import type { BaselineMetrics } from '../campaigns/baseline.js';
 import type { WrsSeries } from '../wrs/history.js';
 import type { NotificationEvent, NotificationField, Severity } from './types.js';
+
+/** Thresholds for a baseline-drift alert (nominal health worsened between runs). */
+const DRIFT_AVAIL_DROP_PTS = 5;
+const DRIFT_LATENCY_RISE_PCT = 25;
+const DRIFT_LATENCY_MIN_RISE_MS = 20;
+
+export interface BaselineDriftVerdict {
+  drifted: boolean;
+  availabilityDeltaPct: number;
+  latencyP95DeltaMs: number;
+  reasons: string[];
+}
+
+/**
+ * Compares a target's nominal baseline between two runs (previous → current).
+ * Flags drift when availability dropped by ≥ 5 pts, or p95 latency rose by
+ * ≥ 25% and ≥ 20 ms (the absolute floor avoids noise on tiny latencies). Pure.
+ */
+export function detectBaselineDrift(
+  prev: BaselineMetrics,
+  curr: BaselineMetrics,
+): BaselineDriftVerdict {
+  const d = computeBaselineDelta(prev, {
+    availabilityPct: curr.availabilityPct,
+    latencyMs: curr.latencyMs,
+  });
+  const reasons: string[] = [];
+  if (d.availabilityDeltaPct <= -DRIFT_AVAIL_DROP_PTS) {
+    reasons.push(
+      `availability ${d.availabilityDeltaPct} pts (${prev.availabilityPct}% → ${curr.availabilityPct}%)`,
+    );
+  }
+  const risePct = prev.latencyMs.p95 > 0 ? (d.latencyP95DeltaMs / prev.latencyMs.p95) * 100 : 0;
+  if (d.latencyP95DeltaMs >= DRIFT_LATENCY_MIN_RISE_MS && risePct >= DRIFT_LATENCY_RISE_PCT) {
+    reasons.push(
+      `latency p95 +${d.latencyP95DeltaMs} ms (${prev.latencyMs.p95} → ${curr.latencyMs.p95})`,
+    );
+  }
+  return {
+    drifted: reasons.length > 0,
+    availabilityDeltaPct: d.availabilityDeltaPct,
+    latencyP95DeltaMs: d.latencyP95DeltaMs,
+    reasons,
+  };
+}
 
 /** Slack attachment colour per severity. */
 const COLOR: Record<Severity, string> = {
@@ -27,6 +74,7 @@ export function buildRunNotifications(
   campaign: Campaign,
   run: CampaignRun,
   series?: WrsSeries,
+  previousBaseline?: BaselineMetrics,
 ): NotificationEvent[] {
   const events: NotificationEvent[] = [];
   const host = hostOf(campaign.target);
@@ -77,6 +125,28 @@ export function buildRunNotifications(
       campaignId: campaign.id,
       fields: baseFields,
     });
+  }
+
+  if (previousBaseline && run.baseline) {
+    const drift = detectBaselineDrift(previousBaseline, run.baseline);
+    if (drift.drifted) {
+      events.push({
+        kind: 'baseline.drift',
+        severity: 'warning',
+        title: `📉 Baseline drift — ${host}`,
+        text: `Nominal health of ${host} degraded since the previous run: ${drift.reasons.join('; ')}.`,
+        at,
+        campaignId: campaign.id,
+        fields: [
+          { label: 'Target', value: host },
+          { label: 'Δ availability', value: `${drift.availabilityDeltaPct} pts` },
+          {
+            label: 'Δ latency p95',
+            value: `${drift.latencyP95DeltaMs >= 0 ? '+' : ''}${drift.latencyP95DeltaMs} ms`,
+          },
+        ],
+      });
+    }
   }
 
   if (series?.regression) {
