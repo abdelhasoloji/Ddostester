@@ -292,6 +292,12 @@ export function CampaignCard({ c }: { c: Campaign }) {
         )}
       </div>
 
+      {c.statusDetail && (c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL') && (
+        <div className="kill-note" role="note">
+          <span aria-hidden="true">🛑</span> {c.statusDetail}
+        </div>
+      )}
+
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
     </div>
   );
@@ -542,6 +548,12 @@ export function CampaignDrawer() {
             ×
           </button>
         </div>
+
+        {c.statusDetail && (c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL') && (
+          <div className="kill-note" role="note">
+            <span aria-hidden="true">🛑</span> {c.statusDetail}
+          </div>
+        )}
 
         <div className="drawer-actions">
           {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (

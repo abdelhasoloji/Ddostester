@@ -1,20 +1,28 @@
 import { defineConfig } from '@playwright/test';
 
 // E2E runs against the built app served by the backend (SPA + API on one port),
-// with auth enabled and two seeded users. Kept separate from the fast unit gate.
+// with auth enabled and one seeded user per role. Kept separate from the fast
+// unit gate.
 const PORT = 8099;
+// Passwords: engineer-pass / officer-pass / viewer-pass (mirrored in e2e/roles.ts).
 const AUTH_USERS = JSON.stringify([
   {
     email: 'eng@wedos',
     role: 'engineer',
     passwordHash:
-      'scrypt$36bb828728cdaa4a33a47a2f53d34d72$9be93e40b43fd77e8f8c77ad7826556e16c91e0a94c4b16374315b43c4ee6f32',
+      'scrypt$db3cbfeac87352ad77f1de222fab4ada$0e228405f0ecdb976695ca05a14817872faa279df02480257ca05ba50a78570a',
   },
   {
     email: 'off@wedos',
     role: 'officer',
     passwordHash:
-      'scrypt$b403e0c7735bda1735328322c1f05ec7$1f6cc661e4a8fc962e54e1564d50227f8b0294b0a33b886d6aeb30b8ee9a0dc0',
+      'scrypt$854e0be86e1e7a2e60f2e8f49316dc25$cfc8a98d31a5bb311c965b479f41cfb2cf243a7f9e6a809d69f5ca47c2e7afe7',
+  },
+  {
+    email: 'view@wedos',
+    role: 'viewer',
+    passwordHash:
+      'scrypt$4f22c62a55ba0d6c01e744e182164deb$83a20344ae7a7bd2bb1bb13266c6506b427dc1df996b40095951b3ee61c133d8',
   },
 ]);
 
@@ -22,6 +30,9 @@ export default defineConfig({
   testDir: 'e2e',
   timeout: 30_000,
   fullyParallel: false,
+  // One shared, stateful backend (in-memory store) serves every spec, so run
+  // serially to avoid cross-worker state races.
+  workers: 1,
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     headless: true,

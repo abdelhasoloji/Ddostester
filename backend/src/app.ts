@@ -248,12 +248,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         wrs: run.wrs,
         acceptanceResult: run.acceptance,
         runId: run.runId,
+        statusDetail: rearm ? undefined : run.statusDetail,
       });
       await auditAs(
         actor,
         'campaign.execute',
         c.id,
-        `${run.status} · WRS ${run.wrs.wrs} (${run.wrs.level})`,
+        `${run.status}${run.statusDetail ? ` — ${run.statusDetail}` : ''} · WRS ${run.wrs.wrs} (${run.wrs.level})`,
       );
       // Notify the team (opt-in sink): outcome + regression. Never let a failing
       // sink break the run — notifications are best-effort.

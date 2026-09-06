@@ -45,6 +45,8 @@ export interface Campaign {
   suiteOrder?: number;
   wrs?: WrsBreakdown;
   runId?: string;
+  /** Why the latest run ended as it did (set for a kill), mirrored from the run. */
+  statusDetail?: string;
 }
 
 export interface AcceptanceCriteria {
@@ -132,6 +134,8 @@ export interface CampaignRun {
   runId: string;
   campaignId: string;
   status: CampaignStatus;
+  /** Human-readable explanation of the terminal status (e.g. why an auto-kill fired). */
+  statusDetail?: string;
   generator: {
     totalRequests: number;
     successful: number;

@@ -123,4 +123,19 @@ describe('CampaignCard RBAC gating', () => {
     render(<CampaignCard c={baseCampaign} />);
     expect(screen.queryByRole('button', { name: /Approve \/ Reject/ })).toBeNull();
   });
+
+  it('explains an auto-kill instead of showing a bare status', () => {
+    fakeApp = appWith('officer');
+    const detail =
+      'Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 12% over 8 checks).';
+    render(<CampaignCard c={{ ...baseCampaign, status: 'KILLED_AUTO', statusDetail: detail }} />);
+    expect(screen.getByText('Auto-killed')).toBeInTheDocument(); // the badge
+    expect(screen.getByText(new RegExp('target unavailable'))).toBeInTheDocument(); // the cause
+  });
+
+  it('does not render a kill note for a clean completion', () => {
+    fakeApp = appWith('officer');
+    render(<CampaignCard c={{ ...baseCampaign, status: 'COMPLETED' }} />);
+    expect(screen.queryByText(/Auto-killed:/)).toBeNull();
+  });
 });

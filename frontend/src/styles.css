@@ -341,6 +341,16 @@ input.invalid {
   font-family: var(--mono);
   font-size: 0.95em;
 }
+.kill-note {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
 .engine-tag {
   font-family: var(--mono);
   color: var(--brand);

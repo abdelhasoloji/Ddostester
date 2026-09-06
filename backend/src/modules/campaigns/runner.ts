@@ -40,6 +40,12 @@ export interface CampaignRun {
   runId: string;
   campaignId: string;
   status: 'COMPLETED' | 'KILLED_AUTO' | 'KILLED_MANUAL';
+  /**
+   * Human-readable explanation of the terminal status — why the run ended the
+   * way it did. Always set for a kill (auto/manual) so the UI never shows a bare
+   * "Auto-killed" badge with no cause. Undefined for a clean completion.
+   */
+  statusDetail?: string;
   generator: LoadTestResult;
   probe: ProbeMetrics;
   wrs: WrsBreakdown;
@@ -218,6 +224,21 @@ export async function executeCampaign(
         ? 'KILLED_AUTO'
         : 'COMPLETED';
 
+  // Explain a kill so the UI never shows a bare status with no cause. The
+  // auto-kill trips after ≥30 s of consecutive probe unavailability; report the
+  // measured availability that drove it.
+  const availPct = probeMetrics.samples
+    ? Number(((probeMetrics.available / probeMetrics.samples) * 100).toFixed(1))
+    : 100;
+  const statusDetail: string | undefined =
+    status === 'KILLED_AUTO'
+      ? `Auto-killed: the legitimate probe found the target unavailable for ≥30 s ` +
+        `(availability ${availPct}% over ${probeMetrics.samples} checks). The kill ` +
+        `switch stopped the run to protect the target.`
+      : status === 'KILLED_MANUAL'
+        ? `Manually stopped by an operator during the run.`
+        : undefined;
+
   const underLoadAvailPct = probeMetrics.samples
     ? (probeMetrics.available / probeMetrics.samples) * 100
     : 100;
@@ -245,6 +266,7 @@ export async function executeCampaign(
     runId: generator.id,
     campaignId: campaign.id,
     status,
+    statusDetail,
     generator,
     probe: probeMetrics,
     wrs,

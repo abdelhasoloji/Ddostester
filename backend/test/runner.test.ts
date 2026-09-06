@@ -51,4 +51,44 @@ describe('executeCampaign — run time-series', () => {
     const ts = run.timeline!.map((x) => x.t);
     expect([...ts].sort((a, b) => a - b)).toEqual(ts);
   }, 15000);
+
+  const makeCampaign = (): Campaign =>
+    ({
+      id: 'test-detail',
+      name: 'detail',
+      target: `${base}/`,
+      probeUrl: `${base}/`,
+      vector: 'http-get',
+      maxRps: 20,
+      concurrency: 2,
+      maxDurationSec: 2,
+      createdBy: 'e@wedos',
+      authorized: true,
+      status: 'APPROVED',
+      createdAt: new Date().toISOString(),
+    }) as Campaign;
+
+  it('a clean completion carries no statusDetail', async () => {
+    const run = await executeCampaign(makeCampaign(), ['127.0.0.1'], new KillSwitch());
+    expect(run.status).toBe('COMPLETED');
+    expect(run.statusDetail).toBeUndefined();
+  }, 15000);
+
+  it('an auto-kill explains why (target unavailable + measured availability)', async () => {
+    const kill = new KillSwitch();
+    kill.trigger('KILLED_AUTO'); // simulate the probe's level-1 trip
+    const run = await executeCampaign(makeCampaign(), ['127.0.0.1'], kill);
+    expect(run.status).toBe('KILLED_AUTO');
+    expect(run.statusDetail).toMatch(/Auto-killed/);
+    expect(run.statusDetail).toMatch(/unavailable/);
+    expect(run.statusDetail).toMatch(/availability/);
+  }, 15000);
+
+  it('a manual kill is explained too', async () => {
+    const kill = new KillSwitch();
+    kill.trigger('KILLED_MANUAL');
+    const run = await executeCampaign(makeCampaign(), ['127.0.0.1'], kill);
+    expect(run.status).toBe('KILLED_MANUAL');
+    expect(run.statusDetail).toMatch(/Manually stopped/);
+  }, 15000);
 });

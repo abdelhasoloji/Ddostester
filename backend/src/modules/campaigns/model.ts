@@ -121,6 +121,8 @@ export interface Campaign extends CampaignInput {
   /** SLO verdict of the latest run (set alongside wrs/runId). */
   acceptanceResult?: AcceptanceResult;
   runId?: string;
+  /** Why the latest run ended as it did (set for a kill), mirrored from the run. */
+  statusDetail?: string;
 }
 
 /** Hard caps, non-bypassable via the API (defense in depth). */
