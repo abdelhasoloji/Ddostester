@@ -40,23 +40,32 @@ Example (TSD §5.4): detection 10 s → D = 95; mitigation 30 s → M = 90;
 
 ## Protection integration (measured D & M)
 
-Set `PROTECTION_WEBHOOK_URL` to make the WRS reflect **real** timings instead of
-estimates. At the end of each run the control plane POSTs the run window to that
-endpoint:
+Make the WRS reflect **real** timings instead of estimates via one of two
+pluggable connectors (both talk the same JSON shape; the webhook wins when both
+are set):
 
-```json
-{ "campaignId": "…", "target": "https://…", "startedAt": "…", "finishedAt": "…" }
-```
+- **Push** — set `PROTECTION_WEBHOOK_URL`. At the end of each run the control
+  plane POSTs the run window to that endpoint:
 
-and expects your WAF / scrubbing / cloud-protection integration to answer with
-the measured timings:
+  ```json
+  { "campaignId": "…", "target": "https://…", "startedAt": "…", "finishedAt": "…" }
+  ```
+
+- **Pull** — set `PROTECTION_METRICS_URL`. The control plane GETs that endpoint
+  with the run window as query params (`campaignId`, `target`, `from`, `to`),
+  for a protection stack that exposes metrics rather than calling back.
+
+Either way the source answers with the measured timings:
 
 ```json
 { "detectionTimeSec": 4, "mitigationTimeSec": 11, "source": "cloudflare" }
 ```
 
-When a valid response comes back, Detection and Mitigation use those values and
-the score is no longer `estimated`; on any error, timeout, or invalid payload it
-silently falls back to the estimate. This is **inbound measurement only** — it
-generates no traffic. `GET /health` reports `protection: true|false`, and
-**Settings → Engine & security** shows _Measured WRS_ vs _Estimated WRS_.
+`source` labels the provenance; if the connector omits it, `PROTECTION_SOURCE_LABEL`
+is stamped instead so the origin is always explicit (and a lab `mock` is always
+tagged `mock`). When a valid response comes back, Detection and Mitigation use
+those values and the score is no longer `estimated`; on any error, timeout, or
+invalid payload it silently falls back to the estimate. This is **inbound
+measurement only** — it generates no traffic. `GET /health` reports
+`protection: true|false`, and **Settings → Engine & security** shows _Measured
+WRS_ vs _Estimated WRS_.

@@ -1,10 +1,26 @@
 import type { ProtectionContext, ProtectionMeasurement, ProtectionProvider } from './types.js';
 
 export interface ProtectionConfig {
-  /** Endpoint queried for real detection/mitigation timings. */
+  /**
+   * Push connector: endpoint we POST the run window to; it replies with the
+   * detection/mitigation timings. Takes precedence over `metricsUrl`.
+   */
   webhookUrl?: string;
+  /**
+   * Pull connector: metrics endpoint we GET (run window passed as query
+   * params) to read the timings. Used when no `webhookUrl` is set. This is the
+   * pluggable path for a protection stack that exposes metrics rather than
+   * calling us back.
+   */
+  metricsUrl?: string;
   /** Per-request timeout in ms (default 5000). */
   timeoutMs?: number;
+  /**
+   * Provenance label applied to a measurement that does not carry its own
+   * `source` (e.g. 'scrubbing', 'cloudflare'). Makes the origin explicit on the
+   * run; never overrides a source reported by the connector itself.
+   */
+  sourceLabel?: string;
   /**
    * Lab/demo only: fixed timings returned with source 'mock', to exercise the
    * measured-WRS path end to end without a live protection source. Clearly
@@ -24,7 +40,9 @@ export function protectionConfigFromEnv(env: NodeJS.ProcessEnv = process.env): P
       : undefined;
   return {
     webhookUrl: env.PROTECTION_WEBHOOK_URL?.trim() || undefined,
+    metricsUrl: env.PROTECTION_METRICS_URL?.trim() || undefined,
     timeoutMs: env.PROTECTION_TIMEOUT_MS ? Number(env.PROTECTION_TIMEOUT_MS) : undefined,
+    sourceLabel: env.PROTECTION_SOURCE_LABEL?.trim() || undefined,
     mock,
   };
 }
@@ -39,6 +57,8 @@ export const noopProtectionProvider: ProtectionProvider = {
 
 /** POSTs JSON and returns parsed JSON, or null. Injected in tests. */
 export type FetchJson = (url: string, payload: unknown, timeoutMs: number) => Promise<unknown>;
+/** GETs JSON and returns parsed JSON, or null. Injected in tests. */
+export type FetchJsonGet = (url: string, timeoutMs: number) => Promise<unknown>;
 
 const fetchJson: FetchJson = async (url, payload, timeoutMs) => {
   const controller = new AbortController();
@@ -48,6 +68,22 @@ const fetchJson: FetchJson = async (url, payload, timeoutMs) => {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-wedos-shieldtest': 'protection-query' },
       body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const fetchJsonGet: FetchJsonGet = async (url, timeoutMs) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'x-wedos-shieldtest': 'protection-query' },
       signal: controller.signal,
     });
     if (!res.ok) return null;
@@ -71,18 +107,54 @@ export function parseMeasurement(raw: unknown): ProtectionMeasurement | null {
   };
 }
 
+/** Stamps a provenance label when the connector did not report its own source. */
+function withSource(
+  m: ProtectionMeasurement | null,
+  label: string | undefined,
+): ProtectionMeasurement | null {
+  if (!m || m.source || !label) return m;
+  return { ...m, source: label };
+}
+
+/** Push connector: POSTs the run window, reads the timings from the reply. */
 class WebhookProtectionProvider implements ProtectionProvider {
   readonly configured = true;
   constructor(
     private readonly url: string,
     private readonly timeoutMs: number,
+    private readonly label: string | undefined,
     private readonly post: FetchJson = fetchJson,
   ) {}
 
   async measure(ctx: ProtectionContext): Promise<ProtectionMeasurement | null> {
     try {
       const raw = await this.post(this.url, ctx, this.timeoutMs);
-      return parseMeasurement(raw);
+      return withSource(parseMeasurement(raw), this.label);
+    } catch {
+      return null; // best-effort: fall back to the estimate
+    }
+  }
+}
+
+/** Pull connector: GETs a metrics endpoint with the run window as query params. */
+class PollProtectionProvider implements ProtectionProvider {
+  readonly configured = true;
+  constructor(
+    private readonly url: string,
+    private readonly timeoutMs: number,
+    private readonly label: string | undefined,
+    private readonly get: FetchJsonGet = fetchJsonGet,
+  ) {}
+
+  async measure(ctx: ProtectionContext): Promise<ProtectionMeasurement | null> {
+    try {
+      const u = new URL(this.url);
+      u.searchParams.set('campaignId', ctx.campaignId);
+      u.searchParams.set('target', ctx.target);
+      u.searchParams.set('from', ctx.startedAt);
+      u.searchParams.set('to', ctx.finishedAt);
+      const raw = await this.get(u.toString(), this.timeoutMs);
+      return withSource(parseMeasurement(raw), this.label);
     } catch {
       return null; // best-effort: fall back to the estimate
     }
@@ -102,32 +174,45 @@ class MockProtectionProvider implements ProtectionProvider {
   }
 }
 
-/** Builds a protection provider from config (no-op when none configured). */
+/** Validates an http(s) endpoint, throwing a config error otherwise. */
+function requireHttpUrl(raw: string, name: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(`${name}: invalid URL`);
+  }
+  if (!['http:', 'https:'].includes(u.protocol)) {
+    throw new Error(`${name} must be http or https`);
+  }
+}
+
+/**
+ * Builds a protection provider from config (no-op when none configured).
+ * Precedence: webhook (push) > metrics (pull) > mock > none.
+ */
 export function createProtectionProvider(
   cfg: ProtectionConfig,
   post?: FetchJson,
+  get?: FetchJsonGet,
 ): ProtectionProvider {
-  // A real webhook takes precedence over the lab mock.
-  if (!cfg.webhookUrl) {
-    if (cfg.mock) {
-      if (
-        !Number.isFinite(cfg.mock.detectionTimeSec) ||
-        !Number.isFinite(cfg.mock.mitigationTimeSec)
-      ) {
-        throw new Error('PROTECTION_MOCK_* must be numbers.');
-      }
-      return new MockProtectionProvider(cfg.mock);
+  const timeoutMs = cfg.timeoutMs ?? 5000;
+  if (cfg.webhookUrl) {
+    requireHttpUrl(cfg.webhookUrl, 'PROTECTION_WEBHOOK_URL');
+    return new WebhookProtectionProvider(cfg.webhookUrl, timeoutMs, cfg.sourceLabel, post);
+  }
+  if (cfg.metricsUrl) {
+    requireHttpUrl(cfg.metricsUrl, 'PROTECTION_METRICS_URL');
+    return new PollProtectionProvider(cfg.metricsUrl, timeoutMs, cfg.sourceLabel, get);
+  }
+  if (cfg.mock) {
+    if (
+      !Number.isFinite(cfg.mock.detectionTimeSec) ||
+      !Number.isFinite(cfg.mock.mitigationTimeSec)
+    ) {
+      throw new Error('PROTECTION_MOCK_* must be numbers.');
     }
-    return noopProtectionProvider;
+    return new MockProtectionProvider(cfg.mock);
   }
-  let u: URL;
-  try {
-    u = new URL(cfg.webhookUrl);
-  } catch {
-    throw new Error('PROTECTION_WEBHOOK_URL: invalid URL');
-  }
-  if (!['http:', 'https:'].includes(u.protocol)) {
-    throw new Error('PROTECTION_WEBHOOK_URL must be http or https');
-  }
-  return new WebhookProtectionProvider(cfg.webhookUrl, cfg.timeoutMs ?? 5000, post);
+  return noopProtectionProvider;
 }
