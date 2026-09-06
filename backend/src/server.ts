@@ -8,6 +8,10 @@ import {
   createProtectionProvider,
   protectionConfigFromEnv,
 } from './modules/protection/provider.js';
+import {
+  createTargetTelemetryProvider,
+  targetTelemetryConfigFromEnv,
+} from './modules/target-telemetry/provider.js';
 import { buildApp } from './app.js';
 import { applyTlsPolicy } from './util/tls.js';
 
@@ -46,6 +50,7 @@ const auth = initAuth();
 const agent = selectAgent();
 const notifier = createNotifier(notifyConfigFromEnv());
 const protection = createProtectionProvider(protectionConfigFromEnv());
+const targetTelemetry = createTargetTelemetryProvider(targetTelemetryConfigFromEnv());
 const { app, runCampaign } = await buildApp({
   store,
   auth,
@@ -53,6 +58,7 @@ const { app, runCampaign } = await buildApp({
   agent,
   notifier,
   protection,
+  targetTelemetry,
   maxConcurrentRuns: MAX_CONCURRENT_RUNS,
 });
 

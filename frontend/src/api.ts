@@ -160,6 +160,13 @@ export interface CampaignRun {
     latencyP95DeltaMs: number;
     availabilityDeltaPct: number;
   };
+  targetTelemetry?: {
+    at: string;
+    cpuPct?: number;
+    conntrack?: number;
+    nicRxMbps?: number;
+    nicTxMbps?: number;
+  }[];
   posture?: {
     waf: boolean;
     cdn: boolean;

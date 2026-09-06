@@ -407,6 +407,26 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           )}
         </div>
       )}
+      {run.targetTelemetry && run.targetTelemetry.length > 0 && (
+        <div className="metrics" style={{ marginTop: '.5rem' }}>
+          {(() => {
+            const peak = (
+              pick: (s: NonNullable<CampaignRun['targetTelemetry']>[number]) => number | undefined,
+            ) => {
+              const vals = run.targetTelemetry!.map(pick).filter((v): v is number => v != null);
+              return vals.length ? Math.max(...vals) : undefined;
+            };
+            const cpu = peak((s) => s.cpuPct);
+            const ct = peak((s) => s.conntrack);
+            return (
+              <>
+                {cpu != null && <Metric label="Target CPU peak">{cpu}%</Metric>}
+                {ct != null && <Metric label="Target conntrack peak">{ct}</Metric>}
+              </>
+            );
+          })()}
+        </div>
+      )}
       {run.timeline && (
         <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
       )}

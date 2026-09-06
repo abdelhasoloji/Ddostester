@@ -1,5 +1,6 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 
 /**
@@ -10,6 +11,9 @@ import { htmlEscape as esc } from '../../util/text.js';
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
   const w = run.wrs;
+  const tt = run.targetTelemetry?.length ? summarizeTargetTelemetry(run.targetTelemetry) : null;
+  const ttRow = (label: string, v: number | undefined, unit: string): string =>
+    v != null ? ` <tr><th>${label}</th><td>${v}${unit}</td></tr>` : '';
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -100,6 +104,16 @@ ${
 }
 </table>
 <p class="muted">Nominal metrics captured with legitimate traffic only, before the ramp; the deltas show degradation under load.</p>`
+    : ''
+}
+${
+  tt
+    ? `<h2>Target host telemetry (peak under load)</h2>
+<table>
+ <tr><th>Samples</th><td>${tt.samples}</td></tr>
+${ttRow('CPU', tt.cpuPctMax, '%')}${ttRow('Conntrack', tt.conntrackMax, '')}${ttRow('NIC RX', tt.nicRxMbpsMax, ' Mbit/s')}${ttRow('NIC TX', tt.nicTxMbpsMax, ' Mbit/s')}
+</table>
+<p class="muted">Host-side counters of the target, pulled from its metrics endpoint during the run (inbound measurement only).</p>`
     : ''
 }
 ${

@@ -13,6 +13,8 @@ import { evaluateAcceptance } from './acceptance.js';
 import type { AcceptanceResult } from './acceptance.js';
 import { captureBaseline, computeBaselineDelta } from './baseline.js';
 import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
+import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
+import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
 import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
@@ -53,6 +55,8 @@ export interface CampaignRun {
   baseline?: BaselineMetrics;
   /** Under-load degradation vs. the baseline. */
   baselineDelta?: BaselineDelta;
+  /** Host-side counters of the target during the run (when a source is configured). */
+  targetTelemetry?: TargetSample[];
 }
 
 /**
@@ -72,6 +76,7 @@ export async function executeCampaign(
   agent: AttackAgent = new BuiltinHttpAgent(),
   protection: ProtectionProvider = noopProtectionProvider,
   captureBaselineFn: CaptureBaseline = captureBaseline,
+  telemetry: TargetTelemetryProvider = noopTargetTelemetryProvider,
 ): Promise<CampaignRun> {
   // EPIC B2: capture the nominal baseline (legitimate traffic only) BEFORE the
   // ramp and before the timeout starts, so it doesn't eat into the load window.
@@ -114,8 +119,24 @@ export async function executeCampaign(
   // elapsed bar and the probe health so a run is never a silent black box.
   let gen: LoadProgress | undefined;
   const timeline: RunSample[] = [];
+  // EPIC B1: host-side counters of the target, pulled once a second when a
+  // telemetry source is configured, on the same clock as the timeline.
+  const targetSeries: TargetSample[] = [];
+  let telemetryInFlight = false;
   const startedMs = Date.now();
   const ticker = setInterval(() => {
+    if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
+      telemetryInFlight = true;
+      void telemetry
+        .sample({ campaignId: campaign.id, target: campaign.target })
+        .then((s) => {
+          if (s) targetSeries.push(s);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          telemetryInFlight = false;
+        });
+    }
     const pm = probe.metrics();
     const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
     // Capture the per-second series (persisted with the run) for EVERY engine,
@@ -233,5 +254,6 @@ export async function executeCampaign(
     protectionSource: measured?.source,
     baseline,
     baselineDelta,
+    targetTelemetry: targetSeries.length ? targetSeries : undefined,
   };
 }

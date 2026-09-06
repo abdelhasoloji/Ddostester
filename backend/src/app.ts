@@ -49,6 +49,8 @@ import { noopNotifier } from './modules/notify/notifier.js';
 import type { Notifier } from './modules/notify/types.js';
 import { noopProtectionProvider } from './modules/protection/provider.js';
 import type { ProtectionProvider } from './modules/protection/types.js';
+import { noopTargetTelemetryProvider } from './modules/target-telemetry/provider.js';
+import type { TargetTelemetryProvider } from './modules/target-telemetry/types.js';
 import {
   PLAYBOOKS,
   getPlaybook,
@@ -72,6 +74,8 @@ export interface BuildOptions {
   notifier?: Notifier;
   /** Protection integration for real detection/mitigation (default: no-op). */
   protection?: ProtectionProvider;
+  /** Target host-telemetry source correlated to the run (default: no-op). */
+  targetTelemetry?: TargetTelemetryProvider;
   /** Max campaigns running at once (safety guard against contention). Default 3. */
   maxConcurrentRuns?: number;
 }
@@ -87,6 +91,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
   const protection = opts.protection ?? noopProtectionProvider;
+  const targetTelemetry = opts.targetTelemetry ?? noopTargetTelemetryProvider;
   const maxConcurrentRuns = opts.maxConcurrentRuns ?? 3;
 
   const app = Fastify({
@@ -227,7 +232,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         engine: runAgent.name,
       });
     try {
-      const run = await executeCampaign(c, allowedTargets, kill, onProgress, runAgent, protection);
+      const run = await executeCampaign(
+        c,
+        allowedTargets,
+        kill,
+        onProgress,
+        runAgent,
+        protection,
+        undefined,
+        targetTelemetry,
+      );
       await store.saveRun(run);
       // Recurring campaigns re-arm for their next run (within the approval
       // window); otherwise the campaign settles into its terminal run status.
@@ -299,6 +313,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     agent: agent.name,
     notifications: notifier.sinks,
     protection: protection.configured,
+    targetTelemetry: targetTelemetry.configured,
     tlsInsecure: tlsInsecure(),
   }));
 
