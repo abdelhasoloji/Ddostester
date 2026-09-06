@@ -104,7 +104,10 @@ test('reflector clamps a maliciously oversized request', async () => {
   const m = reflector.metrics;
   assert.equal(m.requests, 1);
   // Clamped to exactly the caps, never beyond.
-  assert.ok(m.outputPackets <= MAX_PACKET_FACTOR, `emitted ${m.outputPackets} > cap ${MAX_PACKET_FACTOR}`);
+  assert.ok(
+    m.outputPackets <= MAX_PACKET_FACTOR,
+    `emitted ${m.outputPackets} > cap ${MAX_PACKET_FACTOR}`,
+  );
   assert.ok(
     m.outputBytes <= MAX_PACKET_FACTOR * MAX_RESPONSE_BYTES,
     `emitted ${m.outputBytes} bytes > cap ${MAX_PACKET_FACTOR * MAX_RESPONSE_BYTES}`,
@@ -114,20 +117,29 @@ test('reflector clamps a maliciously oversized request', async () => {
   await stopAsync(target);
 });
 
-test('reflector rejects a target outside the lab CIDR', () => {
+test('reflector rejects a public target (hard private-range gate)', () => {
   assert.throws(
-    () =>
-      createReflector({
-        TARGET_HOST: '8.8.8.8',
-        LAB_CIDR_PREFIX: '192.168.100.',
-      }),
-    /TARGET_HOST must be an IPv4 address inside/,
+    () => createReflector({ TARGET_HOST: '8.8.8.8', LAB_CIDR_PREFIX: '192.168.100.' }),
+    /private\/loopback IPv4/,
   );
 });
 
-test('generator rejects a reflector outside the lab CIDR', () => {
+test('generator rejects a public reflector (hard private-range gate)', () => {
   assert.throws(
     () => runGenerator({ REFLECTOR_HOST: '1.1.1.1', LAB_CIDR_PREFIX: '192.168.100.' }),
-    /REFLECTOR_HOST must be inside/,
+    /private\/loopback IPv4/,
+  );
+});
+
+test('an EMPTY lab prefix cannot open the gate to a public IP', () => {
+  // The old startsWith('') guard was defeated by an empty prefix; the hard gate
+  // must still reject a public address regardless of the (empty) prefix.
+  assert.throws(
+    () => createReflector({ TARGET_HOST: '8.8.8.8', LAB_CIDR_PREFIX: '' }),
+    /private\/loopback IPv4/,
+  );
+  assert.throws(
+    () => runGenerator({ REFLECTOR_HOST: '8.8.8.8', LAB_CIDR_PREFIX: '' }),
+    /private\/loopback IPv4/,
   );
 });

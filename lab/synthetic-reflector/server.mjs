@@ -1,6 +1,6 @@
 import dgram from 'node:dgram';
-import net from 'node:net';
 import http from 'node:http';
+import { assertLabAddressInPrefix } from '../lib/net-guard.mjs';
 
 // Synthetic UDP amplification reflector for the closed ShieldTest lab.
 //
@@ -9,7 +9,8 @@ import http from 'node:http';
 //     address, so source-IP spoofing cannot be modelled here;
 //   - byte amplification is bounded by MAX_RESPONSE_BYTES;
 //   - packet amplification is bounded by MAX_PACKET_FACTOR;
-//   - the target must sit inside the configured lab CIDR prefix.
+//   - the target must be a private/loopback IPv4 (hard, non-bypassable gate),
+//     optionally narrowed further by LAB_CIDR_PREFIX.
 //
 // `createReflector()` builds an instance without side effects so it can be
 // driven from integration tests; the module also self-starts when run directly.
@@ -23,18 +24,21 @@ export function createReflector(env = process.env) {
   const MAX_RESPONSE_BYTES = Number(env.MAX_RESPONSE_BYTES || 8192);
   const MAX_PACKET_FACTOR = Number(env.MAX_PACKET_FACTOR || 10);
   const METRICS_PORT = Number(env.METRICS_PORT || 0); // 0 disables the metrics endpoint
-  const LAB_CIDR_PREFIX = env.LAB_CIDR_PREFIX || '192.168.100.';
 
-  if (!net.isIP(TARGET_HOST) || !TARGET_HOST.startsWith(LAB_CIDR_PREFIX)) {
-    throw new Error(`TARGET_HOST must be an IPv4 address inside ${LAB_CIDR_PREFIX}0/24`);
-  }
+  // Hard gate: TARGET_HOST must be private/loopback (never a public IP), with an
+  // optional extra narrowing to LAB_CIDR_PREFIX. Not env-widenable.
+  assertLabAddressInPrefix(TARGET_HOST, env.LAB_CIDR_PREFIX, 'TARGET_HOST');
   if (!Number.isInteger(TARGET_PORT) || TARGET_PORT < 1024 || TARGET_PORT > 65535) {
     throw new Error('TARGET_PORT must be an unprivileged UDP port');
   }
   if (!Number.isFinite(MAX_FACTOR) || MAX_FACTOR < 1 || MAX_FACTOR > 100) {
     throw new Error('MAX_FACTOR must be between 1 and 100');
   }
-  if (!Number.isFinite(MAX_RESPONSE_BYTES) || MAX_RESPONSE_BYTES < 64 || MAX_RESPONSE_BYTES > 65507) {
+  if (
+    !Number.isFinite(MAX_RESPONSE_BYTES) ||
+    MAX_RESPONSE_BYTES < 64 ||
+    MAX_RESPONSE_BYTES > 65507
+  ) {
     throw new Error('MAX_RESPONSE_BYTES must be between 64 and 65507');
   }
   if (!Number.isFinite(MAX_PACKET_FACTOR) || MAX_PACKET_FACTOR < 1 || MAX_PACKET_FACTOR > 100) {
@@ -91,29 +95,27 @@ export function createReflector(env = process.env) {
   });
 
   function renderMetrics() {
-    return (
-      [
-        '# HELP shieldtest_reflector_requests_total UDP requests received by the reflector.',
-        '# TYPE shieldtest_reflector_requests_total counter',
-        `shieldtest_reflector_requests_total ${metrics.requests}`,
-        '# HELP shieldtest_reflector_input_bytes_total Bytes received by the reflector.',
-        '# TYPE shieldtest_reflector_input_bytes_total counter',
-        `shieldtest_reflector_input_bytes_total ${metrics.inputBytes}`,
-        '# HELP shieldtest_reflector_output_packets_total Packets emitted toward the target.',
-        '# TYPE shieldtest_reflector_output_packets_total counter',
-        `shieldtest_reflector_output_packets_total ${metrics.outputPackets}`,
-        '# HELP shieldtest_reflector_output_bytes_total Bytes emitted toward the target.',
-        '# TYPE shieldtest_reflector_output_bytes_total counter',
-        `shieldtest_reflector_output_bytes_total ${metrics.outputBytes}`,
-        '# HELP shieldtest_reflector_bap Byte amplification factor (output/input).',
-        '# TYPE shieldtest_reflector_bap gauge',
-        `shieldtest_reflector_bap ${metrics.bap}`,
-        '# HELP shieldtest_reflector_packet_amplification Packet amplification (output/input).',
-        '# TYPE shieldtest_reflector_packet_amplification gauge',
-        `shieldtest_reflector_packet_amplification ${metrics.packetAmplification}`,
-        '',
-      ].join('\n')
-    );
+    return [
+      '# HELP shieldtest_reflector_requests_total UDP requests received by the reflector.',
+      '# TYPE shieldtest_reflector_requests_total counter',
+      `shieldtest_reflector_requests_total ${metrics.requests}`,
+      '# HELP shieldtest_reflector_input_bytes_total Bytes received by the reflector.',
+      '# TYPE shieldtest_reflector_input_bytes_total counter',
+      `shieldtest_reflector_input_bytes_total ${metrics.inputBytes}`,
+      '# HELP shieldtest_reflector_output_packets_total Packets emitted toward the target.',
+      '# TYPE shieldtest_reflector_output_packets_total counter',
+      `shieldtest_reflector_output_packets_total ${metrics.outputPackets}`,
+      '# HELP shieldtest_reflector_output_bytes_total Bytes emitted toward the target.',
+      '# TYPE shieldtest_reflector_output_bytes_total counter',
+      `shieldtest_reflector_output_bytes_total ${metrics.outputBytes}`,
+      '# HELP shieldtest_reflector_bap Byte amplification factor (output/input).',
+      '# TYPE shieldtest_reflector_bap gauge',
+      `shieldtest_reflector_bap ${metrics.bap}`,
+      '# HELP shieldtest_reflector_packet_amplification Packet amplification (output/input).',
+      '# TYPE shieldtest_reflector_packet_amplification gauge',
+      `shieldtest_reflector_packet_amplification ${metrics.packetAmplification}`,
+      '',
+    ].join('\n');
   }
 
   function start(onReady) {

@@ -42,28 +42,28 @@ export function createTarget(env = process.env) {
   });
 
   function renderMetrics() {
-    return (
-      [
-        '# HELP shieldtest_target_packets_total Packets received by the lab target.',
-        '# TYPE shieldtest_target_packets_total counter',
-        `shieldtest_target_packets_total ${packets}`,
-        '# HELP shieldtest_target_bytes_total Bytes received by the lab target.',
-        '# TYPE shieldtest_target_bytes_total counter',
-        `shieldtest_target_bytes_total ${bytes}`,
-        '# HELP shieldtest_target_avg_pps Average packets per second since start.',
-        '# TYPE shieldtest_target_avg_pps gauge',
-        `shieldtest_target_avg_pps ${metrics.avgPps}`,
-        '# HELP shieldtest_target_avg_bps Average bits per second since start.',
-        '# TYPE shieldtest_target_avg_bps gauge',
-        `shieldtest_target_avg_bps ${metrics.avgBps}`,
-        '',
-      ].join('\n')
-    );
+    return [
+      '# HELP shieldtest_target_packets_total Packets received by the lab target.',
+      '# TYPE shieldtest_target_packets_total counter',
+      `shieldtest_target_packets_total ${packets}`,
+      '# HELP shieldtest_target_bytes_total Bytes received by the lab target.',
+      '# TYPE shieldtest_target_bytes_total counter',
+      `shieldtest_target_bytes_total ${bytes}`,
+      '# HELP shieldtest_target_avg_pps Average packets per second since start.',
+      '# TYPE shieldtest_target_avg_pps gauge',
+      `shieldtest_target_avg_pps ${metrics.avgPps}`,
+      '# HELP shieldtest_target_avg_bps Average bits per second since start.',
+      '# TYPE shieldtest_target_avg_bps gauge',
+      `shieldtest_target_avg_bps ${metrics.avgBps}`,
+      '',
+    ].join('\n');
   }
 
   function start(onReady) {
     socket.bind(PORT, HOST, () => {
-      console.log(JSON.stringify({ event: 'target.ready', listen: `${HOST}:${socket.address().port}` }));
+      console.log(
+        JSON.stringify({ event: 'target.ready', listen: `${HOST}:${socket.address().port}` }),
+      );
       if (METRICS_PORT > 0) {
         metricsServer = http.createServer((req, res) => {
           if (req.url === '/metrics') {
