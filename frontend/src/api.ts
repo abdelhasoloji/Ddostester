@@ -260,6 +260,7 @@ export const api = {
         agent?: string;
         notifications?: string[];
         protection?: boolean;
+        tlsInsecure?: boolean;
       }>(r),
     ),
   login: (email: string, password: string) =>

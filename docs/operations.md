@@ -24,6 +24,19 @@ Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY
 Runs, audit entries and WRS samples older than `RETENTION_DAYS` (default 90; `0`
 disables) are pruned once a day, plus once at startup. Campaigns are kept.
 
+## Internal HTTPS targets (TLS trust)
+
+Testing an internal target over HTTPS (e.g. behind the WAF with a private CA):
+
+- **Preferred — trust the internal CA:** `NODE_EXTRA_CA_CERTS=/path/to/ca.pem`.
+  TLS verification stays **on**; works for the built-in engine and the probe (and
+  every external engine that reads the system/Node trust store).
+- **Isolated lab escape hatch:** `INSECURE_TLS=true` disables TLS certificate
+  verification for **all** outbound requests of the process (target, probe, and
+  notification/protection webhooks). It is surfaced in `/health`
+  (`"tlsInsecure": true`), logged loudly at startup (`[tls] …`), and shown on the
+  Settings page. Never enable it outside a closed lab.
+
 ## Configuration is validated at boot
 
 Invalid numeric env vars (`PORT`, `SCHEDULER_INTERVAL_MS`, `RETENTION_DAYS`, …)

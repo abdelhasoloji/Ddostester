@@ -9,6 +9,10 @@ import {
   protectionConfigFromEnv,
 } from './modules/protection/provider.js';
 import { buildApp } from './app.js';
+import { applyTlsPolicy } from './util/tls.js';
+
+// Apply the TLS policy before any outbound connection (store, fetch) is opened.
+applyTlsPolicy((msg) => console.warn(`[tls] ${msg}`));
 
 /** Reads a positive-integer env var, failing fast on an invalid value. */
 function intEnv(name: string, def: number): number {

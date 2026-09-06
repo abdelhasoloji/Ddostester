@@ -56,6 +56,7 @@ import {
   PlaybookError,
 } from './modules/playbooks/playbooks.js';
 import { buildSuites, renderSuiteReportHtml } from './modules/playbooks/suites.js';
+import { tlsInsecure } from './util/tls.js';
 
 export interface BuildOptions {
   store: Store;
@@ -273,6 +274,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     agent: agent.name,
     notifications: notifier.sinks,
     protection: protection.configured,
+    tlsInsecure: tlsInsecure(),
   }));
 
   // Readiness probe: 503 when the store is unreachable (e.g. DB down), so a

@@ -731,6 +731,16 @@ export function SettingsPage() {
             </span>
           </div>
           <div>
+            <span className="k">TLS verification</span>
+            <span className="v">
+              {app.tlsInsecure ? (
+                <span className="engine-badge no">Disabled (INSECURE_TLS — lab only)</span>
+              ) : (
+                <span className="engine-badge ok">Enabled</span>
+              )}
+            </span>
+          </div>
+          <div>
             <span className="k">Allowed targets</span>
             <span className="v">
               <code>{app.allowed.join(', ') || '—'}</code>
