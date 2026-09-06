@@ -45,6 +45,8 @@ export interface CampaignRun {
   acceptance?: AcceptanceResult;
   /** Per-second time-series captured during the run (rps, errors, availability). */
   timeline?: RunSample[];
+  /** Source of the detection/mitigation timings when measured (e.g. 'mock', 'scrubbing'). */
+  protectionSource?: string;
 }
 
 /**
@@ -205,5 +207,6 @@ export async function executeCampaign(
     posture: probe.posture(),
     acceptance,
     timeline,
+    protectionSource: measured?.source,
   };
 }

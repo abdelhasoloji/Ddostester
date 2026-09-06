@@ -5,13 +5,27 @@ export interface ProtectionConfig {
   webhookUrl?: string;
   /** Per-request timeout in ms (default 5000). */
   timeoutMs?: number;
+  /**
+   * Lab/demo only: fixed timings returned with source 'mock', to exercise the
+   * measured-WRS path end to end without a live protection source. Clearly
+   * labelled — never presented as real measurement.
+   */
+  mock?: { detectionTimeSec: number; mitigationTimeSec: number };
 }
 
 /** Reads the protection configuration from the environment. */
 export function protectionConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ProtectionConfig {
+  const mock =
+    (env.PROTECTION_MOCK ?? '').trim().toLowerCase() === 'true'
+      ? {
+          detectionTimeSec: Number(env.PROTECTION_MOCK_DETECTION_SEC ?? 15),
+          mitigationTimeSec: Number(env.PROTECTION_MOCK_MITIGATION_SEC ?? 45),
+        }
+      : undefined;
   return {
     webhookUrl: env.PROTECTION_WEBHOOK_URL?.trim() || undefined,
     timeoutMs: env.PROTECTION_TIMEOUT_MS ? Number(env.PROTECTION_TIMEOUT_MS) : undefined,
+    mock,
   };
 }
 
@@ -75,12 +89,37 @@ class WebhookProtectionProvider implements ProtectionProvider {
   }
 }
 
+/**
+ * Lab/demo provider: returns fixed timings tagged source 'mock' so the
+ * measured-WRS path can be exercised without a live protection source. The
+ * 'mock' source is surfaced on the run, so it is never mistaken for real data.
+ */
+class MockProtectionProvider implements ProtectionProvider {
+  readonly configured = true;
+  constructor(private readonly m: { detectionTimeSec: number; mitigationTimeSec: number }) {}
+  async measure(): Promise<ProtectionMeasurement> {
+    return { ...this.m, source: 'mock' };
+  }
+}
+
 /** Builds a protection provider from config (no-op when none configured). */
 export function createProtectionProvider(
   cfg: ProtectionConfig,
   post?: FetchJson,
 ): ProtectionProvider {
-  if (!cfg.webhookUrl) return noopProtectionProvider;
+  // A real webhook takes precedence over the lab mock.
+  if (!cfg.webhookUrl) {
+    if (cfg.mock) {
+      if (
+        !Number.isFinite(cfg.mock.detectionTimeSec) ||
+        !Number.isFinite(cfg.mock.mitigationTimeSec)
+      ) {
+        throw new Error('PROTECTION_MOCK_* must be numbers.');
+      }
+      return new MockProtectionProvider(cfg.mock);
+    }
+    return noopProtectionProvider;
+  }
   let u: URL;
   try {
     u = new URL(cfg.webhookUrl);

@@ -153,6 +153,7 @@ export interface CampaignRun {
   wrs: WrsBreakdown;
   acceptance?: AcceptanceResult;
   timeline?: RunSample[];
+  protectionSource?: string;
   posture?: {
     waf: boolean;
     cdn: boolean;

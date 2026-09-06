@@ -406,11 +406,17 @@ function RunDetails({ run }: { run: CampaignRun }) {
           Collateral <b>{run.wrs.collateral}</b>
         </span>
       </div>
-      {run.wrs.estimated && (
+      {run.wrs.estimated ? (
         <p className="hint" style={{ marginTop: '.5rem' }}>
           Detection and Mitigation are <b>estimated</b> (no protection integration): they are
           constant, so the WRS mostly reflects measured availability.
         </p>
+      ) : (
+        run.protectionSource && (
+          <p className="hint" style={{ marginTop: '.5rem' }}>
+            Detection and Mitigation <b>measured</b> by <code>{run.protectionSource}</code>.
+          </p>
+        )
       )}
       {run.acceptance && (
         <div className="posture">

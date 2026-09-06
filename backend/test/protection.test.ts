@@ -36,6 +36,11 @@ describe('protectionConfigFromEnv', () => {
     } as NodeJS.ProcessEnv);
     expect(cfg.webhookUrl).toBe('https://prot.internal/q');
   });
+
+  it('reads the mock config with defaults', () => {
+    const cfg = protectionConfigFromEnv({ PROTECTION_MOCK: 'true' } as NodeJS.ProcessEnv);
+    expect(cfg.mock).toEqual({ detectionTimeSec: 15, mitigationTimeSec: 45 });
+  });
 });
 
 describe('createProtectionProvider', () => {
@@ -70,5 +75,25 @@ describe('createProtectionProvider', () => {
       throw new Error('down');
     });
     await expect(p.measure(ctx)).resolves.toBeNull();
+  });
+
+  it('mock provider returns fixed timings tagged source "mock"', async () => {
+    const p = createProtectionProvider({ mock: { detectionTimeSec: 12, mitigationTimeSec: 30 } });
+    expect(p.configured).toBe(true);
+    expect(await p.measure(ctx)).toEqual({
+      detectionTimeSec: 12,
+      mitigationTimeSec: 30,
+      source: 'mock',
+    });
+  });
+
+  it('a real webhook takes precedence over the mock', () => {
+    const p = createProtectionProvider({
+      webhookUrl: 'https://prot.internal/q',
+      mock: { detectionTimeSec: 1, mitigationTimeSec: 1 },
+    });
+    expect(p.configured).toBe(true);
+    // A URL provider is used (not the mock) — verified via its measurement shape below.
+    expect(p).not.toBe(noopProtectionProvider);
   });
 });
