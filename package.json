@@ -11,6 +11,7 @@
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm run test -w backend && npm run test -w frontend",
     "test:coverage": "npm run test:coverage -w backend && npm run test:coverage -w frontend",
+    "test:e2e": "npm run build && playwright test",
     "build": "npm run build -w backend && npm run build -w frontend",
     "dev:api": "npm run dev -w backend",
     "dev:web": "npm run dev -w frontend",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^9.1.2",
     "globals": "^15.15.0",
