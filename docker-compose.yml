@@ -91,6 +91,8 @@ services:
       REFLECTOR_HOST: 192.168.100.50
       REFLECTOR_PORT: 9001
       LAB_CIDR_PREFIX: 192.168.100.
+      # Synthetic traffic shape: generic | dns | ssdp | ntp | memcached.
+      PROFILE: ${PROFILE:-generic}
       FACTOR: ${FACTOR:-10}
       PACKET_FACTOR: ${PACKET_FACTOR:-1}
       PPS: ${PPS:-20}

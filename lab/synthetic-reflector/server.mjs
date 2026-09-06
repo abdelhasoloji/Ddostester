@@ -2,6 +2,8 @@ import dgram from 'node:dgram';
 import net from 'node:net';
 import http from 'node:http';
 
+import { PROFILE_NAMES, sanitizeProfileLabel } from '../profiles.mjs';
+
 // Synthetic UDP amplification reflector for the closed ShieldTest lab.
 //
 // Safety by construction:
@@ -10,6 +12,11 @@ import http from 'node:http';
 //   - byte amplification is bounded by MAX_RESPONSE_BYTES;
 //   - packet amplification is bounded by MAX_PACKET_FACTOR;
 //   - the target must sit inside the configured lab CIDR prefix.
+//
+// The reflector reproduces the *traffic shape* of an amplifier so detection and
+// mitigation can be measured; it is not a real DNS/NTP/SSDP/memcached service and
+// never talks to one. Requests carry a `profile` label (allowlisted) only so the
+// metrics can break down the effective amplification per synthetic shape.
 //
 // `createReflector()` builds an instance without side effects so it can be
 // driven from integration tests; the module also self-starts when run directly.
@@ -58,6 +65,19 @@ export function createReflector(env = process.env) {
     },
   };
 
+  // Per-profile breakdown. Keys are bounded to the profile allowlist plus
+  // 'other', so metric label cardinality is fixed and untrusted input never
+  // reaches the exposition text.
+  const byProfile = new Map();
+  function bucket(label) {
+    let b = byProfile.get(label);
+    if (!b) {
+      b = { requests: 0, inputBytes: 0, outputPackets: 0, outputBytes: 0 };
+      byProfile.set(label, b);
+    }
+    return b;
+  }
+
   function parseRequest(msg) {
     try {
       const parsed = JSON.parse(msg.toString('utf8'));
@@ -66,16 +86,20 @@ export function createReflector(env = process.env) {
         MAX_PACKET_FACTOR,
         Math.max(1, Math.floor(Number(parsed.packetFactor || 1))),
       );
-      return { factor, packetFactor };
+      const profile = sanitizeProfileLabel(parsed.profile);
+      return { factor, packetFactor, profile };
     } catch {
-      return { factor: 1, packetFactor: 1 };
+      return { factor: 1, packetFactor: 1, profile: 'other' };
     }
   }
 
   input.on('message', (msg) => {
+    const { factor, packetFactor, profile } = parseRequest(msg);
+    const b = bucket(profile);
     metrics.requests++;
     metrics.inputBytes += msg.length;
-    const { factor, packetFactor } = parseRequest(msg);
+    b.requests++;
+    b.inputBytes += msg.length;
     const requestedBytes = Math.max(msg.length, Math.floor(msg.length * factor));
     const responseBytes = Math.min(MAX_RESPONSE_BYTES, requestedBytes);
     const payload = Buffer.alloc(responseBytes, 0x57); // deterministic WEDOS lab payload
@@ -85,35 +109,62 @@ export function createReflector(env = process.env) {
         if (!err) {
           metrics.outputPackets++;
           metrics.outputBytes += payload.length;
+          b.outputPackets++;
+          b.outputBytes += payload.length;
         }
       });
     }
   });
 
   function renderMetrics() {
-    return (
-      [
-        '# HELP shieldtest_reflector_requests_total UDP requests received by the reflector.',
-        '# TYPE shieldtest_reflector_requests_total counter',
-        `shieldtest_reflector_requests_total ${metrics.requests}`,
-        '# HELP shieldtest_reflector_input_bytes_total Bytes received by the reflector.',
-        '# TYPE shieldtest_reflector_input_bytes_total counter',
-        `shieldtest_reflector_input_bytes_total ${metrics.inputBytes}`,
-        '# HELP shieldtest_reflector_output_packets_total Packets emitted toward the target.',
-        '# TYPE shieldtest_reflector_output_packets_total counter',
-        `shieldtest_reflector_output_packets_total ${metrics.outputPackets}`,
-        '# HELP shieldtest_reflector_output_bytes_total Bytes emitted toward the target.',
-        '# TYPE shieldtest_reflector_output_bytes_total counter',
-        `shieldtest_reflector_output_bytes_total ${metrics.outputBytes}`,
-        '# HELP shieldtest_reflector_bap Byte amplification factor (output/input).',
-        '# TYPE shieldtest_reflector_bap gauge',
-        `shieldtest_reflector_bap ${metrics.bap}`,
-        '# HELP shieldtest_reflector_packet_amplification Packet amplification (output/input).',
-        '# TYPE shieldtest_reflector_packet_amplification gauge',
-        `shieldtest_reflector_packet_amplification ${metrics.packetAmplification}`,
-        '',
-      ].join('\n')
+    const lines = [
+      '# HELP shieldtest_reflector_requests_total UDP requests received by the reflector.',
+      '# TYPE shieldtest_reflector_requests_total counter',
+      `shieldtest_reflector_requests_total ${metrics.requests}`,
+      '# HELP shieldtest_reflector_input_bytes_total Bytes received by the reflector.',
+      '# TYPE shieldtest_reflector_input_bytes_total counter',
+      `shieldtest_reflector_input_bytes_total ${metrics.inputBytes}`,
+      '# HELP shieldtest_reflector_output_packets_total Packets emitted toward the target.',
+      '# TYPE shieldtest_reflector_output_packets_total counter',
+      `shieldtest_reflector_output_packets_total ${metrics.outputPackets}`,
+      '# HELP shieldtest_reflector_output_bytes_total Bytes emitted toward the target.',
+      '# TYPE shieldtest_reflector_output_bytes_total counter',
+      `shieldtest_reflector_output_bytes_total ${metrics.outputBytes}`,
+      '# HELP shieldtest_reflector_bap Byte amplification factor (output/input).',
+      '# TYPE shieldtest_reflector_bap gauge',
+      `shieldtest_reflector_bap ${metrics.bap}`,
+      '# HELP shieldtest_reflector_packet_amplification Packet amplification (output/input).',
+      '# TYPE shieldtest_reflector_packet_amplification gauge',
+      `shieldtest_reflector_packet_amplification ${metrics.packetAmplification}`,
+      '# HELP shieldtest_reflector_profile_requests_total Requests per synthetic profile.',
+      '# TYPE shieldtest_reflector_profile_requests_total counter',
+    ];
+    for (const [label, b] of byProfile) {
+      lines.push(`shieldtest_reflector_profile_requests_total{profile="${label}"} ${b.requests}`);
+    }
+    lines.push(
+      '# HELP shieldtest_reflector_profile_input_bytes_total Input bytes per synthetic profile.',
+      '# TYPE shieldtest_reflector_profile_input_bytes_total counter',
     );
+    for (const [label, b] of byProfile) {
+      lines.push(`shieldtest_reflector_profile_input_bytes_total{profile="${label}"} ${b.inputBytes}`);
+    }
+    lines.push(
+      '# HELP shieldtest_reflector_profile_output_packets_total Output packets per synthetic profile.',
+      '# TYPE shieldtest_reflector_profile_output_packets_total counter',
+    );
+    for (const [label, b] of byProfile) {
+      lines.push(`shieldtest_reflector_profile_output_packets_total{profile="${label}"} ${b.outputPackets}`);
+    }
+    lines.push(
+      '# HELP shieldtest_reflector_profile_output_bytes_total Output bytes per synthetic profile.',
+      '# TYPE shieldtest_reflector_profile_output_bytes_total counter',
+    );
+    for (const [label, b] of byProfile) {
+      lines.push(`shieldtest_reflector_profile_output_bytes_total{profile="${label}"} ${b.outputBytes}`);
+    }
+    lines.push('');
+    return lines.join('\n');
   }
 
   function start(onReady) {
@@ -126,6 +177,7 @@ export function createReflector(env = process.env) {
           maxFactor: MAX_FACTOR,
           maxResponseBytes: MAX_RESPONSE_BYTES,
           maxPacketFactor: MAX_PACKET_FACTOR,
+          profiles: PROFILE_NAMES,
         }),
       );
       if (METRICS_PORT > 0) {
@@ -155,7 +207,7 @@ export function createReflector(env = process.env) {
     if (metricsServer) metricsServer.close(settle);
   }
 
-  return { start, stop, metrics, renderMetrics };
+  return { start, stop, metrics, byProfile, renderMetrics };
 }
 
 const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
