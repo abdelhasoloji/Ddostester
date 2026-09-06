@@ -46,6 +46,62 @@ services:
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
 
+  # --- Isolated synthetic network lab -----------------------------------------
+  # Safe UDP amplification model: no spoofing and no public protocol reflectors.
+  # The `internal: true` network has no Docker-managed Internet egress.
+  lab-target:
+    profiles: ['network-lab']
+    build:
+      context: ./lab/target
+    image: shieldtest-lab-target:latest
+    restart: unless-stopped
+    environment:
+      LISTEN_PORT: 9002
+      METRICS_PORT: 9102 # Prometheus text metrics, scraped over the internal lab net only
+    networks:
+      shieldtest_lab:
+        ipv4_address: 192.168.100.99
+
+  lab-reflector:
+    profiles: ['network-lab']
+    build:
+      context: ./lab/synthetic-reflector
+    image: shieldtest-lab-reflector:latest
+    restart: unless-stopped
+    depends_on: [lab-target]
+    environment:
+      LISTEN_PORT: 9001
+      METRICS_PORT: 9101 # Prometheus text metrics, scraped over the internal lab net only
+      TARGET_HOST: 192.168.100.99
+      TARGET_PORT: 9002
+      LAB_CIDR_PREFIX: 192.168.100.
+      MAX_FACTOR: ${LAB_MAX_FACTOR:-50}
+      MAX_RESPONSE_BYTES: ${LAB_MAX_RESPONSE_BYTES:-8192}
+      MAX_PACKET_FACTOR: ${LAB_MAX_PACKET_FACTOR:-10}
+    networks:
+      shieldtest_lab:
+        ipv4_address: 192.168.100.50
+
+  lab-generator:
+    profiles: ['network-lab']
+    build:
+      context: ./lab/generator
+    image: shieldtest-lab-generator:latest
+    environment:
+      REFLECTOR_HOST: 192.168.100.50
+      REFLECTOR_PORT: 9001
+      LAB_CIDR_PREFIX: 192.168.100.
+      FACTOR: ${FACTOR:-10}
+      PACKET_FACTOR: ${PACKET_FACTOR:-1}
+      PPS: ${PPS:-20}
+      DURATION_SEC: ${DURATION_SEC:-10}
+      MAX_PPS: ${LAB_MAX_PPS:-500}
+      MAX_DURATION_SEC: ${LAB_MAX_DURATION_SEC:-60}
+      MAX_PACKET_FACTOR: ${LAB_MAX_PACKET_FACTOR:-10}
+    networks:
+      shieldtest_lab:
+        ipv4_address: 192.168.100.10
+
   # --- Monitoring (optional): docker compose --profile monitoring up -d --------
   prometheus:
     image: prom/prometheus:latest
@@ -53,6 +109,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    # Also attached to the internal lab network so it can scrape the lab
+    # reflector/target metrics when the network-lab profile is running.
+    # (The lab targets simply show as "down" when that profile is not up.)
+    networks:
+      - default
+      - shieldtest_lab
     # Not exposed publicly; queried by Grafana over the internal network.
 
   grafana:
@@ -85,6 +147,14 @@ services:
       # - ./deploy/proxy/ca.crt:/etc/caddy/ca.crt:ro   # uncomment for mTLS
       - caddy-data:/data
       - caddy-config:/config
+
+networks:
+  shieldtest_lab:
+    name: shieldtest_lab
+    internal: true
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
 
 volumes:
   pgdata:

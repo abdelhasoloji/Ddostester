@@ -8,7 +8,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['backend/**/*.{ts,mjs}', 'eslint.config.js'],
+    files: ['backend/**/*.{ts,mjs}', 'lab/**/*.mjs', 'eslint.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
   {
