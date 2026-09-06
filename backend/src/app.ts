@@ -22,12 +22,9 @@ import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
-import { renderCampaignReportHtml } from './modules/reports/report.js';
-import { renderMetrics } from './modules/metrics/prometheus.js';
-import { renderComplianceHtml } from './modules/reports/compliance.js';
+import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
-import { verifyChain } from './modules/audit/integrity.js';
 import type { LoadProgress } from './engine/loadTest.js';
 import { login, identityFromRequest } from './auth/guard.js';
 import { signJwt } from './auth/jwt.js';
@@ -58,9 +55,7 @@ import {
   validatePlaybookInput,
   PlaybookError,
 } from './modules/playbooks/playbooks.js';
-import { buildSuites, renderSuiteReportHtml } from './modules/playbooks/suites.js';
 import { tlsInsecure } from './util/tls.js';
-import { runsSummaryCsv, runTimelineCsv } from './modules/reports/csv.js';
 
 export interface BuildOptions {
   store: Store;
@@ -642,109 +637,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  // Consolidated assessment suites (campaigns grouped by playbook run).
-  app.get('/api/suites', { preHandler: guard('campaign:read') }, async () =>
-    buildSuites(await store.listCampaigns()),
-  );
-
-  const findSuite = async (id: string) =>
-    buildSuites(await store.listCampaigns()).find((s) => s.suiteId === id);
-
-  app.get('/api/suites/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const suite = await findSuite((req.params as { id: string }).id);
-    return suite ?? reply.code(404).send({ error: 'suite not found' });
-  });
-
-  app.get('/api/suites/:id/report', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const suite = await findSuite((req.params as { id: string }).id);
-    if (!suite) return reply.code(404).send({ error: 'suite not found' });
-    return reply.type('text/html').send(renderSuiteReportHtml(suite));
-  });
-
-  app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {
-    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
-    return buildWrsHistory(campaigns, runs);
-  });
-
-  app.get('/metrics', async (_req, reply) => {
-    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
-    return reply.type('text/plain; version=0.0.4').send(renderMetrics(campaigns, runs.length));
-  });
-
-  app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
-    const { limit } = req.query as { limit?: string };
-    return store.listAudit(limit ? Number(limit) : 200);
-  });
-
-  // EPIC D: verify the tamper-evident audit chain end to end.
-  app.get('/api/audit/verify', { preHandler: guard('campaign:read') }, async () => {
-    return verifyChain(await store.listAuditChain());
-  });
-
-  // EPIC D: downloadable, self-verifiable audit export (entries + hashes + verdict).
-  app.get('/api/audit/export', { preHandler: guard('campaign:read') }, async (_req, reply) => {
-    const entries = await store.listAuditChain();
-    const verdict = verifyChain(entries);
-    const doc = {
-      kind: 'wedos-shieldtest-audit-export',
-      generatedAt: new Date().toISOString(),
-      count: entries.length,
-      headHash: verdict.headHash,
-      verdict,
-      entries,
-    };
-    reply.header('content-disposition', 'attachment; filename="shieldtest-audit-export.json"');
-    return reply.type('application/json').send(JSON.stringify(doc, null, 2));
-  });
-
-  app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {
-    const { campaignId } = req.query as { campaignId?: string };
-    return store.listRuns(campaignId);
-  });
-
-  app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const r = await store.getRun((req.params as { runId: string }).runId);
-    return r ?? reply.code(404).send({ error: 'run not found' });
-  });
-
-  // CSV exports (RPT-03) — browser downloads carry a read token in the query.
-  app.get('/api/runs.csv', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const { campaignId } = req.query as { campaignId?: string };
-    const runs = await store.listRuns(campaignId);
-    return reply
-      .type('text/csv; charset=utf-8')
-      .header('content-disposition', 'attachment; filename="shieldtest-runs.csv"')
-      .send(runsSummaryCsv(runs));
-  });
-
-  app.get('/api/runs/:runId/timeline.csv', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const runId = (req.params as { runId: string }).runId;
-    const r = await store.getRun(runId);
-    if (!r) return reply.code(404).send({ error: 'run not found' });
-    return reply
-      .type('text/csv; charset=utf-8')
-      .header('content-disposition', `attachment; filename="shieldtest-run-${runId}.csv"`)
-      .send(runTimelineCsv(r));
-  });
-
-  app.get('/api/reports/compliance', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const { from, to } = req.query as { from?: string; to?: string };
-    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
-    return reply.type('text/html').send(renderComplianceHtml(campaigns, runs, { from, to }));
-  });
-
-  app.get('/api/runs/:runId/report', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const r = await store.getRun((req.params as { runId: string }).runId);
-    if (!r) return reply.code(404).send({ error: 'run not found' });
-    const c = await store.getCampaign(r.campaignId);
-    if (!c) return reply.code(404).send({ error: 'campaign not found' });
-    return reply.type('text/html').send(renderCampaignReportHtml(c, r));
-  });
+  registerReadRoutes(app, { store, guard, readTokenAllowed });
 
   return { app, runCampaign };
 }
