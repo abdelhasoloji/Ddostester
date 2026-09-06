@@ -31,5 +31,6 @@ jobs:
       # Discrete steps mirror `npm run verify` for readable, granular logs.
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      # Tests with coverage (thresholds enforced by each workspace's config).
+      - run: npm run test:coverage
       - run: npm run build
