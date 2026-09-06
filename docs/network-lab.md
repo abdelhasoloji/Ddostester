@@ -5,13 +5,34 @@ This lab reproduces the traffic shape and measurement problem of UDP amplificati
 ## Topology
 
 ```text
-generator (.10) -> synthetic-reflector (.50) -> target (.99)
-                         |
-                         +-- expands each request by a bounded byte factor (N)
-                         +-- and a bounded packet factor (P)
+generator (.10) -> synthetic-reflector (.50) -> [ scrubber (.60) ] -> target (.99)
+                         |                              |
+                         +-- byte factor (N)            +-- forwards up to CEILING_PPS;
+                         +-- packet factor (P)              once THRESHOLD_PPS is sustained
+                                                            past DETECTION_DELAY, drops the excess
 ```
 
+The scrubber is **optional**: by default the reflector hits the target directly.
+Set `LAB_REFLECTOR_TARGET=192.168.100.60` and `LAB_REFLECTOR_TARGET_PORT=9005` to
+route through it and study detection/mitigation (see the mitigation section below).
+
 All services are attached to the Docker network `shieldtest_lab`, configured with `internal: true`. Docker therefore provides no default external routing for this network.
+
+## Mitigation node (scrubber)
+
+The scrubber models a filtering appliance and makes the **detection/mitigation problem measurable**:
+
+- it measures the incoming rate and, once `THRESHOLD_PPS` is sustained past
+  `DETECTION_DELAY_SEC`, **engages mitigation** — forwarding only up to
+  `CEILING_PPS` and dropping the excess;
+- it classifies packets by their payload `type`, so it reports **collateral**
+  (`collateral_pct` = share of dropped packets that were legitimate);
+- Prometheus (`METRICS_PORT=9105`): `shieldtest_scrubber_received_total`,
+  `_forwarded_total`, `_dropped_total`, `_dropped_legit_total`, `_mitigating`,
+  `_detection_delay_seconds`, `_collateral_pct`.
+
+Like every lab node, it only forwards toward a **private/loopback** target (hard
+gate) and generates no traffic of its own.
 
 ## Start
 

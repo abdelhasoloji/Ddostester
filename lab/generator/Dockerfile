@@ -1,7 +1,6 @@
-# Pin a specific patch release for reproducible builds; for full immutability
-# replace the tag with a @sha256 digest.
 FROM node:22.20.0-alpine
 WORKDIR /app
-COPY *.mjs ./
+COPY lib ./lib
+COPY generator/*.mjs ./generator/
 USER node
-CMD ["node", "generate.mjs"]
+CMD ["node", "generator/generate.mjs"]

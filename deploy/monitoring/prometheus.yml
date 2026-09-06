@@ -16,3 +16,5 @@ scrape_configs:
         labels: { component: reflector }
       - targets: ['lab-target:9102']
         labels: { component: target }
+      - targets: ['lab-scrubber:9105']
+        labels: { component: scrubber }

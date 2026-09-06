@@ -62,18 +62,45 @@ services:
       shieldtest_lab:
         ipv4_address: 192.168.100.99
 
+  # Optional mitigation node (scrubber). To route the reflector THROUGH it, set
+  # LAB_REFLECTOR_TARGET=192.168.100.60; otherwise the reflector hits the target
+  # directly and the scrubber simply idles.
+  lab-scrubber:
+    profiles: ['network-lab']
+    build:
+      context: ./lab
+      dockerfile: scrubber/Dockerfile
+    image: shieldtest-lab-scrubber:latest
+    restart: unless-stopped
+    depends_on: [lab-target]
+    environment:
+      LISTEN_PORT: 9005
+      METRICS_PORT: 9105 # Prometheus text metrics, scraped over the internal lab net only
+      TARGET_HOST: 192.168.100.99
+      TARGET_PORT: 9002
+      LAB_CIDR_PREFIX: 192.168.100.
+      THRESHOLD_PPS: ${LAB_THRESHOLD_PPS:-100}
+      CEILING_PPS: ${LAB_CEILING_PPS:-50}
+      DETECTION_DELAY_SEC: ${LAB_DETECTION_DELAY_SEC:-3}
+    networks:
+      shieldtest_lab:
+        ipv4_address: 192.168.100.60
+
   lab-reflector:
     profiles: ['network-lab']
     build:
-      context: ./lab/synthetic-reflector
+      context: ./lab
+      dockerfile: synthetic-reflector/Dockerfile
     image: shieldtest-lab-reflector:latest
     restart: unless-stopped
     depends_on: [lab-target]
     environment:
       LISTEN_PORT: 9001
       METRICS_PORT: 9101 # Prometheus text metrics, scraped over the internal lab net only
-      TARGET_HOST: 192.168.100.99
-      TARGET_PORT: 9002
+      # Default: straight to the target. Set LAB_REFLECTOR_TARGET=192.168.100.60
+      # to route through the scrubber and study detection/mitigation.
+      TARGET_HOST: ${LAB_REFLECTOR_TARGET:-192.168.100.99}
+      TARGET_PORT: ${LAB_REFLECTOR_TARGET_PORT:-9002}
       LAB_CIDR_PREFIX: 192.168.100.
       MAX_FACTOR: ${LAB_MAX_FACTOR:-50}
       MAX_RESPONSE_BYTES: ${LAB_MAX_RESPONSE_BYTES:-8192}
@@ -85,7 +112,8 @@ services:
   lab-generator:
     profiles: ['network-lab']
     build:
-      context: ./lab/generator
+      context: ./lab
+      dockerfile: generator/Dockerfile
     image: shieldtest-lab-generator:latest
     environment:
       REFLECTOR_HOST: 192.168.100.50
