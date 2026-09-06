@@ -34,6 +34,14 @@ The scrubber models a filtering appliance and makes the **detection/mitigation p
 Like every lab node, it only forwards toward a **private/loopback** target (hard
 gate) and generates no traffic of its own.
 
+## Traffic shapes & legitimate background
+
+The generator supports a `PROFILE` (`constant` | `ramp` | `wave` | `burst`) that
+modulates the send rate within the base `PPS` cap — useful to study how detection
+reacts to a ramp vs. a burst. The optional `lab-legit` service sends benign,
+never-amplified traffic (`MODE=legit`) straight to the scrubber, so
+`shieldtest_scrubber_collateral_pct` shows whether mitigation harms good traffic.
+
 ## Start
 
 ```bash

@@ -122,6 +122,7 @@ services:
       FACTOR: ${FACTOR:-10}
       PACKET_FACTOR: ${PACKET_FACTOR:-1}
       PPS: ${PPS:-20}
+      PROFILE: ${PROFILE:-constant}
       DURATION_SEC: ${DURATION_SEC:-10}
       MAX_PPS: ${LAB_MAX_PPS:-500}
       MAX_DURATION_SEC: ${LAB_MAX_DURATION_SEC:-60}
@@ -129,6 +130,28 @@ services:
     networks:
       shieldtest_lab:
         ipv4_address: 192.168.100.10
+
+  # Optional benign background traffic, to measure collateral at the scrubber.
+  # Sends never-amplified packets straight to the scrubber (.60).
+  lab-legit:
+    profiles: ['network-lab']
+    build:
+      context: ./lab
+      dockerfile: generator/Dockerfile
+    image: shieldtest-lab-generator:latest
+    environment:
+      MODE: legit
+      PROFILE: constant
+      REFLECTOR_HOST: 192.168.100.60
+      REFLECTOR_PORT: 9005
+      LAB_CIDR_PREFIX: 192.168.100.
+      PPS: ${LAB_LEGIT_PPS:-10}
+      DURATION_SEC: ${DURATION_SEC:-10}
+      MAX_PPS: ${LAB_MAX_PPS:-500}
+      MAX_DURATION_SEC: ${LAB_MAX_DURATION_SEC:-60}
+    networks:
+      shieldtest_lab:
+        ipv4_address: 192.168.100.11
 
   # --- Monitoring (optional): docker compose --profile monitoring up -d --------
   prometheus:
