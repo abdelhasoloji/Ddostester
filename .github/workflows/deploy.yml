@@ -39,6 +39,10 @@ jobs:
       - name: Update and restart the service
         env:
           DEPLOY_BRANCH: ${{ github.event.inputs.ref || 'main' }}
+          # Deployment model on the server: 'systemd' (default) or 'docker'.
+          # Set the repository variable DEPLOY_MODE=docker to deploy via
+          # Docker Compose (the api image serves API + UI).
+          DEPLOY_MODE: ${{ vars.DEPLOY_MODE || 'systemd' }}
         run: |
           set -e
           REPO="${DDOSTESTER_DIR:-$HOME/ddostester}"

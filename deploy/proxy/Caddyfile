@@ -1,14 +1,14 @@
-# Reverse-proxy TLS (+ mTLS optionnel) devant le control plane ShieldTest.
-# Termine TLS et transmet vers l'API (loopback interne du réseau Docker : api:8080).
-# Le TSD prévoit « HTTPS + mTLS » : ce proxy en fournit la terminaison.
+# TLS (+ optional mTLS) reverse proxy in front of the ShieldTest control plane.
+# Terminates TLS and forwards to the API (internal Docker loopback: api:8080).
+# The TSD calls for "HTTPS + mTLS"; this proxy provides that termination.
 
 {$SHIELDTEST_DOMAIN:shieldtest.internal} {
-	# TLS : certificat interne auto-signé par défaut (outil interne). Pour des
-	# certificats réels, remplacer par `tls email@wedos` (ACME) ou `tls cert key`.
+	# TLS: self-signed internal certificate by default (this is an internal tool).
+	# For real certificates, replace with `tls email@wedos` (ACME) or `tls cert key`.
 	tls internal {
-		# --- mTLS (authentification par certificat client) --------------------
-		# Décommenter pour EXIGER un certificat client signé par la CA interne
-		# WEDOS. Monter la CA dans le conteneur (voir docker-compose, profil proxy).
+		# --- mTLS (client-certificate authentication) -------------------------
+		# Uncomment to REQUIRE a client certificate signed by the WEDOS internal
+		# CA. Mount the CA into the container (see docker-compose, proxy profile).
 		# client_auth {
 		#	mode require_and_verify
 		#	trusted_ca_cert_file /etc/caddy/ca.crt

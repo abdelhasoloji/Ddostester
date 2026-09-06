@@ -281,6 +281,10 @@ export async function runLoadTest(
         headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
         signal: controller.signal,
+        // Never auto-follow redirects: a 3xx to an off-allowlist host would
+        // otherwise escape the allowlist (SSRF). A redirect is measured as the
+        // 3xx it is, against the allowlisted host we were told to hit.
+        redirect: 'manual',
       });
       latencies.push(performance.now() - t0);
       sent++;

@@ -58,13 +58,32 @@ server**. The runner polls GitHub outbound (HTTPS 443), so:
 The job runs `deploy/update.sh` in the service repo (default `~/ddostester`,
 override with the `DDOSTESTER_DIR` env var on the runner).
 
+## Deployment model: systemd or Docker Compose
+
+`deploy/update.sh` supports two models via the `DEPLOY_MODE` env var; both fetch
+the branch, deploy, health-check `/ready` on `127.0.0.1:8080`, and **roll back to
+the previous commit** if the new revision is unhealthy.
+
+| `DEPLOY_MODE`       | What it does                                                          | Test gate                       |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------- |
+| `systemd` (default) | `npm ci` → build → `npm test` → `systemctl restart ddostester`        | tests run on the server         |
+| `docker`            | `docker compose up -d --build` (the api image builds + serves API/UI) | CI on `main` (image build gate) |
+
+For the **Docker Compose** model, keep a `.env` next to `docker-compose.yml`
+(compose reads it) holding `POSTGRES_PASSWORD`, `ALLOWED_TARGETS`, and — if the
+`monitoring` profile is used — `GRAFANA_PASSWORD`. `deploy/update.sh` never
+writes secrets, so this file is yours to manage. The CD workflow reads the
+repository variable `DEPLOY_MODE` (Settings → Actions → Variables); leave it
+unset for systemd, set it to `docker` to deploy via Compose.
+
 ## Provisioning vs update
 
-- **`deploy/setup.sh`** — one-time provisioning, run by hand on the server. Writes
-  the systemd unit and the runtime secrets (`/etc/ddostester.env`).
-- **`deploy/update.sh`** — what CD runs on every deploy. Fetches the branch,
-  `npm ci`, build, test, restarts the service. It **never** touches the systemd
-  unit or the secrets file, so automated deploys can't erase your configuration.
+- **`deploy/setup.sh`** — one-time provisioning for the **systemd** model, run by
+  hand on the server. Writes the systemd unit and the runtime secrets
+  (`/etc/ddostester.env`). Not used by the Docker model.
+- **`deploy/update.sh`** — what CD runs on every deploy (either model). It
+  **never** touches the systemd unit or the secrets file, so automated deploys
+  can't erase your configuration.
 
 ## One-time server setup
 

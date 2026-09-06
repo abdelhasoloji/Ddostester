@@ -45,6 +45,14 @@ services:
       # List ONLY internal / mandated hosts.
       ALLOWED_TARGETS: ${ALLOWED_TARGETS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://shieldtest:${POSTGRES_PASSWORD:?}@db:5432/shieldtest
+      # Optional application-level auth + RBAC. Empty = disabled (rely on the
+      # loopback bind + SSH tunnel). Set both to require a signed token.
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_USERS: ${AUTH_USERS:-}
+      # Load agent: 'builtin' (bounded in-process HTTP) or 'k6' (external tool).
+      AGENT: ${AGENT:-builtin}
+      # Optional CORS origin for the UI if served from a different host.
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
 
   # --- Isolated synthetic network lab -----------------------------------------
   # Safe UDP amplification model: no spoofing and no public protocol reflectors.
@@ -179,7 +187,7 @@ services:
     ports:
       - '127.0.0.1:3000:3000' # access via SSH tunnel, never public
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro

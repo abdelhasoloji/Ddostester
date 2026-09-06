@@ -255,3 +255,41 @@ describe('builtin engine — data feeder', () => {
     expect([...paths].some((p) => p.includes('{{q}}'))).toBe(false);
   }, 15000);
 });
+
+describe('builtin engine — redirects are not followed (allowlist/SSRF guard)', () => {
+  let primary: string;
+  let secondaryHits = 0;
+  // The "secondary" stands in for an off-allowlist host a redirect could point
+  // at. If the engine ever follows a 3xx, this server records the hit.
+  const secondary = createServer((_req, res) => {
+    secondaryHits++;
+    res.statusCode = 200;
+    res.end('should-never-be-reached');
+  });
+  // The primary (allowlisted target) always answers with a 302 to the secondary.
+  const server = createServer((_req, res) => {
+    res.statusCode = 302;
+    res.setHeader('location', `http://127.0.0.1:${(secondary.address() as AddressInfo).port}/`);
+    res.end();
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => secondary.listen(0, '127.0.0.1', r));
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    primary = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(async () => {
+    await new Promise<void>((r) => server.close(() => r()));
+    await new Promise<void>((r) => secondary.close(() => r()));
+  });
+
+  it('records the 3xx as-is and never chases the redirect off-allowlist', async () => {
+    const r = await runLoadTest(
+      { url: `${primary}/`, concurrency: 3, durationSec: 1, maxRps: 30, authorized: true },
+      ['127.0.0.1'],
+    );
+    expect(r.totalRequests).toBeGreaterThan(0);
+    expect(r.statusCounts['3xx']).toBe(r.totalRequests); // every response is the 302
+    expect(secondaryHits).toBe(0); // the redirect target was never contacted
+  });
+});
