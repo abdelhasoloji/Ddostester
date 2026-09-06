@@ -62,14 +62,28 @@ export function createCampaign(
   assertHostAllowed(input.target, allowedHosts, 'Target');
   assertHostAllowed(input.probeUrl, allowedHosts, 'Probe');
 
-  if (!(input.maxRps > 0) || input.maxRps > HARD_CAPS.maxRps) {
-    throw new CampaignError(`maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
+  // Caps are whole numbers: rps, concurrent workers and seconds are counts, so a
+  // fractional value is a client error, not a bounded-but-odd request.
+  if (!Number.isInteger(input.maxRps) || input.maxRps < 1 || input.maxRps > HARD_CAPS.maxRps) {
+    throw new CampaignError(`maxRps must be an integer within [1, ${HARD_CAPS.maxRps}].`);
   }
-  if (input.concurrency < 1 || input.concurrency > HARD_CAPS.maxConcurrency) {
-    throw new CampaignError(`concurrency must be within [1, ${HARD_CAPS.maxConcurrency}].`);
+  if (
+    !Number.isInteger(input.concurrency) ||
+    input.concurrency < 1 ||
+    input.concurrency > HARD_CAPS.maxConcurrency
+  ) {
+    throw new CampaignError(
+      `concurrency must be an integer within [1, ${HARD_CAPS.maxConcurrency}].`,
+    );
   }
-  if (input.maxDurationSec < 1 || input.maxDurationSec > HARD_CAPS.maxDurationSec) {
-    throw new CampaignError(`maxDurationSec must be within [1, ${HARD_CAPS.maxDurationSec}].`);
+  if (
+    !Number.isInteger(input.maxDurationSec) ||
+    input.maxDurationSec < 1 ||
+    input.maxDurationSec > HARD_CAPS.maxDurationSec
+  ) {
+    throw new CampaignError(
+      `maxDurationSec must be an integer within [1, ${HARD_CAPS.maxDurationSec}].`,
+    );
   }
 
   if (input.scheduledAt !== undefined && Number.isNaN(Date.parse(input.scheduledAt))) {
@@ -97,10 +111,14 @@ export function createCampaign(
     }
     let totalDur = 0;
     for (const p of input.scenario) {
-      if (!(p.maxRps > 0) || p.maxRps > HARD_CAPS.maxRps) {
-        throw new CampaignError(`Phase: maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
+      if (!Number.isInteger(p.maxRps) || p.maxRps < 1 || p.maxRps > HARD_CAPS.maxRps) {
+        throw new CampaignError(
+          `Phase: maxRps must be an integer within [1, ${HARD_CAPS.maxRps}].`,
+        );
       }
-      if (p.durationSec < 1) throw new CampaignError('Phase: duration ≥ 1 s.');
+      if (!Number.isInteger(p.durationSec) || p.durationSec < 1) {
+        throw new CampaignError('Phase: duration must be an integer ≥ 1 s.');
+      }
       totalDur += p.durationSec;
     }
     if (totalDur > HARD_CAPS.maxDurationSec) {

@@ -282,9 +282,8 @@ describe('C. Hard-caps matrix', () => {
     {
       field: 'maxRps',
       value: 0.5,
-      want: 201,
-      outcome: 'FINDING',
-      note: 'fractional rps accepted; a whole number would be expected',
+      want: 400,
+      note: 'fractional rps rejected (caps must be whole numbers)',
     },
     // concurrency: valid iff >=1 && <=500
     { field: 'concurrency', value: 0, want: 400 },
@@ -295,9 +294,8 @@ describe('C. Hard-caps matrix', () => {
     {
       field: 'concurrency',
       value: 1.5,
-      want: 201,
-      outcome: 'FINDING',
-      note: 'fractional concurrency accepted; integer expected',
+      want: 400,
+      note: 'fractional concurrency rejected (integer required)',
     },
     // maxDurationSec: valid iff >=1 && <=900
     { field: 'maxDurationSec', value: 0, want: 400 },
@@ -435,27 +433,41 @@ describe('E. Approval & separation of duties', () => {
     expect(pass).toBe(true);
   });
 
-  it('FINDING: the approver may also execute — SoD is only partial', async () => {
-    // Officer approves a campaign they did not author, then runs it themselves.
+  it('the approver of a campaign cannot also execute it (SoD extended)', async () => {
+    // Officer approves a campaign they did not author, then tries to run it.
     const c = await createAs('engineer', { maxDurationSec: 1 });
     await approve('officer', c.id, CREDS.officer.email);
     const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
       token: authed.tokens.officer,
     });
-    const executed = run.statusCode === 201;
-    // Current behaviour: allowed. Argued ideal: the executor should differ from
-    // the approver (or the concentration be a consciously accepted risk).
+    const blocked = run.statusCode === 403;
     reg(
       'SOD',
-      'approver can also execute the same campaign',
+      'approver cannot also execute',
       'SPEC-SOD-2',
-      'ideally separated (executor ≠ approver)',
-      executed ? 'same officer approved AND executed (200)' : `blocked (${run.statusCode})`,
-      executed, // pin current behaviour so the suite stays green
-      'FINDING',
-      'SoD enforces author≠approver but not approver≠executor: one officer can approve then run a campaign end-to-end. Consider requiring a distinct executor, or document as an accepted risk.',
+      '403',
+      String(run.statusCode),
+      blocked,
     );
-    expect(executed).toBe(true);
+    expect(blocked, `officer approve+execute → ${run.statusCode}`).toBe(true);
+  });
+
+  it('a different actor (the engineer author) may execute an officer-approved campaign', async () => {
+    const c = await createAs('engineer', { maxDurationSec: 1 });
+    await approve('officer', c.id, CREDS.officer.email);
+    const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
+      token: authed.tokens.engineer,
+    });
+    const executed = run.statusCode === 201;
+    reg(
+      'SOD',
+      'executor ≠ approver is allowed',
+      'SPEC-SOD-2',
+      '201',
+      String(run.statusCode),
+      executed,
+    );
+    expect(executed, `engineer execute → ${run.statusCode}`).toBe(true);
   }, 20_000);
 });
 
@@ -548,23 +560,21 @@ describe('G. Users governance', () => {
     );
     expect(create.statusCode).toBeLessThan(300);
 
-    // Re-posting an existing store user is an UPSERT, not a 409.
+    // Re-creating an existing store user is a 409 (create-only, no silent overwrite).
     const dup = await hit(authed.app, 'POST', '/api/users', {
       token: authed.tokens.officer,
       body: { email, role: 'viewer', password: 'a-different-password' },
     });
-    const isUpsert = dup.statusCode === 201;
+    const is409 = dup.statusCode === 409;
     reg(
       'USER',
-      're-creating an existing user overwrites it (upsert)',
+      're-creating an existing user is rejected (409)',
       'SPEC-USER-1',
-      'a pure create would 409',
-      `${dup.statusCode} (upsert)`,
-      isUpsert,
-      'FINDING',
-      'POST /api/users is create-or-update: re-posting an existing store user silently overwrites their role + password (audited as user.upsert). Acceptable as an idempotent admin upsert, but a "create" that resets an account without confirmation is worth surfacing.',
+      '409',
+      String(dup.statusCode),
+      is409,
     );
-    expect(isUpsert).toBe(true);
+    expect(is409, `re-create → ${dup.statusCode}`).toBe(true);
 
     // Weak password rejected.
     const weak = await hit(authed.app, 'POST', '/api/users', {

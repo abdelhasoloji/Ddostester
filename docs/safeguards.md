@@ -6,15 +6,15 @@ offensive capability.
 
 ## Technical safeguards
 
-| Safeguard   | Mechanism                                                                                     | Where                                        |
-| ----------- | --------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Allowlist   | Target **and** probe must be in `ALLOWED_TARGETS`; otherwise rejected                         | `campaigns/service.ts`, `engine/loadTest.ts` |
-| Attestation | `authorized:true` required at creation                                                        | `campaigns/service.ts`                       |
-| Hard caps   | `maxRps ≤ 2000`, `concurrency ≤ 500`, `duration ≤ 900 s`                                      | `HARD_CAPS`                                  |
-| Approval    | PENDING→APPROVED/REJECTED workflow, **separation of duties**, 24 h validity, reason on reject | `campaigns/service.ts`                       |
-| Kill switch | Auto (>30 s unavailable) / manual / time-based                                                | `probe/probe.ts`, `runner.ts`                |
-| Tagging     | `X-WEDOS-TEST: <campaignId>:<ts>` header on every request                                     | `runner.ts`                                  |
-| Protocols   | `http`/`https` only                                                                           | URL validations                              |
+| Safeguard   | Mechanism                                                                                                                                 | Where                                        |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Allowlist   | Target **and** probe must be in `ALLOWED_TARGETS`; otherwise rejected                                                                     | `campaigns/service.ts`, `engine/loadTest.ts` |
+| Attestation | `authorized:true` required at creation                                                                                                    | `campaigns/service.ts`                       |
+| Hard caps   | `maxRps ≤ 2000`, `concurrency ≤ 500`, `duration ≤ 900 s`                                                                                  | `HARD_CAPS`                                  |
+| Approval    | PENDING→APPROVED/REJECTED workflow, **separation of duties** (author≠approver **and** approver≠executor), 24 h validity, reason on reject | `campaigns/service.ts`, `app.ts`             |
+| Kill switch | Auto (>30 s unavailable) / manual / time-based                                                                                            | `probe/probe.ts`, `runner.ts`                |
+| Tagging     | `X-WEDOS-TEST: <campaignId>:<ts>` header on every request                                                                                 | `runner.ts`                                  |
+| Protocols   | `http`/`https` only                                                                                                                       | URL validations                              |
 
 ## Network / operational safeguards
 

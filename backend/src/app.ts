@@ -404,8 +404,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         { email: body.email ?? '', role: body.role ?? '', password: body.password ?? '' },
         { envEmails: envEmailSet(), current, actorEmail: req.authUser?.email ?? '' },
       );
+      // Create-only: never silently overwrite an existing account's role/password.
+      // Role changes go through PATCH; a re-create is an explicit 409.
+      if (current.some((u) => u.email.toLowerCase() === email)) {
+        return reply
+          .code(409)
+          .send({ error: `User ${email} already exists — use PATCH to change their role.` });
+      }
       await store.saveUser({ email, role, passwordHash: hashPassword(body.password ?? '') });
-      await audit(req, 'user.upsert', undefined, `${email} → ${role}`);
+      await audit(req, 'user.upsert', undefined, `${email} → ${role} (create)`);
       return reply.code(201).send({ email, role, source: 'store' });
     } catch (err) {
       if (err instanceof UserError) return reply.code(400).send({ error: err.message });
@@ -586,6 +593,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         assertExecutable(c);
       } catch (err) {
         return fail(err, reply);
+      }
+      // Separation of duties (extended): the officer who approved a campaign may
+      // not also execute it. Author≠approver is enforced at approval; this closes
+      // the remaining concentration (approver≠executor). Only meaningful when
+      // auth identifies the actor.
+      const executor = req.authUser?.email;
+      if (executor && c.approvedBy && executor.toLowerCase() === c.approvedBy.toLowerCase()) {
+        return reply.code(403).send({
+          error: 'Separation of duties: the approver of a campaign cannot also execute it.',
+        });
       }
       if (kills.count() >= maxConcurrentRuns) {
         return reply.code(429).send({

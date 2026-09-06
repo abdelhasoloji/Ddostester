@@ -3,19 +3,19 @@ import { login, goTo, createCampaign, card, SELF } from './helpers.js';
 
 // The core end-to-end journey and its coherence across pages (catalog B/C/D/E/J).
 
-test('full lifecycle: engineer creates → officer approves → run completes → shows in Reports', async ({
+test('full lifecycle: engineer creates → officer approves → engineer runs → shows in Reports', async ({
   browser,
 }) => {
   const name = `lifecycle-${Date.now()}`;
 
-  // Author: engineer (separation of duties needs a different approver).
+  // Author + operator: engineer. Approver: officer. Three distinct duties, and
+  // the approver (officer) is NOT the executor (engineer) — SoD extended.
   const engCtx = await browser.newContext();
   const eng = await engCtx.newPage();
   await login(eng, 'engineer');
   await createCampaign(eng, { name, target: SELF, probe: SELF, maxRps: 5, durationSec: 2 });
   await expect(card(eng, name).getByText('Pending')).toBeVisible();
 
-  // Approver + operator: officer (≠ author, so SoD is satisfied).
   const offCtx = await browser.newContext();
   const off = await offCtx.newPage();
   await login(off, 'officer');
@@ -29,18 +29,22 @@ test('full lifecycle: engineer creates → officer approves → run completes �
   await approve.click();
   await expect(card(off, name).getByText('Approved')).toBeVisible();
 
-  // Run it (bounded), confirm the modal, wait for completion. Finishing a run
-  // auto-opens the detail drawer with the result.
-  await card(off, name).getByRole('button', { name: 'Run' }).click();
-  await off.getByRole('button', { name: 'Launch campaign' }).click();
-  await expect(off.getByText('Completed').first()).toBeVisible({ timeout: 20_000 });
+  // The officer may NOT execute what they approved: no Run action for them.
+  await expect(card(off, name).getByRole('button', { name: 'Run' })).toHaveCount(0);
 
-  // Close the detail drawer before navigating away.
-  await off.getByRole('button', { name: 'Close' }).click();
+  // The engineer (≠ approver) runs it. Refresh to pick up the APPROVED status.
+  await eng.reload();
+  await goTo(eng, 'Campaigns');
+  await card(eng, name).getByRole('button', { name: 'Run' }).click();
+  await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  await expect(eng.getByText('Completed').first()).toBeVisible({ timeout: 20_000 });
+
+  // Close the detail drawer (auto-opened at run end) before navigating away.
+  await eng.getByRole('button', { name: 'Close' }).click();
 
   // Coherence J1: the completed run now surfaces in Reports.
-  await goTo(off, 'Reports');
-  await expect(off.locator('.report-row', { hasText: name })).toBeVisible();
+  await goTo(eng, 'Reports');
+  await expect(eng.locator('.report-row', { hasText: name })).toBeVisible();
 
   await engCtx.close();
   await offCtx.close();

@@ -27,12 +27,10 @@ from a rule — or from the _principle_ a rule rests on — the case is tagged a
 
 - **SPEC-SOD-1** — The approver must differ from the author of a campaign
   (`SECURITY.md`; enforced server-side and in the UI).
-- **SPEC-SOD-2 (principle)** — SoD aims to prevent one person from unilaterally
-  driving a privileged action end-to-end. The current model separates
-  author≠approver but **not** approver≠executor: an officer may approve a
-  campaign they did not author and then execute it themselves. Cases probing
-  this are tagged FINDING with the argued ideal (execution should require a
-  distinct actor, or the concentration be a consciously accepted risk).
+- **SPEC-SOD-2** — SoD is extended to execution: the officer who **approved** a
+  campaign may **not** also execute it (`403`). Author≠approver is enforced at
+  approval; approver≠executor is enforced at execution. A different actor (e.g.
+  the engineer author) may execute an officer-approved campaign.
 
 ## Authorization attestation
 
@@ -55,8 +53,9 @@ from a rule — or from the _principle_ a rule rests on — the case is tagged a
 ## Hard caps (bounded load, defense in depth)
 
 - **SPEC-CAP-1** — `HARD_CAPS = { maxRps: 2000, concurrency: 500,
-maxDurationSec: 900 }`. A value `≤ 0`, non-finite, or above its cap is rejected;
-  the boundary value (exactly the cap) is accepted (`model.ts`).
+maxDurationSec: 900 }`. Each cap is a whole number: a value that is
+  non-integer, `< 1`, non-finite, or above its cap is rejected; the boundary
+  value (exactly the cap) is accepted (`service.ts`).
 
 ## Campaign lifecycle / state machine
 
@@ -70,7 +69,8 @@ maxDurationSec: 900 }`. A value `≤ 0`, non-finite, or above its cap is rejecte
 ## Users (governance)
 
 - **SPEC-USER-1** — Only `officer` (`user:manage`) may list/create/patch/delete
-  runtime users.
+  runtime users. `POST` is **create-only**: re-creating an existing user is a
+  `409` (no silent overwrite); role changes go through `PATCH`.
 - **SPEC-USER-2** — Env-defined (`AUTH_USERS`) users are the immutable root and
   cannot be deleted via the API (`docs/auth.md`).
 - **SPEC-USER-3** — Passwords are validated (min length) and stored scrypt-hashed,

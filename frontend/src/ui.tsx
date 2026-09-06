@@ -4,6 +4,7 @@ import type {
   Campaign,
   CampaignRun,
   CampaignStatus,
+  Role,
   RunSample,
   WrsBreakdown,
   WrsPoint,
@@ -208,11 +209,25 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
   );
 }
 
+/**
+ * Separation of duties (extended): the officer who approved a campaign may not
+ * also execute it. Hide Run from the approver so no visible action leads to a
+ * 403. Only meaningful when auth identifies the viewer.
+ */
+function canRunCampaign(c: Campaign, role: Role | null, ar: boolean, myEmail?: string): boolean {
+  if (c.status !== 'APPROVED' || !canDo(role, 'execute', ar)) return false;
+  if (ar && myEmail && c.approvedBy && myEmail.toLowerCase() === c.approvedBy.toLowerCase()) {
+    return false;
+  }
+  return true;
+}
+
 export function CampaignCard({ c }: { c: Campaign }) {
   const app = useApp();
   const isBusy = app.busy[c.id];
   const role = app.role;
   const ar = app.authRequired;
+  const canRun = canRunCampaign(c, role, ar, app.identity?.email);
   return (
     <div className="campaign">
       <div className="campaign-head">
@@ -226,7 +241,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
               Approve / Reject
             </button>
           )}
-          {c.status === 'APPROVED' && canDo(role, 'execute', ar) && (
+          {canRun && (
             <button
               className="btn btn-sm btn-primary"
               disabled={isBusy}
@@ -518,6 +533,7 @@ export function CampaignDrawer() {
   const c = app.campaigns.find((x) => x.id === id);
   const role = app.role;
   const ar = app.authRequired;
+  const canRun = c ? canRunCampaign(c, role, ar, app.identity?.email) : false;
 
   useEffect(() => {
     if (!id) return;
@@ -561,7 +577,7 @@ export function CampaignDrawer() {
               Approve / Reject
             </button>
           )}
-          {c.status === 'APPROVED' && canDo(role, 'execute', ar) && (
+          {canRun && (
             <button className="btn btn-sm btn-primary" onClick={() => app.setConfirmExec(c)}>
               Run
             </button>
