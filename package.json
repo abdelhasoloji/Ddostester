@@ -14,7 +14,10 @@
     "dev:api": "npm run dev -w backend",
     "dev:web": "npm run dev -w frontend",
     "lint": "eslint . && prettier --check \"**/*.{ts,tsx,css,json,md,yml}\"",
-    "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml}\""
+    "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml}\"",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "verify:fast": "npm run lint && npm run typecheck && npm test",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "engines": {
     "node": ">=22"

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Repo-tracked git hook (enabled via `core.hooksPath .githooks`, set by the
+# npm "prepare" script on install). Runs the same fast gate CI enforces, so a
+# red branch never reaches the remote. Bypass in an emergency with:
+#   git push --no-verify
+set -euo pipefail
+
+echo "pre-push: running verify:fast (lint + typecheck + test)…"
+npm run --silent verify:fast
+echo "pre-push: OK"

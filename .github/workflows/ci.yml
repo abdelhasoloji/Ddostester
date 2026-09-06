@@ -3,16 +3,32 @@ on:
   push:
     branches: [main]
   pull_request:
+
+# Least privilege: CI only needs to read the repo.
+permissions:
+  contents: read
+
+# One run per ref: a new push to a PR cancels the superseded run (faster
+# feedback, less waste). main runs are keyed per-SHA so none are cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  build-test:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - run: npm install
+          node-version-file: .nvmrc
+          cache: npm
+      # Reproducible install from the lockfile (fails if package.json and the
+      # lockfile disagree — no silent drift).
+      - run: npm ci
       - run: npm audit --audit-level=high
+      # Discrete steps mirror `npm run verify` for readable, granular logs.
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
