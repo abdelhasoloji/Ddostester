@@ -70,6 +70,8 @@ export const MAX_FLOW_STEPS = 20;
 export const MAX_THINK_MS = 30_000;
 /** Max distinct endpoints in a traffic mix. */
 export const MAX_ENDPOINTS = 20;
+/** Max distinct User-Agent strings in a rotation set. */
+export const MAX_USER_AGENTS = 50;
 
 /**
  * Optional response assertion (functional health under load): every generator
@@ -118,6 +120,13 @@ export interface LoadTestConfig {
    * Mutually exclusive with `flow`. The global `maxRps` still caps the rate.
    */
   endpoints?: WeightedEndpoint[];
+  /**
+   * Optional User-Agent rotation (built-in engine only): each request picks one
+   * of these UA strings at random. Models realistic client diversity / the
+   * fingerprint-rotation shape of recent L7 floods, to test signature-based
+   * mitigation. Purely a benign header change — no attack mechanic.
+   */
+  userAgents?: string[];
   /** Optional per-response assertion (built-in engine only). */
   assertion?: ResponseAssertion;
   /**

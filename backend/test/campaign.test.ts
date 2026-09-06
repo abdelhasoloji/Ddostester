@@ -118,6 +118,25 @@ describe('endpoint mix validation', () => {
   });
 });
 
+describe('user-agent rotation validation', () => {
+  it('accepts a UA list on the built-in engine', () => {
+    const c = createCampaign({ ...base, userAgents: ['UA/1', 'UA/2'] }, allowed);
+    expect(c.userAgents).toHaveLength(2);
+  });
+
+  it('rejects an empty UA entry', () => {
+    expect(() => createCampaign({ ...base, userAgents: ['UA/1', '  '] }, allowed)).toThrow(
+      CampaignError,
+    );
+  });
+
+  it('rejects UA rotation on a non-builtin engine', () => {
+    expect(() => createCampaign({ ...base, agent: 'k6', userAgents: ['UA/1'] }, allowed)).toThrow(
+      /built-in engine/,
+    );
+  });
+});
+
 describe('recurrence validation', () => {
   it('accepts a valid recurrence', () => {
     const c = createCampaign({ ...base, recurrence: { intervalMin: 60 } }, allowed);

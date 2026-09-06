@@ -189,3 +189,36 @@ describe('builtin engine — endpoint mix', () => {
     expect(seen['/a']).toBeGreaterThan(seen['/b']);
   }, 15000);
 });
+
+describe('builtin engine — User-Agent rotation', () => {
+  let base: string;
+  const uas = new Set<string>();
+  const server = createServer((req, res) => {
+    uas.add(req.headers['user-agent'] ?? '');
+    res.statusCode = 200;
+    res.end('ok');
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  it('rotates the User-Agent across requests', async () => {
+    await runLoadTest(
+      {
+        url: `${base}/`,
+        concurrency: 3,
+        durationSec: 2,
+        maxRps: 30,
+        authorized: true,
+        userAgents: ['AgentOne/1.0', 'AgentTwo/2.0', 'AgentThree/3.0'],
+      },
+      ['127.0.0.1'],
+    );
+    // Several of the configured UAs were actually sent.
+    const sent = [...uas].filter((u) => u.startsWith('Agent'));
+    expect(sent.length).toBeGreaterThan(1);
+  }, 15000);
+});

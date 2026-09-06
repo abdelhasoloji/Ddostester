@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
-import { HTTP_METHODS, MAX_ENDPOINTS, MAX_FLOW_STEPS, MAX_THINK_MS } from '../../engine/types.js';
+import {
+  HTTP_METHODS,
+  MAX_ENDPOINTS,
+  MAX_FLOW_STEPS,
+  MAX_THINK_MS,
+  MAX_USER_AGENTS,
+} from '../../engine/types.js';
 import { flowUsesCorrelation } from '../../engine/correlation.js';
 
 const EXTRACT_SOURCES = ['json', 'header', 'regex'];
@@ -171,6 +177,18 @@ export function createCampaign(
     }
     if (input.agent && input.agent !== 'builtin') {
       throw new CampaignError('An endpoint mix requires the built-in engine.');
+    }
+  }
+
+  if (input.userAgents) {
+    if (input.userAgents.length < 1 || input.userAgents.length > MAX_USER_AGENTS) {
+      throw new CampaignError(`User-Agent rotation must have between 1 and ${MAX_USER_AGENTS}.`);
+    }
+    if (input.userAgents.some((ua) => !ua.trim())) {
+      throw new CampaignError('User-Agent rotation: entries must be non-empty.');
+    }
+    if (input.agent && input.agent !== 'builtin') {
+      throw new CampaignError('User-Agent rotation requires the built-in engine.');
     }
   }
 

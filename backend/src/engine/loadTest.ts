@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { LoadTestConfig, LoadTestResult, WeightedEndpoint } from './types.js';
-import { HTTP_METHODS, MAX_ENDPOINTS, MAX_FLOW_STEPS, MAX_THINK_MS } from './types.js';
+import {
+  HTTP_METHODS,
+  MAX_ENDPOINTS,
+  MAX_FLOW_STEPS,
+  MAX_THINK_MS,
+  MAX_USER_AGENTS,
+} from './types.js';
 import { substitute, extractValue } from './correlation.js';
 import { percentile } from './stats.js';
 
@@ -149,6 +155,16 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       throw new InvalidConfigError('Endpoint mix: at least one weight must be > 0.');
     }
   }
+  if (config.userAgents) {
+    if (config.userAgents.length === 0 || config.userAgents.length > MAX_USER_AGENTS) {
+      throw new InvalidConfigError(
+        `User-Agent rotation must have 1 to ${MAX_USER_AGENTS} entries.`,
+      );
+    }
+    if (config.userAgents.some((ua) => !ua.trim())) {
+      throw new InvalidConfigError('User-Agent rotation: entries must be non-empty.');
+    }
+  }
 }
 
 /**
@@ -208,6 +224,7 @@ export async function runLoadTest(
   let assertionsChecked = 0;
   let assertionFailures = 0;
   const assertion = config.assertion;
+  const userAgents = config.userAgents?.length ? config.userAgents : null;
 
   // Throttle: never exceed maxRps requests per second (global).
   let windowStart = Date.now();
@@ -241,10 +258,18 @@ export async function runLoadTest(
     const t0 = performance.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Rotate the User-Agent per request when a set is configured.
+    let sendHeaders = headers ?? config.headers;
+    if (userAgents) {
+      sendHeaders = {
+        ...sendHeaders,
+        'user-agent': userAgents[Math.floor(Math.random() * userAgents.length)],
+      };
+    }
     try {
       const res = await fetch(url, {
         method,
-        headers: headers ?? config.headers,
+        headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
         signal: controller.signal,
       });

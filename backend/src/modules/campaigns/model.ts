@@ -72,6 +72,12 @@ export interface CampaignInput {
    */
   endpoints?: WeightedEndpoint[];
   /**
+   * Optional User-Agent rotation (built-in engine only): each request picks a
+   * UA at random from this list — realistic client diversity for testing
+   * signature-based mitigation. A benign header change, not an attack mechanic.
+   */
+  userAgents?: string[];
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

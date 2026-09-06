@@ -634,6 +634,7 @@ const emptyForm = {
   assertStatus: '',
   assertBody: '',
   endpoints: '',
+  userAgents: '',
 };
 
 /** Parses the endpoint-mix editor: one per line, "[METHOD] url [weight]". */
@@ -870,6 +871,13 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
         assertion: assertionSupported ? buildAssertion(form) : undefined,
         endpoints:
           assertionSupported && form.endpoints.trim() ? parseEndpoints(form.endpoints) : undefined,
+        userAgents:
+          assertionSupported && form.userAgents.trim()
+            ? form.userAgents
+                .split('\n')
+                .map((l) => l.trim())
+                .filter(Boolean)
+            : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -1213,6 +1221,21 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             <span className="hint">
               Built-in engine only. Each request picks one endpoint by weight (default 1). More
               realistic than a single URL. Mutually exclusive with a flow.
+            </span>
+          </div>
+        )}
+        {assertionSupported && (
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>User-Agent rotation — client diversity (optional)</label>
+            <textarea
+              rows={3}
+              placeholder={`One User-Agent per line — each request picks one at random\nMozilla/5.0 (Windows NT 10.0; Win64; x64) …\nMozilla/5.0 (iPhone; CPU iPhone OS 17_0 …) …`}
+              value={form.userAgents}
+              onChange={(e) => setForm({ ...form, userAgents: e.target.value })}
+            />
+            <span className="hint">
+              Built-in engine only. Models realistic client diversity to test signature-based
+              mitigation. A benign header change — no attack mechanic.
             </span>
           </div>
         )}

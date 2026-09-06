@@ -87,6 +87,7 @@ export async function executeCampaign(
     phases: campaign.scenario,
     flow: campaign.flow,
     endpoints: campaign.endpoints,
+    userAgents: campaign.userAgents,
     assertion: campaign.assertion,
     authorized: campaign.authorized,
   };

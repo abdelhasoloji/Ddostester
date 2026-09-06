@@ -35,6 +35,7 @@ export interface Campaign {
   recurrence?: { intervalMin: number; until?: string };
   flow?: RequestStep[];
   endpoints?: WeightedEndpoint[];
+  userAgents?: string[];
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;
