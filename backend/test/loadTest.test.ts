@@ -222,3 +222,36 @@ describe('builtin engine — User-Agent rotation', () => {
     expect(sent.length).toBeGreaterThan(1);
   }, 15000);
 });
+
+describe('builtin engine — data feeder', () => {
+  let base: string;
+  const paths = new Set<string>();
+  const server = createServer((req, res) => {
+    paths.add(req.url ?? '');
+    res.statusCode = 200;
+    res.end('ok');
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  it('substitutes dataset columns into the URL per request', async () => {
+    await runLoadTest(
+      {
+        url: `${base}/search?q={{q}}`,
+        concurrency: 3,
+        durationSec: 2,
+        maxRps: 30,
+        authorized: true,
+        dataset: [{ q: 'apple' }, { q: 'banana' }],
+      },
+      ['127.0.0.1'],
+    );
+    expect([...paths].some((p) => p.includes('q=apple'))).toBe(true);
+    expect([...paths].some((p) => p.includes('q=banana'))).toBe(true);
+    expect([...paths].some((p) => p.includes('{{q}}'))).toBe(false);
+  }, 15000);
+});

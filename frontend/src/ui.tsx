@@ -635,7 +635,26 @@ const emptyForm = {
   assertBody: '',
   endpoints: '',
   userAgents: '',
+  dataset: '',
 };
+
+/** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */
+function parseDataset(raw: string): Record<string, string>[] | undefined {
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return undefined;
+  const cols = lines[0].split(',').map((c) => c.trim());
+  return lines.slice(1).map((line) => {
+    const cells = line.split(',');
+    const row: Record<string, string> = {};
+    cols.forEach((c, i) => {
+      row[c] = (cells[i] ?? '').trim();
+    });
+    return row;
+  });
+}
 
 /** Parses the endpoint-mix editor: one per line, "[METHOD] url [weight]". */
 function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
@@ -878,6 +897,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
                 .map((l) => l.trim())
                 .filter(Boolean)
             : undefined,
+        dataset: assertionSupported && form.dataset.trim() ? parseDataset(form.dataset) : undefined,
         authorized: true,
       });
       setForm({ ...emptyForm });
@@ -1236,6 +1256,21 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             <span className="hint">
               Built-in engine only. Models realistic client diversity to test signature-based
               mitigation. A benign header change — no attack mechanic.
+            </span>
+          </div>
+        )}
+        {assertionSupported && (
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>Data feeder — parameterized traffic (optional)</label>
+            <textarea
+              rows={3}
+              placeholder={`CSV: header line then rows. Reference columns as {{col}} in URL/body.\nq,id\napple,101\nbanana,102`}
+              value={form.dataset}
+              onChange={(e) => setForm({ ...form, dataset: e.target.value })}
+            />
+            <span className="hint">
+              Built-in engine only. Each request picks a row; <code>{'{{col}}'}</code> is
+              substituted into the URL, body and headers — realistic, varied traffic.
             </span>
           </div>
         )}

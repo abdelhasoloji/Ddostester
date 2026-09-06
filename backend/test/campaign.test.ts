@@ -137,6 +137,19 @@ describe('user-agent rotation validation', () => {
   });
 });
 
+describe('data feeder validation', () => {
+  it('accepts a dataset on the built-in engine', () => {
+    const c = createCampaign({ ...base, dataset: [{ q: 'a' }, { q: 'b' }] }, allowed);
+    expect(c.dataset).toHaveLength(2);
+  });
+
+  it('rejects a dataset on a non-builtin engine', () => {
+    expect(() => createCampaign({ ...base, agent: 'k6', dataset: [{ q: 'a' }] }, allowed)).toThrow(
+      /built-in engine/,
+    );
+  });
+});
+
 describe('recurrence validation', () => {
   it('accepts a valid recurrence', () => {
     const c = createCampaign({ ...base, recurrence: { intervalMin: 60 } }, allowed);

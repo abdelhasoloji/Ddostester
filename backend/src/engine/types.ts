@@ -72,6 +72,8 @@ export const MAX_THINK_MS = 30_000;
 export const MAX_ENDPOINTS = 20;
 /** Max distinct User-Agent strings in a rotation set. */
 export const MAX_USER_AGENTS = 50;
+/** Max rows in a data-driven feeder dataset. */
+export const MAX_DATASET_ROWS = 1000;
 
 /**
  * Optional response assertion (functional health under load): every generator
@@ -127,6 +129,13 @@ export interface LoadTestConfig {
    * mitigation. Purely a benign header change — no attack mechanic.
    */
   userAgents?: string[];
+  /**
+   * Optional data-driven feeder (built-in engine only): a dataset of rows. Each
+   * iteration/request picks a row at random and its columns are substituted into
+   * the URL, body and headers via `{{column}}` — realistic, varied traffic
+   * (search terms, ids, tokens) instead of one static request.
+   */
+  dataset?: Record<string, string>[];
   /** Optional per-response assertion (built-in engine only). */
   assertion?: ResponseAssertion;
   /**

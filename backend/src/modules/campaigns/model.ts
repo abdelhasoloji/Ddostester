@@ -78,6 +78,11 @@ export interface CampaignInput {
    */
   userAgents?: string[];
   /**
+   * Optional data-driven feeder (built-in engine only): dataset rows whose
+   * columns are substituted into URL/body/headers via `{{column}}`.
+   */
+  dataset?: Record<string, string>[];
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

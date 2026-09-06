@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { LoadTestConfig, LoadTestResult, WeightedEndpoint } from './types.js';
 import {
   HTTP_METHODS,
+  MAX_DATASET_ROWS,
   MAX_ENDPOINTS,
   MAX_FLOW_STEPS,
   MAX_THINK_MS,
@@ -165,6 +166,14 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       throw new InvalidConfigError('User-Agent rotation: entries must be non-empty.');
     }
   }
+  if (config.dataset) {
+    if (config.dataset.length === 0 || config.dataset.length > MAX_DATASET_ROWS) {
+      throw new InvalidConfigError(`Dataset must have 1 to ${MAX_DATASET_ROWS} rows.`);
+    }
+    if (config.dataset.some((row) => typeof row !== 'object' || row === null)) {
+      throw new InvalidConfigError('Dataset: each row must be an object of string values.');
+    }
+  }
 }
 
 /**
@@ -318,6 +327,9 @@ export async function runLoadTest(
   }
 
   const pickEndpoint = config.endpoints?.length ? buildEndpointPicker(config.endpoints) : null;
+  const dataset = config.dataset?.length ? config.dataset : null;
+  const pickRow = (): Record<string, string> =>
+    dataset ? dataset[Math.floor(Math.random() * dataset.length)] : {};
 
   async function worker(): Promise<void> {
     const flow = config.flow?.length ? config.flow : null;
@@ -326,7 +338,8 @@ export async function runLoadTest(
         // Iterate the flow steps in order; each request is rate-limited, so the
         // global maxRps caps the TOTAL request rate across all steps. Per-worker
         // variables carry correlated values (e.g. a login token) between steps.
-        const vars: Record<string, string> = {};
+        // A feeder row (if any) seeds the variables for this iteration.
+        const vars: Record<string, string> = { ...pickRow() };
         for (const step of flow) {
           if (shouldStop()) return;
           const ok = await reserveSlot();
@@ -352,11 +365,18 @@ export async function runLoadTest(
         const ok = await reserveSlot();
         if (!ok) return;
         const ep = pickEndpoint(Math.random());
-        await doRequest(ep.method ?? 'GET', ep.url, ep.body, config.headers);
+        const row = pickRow();
+        const url = dataset ? substitute(ep.url, row) : ep.url;
+        const body = ep.body != null ? (dataset ? substitute(ep.body, row) : ep.body) : undefined;
+        await doRequest(ep.method ?? 'GET', url, body, config.headers);
       } else {
         const ok = await reserveSlot();
         if (!ok) return;
-        await doRequest(config.method ?? 'GET', config.url, config.body, config.headers);
+        const row = pickRow();
+        const url = dataset ? substitute(config.url, row) : config.url;
+        const body =
+          config.body != null ? (dataset ? substitute(config.body, row) : config.body) : undefined;
+        await doRequest(config.method ?? 'GET', url, body, config.headers);
       }
     }
   }

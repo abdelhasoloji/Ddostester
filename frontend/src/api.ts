@@ -36,6 +36,7 @@ export interface Campaign {
   flow?: RequestStep[];
   endpoints?: WeightedEndpoint[];
   userAgents?: string[];
+  dataset?: Record<string, string>[];
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;

@@ -3,6 +3,7 @@ import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
 import {
   HTTP_METHODS,
+  MAX_DATASET_ROWS,
   MAX_ENDPOINTS,
   MAX_FLOW_STEPS,
   MAX_THINK_MS,
@@ -189,6 +190,18 @@ export function createCampaign(
     }
     if (input.agent && input.agent !== 'builtin') {
       throw new CampaignError('User-Agent rotation requires the built-in engine.');
+    }
+  }
+
+  if (input.dataset) {
+    if (input.dataset.length < 1 || input.dataset.length > MAX_DATASET_ROWS) {
+      throw new CampaignError(`Dataset must have between 1 and ${MAX_DATASET_ROWS} rows.`);
+    }
+    if (input.dataset.some((row) => typeof row !== 'object' || row === null)) {
+      throw new CampaignError('Dataset: each row must be an object of string values.');
+    }
+    if (input.agent && input.agent !== 'builtin') {
+      throw new CampaignError('A data-driven feeder requires the built-in engine.');
     }
   }
 
