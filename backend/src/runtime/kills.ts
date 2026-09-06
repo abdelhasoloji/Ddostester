@@ -11,4 +11,6 @@ export const kills = {
   set: (campaignId: string, k: KillSwitch): void => void active.set(campaignId, k),
   get: (campaignId: string): KillSwitch | undefined => active.get(campaignId),
   clear: (campaignId: string): void => void active.delete(campaignId),
+  /** Number of runs currently in flight (for the concurrency guard). */
+  count: (): number => active.size,
 };

@@ -71,6 +71,8 @@ export interface BuildOptions {
   notifier?: Notifier;
   /** Protection integration for real detection/mitigation (default: no-op). */
   protection?: ProtectionProvider;
+  /** Max campaigns running at once (safety guard against contention). Default 3. */
+  maxConcurrentRuns?: number;
 }
 
 export interface BuiltApp {
@@ -84,6 +86,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
   const protection = opts.protection ?? noopProtectionProvider;
+  const maxConcurrentRuns = opts.maxConcurrentRuns ?? 3;
 
   const app = Fastify({
     logger:
@@ -205,6 +208,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   ) => auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
 
   async function runCampaign(c: Campaign, actor: string): Promise<CampaignRun> {
+    if (kills.count() >= maxConcurrentRuns) {
+      throw new CampaignError(
+        `Too many concurrent runs (max ${maxConcurrentRuns}). Try again once one finishes.`,
+      );
+    }
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     await store.saveCampaign(transition(c, 'RUNNING'));
@@ -551,6 +559,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         assertExecutable(c);
       } catch (err) {
         return fail(err, reply);
+      }
+      if (kills.count() >= maxConcurrentRuns) {
+        return reply.code(429).send({
+          error: `Too many concurrent runs (max ${maxConcurrentRuns}). Try again once one finishes.`,
+        });
       }
       try {
         const run = await runCampaign(c, req.authUser?.email ?? 'dev');

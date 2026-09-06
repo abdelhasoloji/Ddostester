@@ -39,6 +39,7 @@ if (ALLOWED_TARGETS.length === 0) {
 const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
 const SCHEDULER_INTERVAL_MS = intEnv('SCHEDULER_INTERVAL_MS', 30_000);
 const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90);
+const MAX_CONCURRENT_RUNS = intEnv('MAX_CONCURRENT_RUNS', 3);
 
 const store = await createStore();
 const auth = initAuth();
@@ -52,6 +53,7 @@ const { app, runCampaign } = await buildApp({
   agent,
   notifier,
   protection,
+  maxConcurrentRuns: MAX_CONCURRENT_RUNS,
 });
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------

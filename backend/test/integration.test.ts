@@ -93,6 +93,33 @@ describe('API — auth disabled', () => {
   });
 });
 
+describe('API — concurrency guard', () => {
+  it('rejects execution with 429 when at the concurrent-run cap', async () => {
+    const { app } = await buildApp({
+      store: new MemoryStore(),
+      auth: initAuth({} as NodeJS.ProcessEnv),
+      allowedTargets: allowed,
+      logger: false,
+      serveStatic: false,
+      maxConcurrentRuns: 0, // nothing may run
+    });
+    const c = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      payload: { ...campaignBody, createdBy: 'eng@wedos' },
+    });
+    const id = c.json().id;
+    await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/approval`,
+      payload: { approvedBy: 'off@wedos', decision: 'APPROVED' },
+    });
+    const run = await app.inject({ method: 'POST', url: `/api/campaigns/${id}/execute` });
+    expect(run.statusCode).toBe(429);
+    expect(run.json().error).toMatch(/concurrent runs/);
+  });
+});
+
 describe('API — auth + RBAC enabled', () => {
   let app: FastifyInstance;
   const users = JSON.stringify([
