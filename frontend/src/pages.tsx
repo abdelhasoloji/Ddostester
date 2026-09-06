@@ -524,6 +524,16 @@ function UsersCard() {
       app.push('error', (err as Error).message);
     }
   };
+  const changeRole = async (email: string, role: Role) => {
+    try {
+      await api.updateUserRole(email, role);
+      app.push('success', `${email} is now ${roleLabel[role]}.`);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+      load(); // revert the dropdown to the stored value
+    }
+  };
 
   const me = app.identity?.email;
   return (
@@ -540,7 +550,20 @@ function UsersCard() {
           {users.map((u) => (
             <div key={u.email} className="engine-row">
               <span className="engine-name">{u.email}</span>
-              <span className="engine-badge ok">{roleLabel[u.role]}</span>
+              {u.source === 'store' && u.email !== me ? (
+                <select
+                  className="role-select"
+                  value={u.role}
+                  onChange={(e) => changeRole(u.email, e.target.value as Role)}
+                  title="Change role"
+                >
+                  <option value="viewer">SOC / NOC (read + kill)</option>
+                  <option value="engineer">Security Engineer</option>
+                  <option value="officer">Security Officer</option>
+                </select>
+              ) : (
+                <span className="engine-badge ok">{roleLabel[u.role]}</span>
+              )}
               <span className={`engine-badge ${u.source === 'env' ? 'no' : 'ok'}`}>{u.source}</span>
               {u.source === 'store' && u.email !== me && (
                 <button className="btn btn-sm btn-ghost" onClick={() => remove(u.email)}>

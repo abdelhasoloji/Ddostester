@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertDelete,
+  assertRoleChange,
   assertUpsert,
   combineUsers,
   normalizeEmail,
@@ -85,6 +86,49 @@ describe('assertUpsert', () => {
         { email: 'solo@wedos', role: 'viewer', password: 'longenough' },
         { envEmails: new Set(), current: cur, actorEmail: 'other@wedos' },
       ),
+    ).toThrow(/officer/);
+  });
+});
+
+describe('assertRoleChange', () => {
+  const current: ManagedUser[] = [
+    { ...envOfficer, source: 'env' },
+    { email: 'eng@wedos', role: 'engineer', source: 'store' },
+  ];
+
+  it('changes the role of a store user', () => {
+    expect(assertRoleChange('eng@wedos', 'viewer', ctx(current))).toEqual({
+      email: 'eng@wedos',
+      role: 'viewer',
+    });
+  });
+
+  it('rejects an invalid role', () => {
+    expect(() => assertRoleChange('eng@wedos', 'root', ctx(current))).toThrow(UserError);
+  });
+
+  it('refuses to change an env user', () => {
+    expect(() => assertRoleChange('off@wedos', 'viewer', ctx(current))).toThrow(/AUTH_USERS/);
+  });
+
+  it('refuses to change your own account', () => {
+    expect(() => assertRoleChange('eng@wedos', 'officer', ctx(current, 'eng@wedos'))).toThrow(
+      /own account/,
+    );
+  });
+
+  it('refuses a non-existent store user', () => {
+    expect(() => assertRoleChange('ghost@wedos', 'viewer', ctx(current))).toThrow(/not found/);
+  });
+
+  it('refuses to demote the last officer', () => {
+    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'officer', source: 'store' }];
+    expect(() =>
+      assertRoleChange('solo@wedos', 'viewer', {
+        envEmails: new Set(),
+        current: cur,
+        actorEmail: 'x@wedos',
+      }),
     ).toThrow(/officer/);
   });
 });

@@ -33,7 +33,13 @@ import { signJwt } from './auth/jwt.js';
 import { hashPassword, verifyPassword } from './auth/passwords.js';
 import { can } from './auth/rbac.js';
 import type { Permission, Role } from './auth/rbac.js';
-import { assertDelete, assertUpsert, combineUsers, UserError } from './modules/users/service.js';
+import {
+  assertDelete,
+  assertRoleChange,
+  assertUpsert,
+  combineUsers,
+  UserError,
+} from './modules/users/service.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices } from './agents/index.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
@@ -363,6 +369,29 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       await store.saveUser({ email, role, passwordHash: hashPassword(body.password ?? '') });
       await audit(req, 'user.upsert', undefined, `${email} → ${role}`);
       return reply.code(201).send({ email, role, source: 'store' });
+    } catch (err) {
+      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
+      return fail(err, reply);
+    }
+  });
+
+  app.patch('/api/users/:email', { preHandler: guard('user:manage') }, async (req, reply) => {
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+    try {
+      const raw = decodeURIComponent((req.params as { email: string }).email);
+      const body = req.body as { role?: string };
+      const current = await currentUsers();
+      const { email, role } = assertRoleChange(raw, body.role ?? '', {
+        envEmails: envEmailSet(),
+        current,
+        actorEmail: req.authUser?.email ?? '',
+      });
+      // Role-only change: preserve the existing password hash.
+      const existing = await store.getUser(email);
+      if (!existing) return reply.code(404).send({ error: 'user not found' });
+      await store.saveUser({ ...existing, role });
+      await audit(req, 'user.upsert', undefined, `${email} → ${role} (role change)`);
+      return { email, role, source: 'store' };
     } catch (err) {
       if (err instanceof UserError) return reply.code(400).send({ error: err.message });
       return fail(err, reply);

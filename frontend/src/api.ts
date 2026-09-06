@@ -192,6 +192,13 @@ function post<T>(url: string, body?: unknown): Promise<T> {
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => json<T>(r));
 }
+function patch<T>(url: string, body?: unknown): Promise<T> {
+  return fetch(url, {
+    method: 'PATCH',
+    headers: authHeaders(body ? { 'content-type': 'application/json' } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  }).then((r) => json<T>(r));
+}
 function del<T>(url: string): Promise<T> {
   return fetch(url, { method: 'DELETE', headers: authHeaders() }).then((r) => json<T>(r));
 }
@@ -261,6 +268,8 @@ export const api = {
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),
+  updateUserRole: (email: string, role: Role) =>
+    patch<ManagedUser>(`/api/users/${encodeURIComponent(email)}`, { role }),
   deleteUser: (email: string) =>
     del<{ deleted: string }>(`/api/users/${encodeURIComponent(email)}`),
   playbooks: () => get<Playbook[]>('/api/playbooks'),

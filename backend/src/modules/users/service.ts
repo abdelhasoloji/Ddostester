@@ -80,6 +80,34 @@ export function assertUpsert(input: UpsertInput, ctx: GuardContext): { email: st
   return { email, role: input.role };
 }
 
+/**
+ * Validates and authorizes a role-only change (no password). Same invariants as
+ * upsert: env users are immutable, no self-modify, at least one officer remains,
+ * and the target must be an existing store user.
+ */
+export function assertRoleChange(
+  rawEmail: string,
+  rawRole: string,
+  ctx: GuardContext,
+): { email: string; role: Role } {
+  const email = normalizeEmail(rawEmail ?? '');
+  if (!email) throw new UserError('Email is required.');
+  if (!isRole(rawRole)) throw new UserError('Invalid role.');
+  if (ctx.envEmails.has(email)) {
+    throw new UserError('This user is defined in AUTH_USERS (env) and cannot be modified here.');
+  }
+  if (email === normalizeEmail(ctx.actorEmail)) {
+    throw new UserError('You cannot modify your own account.');
+  }
+  const existing = ctx.current.find((u) => normalizeEmail(u.email) === email);
+  if (!existing || existing.source !== 'store') throw new UserError('User not found.');
+  const after = withUpsert(ctx.current, email, rawRole);
+  if (officerCount(after) < 1) {
+    throw new UserError('At least one officer must remain.');
+  }
+  return { email, role: rawRole };
+}
+
 /** Validates and authorizes a delete; returns the normalized target email. */
 export function assertDelete(rawEmail: string, ctx: GuardContext): string {
   const email = normalizeEmail(rawEmail ?? '');
