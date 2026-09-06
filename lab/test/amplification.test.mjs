@@ -131,3 +131,70 @@ test('generator rejects a reflector outside the lab CIDR', () => {
     /REFLECTOR_HOST must be inside/,
   );
 });
+
+test('per-profile metrics break down by synthetic shape', async () => {
+  const target = createTarget({ LISTEN_HOST: LOOPBACK, LISTEN_PORT: '0' });
+  const targetPort = await startAsync(target);
+
+  const reflector = createReflector({
+    LISTEN_HOST: LOOPBACK,
+    LISTEN_PORT: '0',
+    TARGET_HOST: LOOPBACK,
+    TARGET_PORT: String(targetPort),
+    LAB_CIDR_PREFIX: PREFIX,
+    MAX_FACTOR: '50',
+    MAX_PACKET_FACTOR: '10',
+  });
+  const reflectorPort = await startAsync(reflector);
+
+  await runGenerator({
+    REFLECTOR_HOST: LOOPBACK,
+    REFLECTOR_PORT: String(reflectorPort),
+    LAB_CIDR_PREFIX: PREFIX,
+    PROFILE: 'dns',
+    PPS: '50',
+    DURATION_SEC: '1',
+  });
+  await sleep(300);
+
+  const dns = reflector.byProfile.get('dns');
+  assert.ok(dns && dns.requests > 0, 'dns profile bucket should be populated');
+  assert.ok(dns.outputBytes > dns.inputBytes, 'dns profile should show byte amplification');
+  assert.ok(!reflector.byProfile.has('generic'), 'no unrelated profile bucket');
+
+  await stopAsync(reflector);
+  await stopAsync(target);
+});
+
+test('an unknown profile label collapses to "other"', async () => {
+  const target = createTarget({ LISTEN_HOST: LOOPBACK, LISTEN_PORT: '0' });
+  const targetPort = await startAsync(target);
+  const reflector = createReflector({
+    LISTEN_HOST: LOOPBACK,
+    LISTEN_PORT: '0',
+    TARGET_HOST: LOOPBACK,
+    TARGET_PORT: String(targetPort),
+    LAB_CIDR_PREFIX: PREFIX,
+  });
+  const reflectorPort = await startAsync(reflector);
+
+  const raw = dgram.createSocket('udp4');
+  const payload = Buffer.from(JSON.stringify({ profile: 'evil"}\n injection', factor: 2, packetFactor: 1 }));
+  await new Promise((resolve, reject) =>
+    raw.send(payload, reflectorPort, LOOPBACK, (err) => (err ? reject(err) : resolve())),
+  );
+  await sleep(300);
+  raw.close();
+
+  assert.ok(reflector.byProfile.has('other'), 'unknown profile should bucket as other');
+  assert.ok(!reflector.byProfile.has('evil"}\n injection'), 'raw label must never become a bucket');
+  // The exposition text must not be broken by the injected label.
+  assert.ok(!reflector.renderMetrics().includes('injection'), 'untrusted label leaked into metrics');
+
+  await stopAsync(reflector);
+  await stopAsync(target);
+});
+
+test('generator rejects an unknown profile', () => {
+  assert.throws(() => runGenerator({ PROFILE: 'bogus', LAB_CIDR_PREFIX: PREFIX }), /PROFILE must be one of/);
+});

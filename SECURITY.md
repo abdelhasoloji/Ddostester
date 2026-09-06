@@ -20,7 +20,9 @@ infrastructure the organization owns or holds a written authorization to test.
 
 The repository ships an **optional, closed research lab** that models UDP
 amplification traffic shape for defensive measurement (no source-IP spoofing, no
-real reflector protocol, hard caps). It is separate from the control plane.
+real reflector protocol, hard caps). Its synthetic protocol profiles
+(DNS/NTP/SSDP/memcached-like) preset only the traffic _shape_ — no real protocol
+service is implemented. It is separate from the control plane.
 
 - **Acceptable use**: only inside the provided isolated lab — an `internal`
   Docker network with no published host ports, on an RFC1918 subnet you own.

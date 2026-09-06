@@ -21,7 +21,9 @@ here. Any contribution adding a volumetric/exhaustion vector to the control
 plane is out of scope.
 
 The repository also ships a **closed synthetic network lab** (`lab/`) that models
-UDP-amplification traffic shape for defensive measurement: no source-IP spoofing
+UDP-amplification traffic shape — across synthetic protocol profiles
+(DNS/NTP/SSDP/memcached-like, shape presets only) — for defensive measurement: no
+source-IP spoofing
 (ordinary UDP, target fixed by config), no real reflector protocol, hard caps,
 and an isolated `internal` Docker network with no published host ports. It is
 **separate from the control plane**, must never touch a production/public

@@ -140,7 +140,8 @@ Full documentation in [`docs/`](./docs/):
 [notifications](./docs/notifications.md) ·
 [operations](./docs/operations.md) ·
 [roadmap / status](./docs/roadmap.md) ·
-[security & scope](./docs/safeguards.md).
+[security & scope](./docs/safeguards.md) ·
+[ethical boundary map](./docs/ethical-boundary-map.md).
 
 ## License
 
@@ -148,14 +149,16 @@ MIT — see [LICENSE](./LICENSE).
 
 ## Isolated synthetic UDP network lab
 
-ShieldTest includes an optional closed Docker lab that reproduces UDP amplification traffic shape without source-IP spoofing or public protocol reflectors. See [`docs/network-lab.md`](docs/network-lab.md).
+ShieldTest includes an optional closed Docker lab that reproduces UDP amplification traffic shape without source-IP spoofing or public protocol reflectors. It is a **measurement model, not an amplifier**. See [`docs/network-lab.md`](docs/network-lab.md).
 
 ```bash
 POSTGRES_PASSWORD=dev npm run lab:up
-FACTOR=10 PACKET_FACTOR=3 PPS=20 DURATION_SEC=10 POSTGRES_PASSWORD=dev npm run lab:test
+PROFILE=dns PPS=20 DURATION_SEC=10 POSTGRES_PASSWORD=dev npm run lab:test
 npm run lab:test:caps   # in-process safety-invariant tests (no Docker needed)
 ```
 
 The reflector models both **byte** amplification (`FACTOR`) and **packet**
-amplification (`PACKET_FACTOR`), both hard-capped, and exposes Prometheus
-metrics. See [`docs/network-lab.md`](docs/network-lab.md).
+amplification (`PACKET_FACTOR`), both hard-capped, across synthetic protocol
+**profiles** (`generic`, `dns`, `ssdp`, `ntp`, `memcached`) that only preset the
+traffic _shape_ — no real protocol service is implemented — and exposes per-profile
+Prometheus metrics. See [`docs/network-lab.md`](docs/network-lab.md).

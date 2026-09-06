@@ -14,6 +14,17 @@ be reconciled against this file, not the other way round.
 
 Legend: ✅ done · 🟡 partial · ⬜ planned · 🔒 needs external infra (lab / cluster)
 
+## Network lab (defensive measurement, separate from the control plane)
+
+The closed synthetic lab (`lab/`, Docker profile `network-lab`) reproduces the
+_traffic shape_ of UDP amplification for detection and mitigation study. It is a
+measurement model, not an attack tool, and keeps hard, non-negotiable safety
+properties (no source-IP spoofing, no real reflector, `internal` network, no host
+ports, hard caps). Delivered: bounded byte + packet amplification, synthetic
+multi-protocol profiles (`generic`/`dns`/`ssdp`/`ntp`/`memcached`), per-profile
+Prometheus metrics, and in-process cap/injection tests. See
+[network-lab.md](./network-lab.md).
+
 ## Horizon 1 — reliability of the measurement
 
 | Epic                                        | Status | Where                                                                               | Notes                                                                                                                                                                                                                                                                                                                                |
