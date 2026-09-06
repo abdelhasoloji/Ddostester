@@ -1,11 +1,34 @@
 # CI/CD
 
-Two GitHub Actions workflows drive integration and deployment.
+GitHub Actions workflows drive integration, deployment and the resilience gate.
 
-| Workflow | File                           | Trigger                             | Purpose                          |
-| -------- | ------------------------------ | ----------------------------------- | -------------------------------- |
-| CI       | `.github/workflows/ci.yml`     | push to `main`, every pull request  | lint → typecheck → test → build  |
-| Deploy   | `.github/workflows/deploy.yml` | after CI succeeds on `main`; manual | update the service on the server |
+| Workflow | File                             | Trigger                             | Purpose                          |
+| -------- | -------------------------------- | ----------------------------------- | -------------------------------- |
+| CI       | `.github/workflows/ci.yml`       | push to `main`, every pull request  | lint → typecheck → test → build  |
+| E2E      | `.github/workflows/e2e.yml`      | push / PR                           | Playwright browser smoke         |
+| Deploy   | `.github/workflows/deploy.yml`   | after CI succeeds on `main`; manual | update the service on the server |
+| SLO gate | `.github/workflows/slo-gate.yml` | manual dispatch (lab target)        | bounded campaign → SLO pass/fail |
+
+## SLO gate (EPIC C)
+
+Makes resilience a delivery criterion instead of an after-the-fact report. The
+job starts the control plane with `ALLOWED_TARGETS` scoped to just the dispatch
+target, runs **one bounded campaign** against it through the normal
+allowlist/caps/approval path, and applies the gate
+(`backend/src/modules/campaigns/slogate.ts`): it fails if a configured SLO is
+missed or if WRS regressed beyond the tolerance band vs. the previous run.
+
+- **Decision logic is pure and unit-tested**; the CLI (`npm run slogate -w
+backend`) only orchestrates a run and applies it.
+- **Safeguards:** the target must be allowlisted (the server rejects anything
+  else), the load is well under `HARD_CAPS`, and the job carries an absolute
+  `timeout-minutes`. No attack vector is added.
+- **Thresholds** are env-driven (`SLO_MIN_WRS`, `SLO_MAX_P95_MS`,
+  `SLO_MAX_ERROR_RATE_PCT`, `SLO_MIN_AVAILABILITY_PCT`,
+  `SLO_MAX_ASSERTION_FAILURE_PCT`, `SLO_REGRESSION_TOLERANCE_PTS`).
+
+It is **manual-dispatch only** until a lab target is reachable from CI; uncomment
+the `schedule` in the workflow to run it nightly.
 
 ## Flow
 

@@ -1,0 +1,61 @@
+name: SLO gate (lab)
+
+# Runs ONE bounded campaign against an allowlisted lab target and fails if the
+# SLO gate does not pass (EPIC C). Manual-dispatch only until a lab target is
+# wired; uncomment the schedule to run it nightly. It adds no attack vector —
+# the campaign goes through the server's allowlist, caps, attestation and
+# approval like any other, and the job has an absolute timeout.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Lab target URL (must be reachable from the runner)'
+        required: true
+  # schedule:
+  #   - cron: '0 3 * * *' # nightly — enable once a lab target is reachable in CI
+
+permissions:
+  contents: read
+
+jobs:
+  slo-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20 # absolute cap even if a step hangs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Start control plane (CI-only allowlist)
+        env:
+          # The allowlist is scoped to just this run's target — the server
+          # rejects anything else, so the job can never hit another host.
+          ALLOWED_TARGETS: ${{ github.event.inputs.target }}
+          PORT: '8080'
+        run: |
+          node backend/dist/server.js &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/ready && break
+            sleep 1
+          done
+
+      - name: Run the SLO gate
+        env:
+          SLO_GATE_BASE_URL: http://127.0.0.1:8080
+          SLO_GATE_TARGET: ${{ github.event.inputs.target }}
+          # Bounded load (well under HARD_CAPS).
+          SLO_GATE_MAX_RPS: '50'
+          SLO_GATE_CONCURRENCY: '10'
+          SLO_GATE_MAX_DURATION_SEC: '30'
+          # Gate thresholds — a tolerance band so measurement noise doesn't fail a PR.
+          SLO_MIN_WRS: '70'
+          SLO_MAX_P95_MS: '800'
+          SLO_MAX_ERROR_RATE_PCT: '5'
+          SLO_MIN_AVAILABILITY_PCT: '95'
+          SLO_REGRESSION_TOLERANCE_PTS: '10'
+        run: npm run slogate -w backend

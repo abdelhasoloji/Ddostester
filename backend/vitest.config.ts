@@ -7,8 +7,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text-summary', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      // Entry points / thin glue with no meaningful branches to unit-test.
-      exclude: ['src/server.ts', 'src/**/*.d.ts'],
+      // Entry points / thin glue with no meaningful branches to unit-test
+      // (the CLI orchestrates a live run against a lab target; its decision
+      // logic lives in modules/campaigns/slogate.ts, which is unit-tested).
+      exclude: ['src/server.ts', 'src/cli/**', 'src/**/*.d.ts'],
       // Floor tracking current coverage (external-tool run() paths need the
       // binaries and are integration-only); raised as unit coverage grows.
       thresholds: {
