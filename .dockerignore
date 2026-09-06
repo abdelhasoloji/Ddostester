@@ -1,0 +1,17 @@
+# Keep the build context small and reproducible: dependencies are installed and
+# artifacts are (re)built inside the image, so never copy host-side ones in.
+node_modules
+**/node_modules
+backend/dist
+frontend/dist
+.git
+.github
+*.log
+npm-debug.log*
+coverage
+**/coverage
+.env
+.env.*
+!.env.example
+playwright-report
+test-results

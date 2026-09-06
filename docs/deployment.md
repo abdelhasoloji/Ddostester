@@ -67,7 +67,8 @@ PostgreSQL database:
 DATABASE_URL="postgresql://shieldtest:password@127.0.0.1:5432/shieldtest" \
   bash deploy/setup.sh
 
-# option B — full stack via Docker (API + Postgres):
+# option B — full stack via Docker (API + UI + Postgres):
+# the api image builds and serves the UI, so http://127.0.0.1:8080 is the interface.
 POSTGRES_PASSWORD=... ALLOWED_TARGETS="127.0.0.1,test.host" docker compose up -d --build
 ```
 
