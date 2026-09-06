@@ -102,6 +102,11 @@ docker compose --profile monitoring --profile network-lab up -d
 # then query e.g. shieldtest_reflector_bap in Grafana (SSH-tunnel to :3000)
 ```
 
+A Grafana dashboard **"WEDOS ShieldTest — Network Lab"** is auto-provisioned
+(`deploy/monitoring/grafana/dashboards/shieldtest-lab.json`): BAP, packet
+amplification, mitigating on/off, detection delay, target throughput,
+forwarded-vs-dropped and collateral.
+
 ## Scenarios (one command)
 
 Named bounded scenarios (`lab/scenarios.mjs`) mirror the control plane's
