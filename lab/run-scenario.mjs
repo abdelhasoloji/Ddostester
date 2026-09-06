@@ -61,7 +61,7 @@ export async function runScenario(name, overrides = {}) {
     FACTOR: String(gen.FACTOR ?? 10),
     PACKET_FACTOR: String(gen.PACKET_FACTOR ?? 1),
     PPS: String(gen.PPS ?? 50),
-    PROFILE: gen.PROFILE ?? 'constant',
+    SHAPE: gen.SHAPE ?? 'constant',
     DURATION_SEC: String(gen.DURATION_SEC ?? 4),
     MAX_PACKET_FACTOR: '100',
   };

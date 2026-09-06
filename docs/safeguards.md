@@ -52,7 +52,9 @@ Its safety rests on concrete, code-level properties:
   so it cannot reflect off third parties (the defining trait of a real
   reflection attack).
 - **No real reflector protocols** — the protocol is a synthetic JSON message; no
-  DNS/NTP/SSDP/Memcached service is implemented.
+  DNS/NTP/SSDP/Memcached service is implemented. The named profiles
+  (`generic`/`dns`/`ssdp`/`ntp`/`memcached`) are only byte/packet _shape_ presets
+  used to study detection per traffic profile, not protocol implementations.
 - **Hard caps** on byte factor, response size, packet factor, generator PPS and
   duration; oversized requests are clamped.
 - **Network isolation** — the provided `docker compose --profile network-lab`

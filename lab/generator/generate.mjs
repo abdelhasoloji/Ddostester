@@ -1,22 +1,29 @@
 import dgram from 'node:dgram';
 import { assertLabAddressInPrefix } from '../lib/net-guard.mjs';
 
+import { DEFAULT_PROFILE, PROFILE_NAMES, isKnownProfile, resolveProfile } from '../profiles.mjs';
+
 // Bounded UDP request generator for the closed ShieldTest lab. It only talks to
 // the synthetic reflector inside the lab (private/loopback IPv4 only, hard gate),
-// at a capped PPS, for a capped duration. `runGenerator()` resolves with the run
-// stats so integration tests can await a complete run; the module self-starts
-// when run directly.
+// at a capped PPS, for a capped duration. Two orthogonal knobs describe the
+// traffic:
+//   - PROFILE picks a synthetic protocol *shape* (DNS/NTP/SSDP/... like byte and
+//     packet factors, still clamped by the reflector's hard caps);
+//   - SHAPE modulates the send *rate over time* (constant/ramp/wave/burst) within
+//     the base PPS cap.
+// `runGenerator()` resolves with the run stats so integration tests can await a
+// complete run; the module self-starts when run directly.
 
-const PROFILES = new Set(['constant', 'ramp', 'wave', 'burst']);
+const SHAPES = new Set(['constant', 'ramp', 'wave', 'burst']);
 
 /**
  * Target PPS at a point in the run (frac 0→1), as a fraction of the base rate.
- * Every profile stays within [0, basePps], so the base rate (≤ MAX_PPS) remains
+ * Every shape stays within [0, basePps], so the base rate (≤ MAX_PPS) remains
  * the hard ceiling. Pure — unit-tested.
  */
-export function profilePps(profile, basePps, frac) {
+export function profilePps(shape, basePps, frac) {
   const f = Math.max(0, Math.min(1, frac));
-  switch (profile) {
+  switch (shape) {
     case 'ramp':
       return basePps * (0.25 + 0.75 * f); // 25% → 100%
     case 'wave':
@@ -32,14 +39,13 @@ export function profilePps(profile, basePps, frac) {
 export function runGenerator(env = process.env) {
   const REFLECTOR_HOST = env.REFLECTOR_HOST || '192.168.100.50';
   const REFLECTOR_PORT = Number(env.REFLECTOR_PORT || 9001);
-  const FACTOR = Number(env.FACTOR || 10);
-  const PACKET_FACTOR = Number(env.PACKET_FACTOR || 1);
+  const PROFILE = env.PROFILE || DEFAULT_PROFILE;
   const PPS = Number(env.PPS || 20);
   const DURATION_SEC = Number(env.DURATION_SEC || 10);
   const MAX_PPS = Number(env.MAX_PPS || 500);
   const MAX_DURATION_SEC = Number(env.MAX_DURATION_SEC || 60);
   const MAX_PACKET_FACTOR = Number(env.MAX_PACKET_FACTOR || 10);
-  const PROFILE = (env.PROFILE || 'constant').toLowerCase();
+  const SHAPE = (env.SHAPE || 'constant').toLowerCase();
   // 'legit' models benign background traffic (never amplified) to measure the
   // scrubber's collateral; point REFLECTOR_HOST at the scrubber in that mode.
   const MODE = (env.MODE || 'attack').toLowerCase();
@@ -47,7 +53,17 @@ export function runGenerator(env = process.env) {
   // Hard gate: REFLECTOR_HOST must be private/loopback (never public), optionally
   // narrowed by LAB_CIDR_PREFIX. Not env-widenable.
   assertLabAddressInPrefix(REFLECTOR_HOST, env.LAB_CIDR_PREFIX, 'REFLECTOR_HOST');
-  if (!PROFILES.has(PROFILE)) throw new Error(`PROFILE must be one of ${[...PROFILES].join(', ')}`);
+  if (!isKnownProfile(PROFILE)) {
+    throw new Error(`PROFILE must be one of: ${PROFILE_NAMES.join(', ')}`);
+  }
+  if (!SHAPES.has(SHAPE)) throw new Error(`SHAPE must be one of ${[...SHAPES].join(', ')}`);
+
+  const preset = resolveProfile(PROFILE);
+  // FACTOR / PACKET_FACTOR default to the profile preset; an explicit env var
+  // overrides it (still bounded below).
+  const FACTOR = Number(env.FACTOR ?? preset.factor);
+  const PACKET_FACTOR = Number(env.PACKET_FACTOR ?? preset.packetFactor);
+
   if (!Number.isFinite(FACTOR) || FACTOR < 1 || FACTOR > 100)
     throw new Error('FACTOR must be 1..100');
   if (!Number.isFinite(PACKET_FACTOR) || PACKET_FACTOR < 1 || PACKET_FACTOR > MAX_PACKET_FACTOR) {
@@ -65,6 +81,7 @@ export function runGenerator(env = process.env) {
   const payload = Buffer.from(
     JSON.stringify({
       type: isLegit ? 'shieldtest.legit' : 'shieldtest.synthetic-amplification',
+      profile: PROFILE,
       factor: isLegit ? 1 : FACTOR,
       packetFactor: isLegit ? 1 : PACKET_FACTOR,
     }),
@@ -88,6 +105,8 @@ export function runGenerator(env = process.env) {
           event: 'generator.complete',
           mode: MODE,
           profile: PROFILE,
+          shape: SHAPE,
+          referenceBap: preset.referenceBap,
           factor: isLegit ? 1 : FACTOR,
           packetFactor: isLegit ? 1 : PACKET_FACTOR,
           configuredPps: PPS,
@@ -105,11 +124,11 @@ export function runGenerator(env = process.env) {
     process.once('SIGTERM', onSignal);
     process.once('SIGINT', onSignal);
 
-    // Shaped scheduler: each tick sends the profile's current PPS pro-rated over
+    // Shaped scheduler: each tick sends the shape's current PPS pro-rated over
     // the tick, so ramp/wave/burst modulate the rate within the base cap.
     timer = setInterval(() => {
       const frac = (Date.now() - started) / (DURATION_SEC * 1000);
-      acc += profilePps(PROFILE, PPS, frac) / ticksPerSec;
+      acc += profilePps(SHAPE, PPS, frac) / ticksPerSec;
       let n = Math.floor(acc);
       acc -= n;
       while (n-- > 0) {

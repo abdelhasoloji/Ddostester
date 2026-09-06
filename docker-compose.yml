@@ -119,10 +119,13 @@ services:
       REFLECTOR_HOST: 192.168.100.50
       REFLECTOR_PORT: 9001
       LAB_CIDR_PREFIX: 192.168.100.
+      # Synthetic protocol shape (amplification factors): generic | dns | ssdp | ntp | memcached.
+      PROFILE: ${PROFILE:-generic}
       FACTOR: ${FACTOR:-10}
       PACKET_FACTOR: ${PACKET_FACTOR:-1}
       PPS: ${PPS:-20}
-      PROFILE: ${PROFILE:-constant}
+      # Rate-over-time shape: constant | ramp | wave | burst.
+      SHAPE: ${SHAPE:-constant}
       DURATION_SEC: ${DURATION_SEC:-10}
       MAX_PPS: ${LAB_MAX_PPS:-500}
       MAX_DURATION_SEC: ${LAB_MAX_DURATION_SEC:-60}
@@ -141,7 +144,7 @@ services:
     image: shieldtest-lab-generator:latest
     environment:
       MODE: legit
-      PROFILE: constant
+      SHAPE: constant
       REFLECTOR_HOST: 192.168.100.60
       REFLECTOR_PORT: 9005
       LAB_CIDR_PREFIX: 192.168.100.

@@ -42,4 +42,7 @@ only behind loopback + SSH tunnel or a TLS/mTLS reverse proxy.
 ## What the tool does not do (by design)
 
 No attack vector (L3/L4 floods, amplification, L7 exhaustion). The only generator
-is bounded HTTP. See [safeguards.md](./safeguards.md).
+is bounded HTTP. The separate closed lab (`lab/`) models amplification _traffic
+shape_ synthetically (no spoofing, no real reflector, isolated, hard-capped) for
+defensive measurement only. See [safeguards.md](./safeguards.md) and
+[network-lab.md](./network-lab.md).

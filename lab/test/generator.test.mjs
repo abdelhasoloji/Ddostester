@@ -22,7 +22,7 @@ test('legit mode sends benign, never-amplified packets', async () => {
     REFLECTOR_HOST: '127.0.0.1',
     LAB_CIDR_PREFIX: '127.0.0.',
     MODE: 'legit',
-    PROFILE: 'constant',
+    SHAPE: 'constant',
     PPS: '20',
     DURATION_SEC: '1',
     FACTOR: '50',
