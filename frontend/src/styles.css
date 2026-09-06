@@ -952,6 +952,12 @@ input.invalid {
   color: var(--muted);
   margin-top: 0.35rem;
 }
+.status-dist {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+}
 .timeline-legend i {
   display: inline-block;
   width: 10px;

@@ -373,6 +373,22 @@ function RunDetails({ run }: { run: CampaignRun }) {
           {run.probe.available}/{run.probe.samples}
         </Metric>
       </div>
+      {Object.keys(g.statusCounts).length > 0 && (
+        <div className="status-dist">
+          {Object.entries(g.statusCounts)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([bucket, n]) => (
+              <span key={bucket} className={`chip-xs ${bucket === '2xx' ? 'on' : 'off'}`}>
+                {bucket} {n}
+              </span>
+            ))}
+          {Object.entries(g.errors).map(([name, n]) => (
+            <span key={name} className="chip-xs off" title="transport/connection error">
+              {name} {n}
+            </span>
+          ))}
+        </div>
+      )}
       {run.timeline && (
         <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
       )}
