@@ -91,6 +91,21 @@ describe('API — auth disabled', () => {
     // at least the create + approve from the previous test
     expect(au.json().length).toBeGreaterThanOrEqual(2);
   });
+
+  it('verifies and exports the tamper-evident audit chain', async () => {
+    const v = await app.inject({ method: 'GET', url: '/api/audit/verify' });
+    expect(v.statusCode).toBe(200);
+    expect(v.json()).toMatchObject({ ok: true });
+    expect(v.json().count).toBeGreaterThanOrEqual(2);
+
+    const ex = await app.inject({ method: 'GET', url: '/api/audit/export' });
+    expect(ex.statusCode).toBe(200);
+    expect(ex.headers['content-disposition']).toContain('attachment');
+    const doc = ex.json();
+    expect(doc.kind).toBe('wedos-shieldtest-audit-export');
+    expect(doc.headHash).toBe(v.json().headHash);
+    expect(doc.entries.every((e: { hash?: string }) => !!e.hash)).toBe(true);
+  });
 });
 
 describe('API — concurrency guard', () => {

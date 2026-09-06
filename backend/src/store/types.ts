@@ -26,8 +26,15 @@ export interface Store {
   getRun(runId: string): Promise<CampaignRun | undefined>;
   /** Run history (all, or filtered by campaign), newest first. */
   listRuns(campaignId?: string): Promise<CampaignRun[]>;
+  /**
+   * Appends an audit entry, chaining it (prevHash/hash) onto the current head
+   * for tamper-evidence. The store fills the chain fields; callers pass the
+   * entry without them.
+   */
   saveAudit(e: AuditEntry): Promise<void>;
   listAudit(limit?: number): Promise<AuditEntry[]>;
+  /** All audit entries oldest-first, in chain (write) order — for verify/export. */
+  listAuditChain(): Promise<AuditEntry[]>;
   /**
    * Runtime-managed users (additive to the immutable env-defined AUTH_USERS,
    * which are never stored here). Officer-managed, audited.

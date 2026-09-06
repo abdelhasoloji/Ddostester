@@ -5,6 +5,7 @@ import { PostgresStore } from '../src/store/postgres.js';
 import type { Store } from '../src/store/types.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 import type { CampaignRun } from '../src/modules/campaigns/runner.js';
+import { verifyChain } from '../src/modules/audit/integrity.js';
 
 /**
  * One contract, run against every Store implementation, so memory and postgres
@@ -108,6 +109,25 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
         action: 'campaign.create',
       });
       expect((await store.listAudit(10)).length).toBeGreaterThan(0);
+    });
+
+    it('audit entries are hash-chained and verify end to end', async () => {
+      for (const actor of ['a@wedos', 'b@wedos', 'c@wedos']) {
+        await store.saveAudit({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          actor,
+          action: 'campaign.execute',
+        });
+      }
+      const chain = await store.listAuditChain();
+      expect(chain.length).toBeGreaterThanOrEqual(3);
+      // Every entry carries its chain fields and the whole chain verifies.
+      expect(chain.every((e) => e.hash && e.prevHash)).toBe(true);
+      expect(verifyChain(chain).ok).toBe(true);
+      // Tampering a persisted field is detected on re-verify.
+      const tampered = chain.map((e, i) => (i === 1 ? { ...e, actor: 'evil@wedos' } : e));
+      expect(verifyChain(tampered).ok).toBe(false);
     });
 
     it('users CRUD', async () => {

@@ -27,6 +27,7 @@ import { renderMetrics } from './modules/metrics/prometheus.js';
 import { renderComplianceHtml } from './modules/reports/compliance.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
+import { verifyChain } from './modules/audit/integrity.js';
 import type { LoadProgress } from './engine/loadTest.js';
 import { login, identityFromRequest } from './auth/guard.js';
 import { signJwt } from './auth/jwt.js';
@@ -644,6 +645,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
     const { limit } = req.query as { limit?: string };
     return store.listAudit(limit ? Number(limit) : 200);
+  });
+
+  // EPIC D: verify the tamper-evident audit chain end to end.
+  app.get('/api/audit/verify', { preHandler: guard('campaign:read') }, async () => {
+    return verifyChain(await store.listAuditChain());
+  });
+
+  // EPIC D: downloadable, self-verifiable audit export (entries + hashes + verdict).
+  app.get('/api/audit/export', { preHandler: guard('campaign:read') }, async (_req, reply) => {
+    const entries = await store.listAuditChain();
+    const verdict = verifyChain(entries);
+    const doc = {
+      kind: 'wedos-shieldtest-audit-export',
+      generatedAt: new Date().toISOString(),
+      count: entries.length,
+      headHash: verdict.headHash,
+      verdict,
+      entries,
+    };
+    reply.header('content-disposition', 'attachment; filename="shieldtest-audit-export.json"');
+    return reply.type('application/json').send(JSON.stringify(doc, null, 2));
   });
 
   app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {

@@ -11,6 +11,7 @@ const {
   complianceUrl,
   suiteReportUrl,
   streamUrl,
+  auditExportUrl,
 } = await import('./api.js');
 
 function stubFetch(body: unknown, init: { ok?: boolean; status?: number } = {}): Mock {
@@ -51,6 +52,7 @@ describe('url builders', () => {
     expect(complianceUrl()).toBe('/api/reports/compliance');
     expect(suiteReportUrl('s1')).toBe('/api/suites/s1/report');
     expect(streamUrl('c1')).toBe('/api/campaigns/c1/stream');
+    expect(auditExportUrl()).toBe('/api/audit/export');
   });
   it('append the encoded token when authenticated', () => {
     setToken('t k'); // a space exercises encodeURIComponent
@@ -60,6 +62,7 @@ describe('url builders', () => {
     expect(complianceUrl()).toBe('/api/reports/compliance?token=t%20k');
     expect(suiteReportUrl('s1')).toBe('/api/suites/s1/report?token=t%20k');
     expect(streamUrl('c1')).toBe('/api/campaigns/c1/stream?token=t%20k');
+    expect(auditExportUrl()).toBe('/api/audit/export?token=t%20k');
   });
 });
 
@@ -156,6 +159,7 @@ describe('api surface (every endpoint maps to a URL and verb)', () => {
     await check(() => api.getRun('r1'), '/api/runs/r1', 'GET');
     await check(() => api.audit(), '/api/audit?limit=100', 'GET');
     await check(() => api.audit(50), '/api/audit?limit=50', 'GET');
+    await check(() => api.verifyAudit(), '/api/audit/verify', 'GET');
     await check(() => api.wrsHistory(), '/api/wrs/history', 'GET');
     await check(() => api.agents(), '/api/agents', 'GET');
     await check(() => api.notifyTest(), '/api/notify/test', 'POST');

@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { api, complianceUrl, reportUrl, runsCsvUrl, suiteReportUrl } from './api.js';
-import type { Campaign, ManagedUser, Playbook, Role, SuiteSummary, WrsBreakdown } from './api.js';
+import {
+  api,
+  auditExportUrl,
+  complianceUrl,
+  reportUrl,
+  runsCsvUrl,
+  suiteReportUrl,
+} from './api.js';
+import type {
+  AuditVerdict,
+  Campaign,
+  ManagedUser,
+  Playbook,
+  Role,
+  SuiteSummary,
+  WrsBreakdown,
+} from './api.js';
 import { useApp, canDo } from './context.js';
 import {
   ApproveModal,
@@ -455,9 +470,21 @@ export function ReportsPage() {
 export function AuditPage() {
   const app = useApp();
   const { loadAudit } = app;
+  const [verdict, setVerdict] = useState<AuditVerdict | null>(null);
+  const [verifying, setVerifying] = useState(false);
   useEffect(() => {
     loadAudit();
   }, [loadAudit]);
+  const verify = async () => {
+    setVerifying(true);
+    try {
+      setVerdict(await api.verifyAudit());
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setVerifying(false);
+    }
+  };
   const rows = app.auditRows;
   return (
     <>
@@ -469,6 +496,26 @@ export function AuditPage() {
         <button className="btn btn-sm" onClick={app.loadAudit}>
           Refresh
         </button>
+        <button className="btn btn-sm" onClick={verify} disabled={verifying}>
+          {verifying ? 'Verifying…' : 'Verify integrity'}
+        </button>
+        <a className="btn btn-sm btn-ghost" href={auditExportUrl()}>
+          Export (JSON)
+        </a>
+        {verdict && (
+          <span
+            className={`engine-badge ${verdict.ok ? 'ok' : 'no'}`}
+            title={
+              verdict.ok
+                ? `head ${verdict.headHash.slice(0, 12)}…`
+                : `broken at #${verdict.brokenAt?.index} (${verdict.brokenAt?.reason})`
+            }
+          >
+            {verdict.ok
+              ? `Chain intact · ${verdict.count} entries`
+              : `Tampering detected (${verdict.brokenAt?.reason})`}
+          </span>
+        )}
       </div>
       <div className="card">
         {rows === null && <span className="hint">Loading…</span>}

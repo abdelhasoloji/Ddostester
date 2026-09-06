@@ -1,6 +1,7 @@
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
+import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { Store } from './types.js';
@@ -52,10 +53,16 @@ export class MemoryStore implements Store {
     return [...this.runs.values()].filter((r) => !campaignId || r.campaignId === campaignId);
   }
   async saveAudit(e: AuditEntry): Promise<void> {
-    this.audit.push(e);
+    const prev = this.audit.length
+      ? (this.audit[this.audit.length - 1].hash ?? AUDIT_GENESIS)
+      : AUDIT_GENESIS;
+    this.audit.push(chainEntry(e, prev));
   }
   async listAudit(limit = 200): Promise<AuditEntry[]> {
     return [...this.audit].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
+  }
+  async listAuditChain(): Promise<AuditEntry[]> {
+    return [...this.audit];
   }
   async listUsers(): Promise<User[]> {
     return [...this.users.values()].sort((a, b) => a.email.localeCompare(b.email));

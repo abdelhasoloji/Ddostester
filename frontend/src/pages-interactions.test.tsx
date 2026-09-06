@@ -14,7 +14,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { SettingsPage, GuidePage } = await import('./pages.js');
+const { SettingsPage, GuidePage, AuditPage } = await import('./pages.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -101,6 +101,27 @@ describe('NotificationsCard', () => {
     const btn = await screen.findByRole('button', { name: 'Send test notification' });
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.notifyTest).toHaveBeenCalled());
+  });
+});
+
+describe('AuditPage integrity', () => {
+  it('verifies the chain and shows the intact badge', async () => {
+    renderWithRouter(<AuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
+    await waitFor(() => expect(fakeApi.verifyAudit).toHaveBeenCalled());
+    expect(await screen.findByText(/Chain intact/)).toBeInTheDocument();
+  });
+
+  it('shows a tampering badge when the chain is broken', async () => {
+    fakeApi.verifyAudit.mockResolvedValueOnce({
+      ok: false,
+      count: 3,
+      headHash: 'x',
+      brokenAt: { index: 1, id: 'e2', reason: 'content' },
+    });
+    renderWithRouter(<AuditPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
+    expect(await screen.findByText(/Tampering detected/)).toBeInTheDocument();
   });
 });
 

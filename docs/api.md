@@ -126,3 +126,13 @@ curl -s localhost:8080/api/agents
 ## `GET /api/audit`
 
 Audit log (read). `limit` query (default 200).
+
+## `GET /api/audit/verify`
+
+Verifies the tamper-evident audit chain end to end. Returns
+`{ ok, count, headHash, brokenAt? }`. See [audit.md](./audit.md).
+
+## `GET /api/audit/export`
+
+Downloadable, self-verifiable audit export: all entries in chain order with
+their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.

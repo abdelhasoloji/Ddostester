@@ -73,6 +73,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     deletePlaybook: vi.fn().mockResolvedValue({ deleted: 'x' }),
     instantiatePlaybook: vi.fn().mockResolvedValue({ suiteId: 's', campaigns: [] }),
     notifyTest: vi.fn().mockResolvedValue({ delivered: true, sinks: [] }),
+    verifyAudit: vi.fn().mockResolvedValue({ ok: true, count: 3, headHash: 'abc123def456' }),
     ...overrides,
   };
 }

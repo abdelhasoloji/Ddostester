@@ -177,6 +177,13 @@ export interface AuditEntry {
   detail?: string;
 }
 
+export interface AuditVerdict {
+  ok: boolean;
+  count: number;
+  headHash: string;
+  brokenAt?: { index: number; id: string; reason: 'content' | 'link' | 'missing-hash' };
+}
+
 export interface WrsPoint {
   at: string;
   wrs: number;
@@ -252,6 +259,12 @@ export function runTimelineCsvUrl(runId: string): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL of the downloadable, self-verifiable audit export (entries + hashes). */
+export function auditExportUrl(): string {
+  const u = `/api/audit/export`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
 /** URL of the aggregated compliance report (DORA/NIS2). */
 export function complianceUrl(): string {
   const u = `/api/reports/compliance`;
@@ -306,6 +319,7 @@ export const api = {
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
+  verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),

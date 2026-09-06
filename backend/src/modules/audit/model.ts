@@ -15,4 +15,11 @@ export interface AuditEntry {
     | 'playbook.delete';
   campaignId?: string;
   detail?: string;
+  /**
+   * Tamper-evidence (EPIC D): hash of this entry chained onto the previous
+   * entry's hash, and the previous hash it was chained onto. Filled by the
+   * store at write time; absent on rows written before the chain existed.
+   */
+  hash?: string;
+  prevHash?: string;
 }

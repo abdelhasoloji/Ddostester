@@ -2,12 +2,30 @@ import pg from 'pg';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
+import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { isRole } from '../auth/rbac.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
+
+/** Advisory-lock key serializing audit-chain appends (arbitrary constant). */
+const AUDIT_LOCK_KEY = 4021;
+
+/** Maps an audit row (with chain columns) to an AuditEntry. */
+function rowToAudit(x: Record<string, unknown>): AuditEntry {
+  return {
+    id: x.id as string,
+    at: x.at instanceof Date ? x.at.toISOString() : String(x.at),
+    actor: x.actor as string,
+    action: x.action as AuditEntry['action'],
+    campaignId: (x.campaignId as string) ?? undefined,
+    detail: (x.detail as string) ?? undefined,
+    prevHash: (x.prevHash as string) ?? undefined,
+    hash: (x.hash as string) ?? undefined,
+  };
+}
 
 /**
  * Ordered schema migrations. Each runs once, in a transaction, and is recorded
@@ -69,6 +87,17 @@ const MIGRATIONS: { id: number; sql: string }[] = [
         created_at timestamptz NOT NULL DEFAULT now(),
         data       jsonb NOT NULL
       );
+    `,
+  },
+  {
+    // EPIC D: tamper-evident audit chain. `seq` gives a strict write order to
+    // chain on; prev_hash/hash carry the chain (null on pre-existing rows).
+    id: 2,
+    sql: `
+      ALTER TABLE audit ADD COLUMN IF NOT EXISTS seq       bigserial;
+      ALTER TABLE audit ADD COLUMN IF NOT EXISTS prev_hash text;
+      ALTER TABLE audit ADD COLUMN IF NOT EXISTS hash      text;
+      CREATE INDEX IF NOT EXISTS idx_audit_seq ON audit(seq);
     `,
   },
 ];
@@ -233,27 +262,54 @@ export class PostgresStore implements Store {
   }
 
   async saveAudit(e: AuditEntry): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO audit (id, at, actor, action, campaign_id, detail)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [e.id, e.at, e.actor, e.action, e.campaignId ?? null, e.detail ?? null],
-    );
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Serialize concurrent appends so the chain never forks.
+      await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_LOCK_KEY]);
+      const head = await client.query<{ hash: string | null }>(
+        'SELECT hash FROM audit ORDER BY seq DESC LIMIT 1',
+      );
+      const prev = head.rows[0]?.hash ?? AUDIT_GENESIS;
+      const chained = chainEntry(e, prev);
+      await client.query(
+        `INSERT INTO audit (id, at, actor, action, campaign_id, detail, prev_hash, hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [
+          chained.id,
+          chained.at,
+          chained.actor,
+          chained.action,
+          chained.campaignId ?? null,
+          chained.detail ?? null,
+          chained.prevHash ?? null,
+          chained.hash ?? null,
+        ],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async listAudit(limit = 200): Promise<AuditEntry[]> {
     const r = await this.pool.query(
-      `SELECT id, at, actor, action, campaign_id AS "campaignId", detail
-       FROM audit ORDER BY at DESC LIMIT $1`,
+      `SELECT id, at, actor, action, campaign_id AS "campaignId", detail, prev_hash AS "prevHash", hash
+       FROM audit ORDER BY seq DESC LIMIT $1`,
       [limit],
     );
-    return r.rows.map((x) => ({
-      id: x.id,
-      at: x.at instanceof Date ? x.at.toISOString() : String(x.at),
-      actor: x.actor,
-      action: x.action,
-      campaignId: x.campaignId ?? undefined,
-      detail: x.detail ?? undefined,
-    })) as AuditEntry[];
+    return r.rows.map(rowToAudit);
+  }
+
+  async listAuditChain(): Promise<AuditEntry[]> {
+    const r = await this.pool.query(
+      `SELECT id, at, actor, action, campaign_id AS "campaignId", detail, prev_hash AS "prevHash", hash
+       FROM audit ORDER BY seq ASC`,
+    );
+    return r.rows.map(rowToAudit);
   }
 
   async listUsers(): Promise<User[]> {
