@@ -86,6 +86,23 @@ ${
  <tr><th>Probe latency p50 / p95 / p99 (ms)</th><td>${run.probe.latencyMs.p50} / ${run.probe.latencyMs.p95} / ${run.probe.latencyMs.p99}</td></tr>
 </table>
 ${
+  run.baseline
+    ? `<h2>Baseline (nominal, pre-load)</h2>
+<table>
+ <tr><th>Samples</th><td>${run.baseline.samples}</td></tr>
+ <tr><th>Availability</th><td>${run.baseline.availabilityPct}%</td></tr>
+ <tr><th>Latency p50 / p95 (ms)</th><td>${run.baseline.latencyMs.p50} / ${run.baseline.latencyMs.p95}</td></tr>
+${
+  run.baselineDelta
+    ? ` <tr><th>Under-load Δ latency p50 / p95 (ms)</th><td>${run.baselineDelta.latencyP50DeltaMs} / ${run.baselineDelta.latencyP95DeltaMs}</td></tr>
+ <tr><th>Under-load Δ availability (pts)</th><td>${run.baselineDelta.availabilityDeltaPct}</td></tr>`
+    : ''
+}
+</table>
+<p class="muted">Nominal metrics captured with legitimate traffic only, before the ramp; the deltas show degradation under load.</p>`
+    : ''
+}
+${
   run.posture
     ? `<h2>Protection posture (inferred)</h2>
 <table>

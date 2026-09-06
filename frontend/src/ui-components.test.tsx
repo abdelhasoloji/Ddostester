@@ -72,6 +72,18 @@ describe('RunDetails', () => {
     expect(screen.getByText(/p95 latency/)).toBeInTheDocument();
     expect(screen.getByText(/measured/)).toBeInTheDocument();
   });
+
+  it('renders the baseline and under-load deltas when present', () => {
+    const withBaseline: CampaignRun = {
+      ...run,
+      baseline: { samples: 3, availabilityPct: 100, latencyMs: { p50: 3, p95: 6 } },
+      baselineDelta: { latencyP50DeltaMs: 2, latencyP95DeltaMs: 4, availabilityDeltaPct: -5 },
+    };
+    render(<RunDetails run={withBaseline} />);
+    expect(screen.getByText('Baseline availability')).toBeInTheDocument();
+    expect(screen.getByText('+4 ms')).toBeInTheDocument();
+    expect(screen.getByText('-5 pts')).toBeInTheDocument();
+  });
 });
 
 const baseCampaign: Campaign = {

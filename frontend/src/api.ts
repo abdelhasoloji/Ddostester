@@ -154,6 +154,12 @@ export interface CampaignRun {
   acceptance?: AcceptanceResult;
   timeline?: RunSample[];
   protectionSource?: string;
+  baseline?: { samples: number; availabilityPct: number; latencyMs: { p50: number; p95: number } };
+  baselineDelta?: {
+    latencyP50DeltaMs: number;
+    latencyP95DeltaMs: number;
+    availabilityDeltaPct: number;
+  };
   posture?: {
     waf: boolean;
     cdn: boolean;

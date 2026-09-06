@@ -30,6 +30,14 @@ Example (TSD §5.4): detection 10 s → D = 95; mitigation 30 s → M = 90;
 | 30–49  | D     | insufficient           |
 | 0–29   | F     | not resilient          |
 
+## Automatic baseline
+
+Before the ramp, each run captures a short **baseline** of the target under
+**legitimate traffic only** (a few bounded probe requests) — nominal availability
+and latency. The run detail and HTML report then show the **under-load deltas**
+(Δ latency p95, Δ availability) so a result is interpretable on its own, not just
+an absolute number. This is inbound measurement and generates no load.
+
 ## Origin of the inputs
 
 - **A** and **C** come directly from the **probe** (availability measured on the

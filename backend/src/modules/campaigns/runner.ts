@@ -11,6 +11,8 @@ import { noopProtectionProvider } from '../protection/provider.js';
 import type { ProtectionProvider } from '../protection/types.js';
 import { evaluateAcceptance } from './acceptance.js';
 import type { AcceptanceResult } from './acceptance.js';
+import { captureBaseline, computeBaselineDelta } from './baseline.js';
+import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
 import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
@@ -47,6 +49,10 @@ export interface CampaignRun {
   timeline?: RunSample[];
   /** Source of the detection/mitigation timings when measured (e.g. 'mock', 'scrubbing'). */
   protectionSource?: string;
+  /** Nominal metrics captured before the ramp (legitimate traffic only). */
+  baseline?: BaselineMetrics;
+  /** Under-load degradation vs. the baseline. */
+  baselineDelta?: BaselineDelta;
 }
 
 /**
@@ -65,7 +71,14 @@ export async function executeCampaign(
   onProgress?: (p: LoadProgress) => void,
   agent: AttackAgent = new BuiltinHttpAgent(),
   protection: ProtectionProvider = noopProtectionProvider,
+  captureBaselineFn: CaptureBaseline = captureBaseline,
 ): Promise<CampaignRun> {
+  // EPIC B2: capture the nominal baseline (legitimate traffic only) BEFORE the
+  // ramp and before the timeout starts, so it doesn't eat into the load window.
+  const baseline = await captureBaselineFn(campaign.probeUrl, killSwitch.signal).catch(
+    () => undefined,
+  );
+
   // Kill switch level 3: absolute time-based timeout.
   const timeoutTimer = setTimeout(
     () => killSwitch.trigger('TIMEOUT'),
@@ -184,6 +197,16 @@ export async function executeCampaign(
         ? 'KILLED_AUTO'
         : 'COMPLETED';
 
+  const underLoadAvailPct = probeMetrics.samples
+    ? (probeMetrics.available / probeMetrics.samples) * 100
+    : 100;
+  const baselineDelta = baseline
+    ? computeBaselineDelta(baseline, {
+        availabilityPct: underLoadAvailPct,
+        latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
+      })
+    : undefined;
+
   const total = generator.totalRequests;
   const checked = generator.assertionsChecked ?? 0;
   const acceptance =
@@ -208,5 +231,7 @@ export async function executeCampaign(
     acceptance,
     timeline,
     protectionSource: measured?.source,
+    baseline,
+    baselineDelta,
   };
 }

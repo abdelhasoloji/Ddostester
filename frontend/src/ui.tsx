@@ -389,6 +389,24 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           ))}
         </div>
       )}
+      {run.baseline && (
+        <div className="metrics" style={{ marginTop: '.5rem' }}>
+          <Metric label="Baseline availability">{run.baseline.availabilityPct}%</Metric>
+          <Metric label="Baseline latency p95">{run.baseline.latencyMs.p95} ms</Metric>
+          {run.baselineDelta && (
+            <>
+              <Metric label="Δ latency p95 (load)">
+                {run.baselineDelta.latencyP95DeltaMs >= 0 ? '+' : ''}
+                {run.baselineDelta.latencyP95DeltaMs} ms
+              </Metric>
+              <Metric label="Δ availability (load)">
+                {run.baselineDelta.availabilityDeltaPct >= 0 ? '+' : ''}
+                {run.baselineDelta.availabilityDeltaPct} pts
+              </Metric>
+            </>
+          )}
+        </div>
+      )}
       {run.timeline && (
         <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
       )}

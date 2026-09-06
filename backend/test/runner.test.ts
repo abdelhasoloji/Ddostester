@@ -38,6 +38,11 @@ describe('executeCampaign — run time-series', () => {
 
     expect(Array.isArray(run.timeline)).toBe(true);
     expect(run.timeline!.length).toBeGreaterThan(0);
+
+    // EPIC B2: a nominal baseline is captured before the ramp, with deltas.
+    expect(run.baseline).toBeDefined();
+    expect(run.baseline!.availabilityPct).toBe(100);
+    expect(run.baselineDelta).toBeDefined();
     const s = run.timeline![0];
     expect(s.t).toBeGreaterThanOrEqual(0);
     expect(s.availPct).toBeGreaterThanOrEqual(0);
