@@ -1,12 +1,12 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
-import { runProcess, binaryAvailable } from './proc.js';
+import { runProcess, binaryAvailable, withTempDir } from './proc.js';
+import { emptyResult, type ResultMeta } from './results.js';
 import { percentile } from '../engine/stats.js';
 import { htmlEscape as xmlEsc } from '../util/text.js';
 
@@ -116,12 +116,9 @@ ${samplers}
 }
 
 /** Parses a JMeter JTL file (CSV) → LoadTestResult. Pure function. */
-export function parseJtl(
-  csv: string,
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function parseJtl(csv: string, meta: ResultMeta): LoadTestResult {
   const lines = csv.trim().split('\n').filter(Boolean);
-  if (lines.length < 2) return empty(meta);
+  if (lines.length < 2) return emptyResult(meta);
   const header = lines[0].split(',');
   const iElapsed = header.indexOf('elapsed');
   const iSuccess = header.indexOf('success');
@@ -167,24 +164,6 @@ export function parseJtl(
   };
 }
 
-function empty(meta: {
-  id: string;
-  config: LoadTestConfig;
-  startedAt: string;
-  finishedAt: string;
-}): LoadTestResult {
-  return {
-    ...meta,
-    totalRequests: 0,
-    successful: 0,
-    failed: 0,
-    statusCounts: {},
-    latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
-    actualRps: 0,
-    errors: {},
-  };
-}
-
 export class JMeterAgent implements AttackAgent {
   readonly name = 'jmeter';
   readonly multiPhase = false;
@@ -215,9 +194,8 @@ export class JMeterAgent implements AttackAgent {
         `jmeter agent unavailable (binary "${this.bin}"). Install JMeter or choose AGENT=builtin.`,
       );
     }
-    const dir = await mkdtemp(join(tmpdir(), 'shieldtest-jmeter-'));
     const startedAt = new Date().toISOString();
-    try {
+    return withTempDir('jmeter', async (dir) => {
       const plan = join(dir, 'plan.jmx');
       const jtl = join(dir, 'results.jtl');
       await writeFile(plan, buildJmxPlan(config), 'utf8');
@@ -231,8 +209,6 @@ export class JMeterAgent implements AttackAgent {
         startedAt,
         finishedAt: new Date().toISOString(),
       });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    }
+    });
   }
 }

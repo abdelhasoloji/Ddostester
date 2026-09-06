@@ -340,19 +340,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const envUsers = (): { email: string; role: Role }[] =>
     [...auth.users.values()].map((u) => ({ email: u.email, role: u.role }));
   const envEmailSet = (): Set<string> => new Set([...auth.users.keys()]);
+  /** Env-defined users merged with runtime store users (store role wins). */
+  const currentUsers = async () => {
+    const stored = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
+    return combineUsers(envUsers(), stored);
+  };
 
   app.get('/api/users', { preHandler: guard('user:manage') }, async (_req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
-    return combineUsers(envUsers(), store_);
+    return currentUsers();
   });
 
   app.post('/api/users', { preHandler: guard('user:manage') }, async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
     try {
       const body = req.body as { email?: string; role?: string; password?: string };
-      const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
-      const current = combineUsers(envUsers(), store_);
+      const current = await currentUsers();
       const { email, role } = assertUpsert(
         { email: body.email ?? '', role: body.role ?? '', password: body.password ?? '' },
         { envEmails: envEmailSet(), current, actorEmail: req.authUser?.email ?? '' },
@@ -370,8 +373,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
     try {
       const raw = decodeURIComponent((req.params as { email: string }).email);
-      const store_ = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
-      const current = combineUsers(envUsers(), store_);
+      const current = await currentUsers();
       const email = assertDelete(raw, {
         envEmails: envEmailSet(),
         current,
@@ -569,18 +571,17 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     buildSuites(await store.listCampaigns()),
   );
 
+  const findSuite = async (id: string) =>
+    buildSuites(await store.listCampaigns()).find((s) => s.suiteId === id);
+
   app.get('/api/suites/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const suite = buildSuites(await store.listCampaigns()).find(
-      (s) => s.suiteId === (req.params as { id: string }).id,
-    );
+    const suite = await findSuite((req.params as { id: string }).id);
     return suite ?? reply.code(404).send({ error: 'suite not found' });
   });
 
   app.get('/api/suites/:id/report', async (req, reply) => {
     if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
-    const suite = buildSuites(await store.listCampaigns()).find(
-      (s) => s.suiteId === (req.params as { id: string }).id,
-    );
+    const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
     return reply.type('text/html').send(renderSuiteReportHtml(suite));
   });

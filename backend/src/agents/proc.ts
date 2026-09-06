@@ -1,4 +1,7 @@
 import { spawn } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export interface ProcResult {
   code: number | null;
@@ -39,4 +42,14 @@ export function binaryAvailable(bin: string, versionArg = '--version'): Promise<
     p.on('error', () => resolve(false));
     p.on('close', (code) => resolve(code === 0));
   });
+}
+
+/** Runs `fn` with a fresh temp dir (shieldtest-<prefix>-*), always cleaned up. */
+export async function withTempDir<T>(prefix: string, fn: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), `shieldtest-${prefix}-`));
+  try {
+    return await fn(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }

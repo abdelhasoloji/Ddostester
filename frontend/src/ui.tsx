@@ -288,46 +288,35 @@ export function CampaignCard({ c }: { c: Campaign }) {
 }
 
 /** Measured metrics + WRS breakdown for a finished run (used in the drawer). */
+function Metric({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="metric">
+      <div className="k">{label}</div>
+      <div className="v">{children}</div>
+    </div>
+  );
+}
+
 function RunDetails({ run }: { run: CampaignRun }) {
+  const g = run.generator;
   return (
     <div className="details">
       <div className="metrics">
-        <div className="metric">
-          <div className="k">Requests</div>
-          <div className="v">{run.generator.totalRequests}</div>
-        </div>
-        <div className="metric">
-          <div className="k">Success / failures</div>
-          <div className="v">
-            {run.generator.successful} / {run.generator.failed}
-          </div>
-        </div>
-        {run.generator.assertionsChecked ? (
-          <div className="metric">
-            <div className="k">Assertion failures</div>
-            <div className="v">
-              {run.generator.assertionFailures ?? 0} / {run.generator.assertionsChecked}
-            </div>
-          </div>
+        <Metric label="Requests">{g.totalRequests}</Metric>
+        <Metric label="Success / failures">
+          {g.successful} / {g.failed}
+        </Metric>
+        {g.assertionsChecked ? (
+          <Metric label="Assertion failures">
+            {g.assertionFailures ?? 0} / {g.assertionsChecked}
+          </Metric>
         ) : null}
-        <div className="metric">
-          <div className="k">Actual RPS</div>
-          <div className="v">{run.generator.actualRps}</div>
-        </div>
-        <div className="metric">
-          <div className="k">Latency p95</div>
-          <div className="v">{run.generator.latencyMs.p95} ms</div>
-        </div>
-        <div className="metric">
-          <div className="k">Probe 5xx</div>
-          <div className="v">{run.probe.errorRate5xx}%</div>
-        </div>
-        <div className="metric">
-          <div className="k">Probe availability</div>
-          <div className="v">
-            {run.probe.available}/{run.probe.samples}
-          </div>
-        </div>
+        <Metric label="Actual RPS">{g.actualRps}</Metric>
+        <Metric label="Latency p95">{g.latencyMs.p95} ms</Metric>
+        <Metric label="Probe 5xx">{run.probe.errorRate5xx}%</Metric>
+        <Metric label="Probe availability">
+          {run.probe.available}/{run.probe.samples}
+        </Metric>
       </div>
       <div className="wrs-breakdown">
         <span>

@@ -1,12 +1,12 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
-import { runProcess, binaryAvailable } from './proc.js';
+import { runProcess, binaryAvailable, withTempDir } from './proc.js';
+import { emptyResult, type ResultMeta } from './results.js';
 
 /**
  * Adapter to Locust (headless), operated by the team. Bounded HTTP load: the
@@ -57,10 +57,7 @@ class ShieldTestUser(HttpUser):
 }
 
 /** Parses the Locust CSV (<prefix>_stats.csv), the “Aggregated” row. Pure function. */
-export function parseLocustStats(
-  csv: string,
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function parseLocustStats(csv: string, meta: ResultMeta): LoadTestResult {
   const lines = csv.trim().split('\n');
   const header = splitCsv(lines[0]);
   const idx = (name: string) => header.indexOf(name);
@@ -73,21 +70,7 @@ export function parseLocustStats(
     const v = i >= 0 ? Number(r[i]) : 0;
     return Number.isFinite(v) ? v : 0;
   };
-  if (!row) {
-    return {
-      id: meta.id,
-      config: meta.config,
-      startedAt: meta.startedAt,
-      finishedAt: meta.finishedAt,
-      totalRequests: 0,
-      successful: 0,
-      failed: 0,
-      statusCounts: {},
-      latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
-      actualRps: 0,
-      errors: {},
-    };
-  }
+  if (!row) return emptyResult(meta);
   const total = Math.round(num(row, 'Request Count'));
   const failed = Math.round(num(row, 'Failure Count'));
   return {
@@ -158,9 +141,8 @@ export class LocustAgent implements AttackAgent {
         `locust agent unavailable (binary "${this.bin}"). Install Locust or choose AGENT=builtin.`,
       );
     }
-    const dir = await mkdtemp(join(tmpdir(), 'shieldtest-locust-'));
     const startedAt = new Date().toISOString();
-    try {
+    return withTempDir('locust', async (dir) => {
       const file = join(dir, 'locustfile.py');
       await writeFile(file, buildLocustfile(config), 'utf8');
       const origin = new URL(config.url).origin;
@@ -192,8 +174,6 @@ export class LocustAgent implements AttackAgent {
         startedAt,
         finishedAt: new Date().toISOString(),
       });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    }
+    });
   }
 }

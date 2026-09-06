@@ -1,12 +1,12 @@
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult, ScenarioPhase } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
-import { runProcess, binaryAvailable } from './proc.js';
+import { runProcess, binaryAvailable, withTempDir } from './proc.js';
+import { emptyResult, type ResultMeta } from './results.js';
 
 /**
  * Adapter to Vegeta (fixed-rate HTTP load generator, operated by the team).
@@ -41,10 +41,7 @@ interface VegetaReport {
 const nsToMs = (n: number | undefined): number => Number(((n ?? 0) / 1e6).toFixed(2));
 
 /** Converts a Vegeta report (report -type=json) into a LoadTestResult. Pure function. */
-export function parseVegetaReport(
-  rep: VegetaReport,
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function parseVegetaReport(rep: VegetaReport, meta: ResultMeta): LoadTestResult {
   const total = rep.requests ?? 0;
   const success = rep.success ?? 1;
   const failed = Math.round(total * (1 - success));
@@ -79,10 +76,7 @@ export function parseVegetaReport(
 }
 
 /** Sums several reports (sequential phases). Pure function. */
-export function mergeResults(
-  parts: LoadTestResult[],
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function mergeResults(parts: LoadTestResult[], meta: ResultMeta): LoadTestResult {
   if (parts.length === 1) return { ...parts[0], ...meta };
   const total = parts.reduce((s, p) => s + p.totalRequests, 0);
   const failed = parts.reduce((s, p) => s + p.failed, 0);
@@ -142,9 +136,8 @@ export class VegetaAgent implements AttackAgent {
         `vegeta agent unavailable (binary "${this.bin}"). Install Vegeta or choose AGENT=builtin.`,
       );
     }
-    const dir = await mkdtemp(join(tmpdir(), 'shieldtest-vegeta-'));
     const startedAt = new Date().toISOString();
-    try {
+    return withTempDir('vegeta', async (dir) => {
       let bodyFile: string | undefined;
       if ((config.method ?? 'GET').toUpperCase() === 'POST' && config.body != null) {
         bodyFile = join(dir, 'body.txt');
@@ -189,30 +182,13 @@ export class VegetaAgent implements AttackAgent {
           }),
         );
       }
-      return mergeResults(parts.length ? parts : [emptyResult(config, startedAt)], {
+      const meta: ResultMeta = {
         id: randomUUID(),
         config,
         startedAt,
         finishedAt: new Date().toISOString(),
-      });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    }
+      };
+      return mergeResults(parts.length ? parts : [emptyResult(meta)], meta);
+    });
   }
-}
-
-function emptyResult(config: LoadTestConfig, startedAt: string): LoadTestResult {
-  return {
-    id: 'empty',
-    config,
-    startedAt,
-    finishedAt: startedAt,
-    totalRequests: 0,
-    successful: 0,
-    failed: 0,
-    statusCounts: {},
-    latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
-    actualRps: 0,
-    errors: {},
-  };
 }

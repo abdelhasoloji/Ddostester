@@ -1,12 +1,12 @@
-import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig, iterationRate } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
-import { runProcess, binaryAvailable } from './proc.js';
+import { runProcess, binaryAvailable, withTempDir } from './proc.js';
+import type { ResultMeta } from './results.js';
 import { percentile } from '../engine/stats.js';
 
 /**
@@ -72,10 +72,7 @@ public class ${className} extends Simulation {
 }
 
 /** Parses Gatling's simulation.log (best-effort) → LoadTestResult. Pure function. */
-export function parseGatlingLog(
-  text: string,
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function parseGatlingLog(text: string, meta: ResultMeta): LoadTestResult {
   const latencies: number[] = [];
   let total = 0;
   let failed = 0;
@@ -146,11 +143,10 @@ export class GatlingAgent implements AttackAgent {
         `gatling agent unavailable (binary "${this.bin}"). Install Gatling or choose AGENT=builtin.`,
       );
     }
-    const dir = await mkdtemp(join(tmpdir(), 'shieldtest-gatling-'));
-    const simDir = join(dir, 'sim');
-    const resDir = join(dir, 'results');
     const startedAt = new Date().toISOString();
-    try {
+    return withTempDir('gatling', async (dir) => {
+      const simDir = join(dir, 'sim');
+      const resDir = join(dir, 'results');
       // Gatling compiles the sources found in -sf: we place the simulation there.
       await mkdir(simDir, { recursive: true });
       await writeFile(join(simDir, 'ShieldTestSimulation.java'), buildGatlingSim(config), 'utf8');
@@ -166,9 +162,7 @@ export class GatlingAgent implements AttackAgent {
         startedAt,
         finishedAt: new Date().toISOString(),
       });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    }
+    });
   }
 }
 

@@ -1,12 +1,12 @@
-import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig, iterationRate } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
+import { runProcess, binaryAvailable, withTempDir } from './proc.js';
+import type { ResultMeta } from './results.js';
 
 /**
  * Adapter to k6 (external load-testing tool, licensed/operated by the team).
@@ -99,10 +99,7 @@ interface K6Summary {
 }
 
 /** Converts the k6 summary (--summary-export) into a LoadTestResult. Pure function. */
-export function parseK6Summary(
-  summary: K6Summary,
-  meta: { id: string; config: LoadTestConfig; startedAt: string; finishedAt: string },
-): LoadTestResult {
+export function parseK6Summary(summary: K6Summary, meta: ResultMeta): LoadTestResult {
   const m = summary.metrics ?? {};
   const total = Math.round(m.http_reqs?.count ?? 0);
   const failRate = m.http_req_failed?.value ?? 0;
@@ -141,12 +138,8 @@ export class K6Agent implements AttackAgent {
     'k6 (external) — arrival-rate load, supports ramping scenarios and multi-step flows.';
   constructor(private readonly bin = process.env.K6_BIN ?? 'k6') {}
 
-  async available(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const p = spawn(this.bin, ['version'], { stdio: 'ignore' });
-      p.on('error', () => resolve(false));
-      p.on('close', (code) => resolve(code === 0));
-    });
+  available(): Promise<boolean> {
+    return binaryAvailable(this.bin, 'version');
   }
 
   async run(
@@ -164,24 +157,13 @@ export class K6Agent implements AttackAgent {
       );
     }
 
-    const dir = await mkdtemp(join(tmpdir(), 'shieldtest-k6-'));
-    const script = join(dir, 'load.js');
-    const summaryPath = join(dir, 'summary.json');
     const startedAt = new Date().toISOString();
-    try {
+    return withTempDir('k6', async (dir) => {
+      const script = join(dir, 'load.js');
+      const summaryPath = join(dir, 'summary.json');
       await writeFile(script, buildK6Script(config), 'utf8');
-      await new Promise<void>((resolve, reject) => {
-        const p = spawn(this.bin, ['run', '--summary-export', summaryPath, script], {
-          stdio: 'ignore',
-        });
-        const onAbort = () => p.kill('SIGTERM');
-        killSignal?.addEventListener('abort', onAbort, { once: true });
-        p.on('error', reject);
-        p.on('close', () => {
-          killSignal?.removeEventListener('abort', onAbort);
-          resolve(); // k6 exits non-zero if thresholds fail; we read the summary anyway
-        });
-      });
+      // k6 exits non-zero if thresholds fail; we read the summary anyway.
+      await runProcess(this.bin, ['run', '--summary-export', summaryPath, script], { killSignal });
       const raw = await readFile(summaryPath, 'utf8').catch(() => '{}');
       const summary = JSON.parse(raw) as K6Summary;
       return parseK6Summary(summary, {
@@ -190,8 +172,6 @@ export class K6Agent implements AttackAgent {
         startedAt,
         finishedAt: new Date().toISOString(),
       });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
-    }
+    });
   }
 }
