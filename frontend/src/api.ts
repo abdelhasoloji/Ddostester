@@ -90,6 +90,15 @@ export interface RequestStep {
   extract?: { name: string; from: 'json' | 'header' | 'regex'; expr: string };
 }
 
+export interface RunSample {
+  t: number;
+  rps: number;
+  sent: number;
+  failed: number;
+  probe5xx: number;
+  availPct: number;
+}
+
 export interface AgentInfo {
   id: string;
   name: string;
@@ -123,6 +132,7 @@ export interface CampaignRun {
   };
   wrs: WrsBreakdown;
   acceptance?: AcceptanceResult;
+  timeline?: RunSample[];
   posture?: {
     waf: boolean;
     cdn: boolean;

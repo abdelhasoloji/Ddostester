@@ -5,6 +5,7 @@ import type {
   CampaignRun,
   CampaignStatus,
   RequestStep,
+  RunSample,
   WrsBreakdown,
   WrsPoint,
   LiveProgressData,
@@ -297,6 +298,54 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
+/** Compact per-run time-series: requests/s and probe 5xx over elapsed time. */
+function RunTimeline({ samples }: { samples: RunSample[] }) {
+  if (samples.length < 2) return null;
+  const W = 640;
+  const H = 120;
+  const padX = 14;
+  const padY = 16;
+  const tMax = Math.max(...samples.map((s) => s.t), 1);
+  const rpsMax = Math.max(...samples.map((s) => s.rps), 1);
+  const errMax = Math.max(...samples.map((s) => s.probe5xx), 1);
+  const x = (t: number) => padX + (t / tMax) * (W - 2 * padX);
+  const yTop = padY;
+  const yBot = H - padY;
+  const line = (sel: (s: RunSample) => number, max: number) =>
+    samples
+      .map((s, i) => {
+        const y = yBot - (sel(s) / max) * (yBot - yTop);
+        return `${i ? 'L' : 'M'}${x(s.t).toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+
+  return (
+    <div className="posture">
+      <div className="posture-title">Run timeline</div>
+      <div className="wrs-trend">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Run timeline">
+          <path d={line((s) => s.rps, rpsMax)} fill="none" stroke="var(--brand)" strokeWidth="2" />
+          <path
+            d={line((s) => s.probe5xx, errMax)}
+            fill="none"
+            stroke="var(--danger)"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
+      <div className="timeline-legend">
+        <span>
+          <i style={{ background: 'var(--brand)' }} /> requests/s (peak {Math.round(rpsMax)})
+        </span>
+        <span>
+          <i style={{ background: 'var(--danger)' }} /> probe 5xx % (peak {errMax.toFixed(1)})
+        </span>
+        <span className="hint">over {Math.round(tMax)}s</span>
+      </div>
+    </div>
+  );
+}
+
 function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
   return (
@@ -318,6 +367,7 @@ function RunDetails({ run }: { run: CampaignRun }) {
           {run.probe.available}/{run.probe.samples}
         </Metric>
       </div>
+      {run.timeline && <RunTimeline samples={run.timeline} />}
       <div className="wrs-breakdown">
         <span>
           Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>

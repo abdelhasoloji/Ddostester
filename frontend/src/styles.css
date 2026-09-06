@@ -943,6 +943,23 @@ input.invalid {
   padding: 0.25rem 0.5rem;
   font-size: 0.85rem;
 }
+.timeline-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+}
+.timeline-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
 .engine-dot {
   width: 9px;
   height: 9px;

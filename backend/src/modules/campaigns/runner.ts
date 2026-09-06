@@ -13,6 +13,25 @@ import { evaluateAcceptance } from './acceptance.js';
 import type { AcceptanceResult } from './acceptance.js';
 import type { Campaign } from './model.js';
 
+/** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
+export interface RunSample {
+  /** Seconds since the run started. */
+  t: number;
+  /** Generator requests/s at this tick (0 for engines that don't report counters). */
+  rps: number;
+  /** Cumulative requests sent. */
+  sent: number;
+  /** Cumulative failed requests. */
+  failed: number;
+  /** Probe 5xx error rate (%) at this tick. */
+  probe5xx: number;
+  /** Probe availability (%) at this tick. */
+  availPct: number;
+}
+
+/** Cap the stored series defensively (1/s over the 15-min max is 900 points). */
+const MAX_RUN_SAMPLES = 1000;
+
 export interface CampaignRun {
   runId: string;
   campaignId: string;
@@ -24,6 +43,8 @@ export interface CampaignRun {
   posture?: PostureReport;
   /** SLO verdict against the campaign's acceptance criteria, when set. */
   acceptance?: AcceptanceResult;
+  /** Per-second time-series captured during the run (rps, errors, availability). */
+  timeline?: RunSample[];
 }
 
 /**
@@ -74,16 +95,29 @@ export async function executeCampaign(
   // engine) are merged in when available; external engines still get the
   // elapsed bar and the probe health so a run is never a silent black box.
   let gen: LoadProgress | undefined;
+  const timeline: RunSample[] = [];
   const startedMs = Date.now();
   const ticker = setInterval(() => {
-    if (!onProgress) return;
     const pm = probe.metrics();
-    onProgress({
+    const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
+    // Capture the per-second series (persisted with the run) for EVERY engine,
+    // independently of whether a live consumer is attached.
+    if (timeline.length < MAX_RUN_SAMPLES) {
+      timeline.push({
+        t: elapsedSec,
+        rps: gen?.actualRps ?? 0,
+        sent: gen?.sent ?? 0,
+        failed: gen?.failed ?? 0,
+        probe5xx: pm.errorRate5xx,
+        availPct: pm.samples ? Number(((pm.available / pm.samples) * 100).toFixed(1)) : 100,
+      });
+    }
+    onProgress?.({
       sent: gen?.sent ?? 0,
       successful: gen?.successful ?? 0,
       failed: gen?.failed ?? 0,
       actualRps: gen?.actualRps ?? 0,
-      elapsedSec: Number(((Date.now() - startedMs) / 1000).toFixed(1)),
+      elapsedSec,
       probe: { samples: pm.samples, available: pm.available, errorRate5xx: pm.errorRate5xx },
     });
   }, 1000);
@@ -167,5 +201,6 @@ export async function executeCampaign(
     wrs,
     posture: probe.posture(),
     acceptance,
+    timeline,
   };
 }
