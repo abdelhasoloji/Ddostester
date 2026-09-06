@@ -227,6 +227,18 @@ export function reportUrl(runId: string): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** CSV export of all runs' aggregated metrics (token in the query if auth on). */
+export function runsCsvUrl(): string {
+  const u = `/api/runs.csv`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
+/** CSV export of one run's per-second timeline. */
+export function runTimelineCsvUrl(runId: string): string {
+  const u = `/api/runs/${runId}/timeline.csv`;
+  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+}
+
 /** URL of the aggregated compliance report (DORA/NIS2). */
 export function complianceUrl(): string {
   const u = `/api/reports/compliance`;

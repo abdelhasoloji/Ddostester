@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { api, complianceUrl, reportUrl, suiteReportUrl } from './api.js';
+import { api, complianceUrl, reportUrl, runsCsvUrl, suiteReportUrl } from './api.js';
 import type { Campaign, ManagedUser, Playbook, Role, SuiteSummary, WrsBreakdown } from './api.js';
 import { useApp, canDo } from './context.js';
 import {
@@ -415,9 +415,14 @@ export function ReportsPage() {
           Summary of every executed campaign, aligned with operational resilience (DORA) and risk
           management (NIS2) requirements.
         </p>
-        <a className="btn btn-primary" href={complianceUrl()} target="_blank" rel="noreferrer">
-          Open compliance report ↗
-        </a>
+        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+          <a className="btn btn-primary" href={complianceUrl()} target="_blank" rel="noreferrer">
+            Open compliance report ↗
+          </a>
+          <a className="btn btn-ghost" href={runsCsvUrl()} target="_blank" rel="noreferrer">
+            Export runs CSV ↓
+          </a>
+        </div>
       </div>
 
       <h2 className="section-title">Campaign reports</h2>

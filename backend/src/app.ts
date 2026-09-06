@@ -57,6 +57,7 @@ import {
 } from './modules/playbooks/playbooks.js';
 import { buildSuites, renderSuiteReportHtml } from './modules/playbooks/suites.js';
 import { tlsInsecure } from './util/tls.js';
+import { runsSummaryCsv, runTimelineCsv } from './modules/reports/csv.js';
 
 export interface BuildOptions {
   store: Store;
@@ -640,6 +641,28 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const r = await store.getRun((req.params as { runId: string }).runId);
     return r ?? reply.code(404).send({ error: 'run not found' });
+  });
+
+  // CSV exports (RPT-03) — browser downloads carry a read token in the query.
+  app.get('/api/runs.csv', async (req, reply) => {
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    const { campaignId } = req.query as { campaignId?: string };
+    const runs = await store.listRuns(campaignId);
+    return reply
+      .type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="shieldtest-runs.csv"')
+      .send(runsSummaryCsv(runs));
+  });
+
+  app.get('/api/runs/:runId/timeline.csv', async (req, reply) => {
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    const runId = (req.params as { runId: string }).runId;
+    const r = await store.getRun(runId);
+    if (!r) return reply.code(404).send({ error: 'run not found' });
+    return reply
+      .type('text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="shieldtest-run-${runId}.csv"`)
+      .send(runTimelineCsv(r));
   });
 
   app.get('/api/reports/compliance', async (req, reply) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { reportUrl, streamUrl } from './api.js';
+import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import type {
   Campaign,
   CampaignRun,
@@ -300,7 +300,7 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
 }
 
 /** Compact per-run time-series: requests/s and probe 5xx over elapsed time. */
-function RunTimeline({ samples }: { samples: RunSample[] }) {
+function RunTimeline({ samples, csvHref }: { samples: RunSample[]; csvHref?: string }) {
   if (samples.length < 2) return null;
   const W = 640;
   const H = 120;
@@ -342,6 +342,11 @@ function RunTimeline({ samples }: { samples: RunSample[] }) {
           <i style={{ background: 'var(--danger)' }} /> probe 5xx % (peak {errMax.toFixed(1)})
         </span>
         <span className="hint">over {Math.round(tMax)}s</span>
+        {csvHref && (
+          <a href={csvHref} target="_blank" rel="noreferrer">
+            CSV ↗
+          </a>
+        )}
       </div>
     </div>
   );
@@ -368,7 +373,9 @@ function RunDetails({ run }: { run: CampaignRun }) {
           {run.probe.available}/{run.probe.samples}
         </Metric>
       </div>
-      {run.timeline && <RunTimeline samples={run.timeline} />}
+      {run.timeline && (
+        <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
+      )}
       <div className="wrs-breakdown">
         <span>
           Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
