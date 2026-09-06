@@ -23,7 +23,8 @@
     "lab:up": "docker compose --profile network-lab up -d lab-target lab-reflector",
     "lab:down": "docker compose --profile network-lab down",
     "lab:test": "docker compose --profile network-lab run --rm lab-generator",
-    "lab:test:caps": "node --test \"lab/test/*.test.mjs\""
+    "lab:test:caps": "node --test \"lab/test/*.test.mjs\"",
+    "lab:scenario": "node lab/run-scenario.mjs"
   },
   "engines": {
     "node": ">=22"

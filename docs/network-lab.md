@@ -102,6 +102,18 @@ docker compose --profile monitoring --profile network-lab up -d
 # then query e.g. shieldtest_reflector_bap in Grafana (SSH-tunnel to :3000)
 ```
 
+## Scenarios (one command)
+
+Named bounded scenarios (`lab/scenarios.mjs`) mirror the control plane's
+playbooks. The runner wires the whole chain in-process and prints a summary
+(BAP, packet amplification, target PPS/BPS, and scrubber detection/collateral):
+
+```bash
+npm run lab:scenario -- amplification-ramp
+npm run lab:scenario -- mitigation-delay-study
+npm run lab:scenario -- collateral-study
+```
+
 ## Tests
 
 The lab's safety invariants are covered by a dependency-free integration test that runs the whole chain in-process over loopback:
