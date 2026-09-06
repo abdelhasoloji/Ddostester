@@ -1509,3 +1509,20 @@ input.invalid {
 .live-stats span {
   font-variant-numeric: tabular-nums;
 }
+
+/* Collapsible sections inside the new-campaign form (progressive disclosure). */
+.form-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem 0.75rem;
+  background: var(--surface-2, transparent);
+}
+.form-section > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  list-style: revert;
+}
+.form-section[open] > summary {
+  margin-bottom: 0.5rem;
+}

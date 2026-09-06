@@ -1090,66 +1090,71 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
           />
           <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
         </div>
-        <div className="field">
-          <label>Load profile</label>
-          <select
-            value={form.profile}
-            onChange={(e) => {
-              setForm({ ...form, profile: e.target.value });
-              setAppliedPreset(null);
-            }}
-          >
-            <option value="constant">Constant</option>
-            <option value="ramp" disabled={!multiPhaseOk}>
-              Ramp-up (25→50→100%)
-            </option>
-            <option value="wave" disabled={!multiPhaseOk}>
-              Waves (100→20→100%)
-            </option>
-          </select>
-          {!multiPhaseOk && (
-            <span className="hint">{selectedAgent?.name} runs a constant rate only.</span>
-          )}
-        </div>
-        <div className="field">
-          <label>Load engine</label>
-          <select value={form.agent} onChange={(e) => setAgent(e.target.value)}>
-            <option value="">Server default ({app.agentName || 'builtin-http'})</option>
-            {app.agents.map((a) => (
-              <option key={a.id} value={a.id} disabled={!a.available}>
-                {a.name}
-                {a.available ? '' : ' — not installed'}
-                {a.multiPhase ? '' : ' (constant only)'}
-              </option>
-            ))}
-          </select>
-          {selectedAgent && <span className="hint">{selectedAgent.description}</span>}
-        </div>
-        <div className="field">
-          <label>Schedule (optional)</label>
-          <input
-            type="datetime-local"
-            value={form.scheduledAt}
-            onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-          />
-          <span className="hint">auto-run once approved</span>
-        </div>
-        <div className="field">
-          <label>Repeat every (optional)</label>
-          <select
-            value={form.recurrenceMin}
-            onChange={(e) => setForm({ ...form, recurrenceMin: e.target.value })}
-          >
-            <option value="">No repeat (single run)</option>
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="60">1 hour</option>
-            <option value="180">3 hours</option>
-            <option value="360">6 hours</option>
-            <option value="720">12 hours</option>
-          </select>
-          <span className="hint">re-runs within the 24 h approval window</span>
-        </div>
+        <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
+          <summary>Load shape &amp; scheduling</summary>
+          <div className="grid">
+            <div className="field">
+              <label>Load profile</label>
+              <select
+                value={form.profile}
+                onChange={(e) => {
+                  setForm({ ...form, profile: e.target.value });
+                  setAppliedPreset(null);
+                }}
+              >
+                <option value="constant">Constant</option>
+                <option value="ramp" disabled={!multiPhaseOk}>
+                  Ramp-up (25→50→100%)
+                </option>
+                <option value="wave" disabled={!multiPhaseOk}>
+                  Waves (100→20→100%)
+                </option>
+              </select>
+              {!multiPhaseOk && (
+                <span className="hint">{selectedAgent?.name} runs a constant rate only.</span>
+              )}
+            </div>
+            <div className="field">
+              <label>Load engine</label>
+              <select value={form.agent} onChange={(e) => setAgent(e.target.value)}>
+                <option value="">Server default ({app.agentName || 'builtin-http'})</option>
+                {app.agents.map((a) => (
+                  <option key={a.id} value={a.id} disabled={!a.available}>
+                    {a.name}
+                    {a.available ? '' : ' — not installed'}
+                    {a.multiPhase ? '' : ' (constant only)'}
+                  </option>
+                ))}
+              </select>
+              {selectedAgent && <span className="hint">{selectedAgent.description}</span>}
+            </div>
+            <div className="field">
+              <label>Schedule (optional)</label>
+              <input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+              />
+              <span className="hint">auto-run once approved</span>
+            </div>
+            <div className="field">
+              <label>Repeat every (optional)</label>
+              <select
+                value={form.recurrenceMin}
+                onChange={(e) => setForm({ ...form, recurrenceMin: e.target.value })}
+              >
+                <option value="">No repeat (single run)</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="180">3 hours</option>
+                <option value="360">6 hours</option>
+                <option value="720">12 hours</option>
+              </select>
+              <span className="hint">re-runs within the 24 h approval window</span>
+            </div>
+          </div>
+        </details>
         {form.vector === 'http-post' && (
           <div className="field" style={{ gridColumn: '1 / -1' }}>
             <label>Request body (POST)</label>
@@ -1160,164 +1165,170 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
             />
           </div>
         )}
-        {flowSupported ? (
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>
-              Request flow — L7 journey (optional)
-              <label className="hint" style={{ marginLeft: '.75rem', fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={form.flowAdvanced}
-                  onChange={(e) => setForm({ ...form, flowAdvanced: e.target.checked })}
-                />{' '}
-                Advanced (JSON: headers + correlation)
-              </label>
-            </label>
-            <textarea
-              rows={form.flowAdvanced ? 8 : 4}
-              placeholder={
-                form.flowAdvanced
-                  ? `[\n  {"method":"POST","url":"${targetOrigin || 'http://host'}/login","extract":{"name":"token","from":"json","expr":"token"}},\n  {"method":"GET","url":"${targetOrigin || 'http://host'}/me","headers":{"Authorization":"Bearer {{token}}"}}\n]`
-                  : 'GET /\nPOST /login 500\nGET /dashboard\nGET /logout'
-              }
-              value={form.flow}
-              onChange={(e) => setForm({ ...form, flow: e.target.value })}
-              style={{ fontFamily: 'var(--mono, monospace)' }}
-            />
-            <span className="hint">
-              {form.flowAdvanced ? (
-                <>
-                  JSON array of steps (<code>method, url, body?, headers?, thinkMs?, extract?</code>
-                  ). Correlation: <code>extract</code> a value (json/header/regex) and reuse it as{' '}
-                  <code>{'{{name}}'}</code> in later steps — needs the built-in engine.
-                </>
-              ) : (
-                <>
-                  One step per line: <code>METHOD /path [thinkMs]</code>. Each step hits the target
-                  host (allowlisted); the rate cap still bounds total req/s.
-                </>
-              )}
-            </span>
-          </div>
-        ) : (
-          form.agent && (
+        <details className="form-section" style={{ gridColumn: '1 / -1' }}>
+          <summary>Advanced realism &amp; acceptance (SLO)</summary>
+          <div className="grid">
+            {flowSupported ? (
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>
+                  Request flow — L7 journey (optional)
+                  <label className="hint" style={{ marginLeft: '.75rem', fontWeight: 400 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.flowAdvanced}
+                      onChange={(e) => setForm({ ...form, flowAdvanced: e.target.checked })}
+                    />{' '}
+                    Advanced (JSON: headers + correlation)
+                  </label>
+                </label>
+                <textarea
+                  rows={form.flowAdvanced ? 8 : 4}
+                  placeholder={
+                    form.flowAdvanced
+                      ? `[\n  {"method":"POST","url":"${targetOrigin || 'http://host'}/login","extract":{"name":"token","from":"json","expr":"token"}},\n  {"method":"GET","url":"${targetOrigin || 'http://host'}/me","headers":{"Authorization":"Bearer {{token}}"}}\n]`
+                      : 'GET /\nPOST /login 500\nGET /dashboard\nGET /logout'
+                  }
+                  value={form.flow}
+                  onChange={(e) => setForm({ ...form, flow: e.target.value })}
+                  style={{ fontFamily: 'var(--mono, monospace)' }}
+                />
+                <span className="hint">
+                  {form.flowAdvanced ? (
+                    <>
+                      JSON array of steps (
+                      <code>method, url, body?, headers?, thinkMs?, extract?</code>
+                      ). Correlation: <code>extract</code> a value (json/header/regex) and reuse it
+                      as <code>{'{{name}}'}</code> in later steps — needs the built-in engine.
+                    </>
+                  ) : (
+                    <>
+                      One step per line: <code>METHOD /path [thinkMs]</code>. Each step hits the
+                      target host (allowlisted); the rate cap still bounds total req/s.
+                    </>
+                  )}
+                </span>
+              </div>
+            ) : (
+              form.agent && (
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <span className="hint">
+                    Engine <b>{selectedAgent?.name}</b> doesn&apos;t support multi-step flows —
+                    choose builtin/k6/jmeter/gatling/locust to define an L7 journey.
+                  </span>
+                </div>
+              )
+            )}
             <div className="field" style={{ gridColumn: '1 / -1' }}>
+              <label>Acceptance criteria — SLO pass/fail (optional)</label>
+              <div className="slo-grid">
+                <input
+                  type="number"
+                  placeholder="max p95 ms"
+                  value={form.sloP95}
+                  onChange={(e) => setForm({ ...form, sloP95: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="max errors %"
+                  value={form.sloErr}
+                  onChange={(e) => setForm({ ...form, sloErr: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="min avail %"
+                  value={form.sloAvail}
+                  onChange={(e) => setForm({ ...form, sloAvail: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="min WRS"
+                  value={form.sloWrs}
+                  onChange={(e) => setForm({ ...form, sloWrs: e.target.value })}
+                />
+                {assertionSupported && (
+                  <input
+                    type="number"
+                    placeholder="max assertion fail %"
+                    value={form.sloAssert}
+                    onChange={(e) => setForm({ ...form, sloAssert: e.target.value })}
+                  />
+                )}
+              </div>
               <span className="hint">
-                Engine <b>{selectedAgent?.name}</b> doesn&apos;t support multi-step flows — choose
-                builtin/k6/jmeter/gatling/locust to define an L7 journey.
+                Leave blank to skip. Each run gets a <b>PASS/FAIL</b> verdict against the criteria
+                you set.
               </span>
             </div>
-          )
-        )}
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
-          <label>Acceptance criteria — SLO pass/fail (optional)</label>
-          <div className="slo-grid">
-            <input
-              type="number"
-              placeholder="max p95 ms"
-              value={form.sloP95}
-              onChange={(e) => setForm({ ...form, sloP95: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="max errors %"
-              value={form.sloErr}
-              onChange={(e) => setForm({ ...form, sloErr: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="min avail %"
-              value={form.sloAvail}
-              onChange={(e) => setForm({ ...form, sloAvail: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="min WRS"
-              value={form.sloWrs}
-              onChange={(e) => setForm({ ...form, sloWrs: e.target.value })}
-            />
             {assertionSupported && (
-              <input
-                type="number"
-                placeholder="max assertion fail %"
-                value={form.sloAssert}
-                onChange={(e) => setForm({ ...form, sloAssert: e.target.value })}
-              />
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Response assertion — validate each response (optional)</label>
+                <div className="slo-grid">
+                  <input
+                    type="number"
+                    placeholder="expected status"
+                    value={form.assertStatus}
+                    onChange={(e) => setForm({ ...form, assertStatus: e.target.value })}
+                  />
+                  <input
+                    type="text"
+                    placeholder="body contains…"
+                    value={form.assertBody}
+                    onChange={(e) => setForm({ ...form, assertBody: e.target.value })}
+                  />
+                </div>
+                <span className="hint">
+                  Built-in engine only. Every response is checked; the failure rate feeds the SLO
+                  verdict above.
+                </span>
+              </div>
+            )}
+            {assertionSupported && !form.flow.trim() && (
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Endpoint mix — spread load over several URLs (optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder={`One per line: [METHOD] url [weight]\nhttp://127.0.0.1:8080/ 3\nhttp://127.0.0.1:8080/health 1`}
+                  value={form.endpoints}
+                  onChange={(e) => setForm({ ...form, endpoints: e.target.value })}
+                />
+                <span className="hint">
+                  Built-in engine only. Each request picks one endpoint by weight (default 1). More
+                  realistic than a single URL. Mutually exclusive with a flow.
+                </span>
+              </div>
+            )}
+            {assertionSupported && (
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>User-Agent rotation — client diversity (optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder={`One User-Agent per line — each request picks one at random\nMozilla/5.0 (Windows NT 10.0; Win64; x64) …\nMozilla/5.0 (iPhone; CPU iPhone OS 17_0 …) …`}
+                  value={form.userAgents}
+                  onChange={(e) => setForm({ ...form, userAgents: e.target.value })}
+                />
+                <span className="hint">
+                  Built-in engine only. Models realistic client diversity to test signature-based
+                  mitigation. A benign header change — no attack mechanic.
+                </span>
+              </div>
+            )}
+            {assertionSupported && (
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Data feeder — parameterized traffic (optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder={`CSV: header line then rows. Reference columns as {{col}} in URL/body.\nq,id\napple,101\nbanana,102`}
+                  value={form.dataset}
+                  onChange={(e) => setForm({ ...form, dataset: e.target.value })}
+                />
+                <span className="hint">
+                  Built-in engine only. Each request picks a row; <code>{'{{col}}'}</code> is
+                  substituted into the URL, body and headers — realistic, varied traffic.
+                </span>
+              </div>
             )}
           </div>
-          <span className="hint">
-            Leave blank to skip. Each run gets a <b>PASS/FAIL</b> verdict against the criteria you
-            set.
-          </span>
-        </div>
-        {assertionSupported && (
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>Response assertion — validate each response (optional)</label>
-            <div className="slo-grid">
-              <input
-                type="number"
-                placeholder="expected status"
-                value={form.assertStatus}
-                onChange={(e) => setForm({ ...form, assertStatus: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="body contains…"
-                value={form.assertBody}
-                onChange={(e) => setForm({ ...form, assertBody: e.target.value })}
-              />
-            </div>
-            <span className="hint">
-              Built-in engine only. Every response is checked; the failure rate feeds the SLO
-              verdict above.
-            </span>
-          </div>
-        )}
-        {assertionSupported && !form.flow.trim() && (
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>Endpoint mix — spread load over several URLs (optional)</label>
-            <textarea
-              rows={3}
-              placeholder={`One per line: [METHOD] url [weight]\nhttp://127.0.0.1:8080/ 3\nhttp://127.0.0.1:8080/health 1`}
-              value={form.endpoints}
-              onChange={(e) => setForm({ ...form, endpoints: e.target.value })}
-            />
-            <span className="hint">
-              Built-in engine only. Each request picks one endpoint by weight (default 1). More
-              realistic than a single URL. Mutually exclusive with a flow.
-            </span>
-          </div>
-        )}
-        {assertionSupported && (
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>User-Agent rotation — client diversity (optional)</label>
-            <textarea
-              rows={3}
-              placeholder={`One User-Agent per line — each request picks one at random\nMozilla/5.0 (Windows NT 10.0; Win64; x64) …\nMozilla/5.0 (iPhone; CPU iPhone OS 17_0 …) …`}
-              value={form.userAgents}
-              onChange={(e) => setForm({ ...form, userAgents: e.target.value })}
-            />
-            <span className="hint">
-              Built-in engine only. Models realistic client diversity to test signature-based
-              mitigation. A benign header change — no attack mechanic.
-            </span>
-          </div>
-        )}
-        {assertionSupported && (
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
-            <label>Data feeder — parameterized traffic (optional)</label>
-            <textarea
-              rows={3}
-              placeholder={`CSV: header line then rows. Reference columns as {{col}} in URL/body.\nq,id\napple,101\nbanana,102`}
-              value={form.dataset}
-              onChange={(e) => setForm({ ...form, dataset: e.target.value })}
-            />
-            <span className="hint">
-              Built-in engine only. Each request picks a row; <code>{'{{col}}'}</code> is
-              substituted into the URL, body and headers — realistic, varied traffic.
-            </span>
-          </div>
-        )}
+        </details>
         <label className="attest">
           <input
             type="checkbox"
