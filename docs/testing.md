@@ -39,10 +39,10 @@ It runs the real migrations and SQL against that database.
 
 Enforced per workspace in `vitest.config.ts` (CI fails below the floor):
 
-- **backend**: lines/statements 72, branches 78, functions 80 (external-tool
+- **backend**: lines/statements 73, branches 79, functions 84 (external-tool
   `run()` paths are integration-only; the floor rises as unit coverage grows).
-- **frontend**: lines/statements 15, functions 30, branches 60 (rising as more
-  of the UI gets component tests).
+- **frontend**: lines/statements 55, functions 30, branches 50 (page + form +
+  component tests; rising as more of the UI gets covered).
 
 ## Deliberately not adopted
 

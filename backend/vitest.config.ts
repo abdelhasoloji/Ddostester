@@ -9,13 +9,13 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       // Entry points / thin glue with no meaningful branches to unit-test.
       exclude: ['src/server.ts', 'src/**/*.d.ts'],
-      // Realistic floor today (external-tool run() paths need the binaries and
-      // are integration-only); raised as unit coverage grows.
+      // Floor tracking current coverage (external-tool run() paths need the
+      // binaries and are integration-only); raised as unit coverage grows.
       thresholds: {
-        lines: 72,
-        functions: 80,
-        statements: 72,
-        branches: 78,
+        lines: 73,
+        functions: 84,
+        statements: 73,
+        branches: 79,
       },
     },
   },

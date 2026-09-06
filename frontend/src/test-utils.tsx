@@ -1,0 +1,82 @@
+import { vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { render } from '@testing-library/react';
+import type { ReactElement } from 'react';
+
+/** A complete fake app context; override any field per test. Methods are spies. */
+export function makeApp(overrides: Record<string, unknown> = {}) {
+  return {
+    allowed: ['127.0.0.1', 'localhost'],
+    agentName: 'builtin-http',
+    notifications: [],
+    protection: false,
+    tlsInsecure: false,
+    agents: [
+      {
+        id: 'builtin',
+        name: 'builtin-http',
+        available: true,
+        multiPhase: true,
+        flowCapable: true,
+        description: 'Built-in bounded HTTP generator.',
+      },
+    ],
+    authRequired: false,
+    authChecked: true,
+    identity: null,
+    role: null,
+    ready: true,
+    anyRunning: false,
+    campaigns: [],
+    runs: {},
+    wrsSeries: [],
+    auditRows: [],
+    busy: {},
+    expanded: null,
+    operator: 'op@wedos',
+    confirmExec: null,
+    approveFor: null,
+    toasts: [],
+    draftPreset: null,
+    applyPreset: vi.fn(),
+    clearDraftPreset: vi.fn(),
+    setOperator: vi.fn(),
+    setExpanded: vi.fn(),
+    setConfirmExec: vi.fn(),
+    setApproveFor: vi.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
+    loadHistory: vi.fn(),
+    loadAudit: vi.fn(),
+    login: vi.fn().mockResolvedValue(undefined),
+    logout: vi.fn(),
+    createCampaign: vi.fn().mockResolvedValue(undefined),
+    approve: vi.fn().mockResolvedValue(undefined),
+    execute: vi.fn().mockResolvedValue(undefined),
+    kill: vi.fn().mockResolvedValue(undefined),
+    toggleDetails: vi.fn().mockResolvedValue(undefined),
+    openDetail: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+/** A fake api object: reads resolve to empty, mutations resolve. Override as needed. */
+export function makeApi(overrides: Record<string, unknown> = {}) {
+  return {
+    playbooks: vi.fn().mockResolvedValue([]),
+    suites: vi.fn().mockResolvedValue([]),
+    listUsers: vi.fn().mockResolvedValue([]),
+    createUser: vi.fn().mockResolvedValue({}),
+    updateUserRole: vi.fn().mockResolvedValue({}),
+    deleteUser: vi.fn().mockResolvedValue({ deleted: 'x' }),
+    createPlaybook: vi.fn().mockResolvedValue({}),
+    deletePlaybook: vi.fn().mockResolvedValue({ deleted: 'x' }),
+    instantiatePlaybook: vi.fn().mockResolvedValue({ suiteId: 's', campaigns: [] }),
+    notifyTest: vi.fn().mockResolvedValue({ delivered: true, sinks: [] }),
+    ...overrides,
+  };
+}
+
+export function renderWithRouter(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}

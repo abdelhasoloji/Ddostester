@@ -1,0 +1,79 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { makeApp } from './test-utils.js';
+
+let currentApp: ReturnType<typeof makeApp>;
+vi.mock('./context.js', async (orig) => {
+  const actual = await orig<typeof import('./context.js')>();
+  return { ...actual, useApp: () => currentApp };
+});
+
+const { NewCampaignForm, ApproveModal, ExecuteModal } = await import('./ui.js');
+
+beforeEach(() => {
+  currentApp = makeApp();
+});
+
+describe('NewCampaignForm', () => {
+  it('renders the built-in-only realism fields (endpoint mix, UA rotation, feeder)', () => {
+    render(<NewCampaignForm />);
+    expect(screen.getByRole('heading', { name: 'New campaign' })).toBeInTheDocument();
+    expect(screen.getByText(/Endpoint mix/)).toBeInTheDocument();
+    expect(screen.getByText(/User-Agent rotation/)).toBeInTheDocument();
+    expect(screen.getByText(/Data feeder/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeInTheDocument();
+  });
+
+  it('submits a valid campaign through the context', async () => {
+    render(<NewCampaignForm />);
+    // Name is the first text field; target/probe default to an allowed host.
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'My run' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i })); // attestation
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload).toMatchObject({ name: 'My run', authorized: true });
+  });
+
+  it('keeps Submit disabled until attested', () => {
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'x' } });
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+  });
+});
+
+describe('modals', () => {
+  it('ApproveModal shows the campaign and blocks self-approval', () => {
+    const campaign = {
+      id: 'c1',
+      name: 'Cap ceiling',
+      createdBy: 'off@wedos',
+      target: 'https://h/',
+      status: 'PENDING_APPROVAL',
+    };
+    currentApp = makeApp({
+      approveFor: campaign,
+      authRequired: true,
+      identity: { email: 'off@wedos', role: 'officer' },
+    });
+    render(<ApproveModal />);
+    expect(screen.getByText(/Approval/)).toBeInTheDocument();
+    expect(screen.getByText(/Separation of duties/)).toBeInTheDocument();
+  });
+
+  it('ExecuteModal renders the confirmation with the bounded load', () => {
+    currentApp = makeApp({
+      confirmExec: {
+        id: 'c1',
+        name: 'run',
+        target: 'https://h/',
+        maxRps: 50,
+        concurrency: 10,
+        maxDurationSec: 30,
+      },
+    });
+    render(<ExecuteModal />);
+    expect(screen.getByText(/Confirm run/)).toBeInTheDocument();
+    expect(screen.getByText(/50 rps/)).toBeInTheDocument();
+  });
+});
