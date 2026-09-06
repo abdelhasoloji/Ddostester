@@ -7,15 +7,18 @@ executable.
 
 ## Layers
 
-| Layer           | Where                                              | What it covers                                                                     |
-| --------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Unit (pure)     | `backend/test/*`, `frontend/src/*.test.ts`         | scoring, parsing, validation, form helpers                                         |
-| Property-based  | `backend/test/invariants.test.ts`                  | WRS ∈ [0,100] & level, rate/picker invariants (fast-check)                         |
-| **Safeguards**  | `backend/test/safeguards.test.ts`                  | no input bypasses caps / allowlist / authorization / separation of duties (fuzzed) |
-| API integration | `backend/test/integration.test.ts`, `rbac.test.ts` | Fastify routes, RBAC matrix, concurrency guard                                     |
-| Store contract  | `backend/test/store-contract.test.ts`              | memory **and** postgres behave identically                                         |
-| Component       | `frontend/src/ui-components.test.tsx`              | badges, RunDetails, CampaignCard RBAC gating (Testing Library)                     |
-| E2E (browser)   | `e2e/critical-path.spec.ts`                        | the built SPA serves, login works, reaches the API (Playwright)                    |
+| Layer           | Where                                                        | What it covers                                                                     |
+| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Unit (pure)     | `backend/test/*`, `frontend/src/*.test.ts`                   | scoring, parsing, validation, form helpers                                         |
+| Property-based  | `backend/test/invariants.test.ts`                            | WRS ∈ [0,100] & level, rate/picker invariants (fast-check)                         |
+| **Safeguards**  | `backend/test/safeguards.test.ts`                            | no input bypasses caps / allowlist / authorization / separation of duties (fuzzed) |
+| API integration | `backend/test/integration.test.ts`, `rbac.test.ts`           | Fastify routes, RBAC matrix, concurrency guard                                     |
+| Store contract  | `backend/test/store-contract.test.ts`                        | memory **and** postgres behave identically                                         |
+| Component       | `frontend/src/ui-components.test.tsx`                        | badges, RunDetails, CampaignCard RBAC gating (Testing Library)                     |
+| Client unit     | `frontend/src/{api,theme}.test.ts`                           | api fetch wrappers (URLs/verbs/auth/errors), theme persistence                     |
+| Context/actions | `frontend/src/context.test.tsx`                              | AppProvider bootstrap, login/logout, campaign actions, toasts                      |
+| Page/form       | `frontend/src/{app,login,pages,pages-interactions}.test.tsx` | gate states, sign-in, user management, notify test, playbook launch                |
+| E2E (browser)   | `e2e/critical-path.spec.ts`                                  | the built SPA serves, login works, reaches the API (Playwright)                    |
 
 ## Running
 
@@ -41,8 +44,9 @@ Enforced per workspace in `vitest.config.ts` (CI fails below the floor):
 
 - **backend**: lines/statements 73, branches 79, functions 84 (external-tool
   `run()` paths are integration-only; the floor rises as unit coverage grows).
-- **frontend**: lines/statements 55, functions 30, branches 50 (page + form +
-  component tests; rising as more of the UI gets covered).
+- **frontend**: lines/statements 80, functions 58, branches 66 (api/context/
+  theme/App/Login unit + page/form/interaction tests; rising as more of the UI
+  gets covered — `ui.tsx`'s large campaign form is the current low point).
 
 ## Deliberately not adopted
 

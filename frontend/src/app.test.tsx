@@ -1,0 +1,53 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+
+const fakeApi = {
+  health: vi.fn(),
+  agents: vi.fn().mockResolvedValue({ default: 'builtin', agents: [] }),
+  listCampaigns: vi.fn().mockResolvedValue([]),
+  wrsHistory: vi.fn().mockResolvedValue([]),
+  audit: vi.fn().mockResolvedValue([]),
+  me: vi.fn().mockResolvedValue({ email: null, role: null }),
+  listUsers: vi.fn().mockResolvedValue([]),
+  playbooks: vi.fn().mockResolvedValue([]),
+  suites: vi.fn().mockResolvedValue([]),
+};
+
+vi.mock('./api.js', async (orig) => {
+  const actual = await orig<typeof import('./api.js')>();
+  return { ...actual, api: fakeApi, setToken: vi.fn(), getToken: vi.fn(() => null) };
+});
+
+const { App } = await import('./App.js');
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+  fakeApi.health.mockResolvedValue({ allowedTargets: ['h'], authRequired: false });
+  fakeApi.agents.mockResolvedValue({ default: 'builtin', agents: [] });
+  fakeApi.listCampaigns.mockResolvedValue([]);
+  fakeApi.wrsHistory.mockResolvedValue([]);
+});
+
+describe('App gate', () => {
+  it('shows the loading state until auth is checked', () => {
+    fakeApi.health.mockReturnValue(new Promise(() => {})); // never resolves
+    render(<App />);
+    expect(screen.getByText(/Loading/)).toBeInTheDocument();
+  });
+
+  it('renders the routed app when auth is not required', async () => {
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument(),
+    );
+  });
+
+  it('shows the sign-in screen when auth is required and no one is signed in', async () => {
+    fakeApi.health.mockResolvedValue({ allowedTargets: [], authRequired: true });
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument(),
+    );
+  });
+});
