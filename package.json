@@ -11,6 +11,7 @@
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm run test -w backend && npm run test -w frontend",
     "test:coverage": "npm run test:coverage -w backend && npm run test:coverage -w frontend",
+    "test:catalog": "CATALOG_E2E=1 npm run test -w backend",
     "test:e2e": "npm run build && playwright test",
     "build": "npm run build -w backend && npm run build -w frontend",
     "dev:api": "npm run dev -w backend",

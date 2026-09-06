@@ -29,6 +29,12 @@ import type { Permission } from '../../src/auth/rbac.js';
 let authed: Awaited<ReturnType<typeof buildAuthedApp>>;
 let open: FastifyInstance;
 
+// End-to-end cases actually execute campaigns; each real run has a ~5 s floor
+// (the legitimate probe's poll interval). They are gated behind CATALOG_E2E=1 so
+// the everyday `npm test` stays fast; CI runs the full set with the flag on.
+const E2E = process.env.CATALOG_E2E === '1';
+const itE2E = E2E ? it : it.skip;
+
 beforeAll(async () => {
   authed = await buildAuthedApp();
   open = await buildOpenApp();
@@ -454,23 +460,27 @@ describe('E. Approval & separation of duties', () => {
     expect(blocked, `officer approve+execute → ${run.statusCode}`).toBe(true);
   });
 
-  it('a different actor (the engineer author) may execute an officer-approved campaign', async () => {
-    const c = await createAs('engineer', { maxDurationSec: 1 });
-    await approve('officer', c.id, CREDS.officer.email);
-    const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
-      token: authed.tokens.engineer,
-    });
-    const executed = run.statusCode === 201;
-    reg(
-      'SOD',
-      'executor ≠ approver is allowed',
-      'SPEC-SOD-2',
-      '201',
-      String(run.statusCode),
-      executed,
-    );
-    expect(executed, `engineer execute → ${run.statusCode}`).toBe(true);
-  }, 20_000);
+  itE2E(
+    'a different actor (the engineer author) may execute an officer-approved campaign',
+    async () => {
+      const c = await createAs('engineer', { maxDurationSec: 1 });
+      await approve('officer', c.id, CREDS.officer.email);
+      const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
+        token: authed.tokens.engineer,
+      });
+      const executed = run.statusCode === 201;
+      reg(
+        'SOD',
+        'executor ≠ approver is allowed',
+        'SPEC-SOD-2',
+        '201',
+        String(run.statusCode),
+        executed,
+      );
+      expect(executed, `engineer execute → ${run.statusCode}`).toBe(true);
+    },
+    20_000,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1169,93 +1179,104 @@ async function ensureRun(): Promise<{ id: string; runId: string }> {
 // P. Exports & reports (SPEC-LIFE-4, catalog E2/E4/E5/E6/E7/E8).
 // ---------------------------------------------------------------------------
 describe('P. Exports & reports', () => {
-  it('a completed run exposes its detail, report, CSVs, WRS history and compliance', async () => {
-    const { runId } = await ensureRun();
-    const t = authed.tokens.officer;
+  itE2E(
+    'a completed run exposes its detail, report, CSVs, WRS history and compliance',
+    async () => {
+      const { runId } = await ensureRun();
+      const t = authed.tokens.officer;
 
-    const runs = await hit(authed.app, 'GET', '/api/runs', { token: t });
-    const inRuns = (runs.json() as { runId: string }[]).some((r) => r.runId === runId);
-    reg(
-      'EXPORT',
-      'GET /api/runs includes the run',
-      'SPEC-LIFE-4',
-      'present',
-      String(inRuns),
-      inRuns,
-    );
-    expect(inRuns).toBe(true);
+      const runs = await hit(authed.app, 'GET', '/api/runs', { token: t });
+      const inRuns = (runs.json() as { runId: string }[]).some((r) => r.runId === runId);
+      reg(
+        'EXPORT',
+        'GET /api/runs includes the run',
+        'SPEC-LIFE-4',
+        'present',
+        String(inRuns),
+        inRuns,
+      );
+      expect(inRuns).toBe(true);
 
-    const byId = await hit(authed.app, 'GET', `/api/runs/${runId}`, { token: t });
-    const run = byId.json() as { status: string; wrs?: { estimated?: boolean } };
-    const detailOk = byId.statusCode === 200 && !!run.wrs;
-    reg(
-      'EXPORT',
-      'GET /api/runs/:id → 200 with WRS',
-      'E2',
-      '200 + wrs',
-      String(byId.statusCode),
-      detailOk,
-    );
-    expect(detailOk).toBe(true);
+      const byId = await hit(authed.app, 'GET', `/api/runs/${runId}`, { token: t });
+      const run = byId.json() as { status: string; wrs?: { estimated?: boolean } };
+      const detailOk = byId.statusCode === 200 && !!run.wrs;
+      reg(
+        'EXPORT',
+        'GET /api/runs/:id → 200 with WRS',
+        'E2',
+        '200 + wrs',
+        String(byId.statusCode),
+        detailOk,
+      );
+      expect(detailOk).toBe(true);
 
-    const estimated = run.wrs?.estimated === true;
-    reg(
-      'EXPORT',
-      'WRS marked estimated (no protection source)',
-      'E4',
-      'estimated=true',
-      String(run.wrs?.estimated),
-      estimated,
-    );
-    expect(estimated).toBe(true);
+      const estimated = run.wrs?.estimated === true;
+      reg(
+        'EXPORT',
+        'WRS marked estimated (no protection source)',
+        'E4',
+        'estimated=true',
+        String(run.wrs?.estimated),
+        estimated,
+      );
+      expect(estimated).toBe(true);
 
-    const html = (r: { statusCode: number; headers: Record<string, unknown> }) =>
-      r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('text/html');
-    const csv = (r: { statusCode: number; headers: Record<string, unknown> }) =>
-      r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('csv');
+      const html = (r: { statusCode: number; headers: Record<string, unknown> }) =>
+        r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('text/html');
+      const csv = (r: { statusCode: number; headers: Record<string, unknown> }) =>
+        r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('csv');
 
-    const report = await hit(authed.app, 'GET', `/api/runs/${runId}/report?token=${t}`);
-    reg(
-      'EXPORT',
-      'run report HTML',
-      'E2',
-      '200 text/html',
-      String(report.statusCode),
-      html(report),
-    );
-    expect(html(report)).toBe(true);
+      const report = await hit(authed.app, 'GET', `/api/runs/${runId}/report?token=${t}`);
+      reg(
+        'EXPORT',
+        'run report HTML',
+        'E2',
+        '200 text/html',
+        String(report.statusCode),
+        html(report),
+      );
+      expect(html(report)).toBe(true);
 
-    const timeline = await hit(authed.app, 'GET', `/api/runs/${runId}/timeline.csv?token=${t}`);
-    reg('EXPORT', 'run timeline CSV', 'E6', '200 csv', String(timeline.statusCode), csv(timeline));
-    expect(csv(timeline)).toBe(true);
+      const timeline = await hit(authed.app, 'GET', `/api/runs/${runId}/timeline.csv?token=${t}`);
+      reg(
+        'EXPORT',
+        'run timeline CSV',
+        'E6',
+        '200 csv',
+        String(timeline.statusCode),
+        csv(timeline),
+      );
+      expect(csv(timeline)).toBe(true);
 
-    const runsCsv = await hit(authed.app, 'GET', `/api/runs.csv?token=${t}`);
-    reg('EXPORT', 'runs.csv export', 'E5', '200 csv', String(runsCsv.statusCode), csv(runsCsv));
-    expect(csv(runsCsv)).toBe(true);
+      const runsCsv = await hit(authed.app, 'GET', `/api/runs.csv?token=${t}`);
+      reg('EXPORT', 'runs.csv export', 'E5', '200 csv', String(runsCsv.statusCode), csv(runsCsv));
+      expect(csv(runsCsv)).toBe(true);
 
-    const compliance = await hit(authed.app, 'GET', `/api/reports/compliance?token=${t}`);
-    reg(
-      'EXPORT',
-      'compliance report',
-      'E8',
-      '200 text/html',
-      String(compliance.statusCode),
-      html(compliance),
-    );
-    expect(html(compliance)).toBe(true);
+      const compliance = await hit(authed.app, 'GET', `/api/reports/compliance?token=${t}`);
+      reg(
+        'EXPORT',
+        'compliance report',
+        'E8',
+        '200 text/html',
+        String(compliance.statusCode),
+        html(compliance),
+      );
+      expect(html(compliance)).toBe(true);
 
-    const hist = await hit(authed.app, 'GET', '/api/wrs/history', { token: t });
-    const hasHistory = hist.statusCode === 200 && Array.isArray(hist.json());
-    reg(
-      'EXPORT',
-      'WRS history returns a series',
-      'E7',
-      '200 array',
-      String(hist.statusCode),
-      hasHistory,
-    );
-    expect(hasHistory).toBe(true);
-  }, 20_000);
+      const hist = await hit(authed.app, 'GET', '/api/wrs/history', { token: t });
+      const hasHistory = hist.statusCode === 200 && Array.isArray(hist.json());
+      reg(
+        'EXPORT',
+        'WRS history returns a series',
+        'E7',
+        '200 array',
+        String(hist.statusCode),
+        hasHistory,
+      );
+      expect(hasHistory).toBe(true);
+    },
+    20_000,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1582,21 +1603,25 @@ describe('T. Rejection & post-run', () => {
     expect(ok).toBe(true);
   });
 
-  it('killing an already-finished campaign is 404 (no active run)', async () => {
-    const { id } = await ensureRun();
-    const k = await hit(authed.app, 'POST', `/api/campaigns/${id}/kill`, {
-      token: authed.tokens.viewer,
-    });
-    reg(
-      'POSTRUN',
-      'kill a finished campaign → 404',
-      'SPEC-LIFE-3',
-      '404',
-      String(k.statusCode),
-      k.statusCode === 404,
-    );
-    expect(k.statusCode).toBe(404);
-  }, 20_000);
+  itE2E(
+    'killing an already-finished campaign is 404 (no active run)',
+    async () => {
+      const { id } = await ensureRun();
+      const k = await hit(authed.app, 'POST', `/api/campaigns/${id}/kill`, {
+        token: authed.tokens.viewer,
+      });
+      reg(
+        'POSTRUN',
+        'kill a finished campaign → 404',
+        'SPEC-LIFE-3',
+        '404',
+        String(k.statusCode),
+        k.statusCode === 404,
+      );
+      expect(k.statusCode).toBe(404);
+    },
+    20_000,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1754,127 +1779,131 @@ describe('V. Campaign shapes (all campaign types)', () => {
     }
   });
 
-  it('representative shapes run end-to-end to COMPLETED with their feature signal', async () => {
-    // A) builtin features together: assertion + UA rotation + data feeder.
-    const a = await runShape({
-      target: `${base}/s?q={{q}}`,
-      dataset: [{ q: 'alpha' }, { q: 'beta' }],
-      userAgents: ['UA-One', 'UA-Two'],
-      assertion: { status: 200 },
-    });
-    const aOk =
-      a.status === 201 &&
-      a.run.status === 'COMPLETED' &&
-      (a.run.generator.assertionsChecked ?? 0) > 0;
-    reg(
-      'SHAPE',
-      'run: assertion+UA+dataset → COMPLETED, assertions checked',
-      'exec',
-      'COMPLETED + checks>0',
-      `${a.run.status}/${a.run.generator.assertionsChecked}`,
-      aOk,
-    );
-    expect(aOk).toBe(true);
-    reg(
-      'SHAPE',
-      'run: UA rotation hit the target with >1 UA',
-      'exec',
-      '≥2 UAs',
-      String(seenUAs.size),
-      seenUAs.has('UA-One') && seenUAs.has('UA-Two'),
-    );
-    expect(seenUAs.has('UA-One') && seenUAs.has('UA-Two')).toBe(true);
-    reg(
-      'SHAPE',
-      'run: data feeder substituted the dataset value',
-      'exec',
-      'q=alpha seen',
-      String([...seenPaths].some((p) => p.includes('q=alpha'))),
-      [...seenPaths].some((p) => p.includes('q=alpha')),
-    );
-    expect([...seenPaths].some((p) => p.includes('q=alpha') || p.includes('q=beta'))).toBe(true);
+  itE2E(
+    'representative shapes run end-to-end to COMPLETED with their feature signal',
+    async () => {
+      // A) builtin features together: assertion + UA rotation + data feeder.
+      const a = await runShape({
+        target: `${base}/s?q={{q}}`,
+        dataset: [{ q: 'alpha' }, { q: 'beta' }],
+        userAgents: ['UA-One', 'UA-Two'],
+        assertion: { status: 200 },
+      });
+      const aOk =
+        a.status === 201 &&
+        a.run.status === 'COMPLETED' &&
+        (a.run.generator.assertionsChecked ?? 0) > 0;
+      reg(
+        'SHAPE',
+        'run: assertion+UA+dataset → COMPLETED, assertions checked',
+        'exec',
+        'COMPLETED + checks>0',
+        `${a.run.status}/${a.run.generator.assertionsChecked}`,
+        aOk,
+      );
+      expect(aOk).toBe(true);
+      reg(
+        'SHAPE',
+        'run: UA rotation hit the target with >1 UA',
+        'exec',
+        '≥2 UAs',
+        String(seenUAs.size),
+        seenUAs.has('UA-One') && seenUAs.has('UA-Two'),
+      );
+      expect(seenUAs.has('UA-One') && seenUAs.has('UA-Two')).toBe(true);
+      reg(
+        'SHAPE',
+        'run: data feeder substituted the dataset value',
+        'exec',
+        'q=alpha seen',
+        String([...seenPaths].some((p) => p.includes('q=alpha'))),
+        [...seenPaths].some((p) => p.includes('q=alpha')),
+      );
+      expect([...seenPaths].some((p) => p.includes('q=alpha') || p.includes('q=beta'))).toBe(true);
 
-    // B) endpoint mix spreads across both paths.
-    const b = await runShape({
-      endpoints: [
-        { url: `${base}/mix-a`, weight: 1 },
-        { url: `${base}/mix-b`, weight: 1 },
-      ],
-    });
-    const bOk =
-      b.run.status === 'COMPLETED' &&
-      [...seenPaths].some((p) => p.includes('/mix-a')) &&
-      [...seenPaths].some((p) => p.includes('/mix-b'));
-    reg('SHAPE', 'run: endpoint mix hit both endpoints', 'exec', 'both paths', String(bOk), bOk);
-    expect(bOk).toBe(true);
+      // B) endpoint mix spreads across both paths.
+      const b = await runShape({
+        endpoints: [
+          { url: `${base}/mix-a`, weight: 1 },
+          { url: `${base}/mix-b`, weight: 1 },
+        ],
+      });
+      const bOk =
+        b.run.status === 'COMPLETED' &&
+        [...seenPaths].some((p) => p.includes('/mix-a')) &&
+        [...seenPaths].some((p) => p.includes('/mix-b'));
+      reg('SHAPE', 'run: endpoint mix hit both endpoints', 'exec', 'both paths', String(bOk), bOk);
+      expect(bOk).toBe(true);
 
-    // C) multi-phase scenario.
-    const c = await runShape({
-      scenario: [
-        { maxRps: 10, durationSec: 1 },
-        { maxRps: 20, durationSec: 1 },
-      ],
-    });
-    reg(
-      'SHAPE',
-      'run: multi-phase scenario → COMPLETED',
-      'exec',
-      'COMPLETED',
-      c.run.status,
-      c.run.status === 'COMPLETED',
-    );
-    expect(c.run.status).toBe('COMPLETED');
+      // C) multi-phase scenario.
+      const c = await runShape({
+        scenario: [
+          { maxRps: 10, durationSec: 1 },
+          { maxRps: 20, durationSec: 1 },
+        ],
+      });
+      reg(
+        'SHAPE',
+        'run: multi-phase scenario → COMPLETED',
+        'exec',
+        'COMPLETED',
+        c.run.status,
+        c.run.status === 'COMPLETED',
+      );
+      expect(c.run.status).toBe('COMPLETED');
 
-    // D) multi-step flow with correlation.
-    const d = await runShape({
-      flow: [
-        {
-          method: 'GET',
-          url: `${base}/login`,
-          extract: { name: 'tok', from: 'json', expr: 'token' },
-        },
-        { method: 'GET', url: `${base}/flow-data?t={{tok}}` },
-      ],
-    });
-    const dOk =
-      d.run.status === 'COMPLETED' &&
-      [...seenPaths].some((p) => p.startsWith('/login')) &&
-      [...seenPaths].some((p) => p.startsWith('/flow-data'));
-    reg(
-      'SHAPE',
-      'run: flow + correlation executed both steps',
-      'exec',
-      'login + data seen',
-      String(dOk),
-      dOk,
-    );
-    expect(dOk).toBe(true);
+      // D) multi-step flow with correlation.
+      const d = await runShape({
+        flow: [
+          {
+            method: 'GET',
+            url: `${base}/login`,
+            extract: { name: 'tok', from: 'json', expr: 'token' },
+          },
+          { method: 'GET', url: `${base}/flow-data?t={{tok}}` },
+        ],
+      });
+      const dOk =
+        d.run.status === 'COMPLETED' &&
+        [...seenPaths].some((p) => p.startsWith('/login')) &&
+        [...seenPaths].some((p) => p.startsWith('/flow-data'));
+      reg(
+        'SHAPE',
+        'run: flow + correlation executed both steps',
+        'exec',
+        'login + data seen',
+        String(dOk),
+        dOk,
+      );
+      expect(dOk).toBe(true);
 
-    // E) POST with a body.
-    const e = await runShape({ vector: 'http-post', body: '{"x":1}' });
-    reg(
-      'SHAPE',
-      'run: http-post → COMPLETED',
-      'exec',
-      'COMPLETED',
-      e.run.status,
-      e.run.status === 'COMPLETED',
-    );
-    expect(e.run.status).toBe('COMPLETED');
+      // E) POST with a body.
+      const e = await runShape({ vector: 'http-post', body: '{"x":1}' });
+      reg(
+        'SHAPE',
+        'run: http-post → COMPLETED',
+        'exec',
+        'COMPLETED',
+        e.run.status,
+        e.run.status === 'COMPLETED',
+      );
+      expect(e.run.status).toBe('COMPLETED');
 
-    // F) external engine selected but not installed → falls back to builtin and completes.
-    const f = await runShape({ agent: 'k6' });
-    reg(
-      'SHAPE',
-      'run: unavailable engine falls back to builtin → COMPLETED',
-      'engine fallback',
-      'COMPLETED',
-      `${f.status}/${f.run.status}`,
-      f.status === 201 && f.run.status === 'COMPLETED',
-    );
-    expect(f.status, `k6 fallback → ${f.status}`).toBe(201);
-    expect(f.run.status).toBe('COMPLETED');
-  }, 90_000);
+      // F) external engine selected but not installed → falls back to builtin and completes.
+      const f = await runShape({ agent: 'k6' });
+      reg(
+        'SHAPE',
+        'run: unavailable engine falls back to builtin → COMPLETED',
+        'engine fallback',
+        'COMPLETED',
+        `${f.status}/${f.run.status}`,
+        f.status === 201 && f.run.status === 'COMPLETED',
+      );
+      expect(f.status, `k6 fallback → ${f.status}`).toBe(201);
+      expect(f.run.status).toBe('COMPLETED');
+    },
+    90_000,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1898,6 +1927,12 @@ afterAll(() => {
   lines.push('');
   lines.push('Generated by `backend/test/catalog/catalog.test.ts`. Expected results are');
   lines.push('argued against `docs/test-catalog/specification.md`. Re-run: `npm test -w backend`.');
+  lines.push('');
+  lines.push(
+    E2E
+      ? '_End-to-end runs included (CATALOG_E2E=1)._'
+      : '_End-to-end runs skipped — set `CATALOG_E2E=1` to include them (CI does)._',
+  );
   lines.push('');
   lines.push(
     `**Total cases executed: ${total}** — passed ${total - failed.length}, failed ${failed.length}, findings ${findings.length}.`,

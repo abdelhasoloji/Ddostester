@@ -32,7 +32,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       # Tests with coverage (thresholds enforced by each workspace's config).
+      # CATALOG_E2E=1 includes the catalog's end-to-end runs (skipped locally for
+      # a fast pre-push gate) so CI keeps the full functional coverage.
       - run: npm run test:coverage
+        env:
+          CATALOG_E2E: '1'
       - run: npm run build
 
   lab:
