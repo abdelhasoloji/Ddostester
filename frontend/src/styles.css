@@ -958,6 +958,34 @@ input.invalid {
   flex-wrap: wrap;
   margin: 0.5rem 0;
 }
+.threat-box {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 6px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
+  font-size: 0.82rem;
+}
+.threat-title {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.threat-ref {
+  font-weight: 400;
+  color: var(--muted);
+}
+.threat-line {
+  margin-top: 0.2rem;
+}
+.threat-line .k {
+  display: inline-block;
+  min-width: 6.5rem;
+  color: var(--muted);
+}
+.threat-excluded {
+  color: var(--danger);
+}
 .timeline-legend i {
   display: inline-block;
   width: 10px;

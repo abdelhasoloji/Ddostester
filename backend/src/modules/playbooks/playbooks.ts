@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS } from '../campaigns/model.js';
 import type { CampaignInput, ScenarioPhase } from '../campaigns/model.js';
+import { MAX_ENDPOINTS } from '../../engine/types.js';
 
 export class PlaybookError extends Error {}
 
@@ -14,6 +15,19 @@ export class PlaybookError extends Error {}
 
 export type LoadProfile = 'constant' | 'ramp' | 'wave';
 
+/**
+ * A realistic default set of current browser/mobile User-Agent strings, used by
+ * threat-informed templates that rotate the client fingerprint. Benign strings
+ * only — this changes a header, never how requests are sent.
+ */
+export const DEFAULT_UA_SET: string[] = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
+];
+
 export interface PlaybookStep {
   name: string;
   summary: string;
@@ -23,6 +37,29 @@ export interface PlaybookStep {
   profile: LoadProfile;
   /** Preferred engine (applied when installed, else the server default). */
   agent?: string;
+  /**
+   * Optional realism (built-in engine only): relative paths spread as a weighted
+   * endpoint mix, resolved against the target at instantiation.
+   */
+  paths?: string[];
+  /** Optional realism (built-in engine only): rotate the DEFAULT_UA_SET. */
+  rotateUa?: boolean;
+}
+
+/**
+ * Threat context for a threat-informed template: what recent pattern its
+ * bounded traffic profile approximates, what it measures, and — crucially —
+ * what harmful mechanism it deliberately does NOT reproduce. Documentation
+ * only; it never changes what is sent.
+ */
+export interface ThreatInfo {
+  technique: string;
+  /** Public reference (CVE / advisory / name). */
+  reference: string;
+  /** What resilience question the run answers. */
+  measures: string;
+  /** The harmful mechanism intentionally left out (kept a measurement, not an attack). */
+  notReproduced: string;
 }
 
 export interface Playbook {
@@ -33,6 +70,8 @@ export interface Playbook {
   /** When to run this assessment. */
   when: string;
   steps: PlaybookStep[];
+  /** Threat context for threat-informed templates (curated only). */
+  threat?: ThreatInfo;
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
 }
@@ -76,6 +115,14 @@ export function validatePlaybookInput(input: unknown): Playbook {
     if (!PROFILES.includes(profile)) {
       throw new PlaybookError(`${label}: profile must be one of ${PROFILES.join(', ')}.`);
     }
+    let paths: string[] | undefined;
+    if (s.paths !== undefined) {
+      if (!Array.isArray(s.paths) || s.paths.length > MAX_ENDPOINTS) {
+        throw new PlaybookError(`${label}: paths must be an array of at most ${MAX_ENDPOINTS}.`);
+      }
+      paths = s.paths.map((p) => String(p)).filter((p) => p.trim());
+      if (paths.length === 0) paths = undefined;
+    }
     return {
       name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : label,
       summary: typeof s.summary === 'string' ? s.summary : '',
@@ -84,6 +131,8 @@ export function validatePlaybookInput(input: unknown): Playbook {
       maxDurationSec,
       profile: profile as LoadProfile,
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
+      paths,
+      rotateUa: s.rotateUa === true,
     };
   });
   return {
@@ -190,6 +239,108 @@ export const PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-l7-signature-evasion',
+    name: 'L7 wave — signature evasion',
+    category: 'Threat-informed',
+    summary:
+      'A baseline, then a wave that spreads over several endpoints while rotating the ' +
+      'client User-Agent — the bounded traffic profile of a modern L7 flood.',
+    when: 'Measure how well the WAF / rate-limiter copes with rotating fingerprints and mixed URLs.',
+    threat: {
+      technique: 'Web DDoS "Tsunami" — randomized L7 flood',
+      reference: 'Industry L7 DDoS trend 2023–2024',
+      measures: 'WAF / rate-limit efficacy against fingerprint rotation and endpoint spread.',
+      notReproduced:
+        'No exhaustion, no spoofing — only bounded HTTP with rotating benign headers and mixed paths.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Evasion wave',
+        summary: 'Waves over a mix of endpoints, rotating User-Agent.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/search?q=test', '/api/products', '/about', '/login'],
+        rotateUa: true,
+      },
+    ],
+  },
+  {
+    id: 'threat-http2-burst',
+    name: 'HTTP/2 multiplexed burst',
+    category: 'Threat-informed',
+    summary:
+      'A high, steady request rate over HTTP/2 (k6/vegeta negotiate h2 on HTTPS) — the bounded ' +
+      'load profile of an h2 request burst, to test the h2 request path.',
+    when: 'Validate HTTP/2 request-handling resilience under a bounded high rate.',
+    threat: {
+      technique: 'HTTP/2 request burst',
+      reference: 'HTTP/2 Rapid Reset — CVE-2023-44487',
+      measures: 'How the HTTP/2 request path holds up under a sustained bounded rate.',
+      notReproduced:
+        'No RST_STREAM flood / stream-cancel abuse — only complete, rate-capped requests.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'vegeta',
+      },
+      {
+        name: 'HTTP/2 burst',
+        summary: 'High steady rate over h2 (HTTPS target).',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'k6',
+      },
+    ],
+  },
+  {
+    id: 'threat-cache-key-stress',
+    name: 'Cache-key stress (bounded)',
+    category: 'Threat-informed',
+    summary:
+      'Spreads a steady load over a fixed set of URLs to exercise cache behaviour — without ' +
+      'per-request cache-busters (which would be a bypass technique).',
+    when: 'Assess cache-hit ratio and origin protection under a realistic mixed-URL load.',
+    threat: {
+      technique: 'Cache-key stress',
+      reference: 'Cache-targeting L7 patterns',
+      measures: 'Cache-hit behaviour and origin shielding across a set of URLs.',
+      notReproduced:
+        'No unique-per-request query strings (cache-buster bypass, TSD V-L7-05) — a fixed URL set only.',
+    },
+    steps: [
+      {
+        name: 'Mixed-URL load',
+        summary: 'Steady load spread over a fixed URL set.',
+        maxRps: 300,
+        concurrency: 50,
+        maxDurationSec: 180,
+        profile: 'constant',
+        agent: 'builtin',
+        paths: ['/', '/pricing', '/api/catalog', '/assets/app.js', '/docs'],
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',
@@ -263,22 +414,39 @@ export function buildSuiteCampaigns(
   const suiteId = randomUUID();
   const isAvailable = (id?: string): boolean =>
     id != null && engines.some((e) => e.id === id && e.available);
-  return playbook.steps.map((step, i) => ({
-    name: `${playbook.name} — ${step.name}`,
-    description: step.summary,
-    target: t.target,
-    vector: 'http-get',
-    maxRps: step.maxRps,
-    concurrency: step.concurrency,
-    maxDurationSec: step.maxDurationSec,
-    probeUrl: t.probeUrl,
-    createdBy: t.createdBy,
-    authorized: true,
-    scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
-    agent: isAvailable(step.agent) ? step.agent : undefined,
-    recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
-    suiteId,
-    suiteName: playbook.name,
-    suiteOrder: i,
-  }));
+  let origin = t.target;
+  try {
+    origin = new URL(t.target).origin;
+  } catch {
+    /* keep raw; createCampaign will reject an invalid target */
+  }
+  return playbook.steps.map((step, i) => {
+    const agent = isAvailable(step.agent) ? step.agent : undefined;
+    // Endpoint mix and UA rotation are built-in-engine features: only attach
+    // them when the resolved engine is the built-in one (explicit or default).
+    const builtin = agent === 'builtin' || agent === undefined;
+    const endpoints =
+      builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
+    const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
+    return {
+      name: `${playbook.name} — ${step.name}`,
+      description: step.summary,
+      target: t.target,
+      vector: 'http-get',
+      maxRps: step.maxRps,
+      concurrency: step.concurrency,
+      maxDurationSec: step.maxDurationSec,
+      probeUrl: t.probeUrl,
+      createdBy: t.createdBy,
+      authorized: true,
+      scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
+      agent,
+      endpoints,
+      userAgents,
+      recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
+      suiteId,
+      suiteName: playbook.name,
+      suiteOrder: i,
+    };
+  });
 }

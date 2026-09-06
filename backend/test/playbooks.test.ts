@@ -102,3 +102,39 @@ describe('playbooks', () => {
     }
   });
 });
+
+describe('threat-informed playbooks', () => {
+  it('carry threat metadata (reference, notReproduced)', () => {
+    const pb = getPlaybook('threat-l7-signature-evasion')!;
+    expect(pb.threat).toBeDefined();
+    expect(pb.threat!.reference).toMatch(/./);
+    expect(pb.threat!.notReproduced).toMatch(/./);
+  });
+
+  it('resolve paths to a same-origin endpoint mix and rotate UA (built-in only)', () => {
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('threat-l7-signature-evasion')!,
+      target,
+      engines,
+    );
+    const wave = inputs.find((i) => i.name.includes('Evasion wave'))!;
+    expect(wave.agent).toBe('builtin');
+    expect(wave.endpoints?.length).toBe(5);
+    expect(wave.endpoints!.every((e) => e.url.startsWith('https://staging.example.com'))).toBe(
+      true,
+    );
+    expect(wave.userAgents?.length).toBeGreaterThan(1);
+  });
+
+  it('every threat-informed campaign passes createCampaign validation', () => {
+    for (const pb of PLAYBOOKS.filter((p) => p.threat)) {
+      for (const input of buildSuiteCampaigns(pb, target, engines)) {
+        const c = createCampaign(input, allowed, [
+          { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
+          { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+        ]);
+        expect(c.status).toBe('PENDING_APPROVAL');
+      }
+    }
+  });
+});

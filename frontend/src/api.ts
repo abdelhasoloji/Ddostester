@@ -71,6 +71,13 @@ export interface AcceptanceResult {
   failures: string[];
 }
 
+export interface ThreatInfo {
+  technique: string;
+  reference: string;
+  measures: string;
+  notReproduced: string;
+}
+
 export interface Playbook {
   id: string;
   name: string;
@@ -78,6 +85,7 @@ export interface Playbook {
   summary: string;
   when: string;
   custom?: boolean;
+  threat?: ThreatInfo;
   steps: {
     name: string;
     summary: string;
@@ -86,6 +94,8 @@ export interface Playbook {
     maxDurationSec: number;
     profile: string;
     agent?: string;
+    paths?: string[];
+    rotateUa?: boolean;
   }[];
 }
 

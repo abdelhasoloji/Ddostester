@@ -994,9 +994,27 @@ function PlaybooksSection() {
               {pb.steps.map((s, i) => (
                 <li key={i}>
                   <b>{s.name}</b> — {s.maxRps} rps · {s.maxDurationSec}s · {s.profile}
+                  {s.paths?.length ? ` · ${s.paths.length} endpoints` : ''}
+                  {s.rotateUa ? ' · UA rotation' : ''}
                 </li>
               ))}
             </ol>
+            {pb.threat && (
+              <div className="threat-box">
+                <div className="threat-title">
+                  Threat-informed <span className="threat-ref">{pb.threat.reference}</span>
+                </div>
+                <div className="threat-line">
+                  <span className="k">Profile</span> {pb.threat.technique}
+                </div>
+                <div className="threat-line">
+                  <span className="k">Measures</span> {pb.threat.measures}
+                </div>
+                <div className="threat-line threat-excluded">
+                  <span className="k">Not reproduced</span> {pb.threat.notReproduced}
+                </div>
+              </div>
+            )}
             {canCreate && (
               <div className="btn-row">
                 <button
