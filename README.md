@@ -127,8 +127,10 @@ Full documentation in [`docs/`](./docs/):
 [usage](./docs/usage.md) ·
 [API](./docs/api.md) ·
 [WRS](./docs/wrs.md) ·
+[audit integrity](./docs/audit.md) ·
 [notifications](./docs/notifications.md) ·
 [operations](./docs/operations.md) ·
+[roadmap / status](./docs/roadmap.md) ·
 [security & scope](./docs/safeguards.md).
 
 ## License

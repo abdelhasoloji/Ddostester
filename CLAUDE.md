@@ -46,6 +46,12 @@ Deployment: `bash deploy/setup.sh` (systemd, loopback). See `docs/deployment.md`
 
 Full docs: `docs/` (index in `docs/README.md`).
 
+## Status / roadmap
+
+`docs/roadmap.md` is the **source of truth** for what is built vs. planned.
+Update it in the same PR that changes behaviour, and reconcile any external
+brief or plan against it rather than trusting the brief's own status.
+
 ## Conventions
 
 - TypeScript strict, ESM (imports end in `.js`). Comments in English.

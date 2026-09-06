@@ -12,6 +12,8 @@ and operational documentation.
 | [api.md](./api.md)                                     | REST endpoint reference with `curl` examples                     |
 | [auth.md](./auth.md)                                   | JWT authentication, roles (RBAC), separation of duties           |
 | [wrs.md](./wrs.md)                                     | Formula and interpretation of the WEDOS Resiliency Score         |
+| [audit.md](./audit.md)                                 | Tamper-evident audit chain: verification and export              |
+| [roadmap.md](./roadmap.md)                             | Implementation status vs plan (source of truth)                  |
 | [safeguards.md](./safeguards.md)                       | Security model, scope, what is not implemented                   |
 | [offensive-integration.md](./offensive-integration.md) | Load generation: agents (builtin/k6), governance, external L3/L4 |
 | [security-review.md](./security-review.md)             | Security review (threats, verified points, residual risks)       |
