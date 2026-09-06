@@ -13,9 +13,21 @@ Verdicts marked from code review are noted as such; ❓ items are the ones an E2
 run would settle. This catalog is the source list for the Playwright specs.
 
 **Status:** the auto-kill explanation gap (D4/D6/E3/J3) is **fixed** — runs now
-persist and render a `statusDetail`. A Playwright suite (`e2e/`) now covers the
-auth, RBAC, navigation and full-lifecycle journeys below (13 specs, green). Rows
+persist and render a `statusDetail`. A Playwright suite (`e2e/`) covers the auth,
+RBAC, navigation and full-lifecycle journeys below (13 specs, green). Rows
 implemented there are marked ✅ (e2e).
+
+**Executable catalog (data-driven).** Beyond this hand-written journey list, a
+combinatorial catalog crosses roles × routes × inputs × states as executable
+cases: **`backend/test/catalog/`** runs **303 cases** against a real Fastify
+instance (`app.inject`), each with an expected result argued against
+**`docs/test-catalog/specification.md`** (numbered SPEC-\* rules). Run it with
+`npm test -w backend`; the run writes **`docs/test-catalog/results.md`** (counts,
+per-area table, findings, full case list). Current run: 303 passed, 0 failed,
+**4 findings** — the headline one being **SoD is only partial**: the officer who
+approves a campaign may also execute it (author ≠ approver is enforced, but
+approver ≠ executor is not). Others: `POST /api/users` is a silent upsert, and
+fractional `maxRps`/`concurrency` are accepted.
 
 Roles: **engineer** (create/execute/kill, not approve), **officer**
 (everything + approve + user:manage), **viewer** (read + kill).
