@@ -50,12 +50,16 @@ test('full lifecycle: engineer creates → officer approves → engineer runs �
   await offCtx.close();
 });
 
-test('off-allowlist target is flagged in the form before submit (B3)', async ({ page }) => {
+test('off-allowlist target is flagged in the wizard before submit (B3)', async ({ page }) => {
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
+  // The wizard's Target step validates the host against the allowlist live.
+  await page.getByRole('button', { name: /Readiness/ }).click();
   await page
     .locator('.field:has(label:text-is("Target (URL)")) input')
     .fill('http://evil.example.com/');
-  await expect(page.getByText(/not in allowlist/i).first()).toBeVisible();
+  await expect(page.getByText(/not in the allowlist/i).first()).toBeVisible();
+  // The step cannot advance with a non-allowlisted target.
+  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
 });

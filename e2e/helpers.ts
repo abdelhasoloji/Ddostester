@@ -36,13 +36,23 @@ export async function createCampaign(
   } = {},
 ): Promise<string> {
   const name = opts.name ?? `e2e-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
+  const target = opts.target ?? SELF;
+  const probe = opts.probe ?? SELF;
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
 
+  // The default "New campaign" path is the guided wizard (Objective → Target →
+  // Template → Review). Drive it to the "Advanced" step, which opens the full
+  // classic form (seeded) where the detailed fields below live. Playwright
+  // auto-waits for each Next/Advanced button to become enabled.
+  await page.getByRole('button', { name: /Readiness/ }).click();
+  await page.locator('.field:has(label:text-is("Target (URL)")) input').fill(target);
+  await page.getByRole('button', { name: 'Next' }).click(); // → Template (pre-selected)
+  await page.getByRole('button', { name: 'Next' }).click(); // → Review
+  await page.getByRole('button', { name: /Advanced/ }).click(); // → classic form
+
   // Labels aren't for-associated in this form, so scope by the field's label text.
   await page.locator('.field:has(label:text-is("Name")) input').fill(name);
-  const target = opts.target ?? SELF;
-  const probe = opts.probe ?? SELF;
   await page.locator('.field:has(label:text-is("Target (URL)")) input').fill(target);
   await page.locator('.field:has(label:text-is("Probe (URL)")) input').fill(probe);
   await page.locator('.field:has(label:text-is("Max RPS")) input').fill(String(opts.maxRps ?? 5));
