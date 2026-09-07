@@ -105,21 +105,24 @@ out of scope. "Playbook" = a curated one-click sequence (`docs/usage.md`).
 
 ### Layer 7 — reproduced, bounded
 
-| zeroBS L7 scenario                                  | Bounded ShieldTest realization                          | Mitigation signal measured                   | Where                                        |
-| --------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
-| `get_flood`                                         | Steady GET load (readiness / burst playbooks)           | availability, rate-limit onset, status codes | now                                          |
-| `random_flood` (invalid URLs → 404 / URL-allowlist) | Mixed **non-existent** paths, bounded                   | 404 / edge URL-allowlist enforcement         | now — `threat-url-allowlist` playbook        |
-| `random_valid_flood`                                | Mixed **valid** paths, bounded (cache-key stress)       | cache-hit ratio, origin shielding            | now (playbook)                               |
-| `post_flood` (method policy → 405)                  | Bounded POST load (`vector: http-post`)                 | 405 / method-allowlist enforcement           | now — `threat-method-policy` playbook        |
-| `http_multivector`                                  | Endpoint mix + UA rotation (signature-evasion playbook) | WAF/rate-limit vs mixed shape                | now (playbook)                               |
-| `get_flood (IoT v2)`                                | UA rotation, bounded (signature-evasion)                | fingerprint-based classification             | now (playbook)                               |
-| `http2_multiplexing_get_flood`                      | Bounded high-rate over h2 (http2-burst playbook)        | h2 request-path resilience                   | now (bounded) / abuse = lab class B          |
-| `slowloris`                                         | Slow, connection-holding shape                          | slow-request mitigation                      | bounded partial; abuse = lab class B         |
-| `waf_cracker` (WAF bypass)                          | Single malformed-request correctness probe              | WAF ruleset classification                   | lab **class A** (`drs-validation-policy.md`) |
-| `tcp_handshakes` (conn flood)                       | — (L4 connection flood)                                 | —                                            | out of scope (L3/4)                          |
-| `upstream-jamming`, `session_exhaustion`            | — (exhaustion)                                          | —                                            | lab class B, capped, or not reproduced       |
+| zeroBS L7 scenario                                  | Bounded ShieldTest realization                              | Mitigation signal measured                         | Where                                        |
+| --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------- |
+| `get_flood`                                         | Steady GET load (readiness / burst playbooks)               | availability, rate-limit onset, status codes       | now                                          |
+| `random_flood` (invalid URLs → 404 / URL-allowlist) | Mixed **non-existent** paths, bounded                       | 404 / edge URL-allowlist enforcement               | now — `threat-url-allowlist` playbook        |
+| `random_valid_flood`                                | Mixed **valid** paths, bounded (cache-key stress)           | cache-hit ratio, origin shielding                  | now (playbook)                               |
+| `post_flood` (method policy → 405)                  | Bounded POST load (`vector: http-post`)                     | 405 / method-allowlist enforcement                 | now — `threat-method-policy` playbook        |
+| `http_multivector`                                  | Endpoint mix + UA rotation (signature-evasion playbook)     | WAF/rate-limit vs mixed shape                      | now (playbook)                               |
+| `get_flood (IoT v2)`                                | UA rotation, bounded (signature-evasion)                    | fingerprint-based classification                   | now (playbook)                               |
+| `http2_multiplexing_get_flood`                      | Bounded high-rate over h2 (http2-burst playbook)            | h2 request-path resilience                         | now (bounded) / abuse = lab class B          |
+| **HTTP/2 CONTINUATION Flood** (2024)                | Header-heavy bounded requests (`threat-http2-continuation`) | header count/size limits, header parsing           | now (bounded) / abuse = lab class B          |
+| **MadeYouReset** — CVE-2025-8671 (2025)             | Bounded h2 request burst (`threat-madeyoureset`)            | h2 request-path & connection accounting            | now (bounded) / abuse = lab class B          |
+| **Aisuru/Mirai-class L7 botnet** (2024–2025)        | Bounded deep-path fan-out (`threat-aisuru-botnet`)          | bot mgmt / fingerprint classification / rate-limit | now (bounded) — volume stays out of scope    |
+| `slowloris`                                         | Slow, connection-holding shape                              | slow-request mitigation                            | bounded partial; abuse = lab class B         |
+| `waf_cracker` (WAF bypass)                          | Single malformed-request correctness probe                  | WAF ruleset classification                         | lab **class A** (`drs-validation-policy.md`) |
+| `tcp_handshakes` (conn flood)                       | — (L4 connection flood)                                     | —                                                  | out of scope (L3/4)                          |
+| `upstream-jamming`, `session_exhaustion`            | — (exhaustion)                                              | —                                                  | lab class B, capped, or not reproduced       |
 
-### Volumetric — out of scope (documented, not run here)
+### Volumetric L3/L4 — out of scope (documented, not run here)
 
 `udp_dns_reflection`, `tcp_synflood`, `udp/tcp_maxpackets`, `ip_spoofing`,
 `udp/tcp_fragmentation`, `multi/gre multivector` → **class C** in
@@ -127,6 +130,30 @@ out of scope. "Playbook" = a curated one-click sequence (`docs/usage.md`).
 (TRex/MoonGen/pktgen) or a contracted provider. The report lists them as
 **"volumetric — out of scope"** so a reader sees the full DRS matrix and where
 each part is validated.
+
+#### Current L3/L4 trends (2024–2025) — still class C, still out of the platform
+
+These are the volumetric trends most reported over 2024–2025. They are listed so
+the DRS matrix is complete and a reader can see them acknowledged — **not** as
+anything ShieldTest emits. Replicating them "in the app" is a deliberate,
+code-enforced refusal (class C): they are unbounded by nature and belong on the
+network team's isolated bench, per `drs-validation-policy.md` §3/§7.
+
+| L3/L4 trend (2024–2025)                                          | Layer  | Why it stays class C (out of the platform)                                |
+| ---------------------------------------------------------------- | ------ | ------------------------------------------------------------------------- |
+| **Hyper-volumetric floods** (multi-Tbps / Gpps records)          | L3/L4  | Raw packet volume; no bounded control-plane analogue exists.              |
+| **Carpet bombing** (load spread across a whole subnet/CIDR)      | L3/L4  | Many-destination volumetric spray; spoofable; out-of-allowlist by design. |
+| **UDP / DNS / NTP / CLDAP / memcached amplification-reflection** | L4     | Reflection + spoofing — spoofing is never permitted anywhere here.        |
+| **DNS Water Torture** (random-subdomain query floods)            | L4/DNS | Volumetric packet flood against resolvers; not an HTTP shape.             |
+| **SYN / ACK / RST floods, TCP connection floods**                | L4     | Stateful transport floods, spoofable; the network team's bench only.      |
+| **TCP/UDP fragmentation & mixed multi-vector (GRE/UDP/TCP)**     | L3/L4  | Packet-crafting; no bounded, allowlisted HTTP realization.                |
+
+> **Why we do not "replicate" L3/L4 in the app.** The control plane's single
+> in-process load vector is the bounded, allowlisted, capped, audited HTTP
+> generator. Emitting any packet-level flood, amplification or spoofed traffic
+> from it would break the invariant that makes the tool defensible. So the
+> app's answer to "replicate the latest L3/L4 attacks" is: **document them as
+> class C and route them to the isolated bench**, never run them here.
 
 ## 5. What "closest, still bounded" means in practice
 
@@ -161,7 +188,18 @@ each part is validated.
    (`reports/compare.ts`, `GET /api/reports/compare`).
 7. ✅ Custom request **headers** on playbook steps (built-in engine, benign
    values, ≤10) + a `threat-header-fingerprint` scenario (DRS 4).
-8. Remaining (levier B): a `threat-slowloris-bounded` scenario once per-request
+8. ✅ Latest attack-trend coverage (2024–2025). Three new bounded DRS-5
+   L7 scenarios mapping the newest reported L7 TTPs to a bounded shape:
+   `threat-http2-continuation` (HTTP/2 CONTINUATION Flood — header pressure),
+   `threat-madeyoureset` (CVE-2025-8671 — bounded h2 request burst) and
+   `threat-aisuru-botnet` (Aisuru/Mirai-class L7 fan-out — deep paths + rotating
+   UA/header fingerprint). Each keeps the shape, drops the mechanism (see its
+   `notReproduced`). The current **L3/L4** trends (hyper-volumetric, carpet
+   bombing, amplification-reflection, DNS water torture, SYN/ACK floods,
+   fragmentation/multi-vector) are documented as **class C — out of the
+   platform** (§4, `drs-validation-policy.md`): replicating them in-app is a
+   deliberate, code-enforced refusal, not a gap.
+9. Remaining (levier B): a `threat-slowloris-bounded` scenario once per-request
    think-time lands; a multi-target "carpet" suite (one bounded load across
    several allowlisted targets); surface `vector`/`drsLevel`/`headers` inputs in
    the custom playbook editor UI.

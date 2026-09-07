@@ -249,6 +249,50 @@ describe('DRS levels & the expanded threat catalogue', () => {
     }
   });
 
+  it('ships the three newest (2024–2025) bounded L7-trend scenarios at DRS 5', () => {
+    for (const id of ['threat-http2-continuation', 'threat-madeyoureset', 'threat-aisuru-botnet']) {
+      const pb = getPlaybook(id);
+      expect(pb, id).toBeDefined();
+      expect(pb!.drsLevel, id).toBe(5);
+      // Each documents the harmful mechanism it deliberately does NOT reproduce.
+      expect(pb!.threat!.notReproduced.trim(), id).not.toBe('');
+    }
+  });
+
+  it('continuation-flood scenario carries a bounded (≤10) benign header block', () => {
+    const pb = getPlaybook('threat-http2-continuation')!;
+    expect(pb.threat!.reference).toMatch(/CONTINUATION/i);
+    const wave = buildSuiteCampaigns(pb, target, engines).find((i) =>
+      i.name.includes('Header-pressure'),
+    )!;
+    expect(wave.agent).toBe('builtin');
+    expect(Object.keys(wave.headers ?? {}).length).toBeGreaterThan(1);
+    expect(Object.keys(wave.headers ?? {}).length).toBeLessThanOrEqual(10);
+    expect(wave.headers).toMatchObject({ Accept: expect.any(String) });
+  });
+
+  it('MadeYouReset scenario cites CVE-2025-8671 and stays a complete-request h2 burst', () => {
+    const pb = getPlaybook('threat-madeyoureset')!;
+    expect(pb.threat!.reference).toMatch(/CVE-2025-8671/);
+    expect(pb.threat!.notReproduced).toMatch(/RST_STREAM|reset/i);
+    const burst = buildSuiteCampaigns(pb, target, engines).find((i) =>
+      i.name.endsWith('HTTP/2 burst'),
+    )!;
+    expect(burst.agent).toBe('k6'); // h2 negotiated by k6 on HTTPS
+    expect(burst.vector).toBe('http-get');
+  });
+
+  it('Aisuru fan-out spreads over deep paths with rotating UA + headers, bounded', () => {
+    const pb = getPlaybook('threat-aisuru-botnet')!;
+    const wave = buildSuiteCampaigns(pb, target, engines).find((i) => i.name.includes('Fan-out'))!;
+    expect(wave.endpoints!.length).toBeGreaterThanOrEqual(5);
+    expect(wave.endpoints!.every((e) => e.url.startsWith('https://staging.example.com'))).toBe(
+      true,
+    );
+    expect(wave.userAgents!.length).toBeGreaterThan(1);
+    expect(wave.concurrency).toBeLessThanOrEqual(500); // never exceeds HARD_CAPS
+  });
+
   it('validates a custom drsLevel and rejects out-of-range', () => {
     const ok = validatePlaybookInput({
       name: 'x',

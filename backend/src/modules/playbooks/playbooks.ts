@@ -732,6 +732,141 @@ export const PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-http2-continuation',
+    name: 'HTTP/2 Continuation — header pressure',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'A baseline, then a steady wave of header-heavy requests carrying a fixed, benign browser ' +
+      'header block — the bounded shape of an HTTP/2 CONTINUATION-flood, testing header parsing/limits.',
+    when: 'Validate header-size/count limits and header-parsing resilience at the edge (h2 CONTINUATION-flood shape).',
+    threat: {
+      technique: 'HTTP/2 Continuation Flood — header-block pressure',
+      reference: 'HTTP/2 CONTINUATION Flood (CVE-2024-27316 / CVE-2024-27919, 2024)',
+      measures:
+        'Whether the edge enforces header count/size limits and parses a large-but-bounded header block without degradation.',
+      notReproduced:
+        'No never-terminated HEADERS/CONTINUATION frame stream, no h2 frame-level abuse — only complete, ' +
+        'rate-capped requests with a fixed benign header set (≤10 headers).',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Header-pressure wave',
+        summary: 'Steady load carrying a fixed benign browser header block.',
+        maxRps: 600,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'constant',
+        agent: 'builtin',
+        rotateUa: true,
+        headers: {
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9,cs;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br, zstd',
+          Referer: 'https://www.google.com/',
+          'Sec-CH-UA': '"Chromium";v="124", "Not.A/Brand";v="24"',
+          'Sec-CH-UA-Platform': '"Windows"',
+          'Sec-Fetch-Site': 'same-origin',
+          'Sec-Fetch-Mode': 'navigate',
+        },
+      },
+    ],
+  },
+  {
+    id: 'threat-madeyoureset',
+    name: 'MadeYouReset — h2 request burst',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'A baseline, then a high, steady request rate over HTTP/2 (k6/vegeta negotiate h2 on HTTPS) — ' +
+      'the bounded request-path shape of a MadeYouReset-class strike, without the reset abuse.',
+    when: 'Validate the HTTP/2 request path and connection accounting under a sustained bounded rate.',
+    threat: {
+      technique: 'HTTP/2 request burst (MadeYouReset class)',
+      reference: 'MadeYouReset — CVE-2025-8671 (2025)',
+      measures:
+        'How the h2 request path and per-connection accounting hold up under a sustained, bounded, complete-request rate.',
+      notReproduced:
+        'No server-triggered RST_STREAM amplification, no malformed control frames, no stream-reset abuse — ' +
+        'only complete, rate-capped requests.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'vegeta',
+      },
+      {
+        name: 'HTTP/2 burst',
+        summary: 'High steady rate over h2 (HTTPS target).',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'k6',
+      },
+    ],
+  },
+  {
+    id: 'threat-aisuru-botnet',
+    name: 'Aisuru-class botnet fan-out',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'A baseline, then two high-concurrency waves spreading over deep application paths while ' +
+      'rotating both the User-Agent and a benign header fingerprint — the bounded shape of a modern, ' +
+      'record-setting L7 botnet (Aisuru/Mirai-class), without the botnet or its volume.',
+    when: 'Assess bot-management, fingerprint classification and rate-limiting against a large, diverse, bounded L7 fan-out.',
+    threat: {
+      technique: 'Hyper-volumetric L7 botnet fan-out (Aisuru / Mirai-class)',
+      reference: 'Aisuru / record hyper-volumetric L7 botnets (2024–2025)',
+      measures:
+        'Whether classification and rate-limiting stay stable when a diverse, high-concurrency but rate-bounded L7 load hits deep endpoints.',
+      notReproduced:
+        'No botnet, no real node count, no hyper-volume — bounded RPS/concurrency, benign UAs and headers from fixed sets, no spoofing.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Fan-out wave',
+        summary: 'High-concurrency waves over deep paths, rotating UA + header fingerprint.',
+        maxRps: 700,
+        concurrency: 300,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/api/products', '/cart', '/search?q=a', '/account/orders', '/checkout'],
+        rotateUa: true,
+        headers: {
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Sec-CH-UA-Mobile': '?1',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',

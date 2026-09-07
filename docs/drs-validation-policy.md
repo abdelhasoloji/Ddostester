@@ -49,6 +49,18 @@ governed by ShieldTest and _where_ it executes.
 Class **C** is a deliberate, code-enforced refusal. Admitting it would be the
 definition of *un*bounded. That refusal is what makes the rest defensible.
 
+> **Current L3/L4 trends (2024–2025) are all class C.** The latest reported
+> volumetric TTPs — hyper-volumetric multi-Tbps/Gpps floods, **carpet bombing**
+> (spread across a subnet/CIDR), UDP/DNS/NTP/CLDAP/memcached
+> **amplification-reflection**, **DNS water torture** (random-subdomain floods),
+> SYN/ACK/RST and TCP connection floods, and fragmentation / mixed multi-vector
+> (GRE/UDP/TCP) — are packet-level and/or spoofable by nature. None has a
+> bounded control-plane analogue, so **none is replicated in the app**: they are
+> documented for a complete DRS matrix (see
+> [`assessment-methodology.md`](./assessment-methodology.md) §4) and routed to
+> the network team's isolated bench (§7 deny-list, §11). "Replicate the latest
+> L3/L4 attacks in the app" resolves to "document them as class C", by design.
+
 ## 4. Target isolation — the hard separation rule
 
 Validation tests never share a target namespace with production measurement.
