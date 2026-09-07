@@ -18,6 +18,7 @@ import type {
   WrsBreakdown,
 } from './api.js';
 import { useApp, canDo } from './context.js';
+import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import {
   ApproveModal,
   CampaignCard,
@@ -127,6 +128,9 @@ export function Layout() {
                 Dev mode · operator <b>{app.operator || '—'}</b>
               </span>
             )}
+            <span className="version-tag" title={APP_BUILT ? `Built ${APP_BUILT}` : undefined}>
+              {APP_VERSION_LABEL}
+            </span>
           </div>
         </aside>
 

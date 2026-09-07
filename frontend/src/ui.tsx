@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
+import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
   CampaignRun,
@@ -838,6 +839,11 @@ export function Login() {
           {busy ? <span className="spin" /> : null}Sign in
         </button>
       </form>
+      <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <span className="version-tag" title={APP_BUILT ? `Built ${APP_BUILT}` : undefined}>
+          {APP_VERSION_LABEL}
+        </span>
+      </div>
     </section>
   );
 }

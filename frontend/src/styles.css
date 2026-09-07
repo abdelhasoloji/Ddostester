@@ -808,6 +808,13 @@ input.invalid {
   border-top: 1px solid var(--border);
   font-size: 0.8rem;
 }
+.version-tag {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.75;
+}
 .main {
   max-width: 1040px;
   width: 100%;
