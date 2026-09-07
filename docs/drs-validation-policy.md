@@ -156,6 +156,22 @@ The verdict is **read-only** in ShieldTest — it feeds the compliance view and 
 per-technique pass/fail history, mirroring how WRS regressions are tracked. The
 attack traffic never traverses the control plane.
 
+### Implemented so far
+
+- **`LAB_TARGETS`** env (comma-separated). At startup `buildApp` **fails closed**
+  if any lab target also appears in `ALLOWED_TARGETS` (§4). Surfaced in `/health`
+  and **Settings → Lab targets (DRS)**.
+- **`POST /api/drs-validations`** (officer-only, `campaign:approve`) records a
+  verdict `{ technique, class (A|B), labTarget, outcome, detectionSec?,
+mitigationSec?, runner? }` into the **tamper-evident audit chain**
+  (`drs.verdict`). It rejects **class C**, a non-`LAB_TARGETS` host, a host that
+  is also in `ALLOWED_TARGETS`, and a bad outcome — all fail-closed. It records;
+  it never executes the technique.
+
+Remaining: the signed-job dispatch to the isolated runner, the per-technique
+pass/fail history surfaced in the assessment report, and the runner itself
+(external, per this policy).
+
 ## 9. Defensive matrix (the practical companion)
 
 The real "before / after DRS" deliverable: what each PoC validates and how to

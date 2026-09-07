@@ -329,6 +329,7 @@ export const api = {
       json<{
         status: string;
         allowedTargets: string[];
+        labTargets?: string[];
         storage: string;
         authRequired: boolean;
         agent?: string;

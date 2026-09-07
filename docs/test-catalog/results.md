@@ -282,7 +282,7 @@ _End-to-end runs skipped — set `CATALOG_E2E=1` to include them (CI does)._
 | USER-245 | USER | invalid role rejected | SPEC-USER-1 | 4xx | 400 | ✅ |
 | USER-246 | USER | env-defined root user is immutable | SPEC-USER-2 | 4xx | 400 | ✅ |
 | AUDIT-247 | AUDIT | audit trail is non-empty after activity | SPEC-AUDIT-1 | entries > 0 | 47 | ✅ |
-| AUDIT-248 | AUDIT | integrity chain verifies intact | SPEC-AUDIT-1 | intact | {"ok":true,"count":47,"headHash":"e6ad4295a33301a4feac298ef68c860911a22572c97850faeebda82d6e127854"} | ✅ |
+| AUDIT-248 | AUDIT | integrity chain verifies intact | SPEC-AUDIT-1 | intact | {"ok":true,"count":47,"headHash":"8734493e87a2d2a16f2d1c87f4cdea84c703a2d03509e00cfa7316d50d9b7382"} | ✅ |
 | OBS-249 | OBS | /health open + shaped | SPEC-OBS-1 | 200 + fields | 200 | ✅ |
 | OBS-250 | OBS | /ready open | SPEC-OBS-1 | 200 | 200 | ✅ |
 | OBS-251 | OBS | /metrics open | SPEC-OBS-1 | 200 | 200 | ✅ |
@@ -341,7 +341,7 @@ _End-to-end runs skipped — set `CATALOG_E2E=1` to include them (CI does)._
 | AUDIT-304 | AUDIT | trail grows after an audited action | SPEC-AUDIT-1 | after > before | 62→63 | ✅ |
 | AUDIT-305 | AUDIT | audit export → 200 | SPEC-AUDIT-1 | 200 | 200 | ✅ |
 | PLAYBK-306 | PLAYBK | built-in playbooks are listed | G1 | curated present | true | ✅ |
-| PLAYBK-307 | PLAYBK | create a custom playbook | G2 | 201 custom-* | 201 custom-9c798323-315d-4468-abd7-1e02451ac42b | ✅ |
+| PLAYBK-307 | PLAYBK | create a custom playbook | G2 | 201 custom-* | 201 custom-d5b15765-0ee2-4b16-bf23-4f61ffa92cc1 | ✅ |
 | PLAYBK-308 | PLAYBK | empty-steps playbook rejected | G2 | 400 | 400 | ✅ |
 | PLAYBK-309 | PLAYBK | built-in playbook not deletable | G4 | 400 | 400 | ✅ |
 | PLAYBK-310 | PLAYBK | instantiate a custom playbook | G5 | 2xx | 201 | ✅ |

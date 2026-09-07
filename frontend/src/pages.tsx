@@ -886,6 +886,14 @@ export function SettingsPage() {
               <code>{app.allowed.join(', ') || '—'}</code>
             </span>
           </div>
+          {(app.labTargets ?? []).length > 0 && (
+            <div>
+              <span className="k">Lab targets (DRS)</span>
+              <span className="v">
+                <code>{app.labTargets.join(', ')}</code>
+              </span>
+            </div>
+          )}
         </div>
         <p className="hint" style={{ marginTop: '.75rem' }}>
           Bounded HTTP generator only (GET/POST, rate-capped, allowlisted). No volumetric or

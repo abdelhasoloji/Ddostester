@@ -13,7 +13,8 @@ export interface AuditEntry {
     | 'user.delete'
     | 'playbook.upsert'
     | 'playbook.delete'
-    | 'share.create';
+    | 'share.create'
+    | 'drs.verdict';
   campaignId?: string;
   detail?: string;
   /**

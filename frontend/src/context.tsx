@@ -28,6 +28,7 @@ let toastSeq = 0;
 
 interface Ctx {
   allowed: string[];
+  labTargets: string[];
   agentName: string;
   notifications: string[];
   protection: boolean;
@@ -85,6 +86,7 @@ export function useApp(): Ctx {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
+  const [labTargets, setLabTargets] = useState<string[]>([]);
   const [agentName, setAgentName] = useState('');
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
@@ -137,6 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .health()
       .then(async (h) => {
         setAllowed(h.allowedTargets);
+        setLabTargets(h.labTargets ?? []);
         setAgentName(h.agent ?? '');
         setNotifications(h.notifications ?? []);
         setProtection(h.protection ?? false);
@@ -282,6 +285,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = {
     allowed,
+    labTargets,
     agentName,
     notifications,
     protection,

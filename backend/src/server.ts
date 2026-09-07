@@ -40,6 +40,12 @@ const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
 if (ALLOWED_TARGETS.length === 0) {
   throw new Error('ALLOWED_TARGETS must list at least one host.');
 }
+// Isolated lab targets for DRS validation (drs-validation-policy.md). Must not
+// overlap ALLOWED_TARGETS — buildApp fails closed if they do.
+const LAB_TARGETS = (process.env.LAB_TARGETS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
 const SCHEDULER_INTERVAL_MS = intEnv('SCHEDULER_INTERVAL_MS', 30_000);
 const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90);
@@ -55,6 +61,7 @@ const { app, runCampaign } = await buildApp({
   store,
   auth,
   allowedTargets: ALLOWED_TARGETS,
+  labTargets: LAB_TARGETS,
   agent,
   notifier,
   protection,

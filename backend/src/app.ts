@@ -61,6 +61,11 @@ export interface BuildOptions {
   store: Store;
   auth: AuthState;
   allowedTargets: string[];
+  /**
+   * Isolated lab targets for DRS-validation records (policy: drs-validation-policy.md).
+   * Fail-closed: must NOT overlap allowedTargets. Empty = validation disabled.
+   */
+  labTargets?: string[];
   logger?: boolean;
   serveStatic?: boolean;
   /** Load agent (default: built-in bounded HTTP generator). */
@@ -83,6 +88,15 @@ export interface BuiltApp {
 /** Builds the Fastify app (routes + logic) without starting to listen. */
 export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const { store, auth, allowedTargets } = opts;
+  const labTargets = opts.labTargets ?? [];
+  // Fail-closed separation (drs-validation-policy.md §4): a lab target must never
+  // also be a production allowlist target, and vice-versa.
+  const overlap = labTargets.filter((t) => allowedTargets.includes(t));
+  if (overlap.length > 0) {
+    throw new Error(
+      `LAB_TARGETS must not overlap ALLOWED_TARGETS (offending: ${overlap.join(', ')}).`,
+    );
+  }
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
   const protection = opts.protection ?? noopProtectionProvider;
@@ -310,6 +324,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.get('/health', async () => ({
     status: 'ok',
     allowedTargets,
+    labTargets,
     storage: store.backend,
     authRequired: auth.enabled,
     agent: agent.name,
@@ -403,6 +418,69 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       expiresAt: new Date(Date.now() + ttlMin * 60_000).toISOString(),
     });
   });
+
+  // DRS validation verdict (classes A/B, lab-only) — records the outcome of an
+  // externally-executed validation into the tamper-evident audit trail. The
+  // control plane never runs the attack (drs-validation-policy.md); it records.
+  app.post(
+    '/api/drs-validations',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      if (labTargets.length === 0) {
+        return reply
+          .code(400)
+          .send({ error: 'DRS validation is disabled (no LAB_TARGETS configured).' });
+      }
+      const b = (req.body ?? {}) as {
+        technique?: string;
+        class?: string;
+        labTarget?: string;
+        outcome?: string;
+        detectionSec?: number;
+        mitigationSec?: number;
+        runner?: string;
+      };
+      const cls = String(b.class ?? '').toUpperCase();
+      if (cls !== 'A' && cls !== 'B') {
+        return reply
+          .code(400)
+          .send({ error: 'class must be A or B (class C is out of scope — network bench).' });
+      }
+      if (!b.technique?.trim()) return reply.code(400).send({ error: 'technique is required.' });
+      const OUTCOMES = ['MITIGATED', 'NOT_MITIGATED', 'INCONCLUSIVE', 'ABORTED'];
+      const outcome = String(b.outcome ?? '').toUpperCase();
+      if (!OUTCOMES.includes(outcome)) {
+        return reply.code(400).send({ error: `outcome must be one of ${OUTCOMES.join(', ')}.` });
+      }
+      let host = String(b.labTarget ?? '').trim();
+      try {
+        host = new URL(host).hostname;
+      } catch {
+        /* not a URL — treat as a bare host */
+      }
+      // Fail-closed target isolation: must be a lab host, never a production one.
+      if (!host || !labTargets.includes(host) || allowedTargets.includes(host)) {
+        return reply.code(400).send({
+          error:
+            'labTarget must be an isolated LAB_TARGETS host (never a production allowlist host).',
+        });
+      }
+      const detail =
+        `${cls}/${b.technique} @ ${host} → ${outcome}` +
+        (typeof b.detectionSec === 'number' ? ` · TTD ${b.detectionSec}s` : '') +
+        (typeof b.mitigationSec === 'number' ? ` · TTM ${b.mitigationSec}s` : '') +
+        (b.runner ? ` · runner ${b.runner}` : '');
+      await audit(req, 'drs.verdict', undefined, detail);
+      return reply.code(201).send({
+        recorded: true,
+        class: cls,
+        technique: b.technique,
+        labTarget: host,
+        outcome,
+        at: new Date().toISOString(),
+      });
+    },
+  );
 
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
     return req.authUser ?? { email: null, role: null, authRequired: false };
