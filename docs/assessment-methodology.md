@@ -102,9 +102,9 @@ out of scope. "Playbook" = a curated one-click sequence (`docs/usage.md`).
 | zeroBS L7 scenario                                  | Bounded ShieldTest realization                          | Mitigation signal measured                   | Where                                        |
 | --------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
 | `get_flood`                                         | Steady GET load (readiness / burst playbooks)           | availability, rate-limit onset, status codes | now                                          |
-| `random_flood` (invalid URLs → 404 / URL-allowlist) | Mixed **non-existent** paths, bounded                   | 404 / edge URL-allowlist enforcement         | now (endpoint mix)                           |
+| `random_flood` (invalid URLs → 404 / URL-allowlist) | Mixed **non-existent** paths, bounded                   | 404 / edge URL-allowlist enforcement         | now — `threat-url-allowlist` playbook        |
 | `random_valid_flood`                                | Mixed **valid** paths, bounded (cache-key stress)       | cache-hit ratio, origin shielding            | now (playbook)                               |
-| `post_flood` / PUT (method policy → 405)            | Bounded POST/PUT load                                   | 405 / method-allowlist enforcement           | needs `vector` on playbook steps             |
+| `post_flood` (method policy → 405)                  | Bounded POST load (`vector: http-post`)                 | 405 / method-allowlist enforcement           | now — `threat-method-policy` playbook        |
 | `http_multivector`                                  | Endpoint mix + UA rotation (signature-evasion playbook) | WAF/rate-limit vs mixed shape                | now (playbook)                               |
 | `get_flood (IoT v2)`                                | UA rotation, bounded (signature-evasion)                | fingerprint-based classification             | now (playbook)                               |
 | `http2_multiplexing_get_flood`                      | Bounded high-rate over h2 (http2-burst playbook)        | h2 request-path resilience                   | now (bounded) / abuse = lab class B          |
@@ -133,10 +133,13 @@ each part is validated.
   RiskLevel, mitigation verdict, glossary) so it's directly comparable — while
   every number comes from a bounded, allowlisted, audited run.
 
-## 6. Next steps
+## 6. Status
 
-1. Reshape the aggregate compliance report into this assessment format
-   (per-scenario results table, RiskLevel, mitigation verdict, glossary). ← in progress
-2. Add the two missing bounded playbooks: `random_flood` (404/URL-allowlist) and
-   `post_flood` (needs a `vector` field on `PlaybookStep`).
-3. Tag each playbook with its DRS level + zeroBS scenario reference.
+1. ✅ Aggregate report reshaped into the assessment format (per-scenario results
+   table, RiskLevel, mitigation verdict, glossary) — `reports/compliance.ts`.
+2. ✅ The two missing bounded playbooks added: `threat-url-allowlist`
+   (`random_flood` → 404) and `threat-method-policy` (`post_flood`, via a new
+   `vector` field on `PlaybookStep`, GET/POST only — no PUT/flood vectors).
+3. Remaining: tag each playbook with its DRS level + zeroBS scenario reference
+   (a `drsLevel` / `scenarioRef` field), and surface `vector` in the custom
+   playbook editor UI.

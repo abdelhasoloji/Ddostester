@@ -137,4 +137,52 @@ describe('threat-informed playbooks', () => {
       }
     }
   });
+
+  it('URL-allowlist probe spreads over non-existent paths (bounded 404 test)', () => {
+    const pb = getPlaybook('threat-url-allowlist')!;
+    expect(pb.threat!.reference).toMatch(/random_flood/);
+    const wave = buildSuiteCampaigns(pb, target, engines).find((i) =>
+      i.name.includes('Random-URL'),
+    )!;
+    expect(wave.vector).toBe('http-get');
+    expect(
+      wave.endpoints!.every((e) =>
+        /example\.com\/(nonexistent|no\/such|api\/does-not|\.well-known|random-)/.test(e.url),
+      ),
+    ).toBe(true);
+  });
+
+  it('method-policy playbook emits a bounded POST step (GET baseline default)', () => {
+    const inputs = buildSuiteCampaigns(getPlaybook('threat-method-policy')!, target, engines);
+    const baseline = inputs.find((i) => i.name.includes('Baseline'))!;
+    const post = inputs.find((i) => i.name.includes('POST wave'))!;
+    expect(baseline.vector).toBe('http-get'); // default
+    expect(post.vector).toBe('http-post'); // step vector honoured
+  });
+});
+
+describe('playbook step vector validation', () => {
+  const step = (extra: Record<string, unknown>) => ({
+    name: 'S',
+    maxRps: 50,
+    concurrency: 10,
+    maxDurationSec: 60,
+    profile: 'constant',
+    ...extra,
+  });
+
+  it('defaults to http-get and preserves an explicit http-post', () => {
+    expect(validatePlaybookInput({ name: 'x', steps: [step({})] }).steps[0].vector).toBe(
+      'http-get',
+    );
+    expect(
+      validatePlaybookInput({ name: 'x', steps: [step({ vector: 'http-post' })] }).steps[0].vector,
+    ).toBe('http-post');
+  });
+
+  it('rejects an unsupported vector (no PUT / flood vectors)', () => {
+    expect(() =>
+      validatePlaybookInput({ name: 'x', steps: [step({ vector: 'http-put' })] }),
+    ).toThrow(/vector/);
+  });
 });

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS } from '../campaigns/model.js';
-import type { CampaignInput, ScenarioPhase } from '../campaigns/model.js';
+import type { CampaignInput, LoadVector, ScenarioPhase } from '../campaigns/model.js';
 import { MAX_ENDPOINTS } from '../../engine/types.js';
 
 export class PlaybookError extends Error {}
@@ -35,6 +35,12 @@ export interface PlaybookStep {
   concurrency: number;
   maxDurationSec: number;
   profile: LoadProfile;
+  /**
+   * HTTP method vector for this step. Default 'http-get'. 'http-post' exercises
+   * a bounded POST load (e.g. an HTTP-method-policy probe). Still the same
+   * bounded generator — never a flood or exhaustion vector.
+   */
+  vector?: LoadVector;
   /** Preferred engine (applied when installed, else the server default). */
   agent?: string;
   /**
@@ -77,6 +83,7 @@ export interface Playbook {
 }
 
 const PROFILES = ['constant', 'ramp', 'wave'];
+const VECTORS = ['http-get', 'http-post'];
 const MAX_STEPS = 12;
 
 /**
@@ -115,6 +122,10 @@ export function validatePlaybookInput(input: unknown): Playbook {
     if (!PROFILES.includes(profile)) {
       throw new PlaybookError(`${label}: profile must be one of ${PROFILES.join(', ')}.`);
     }
+    const vector = s.vector === undefined ? 'http-get' : String(s.vector);
+    if (!VECTORS.includes(vector)) {
+      throw new PlaybookError(`${label}: vector must be one of ${VECTORS.join(', ')}.`);
+    }
     let paths: string[] | undefined;
     if (s.paths !== undefined) {
       if (!Array.isArray(s.paths) || s.paths.length > MAX_ENDPOINTS) {
@@ -130,6 +141,7 @@ export function validatePlaybookInput(input: unknown): Playbook {
       concurrency,
       maxDurationSec,
       profile: profile as LoadProfile,
+      vector: vector as LoadVector,
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
       paths,
       rotateUa: s.rotateUa === true,
@@ -341,6 +353,86 @@ export const PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-url-allowlist',
+    name: 'L7 — URL-allowlist probe',
+    category: 'Threat-informed',
+    summary:
+      'A baseline, then a bounded wave spread over a fixed set of non-existent paths — ' +
+      'checks that the edge returns 404 / enforces its URL allowlist instead of hitting the origin.',
+    when: 'Verify edge URL filtering (origin shielding) against a random-URL L7 flood shape.',
+    threat: {
+      technique: 'Random-URL L7 flood',
+      reference: 'zeroBS L7 — random_flood',
+      measures: 'Edge URL-allowlist / 404 enforcement and origin shielding.',
+      notReproduced:
+        'Bounded rate; a fixed set of non-existent paths (no unique-per-request cache-busters).',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady valid-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Random-URL wave',
+        summary: 'Waves over non-existent paths (expect 404 at the edge).',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: [
+          '/nonexistent-a1',
+          '/no/such/page',
+          '/api/does-not-exist',
+          '/.well-known/none',
+          '/random-9f2b',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'threat-method-policy',
+    name: 'L7 — method policy (POST)',
+    category: 'Threat-informed',
+    summary:
+      'A GET baseline, then a bounded POST wave — checks that the edge enforces its ' +
+      'HTTP-method allowlist (e.g. 405) rather than passing POSTs through to the origin.',
+    when: 'Verify HTTP-method-allowlist enforcement against a POST-flood shape.',
+    threat: {
+      technique: 'POST/PUT method flood',
+      reference: 'zeroBS L7 — post_flood',
+      measures: 'HTTP method allowlist / 405 enforcement at the edge.',
+      notReproduced:
+        'Bounded rate; GET/POST only (no PUT); no exhaustion — complete, rate-capped requests.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady GET reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'POST wave',
+        summary: 'Bounded POST load (expect method-policy 405).',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',
@@ -432,7 +524,7 @@ export function buildSuiteCampaigns(
       name: `${playbook.name} — ${step.name}`,
       description: step.summary,
       target: t.target,
-      vector: 'http-get',
+      vector: step.vector ?? 'http-get',
       maxRps: step.maxRps,
       concurrency: step.concurrency,
       maxDurationSec: step.maxDurationSec,
