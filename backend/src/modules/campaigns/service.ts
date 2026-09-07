@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
+import type { HardCaps } from '../../config/limits.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
 import {
   HTTP_METHODS,
@@ -50,6 +51,10 @@ export function createCampaign(
   input: CampaignInput,
   allowedHosts: string[],
   agents?: AgentChoice[],
+  // The effective caps to enforce. Defaults to the immutable ceiling; the app
+  // passes the CISO-set operational limits (always ≤ ceiling), so a campaign can
+  // never exceed either the ceiling or the current operational limit.
+  caps: HardCaps = HARD_CAPS,
 ): Campaign {
   if (!input.authorized) {
     throw new CampaignError(
@@ -64,25 +69,23 @@ export function createCampaign(
 
   // Caps are whole numbers: rps, concurrent workers and seconds are counts, so a
   // fractional value is a client error, not a bounded-but-odd request.
-  if (!Number.isInteger(input.maxRps) || input.maxRps < 1 || input.maxRps > HARD_CAPS.maxRps) {
-    throw new CampaignError(`maxRps must be an integer within [1, ${HARD_CAPS.maxRps}].`);
+  if (!Number.isInteger(input.maxRps) || input.maxRps < 1 || input.maxRps > caps.maxRps) {
+    throw new CampaignError(`maxRps must be an integer within [1, ${caps.maxRps}].`);
   }
   if (
     !Number.isInteger(input.concurrency) ||
     input.concurrency < 1 ||
-    input.concurrency > HARD_CAPS.maxConcurrency
+    input.concurrency > caps.maxConcurrency
   ) {
-    throw new CampaignError(
-      `concurrency must be an integer within [1, ${HARD_CAPS.maxConcurrency}].`,
-    );
+    throw new CampaignError(`concurrency must be an integer within [1, ${caps.maxConcurrency}].`);
   }
   if (
     !Number.isInteger(input.maxDurationSec) ||
     input.maxDurationSec < 1 ||
-    input.maxDurationSec > HARD_CAPS.maxDurationSec
+    input.maxDurationSec > caps.maxDurationSec
   ) {
     throw new CampaignError(
-      `maxDurationSec must be an integer within [1, ${HARD_CAPS.maxDurationSec}].`,
+      `maxDurationSec must be an integer within [1, ${caps.maxDurationSec}].`,
     );
   }
 
@@ -111,18 +114,16 @@ export function createCampaign(
     }
     let totalDur = 0;
     for (const p of input.scenario) {
-      if (!Number.isInteger(p.maxRps) || p.maxRps < 1 || p.maxRps > HARD_CAPS.maxRps) {
-        throw new CampaignError(
-          `Phase: maxRps must be an integer within [1, ${HARD_CAPS.maxRps}].`,
-        );
+      if (!Number.isInteger(p.maxRps) || p.maxRps < 1 || p.maxRps > caps.maxRps) {
+        throw new CampaignError(`Phase: maxRps must be an integer within [1, ${caps.maxRps}].`);
       }
       if (!Number.isInteger(p.durationSec) || p.durationSec < 1) {
         throw new CampaignError('Phase: duration must be an integer ≥ 1 s.');
       }
       totalDur += p.durationSec;
     }
-    if (totalDur > HARD_CAPS.maxDurationSec) {
-      throw new CampaignError(`Total scenario duration ≤ ${HARD_CAPS.maxDurationSec}s.`);
+    if (totalDur > caps.maxDurationSec) {
+      throw new CampaignError(`Total scenario duration ≤ ${caps.maxDurationSec}s.`);
     }
     // Normalize the aggregated fields for display/metrics.
     input.maxRps = Math.max(...input.scenario.map((p) => p.maxRps));

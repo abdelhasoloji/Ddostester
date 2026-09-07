@@ -21,7 +21,8 @@ import { executeCampaign } from './modules/campaigns/runner.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
-import { HARD_CAPS } from './config/limits.js';
+import { HARD_CAPS, clampToCeiling, withinCeiling } from './config/limits.js';
+import type { HardCaps } from './config/limits.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
@@ -98,6 +99,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       `LAB_TARGETS must not overlap ALLOWED_TARGETS (offending: ${overlap.join(', ')}).`,
     );
   }
+  // Effective operational caps = the CISO-set limits when present, otherwise the
+  // immutable HARD_CAPS ceiling. Always clamped ≤ ceiling (defense in depth: even
+  // a tampered stored value can never widen the envelope). Held in memory and
+  // refreshed by PUT /api/limits; enforcement reads this, never a raw stored value.
+  let effectiveCaps: HardCaps = clampToCeiling(await store.getLimits());
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
   const protection = opts.protection ?? noopProtectionProvider;
@@ -333,11 +339,47 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     protection: protection.configured,
     targetTelemetry: targetTelemetry.configured,
     tlsInsecure: tlsInsecure(),
-    // The server's HARD_CAPS are the single source of truth (config/limits.ts).
-    // The frontend reads them from here instead of keeping its own copy, so the
-    // two can never drift.
-    hardCaps: HARD_CAPS,
+    // `hardCaps` = the EFFECTIVE operational caps the server enforces right now
+    // (the CISO-set limits, or the ceiling when unset). The frontend reads these
+    // for its inline hints, so it always matches enforcement. `hardCapsCeiling`
+    // is the immutable absolute ceiling (config/limits.ts) — the CISO can never
+    // set an operational cap above it.
+    hardCaps: effectiveCaps,
+    hardCapsCeiling: { ...HARD_CAPS },
   }));
+
+  // Operational limits (the effective caps) and the immutable ceiling. Any
+  // authenticated reader can see them; only the CISO can change them.
+  app.get('/api/limits', { preHandler: guard('campaign:read') }, async () => ({
+    ceiling: { ...HARD_CAPS },
+    effective: effectiveCaps,
+  }));
+
+  // CISO-only: set the operational limits. They are validated to be integers
+  // within [1, ceiling] and re-clamped server-side, so they can NEVER exceed the
+  // immutable HARD_CAPS ceiling (defense in depth). The change is audited.
+  app.put('/api/limits', { preHandler: guard('limits:manage') }, async (req, reply) => {
+    const body = (req.body ?? {}) as Partial<HardCaps>;
+    if (!withinCeiling(body)) {
+      return reply.code(400).send({
+        error:
+          'Each limit must be an integer within [1, ceiling]. ' +
+          `Ceiling: maxRps ${HARD_CAPS.maxRps}, maxConcurrency ${HARD_CAPS.maxConcurrency}, ` +
+          `maxDurationSec ${HARD_CAPS.maxDurationSec}.`,
+      });
+    }
+    const next = clampToCeiling(body); // withinCeiling already true; clamp is belt-and-braces
+    await store.setLimits(next);
+    effectiveCaps = next;
+    await audit(
+      req,
+      'limits.update',
+      undefined,
+      `operational limits set: maxRps=${next.maxRps}, maxConcurrency=${next.maxConcurrency}, ` +
+        `maxDurationSec=${next.maxDurationSec} (ceiling ${HARD_CAPS.maxRps}/${HARD_CAPS.maxConcurrency}/${HARD_CAPS.maxDurationSec})`,
+    );
+    return reply.send({ ceiling: { ...HARD_CAPS }, effective: effectiveCaps });
+  });
 
   // Readiness probe: 503 when the store is unreachable (e.g. DB down), so a
   // load balancer / monitor can tell "process up" from "actually serving".
@@ -586,7 +628,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const input = req.body as CampaignInput;
       if (req.authUser) input.createdBy = req.authUser.email;
-      const campaign = createCampaign(input, allowedTargets, agentChoices());
+      const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
       await store.saveCampaign(campaign);
       await audit(req, 'campaign.create', campaign.id, `${campaign.name} → ${campaign.target}`);
       return reply.code(201).send(campaign);
@@ -604,7 +646,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.post('/api/playbooks', { preHandler: guard('campaign:create') }, async (req, reply) => {
     try {
-      const pb = validatePlaybookInput(req.body);
+      const pb = validatePlaybookInput(req.body, effectiveCaps);
       await store.savePlaybook(pb);
       await audit(req, 'playbook.upsert', undefined, `${pb.name} (${pb.steps.length} steps)`);
       return reply.code(201).send(pb);
@@ -649,7 +691,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         );
         const created: Campaign[] = [];
         for (const input of inputs) {
-          const campaign = createCampaign(input, allowedTargets, agentChoices());
+          const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
           await store.saveCampaign(campaign);
           created.push(campaign);
         }

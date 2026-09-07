@@ -3,6 +3,7 @@ import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
+import type { OperationalLimits } from '../config/limits.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
@@ -48,5 +49,13 @@ export interface Store {
   getPlaybook(id: string): Promise<Playbook | undefined>;
   savePlaybook(p: Playbook): Promise<void>;
   deletePlaybook(id: string): Promise<void>;
+  /**
+   * CISO-managed operational limits (the effective caps, always ≤ the immutable
+   * HARD_CAPS ceiling). `undefined` when never set — the effective caps then
+   * default to the ceiling. The absolute ceiling is code-only and is never
+   * stored or read from here.
+   */
+  getLimits(): Promise<OperationalLimits | undefined>;
+  setLimits(limits: OperationalLimits): Promise<void>;
   close(): Promise<void>;
 }

@@ -6,6 +6,7 @@ import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { isRole } from '../auth/rbac.js';
+import type { OperationalLimits } from '../config/limits.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
@@ -100,7 +101,23 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_audit_seq ON audit(seq);
     `,
   },
+  {
+    // CISO-managed operational limits, and any future singleton config: a small
+    // key→jsonb settings table. The absolute HARD_CAPS ceiling is code-only and
+    // is never stored here.
+    id: 3,
+    sql: `
+      CREATE TABLE IF NOT EXISTS settings (
+        key        text PRIMARY KEY,
+        data       jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
+
+/** settings key for the CISO-managed operational limits. */
+const LIMITS_KEY = 'operational_limits';
 
 /**
  * PostgreSQL persistence. Campaign / CampaignRun objects are stored as jsonb
@@ -369,6 +386,22 @@ export class PostgresStore implements Store {
 
   async deletePlaybook(id: string): Promise<void> {
     await this.pool.query('DELETE FROM playbooks WHERE id=$1', [id]);
+  }
+
+  async getLimits(): Promise<OperationalLimits | undefined> {
+    const r = await this.pool.query<{ data: OperationalLimits }>(
+      'SELECT data FROM settings WHERE key=$1',
+      [LIMITS_KEY],
+    );
+    return r.rows[0]?.data;
+  }
+
+  async setLimits(limits: OperationalLimits): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO settings (key, data, updated_at) VALUES ($1, $2, now())
+       ON CONFLICT (key) DO UPDATE SET data=$2, updated_at=now()`,
+      [LIMITS_KEY, JSON.stringify(limits)],
+    );
   }
 
   async close(): Promise<void> {

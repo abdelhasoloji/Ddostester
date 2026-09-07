@@ -12,6 +12,7 @@ import {
 import type {
   AuditVerdict,
   Campaign,
+  HardCaps,
   ManagedUser,
   Playbook,
   Role,
@@ -41,6 +42,7 @@ const roleLabel: Record<Role, string> = {
   officer: 'Security Officer',
   engineer: 'Security Engineer',
   viewer: 'SOC / NOC',
+  ciso: 'CISO',
 };
 
 // ---------- sidebar + layout ----------
@@ -700,6 +702,7 @@ function UsersCard() {
                   <option value="viewer">SOC / NOC (read + kill)</option>
                   <option value="engineer">Security Engineer</option>
                   <option value="officer">Security Officer</option>
+                  <option value="ciso">CISO (governs limits)</option>
                 </select>
               ) : (
                 <span className="engine-badge ok">{roleLabel[u.role]}</span>
@@ -734,6 +737,7 @@ function UsersCard() {
             <option value="viewer">SOC / NOC (read + kill)</option>
             <option value="engineer">Security Engineer</option>
             <option value="officer">Security Officer</option>
+            <option value="ciso">CISO (governs limits)</option>
           </select>
         </div>
         <div className="field">
@@ -749,6 +753,83 @@ function UsersCard() {
         <div className="field" style={{ alignSelf: 'end' }}>
           <button className="btn btn-primary" disabled={busy} type="submit">
             {busy ? 'Saving…' : 'Add / update user'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * CISO-only editor for the operational limits (the effective caps). The absolute
+ * HARD_CAPS ceiling is immutable and shown read-only — the CISO can tighten below
+ * it or raise back up to it, never above. Every save is audited server-side.
+ */
+function LimitsCard() {
+  const app = useApp();
+  const ceiling = app.hardCapsCeiling;
+  const canEdit = canDo(app.role, 'limits', app.authRequired);
+  const [form, setForm] = useState<HardCaps>(app.hardCaps);
+  const [busy, setBusy] = useState(false);
+  // Keep the form in sync with the server's effective caps once /health loads.
+  useEffect(() => setForm(app.hardCaps), [app.hardCaps]);
+
+  if (!canEdit) return null;
+
+  const fields: { key: keyof HardCaps; label: string; unit: string }[] = [
+    { key: 'maxRps', label: 'Max requests/sec', unit: 'rps' },
+    { key: 'maxConcurrency', label: 'Max concurrency', unit: 'workers' },
+    { key: 'maxDurationSec', label: 'Max duration', unit: 'seconds' },
+  ];
+  const inRange = fields.every((f) => {
+    const v = form[f.key];
+    return Number.isInteger(v) && v >= 1 && v <= ceiling[f.key];
+  });
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inRange) return;
+    setBusy(true);
+    try {
+      const r = await api.setLimits(form);
+      app.applyEffectiveCaps(r.effective);
+      app.push('success', 'Operational limits updated (audited).');
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <h2>Operational limits (CISO)</h2>
+      <p className="hint" style={{ marginBottom: '.75rem' }}>
+        Set the caps ShieldTest enforces on every campaign and playbook. They can be tightened
+        freely or raised up to — but <b>never above</b> — the immutable safety ceiling below. The
+        ceiling is fixed in code; only this profile can change the operational limits, and every
+        change is written to the tamper-evident audit trail.
+      </p>
+      <form className="grid" onSubmit={save}>
+        {fields.map((f) => (
+          <div className="field" key={f.key}>
+            <label>
+              {f.label} <span className="hint">({f.unit})</span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={ceiling[f.key]}
+              value={form[f.key]}
+              onChange={(e) => setForm({ ...form, [f.key]: Math.floor(Number(e.target.value)) })}
+              className={form[f.key] > ceiling[f.key] ? 'invalid' : ''}
+            />
+            <span className="hint">ceiling {ceiling[f.key]}</span>
+          </div>
+        ))}
+        <div className="field" style={{ alignSelf: 'end' }}>
+          <button className="btn btn-primary" disabled={busy || !inRange} type="submit">
+            {busy ? 'Saving…' : 'Save limits'}
           </button>
         </div>
       </form>
@@ -901,6 +982,8 @@ export function SettingsPage() {
           server-side (environment variables).
         </p>
       </div>
+
+      <LimitsCard />
 
       <UsersCard />
 

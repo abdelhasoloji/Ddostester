@@ -38,7 +38,48 @@ export const HARD_CAPS = Object.freeze({
 } as const);
 
 /** The shape `/health` exposes and the frontend consumes (see app.ts, api.ts). */
-export type HardCaps = typeof HARD_CAPS;
+export type HardCaps = { maxRps: number; maxConcurrency: number; maxDurationSec: number };
+
+/**
+ * Operational limits: the caps ShieldTest actually enforces, which a CISO may
+ * tighten (or raise back up to the ceiling) from the UI. They are NEVER allowed
+ * to exceed `HARD_CAPS` — that frozen ceiling is the absolute safety boundary,
+ * immutable from any interface, so a UI edit or a compromised account can never
+ * turn ShieldTest into an unbounded tool. `clampToCeiling` enforces this on
+ * every write; the effective cap is always `min(operational, HARD_CAPS)`.
+ */
+export type OperationalLimits = HardCaps;
+
+/**
+ * Clamp a candidate operational-limits object into the valid range: every value
+ * is coerced to an integer within [1, HARD_CAPS.<field>]. A non-finite or
+ * missing field falls back to the ceiling. The result can never exceed the
+ * frozen ceiling — that is the whole point.
+ */
+export function clampToCeiling(candidate: Partial<HardCaps> | undefined): HardCaps {
+  const clamp = (v: unknown, ceiling: number): number => {
+    const n = Math.floor(Number(v));
+    if (!Number.isFinite(n)) return ceiling;
+    return Math.min(ceiling, Math.max(1, n));
+  };
+  return {
+    maxRps: clamp(candidate?.maxRps, HARD_CAPS.maxRps),
+    maxConcurrency: clamp(candidate?.maxConcurrency, HARD_CAPS.maxConcurrency),
+    maxDurationSec: clamp(candidate?.maxDurationSec, HARD_CAPS.maxDurationSec),
+  };
+}
+
+/** True iff every field is a valid integer within [1, ceiling] (no clamping applied). */
+export function withinCeiling(candidate: Partial<HardCaps> | undefined): boolean {
+  if (!candidate) return false;
+  const ok = (v: unknown, ceiling: number): boolean =>
+    Number.isInteger(v) && (v as number) >= 1 && (v as number) <= ceiling;
+  return (
+    ok(candidate.maxRps, HARD_CAPS.maxRps) &&
+    ok(candidate.maxConcurrency, HARD_CAPS.maxConcurrency) &&
+    ok(candidate.maxDurationSec, HARD_CAPS.maxDurationSec)
+  );
+}
 
 /** Minimum spacing between recurring runs (avoids hammering a target). */
 export const MIN_RECURRENCE_MIN = 15;

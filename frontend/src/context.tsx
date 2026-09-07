@@ -16,11 +16,14 @@ export interface Identity {
   email: string;
   role: Role;
 }
-export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage';
+export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage' | 'limits';
 const PERMS: Record<Role, Perm[]> = {
   officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],
   viewer: ['kill'],
+  // CISO: governance only — reads everything, emergency-kills, and is the sole
+  // role that can change the operational limits ('limits'). Not an operator.
+  ciso: ['kill', 'limits'],
 };
 export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
   if (!authRequired) return true;
@@ -37,8 +40,10 @@ let toastSeq = 0;
 interface Ctx {
   allowed: string[];
   labTargets: string[];
-  /** Server HARD_CAPS (single source of truth); from /health, DEFAULT_CAPS until loaded. */
+  /** Effective operational caps the server enforces; from /health, DEFAULT_CAPS until loaded. */
   hardCaps: HardCaps;
+  /** Immutable absolute ceiling; the CISO can never set an operational cap above it. */
+  hardCapsCeiling: HardCaps;
   agentName: string;
   notifications: string[];
   protection: boolean;
@@ -64,6 +69,8 @@ interface Ctx {
   draftPreset: Preset | null;
   applyPreset: (p: Preset) => void;
   clearDraftPreset: () => void;
+  /** Update the effective caps in-app after the CISO saves new operational limits. */
+  applyEffectiveCaps: (caps: HardCaps) => void;
   setOperator: (v: string) => void;
   setExpanded: (id: string | null) => void;
   setConfirmExec: (c: Campaign | null) => void;
@@ -98,6 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [labTargets, setLabTargets] = useState<string[]>([]);
   const [hardCaps, setHardCaps] = useState<HardCaps>(DEFAULT_CAPS);
+  const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(DEFAULT_CAPS);
   const [agentName, setAgentName] = useState('');
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
@@ -152,6 +160,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAllowed(h.allowedTargets);
         setLabTargets(h.labTargets ?? []);
         setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
+        setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
         setAgentName(h.agent ?? '');
         setNotifications(h.notifications ?? []);
         setProtection(h.protection ?? false);
@@ -196,6 +205,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const applyPreset = useCallback((p: Preset) => setDraftPreset(p), []);
   const clearDraftPreset = useCallback(() => setDraftPreset(null), []);
+  const applyEffectiveCaps = useCallback((caps: HardCaps) => setHardCaps(caps), []);
 
   const login = async (email: string, password: string) => {
     const r = await api.login(email, password);
@@ -299,6 +309,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     allowed,
     labTargets,
     hardCaps,
+    hardCapsCeiling,
     agentName,
     notifications,
     protection,
@@ -323,6 +334,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     draftPreset,
     applyPreset,
     clearDraftPreset,
+    applyEffectiveCaps,
     setOperator,
     setExpanded,
     setConfirmExec,

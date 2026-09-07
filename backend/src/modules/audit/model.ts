@@ -14,7 +14,8 @@ export interface AuditEntry {
     | 'playbook.upsert'
     | 'playbook.delete'
     | 'share.create'
-    | 'drs.verdict';
+    | 'drs.verdict'
+    | 'limits.update';
   campaignId?: string;
   detail?: string;
   /**

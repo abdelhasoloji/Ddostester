@@ -187,7 +187,7 @@ export interface CampaignRun {
   };
 }
 
-export type Role = 'engineer' | 'officer' | 'viewer';
+export type Role = 'engineer' | 'officer' | 'viewer' | 'ciso';
 
 export interface AuditEntry {
   id: string;
@@ -258,8 +258,21 @@ function patch<T>(url: string, body?: unknown): Promise<T> {
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => json<T>(r));
 }
+function put<T>(url: string, body?: unknown): Promise<T> {
+  return fetch(url, {
+    method: 'PUT',
+    headers: authHeaders(body ? { 'content-type': 'application/json' } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  }).then((r) => json<T>(r));
+}
 function del<T>(url: string): Promise<T> {
   return fetch(url, { method: 'DELETE', headers: authHeaders() }).then((r) => json<T>(r));
+}
+
+/** The operational limits and the immutable ceiling (GET/PUT /api/limits). */
+export interface LimitsInfo {
+  ceiling: HardCaps;
+  effective: HardCaps;
 }
 
 /** Report URL for a browser link (token in the query if auth is enabled). */
@@ -351,6 +364,7 @@ export const api = {
         protection?: boolean;
         tlsInsecure?: boolean;
         hardCaps?: HardCaps;
+        hardCapsCeiling?: HardCaps;
       }>(r),
     ),
   login: (email: string, password: string) =>
@@ -372,6 +386,8 @@ export const api = {
       '/api/share',
       { ttlMinutes },
     ),
+  getLimits: () => get<LimitsInfo>('/api/limits'),
+  setLimits: (caps: HardCaps) => put<LimitsInfo>('/api/limits', caps),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

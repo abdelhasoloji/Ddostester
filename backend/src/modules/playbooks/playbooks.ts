@@ -6,6 +6,7 @@ import {
   MAX_PLAYBOOK_STEPS as MAX_STEPS,
   MAX_PLAYBOOK_HEADERS as MAX_HEADERS,
 } from '../../config/limits.js';
+import type { HardCaps } from '../../config/limits.js';
 
 export class PlaybookError extends Error {}
 
@@ -107,7 +108,7 @@ const VECTORS = ['http-get', 'http-post'];
  * Every step must stay within HARD_CAPS — a custom playbook can never widen the
  * bounds. Throws PlaybookError on any problem.
  */
-export function validatePlaybookInput(input: unknown): Playbook {
+export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS): Playbook {
   const o = (input ?? {}) as Record<string, unknown>;
   const name = typeof o.name === 'string' ? o.name.trim() : '';
   if (!name) throw new PlaybookError('Playbook name is required.');
@@ -122,17 +123,15 @@ export function validatePlaybookInput(input: unknown): Playbook {
     const maxDurationSec = Number(s.maxDurationSec);
     const profile = String(s.profile ?? 'constant');
     const label = `Step ${i + 1}`;
-    if (!(maxRps > 0) || maxRps > HARD_CAPS.maxRps) {
-      throw new PlaybookError(`${label}: maxRps must be within ]0, ${HARD_CAPS.maxRps}].`);
+    if (!(maxRps > 0) || maxRps > caps.maxRps) {
+      throw new PlaybookError(`${label}: maxRps must be within ]0, ${caps.maxRps}].`);
     }
-    if (!(concurrency >= 1) || concurrency > HARD_CAPS.maxConcurrency) {
-      throw new PlaybookError(
-        `${label}: concurrency must be within [1, ${HARD_CAPS.maxConcurrency}].`,
-      );
+    if (!(concurrency >= 1) || concurrency > caps.maxConcurrency) {
+      throw new PlaybookError(`${label}: concurrency must be within [1, ${caps.maxConcurrency}].`);
     }
-    if (!(maxDurationSec >= 1) || maxDurationSec > HARD_CAPS.maxDurationSec) {
+    if (!(maxDurationSec >= 1) || maxDurationSec > caps.maxDurationSec) {
       throw new PlaybookError(
-        `${label}: maxDurationSec must be within [1, ${HARD_CAPS.maxDurationSec}].`,
+        `${label}: maxDurationSec must be within [1, ${caps.maxDurationSec}].`,
       );
     }
     if (!PROFILES.includes(profile)) {

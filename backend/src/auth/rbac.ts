@@ -1,7 +1,7 @@
-/** Roles (TSD §4.1): Security Engineer, Security Officer, SOC/NOC (read). */
-export type Role = 'engineer' | 'officer' | 'viewer';
+/** Roles (TSD §4.1): Security Engineer, Security Officer, SOC/NOC (read), CISO. */
+export type Role = 'engineer' | 'officer' | 'viewer' | 'ciso';
 
-export const ROLES: readonly Role[] = ['engineer', 'officer', 'viewer'];
+export const ROLES: readonly Role[] = ['engineer', 'officer', 'viewer', 'ciso'];
 
 export type Permission =
   | 'campaign:read'
@@ -9,11 +9,15 @@ export type Permission =
   | 'campaign:approve'
   | 'campaign:execute'
   | 'campaign:kill'
-  | 'user:manage';
+  | 'user:manage'
+  // Change the operational limits (the effective caps, always ≤ the immutable
+  // HARD_CAPS ceiling). CISO only — the governance owner of the safety envelope.
+  | 'limits:manage';
 
 const MATRIX: Record<Role, Permission[]> = {
   // The officer can do everything operationally (including approve) and manages
-  // runtime users (governance).
+  // runtime users (governance). The officer does NOT set the limits — that is
+  // the CISO's exclusive control (separation of governance duties).
   officer: [
     'campaign:read',
     'campaign:create',
@@ -26,6 +30,10 @@ const MATRIX: Record<Role, Permission[]> = {
   engineer: ['campaign:read', 'campaign:create', 'campaign:execute', 'campaign:kill'],
   // SOC/NOC: read + emergency kill switch.
   viewer: ['campaign:read', 'campaign:kill'],
+  // CISO: governs the safety envelope. Reads everything and is the ONLY role
+  // that can change the operational limits from the UI. Deliberately not an
+  // operator (no create/approve/execute) — governance, not operations.
+  ciso: ['campaign:read', 'campaign:kill', 'limits:manage'],
 };
 
 export function can(role: Role, perm: Permission): boolean {

@@ -4,6 +4,7 @@ import type { AuditEntry } from '../modules/audit/model.js';
 import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
+import type { OperationalLimits } from '../config/limits.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -13,6 +14,7 @@ export class MemoryStore implements Store {
   private audit: AuditEntry[] = [];
   private users = new Map<string, User>();
   private playbooks = new Map<string, Playbook>();
+  private limits: OperationalLimits | undefined;
 
   async init(): Promise<void> {}
   async healthy(): Promise<boolean> {
@@ -87,6 +89,12 @@ export class MemoryStore implements Store {
   }
   async deletePlaybook(id: string): Promise<void> {
     this.playbooks.delete(id);
+  }
+  async getLimits(): Promise<OperationalLimits | undefined> {
+    return this.limits ? { ...this.limits } : undefined;
+  }
+  async setLimits(limits: OperationalLimits): Promise<void> {
+    this.limits = { ...limits };
   }
   async close(): Promise<void> {}
 }

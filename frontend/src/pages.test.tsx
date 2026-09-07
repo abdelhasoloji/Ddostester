@@ -91,6 +91,29 @@ describe('pages render', () => {
     expect(fakeApi.listUsers).toHaveBeenCalled();
   });
 
+  it('SettingsPage shows the CISO limits editor only for the CISO role', () => {
+    // Officer (default) does not see the operational-limits editor…
+    renderWithRouter(<SettingsPage />);
+    expect(screen.queryByRole('heading', { name: /Operational limits/ })).not.toBeInTheDocument();
+  });
+
+  it('SettingsPage (CISO) shows the operational-limits editor within the ceiling', () => {
+    currentApp = makeApp({
+      role: 'ciso',
+      authRequired: true,
+      identity: { email: 'ciso@wedos', role: 'ciso' },
+      hardCaps: { maxRps: 100, maxConcurrency: 50, maxDurationSec: 120 },
+      hardCapsCeiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+    });
+    renderWithRouter(<SettingsPage />);
+    expect(screen.getByRole('heading', { name: /Operational limits/ })).toBeInTheDocument();
+    // The RPS input is capped at the ceiling and pre-filled with the effective value.
+    const rps = screen.getByDisplayValue('100') as HTMLInputElement;
+    expect(rps.max).toBe('2000');
+    // The CISO is governance-only: no user-management card.
+    expect(screen.queryByText(/Users & access/)).not.toBeInTheDocument();
+  });
+
   it('GuidePage', () => {
     renderWithRouter(<GuidePage />);
     expect(screen.getByRole('heading', { name: 'Guide' })).toBeInTheDocument();

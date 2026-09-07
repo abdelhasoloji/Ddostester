@@ -47,7 +47,7 @@ describe('caps are centralized in config/limits.ts', () => {
     expect(MAX_DATASET_ROWS_ENGINE).toBe(MAX_DATASET_ROWS);
   });
 
-  it('/health exposes hardCaps identical to HARD_CAPS (frontend source of truth)', async () => {
+  it('/health exposes the immutable ceiling and the effective caps (ceiling when unset)', async () => {
     const { app } = await buildApp({
       store: new MemoryStore(),
       auth: initAuth({} as NodeJS.ProcessEnv),
@@ -57,6 +57,9 @@ describe('caps are centralized in config/limits.ts', () => {
     });
     const r = await app.inject({ method: 'GET', url: '/health' });
     expect(r.statusCode).toBe(200);
+    // The absolute ceiling is always the frozen HARD_CAPS.
+    expect(r.json().hardCapsCeiling).toEqual({ ...HARD_CAPS });
+    // No CISO limit set yet → effective caps default to the ceiling.
     expect(r.json().hardCaps).toEqual({ ...HARD_CAPS });
   });
 });

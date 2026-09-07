@@ -10,6 +10,8 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     // Test fixture value (not the app's config source of truth — that is the
     // backend's HARD_CAPS via /health). Mirrors DEFAULT_CAPS in api.ts.
     hardCaps: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+    hardCapsCeiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+    applyEffectiveCaps: vi.fn(),
     agentName: 'builtin-http',
     notifications: [],
     protection: false,
