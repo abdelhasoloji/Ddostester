@@ -53,6 +53,16 @@ services:
       AGENT: ${AGENT:-builtin}
       # Optional CORS origin for the UI if served from a different host.
       CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # Isolated lab targets for DRS validation + the class-C network bench
+      # (docs/drs-validation-policy.md). A governance label list — the control
+      # plane never connects to it. Empty = DRS + bench dispatch disabled. Must
+      # NOT overlap ALLOWED_TARGETS (the API fails closed at startup if it does).
+      LAB_TARGETS: ${LAB_TARGETS:-}
+      # Governed class-C bench dispatch: the bearer token the ISOLATED
+      # shieldtest-lab runner presents to claim/complete runs. Empty = dispatch
+      # disabled (fail-closed). The control plane records and serves runs; it
+      # NEVER emits amplification traffic — only the isolated runner does.
+      BENCH_RUNNER_TOKEN: ${BENCH_RUNNER_TOKEN:-}
 
   # --- Monitoring (optional): docker compose --profile monitoring up -d --------
   prometheus:
