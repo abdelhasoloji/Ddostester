@@ -57,6 +57,12 @@ export interface CampaignRun {
   timeline?: RunSample[];
   /** Source of the detection/mitigation timings when measured (e.g. 'mock', 'scrubbing'). */
   protectionSource?: string;
+  /**
+   * Real protection timings reported by a configured source (WAF / scrubbing /
+   * cloud DDoS). Present only when a source answered — then the WRS is NOT
+   * estimated. detectionTimeSec = TTD, mitigationTimeSec = TTM.
+   */
+  protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
   /** Nominal metrics captured before the ramp (legitimate traffic only). */
   baseline?: BaselineMetrics;
   /** Under-load degradation vs. the baseline. */
@@ -274,6 +280,13 @@ export async function executeCampaign(
     acceptance,
     timeline,
     protectionSource: measured?.source,
+    protection: measured
+      ? {
+          source: measured.source,
+          detectionTimeSec: measured.detectionTimeSec,
+          mitigationTimeSec: measured.mitigationTimeSec,
+        }
+      : undefined,
     baseline,
     baselineDelta,
     targetTelemetry: targetSeries.length ? targetSeries : undefined,

@@ -112,4 +112,33 @@ describe('executeCampaign — run time-series', () => {
     expect(run.status).toBe('COMPLETED');
     expect(html).not.toContain('class="kill"');
   }, 15000);
+
+  it('a measured protection source yields real TTD/TTM and a non-estimated WRS', async () => {
+    const protection = {
+      configured: true,
+      async measure() {
+        return { detectionTimeSec: 4, mitigationTimeSec: 11, source: 'scrubbing' };
+      },
+    };
+    const campaign = makeCampaign();
+    const run = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      undefined,
+      undefined,
+      protection,
+    );
+    expect(run.wrs.estimated).toBe(false);
+    expect(run.protection).toEqual({
+      source: 'scrubbing',
+      detectionTimeSec: 4,
+      mitigationTimeSec: 11,
+    });
+    const html = renderCampaignReportHtml(campaign, run);
+    expect(html).toContain('Protection (measured)');
+    expect(html).toContain('Time to detect (TTD)');
+    expect(html).toContain('4 s'); // TTD
+    expect(html).toContain('11 s'); // TTM
+  }, 15000);
 });

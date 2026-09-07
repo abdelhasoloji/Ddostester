@@ -64,6 +64,18 @@ ${
        measured Availability and Collateral damage.</p>`
     : ''
 }
+${
+  run.protection
+    ? `<h2>Protection (measured)</h2>
+<table>
+ <tr><th>Source</th><td>${esc(run.protection.source ?? '—')}</td></tr>
+ <tr><th>Time to detect (TTD)</th><td>${run.protection.detectionTimeSec} s</td></tr>
+ <tr><th>Time to mitigate (TTM)</th><td>${run.protection.mitigationTimeSec} s</td></tr>
+</table>
+<p class="muted">Real timings reported by the protection layer for this run — the
+Detection and Mitigation scores above are measured, not estimated.</p>`
+    : ''
+}
 
 ${
   run.acceptance

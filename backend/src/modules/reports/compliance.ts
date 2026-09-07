@@ -110,11 +110,16 @@ export function renderComplianceHtml(
       const mit = mitigationVerdict(r);
       const risk = riskLevel(r);
       const rps = Math.round(r.generator.actualRps);
-      const note = r.statusDetail
-        ? esc(r.statusDetail)
-        : `avail ${availabilityPct(r).toFixed(0)}%${
-            r.baselineDelta ? ` · Δp95 ${r.baselineDelta.latencyP95DeltaMs} ms` : ''
-          }`;
+      const ttdttm = r.protection
+        ? `TTD ${r.protection.detectionTimeSec}s · TTM ${r.protection.mitigationTimeSec}s · `
+        : '';
+      const note =
+        ttdttm +
+        (r.statusDetail
+          ? esc(r.statusDetail)
+          : `avail ${availabilityPct(r).toFixed(0)}%${
+              r.baselineDelta ? ` · Δp95 ${r.baselineDelta.latencyP95DeltaMs} ms` : ''
+            }`);
       return `<tr>
  <td>${i + 1}</td>
  <td>${esc(c?.name ?? r.campaignId)}</td>

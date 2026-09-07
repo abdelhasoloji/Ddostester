@@ -77,3 +77,10 @@ invalid payload it silently falls back to the estimate. This is **inbound
 measurement only** — it generates no traffic. `GET /health` reports
 `protection: true|false`, and **Settings → Engine & security** shows _Measured
 WRS_ vs _Estimated WRS_.
+
+When a source reports, the run carries `protection: { source, detectionTimeSec,
+mitigationTimeSec }` (TTD / TTM). These surface as a **Protection (measured)**
+panel in the campaign detail drawer, a **Protection (measured)** section in the
+HTML/PDF report, and a `TTD … · TTM …` prefix on the run's row in the aggregate
+resilience assessment — so the DRS-style report shows real detect/mitigate
+timings, not estimates.

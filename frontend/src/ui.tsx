@@ -480,10 +480,16 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           constant, so the WRS mostly reflects measured availability.
         </p>
       ) : (
-        run.protectionSource && (
-          <p className="hint" style={{ marginTop: '.5rem' }}>
-            Detection and Mitigation <b>measured</b> by <code>{run.protectionSource}</code>.
-          </p>
+        run.protection && (
+          <div className="posture">
+            <div className="posture-title">
+              Protection (measured by <code>{run.protection.source ?? '—'}</code>)
+            </div>
+            <div className="metric-grid">
+              <Metric label="Time to detect (TTD)">{run.protection.detectionTimeSec}s</Metric>
+              <Metric label="Time to mitigate (TTM)">{run.protection.mitigationTimeSec}s</Metric>
+            </div>
+          </div>
         )
       )}
       {run.acceptance && (

@@ -54,6 +54,7 @@ const run: CampaignRun = {
   wrs: { wrs: 94, level: 'A', detection: 92, mitigation: 85, availability: 100, collateral: 100 },
   acceptance: { verdict: 'FAIL', failures: ['p95 latency 9ms > 5ms'] },
   protectionSource: 'mock',
+  protection: { source: 'mock', detectionTimeSec: 12, mitigationTimeSec: 30 },
   timeline: [
     { t: 1, rps: 0, sent: 0, failed: 0, probe5xx: 0, availPct: 100 },
     { t: 2, rps: 50, sent: 50, failed: 0, probe5xx: 0, availPct: 100 },
@@ -71,6 +72,9 @@ describe('RunDetails', () => {
     expect(screen.getByText(/SLO FAIL/)).toBeInTheDocument();
     expect(screen.getByText(/p95 latency/)).toBeInTheDocument();
     expect(screen.getByText(/measured/)).toBeInTheDocument();
+    // Measured protection surfaces TTD/TTM.
+    expect(screen.getByText('Time to detect (TTD)')).toBeInTheDocument();
+    expect(screen.getByText('12s')).toBeInTheDocument();
   });
 
   it('renders the baseline and under-load deltas when present', () => {

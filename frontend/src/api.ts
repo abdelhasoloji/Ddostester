@@ -160,6 +160,7 @@ export interface CampaignRun {
   acceptance?: AcceptanceResult;
   timeline?: RunSample[];
   protectionSource?: string;
+  protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
   baseline?: { samples: number; availabilityPct: number; latencyMs: { p50: number; p95: number } };
   baselineDelta?: {
     latencyP50DeltaMs: number;
