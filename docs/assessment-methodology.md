@@ -140,6 +140,14 @@ each part is validated.
 2. ✅ The two missing bounded playbooks added: `threat-url-allowlist`
    (`random_flood` → 404) and `threat-method-policy` (`post_flood`, via a new
    `vector` field on `PlaybookStep`, GET/POST only — no PUT/flood vectors).
-3. Remaining: tag each playbook with its DRS level + zeroBS scenario reference
-   (a `drsLevel` / `scenarioRef` field), and surface `vector` in the custom
-   playbook editor UI.
+3. ✅ Each threat-informed playbook tagged with a `drsLevel` (DRS 3–5),
+   surfaced as a badge on the playbook card (the `threat.reference` doubles as
+   the zeroBS scenario reference).
+4. ✅ Catalogue expanded with five bounded, capability-model scenarios inspired
+   by the zeroBS L7 set and DRS glossary: `threat-l7-multivector`
+   (`http_multivector`), `threat-iot-botnet` (`get_flood IoT v2`),
+   `threat-ramp-plateau` (RampUp/Plateau), `threat-sync-pulse` (THOR) and
+   `threat-chaos` (Chewy/Chaos). Ten threat-informed playbooks in total.
+5. Remaining (optional): surface `vector` and `drsLevel` inputs in the custom
+   playbook editor; a `threat-slowloris-bounded` scenario once per-request
+   think-time lands (levier B).

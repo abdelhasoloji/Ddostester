@@ -186,3 +186,58 @@ describe('playbook step vector validation', () => {
     ).toThrow(/vector/);
   });
 });
+
+describe('DRS levels & the expanded threat catalogue', () => {
+  const NEW_IDS = [
+    'threat-l7-multivector',
+    'threat-iot-botnet',
+    'threat-ramp-plateau',
+    'threat-sync-pulse',
+    'threat-chaos',
+  ];
+
+  it('ships the five new bounded threat scenarios', () => {
+    for (const id of NEW_IDS) expect(getPlaybook(id), id).toBeDefined();
+  });
+
+  it('every threat-informed playbook carries a DRS level (3–5) and threat metadata', () => {
+    for (const pb of PLAYBOOKS.filter((p) => p.threat)) {
+      expect(pb.drsLevel, pb.id).toBeGreaterThanOrEqual(3);
+      expect(pb.drsLevel!, pb.id).toBeLessThanOrEqual(5);
+      expect(pb.threat!.reference.trim(), pb.id).not.toBe('');
+      expect(pb.threat!.notReproduced.trim(), pb.id).not.toBe('');
+    }
+  });
+
+  it('the new scenarios cite the zeroBS reference they approximate', () => {
+    for (const id of NEW_IDS) {
+      expect(getPlaybook(id)!.threat!.reference, id).toMatch(/zeroBS/);
+    }
+  });
+
+  it('every step of every curated playbook stays within HARD_CAPS', () => {
+    for (const pb of PLAYBOOKS) {
+      for (const s of pb.steps) {
+        expect(s.maxRps, pb.id).toBeLessThanOrEqual(2000);
+        expect(s.concurrency, pb.id).toBeLessThanOrEqual(500);
+        expect(s.maxDurationSec, pb.id).toBeLessThanOrEqual(900);
+      }
+    }
+  });
+
+  it('validates a custom drsLevel and rejects out-of-range', () => {
+    const ok = validatePlaybookInput({
+      name: 'x',
+      drsLevel: 4,
+      steps: [{ maxRps: 50, concurrency: 10, maxDurationSec: 60, profile: 'constant' }],
+    });
+    expect(ok.drsLevel).toBe(4);
+    expect(() =>
+      validatePlaybookInput({
+        name: 'x',
+        drsLevel: 9,
+        steps: [{ maxRps: 50, concurrency: 10, maxDurationSec: 60, profile: 'constant' }],
+      }),
+    ).toThrow(/drsLevel/);
+  });
+});

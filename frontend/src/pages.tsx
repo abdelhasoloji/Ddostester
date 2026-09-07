@@ -1037,6 +1037,7 @@ function PlaybooksSection() {
           <div key={pb.id} className="preset-card">
             <div className="preset-head">
               <span className="preset-name">{pb.name}</span>
+              {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
               {pb.custom && <span className="engine-badge ok">custom</span>}
             </div>
             <p className="preset-summary">{pb.summary}</p>
@@ -1045,6 +1046,7 @@ function PlaybooksSection() {
               {pb.steps.map((s, i) => (
                 <li key={i}>
                   <b>{s.name}</b> — {s.maxRps} rps · {s.maxDurationSec}s · {s.profile}
+                  {s.vector === 'http-post' ? ' · POST' : ''}
                   {s.paths?.length ? ` · ${s.paths.length} endpoints` : ''}
                   {s.rotateUa ? ' · UA rotation' : ''}
                 </li>

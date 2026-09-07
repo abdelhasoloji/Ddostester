@@ -89,6 +89,7 @@ export interface Playbook {
   when: string;
   custom?: boolean;
   threat?: ThreatInfo;
+  drsLevel?: number;
   steps: {
     name: string;
     summary: string;
@@ -96,6 +97,7 @@ export interface Playbook {
     concurrency: number;
     maxDurationSec: number;
     profile: string;
+    vector?: string;
     agent?: string;
     paths?: string[];
     rotateUa?: boolean;

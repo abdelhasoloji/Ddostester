@@ -78,6 +78,13 @@ export interface Playbook {
   steps: PlaybookStep[];
   /** Threat context for threat-informed templates (curated only). */
   threat?: ThreatInfo;
+  /**
+   * Approximate DRS (DDoS Resiliency Score) attacker-capability level the
+   * scenario's bounded shape maps to (documentation only — see
+   * docs/assessment-methodology.md). Higher = more sophisticated TTP, not more
+   * volume. Undefined for pure readiness/capacity/endurance templates.
+   */
+  drsLevel?: number;
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
 }
@@ -147,6 +154,14 @@ export function validatePlaybookInput(input: unknown): Playbook {
       rotateUa: s.rotateUa === true,
     };
   });
+  let drsLevel: number | undefined;
+  if (o.drsLevel !== undefined) {
+    const n = Number(o.drsLevel);
+    if (!Number.isInteger(n) || n < 1 || n > 7) {
+      throw new PlaybookError('drsLevel must be an integer within [1, 7].');
+    }
+    drsLevel = n;
+  }
   return {
     id: `custom-${randomUUID()}`,
     name,
@@ -154,6 +169,7 @@ export function validatePlaybookInput(input: unknown): Playbook {
     summary: typeof o.summary === 'string' ? o.summary : '',
     when: typeof o.when === 'string' ? o.when : '',
     steps: cleanSteps,
+    drsLevel,
     custom: true,
   };
 }
@@ -254,6 +270,7 @@ export const PLAYBOOKS: Playbook[] = [
     id: 'threat-l7-signature-evasion',
     name: 'L7 wave — signature evasion',
     category: 'Threat-informed',
+    drsLevel: 4,
     summary:
       'A baseline, then a wave that spreads over several endpoints while rotating the ' +
       'client User-Agent — the bounded traffic profile of a modern L7 flood.',
@@ -292,6 +309,7 @@ export const PLAYBOOKS: Playbook[] = [
     id: 'threat-http2-burst',
     name: 'HTTP/2 multiplexed burst',
     category: 'Threat-informed',
+    drsLevel: 4,
     summary:
       'A high, steady request rate over HTTP/2 (k6/vegeta negotiate h2 on HTTPS) — the bounded ' +
       'load profile of an h2 request burst, to test the h2 request path.',
@@ -328,6 +346,7 @@ export const PLAYBOOKS: Playbook[] = [
     id: 'threat-cache-key-stress',
     name: 'Cache-key stress (bounded)',
     category: 'Threat-informed',
+    drsLevel: 3,
     summary:
       'Spreads a steady load over a fixed set of URLs to exercise cache behaviour — without ' +
       'per-request cache-busters (which would be a bypass technique).',
@@ -356,6 +375,7 @@ export const PLAYBOOKS: Playbook[] = [
     id: 'threat-url-allowlist',
     name: 'L7 — URL-allowlist probe',
     category: 'Threat-informed',
+    drsLevel: 3,
     summary:
       'A baseline, then a bounded wave spread over a fixed set of non-existent paths — ' +
       'checks that the edge returns 404 / enforces its URL allowlist instead of hitting the origin.',
@@ -399,6 +419,7 @@ export const PLAYBOOKS: Playbook[] = [
     id: 'threat-method-policy',
     name: 'L7 — method policy (POST)',
     category: 'Threat-informed',
+    drsLevel: 3,
     summary:
       'A GET baseline, then a bounded POST wave — checks that the edge enforces its ' +
       'HTTP-method allowlist (e.g. 405) rather than passing POSTs through to the origin.',
@@ -429,6 +450,215 @@ export const PLAYBOOKS: Playbook[] = [
         profile: 'wave',
         vector: 'http-post',
         agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-l7-multivector',
+    name: 'L7 multi-vector',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'Baseline, then three bounded waves that vary the method, the endpoints and the ' +
+      'fingerprint — the combined shape of a modern mixed L7 flood.',
+    when: 'Measure combined WAF / rate-limit efficacy when method, URL and fingerprint all move.',
+    threat: {
+      technique: 'Multi-vector L7 (mixed method + endpoint + fingerprint)',
+      reference: 'zeroBS L7 — http_multivector',
+      measures: 'Combined edge defenses vs a shape that varies method, URL set and User-Agent.',
+      notReproduced: 'Bounded rate; benign headers; no exhaustion, no spoofing.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'GET mix wave',
+        summary: 'Waves over a mix of endpoints, rotating User-Agent.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/search?q=test', '/api/products', '/about', '/login'],
+        rotateUa: true,
+      },
+      {
+        name: 'POST wave',
+        summary: 'Bounded POST load (method-policy pressure).',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 120,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-iot-botnet',
+    name: 'IoT-botnet L7 (sophisticated)',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a bounded wave that spreads over deep application paths while ' +
+      'rotating the client fingerprint — a sophisticated IoT-botnet L7 profile.',
+    when: 'Assess bot-management / fingerprint classification under a mixed, bounded flood shape.',
+    threat: {
+      technique: 'Sophisticated IoT-botnet L7 (rotating fingerprints, deep paths)',
+      reference: 'zeroBS L7 — get_flood (IoT v2)',
+      measures: 'Fingerprint/bot classification when many benign UAs hit deep endpoints.',
+      notReproduced:
+        'Bounded rate; benign UAs from a fixed set; no botnet, no exhaustion, no spoofing.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'IoT wave',
+        summary: 'Waves over deep paths, rotating User-Agent.',
+        maxRps: 500,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/api/products', '/cart', '/search?q=a', '/account/orders'],
+        rotateUa: true,
+      },
+    ],
+  },
+  {
+    id: 'threat-ramp-plateau',
+    name: 'Ramp & plateau',
+    category: 'Threat-informed',
+    drsLevel: 3,
+    summary:
+      'A slow ramp to a sustained plateau — reveals detection lag on a gradual rise and ' +
+      'behaviour once load holds at the ceiling (the capacity knee).',
+    when: 'Find how long detection lags on a slow ramp, and whether a plateau stays stable.',
+    threat: {
+      technique: 'Gradual ramp to plateau',
+      reference: 'zeroBS DRS — RampUp / Plateau',
+      measures: 'Detection lag on a slow ramp; stability of a sustained plateau.',
+      notReproduced: 'Bounded ceiling; no volumetric — L7 requests only.',
+    },
+    steps: [
+      {
+        name: 'Ramp-up',
+        summary: 'Gradually rising rate.',
+        maxRps: 600,
+        concurrency: 120,
+        maxDurationSec: 240,
+        profile: 'ramp',
+        agent: 'builtin',
+      },
+      {
+        name: 'Plateau',
+        summary: 'Hold at the ceiling.',
+        maxRps: 600,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-sync-pulse',
+    name: 'Synchronized pulse',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then short high-concurrency bursts separated by lulls — the shape of a ' +
+      'coordinated, synchronized strike, bounded.',
+    when: 'Validate reaction to sudden synchronized bursts and recovery between pulses.',
+    threat: {
+      technique: 'Synchronized burst (coordinated strike)',
+      reference: 'zeroBS glossary — THOR (synchronized strike)',
+      measures: 'Reaction time to abrupt bursts and recovery in the lulls between pulses.',
+      notReproduced: 'Bounded peak; a load shape only — not a real botnet time-sync.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Pulses',
+        summary: 'Short high-concurrency bursts, then lulls.',
+        maxRps: 700,
+        concurrency: 200,
+        maxDurationSec: 150,
+        profile: 'wave',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-chaos',
+    name: 'Bounded chaos',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then two waves where the method, the URL set and the fingerprint all ' +
+      'vary at once — a bounded take on a random-parameter (Chewy/Chaos) attacker.',
+    when: 'Check defense stability when method, URL and fingerprint all change together.',
+    threat: {
+      technique: 'Randomized parameters (Chewy / Chaos)',
+      reference: 'zeroBS glossary — Chewy / Chaos',
+      measures: 'Whether classification/rate-limiting stays stable as parameters vary.',
+      notReproduced:
+        'Bounded rate; fixed benign parameter sets — no per-request randomization or cache-busting.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Chaos GET',
+        summary: 'Waves over a URL mix, rotating User-Agent.',
+        maxRps: 400,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/search?q=x', '/api/products', '/help', '/status'],
+        rotateUa: true,
+      },
+      {
+        name: 'Chaos POST',
+        summary: 'Bounded POST waves, rotating User-Agent.',
+        maxRps: 400,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+        rotateUa: true,
       },
     ],
   },
