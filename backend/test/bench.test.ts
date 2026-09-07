@@ -27,10 +27,10 @@ const validVerdict = {
   schema: 'shieldtest.lab.verdict/v1',
   class: 'C',
   kind: 'udp-amplification',
-  scenario: 'amplification-ramp',
+  scenario: 'udp_dns_reflection',
   labTarget: 'lab-target.internal',
-  amplificationFactor: 20,
-  packetAmplification: 2,
+  amplificationFactor: 40,
+  packetAmplification: 1,
   requests: 200,
   target: { packets: 400, avgPps: 50, avgBps: 8000 },
   mitigation: null,
@@ -39,7 +39,7 @@ const validVerdict = {
   generatedAt: new Date().toISOString(),
 };
 
-describe('Network bench — governed record-and-dispatch', () => {
+describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', () => {
   let app: FastifyInstance;
   let ciso = '';
   let officer = '';
@@ -65,10 +65,19 @@ describe('Network bench — governed record-and-dispatch', () => {
   const asRunner = (url: string, payload: object, token = RUNNER_TOKEN) =>
     app.inject({ method: 'POST', url, headers: { authorization: `Bearer ${token}` }, payload });
 
-  it('exposes the scenario catalogue to the CISO, not the officer', async () => {
+  it('exposes the full zeroBS Volumetric matrix to the CISO, not the officer', async () => {
     const ok = await asCiso('GET', '/api/bench/scenarios');
     expect(ok.statusCode).toBe(200);
-    expect(ok.json().scenarios.length).toBeGreaterThanOrEqual(11);
+    const scenarios = ok.json().scenarios;
+    expect(scenarios.length).toBe(11); // the report's 11 volumetric vectors
+    // Reproducible UDP vectors and out-of-model TCP/GRE/spoofing both present.
+    const dns = scenarios.find((s: { id: string }) => s.id === 'udp_dns_reflection');
+    const syn = scenarios.find((s: { id: string }) => s.id === 'tcp_synflood');
+    const spoof = scenarios.find((s: { id: string }) => s.id === 'ip_spoofing');
+    expect(dns.reproducible).toBe(true);
+    expect(dns.drs).toBe(3);
+    expect(syn.reproducible).toBe(false);
+    expect(spoof.reproducible).toBe(false);
     expect(ok.json().dispatchEnabled).toBe(true);
 
     const denied = await app.inject({
@@ -80,16 +89,15 @@ describe('Network bench — governed record-and-dispatch', () => {
   });
 
   it('runs the full governed loop: request → claim → verdict → recorded', async () => {
-    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'amplification-ramp' });
+    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'udp_dns_reflection' });
     expect(created.statusCode).toBe(201);
     const run = created.json();
     expect(run).toMatchObject({
       status: 'REQUESTED',
-      scenario: 'amplification-ramp',
+      scenario: 'udp_dns_reflection',
       labTarget: 'lab-target.internal',
     });
 
-    // Isolated runner claims the oldest REQUESTED run.
     const claimed = await asRunner('/api/bench/runs/next/claim', { runner: 'lab-runner-1' });
     expect(claimed.statusCode).toBe(200);
     expect(claimed.json()).toMatchObject({
@@ -98,35 +106,41 @@ describe('Network bench — governed record-and-dispatch', () => {
       claimedBy: 'lab-runner-1',
     });
 
-    // Runner posts the class-C verdict back.
     const done = await asRunner(`/api/bench/runs/${run.id}/result`, { verdict: validVerdict });
     expect(done.statusCode).toBe(200);
     expect(done.json()).toMatchObject({ status: 'COMPLETED' });
-    expect(done.json().verdict.amplificationFactor).toBe(20);
+    expect(done.json().verdict.amplificationFactor).toBe(40);
 
-    // The CISO sees the completed run + verdict.
     const listed = await asCiso('GET', '/api/bench/runs');
     const found = listed.json().runs.find((r: { id: string }) => r.id === run.id);
     expect(found.status).toBe('COMPLETED');
     expect(found.verdict.outcome).toBe('UNMITIGATED_BASELINE');
 
-    // Both the request and the verdict are in the audit trail.
     const audit = await asCiso('GET', '/api/audit');
     const dump = JSON.stringify(audit.json());
     expect(dump).toContain('bench.request');
     expect(dump).toContain('bench.verdict');
   });
 
-  it('rejects an unknown scenario and a non-lab target', async () => {
+  it('refuses out-of-model vectors (TCP/GRE/spoofing) and unknown ids', async () => {
+    expect((await asCiso('POST', '/api/bench/runs', { scenario: 'tcp_synflood' })).statusCode).toBe(
+      400,
+    );
+    expect((await asCiso('POST', '/api/bench/runs', { scenario: 'ip_spoofing' })).statusCode).toBe(
+      400,
+    );
+    expect((await asCiso('POST', '/api/bench/runs', { scenario: 'gre_packets' })).statusCode).toBe(
+      400,
+    );
     expect((await asCiso('POST', '/api/bench/runs', { scenario: 'nope' })).statusCode).toBe(400);
-    expect(
-      (
-        await asCiso('POST', '/api/bench/runs', {
-          scenario: 'amplification-ramp',
-          labTarget: '127.0.0.1',
-        })
-      ).statusCode,
-    ).toBe(400);
+  });
+
+  it('rejects a non-lab target on a reproducible vector', async () => {
+    const r = await asCiso('POST', '/api/bench/runs', {
+      scenario: 'udp_maxpackets',
+      labTarget: '127.0.0.1',
+    });
+    expect(r.statusCode).toBe(400);
   });
 
   it('dispatch is CISO-only (officer 403)', async () => {
@@ -134,7 +148,7 @@ describe('Network bench — governed record-and-dispatch', () => {
       method: 'POST',
       url: '/api/bench/runs',
       headers: { authorization: `Bearer ${officer}` },
-      payload: { scenario: 'amplification-ramp' },
+      payload: { scenario: 'udp_dns_reflection' },
     });
     expect(r.statusCode).toBe(403);
   });
@@ -148,14 +162,11 @@ describe('Network bench — governed record-and-dispatch', () => {
   });
 
   it('rejects a verdict that is not class C', async () => {
-    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'wave-detection' });
+    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'udp_maxpackets' });
     const run = created.json();
     await asRunner('/api/bench/runs/next/claim', { runner: 'r' });
-    // Claim may return a different oldest run; claim until we get this one is
-    // overkill — just post against this id directly (it was claimed above or is
-    // still REQUESTED; the endpoint validates the verdict regardless of state).
     const bad = await asRunner(`/api/bench/runs/${run.id}/result`, {
-      verdict: { ...validVerdict, class: 'B', scenario: 'wave-detection' },
+      verdict: { ...validVerdict, class: 'B', scenario: 'udp_maxpackets' },
     });
     expect(bad.statusCode).toBe(400);
     expect(bad.json().error).toMatch(/class/i);
@@ -168,7 +179,6 @@ describe('Network bench — governed record-and-dispatch', () => {
         auth: buildAuth(),
         allowedTargets: ALLOWED,
         labTargets: LAB,
-        // no benchRunnerToken
         logger: false,
         serveStatic: false,
       })
@@ -178,7 +188,7 @@ describe('Network bench — governed record-and-dispatch', () => {
       method: 'POST',
       url: '/api/bench/runs',
       headers: { authorization: `Bearer ${token}` },
-      payload: { scenario: 'amplification-ramp' },
+      payload: { scenario: 'udp_dns_reflection' },
     });
     expect(r.statusCode).toBe(400);
     expect(r.json().error).toMatch(/disabled/i);

@@ -276,10 +276,15 @@ export interface LimitsInfo {
 }
 
 // --- Network bench (class C) — governed record-and-dispatch ----------------
+// The catalogue mirrors the zeroBS DRS Volumetric matrix (report P25-20300):
+// each vector carries its DRS level and whether this bench can reproduce it.
 export interface BenchScenario {
-  name: string;
-  summary: string;
-  useScrubber: boolean;
+  id: string;
+  title: string;
+  proto: 'UDP' | 'TCP' | 'IP' | 'Multi' | 'GRE';
+  drs: number;
+  reproducible: boolean;
+  note: string;
 }
 export interface BenchVerdict {
   schema: string;

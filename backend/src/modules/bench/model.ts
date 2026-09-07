@@ -49,69 +49,127 @@ export interface BenchRun {
 }
 
 /**
- * Allowlist of scenarios a CISO may request. Mirrors the lab's scenarios.mjs;
- * the control plane validates against these names — a request naming anything
- * else is rejected. Kept in sync with the lab by review (documented in
- * drs-validation-policy.md).
+ * zeroBS DRS **Volumetric** matrix (report P25-20300), reproduced as the bench
+ * catalogue so the CISO sees a 1:1 mapping with the stress-test report. Each
+ * vector carries its DRS level and whether this bench can faithfully realize it:
+ *
+ *   - `reproducible: true`  → a bounded, synthetic realization exists; the id
+ *     matches a lab scenario (scenarios.mjs) and may be dispatched.
+ *   - `reproducible: false` → out of this bench's model. UDP amplification/rate
+ *     vectors are in scope; TCP/GRE stateful floods, IP spoofing and packet
+ *     fragmentation are NOT — spoofing is never permitted here by construction,
+ *     and the rest are the network team's real bench. These are shown for
+ *     coverage but can never be dispatched (fail-closed).
+ *
+ * The report's Layer-7 vectors (get_flood, post_flood, slowloris, waf_cracker,
+ * http2…) are bounded-HTTP and live in the control plane's playbooks, not this
+ * class-C bench (see docs/assessment-methodology.md).
  */
-export const BENCH_SCENARIOS: { name: string; summary: string; useScrubber: boolean }[] = [
+export interface BenchScenario {
+  id: string;
+  title: string;
+  proto: 'UDP' | 'TCP' | 'IP' | 'Multi' | 'GRE';
+  drs: number;
+  reproducible: boolean;
+  note: string;
+}
+
+export const BENCH_SCENARIOS: BenchScenario[] = [
   {
-    name: 'amplification-ramp',
-    summary: 'Byte+packet amplification ramping up.',
-    useScrubber: false,
+    id: 'udp_dns_reflection',
+    title: 'UDP DNS Reflection',
+    proto: 'UDP',
+    drs: 3,
+    reproducible: true,
+    note: 'Synthetic DNS-shape amplification (no real resolver, no spoofing).',
   },
   {
-    name: 'packet-rate-stress',
-    summary: 'High packet amplification at a steady rate.',
-    useScrubber: false,
+    id: 'tcp_synflood',
+    title: 'TCP SynFlood',
+    proto: 'TCP',
+    drs: 3,
+    reproducible: false,
+    note: 'Stateful, spoofable TCP flood — the network team’s real bench only.',
   },
   {
-    name: 'mitigation-delay-study',
-    summary: 'Attack through the scrubber; detection delay + residual load.',
-    useScrubber: true,
+    id: 'udp_maxpackets',
+    title: 'UDP MaxPackets',
+    proto: 'UDP',
+    drs: 3,
+    reproducible: true,
+    note: 'High bounded packet rate; stresses the PPS path.',
   },
   {
-    name: 'collateral-study',
-    summary: 'Attack + benign traffic; measure collateral drops.',
-    useScrubber: true,
+    id: 'tcp_maxpackets',
+    title: 'TCP MaxPackets',
+    proto: 'TCP',
+    drs: 3,
+    reproducible: false,
+    note: 'TCP packet flood — not a UDP amplification shape.',
   },
   {
-    name: 'wave-detection',
-    summary: 'Oscillating (wave) attack rate vs detection.',
-    useScrubber: true,
-  },
-  { name: 'burst-detection', summary: 'On/off burst attack vs detection.', useScrubber: true },
-  {
-    name: 'progressive-rampup',
-    summary: 'Slow ramp; find where detection engages.',
-    useScrubber: true,
+    id: 'ip_spoofing',
+    title: 'IP Spoofing',
+    proto: 'IP',
+    drs: 4,
+    reproducible: false,
+    note: 'Source-IP spoofing is NEVER permitted here — the defining safety property of this bench.',
   },
   {
-    name: 'multi-profile-mix',
-    summary: 'Three synthetic profiles together; per-profile breakdown.',
-    useScrubber: false,
+    id: 'udp_fragmentation',
+    title: 'UDP Fragmentation',
+    proto: 'UDP',
+    drs: 4,
+    reproducible: false,
+    note: 'Fragment crafting — outside the synthetic model (no raw packet crafting).',
   },
   {
-    name: 'mixed-flood-with-legit',
-    summary: 'Two attack profiles + benign traffic; realistic collateral.',
-    useScrubber: true,
+    id: 'tcp_fragmentation',
+    title: 'TCP Fragmentation',
+    proto: 'TCP',
+    drs: 4,
+    reproducible: false,
+    note: 'TCP + fragment crafting — out of model.',
   },
   {
-    name: 'blocklist-mitigation',
-    summary: 'Signature-style blocklist: forward legit, drop attack.',
-    useScrubber: true,
+    id: 'udp_multivector',
+    title: 'UDP MultiVector',
+    proto: 'UDP',
+    drs: 4,
+    reproducible: true,
+    note: 'Several synthetic UDP amplification profiles fired together.',
   },
   {
-    name: 'adaptive-mitigation',
-    summary: 'Adaptive ceiling: loosens on collateral, tightens without.',
-    useScrubber: true,
+    id: 'tcp_multivector',
+    title: 'TCP MultiVector',
+    proto: 'TCP',
+    drs: 4,
+    reproducible: false,
+    note: 'TCP multi-vector — out of model.',
+  },
+  {
+    id: 'multiproto_multivector',
+    title: 'Multi-proto MultiVector',
+    proto: 'Multi',
+    drs: 5,
+    reproducible: false,
+    note: 'UDP+TCP+GRE mix — includes non-UDP, out-of-model vectors.',
+  },
+  {
+    id: 'gre_packets',
+    title: 'GRE Packets',
+    proto: 'GRE',
+    drs: 5,
+    reproducible: false,
+    note: 'GRE protocol packets — not a UDP amplification shape.',
   },
 ];
 
-const BENCH_SCENARIO_NAMES = new Set(BENCH_SCENARIOS.map((s) => s.name));
+const DISPATCHABLE = new Set(BENCH_SCENARIOS.filter((s) => s.reproducible).map((s) => s.id));
 
+/** A scenario id the control plane will accept for dispatch (reproducible only). */
 export function isKnownBenchScenario(name: unknown): name is string {
-  return typeof name === 'string' && BENCH_SCENARIO_NAMES.has(name);
+  return typeof name === 'string' && DISPATCHABLE.has(name);
 }
 
 /**

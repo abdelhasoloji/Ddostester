@@ -7,11 +7,37 @@ const fakeApi = makeApi({
   benchScenarios: vi.fn().mockResolvedValue({
     scenarios: [
       {
-        name: 'amplification-ramp',
-        summary: 'Byte+packet amplification ramping up.',
-        useScrubber: false,
+        id: 'udp_dns_reflection',
+        title: 'UDP DNS Reflection',
+        proto: 'UDP',
+        drs: 3,
+        reproducible: true,
+        note: 'Synthetic DNS-shape amplification.',
       },
-      { name: 'blocklist-mitigation', summary: 'Signature-style blocklist.', useScrubber: true },
+      {
+        id: 'tcp_synflood',
+        title: 'TCP SynFlood',
+        proto: 'TCP',
+        drs: 3,
+        reproducible: false,
+        note: 'Stateful spoofable TCP flood — out of model.',
+      },
+      {
+        id: 'ip_spoofing',
+        title: 'IP Spoofing',
+        proto: 'IP',
+        drs: 4,
+        reproducible: false,
+        note: 'Spoofing is never permitted here.',
+      },
+      {
+        id: 'udp_multivector',
+        title: 'UDP MultiVector',
+        proto: 'UDP',
+        drs: 4,
+        reproducible: true,
+        note: 'Several UDP profiles together.',
+      },
     ],
     dispatchEnabled: true,
     labTargets: ['lab-target.internal'],
@@ -20,7 +46,7 @@ const fakeApi = makeApi({
     runs: [
       {
         id: 'b1',
-        scenario: 'amplification-ramp',
+        scenario: 'udp_dns_reflection',
         labTarget: 'lab-target.internal',
         status: 'COMPLETED',
         requestedBy: 'ciso@wedos',
@@ -29,7 +55,7 @@ const fakeApi = makeApi({
           schema: 'shieldtest.lab.verdict/v1',
           class: 'C',
           outcome: 'UNMITIGATED_BASELINE',
-          amplificationFactor: 20,
+          amplificationFactor: 40,
           mitigation: null,
         },
       },
@@ -37,7 +63,7 @@ const fakeApi = makeApi({
   }),
   createBenchRun: vi
     .fn()
-    .mockResolvedValue({ id: 'b2', scenario: 'amplification-ramp', status: 'REQUESTED' }),
+    .mockResolvedValue({ id: 'b2', scenario: 'udp_dns_reflection', status: 'REQUESTED' }),
 });
 
 vi.mock('./context.js', async (orig) => {
@@ -51,7 +77,7 @@ vi.mock('./api.js', async (orig) => {
 
 const { SettingsPage } = await import('./pages.js');
 
-describe('Network bench cockpit (Settings)', () => {
+describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentApp = makeApp({
@@ -61,19 +87,34 @@ describe('Network bench cockpit (Settings)', () => {
     });
   });
 
-  it('shows the CISO the bench cockpit with runs and verdicts', async () => {
+  it('shows the CISO the zeroBS coverage matrix and a completed verdict', async () => {
     renderWithRouter(<SettingsPage />);
     expect(await screen.findByText(/Network bench — class C/)).toBeTruthy();
-    // Verdict evidence from a completed run is displayed read-only.
-    expect(await screen.findByText('UNMITIGATED_BASELINE')).toBeTruthy();
-    expect(screen.getByText('20×')).toBeTruthy();
+    expect(await screen.findByText(/zeroBS Volumetric coverage/)).toBeTruthy();
+    // Out-of-model vectors are shown for coverage.
+    expect(await screen.findByText('tcp_synflood')).toBeTruthy();
+    expect(screen.getByText('ip_spoofing')).toBeTruthy();
+    expect(screen.getAllByText('out of model').length).toBeGreaterThanOrEqual(2);
+    // A completed verdict is displayed read-only.
+    expect(screen.getByText('UNMITIGATED_BASELINE')).toBeTruthy();
+    expect(screen.getByText('40×')).toBeTruthy();
   });
 
-  it('dispatches a governed run request on click', async () => {
+  it('only offers reproducible vectors for dispatch', async () => {
+    renderWithRouter(<SettingsPage />);
+    const select = (await screen.findByLabelText(/Reproducible vector/)) as HTMLSelectElement;
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values).toContain('udp_dns_reflection');
+    expect(values).toContain('udp_multivector');
+    expect(values).not.toContain('tcp_synflood'); // out of model → not dispatchable
+    expect(values).not.toContain('ip_spoofing');
+  });
+
+  it('dispatches a governed run on click', async () => {
     renderWithRouter(<SettingsPage />);
     const btn = await screen.findByText(/Request run/);
     fireEvent.click(btn);
-    await waitFor(() => expect(fakeApi.createBenchRun).toHaveBeenCalledWith('amplification-ramp'));
+    await waitFor(() => expect(fakeApi.createBenchRun).toHaveBeenCalledWith('udp_dns_reflection'));
   });
 
   it('hides the bench cockpit from non-CISO roles', async () => {
@@ -83,7 +124,6 @@ describe('Network bench cockpit (Settings)', () => {
       identity: { email: 'off@wedos', role: 'officer' },
     });
     renderWithRouter(<SettingsPage />);
-    // Settings still renders (engine card is always present) but the bench is gone.
     await screen.findByText(/Engine & security/);
     expect(screen.queryByText(/Network bench — class C/)).toBeNull();
     expect(fakeApi.benchScenarios).not.toHaveBeenCalled();

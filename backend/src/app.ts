@@ -587,7 +587,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
     const b = (req.body ?? {}) as { scenario?: string; labTarget?: string };
     if (!isKnownBenchScenario(b.scenario)) {
-      return reply.code(400).send({ error: 'scenario must be one of the known bench scenarios.' });
+      return reply.code(400).send({
+        error:
+          'scenario must be a reproducible bench vector (UDP amplification/rate). TCP/GRE/spoofing/fragmentation vectors are out of this bench’s model.',
+      });
     }
     // labTarget defaults to the sole LAB host when exactly one is configured.
     const rawTarget = b.labTarget ?? (labTargets.length === 1 ? labTargets[0] : '');

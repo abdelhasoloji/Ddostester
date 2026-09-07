@@ -905,7 +905,7 @@ function BenchCard() {
         const c = await api.benchScenarios();
         if (!alive) return;
         setCat(c);
-        setScenario(c.scenarios[0]?.name ?? '');
+        setScenario(c.scenarios.find((s) => s.reproducible)?.id ?? '');
       } catch {
         /* no access / not configured */
       }
@@ -941,15 +941,19 @@ function BenchCard() {
   };
 
   const dispatchEnabled = cat?.dispatchEnabled ?? false;
+  const scenarios = cat?.scenarios ?? [];
+  const runnable = scenarios.filter((s) => s.reproducible);
+  const selected = scenarios.find((s) => s.id === scenario);
 
   return (
     <div className="card">
       <h2>Network bench — class C (CISO)</h2>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
-        Launch a bounded synthetic UDP-amplification scenario on the isolated lab and read its
-        verdict here. The control plane <b>records and governs</b> the run — it never emits the
-        traffic. An isolated external runner claims the request, executes it off the control plane,
-        and posts back a read-only class-C verdict. Every request and verdict is audited.
+        The <b>zeroBS DRS Volumetric</b> matrix (report P25-20300). Launch a bounded synthetic
+        realization of a UDP amplification/rate vector on the isolated lab and read its verdict
+        here. The control plane <b>records and governs</b> the run — it never emits the traffic. An
+        isolated external runner claims the request, executes it off the control plane, and posts
+        back a read-only class-C verdict. Every request and verdict is audited.
       </p>
 
       {!dispatchEnabled && (
@@ -964,21 +968,19 @@ function BenchCard() {
 
       <div className="btn-row" style={{ marginBottom: '1rem' }}>
         <div className="field" style={{ flex: 1, minWidth: 260 }}>
-          <label htmlFor="bench-scenario">Scenario</label>
+          <label htmlFor="bench-scenario">Reproducible vector</label>
           <select
             id="bench-scenario"
             value={scenario}
             onChange={(e) => setScenario(e.target.value)}
           >
-            {(cat?.scenarios ?? []).map((s) => (
-              <option key={s.name} value={s.name}>
-                {s.name}
+            {runnable.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.id} — DRS {s.drs}
               </option>
             ))}
           </select>
-          <span className="hint">
-            {cat?.scenarios.find((s) => s.name === scenario)?.summary ?? ''}
-          </span>
+          <span className="hint">{selected?.note ?? ''}</span>
         </div>
         <button
           className="btn btn-primary"
@@ -1035,10 +1037,72 @@ function BenchCard() {
           </table>
         </div>
       )}
+      {scenarios.length > 0 && (
+        <>
+          <h3 style={{ fontSize: '.92rem', margin: '1.25rem 0 .5rem' }}>
+            zeroBS Volumetric coverage
+          </h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="bench-table">
+              <thead>
+                <tr>
+                  <th>Vector</th>
+                  <th>Proto</th>
+                  <th>DRS</th>
+                  <th>Bench</th>
+                  <th style={{ whiteSpace: 'normal' }}>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenarios.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <code>{s.id}</code>
+                    </td>
+                    <td>{s.proto}</td>
+                    <td className="num">{s.drs}</td>
+                    <td>
+                      {s.reproducible ? (
+                        <span
+                          className="badge"
+                          style={{
+                            background: 'var(--surface-2)',
+                            color: 'var(--success)',
+                            borderColor: 'var(--success)',
+                          }}
+                        >
+                          reproducible
+                        </span>
+                      ) : (
+                        <span
+                          className="badge"
+                          style={{
+                            background: 'var(--surface-2)',
+                            color: 'var(--muted)',
+                            borderColor: 'var(--border)',
+                          }}
+                        >
+                          out of model
+                        </span>
+                      )}
+                    </td>
+                    <td className="hint" style={{ whiteSpace: 'normal' }}>
+                      {s.note}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
       <p className="hint" style={{ marginTop: '.75rem' }}>
-        UDP amplification is class C (network bench). These verdicts are read-only evidence — they
-        are not the class-A/B DRS validations recorded via <code>/api/drs-validations</code>. See{' '}
-        <code>docs/drs-validation-policy.md</code>.
+        Mapped to zeroBS report <b>P25-20300</b> (Volumetric section). Out-of-model vectors (TCP/GRE
+        stateful floods, IP spoofing, fragmentation) are shown for coverage but can never be
+        dispatched — spoofing is never permitted here by construction. The report&apos;s Layer-7
+        vectors live in the control plane&apos;s playbooks. These verdicts are class C, read-only
+        evidence — not the class-A/B DRS validations recorded via <code>/api/drs-validations</code>.
       </p>
     </div>
   );

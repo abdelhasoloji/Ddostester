@@ -199,6 +199,16 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
     **Settings → Network bench (CISO)**. The runner is the only component that
     emits the (bounded, loopback) amplification traffic.
 
+  - The bench catalogue mirrors the **Volumetric** section of a zeroBS DRS
+    stress-test (reference report **P25-20300**), so the CISO sees a 1:1 mapping
+    with the report: each vector carries its DRS level and whether the bench can
+    reproduce it. Only the UDP amplification/rate vectors (`udp_dns_reflection`,
+    `udp_maxpackets`, `udp_multivector`) are reproducible; the TCP/GRE stateful
+    floods, `ip_spoofing` and fragmentation vectors are shown for coverage but are
+    **out of model** and can never be dispatched (spoofing is never permitted
+    here by construction). The report's Layer-7 vectors are bounded-HTTP and live
+    in the control-plane playbooks (`assessment-methodology.md`), not this bench.
+
 Remaining: the per-technique pass/fail history surfaced in the assessment report.
 
 ## 9. Defensive matrix (the practical companion)
