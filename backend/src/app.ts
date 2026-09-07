@@ -663,9 +663,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       method: 'MEASURED_LAB',
       outcome: verdict.outcome,
       drs,
-      summary: `Bounded synthetic run — amplification ${verdict.amplificationFactor ?? '?'}×${
-        verdict.mitigation ? `, collateral ${verdict.mitigation.collateralPct ?? '?'}%` : ''
-      }.`,
+      summary: verdict.connections
+        ? `Bounded synthetic run (no-spoof) — state-table saturation ${
+            verdict.connections.saturationPct ?? '?'
+          }% at peak ${verdict.connections.concurrentPeak ?? '?'} conns.`
+        : `Bounded synthetic run — amplification ${verdict.amplificationFactor ?? '?'}×${
+            verdict.mitigation ? `, collateral ${verdict.mitigation.collateralPct ?? '?'}%` : ''
+          }.`,
       source: existing.claimedBy ?? 'shieldtest-lab',
       recordedBy: existing.claimedBy ?? 'runner',
       at: new Date().toISOString(),

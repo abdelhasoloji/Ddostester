@@ -28,6 +28,16 @@ export interface BenchVerdict {
     dropped?: number;
     collateralPct?: number;
   } | null;
+  // TCP connection-pressure runs (kind 'tcp-connection-pressure') carry this
+  // instead of amplification metrics.
+  connections?: {
+    opened?: number;
+    accepted?: number;
+    refused?: number;
+    concurrentPeak?: number;
+    capacity?: number;
+    saturationPct?: number;
+  } | null;
   outcome?: string;
   runner?: string;
   source?: string;
@@ -88,8 +98,8 @@ export const BENCH_SCENARIOS: BenchScenario[] = [
     title: 'TCP SynFlood',
     proto: 'TCP',
     drs: 3,
-    reproducible: false,
-    note: 'Stateful, spoofable TCP flood — the network team’s real bench only.',
+    reproducible: true,
+    note: 'No-spoof connection/state-table pressure (real source, capped) — the flood’s exhaustion shape without spoofing.',
   },
   {
     id: 'udp_maxpackets',
@@ -104,8 +114,8 @@ export const BENCH_SCENARIOS: BenchScenario[] = [
     title: 'TCP MaxPackets',
     proto: 'TCP',
     drs: 3,
-    reproducible: false,
-    note: 'TCP packet flood — not a UDP amplification shape.',
+    reproducible: true,
+    note: 'High bounded TCP connection rate (no-spoof) — connection-table churn.',
   },
   {
     id: 'ip_spoofing',
@@ -191,6 +201,7 @@ export function parseBenchVerdict(input: unknown, expectedScenario: string): Ben
     typeof x === 'number' && Number.isFinite(x) ? x : undefined;
   const t = (v.target ?? {}) as Record<string, unknown>;
   const m = (v.mitigation ?? null) as Record<string, unknown> | null;
+  const cx = (v.connections ?? null) as Record<string, unknown> | null;
   return {
     schema: v.schema,
     class: 'C',
@@ -211,6 +222,16 @@ export function parseBenchVerdict(input: unknown, expectedScenario: string): Ben
           detectionSec: num(m.detectionSec) ?? null,
           dropped: num(m.dropped),
           collateralPct: num(m.collateralPct),
+        }
+      : null,
+    connections: cx
+      ? {
+          opened: num(cx.opened),
+          accepted: num(cx.accepted),
+          refused: num(cx.refused),
+          concurrentPeak: num(cx.concurrentPeak),
+          capacity: num(cx.capacity),
+          saturationPct: num(cx.saturationPct),
         }
       : null,
     outcome: typeof v.outcome === 'string' ? v.outcome : undefined,

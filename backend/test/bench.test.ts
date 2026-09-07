@@ -70,14 +70,17 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(ok.statusCode).toBe(200);
     const scenarios = ok.json().scenarios;
     expect(scenarios.length).toBe(11); // the report's 11 volumetric vectors
-    // Reproducible UDP vectors and out-of-model TCP/GRE/spoofing both present.
+    // Reproducible vectors (UDP amplification + no-spoof TCP pressure) and
+    // out-of-model vectors (spoofing / GRE / fragmentation) both present.
     const dns = scenarios.find((s: { id: string }) => s.id === 'udp_dns_reflection');
     const syn = scenarios.find((s: { id: string }) => s.id === 'tcp_synflood');
     const spoof = scenarios.find((s: { id: string }) => s.id === 'ip_spoofing');
+    const gre = scenarios.find((s: { id: string }) => s.id === 'gre_packets');
     expect(dns.reproducible).toBe(true);
     expect(dns.drs).toBe(3);
-    expect(syn.reproducible).toBe(false);
-    expect(spoof.reproducible).toBe(false);
+    expect(syn.reproducible).toBe(true); // no-spoof TCP state-table pressure
+    expect(spoof.reproducible).toBe(false); // spoofing never reproduced
+    expect(gre.reproducible).toBe(false);
     expect(ok.json().dispatchEnabled).toBe(true);
 
     const denied = await app.inject({
@@ -183,17 +186,51 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(403);
   });
 
-  it('refuses out-of-model vectors (TCP/GRE/spoofing) and unknown ids', async () => {
-    expect((await asCiso('POST', '/api/bench/runs', { scenario: 'tcp_synflood' })).statusCode).toBe(
-      400,
-    );
+  it('refuses out-of-model vectors (spoofing/GRE/fragmentation) and unknown ids', async () => {
     expect((await asCiso('POST', '/api/bench/runs', { scenario: 'ip_spoofing' })).statusCode).toBe(
       400,
     );
     expect((await asCiso('POST', '/api/bench/runs', { scenario: 'gre_packets' })).statusCode).toBe(
       400,
     );
+    expect(
+      (await asCiso('POST', '/api/bench/runs', { scenario: 'udp_fragmentation' })).statusCode,
+    ).toBe(400);
     expect((await asCiso('POST', '/api/bench/runs', { scenario: 'nope' })).statusCode).toBe(400);
+  });
+
+  it('accepts the no-spoof TCP vectors and records a TCP verdict with connections', async () => {
+    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'tcp_synflood' });
+    expect(created.statusCode).toBe(201);
+    const run = created.json();
+    await asRunner('/api/bench/runs/next/claim', { runner: 'lab-runner-1' });
+    const tcpVerdict = {
+      schema: 'shieldtest.lab.verdict/v1',
+      class: 'C',
+      kind: 'tcp-connection-pressure',
+      scenario: 'tcp_synflood',
+      connections: {
+        opened: 500,
+        accepted: 200,
+        refused: 300,
+        concurrentPeak: 200,
+        capacity: 200,
+        saturationPct: 60,
+      },
+      outcome: 'STATE_TABLE_SATURATED',
+      generatedAt: new Date().toISOString(),
+    };
+    const done = await asRunner(`/api/bench/runs/${run.id}/result`, { verdict: tcpVerdict });
+    expect(done.statusCode).toBe(200);
+    expect(done.json().verdict.connections.saturationPct).toBe(60);
+    expect(done.json().verdict.outcome).toBe('STATE_TABLE_SATURATED');
+    const cov = (await asCiso('GET', '/api/bench/coverage')).json().coverage;
+    expect(
+      cov.some(
+        (c: { vector: string; method: string }) =>
+          c.vector === 'tcp_synflood' && c.method === 'MEASURED_LAB',
+      ),
+    ).toBe(true);
   });
 
   it('rejects a non-lab target on a reproducible vector', async () => {

@@ -1083,9 +1083,11 @@ function BenchCard() {
                     )}
                   </td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>
-                    {r.verdict?.amplificationFactor != null
-                      ? `${r.verdict.amplificationFactor}×`
-                      : '—'}
+                    {r.verdict?.connections
+                      ? `${r.verdict.connections.saturationPct ?? 0}% sat`
+                      : r.verdict?.amplificationFactor != null
+                        ? `${r.verdict.amplificationFactor}×`
+                        : '—'}
                   </td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>
                     {r.verdict?.mitigation?.collateralPct != null

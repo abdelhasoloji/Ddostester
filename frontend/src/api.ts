@@ -304,6 +304,14 @@ export interface BenchVerdict {
     dropped?: number;
     collateralPct?: number;
   } | null;
+  connections?: {
+    opened?: number;
+    accepted?: number;
+    refused?: number;
+    concurrentPeak?: number;
+    capacity?: number;
+    saturationPct?: number;
+  } | null;
   outcome?: string;
   runner?: string;
   source?: string;
