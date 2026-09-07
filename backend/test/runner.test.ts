@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { executeCampaign } from '../src/modules/campaigns/runner.js';
 import { KillSwitch } from '../src/modules/probe/probe.js';
+import { renderCampaignReportHtml } from '../src/modules/reports/report.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 
 describe('executeCampaign — run time-series', () => {
@@ -90,5 +91,25 @@ describe('executeCampaign — run time-series', () => {
     const run = await executeCampaign(makeCampaign(), ['127.0.0.1'], kill);
     expect(run.status).toBe('KILLED_MANUAL');
     expect(run.statusDetail).toMatch(/Manually stopped/);
+  }, 15000);
+
+  it('the HTML report carries the kill explanation (not just the bare status)', async () => {
+    const campaign = makeCampaign();
+    const kill = new KillSwitch();
+    kill.trigger('KILLED_AUTO');
+    const run = await executeCampaign(campaign, ['127.0.0.1'], kill);
+    const html = renderCampaignReportHtml(campaign, run);
+    // The report must explain *why* the run ended, mirroring the UI drawer.
+    expect(html).toContain('KILLED_AUTO');
+    expect(html).toContain(run.statusDetail!);
+    expect(html).toMatch(/Auto-killed/);
+  }, 15000);
+
+  it('a clean completion adds no kill callout to the report', async () => {
+    const campaign = makeCampaign();
+    const run = await executeCampaign(campaign, ['127.0.0.1'], new KillSwitch());
+    const html = renderCampaignReportHtml(campaign, run);
+    expect(run.status).toBe('COMPLETED');
+    expect(html).not.toContain('class="kill"');
   }, 15000);
 });

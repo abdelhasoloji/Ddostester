@@ -29,6 +29,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  .score{font-size:2rem;font-weight:700;color:#003484}
  .level{padding:.2rem .6rem;border-radius:4px;background:#e3f0fc;color:#003484;font-weight:700}
  .muted{color:#666}
+ .kill{border:1px solid #d33;background:#fdecec;color:#9a1b1b;padding:.6rem .8rem;border-radius:6px;margin:1rem 0;font-weight:500}
  .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
  @media print{.print-btn{display:none}body{margin:0}}
 </style></head><body>
@@ -46,6 +47,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>Approver</th><td>${esc(campaign.approvedBy ?? '—')}</td></tr>
  <tr><th>Final status</th><td><strong>${run.status}</strong></td></tr>
 </table>
+${run.statusDetail ? `<div class="kill">🛑 ${esc(run.statusDetail)}</div>` : ''}
 
 <h2>Resiliency score (WRS)</h2>
 <p><span class="score">${w.wrs}</span> / 100 &nbsp; <span class="level">Level ${w.level}</span></p>
