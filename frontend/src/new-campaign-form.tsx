@@ -14,11 +14,13 @@ import {
   parseFlowJson,
 } from './campaign-form.js';
 
-/** Client-side mirror of the server's HARD_CAPS, for inline validation hints. */
-const HARD_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 };
-
 export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
   const app = useApp();
+  // The server's HARD_CAPS (single source of truth), delivered via /health and
+  // read from context — never hardcoded here, so the form's hints and the
+  // server's enforcement can never drift. Used only for inline hints; the
+  // backend enforces the caps regardless.
+  const caps = app.hardCaps;
   const [form, setForm] = useState({ ...emptyForm });
   const [attested, setAttested] = useState(false);
   const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
@@ -97,11 +99,11 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
   })();
   const capsOk =
     form.maxRps > 0 &&
-    form.maxRps <= HARD_CAPS.maxRps &&
+    form.maxRps <= caps.maxRps &&
     form.concurrency >= 1 &&
-    form.concurrency <= HARD_CAPS.concurrency &&
+    form.concurrency <= caps.maxConcurrency &&
     form.maxDurationSec >= 1 &&
-    form.maxDurationSec <= HARD_CAPS.maxDurationSec;
+    form.maxDurationSec <= caps.maxDurationSec;
   const identityOk = app.authRequired ? app.identity !== null : app.operator.trim() !== '';
   const canCreate = canDo(app.role, 'create', app.authRequired);
   const formValid =
@@ -270,7 +272,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               setAppliedPreset(null);
             }}
           />
-          <span className="hint">cap {HARD_CAPS.maxRps}</span>
+          <span className="hint">cap {caps.maxRps}</span>
         </div>
         <div className="field">
           <label>Concurrency</label>
@@ -282,7 +284,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               setAppliedPreset(null);
             }}
           />
-          <span className="hint">1–{HARD_CAPS.concurrency}</span>
+          <span className="hint">1–{caps.maxConcurrency}</span>
         </div>
         <div className="field">
           <label>Max duration (s)</label>
@@ -294,7 +296,7 @@ export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
               setAppliedPreset(null);
             }}
           />
-          <span className="hint">≤ {HARD_CAPS.maxDurationSec}s (15 min)</span>
+          <span className="hint">≤ {caps.maxDurationSec}s (15 min)</span>
         </div>
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>

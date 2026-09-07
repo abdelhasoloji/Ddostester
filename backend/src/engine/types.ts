@@ -65,15 +65,16 @@ export interface WeightedEndpoint {
   weight?: number;
 }
 
-/** Bounds for request flows (defense in depth). */
-export const MAX_FLOW_STEPS = 20;
-export const MAX_THINK_MS = 30_000;
-/** Max distinct endpoints in a traffic mix. */
-export const MAX_ENDPOINTS = 20;
-/** Max distinct User-Agent strings in a rotation set. */
-export const MAX_USER_AGENTS = 50;
-/** Max rows in a data-driven feeder dataset. */
-export const MAX_DATASET_ROWS = 1000;
+// Run-shape bounds (defense in depth) are defined once in config/limits.ts (the
+// single source of truth) and re-exported here so existing importers keep
+// working. Do not redefine them here.
+export {
+  MAX_FLOW_STEPS,
+  MAX_THINK_MS,
+  MAX_ENDPOINTS,
+  MAX_USER_AGENTS,
+  MAX_DATASET_ROWS,
+} from '../config/limits.js';
 
 /**
  * Optional response assertion (functional health under load): every generator

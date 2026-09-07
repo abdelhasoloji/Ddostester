@@ -323,6 +323,20 @@ export interface LiveProgressData {
   probe?: { samples: number; available: number; errorRate5xx: number };
 }
 
+/**
+ * The server's HARD_CAPS, delivered by `/health`. The backend
+ * (`backend/src/config/limits.ts`) is the single source of truth; the frontend
+ * never hardcodes these — it displays whatever the server reports. `DEFAULT_CAPS`
+ * is a pre-load fallback for inline hints only; the backend always enforces the
+ * real caps regardless.
+ */
+export interface HardCaps {
+  maxRps: number;
+  maxConcurrency: number;
+  maxDurationSec: number;
+}
+export const DEFAULT_CAPS: HardCaps = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
@@ -336,6 +350,7 @@ export const api = {
         notifications?: string[];
         protection?: boolean;
         tlsInsecure?: boolean;
+        hardCaps?: HardCaps;
       }>(r),
     ),
   login: (email: string, password: string) =>

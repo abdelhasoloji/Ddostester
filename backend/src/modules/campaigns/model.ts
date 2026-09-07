@@ -125,12 +125,8 @@ export interface Campaign extends CampaignInput {
   statusDetail?: string;
 }
 
-/** Hard caps, non-bypassable via the API (defense in depth). */
-export const HARD_CAPS = {
-  maxRps: 2000,
-  maxConcurrency: 500,
-  maxDurationSec: 900, // absolute time-based timeout (15 min, TSD §5.1)
-} as const;
-
-/** Minimum spacing between recurring runs (avoids hammering a target). */
-export const MIN_RECURRENCE_MIN = 15;
+// Safety caps and the recurrence floor are defined once in config/limits.ts
+// (the single source of truth) and re-exported here for backward compatibility
+// so existing importers keep working. Do not redefine them here.
+export { HARD_CAPS, MIN_RECURRENCE_MIN } from '../../config/limits.js';
+export type { HardCaps } from '../../config/limits.js';

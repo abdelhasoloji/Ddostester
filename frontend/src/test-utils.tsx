@@ -7,6 +7,9 @@ import type { ReactElement } from 'react';
 export function makeApp(overrides: Record<string, unknown> = {}) {
   return {
     allowed: ['127.0.0.1', 'localhost'],
+    // Test fixture value (not the app's config source of truth — that is the
+    // backend's HARD_CAPS via /health). Mirrors DEFAULT_CAPS in api.ts.
+    hardCaps: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     agentName: 'builtin-http',
     notifications: [],
     protection: false,

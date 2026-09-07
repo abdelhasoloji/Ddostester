@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { HARD_CAPS } from '../campaigns/model.js';
 import type { CampaignInput, LoadVector, ScenarioPhase } from '../campaigns/model.js';
-import { MAX_ENDPOINTS } from '../../engine/types.js';
+import {
+  HARD_CAPS,
+  MAX_ENDPOINTS,
+  MAX_PLAYBOOK_STEPS as MAX_STEPS,
+  MAX_PLAYBOOK_HEADERS as MAX_HEADERS,
+} from '../../config/limits.js';
 
 export class PlaybookError extends Error {}
 
@@ -97,8 +101,6 @@ export interface Playbook {
 
 const PROFILES = ['constant', 'ramp', 'wave'];
 const VECTORS = ['http-get', 'http-post'];
-const MAX_STEPS = 12;
-const MAX_HEADERS = 10;
 
 /**
  * Validates a user-submitted playbook and returns a clean, stored Playbook.

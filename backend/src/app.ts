@@ -21,6 +21,7 @@ import { executeCampaign } from './modules/campaigns/runner.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
+import { HARD_CAPS } from './config/limits.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
@@ -332,6 +333,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     protection: protection.configured,
     targetTelemetry: targetTelemetry.configured,
     tlsInsecure: tlsInsecure(),
+    // The server's HARD_CAPS are the single source of truth (config/limits.ts).
+    // The frontend reads them from here instead of keeping its own copy, so the
+    // two can never drift.
+    hardCaps: HARD_CAPS,
   }));
 
   // Readiness probe: 503 when the store is unreachable (e.g. DB down), so a

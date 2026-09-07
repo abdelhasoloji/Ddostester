@@ -1,7 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setToken, getToken } from './api.js';
-import type { AgentInfo, Campaign, CampaignRun, Role, AuditEntry, WrsSeries } from './api.js';
+import { api, setToken, getToken, DEFAULT_CAPS } from './api.js';
+import type {
+  AgentInfo,
+  Campaign,
+  CampaignRun,
+  Role,
+  AuditEntry,
+  WrsSeries,
+  HardCaps,
+} from './api.js';
 import type { Preset } from './presets.js';
 
 export interface Identity {
@@ -29,6 +37,8 @@ let toastSeq = 0;
 interface Ctx {
   allowed: string[];
   labTargets: string[];
+  /** Server HARD_CAPS (single source of truth); from /health, DEFAULT_CAPS until loaded. */
+  hardCaps: HardCaps;
   agentName: string;
   notifications: string[];
   protection: boolean;
@@ -87,6 +97,7 @@ export function useApp(): Ctx {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [labTargets, setLabTargets] = useState<string[]>([]);
+  const [hardCaps, setHardCaps] = useState<HardCaps>(DEFAULT_CAPS);
   const [agentName, setAgentName] = useState('');
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
@@ -140,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(async (h) => {
         setAllowed(h.allowedTargets);
         setLabTargets(h.labTargets ?? []);
+        setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
         setAgentName(h.agent ?? '');
         setNotifications(h.notifications ?? []);
         setProtection(h.protection ?? false);
@@ -286,6 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     allowed,
     labTargets,
+    hardCaps,
     agentName,
     notifications,
     protection,

@@ -68,5 +68,11 @@ brief or plan against it rather than trusting the brief's own status.
 - TypeScript strict, ESM (imports end in `.js`). Comments in English.
 - Safeguards first: allowlist, `HARD_CAPS`, attestation, approval, kill switch,
   audit — never bypass or weaken them.
+- All safety caps and run-shape bounds live in ONE file, `backend/src/config/limits.ts`
+  (the single source of truth): `HARD_CAPS`, `MIN_RECURRENCE_MIN`, `MAX_ENDPOINTS`,
+  `MAX_USER_AGENTS`, `MAX_FLOW_STEPS`, `MAX_THINK_MS`, `MAX_DATASET_ROWS`,
+  `MAX_PLAYBOOK_STEPS`, `MAX_PLAYBOOK_HEADERS`. Other modules re-export from it;
+  the frontend reads `HARD_CAPS` from `/health`. Define a new limit here — never
+  a second copy. `backend/test/limits.test.ts` locks this down.
 - Every change: `npm run typecheck && npm test && npm run build` must pass.
 - Secrets are never committed; tokens are never logged (request serializer).
