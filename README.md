@@ -18,8 +18,11 @@ authorization to test**.
 - **PROBE** — legitimate probe + 3-level kill switch (auto / manual / time-based).
 - **WRS** — resilience scoring + **per-target history & regression detection**.
 - **RPT** — HTML campaign report + **aggregated compliance report (DORA/NIS2)**.
-- **Auth + RBAC** — JWT, engineer / officer / viewer roles (toggleable), runtime
-  user management (officer) on top of immutable env-defined users.
+- **Auth + RBAC** — JWT, engineer / officer / viewer / ciso roles (toggleable),
+  runtime user management (officer) on top of immutable env-defined users.
+- **Two-layer caps** — a frozen, immutable `HARD_CAPS` ceiling; the **CISO** role
+  sets the effective operational limits from the UI, always clamped ≤ the ceiling
+  and audited (`config/limits.ts`, `PUT /api/limits`).
 - **Persistence** — PostgreSQL (memory fallback).
 - **Scheduler** — scheduled + recurring campaign execution (CAM-01).
 - **Playbooks** — one-click curated assessment sequences (bounded, still governed).

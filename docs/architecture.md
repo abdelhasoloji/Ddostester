@@ -45,7 +45,8 @@ Browser (via SSH tunnel)
 | App       | `backend/src/app.ts`                                 | `buildApp()` factory: routes + logic (testable via inject), token-free logs    |
 | Server    | `backend/src/server.ts`                              | Entry point: store, auth, scheduler, listen                                    |
 | Scheduler | `backend/src/modules/campaigns/scheduler.ts`         | Scheduled execution of approved campaigns (CAM-01)                             |
-| Auth      | `backend/src/auth/`                                  | JWT + RBAC (engineer/officer/viewer)                                           |
+| Auth      | `backend/src/auth/`                                  | JWT + RBAC (engineer/officer/viewer/ciso)                                      |
+| Limits    | `backend/src/config/limits.ts`                       | Frozen `HARD_CAPS` ceiling + CISO-set operational caps (`PUT /api/limits`)     |
 | Audit     | `backend/src/modules/audit/`                         | Persistent audit log                                                           |
 
 ## Campaign flow

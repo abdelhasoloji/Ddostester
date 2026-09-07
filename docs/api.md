@@ -123,6 +123,35 @@ curl -s localhost:8080/api/agents
 # {"default":"builtin-http","agents":[{"id":"builtin","name":"builtin-http","available":true,"multiPhase":true,...}, ...]}
 ```
 
+## `GET /api/limits`
+
+The caps the server enforces. Any authenticated reader. Returns the immutable
+ceiling and the effective operational limits:
+
+```jsonc
+{
+  "ceiling": { "maxRps": 2000, "maxConcurrency": 500, "maxDurationSec": 900 },
+  "effective": { "maxRps": 2000, "maxConcurrency": 500, "maxDurationSec": 900 },
+}
+```
+
+`/health` also carries these as `hardCapsCeiling` (ceiling) and `hardCaps`
+(effective).
+
+## `PUT /api/limits`
+
+**CISO only** (`limits:manage`). Sets the operational limits (the effective
+caps). Each field must be an integer within `[1, ceiling]`; a value above the
+immutable `HARD_CAPS` ceiling — or non-integer / `< 1` — is rejected `400`, and
+the accepted value is re-clamped `≤ ceiling` server-side. The change is written
+to the audit chain (`limits.update`). Returns the same shape as `GET`.
+
+```bash
+curl -sX PUT localhost:8080/api/limits -H "authorization: Bearer $CISO" \
+  -H 'content-type: application/json' \
+  -d '{"maxRps":500,"maxConcurrency":100,"maxDurationSec":300}'
+```
+
 ## `GET /api/audit`
 
 Audit log (read). `limit` query (default 200).

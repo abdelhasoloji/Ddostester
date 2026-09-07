@@ -6,15 +6,21 @@ accept Keycloak tokens (same scheme).
 
 ## Roles (TSD §4.1)
 
-| Role                           | Permissions                                         |
-| ------------------------------ | --------------------------------------------------- |
-| `engineer` (Security Engineer) | create, execute, kill, read                         |
-| `officer` (Security Officer)   | **approve/reject** + everything the engineer can do |
-| `viewer` (SOC / NOC)           | read + emergency **kill switch**                    |
+| Role                           | Permissions                                                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `engineer` (Security Engineer) | create, execute, kill, read                                                                                                       |
+| `officer` (Security Officer)   | **approve/reject** + everything the engineer can do; runtime user mgmt                                                            |
+| `viewer` (SOC / NOC)           | read + emergency **kill switch**                                                                                                  |
+| `ciso` (CISO)                  | read + kill + **set the operational limits** (`limits:manage`) — governance only, **not** an operator (no create/approve/execute) |
 
 - **Separation of duties**: the approver (officer) must differ from the author;
   author and approver are **derived from the token** (cannot be spoofed via the
   request body).
+- **Separation of governance**: the `officer` runs operations and manages users;
+  the `ciso` alone sets the operational limits. Neither can do the other's job.
+  The operational limits are always **clamped ≤ the immutable `HARD_CAPS`
+  ceiling** (`config/limits.ts`), which no role can change from any interface —
+  see [`safeguards.md`](./safeguards.md).
 
 ## Configuration
 
@@ -30,7 +36,8 @@ npm run hash-password -w backend -- MyPassword
 export AUTH_USERS='[
   {"email":"eng@wedos","role":"engineer","passwordHash":"scrypt$..."},
   {"email":"off@wedos","role":"officer","passwordHash":"scrypt$..."},
-  {"email":"soc@wedos","role":"viewer","passwordHash":"scrypt$..."}
+  {"email":"soc@wedos","role":"viewer","passwordHash":"scrypt$..."},
+  {"email":"ciso@wedos","role":"ciso","passwordHash":"scrypt$..."}
 ]'
 
 # 4) deploy (secrets go into /etc/ddostester.env, chmod 600)
@@ -72,6 +79,8 @@ runtime users are strictly additive to the existing model.
 | POST   | `/api/campaigns/:id/execute`          | engineer/officer    |
 | POST   | `/api/campaigns/:id/kill`             | all                 |
 | GET    | `/api/campaigns`, `/api/runs`, report | all (read)          |
+| GET    | `/api/limits`                         | all (read)          |
+| PUT    | `/api/limits`                         | **ciso**            |
 
 Send the token via the `Authorization: Bearer <token>` header. The report
 (opened in a tab) also accepts `?token=<token>`.

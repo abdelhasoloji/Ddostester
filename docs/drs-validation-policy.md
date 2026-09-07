@@ -217,6 +217,9 @@ table drives verification, not exploitation.
 
 ## 11. Roles & responsibilities
 
+- **CISO** — owns the safety envelope: the only role that sets the operational
+  limits (the effective caps, always ≤ the immutable `HARD_CAPS` ceiling), from
+  the UI, audited. Governance only — not an operator.
 - **Security Officer** — authorizes each campaign, owns scope and window.
 - **Engineer** — authors the validation campaign; does not self-approve.
 - **Runner operator** — maintains the isolated runner; the only party that can
