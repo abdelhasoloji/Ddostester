@@ -4,6 +4,7 @@ import {
   api,
   auditExportUrl,
   complianceUrl,
+  compareUrl,
   reportUrl,
   runsCsvUrl,
   suiteReportUrl,
@@ -428,6 +429,7 @@ export function ReportsPage() {
         sub="Assessment suites, campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
       />
       <SuitesSection />
+      {withRun.length >= 2 && <CompareSection campaigns={withRun} />}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2>Aggregated compliance</h2>
         <p className="hint">
@@ -467,6 +469,57 @@ export function ReportsPage() {
         </div>
       )}
     </>
+  );
+}
+
+/** Before / after comparison: pick two runs (same target ideally) and open the delta report. */
+function CompareSection({ campaigns }: { campaigns: Campaign[] }) {
+  const [a, setA] = useState(campaigns[0]?.id ?? '');
+  const [b, setB] = useState(campaigns[1]?.id ?? '');
+  const ca = campaigns.find((c) => c.id === a);
+  const cb = campaigns.find((c) => c.id === b);
+  const opt = (c: Campaign) => `${c.name}${c.wrs ? ` — WRS ${c.wrs.wrs}` : ''}`;
+  const canCompare = ca?.runId && cb?.runId && a !== b;
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <h2>Before / after comparison</h2>
+      <p className="hint">
+        Compare two runs (typically the same target before and after a protection change) — WRS,
+        availability, latency, mitigation and TTD/TTM, side by side.
+      </p>
+      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <select value={a} onChange={(e) => setA(e.target.value)} aria-label="Run A (before)">
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>
+              A · {opt(c)}
+            </option>
+          ))}
+        </select>
+        <span aria-hidden="true">→</span>
+        <select value={b} onChange={(e) => setB(e.target.value)} aria-label="Run B (after)">
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>
+              B · {opt(c)}
+            </option>
+          ))}
+        </select>
+        {canCompare ? (
+          <a
+            className="btn btn-primary btn-sm"
+            href={compareUrl(ca!.runId!, cb!.runId!)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open comparison ↗
+          </a>
+        ) : (
+          <button className="btn btn-primary btn-sm" disabled>
+            Open comparison ↗
+          </button>
+        )}
+      </div>
+      {a !== '' && a === b && <p className="hint">Pick two different runs to compare.</p>}
+    </div>
   );
 }
 

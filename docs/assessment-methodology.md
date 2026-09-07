@@ -54,6 +54,12 @@ The per-run detail already exists (campaign report, now with the kill
 explanation). This methodology adds the **assessment-level** shape to the
 aggregate compliance report.
 
+**Before / after comparison.** `GET /api/reports/compare?a=<runId>&b=<runId>`
+(and the _Before / after comparison_ card on the Reports page) renders two runs
+side by side with signed deltas — WRS, availability, probe p95, mitigation
+verdict, RiskLevel and TTD/TTM — and an _Improved / Regressed_ headline. This is
+the core zeroBS deliverable ("did the protection improve?"), on bounded runs.
+
 ## 3. Scoring & vocabulary (zeroBS ↔ ShieldTest)
 
 | Term                       | zeroBS meaning                                | ShieldTest mapping                                          |

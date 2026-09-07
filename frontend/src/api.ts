@@ -291,6 +291,13 @@ export function complianceUrl(): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL of the before/after comparison of two runs (token in the query if auth on). */
+export function compareUrl(runIdA: string, runIdB: string): string {
+  const q = `a=${encodeURIComponent(runIdA)}&b=${encodeURIComponent(runIdB)}`;
+  const u = `/api/reports/compare?${q}`;
+  return token ? `${u}&token=${encodeURIComponent(token)}` : u;
+}
+
 /** URL of an assessment suite's consolidated HTML report. */
 export function suiteReportUrl(suiteId: string): string {
   const u = `/api/suites/${suiteId}/report`;

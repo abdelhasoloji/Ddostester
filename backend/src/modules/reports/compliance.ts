@@ -29,7 +29,7 @@ function hostOf(url: string): string {
 }
 
 /** Probe availability (%) measured during the run; 100 when no probe samples. */
-function availabilityPct(run: CampaignRun): number {
+export function availabilityPct(run: CampaignRun): number {
   return run.probe.samples ? (run.probe.available / run.probe.samples) * 100 : 100;
 }
 
@@ -37,7 +37,7 @@ function availabilityPct(run: CampaignRun): number {
  * Mitigation / availability verdict (bounded meaning, see methodology §3.2):
  * what happened to legitimate traffic while the bounded load ran.
  */
-function mitigationVerdict(run: CampaignRun): { label: string; cls: string } {
+export function mitigationVerdict(run: CampaignRun): { label: string; cls: string } {
   if (run.status === 'KILLED_MANUAL') return { label: 'Aborted', cls: 'v-aborted' };
   if (run.status === 'KILLED_AUTO') return { label: 'Failed (impact)', cls: 'v-fail' };
   return availabilityPct(run) >= 99
@@ -46,7 +46,7 @@ function mitigationVerdict(run: CampaignRun): { label: string; cls: string } {
 }
 
 /** RiskLevel (Low / Medium / Critical), scored on status + availability + WRS. */
-function riskLevel(run: CampaignRun): { label: string; cls: string } {
+export function riskLevel(run: CampaignRun): { label: string; cls: string } {
   const avail = availabilityPct(run);
   if (run.status === 'KILLED_AUTO' || run.wrs.wrs < 55 || avail < 90)
     return { label: 'Critical', cls: 'r-crit' };

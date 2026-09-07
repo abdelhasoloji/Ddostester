@@ -5,6 +5,7 @@ import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
+import { renderCompareHtml } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
 import { runsSummaryCsv, runTimelineCsv } from '../modules/reports/csv.js';
 import { buildSuites, renderSuiteReportHtml } from '../modules/playbooks/suites.js';
@@ -126,5 +127,23 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const c = await store.getCampaign(r.campaignId);
     if (!c) return reply.code(404).send({ error: 'campaign not found' });
     return reply.type('text/html').send(renderCampaignReportHtml(c, r));
+  });
+
+  // Before / after comparison of two runs (e.g. same target pre/post a
+  // protection change). Read-only; generates no traffic.
+  app.get('/api/reports/compare', async (req, reply) => {
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    const { a, b } = req.query as { a?: string; b?: string };
+    if (!a || !b) return reply.code(400).send({ error: 'both run ids (a, b) are required' });
+    const [ra, rb] = await Promise.all([store.getRun(a), store.getRun(b)]);
+    if (!ra || !rb) return reply.code(404).send({ error: 'run not found' });
+    const [ca, cb] = await Promise.all([
+      store.getCampaign(ra.campaignId),
+      store.getCampaign(rb.campaignId),
+    ]);
+    if (!ca || !cb) return reply.code(404).send({ error: 'campaign not found' });
+    return reply
+      .type('text/html')
+      .send(renderCompareHtml({ campaign: ca, run: ra }, { campaign: cb, run: rb }));
   });
 }
