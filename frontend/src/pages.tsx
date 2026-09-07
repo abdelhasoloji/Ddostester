@@ -27,6 +27,7 @@ import {
   CampaignDrawer,
   ExecuteModal,
   NewCampaignForm,
+  NewCampaignWizard,
   VerdictBadge,
   WrsPill,
   WrsTrend,
@@ -307,7 +308,15 @@ export function CampaignsPage() {
           </button>
         </div>
       )}
-      {showForm && <NewCampaignForm onDone={() => setShowForm(false)} />}
+      {showForm &&
+        (app.draftPreset ? (
+          // A preset queued from the Guide jumps straight into the classic form
+          // (which consumes draftPreset); the "＋ New campaign" button uses the
+          // guided wizard.
+          <NewCampaignForm onDone={() => setShowForm(false)} />
+        ) : (
+          <NewCampaignWizard onDone={() => setShowForm(false)} />
+        ))}
 
       <h2 className="section-title">
         Campaign list <span className="hint">({filtered.length})</span>
@@ -1023,7 +1032,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Create',
-    body: 'Fill the new-campaign form (or start from a preset), and pick a load engine. Target and probe must be in the allowlist; you attest you are authorized to test them.',
+    body: 'The guided wizard walks you through it: pick an objective, choose an allowlisted target, and it recommends the best-fit template (a single test or a full assessment) based on the target\'s history, installed engines and the current limits. "Advanced" opens the full form. You attest you are authorized to test the target.',
   },
   {
     n: 2,

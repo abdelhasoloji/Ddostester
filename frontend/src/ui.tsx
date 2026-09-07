@@ -15,6 +15,7 @@ import { useApp, canDo } from './context.js';
 import { formatInterval } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
+export { NewCampaignWizard } from './new-campaign-wizard.js';
 export {
   buildAcceptance,
   buildAssertion,

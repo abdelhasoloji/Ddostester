@@ -2,10 +2,32 @@
 
 Prerequisites: service deployed, SSH tunnel open, `http://localhost:8080` reachable.
 
+## Guided new-campaign wizard
+
+The **＋ New campaign** button opens a 4-step guided journey — **Objective →
+Target → Template → Review**:
+
+1. **Objective** — say what you want to learn (readiness, capacity, spike
+   resilience, threat-informed, endurance). This filters the catalogue.
+2. **Target** — pick an allowlisted host (one-click chips). The wizard shows the
+   target's last WRS and whether a regression was seen.
+3. **Template** — a unified catalogue of presets (single tests) and playbooks
+   (multi-step assessment suites). The best-fit is **pre-selected and marked ★
+   Recommended**, chosen from the target's history (first run → gentlest; strong
+   last score → step up; regression → re-baseline), installed engines, and the
+   current effective caps. Each card shows peak RPS, duration, estimated requests
+   and DRS level; a template above the current operational limit is disabled with
+   the exact reason.
+4. **Review** — a summary (what will run, volume, "within effective caps ✓"),
+   the authorization attestation, and **Create**. A preset creates one campaign;
+   a playbook instantiates the whole suite. **Advanced** opens the full classic
+   form, seeded with your choices.
+
 ## Closed-loop test (validating the chain)
 
 Without configuring any external target, you can validate the whole pipeline by
-aiming at the service itself (`127.0.0.1`, already in the allowlist).
+aiming at the service itself (`127.0.0.1`, already in the allowlist). You can use
+the guided wizard above, or the classic form directly.
 
 1. **New campaign**:
    - Name: `Autotest`

@@ -14,14 +14,21 @@ import {
   parseFlowJson,
 } from './campaign-form.js';
 
-export function NewCampaignForm({ onDone }: { onDone?: () => void }) {
+export function NewCampaignForm({
+  onDone,
+  initial,
+}: {
+  onDone?: () => void;
+  /** Seed values (e.g. carried over from the guided wizard's "Advanced" step). */
+  initial?: Partial<typeof emptyForm>;
+}) {
   const app = useApp();
   // The server's HARD_CAPS (single source of truth), delivered via /health and
   // read from context — never hardcoded here, so the form's hints and the
   // server's enforcement can never drift. Used only for inline hints; the
   // backend enforces the caps regardless.
   const caps = app.hardCaps;
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState({ ...emptyForm, ...initial });
   const [attested, setAttested] = useState(false);
   const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
 
