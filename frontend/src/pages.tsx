@@ -1102,6 +1102,7 @@ function PlaybooksSection() {
                   {s.vector === 'http-post' ? ' · POST' : ''}
                   {s.paths?.length ? ` · ${s.paths.length} endpoints` : ''}
                   {s.rotateUa ? ' · UA rotation' : ''}
+                  {s.headers ? ` · ${Object.keys(s.headers).length} headers` : ''}
                 </li>
               ))}
             </ol>

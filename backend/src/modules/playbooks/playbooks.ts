@@ -50,6 +50,12 @@ export interface PlaybookStep {
   paths?: string[];
   /** Optional realism (built-in engine only): rotate the DEFAULT_UA_SET. */
   rotateUa?: boolean;
+  /**
+   * Optional custom request headers (built-in engine only) — benign strings for
+   * a finer client fingerprint (e.g. Accept-Language, a mobile app header).
+   * Never changes how requests are sent, only what headers they carry.
+   */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -92,6 +98,7 @@ export interface Playbook {
 const PROFILES = ['constant', 'ramp', 'wave'];
 const VECTORS = ['http-get', 'http-post'];
 const MAX_STEPS = 12;
+const MAX_HEADERS = 10;
 
 /**
  * Validates a user-submitted playbook and returns a clean, stored Playbook.
@@ -141,6 +148,24 @@ export function validatePlaybookInput(input: unknown): Playbook {
       paths = s.paths.map((p) => String(p)).filter((p) => p.trim());
       if (paths.length === 0) paths = undefined;
     }
+    let headers: Record<string, string> | undefined;
+    if (s.headers !== undefined) {
+      if (typeof s.headers !== 'object' || s.headers === null || Array.isArray(s.headers)) {
+        throw new PlaybookError(`${label}: headers must be an object of string values.`);
+      }
+      const entries = Object.entries(s.headers as Record<string, unknown>);
+      if (entries.length > MAX_HEADERS) {
+        throw new PlaybookError(`${label}: at most ${MAX_HEADERS} headers.`);
+      }
+      const clean: Record<string, string> = {};
+      for (const [k, v] of entries) {
+        if (typeof v !== 'string') {
+          throw new PlaybookError(`${label}: header "${k}" must be a string.`);
+        }
+        if (k.trim()) clean[k.trim()] = v;
+      }
+      headers = Object.keys(clean).length ? clean : undefined;
+    }
     return {
       name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : label,
       summary: typeof s.summary === 'string' ? s.summary : '',
@@ -152,6 +177,7 @@ export function validatePlaybookInput(input: unknown): Playbook {
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
       paths,
       rotateUa: s.rotateUa === true,
+      headers,
     };
   });
   let drsLevel: number | undefined;
@@ -663,6 +689,49 @@ export const PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-header-fingerprint',
+    name: 'Header fingerprint',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a bounded wave that carries a fixed set of custom request headers ' +
+      '(a specific client fingerprint) while rotating the User-Agent.',
+    when: 'Test header/fingerprint-based classification (bot management, device rules).',
+    threat: {
+      technique: 'Client fingerprint spoofing via headers',
+      reference: 'zeroBS L7 — get_flood (IoT v2)',
+      measures: 'Header/fingerprint-based classification and rule matching at the edge.',
+      notReproduced:
+        'Bounded rate; benign, fixed header values — no TLS/JA4 manipulation, no exhaustion.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Fingerprint wave',
+        summary: 'Waves carrying a fixed client fingerprint (custom headers), rotating UA.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        rotateUa: true,
+        headers: {
+          'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
+          'X-Requested-With': 'com.example.mobileapp',
+          'Sec-CH-UA-Mobile': '?1',
+        },
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',
@@ -750,6 +819,7 @@ export function buildSuiteCampaigns(
     const endpoints =
       builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
     const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
+    const headers = builtin && step.headers ? step.headers : undefined;
     return {
       name: `${playbook.name} — ${step.name}`,
       description: step.summary,
@@ -765,6 +835,7 @@ export function buildSuiteCampaigns(
       agent,
       endpoints,
       userAgents,
+      headers,
       recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
       suiteId,
       suiteName: playbook.name,

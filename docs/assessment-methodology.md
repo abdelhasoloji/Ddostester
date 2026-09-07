@@ -154,6 +154,14 @@ each part is validated.
    (`http_multivector`), `threat-iot-botnet` (`get_flood IoT v2`),
    `threat-ramp-plateau` (RampUp/Plateau), `threat-sync-pulse` (THOR) and
    `threat-chaos` (Chewy/Chaos). Ten threat-informed playbooks in total.
-5. Remaining (optional): surface `vector` and `drsLevel` inputs in the custom
-   playbook editor; a `threat-slowloris-bounded` scenario once per-request
-   think-time lands (levier B).
+5. ✅ Measured protection surfaced end to end: the run carries real TTD/TTM, a
+   **Protection (measured)** panel/section shows them, and the WRS is no longer
+   `estimated` when a source reports (`reports/report.ts`, `ui.tsx`, `wrs.md`).
+6. ✅ **Before / after comparison** report + Reports-page card
+   (`reports/compare.ts`, `GET /api/reports/compare`).
+7. ✅ Custom request **headers** on playbook steps (built-in engine, benign
+   values, ≤10) + a `threat-header-fingerprint` scenario (DRS 4).
+8. Remaining (levier B): a `threat-slowloris-bounded` scenario once per-request
+   think-time lands; a multi-target "carpet" suite (one bounded load across
+   several allowlisted targets); surface `vector`/`drsLevel`/`headers` inputs in
+   the custom playbook editor UI.

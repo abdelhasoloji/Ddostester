@@ -101,6 +101,7 @@ export interface Playbook {
     agent?: string;
     paths?: string[];
     rotateUa?: boolean;
+    headers?: Record<string, string>;
   }[];
 }
 

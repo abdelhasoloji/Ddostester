@@ -185,6 +185,30 @@ describe('playbook step vector validation', () => {
       validatePlaybookInput({ name: 'x', steps: [step({ vector: 'http-put' })] }),
     ).toThrow(/vector/);
   });
+
+  it('accepts custom string headers and rejects non-string / too many', () => {
+    const ok = validatePlaybookInput({
+      name: 'x',
+      steps: [step({ headers: { 'Accept-Language': 'cs-CZ', 'X-App': 'mobile' } })],
+    });
+    expect(ok.steps[0].headers).toEqual({ 'Accept-Language': 'cs-CZ', 'X-App': 'mobile' });
+    expect(() =>
+      validatePlaybookInput({ name: 'x', steps: [step({ headers: { A: 1 } })] }),
+    ).toThrow(/header/);
+    const many = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`H${i}`, 'v']));
+    expect(() => validatePlaybookInput({ name: 'x', steps: [step({ headers: many })] })).toThrow(
+      /headers/,
+    );
+  });
+
+  it('header-fingerprint playbook carries custom headers into its wave step', () => {
+    const pb = getPlaybook('threat-header-fingerprint')!;
+    expect(pb.drsLevel).toBe(4);
+    const wave = buildSuiteCampaigns(pb, target, engines).find((i) =>
+      i.name.includes('Fingerprint wave'),
+    )!;
+    expect(wave.headers).toMatchObject({ 'Accept-Language': expect.any(String) });
+  });
 });
 
 describe('DRS levels & the expanded threat catalogue', () => {
