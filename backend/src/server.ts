@@ -46,6 +46,9 @@ const LAB_TARGETS = (process.env.LAB_TARGETS ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+// Bearer token an isolated bench runner presents to claim/complete governed
+// class-C runs. Unset = governed dispatch disabled (fail-closed).
+const BENCH_RUNNER_TOKEN = (process.env.BENCH_RUNNER_TOKEN ?? '').trim();
 const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
 const SCHEDULER_INTERVAL_MS = intEnv('SCHEDULER_INTERVAL_MS', 30_000);
 const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90);
@@ -67,6 +70,7 @@ const { app, runCampaign } = await buildApp({
   protection,
   targetTelemetry,
   maxConcurrentRuns: MAX_CONCURRENT_RUNS,
+  benchRunnerToken: BENCH_RUNNER_TOKEN || undefined,
 });
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------

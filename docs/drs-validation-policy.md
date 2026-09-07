@@ -180,9 +180,26 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
   is also in `ALLOWED_TARGETS`, and a bad outcome — all fail-closed. It records;
   it never executes the technique.
 
-Remaining: the signed-job dispatch to the isolated runner, the per-technique
-pass/fail history surfaced in the assessment report, and the runner itself
-(external, per this policy).
+- **Governed class-C network-bench dispatch** (the record-and-dispatch loop for
+  the UDP-amplification bench). The control plane records a **CISO-authorized**
+  run request and serves it to an **isolated external runner** (the
+  `shieldtest-lab` repo); it never emits amplification traffic. Endpoints:
+  - `GET /api/bench/scenarios`, `GET /api/bench/runs[/:id]` (`bench:read`, CISO):
+    the allowlisted scenario catalogue and the run/verdict history.
+  - `POST /api/bench/runs` (`bench:dispatch`, CISO): records a run request for an
+    allowlisted scenario against a `LAB_TARGETS` host (fail-closed isolation, as
+    §4), audited `bench.request`. Disabled unless a `LAB_TARGETS` host **and** a
+    `BENCH_RUNNER_TOKEN` are configured.
+  - Runner API (bearer `BENCH_RUNNER_TOKEN`, never a user JWT):
+    `POST /api/bench/runs/next/claim` atomically claims the oldest request;
+    `POST /api/bench/runs/:id/result` posts back a **read-only class-C verdict**
+    (validated: `class === 'C'`, matching scenario), audited `bench.verdict`.
+    The verdict is class C — it is **not** a class-A/B `drs.verdict` and is never
+    recorded through `/api/drs-validations`; it is read-only evidence surfaced in
+    **Settings → Network bench (CISO)**. The runner is the only component that
+    emits the (bounded, loopback) amplification traffic.
+
+Remaining: the per-technique pass/fail history surfaced in the assessment report.
 
 ## 9. Defensive matrix (the practical companion)
 

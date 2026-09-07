@@ -1038,6 +1038,30 @@ input.invalid {
   border-radius: 999px;
   border: 1px solid transparent;
 }
+
+/* Network-bench runs table */
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.bench-table th,
+.bench-table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.bench-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.bench-table code {
+  font-family: var(--mono);
+}
 .engine-badge.ok {
   background: rgba(22, 163, 74, 0.12);
   color: var(--success);

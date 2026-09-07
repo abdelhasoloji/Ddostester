@@ -16,14 +16,15 @@ export interface Identity {
   email: string;
   role: Role;
 }
-export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage' | 'limits';
+export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage' | 'limits' | 'bench';
 const PERMS: Record<Role, Perm[]> = {
   officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],
   viewer: ['kill'],
-  // CISO: governance only — reads everything, emergency-kills, and is the sole
-  // role that can change the operational limits ('limits'). Not an operator.
-  ciso: ['kill', 'limits'],
+  // CISO: governance only — reads everything, emergency-kills, sets the
+  // operational limits ('limits'), and governs the class-C network bench
+  // ('bench': view + dispatch to the isolated runner). Not an operator.
+  ciso: ['kill', 'limits', 'bench'],
 };
 export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
   if (!authRequired) return true;

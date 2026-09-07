@@ -4,6 +4,7 @@ import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
+import type { BenchRun, BenchVerdict } from '../modules/bench/model.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
@@ -57,5 +58,21 @@ export interface Store {
    */
   getLimits(): Promise<OperationalLimits | undefined>;
   setLimits(limits: OperationalLimits): Promise<void>;
+  /**
+   * Governed class-C bench runs (record-and-dispatch). The control plane records
+   * a request and serves it read-only; an isolated external runner claims it,
+   * executes it OUTSIDE the control plane, and posts back a class-C verdict. No
+   * amplification traffic is ever emitted from here.
+   */
+  createBenchRun(run: BenchRun): Promise<void>;
+  getBenchRun(id: string): Promise<BenchRun | undefined>;
+  listBenchRuns(limit?: number): Promise<BenchRun[]>;
+  /** Atomically claim the oldest REQUESTED run for `runnerId` (→ CLAIMED). */
+  claimNextBenchRun(runnerId: string): Promise<BenchRun | undefined>;
+  /** Complete a CLAIMED run with a verdict (→ COMPLETED) or an error (→ FAILED). */
+  setBenchRunResult(
+    id: string,
+    result: { verdict?: BenchVerdict; error?: string },
+  ): Promise<BenchRun | undefined>;
   close(): Promise<void>;
 }

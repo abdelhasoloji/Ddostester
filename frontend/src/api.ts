@@ -275,6 +275,55 @@ export interface LimitsInfo {
   effective: HardCaps;
 }
 
+// --- Network bench (class C) — governed record-and-dispatch ----------------
+export interface BenchScenario {
+  name: string;
+  summary: string;
+  useScrubber: boolean;
+}
+export interface BenchVerdict {
+  schema: string;
+  class: 'C';
+  kind?: string;
+  scenario?: string;
+  labTarget?: string;
+  profiles?: string[];
+  amplificationFactor?: number;
+  packetAmplification?: number;
+  requests?: number;
+  target?: { packets?: number; avgPps?: number; avgBps?: number };
+  mitigation?: {
+    strategy?: string;
+    engaged?: boolean;
+    detectionSec?: number | null;
+    dropped?: number;
+    collateralPct?: number;
+  } | null;
+  outcome?: string;
+  runner?: string;
+  source?: string;
+  generatedAt?: string;
+}
+export type BenchRunStatus = 'REQUESTED' | 'CLAIMED' | 'COMPLETED' | 'FAILED';
+export interface BenchRun {
+  id: string;
+  scenario: string;
+  labTarget: string;
+  status: BenchRunStatus;
+  requestedBy: string;
+  requestedAt: string;
+  claimedAt?: string;
+  claimedBy?: string;
+  completedAt?: string;
+  verdict?: BenchVerdict;
+  error?: string;
+}
+export interface BenchCatalogue {
+  scenarios: BenchScenario[];
+  dispatchEnabled: boolean;
+  labTargets: string[];
+}
+
 /** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
   const u = `/api/runs/${runId}/report`;
@@ -388,6 +437,10 @@ export const api = {
     ),
   getLimits: () => get<LimitsInfo>('/api/limits'),
   setLimits: (caps: HardCaps) => put<LimitsInfo>('/api/limits', caps),
+  benchScenarios: () => get<BenchCatalogue>('/api/bench/scenarios'),
+  benchRuns: () => get<{ runs: BenchRun[] }>('/api/bench/runs'),
+  createBenchRun: (scenario: string, labTarget?: string) =>
+    post<BenchRun>('/api/bench/runs', labTarget ? { scenario, labTarget } : { scenario }),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

@@ -12,7 +12,12 @@ export type Permission =
   | 'user:manage'
   // Change the operational limits (the effective caps, always ≤ the immutable
   // HARD_CAPS ceiling). CISO only — the governance owner of the safety envelope.
-  | 'limits:manage';
+  | 'limits:manage'
+  // Network bench (class C): read the catalogue/runs/verdicts, and dispatch a
+  // governed run request (recorded here, executed by an isolated external runner
+  // — the control plane never emits the traffic). CISO only.
+  | 'bench:read'
+  | 'bench:dispatch';
 
 const MATRIX: Record<Role, Permission[]> = {
   // The officer can do everything operationally (including approve) and manages
@@ -33,7 +38,7 @@ const MATRIX: Record<Role, Permission[]> = {
   // CISO: governs the safety envelope. Reads everything and is the ONLY role
   // that can change the operational limits from the UI. Deliberately not an
   // operator (no create/approve/execute) — governance, not operations.
-  ciso: ['campaign:read', 'campaign:kill', 'limits:manage'],
+  ciso: ['campaign:read', 'campaign:kill', 'limits:manage', 'bench:read', 'bench:dispatch'],
 };
 
 export function can(role: Role, perm: Permission): boolean {

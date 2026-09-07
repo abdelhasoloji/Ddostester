@@ -7,6 +7,7 @@ import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { isRole } from '../auth/rbac.js';
 import type { OperationalLimits } from '../config/limits.js';
+import type { BenchRun, BenchVerdict, BenchRunStatus } from '../modules/bench/model.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
@@ -112,6 +113,28 @@ const MIGRATIONS: { id: number; sql: string }[] = [
         data       jsonb NOT NULL,
         updated_at timestamptz NOT NULL DEFAULT now()
       );
+    `,
+  },
+  {
+    // Governed class-C bench runs (record-and-dispatch). The control plane
+    // records a request; an isolated external runner claims and completes it.
+    // No amplification traffic is ever emitted from the control plane.
+    id: 4,
+    sql: `
+      CREATE TABLE IF NOT EXISTS bench_runs (
+        id           text PRIMARY KEY,
+        scenario     text NOT NULL,
+        lab_target   text NOT NULL,
+        status       text NOT NULL,
+        requested_by text NOT NULL,
+        requested_at timestamptz NOT NULL,
+        claimed_at   timestamptz,
+        claimed_by   text,
+        completed_at timestamptz,
+        verdict      jsonb,
+        error        text
+      );
+      CREATE INDEX IF NOT EXISTS bench_runs_status_idx ON bench_runs (status, requested_at);
     `,
   },
 ];
@@ -404,7 +427,80 @@ export class PostgresStore implements Store {
     );
   }
 
+  async createBenchRun(run: BenchRun): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO bench_runs (id, scenario, lab_target, status, requested_by, requested_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [run.id, run.scenario, run.labTarget, run.status, run.requestedBy, run.requestedAt],
+    );
+  }
+
+  async getBenchRun(id: string): Promise<BenchRun | undefined> {
+    const r = await this.pool.query('SELECT * FROM bench_runs WHERE id=$1', [id]);
+    return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
+  }
+
+  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+    const r = await this.pool.query(
+      'SELECT * FROM bench_runs ORDER BY requested_at DESC LIMIT $1',
+      [limit],
+    );
+    return r.rows.map(rowToBenchRun);
+  }
+
+  async claimNextBenchRun(runnerId: string): Promise<BenchRun | undefined> {
+    // Atomic claim: pick the oldest REQUESTED row, lock it, flip to CLAIMED.
+    // SKIP LOCKED lets multiple runners claim distinct rows without blocking.
+    const r = await this.pool.query(
+      `UPDATE bench_runs SET status='CLAIMED', claimed_at=now(), claimed_by=$1
+       WHERE id = (
+         SELECT id FROM bench_runs WHERE status='REQUESTED'
+         ORDER BY requested_at ASC FOR UPDATE SKIP LOCKED LIMIT 1
+       )
+       RETURNING *`,
+      [runnerId],
+    );
+    return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
+  }
+
+  async setBenchRunResult(
+    id: string,
+    result: { verdict?: BenchVerdict; error?: string },
+  ): Promise<BenchRun | undefined> {
+    const status: BenchRunStatus = result.verdict ? 'COMPLETED' : 'FAILED';
+    const r = await this.pool.query(
+      `UPDATE bench_runs SET status=$2, completed_at=now(), verdict=$3, error=$4
+       WHERE id=$1 RETURNING *`,
+      [
+        id,
+        status,
+        result.verdict ? JSON.stringify(result.verdict) : null,
+        result.verdict ? null : (result.error ?? 'unknown error'),
+      ],
+    );
+    return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
+}
+
+/** Maps a bench_runs row to a BenchRun (timestamps → ISO strings). */
+function rowToBenchRun(row: Record<string, unknown>): BenchRun {
+  const iso = (v: unknown): string | undefined =>
+    v instanceof Date ? v.toISOString() : typeof v === 'string' ? v : undefined;
+  return {
+    id: String(row.id),
+    scenario: String(row.scenario),
+    labTarget: String(row.lab_target),
+    status: String(row.status) as BenchRunStatus,
+    requestedBy: String(row.requested_by),
+    requestedAt: iso(row.requested_at) ?? new Date().toISOString(),
+    claimedAt: iso(row.claimed_at),
+    claimedBy: row.claimed_by == null ? undefined : String(row.claimed_by),
+    completedAt: iso(row.completed_at),
+    verdict: (row.verdict as BenchVerdict | null) ?? undefined,
+    error: row.error == null ? undefined : String(row.error),
+  };
 }

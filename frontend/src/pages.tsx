@@ -11,6 +11,8 @@ import {
 } from './api.js';
 import type {
   AuditVerdict,
+  BenchCatalogue,
+  BenchRun,
   Campaign,
   HardCaps,
   ManagedUser,
@@ -846,6 +848,202 @@ function LimitsCard() {
   );
 }
 
+function benchStatusPill(status: BenchRun['status']) {
+  const color =
+    status === 'COMPLETED'
+      ? 'var(--success)'
+      : status === 'FAILED'
+        ? 'var(--danger)'
+        : status === 'CLAIMED'
+          ? 'var(--brand)'
+          : 'var(--warning)';
+  return (
+    <span className="badge" style={{ background: 'var(--surface-2)', color, borderColor: color }}>
+      {status}
+    </span>
+  );
+}
+
+function outcomePill(outcome?: string) {
+  if (!outcome) return <span className="hint">—</span>;
+  const color =
+    outcome === 'MITIGATED'
+      ? 'var(--success)'
+      : outcome === 'NOT_MITIGATED'
+        ? 'var(--danger)'
+        : outcome === 'MITIGATED_WITH_COLLATERAL'
+          ? 'var(--warning)'
+          : 'var(--muted)';
+  return (
+    <span className="badge" style={{ background: 'var(--surface-2)', color, borderColor: color }}>
+      {outcome}
+    </span>
+  );
+}
+
+function BenchCard() {
+  const app = useApp();
+  const canBench = canDo(app.role, 'bench', app.authRequired);
+  const [cat, setCat] = useState<BenchCatalogue | null>(null);
+  const [runs, setRuns] = useState<BenchRun[]>([]);
+  const [scenario, setScenario] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const refreshRuns = async () => {
+    try {
+      setRuns((await api.benchRuns()).runs);
+    } catch {
+      /* transient — leave the last view in place */
+    }
+  };
+
+  useEffect(() => {
+    if (!canBench) return;
+    let alive = true;
+    (async () => {
+      try {
+        const c = await api.benchScenarios();
+        if (!alive) return;
+        setCat(c);
+        setScenario(c.scenarios[0]?.name ?? '');
+      } catch {
+        /* no access / not configured */
+      }
+      await refreshRuns();
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [canBench]);
+
+  // Poll while a run is still in flight, so the runner's verdict lands in view.
+  const pending = runs.some((r) => r.status === 'REQUESTED' || r.status === 'CLAIMED');
+  useEffect(() => {
+    if (!canBench || !pending) return;
+    const t = setInterval(refreshRuns, 4000);
+    return () => clearInterval(t);
+  }, [canBench, pending]);
+
+  if (!canBench) return null;
+
+  const dispatch = async () => {
+    if (!scenario) return;
+    setBusy(true);
+    try {
+      await api.createBenchRun(scenario);
+      app.push('success', `Bench run requested (${scenario}) — awaiting the isolated runner.`);
+      await refreshRuns();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dispatchEnabled = cat?.dispatchEnabled ?? false;
+
+  return (
+    <div className="card">
+      <h2>Network bench — class C (CISO)</h2>
+      <p className="hint" style={{ marginBottom: '.75rem' }}>
+        Launch a bounded synthetic UDP-amplification scenario on the isolated lab and read its
+        verdict here. The control plane <b>records and governs</b> the run — it never emits the
+        traffic. An isolated external runner claims the request, executes it off the control plane,
+        and posts back a read-only class-C verdict. Every request and verdict is audited.
+      </p>
+
+      {!dispatchEnabled && (
+        <div className="attest" style={{ marginBottom: '.75rem' }}>
+          <span>
+            Dispatch is <b>disabled</b>. Configure an isolated <code>LAB_TARGETS</code> host and a{' '}
+            <code>BENCH_RUNNER_TOKEN</code> on the server to enable governed runs. The catalogue and
+            past verdicts below remain visible.
+          </span>
+        </div>
+      )}
+
+      <div className="btn-row" style={{ marginBottom: '1rem' }}>
+        <div className="field" style={{ flex: 1, minWidth: 260 }}>
+          <label htmlFor="bench-scenario">Scenario</label>
+          <select
+            id="bench-scenario"
+            value={scenario}
+            onChange={(e) => setScenario(e.target.value)}
+          >
+            {(cat?.scenarios ?? []).map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <span className="hint">
+            {cat?.scenarios.find((s) => s.name === scenario)?.summary ?? ''}
+          </span>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={dispatch}
+          disabled={!dispatchEnabled || busy || !scenario}
+        >
+          {busy ? 'Requesting…' : '▶ Request run'}
+        </button>
+      </div>
+
+      {runs.length === 0 ? (
+        <p className="hint">No bench runs yet.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="bench-table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Status</th>
+                <th>Outcome</th>
+                <th style={{ textAlign: 'right' }}>Amplification</th>
+                <th style={{ textAlign: 'right' }}>Collateral</th>
+                <th>Requested</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <code>{r.scenario}</code>
+                  </td>
+                  <td>{benchStatusPill(r.status)}</td>
+                  <td>
+                    {r.status === 'FAILED' ? (
+                      <span className="hint">{r.error}</span>
+                    ) : (
+                      outcomePill(r.verdict?.outcome)
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>
+                    {r.verdict?.amplificationFactor != null
+                      ? `${r.verdict.amplificationFactor}×`
+                      : '—'}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>
+                    {r.verdict?.mitigation?.collateralPct != null
+                      ? `${r.verdict.mitigation.collateralPct}%`
+                      : '—'}
+                  </td>
+                  <td className="hint">{new Date(r.requestedAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="hint" style={{ marginTop: '.75rem' }}>
+        UDP amplification is class C (network bench). These verdicts are read-only evidence — they
+        are not the class-A/B DRS validations recorded via <code>/api/drs-validations</code>. See{' '}
+        <code>docs/drs-validation-policy.md</code>.
+      </p>
+    </div>
+  );
+}
+
 function NotificationsCard() {
   const app = useApp();
   const [testing, setTesting] = useState(false);
@@ -993,6 +1191,8 @@ export function SettingsPage() {
       </div>
 
       <LimitsCard />
+
+      <BenchCard />
 
       <UsersCard />
 

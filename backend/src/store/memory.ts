@@ -5,6 +5,7 @@ import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
+import type { BenchRun, BenchVerdict } from '../modules/bench/model.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -15,6 +16,7 @@ export class MemoryStore implements Store {
   private users = new Map<string, User>();
   private playbooks = new Map<string, Playbook>();
   private limits: OperationalLimits | undefined;
+  private benchRuns = new Map<string, BenchRun>();
 
   async init(): Promise<void> {}
   async healthy(): Promise<boolean> {
@@ -95,6 +97,46 @@ export class MemoryStore implements Store {
   }
   async setLimits(limits: OperationalLimits): Promise<void> {
     this.limits = { ...limits };
+  }
+  async createBenchRun(run: BenchRun): Promise<void> {
+    this.benchRuns.set(run.id, { ...run });
+  }
+  async getBenchRun(id: string): Promise<BenchRun | undefined> {
+    const r = this.benchRuns.get(id);
+    return r ? { ...r } : undefined;
+  }
+  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+    return [...this.benchRuns.values()]
+      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
+      .slice(0, limit)
+      .map((r) => ({ ...r }));
+  }
+  async claimNextBenchRun(runnerId: string): Promise<BenchRun | undefined> {
+    // Oldest REQUESTED first (FIFO). Single-threaded event loop → atomic here.
+    const next = [...this.benchRuns.values()]
+      .filter((r) => r.status === 'REQUESTED')
+      .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))[0];
+    if (!next) return undefined;
+    next.status = 'CLAIMED';
+    next.claimedAt = new Date().toISOString();
+    next.claimedBy = runnerId;
+    return { ...next };
+  }
+  async setBenchRunResult(
+    id: string,
+    result: { verdict?: BenchVerdict; error?: string },
+  ): Promise<BenchRun | undefined> {
+    const r = this.benchRuns.get(id);
+    if (!r) return undefined;
+    r.completedAt = new Date().toISOString();
+    if (result.verdict) {
+      r.status = 'COMPLETED';
+      r.verdict = result.verdict;
+    } else {
+      r.status = 'FAILED';
+      r.error = result.error ?? 'unknown error';
+    }
+    return { ...r };
   }
   async close(): Promise<void> {}
 }

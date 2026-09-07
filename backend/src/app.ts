@@ -23,6 +23,8 @@ import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
 import { HARD_CAPS, clampToCeiling, withinCeiling } from './config/limits.js';
 import type { HardCaps } from './config/limits.js';
+import { BENCH_SCENARIOS, isKnownBenchScenario, parseBenchVerdict } from './modules/bench/model.js';
+import type { BenchRun } from './modules/bench/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
@@ -80,6 +82,13 @@ export interface BuildOptions {
   targetTelemetry?: TargetTelemetryProvider;
   /** Max campaigns running at once (safety guard against contention). Default 3. */
   maxConcurrentRuns?: number;
+  /**
+   * Bearer token an isolated bench runner presents to claim/complete governed
+   * class-C runs. Empty/undefined = governed dispatch disabled (fail-closed):
+   * requests can't be created and the runner API is closed. The control plane
+   * never executes the run — only records it and serves it to the runner.
+   */
+  benchRunnerToken?: string;
 }
 
 export interface BuiltApp {
@@ -528,6 +537,123 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       });
     },
   );
+
+  // --- Network bench (class C): governed record-and-dispatch -----------------
+  // The control plane records a CISO-authorized run request and serves it to an
+  // ISOLATED external runner (the shieldtest-lab). It NEVER executes the scenario
+  // or emits any traffic (drs-validation-policy.md). Dispatch is fail-closed:
+  // disabled unless BOTH a LAB_TARGETS host and a runner token are configured.
+  const benchDispatchEnabled = () => labTargets.length > 0 && !!opts.benchRunnerToken;
+
+  /** Resolve + isolate a bench labTarget: must be a LAB host, never production. */
+  function benchLabTarget(raw: string): string | null {
+    let host = String(raw ?? '').trim();
+    try {
+      host = new URL(host).hostname;
+    } catch {
+      /* bare host */
+    }
+    if (!host || !labTargets.includes(host) || allowedTargets.includes(host)) return null;
+    return host;
+  }
+
+  /** Runner auth: a dedicated bearer token, never a user JWT. */
+  function runnerAuthed(req: FastifyRequest): boolean {
+    const tok = opts.benchRunnerToken;
+    if (!tok) return false;
+    return (req.headers.authorization ?? '') === `Bearer ${tok}`;
+  }
+
+  app.get('/api/bench/scenarios', { preHandler: guard('bench:read') }, async () => ({
+    scenarios: BENCH_SCENARIOS,
+    dispatchEnabled: benchDispatchEnabled(),
+    labTargets,
+  }));
+
+  app.get('/api/bench/runs', { preHandler: guard('bench:read') }, async () => ({
+    runs: await store.listBenchRuns(),
+  }));
+
+  app.get('/api/bench/runs/:id', { preHandler: guard('bench:read') }, async (req, reply) => {
+    const run = await store.getBenchRun((req.params as { id: string }).id);
+    return run ? run : reply.code(404).send({ error: 'not found' });
+  });
+
+  app.post('/api/bench/runs', { preHandler: guard('bench:dispatch') }, async (req, reply) => {
+    if (!benchDispatchEnabled()) {
+      return reply.code(400).send({
+        error: 'bench dispatch is disabled (configure LAB_TARGETS and BENCH_RUNNER_TOKEN).',
+      });
+    }
+    const b = (req.body ?? {}) as { scenario?: string; labTarget?: string };
+    if (!isKnownBenchScenario(b.scenario)) {
+      return reply.code(400).send({ error: 'scenario must be one of the known bench scenarios.' });
+    }
+    // labTarget defaults to the sole LAB host when exactly one is configured.
+    const rawTarget = b.labTarget ?? (labTargets.length === 1 ? labTargets[0] : '');
+    const host = benchLabTarget(rawTarget);
+    if (!host) {
+      return reply.code(400).send({
+        error:
+          'labTarget must be an isolated LAB_TARGETS host (never a production allowlist host).',
+      });
+    }
+    const run: BenchRun = {
+      id: randomUUID(),
+      scenario: b.scenario,
+      labTarget: host,
+      status: 'REQUESTED',
+      requestedBy: req.authUser?.email ?? 'dev',
+      requestedAt: new Date().toISOString(),
+    };
+    await store.createBenchRun(run);
+    await audit(req, 'bench.request', undefined, `C/${run.scenario} @ ${host} → REQUESTED`);
+    return reply.code(201).send(run);
+  });
+
+  // Runner API — an isolated external runner claims work and posts verdicts.
+  // Authenticated by BENCH_RUNNER_TOKEN (bearer), never a user JWT.
+  app.post('/api/bench/runs/next/claim', async (req, reply) => {
+    if (!runnerAuthed(req))
+      return reply.code(401).send({ error: 'runner authentication required' });
+    const runnerId = (((req.body ?? {}) as { runner?: string }).runner ?? 'runner').slice(0, 120);
+    const run = await store.claimNextBenchRun(runnerId);
+    if (!run) return reply.code(204).send();
+    return reply.code(200).send(run);
+  });
+
+  app.post('/api/bench/runs/:id/result', async (req, reply) => {
+    if (!runnerAuthed(req))
+      return reply.code(401).send({ error: 'runner authentication required' });
+    const id = (req.params as { id: string }).id;
+    const existing = await store.getBenchRun(id);
+    if (!existing) return reply.code(404).send({ error: 'not found' });
+    const b = (req.body ?? {}) as { verdict?: unknown; error?: string };
+    if (b.error && !b.verdict) {
+      const updated = await store.setBenchRunResult(id, { error: String(b.error).slice(0, 500) });
+      await auditAs(
+        existing.claimedBy ?? 'runner',
+        'bench.verdict',
+        undefined,
+        `C/${existing.scenario} @ ${existing.labTarget} → FAILED`,
+      );
+      return reply.code(200).send(updated);
+    }
+    let verdict;
+    try {
+      verdict = parseBenchVerdict(b.verdict, existing.scenario);
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+    const updated = await store.setBenchRunResult(id, { verdict });
+    await auditAs(
+      existing.claimedBy ?? 'runner',
+      'bench.verdict',
+      undefined,
+      `C/${existing.scenario} @ ${existing.labTarget} → ${verdict.outcome ?? 'COMPLETED'} · amp ${verdict.amplificationFactor ?? '?'}x`,
+    );
+    return reply.code(200).send(updated);
+  });
 
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
     return req.authUser ?? { email: null, role: null, authRequired: false };
