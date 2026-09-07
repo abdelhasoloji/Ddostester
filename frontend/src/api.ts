@@ -351,6 +351,11 @@ export const api = {
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
+  createShare: (ttlMinutes?: number) =>
+    post<{ authRequired: boolean; token: string | null; ttlMinutes?: number; expiresAt?: string }>(
+      '/api/share',
+      { ttlMinutes },
+    ),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

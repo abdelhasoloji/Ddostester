@@ -443,6 +443,7 @@ export function ReportsPage() {
           <a className="btn btn-ghost" href={runsCsvUrl()} target="_blank" rel="noreferrer">
             Export runs CSV ↓
           </a>
+          <ShareLinkButton />
         </div>
       </div>
 
@@ -469,6 +470,36 @@ export function ReportsPage() {
         </div>
       )}
     </>
+  );
+}
+
+/** Mints a short-lived read-only token and copies a shareable compliance-report link. */
+function ShareLinkButton() {
+  const app = useApp();
+  const [busy, setBusy] = useState(false);
+  const share = async () => {
+    setBusy(true);
+    try {
+      const res = await api.createShare(24 * 60); // 24h read-only link
+      const base = `${window.location.origin}/api/reports/compliance`;
+      const url = res.token ? `${base}?token=${encodeURIComponent(res.token)}` : base;
+      await navigator.clipboard.writeText(url);
+      app.push(
+        'success',
+        res.token
+          ? `Read-only link copied (expires in 24h).`
+          : `Link copied (auth is disabled — no token needed).`,
+      );
+    } catch {
+      app.push('error', 'Could not create a share link.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button className="btn btn-ghost" onClick={share} disabled={busy}>
+      {busy ? <span className="spin" /> : null}Copy share link 🔗
+    </button>
   );
 }
 

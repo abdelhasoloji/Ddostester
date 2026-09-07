@@ -201,3 +201,13 @@ Each report (campaign and compliance) has a **“Print / PDF”** button that op
 the browser's print dialog → “Save as PDF”. A print stylesheet hides the
 controls and lays the page out cleanly, with no server dependency (no headless
 engine to install on the target).
+
+## Shareable read-only links (RPT-04)
+
+**Reports → Copy share link 🔗** mints a **short-lived, read-only** token
+(`POST /api/share`, viewer scope, 24 h by default; TTL capped at 7 days) and
+copies an absolute compliance-report URL carrying it. The recipient opens the
+report without an account; the link only reads (it cannot create/approve/execute
+anything) and expires. Minting is authenticated and audited (`share.create`); a
+link is invalidated early by rotating `AUTH_JWT_SECRET`. When auth is disabled
+(dev), the plain URL is copied (no token needed).

@@ -382,6 +382,28 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return res;
   });
 
+  // Mint a short-lived, read-only share token for report links. Downgraded to
+  // the viewer role regardless of the caller — a share link can only read.
+  app.post('/api/share', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    if (!auth.enabled) {
+      return reply.send({ authRequired: false, token: null, expiresAt: null });
+    }
+    const { ttlMinutes } = (req.body ?? {}) as { ttlMinutes?: number };
+    const ttlMin = Math.min(Math.max(Math.round(Number(ttlMinutes) || 60), 1), 7 * 24 * 60);
+    const token = signJwt(
+      { sub: `share:${req.authUser?.email ?? 'anon'}`, role: 'viewer' },
+      auth.secret,
+      ttlMin * 60,
+    );
+    await audit(req, 'share.create', undefined, `read-only share link (${ttlMin} min)`);
+    return reply.send({
+      authRequired: true,
+      token,
+      ttlMinutes: ttlMin,
+      expiresAt: new Date(Date.now() + ttlMin * 60_000).toISOString(),
+    });
+  });
+
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
     return req.authUser ?? { email: null, role: null, authRequired: false };
   });
