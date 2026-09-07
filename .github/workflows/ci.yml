@@ -38,15 +38,3 @@ jobs:
         env:
           CATALOG_E2E: '1'
       - run: npm run build
-
-  lab:
-    # The closed synthetic network lab's safety invariants (caps, no-spoofing
-    # gate, mitigation) run dependency-free with node --test — no Docker needed.
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-      - run: npm run lab:test:caps

@@ -7,22 +7,26 @@ be reconciled against this file, not the other way round.
 > Scope is fixed: this control plane implements **no attack vector** and never
 > weakens a safeguard (allowlist, HARD_CAPS, attestation, approval workflow,
 > 3-level kill switch, `X-WEDOS-TEST` tagging, audit). Every item below is
-> delivered **through** those safeguards. The repository also ships a **separate,
-> closed synthetic network lab** (`lab/`, no spoofing / isolated / hard-capped)
-> for defensive measurement — not part of the control plane. See
-> [safeguards.md](./safeguards.md) and [network-lab.md](./network-lab.md).
+> delivered **through** those safeguards. A **separate, closed synthetic network
+> lab** (no spoofing / isolated / hard-capped) for defensive measurement lives in
+> its own repository —
+> [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab) —
+> and is not part of the control plane. See [safeguards.md](./safeguards.md) and
+> [network-lab.md](./network-lab.md).
 
 Legend: ✅ done · 🟡 partial · ⬜ planned · 🔒 needs external infra (lab / cluster)
 
-## Network lab (defensive measurement, separate from the control plane)
+## Network lab (defensive measurement, separate repository)
 
-The closed synthetic lab (`lab/`, Docker profile `network-lab`) reproduces the
-_traffic shape_ of UDP amplification for detection and mitigation study. It is a
-measurement model, not an attack tool, and keeps hard, non-negotiable safety
-properties (no source-IP spoofing, no real reflector, `internal` network, no host
-ports, hard caps). Delivered: bounded byte + packet amplification, synthetic
-multi-protocol profiles (`generic`/`dns`/`ssdp`/`ntp`/`memcached`), per-profile
-Prometheus metrics, and in-process cap/injection tests. See
+The closed synthetic lab reproduces the _traffic shape_ of UDP amplification for
+detection and mitigation study. It is a measurement model, not an attack tool,
+and keeps hard, non-negotiable safety properties (no source-IP spoofing, no real
+reflector, `internal` network, no host ports, hard caps). It now lives in its own
+repository —
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab) —
+so the boundary is **structural**: this control plane contains no amplification
+code at all. The two connect only through a read-only, governed verdict contract
+(see [drs-validation-policy.md](./drs-validation-policy.md)). See
 [network-lab.md](./network-lab.md).
 
 ## Horizon 1 — reliability of the measurement

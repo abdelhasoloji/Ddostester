@@ -1,4 +1,4 @@
-# Prometheus — scrape du control plane ShieldTest et du lab réseau synthétique.
+# Prometheus — scrape du control plane ShieldTest.
 global:
   scrape_interval: 15s
 scrape_configs:
@@ -6,15 +6,3 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ['api:8080']
-
-  # Lab réseau (profil network-lab). Ces cibles apparaissent "down" tant que le
-  # profil network-lab n'est pas démarré — c'est attendu.
-  - job_name: shieldtest-lab
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['lab-reflector:9101']
-        labels: { component: reflector }
-      - targets: ['lab-target:9102']
-        labels: { component: target }
-      - targets: ['lab-scrubber:9105']
-        labels: { component: scrubber }

@@ -16,16 +16,18 @@ infrastructure the organization owns or holds a written authorization to test.
 - Any extension adding volumetric or exhaustion vectors intended to saturate a
   third-party service.
 
-## Synthetic network lab (`lab/`)
+## Synthetic network lab (separate repository)
 
-The repository ships an **optional, closed research lab** that models UDP
-amplification traffic shape for defensive measurement (no source-IP spoofing, no
-real reflector protocol, hard caps). Its synthetic protocol profiles
-(DNS/NTP/SSDP/memcached-like) preset only the traffic _shape_ — no real protocol
-service is implemented. It is separate from the control plane.
+The **closed research lab** that models UDP amplification traffic shape for
+defensive measurement (no source-IP spoofing, no real reflector protocol, hard
+caps, isolated `internal` network) lives in its own repository —
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab).
+It is **not part of this control plane at all**: this repository performs only
+bounded, allowlisted HTTP and contains no amplification/spoofing/UDP code.
 
-- **Acceptable use**: only inside the provided isolated lab — an `internal`
-  Docker network with no published host ports, on an RFC1918 subnet you own.
+- **Acceptable use** (in that repo): only inside the provided isolated lab — an
+  `internal` Docker network with no published host ports, on an RFC1918 subnet
+  you own.
 - **Prohibited use**: attaching it, or running its components, against any
   production or public network, or removing its isolation, caps or no-spoofing
   properties.

@@ -85,8 +85,7 @@ POSTGRES_PASSWORD=change-me docker compose up -d --build   # core: db + api
 ```
 
 Optional profiles: `--profile monitoring` (Prometheus + Grafana; set
-`GRAFANA_PASSWORD`), `--profile proxy` (TLS/mTLS reverse proxy), `--profile
-network-lab` (the isolated synthetic UDP-amplification lab).
+`GRAFANA_PASSWORD`), `--profile proxy` (TLS/mTLS reverse proxy).
 
 **Continuous deployment:** once the server runs a self-hosted GitHub Actions
 runner, every push to `main` that passes CI deploys itself — no manual commands.
@@ -128,12 +127,13 @@ The control-plane generator is limited to lawful, capped and traceable
 application HTTP requests, suitable for measuring the resilience of a service
 you operate.
 
-The repository additionally contains an **optional, closed synthetic network
-lab** (`lab/`) that models UDP-amplification traffic shape for **defensive
-measurement** — with no source-IP spoofing, no real reflector protocols, hard
-caps, and an isolated `internal` Docker network with no published host ports. It
-is separate from the control plane and must never be attached to a production or
-public network. See [“Isolated synthetic UDP network lab”](#isolated-synthetic-udp-network-lab)
+A **closed synthetic network lab** that models UDP-amplification traffic shape
+for **defensive measurement** — with no source-IP spoofing, no real reflector
+protocols, hard caps, and an isolated `internal` Docker network with no published
+host ports — lives in a **separate repository**,
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab),
+so the boundary is **structural**: this control plane contains no attack vector
+at all. See [“Isolated synthetic UDP network lab”](#isolated-synthetic-udp-network-lab)
 and [docs/safeguards.md](./docs/safeguards.md).
 
 ## Documentation
@@ -157,16 +157,14 @@ MIT — see [LICENSE](./LICENSE).
 
 ## Isolated synthetic UDP network lab
 
-ShieldTest includes an optional closed Docker lab that reproduces UDP amplification traffic shape without source-IP spoofing or public protocol reflectors. It is a **measurement model, not an amplifier**. See [`docs/network-lab.md`](docs/network-lab.md).
+A closed Docker lab that reproduces UDP amplification traffic shape without
+source-IP spoofing or public protocol reflectors — a **measurement model, not an
+amplifier** — lives in its **own repository**:
 
-```bash
-POSTGRES_PASSWORD=dev npm run lab:up
-PROFILE=dns PPS=20 DURATION_SEC=10 POSTGRES_PASSWORD=dev npm run lab:test
-npm run lab:test:caps   # in-process safety-invariant tests (no Docker needed)
-```
+> **https://github.com/abdelhasoloji/shieldtest-lab**
 
-The reflector models both **byte** amplification (`FACTOR`) and **packet**
-amplification (`PACKET_FACTOR`), both hard-capped, across synthetic protocol
-**profiles** (`generic`, `dns`, `ssdp`, `ntp`, `memcached`) that only preset the
-traffic _shape_ — no real protocol service is implemented — and exposes per-profile
-Prometheus metrics. See [`docs/network-lab.md`](docs/network-lab.md).
+It was extracted so the boundary is **structural, not conventional**: this
+control plane performs only bounded, allowlisted HTTP and contains no
+amplification/spoofing/UDP code at all. The two connect only through a read-only,
+governed verdict contract (see [`docs/drs-validation-policy.md`](docs/drs-validation-policy.md)).
+See [`docs/network-lab.md`](docs/network-lab.md) for the split and the pointer.

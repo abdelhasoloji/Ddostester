@@ -20,15 +20,14 @@ licensed tools (k6, Vegeta, Locust) operated by the team — never offensive cod
 here. Any contribution adding a volumetric/exhaustion vector to the control
 plane is out of scope.
 
-The repository also ships a **closed synthetic network lab** (`lab/`) that models
-UDP-amplification traffic shape — across synthetic protocol profiles
-(DNS/NTP/SSDP/memcached-like, shape presets only) — for defensive measurement: no
-source-IP spoofing
-(ordinary UDP, target fixed by config), no real reflector protocol, hard caps,
-and an isolated `internal` Docker network with no published host ports. It is
-**separate from the control plane**, must never touch a production/public
-network, and its safety properties must be preserved by any change. See
-`docs/safeguards.md` and `docs/network-lab.md`.
+A **closed synthetic network lab** that models UDP-amplification traffic shape
+for defensive measurement (no source-IP spoofing, no real reflector protocol,
+hard caps, isolated `internal` network) lives in a **separate repository** —
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab) —
+so the boundary is **structural, not conventional**: this control plane contains
+**no attack vector at all**. The two connect only through a read-only, governed
+verdict contract (see `docs/drs-validation-policy.md`). See `docs/safeguards.md`
+and `docs/network-lab.md`.
 
 ## Commands
 

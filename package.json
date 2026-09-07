@@ -20,12 +20,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml}\"",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:fast": "npm run lint && npm run typecheck && npm test",
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
-    "lab:up": "docker compose --profile network-lab up -d lab-target lab-reflector",
-    "lab:down": "docker compose --profile network-lab down",
-    "lab:test": "docker compose --profile network-lab run --rm lab-generator",
-    "lab:test:caps": "node --test \"lab/test/*.test.mjs\"",
-    "lab:scenario": "node lab/run-scenario.mjs"
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "engines": {
     "node": ">=22"

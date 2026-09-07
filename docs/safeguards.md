@@ -41,12 +41,15 @@ These techniques serve to **saturate** a service, not to **measure** its
 resilience in a controlled way. A contribution adding an attack vector to the
 control plane falls outside this repository's scope and must not be merged.
 
-## The synthetic network lab (`lab/`)
+## The synthetic network lab (separate repository)
 
-The repository also ships an **optional, closed research lab** that reproduces
-the _traffic shape and measurement problem_ of UDP amplification for defensive
-study — **not** a usable attack tool, and **not** part of the control plane.
-Its safety rests on concrete, code-level properties:
+A **closed research lab** that reproduces the _traffic shape and measurement
+problem_ of UDP amplification for defensive study — **not** a usable attack tool,
+and **not** part of the control plane — lives in its own repository,
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab).
+Keeping it out of this repository makes the boundary **structural**: the control
+plane here contains no amplification/spoofing/UDP code at all. The lab's safety
+rests on concrete, code-level properties (enforced by that repo's tests):
 
 - **No source-IP spoofing** — it uses ordinary UDP sockets and the reflection
   target is fixed by configuration, never read from a packet's source address,
@@ -58,9 +61,9 @@ Its safety rests on concrete, code-level properties:
   used to study detection per traffic profile, not protocol implementations.
 - **Hard caps** on byte factor, response size, packet factor, generator PPS and
   duration; oversized requests are clamped.
-- **Network isolation** — the provided `docker compose --profile network-lab`
-  runs on an `internal: true` Docker network with **no published host ports**,
-  and the host guards target only an RFC1918 lab prefix.
+- **Network isolation** — the provided `docker compose` bench runs on an
+  `internal: true` Docker network with **no published host ports**, and the host
+  guards target only an RFC1918 lab prefix.
 
 It exists to validate filtering, telemetry, detection delay, BAP and
 availability in a **closed** environment. It must **never** be attached to a

@@ -6,10 +6,13 @@ Two boundaries coexist and must both hold:
 1. **Control plane** — the deployed product (`backend/` + `frontend/`) implements
    **no attack vector**; its only load vector is a bounded, allowlisted, capped,
    audited HTTP generator.
-2. **Closed synthetic lab** (`lab/`) — a **measurement model, not an amplifier**:
-   it reproduces UDP-amplification _traffic shape_ (synthetic protocol profiles)
+2. **Closed synthetic lab** — a **measurement model, not an amplifier**: it
+   reproduces UDP-amplification _traffic shape_ (synthetic protocol profiles)
    with no source-IP spoofing, no real reflector protocol, an `internal` network
-   with no host ports, and hard caps.
+   with no host ports, and hard caps. It lives in a **separate repository**
+   ([`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab)),
+   so this boundary is **structural**: the control plane above contains none of
+   that code.
 
 ## Policy (intent)
 
@@ -21,42 +24,49 @@ Two boundaries coexist and must both hold:
 | `README.md`                     | "Defensive scope" banner + "What is NOT implemented"              |
 | `docs/roadmap.md`               | Scope banner (source of truth for status) + lab section           |
 | `docs/security-review.md`       | Threat model, verified points, residual risks                     |
-| `docs/network-lab.md`           | Lab safety properties (no-spoofing, isolation, caps, profiles)    |
+| `docs/network-lab.md`           | Pointer to the lab repo (full safety properties live there)       |
 | `docs/drs-validation-policy.md` | Governing red-team PoCs (classes A/B/C, `LAB_TARGETS`, deny-list) |
 | `CONTRIBUTING.md`               | Contribution rules (points back to the safeguards)                |
 
 ## Code — control plane (enforcement)
 
-| File                                       | Enforces                                                       |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| `backend/src/modules/campaigns/model.ts`   | `HARD_CAPS` (2000 rps / 500 conc. / 900 s) + attestation shape |
-| `backend/src/modules/campaigns/service.ts` | Allowlist, caps, `authorized:true`, approval + duty separation |
-| `backend/src/engine/loadTest.ts`           | Rejects off-allowlist targets + generator rate cap             |
-| `backend/src/auth/rbac.ts`                 | Roles / permissions (separation of duties)                     |
-| `backend/src/auth/guard.ts`                | Per-route permission enforcement                               |
-| `backend/src/modules/probe/probe.ts`       | 3-level kill switch (auto / manual / timeout)                  |
-| `backend/src/modules/campaigns/runner.ts`  | Absolute timeout + `X-WEDOS-TEST` tag on every request         |
-| `backend/src/agents/types.ts`              | `AttackAgent` contract (delegation, `allowedHosts` propagated) |
-| `backend/src/util/tls.ts`                  | `INSECURE_TLS` escape hatch (lab-only; startup warning logged) |
-| `.env.example`                             | Documents `ALLOWED_TARGETS`, `INSECURE_TLS` warning, lab caps  |
+| File                                       | Enforces                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `backend/src/modules/campaigns/model.ts`   | `HARD_CAPS` (2000 rps / 500 conc. / 900 s) + attestation shape           |
+| `backend/src/modules/campaigns/service.ts` | Allowlist, caps, `authorized:true`, approval + duty separation           |
+| `backend/src/engine/loadTest.ts`           | Rejects off-allowlist targets + generator rate cap                       |
+| `backend/src/auth/rbac.ts`                 | Roles / permissions (separation of duties)                               |
+| `backend/src/auth/guard.ts`                | Per-route permission enforcement                                         |
+| `backend/src/modules/probe/probe.ts`       | 3-level kill switch (auto / manual / timeout)                            |
+| `backend/src/modules/campaigns/runner.ts`  | Absolute timeout + `X-WEDOS-TEST` tag on every request                   |
+| `backend/src/agents/types.ts`              | `AttackAgent` contract (delegation, `allowedHosts` propagated)           |
+| `backend/src/util/tls.ts`                  | `INSECURE_TLS` escape hatch (lab-only; startup warning logged)           |
+| `.env.example`                             | Documents `ALLOWED_TARGETS`, `INSECURE_TLS` warning, `LAB_TARGETS` (DRS) |
 
-## Code — closed lab (enforcement)
+## Code — closed lab (enforcement, separate repository)
 
-| File                                 | Enforces                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------- |
-| `lab/synthetic-reflector/server.mjs` | No source spoofing (target fixed by config), byte/packet caps, CIDR guard |
-| `lab/generator/generate.mjs`         | PPS/duration caps, CIDR guard, profile validation                         |
-| `lab/profiles.mjs`                   | Fixed profile allowlist (shape presets only), label sanitisation          |
-| `lab/test/amplification.test.mjs`    | Verifies caps, out-of-CIDR rejection, and profile-label injection safety  |
-| `docker-compose.yml`                 | `internal: true` network, no published host ports for lab services        |
+The lab's enforcement code lives in
+[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab),
+not in this repository. Its safety invariants (mapped in that repo's
+`docs/ethical-boundary-map` / `README`) are enforced by:
+
+| File (in `shieldtest-lab`)       | Enforces                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| `synthetic-reflector/server.mjs` | No source spoofing (target fixed by config), byte/packet caps, CIDR guard |
+| `generator/generate.mjs`         | PPS/duration caps, CIDR guard, profile validation                         |
+| `profiles.mjs`                   | Fixed profile allowlist (shape presets only), label sanitisation          |
+| `lib/net-guard.mjs`              | Refuses any destination outside the lab CIDR                              |
+| `test/*.test.mjs`                | Verifies caps, out-of-CIDR rejection, and profile-label injection safety  |
+| `docker-compose.yml`             | `internal: true` network, no published host ports for lab services        |
 
 ## Review priority
 
 - **Intent** → `SECURITY.md`, `CLAUDE.md`, `docs/safeguards.md`.
 - **Control-plane enforcement** → `campaigns/model.ts`, `campaigns/service.ts`,
   `auth/rbac.ts`, `engine/loadTest.ts`.
-- **Lab** → `docs/network-lab.md`, `lab/synthetic-reflector/server.mjs`,
-  `lab/profiles.mjs`.
+- **Lab** → `docs/network-lab.md` (pointer) and the
+  [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab)
+  repository (`synthetic-reflector/server.mjs`, `profiles.mjs`, `lib/net-guard.mjs`).
 
 ## Residual risks (accepted / operator-handled)
 
