@@ -77,11 +77,16 @@ bash deploy/setup.sh              # build + service + health check
 ssh -L 8080:127.0.0.1:8080 user@server   # then http://localhost:8080
 ```
 
-Docker:
+Docker (self-contained: builds the API image — backend + UI — plus PostgreSQL,
+bound to `127.0.0.1:8080`):
 
 ```bash
-docker compose up --build
+POSTGRES_PASSWORD=change-me docker compose up -d --build   # core: db + api
 ```
+
+Optional profiles: `--profile monitoring` (Prometheus + Grafana; set
+`GRAFANA_PASSWORD`), `--profile proxy` (TLS/mTLS reverse proxy), `--profile
+network-lab` (the isolated synthetic UDP-amplification lab).
 
 **Continuous deployment:** once the server runs a self-hosted GitHub Actions
 runner, every push to `main` that passes CI deploys itself — no manual commands.

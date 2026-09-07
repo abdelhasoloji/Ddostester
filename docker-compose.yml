@@ -187,7 +187,10 @@ services:
     ports:
       - '127.0.0.1:3000:3000' # access via SSH tunnel, never public
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD}
+      # Default lets a plain `docker compose up` of the core (db + api) work with
+      # only POSTGRES_PASSWORD — Compose interpolates every service's vars, even
+      # profiled ones. Override GRAFANA_PASSWORD before using `--profile monitoring`.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
       GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
