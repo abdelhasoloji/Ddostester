@@ -7,7 +7,13 @@ import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { isRole } from '../auth/rbac.js';
 import type { OperationalLimits } from '../config/limits.js';
-import type { BenchRun, BenchVerdict, BenchRunStatus } from '../modules/bench/model.js';
+import type {
+  BenchRun,
+  BenchVerdict,
+  BenchRunStatus,
+  BenchCoverage,
+  CoverageMethod,
+} from '../modules/bench/model.js';
 import type { Store } from './types.js';
 
 const { Pool } = pg;
@@ -135,6 +141,26 @@ const MIGRATIONS: { id: number; sql: string }[] = [
         error        text
       );
       CREATE INDEX IF NOT EXISTS bench_runs_status_idx ON bench_runs (status, requested_at);
+    `,
+  },
+  {
+    // Coverage evidence for bench vectors (non-run methods): ingested external
+    // verdicts, control attestations, modelled/replay judgements. Read-only
+    // assurance; no traffic is ever emitted from the control plane.
+    id: 5,
+    sql: `
+      CREATE TABLE IF NOT EXISTS bench_coverage (
+        id          text PRIMARY KEY,
+        vector      text NOT NULL,
+        method      text NOT NULL,
+        outcome     text,
+        drs         integer,
+        summary     text NOT NULL,
+        source      text NOT NULL,
+        recorded_by text NOT NULL,
+        at          timestamptz NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS bench_coverage_vector_idx ON bench_coverage (vector, at DESC);
     `,
   },
 ];
@@ -479,6 +505,39 @@ export class PostgresStore implements Store {
       ],
     );
     return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
+  }
+
+  async saveBenchCoverage(c: BenchCoverage): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO bench_coverage (id, vector, method, outcome, drs, summary, source, recorded_by, at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        c.id,
+        c.vector,
+        c.method,
+        c.outcome ?? null,
+        c.drs ?? null,
+        c.summary,
+        c.source,
+        c.recordedBy,
+        c.at,
+      ],
+    );
+  }
+
+  async listBenchCoverage(): Promise<BenchCoverage[]> {
+    const r = await this.pool.query('SELECT * FROM bench_coverage ORDER BY at DESC');
+    return r.rows.map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      vector: String(row.vector),
+      method: String(row.method) as CoverageMethod,
+      outcome: row.outcome == null ? undefined : String(row.outcome),
+      drs: row.drs == null ? undefined : Number(row.drs),
+      summary: String(row.summary),
+      source: String(row.source),
+      recordedBy: String(row.recorded_by),
+      at: row.at instanceof Date ? row.at.toISOString() : String(row.at),
+    }));
   }
 
   async close(): Promise<void> {

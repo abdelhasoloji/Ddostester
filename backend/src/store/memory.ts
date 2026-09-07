@@ -5,7 +5,7 @@ import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
-import type { BenchRun, BenchVerdict } from '../modules/bench/model.js';
+import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -17,6 +17,7 @@ export class MemoryStore implements Store {
   private playbooks = new Map<string, Playbook>();
   private limits: OperationalLimits | undefined;
   private benchRuns = new Map<string, BenchRun>();
+  private benchCoverage: BenchCoverage[] = [];
 
   async init(): Promise<void> {}
   async healthy(): Promise<boolean> {
@@ -137,6 +138,12 @@ export class MemoryStore implements Store {
       r.error = result.error ?? 'unknown error';
     }
     return { ...r };
+  }
+  async saveBenchCoverage(c: BenchCoverage): Promise<void> {
+    this.benchCoverage.push({ ...c });
+  }
+  async listBenchCoverage(): Promise<BenchCoverage[]> {
+    return [...this.benchCoverage].sort((a, b) => b.at.localeCompare(a.at)).map((c) => ({ ...c }));
   }
   async close(): Promise<void> {}
 }

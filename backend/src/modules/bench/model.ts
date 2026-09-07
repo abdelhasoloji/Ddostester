@@ -219,3 +219,79 @@ export function parseBenchVerdict(input: unknown, expectedScenario: string): Ben
     generatedAt: typeof v.generatedAt === 'string' ? v.generatedAt : new Date().toISOString(),
   };
 }
+
+// --- Coverage methods ------------------------------------------------------
+//
+// A vector can be *covered* without this bench emitting anything. Each coverage
+// method carries a different assurance level, honestly labelled so the CISO sees
+// HOW each vector is covered — turning the out-of-model vectors from "no data"
+// into qualified coverage. None of these methods emit spoofed or raw flood
+// traffic; that remains permanently refused.
+//
+//   MEASURED_LAB      — a bounded, synthetic run in the isolated lab (the only
+//                       method that produces a class-C verdict via a bench run).
+//   INGESTED_EXTERNAL — a read-only verdict transcribed from the network team's
+//                       real L3/4 bench (out-of-model vectors they own).
+//   ATTESTED          — evidence of a control (e.g. BCP38/uRPF for ip_spoofing,
+//                       GRE-drop for gre_packets) — verification, not simulation.
+//   MODELLED          — an estimated resilience judgement with rationale; no
+//                       traffic at all. Clearly non-measured.
+//   REPLAY            — a sanitized PCAP replayed in the isolated lab (spoofed
+//                       sources rewritten to lab addresses) for detection testing.
+export const COVERAGE_METHODS = [
+  'MEASURED_LAB',
+  'INGESTED_EXTERNAL',
+  'ATTESTED',
+  'MODELLED',
+  'REPLAY',
+] as const;
+export type CoverageMethod = (typeof COVERAGE_METHODS)[number];
+
+// Methods a CISO may record by hand (evidence-based). MEASURED_LAB is never
+// hand-recorded — it can only come from an actual bench run's verdict.
+export const RECORDABLE_METHODS: CoverageMethod[] = [
+  'INGESTED_EXTERNAL',
+  'ATTESTED',
+  'MODELLED',
+  'REPLAY',
+];
+
+export interface BenchCoverage {
+  id: string;
+  vector: string; // a BENCH_SCENARIOS id (may be an out-of-model vector)
+  method: CoverageMethod;
+  outcome?: string; // e.g. MITIGATED / NOT_MITIGATED / PASS / FAIL — free but bounded
+  drs?: number; // DRS level achieved/tested, when applicable
+  summary: string; // the evidence / rationale (required)
+  source: string; // who/what produced it (e.g. 'network-team-bench', 'edge-config')
+  recordedBy: string;
+  at: string; // ISO
+}
+
+const CATALOGUE_IDS = new Set(BENCH_SCENARIOS.map((s) => s.id));
+
+/** Validates a hand-recorded coverage entry (untrusted request body). */
+export function parseCoverageInput(
+  input: unknown,
+  recordedBy: string,
+): Omit<BenchCoverage, 'id' | 'at'> {
+  const b = (input ?? {}) as Record<string, unknown>;
+  const vector = String(b.vector ?? '').trim();
+  if (!CATALOGUE_IDS.has(vector)) throw new Error('vector must be a known bench vector id');
+  const method = String(b.method ?? '') as CoverageMethod;
+  if (!RECORDABLE_METHODS.includes(method)) {
+    throw new Error(`method must be one of ${RECORDABLE_METHODS.join(', ')}`);
+  }
+  const summary = String(b.summary ?? '').trim();
+  if (!summary) throw new Error('summary (evidence/rationale) is required');
+  const drs = typeof b.drs === 'number' && Number.isFinite(b.drs) ? b.drs : undefined;
+  return {
+    vector,
+    method,
+    outcome: b.outcome ? String(b.outcome).slice(0, 40) : undefined,
+    drs,
+    summary: summary.slice(0, 2000),
+    source: (b.source ? String(b.source) : 'operator').slice(0, 120),
+    recordedBy,
+  };
+}

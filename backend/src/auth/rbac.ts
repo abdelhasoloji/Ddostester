@@ -17,7 +17,10 @@ export type Permission =
   // governed run request (recorded here, executed by an isolated external runner
   // — the control plane never emits the traffic). CISO only.
   | 'bench:read'
-  | 'bench:dispatch';
+  | 'bench:dispatch'
+  // Record coverage evidence for a bench vector (ingested external verdict,
+  // control attestation, modelled/replay judgement). CISO only.
+  | 'bench:attest';
 
 const MATRIX: Record<Role, Permission[]> = {
   // The officer can do everything operationally (including approve) and manages
@@ -38,7 +41,14 @@ const MATRIX: Record<Role, Permission[]> = {
   // CISO: governs the safety envelope. Reads everything and is the ONLY role
   // that can change the operational limits from the UI. Deliberately not an
   // operator (no create/approve/execute) — governance, not operations.
-  ciso: ['campaign:read', 'campaign:kill', 'limits:manage', 'bench:read', 'bench:dispatch'],
+  ciso: [
+    'campaign:read',
+    'campaign:kill',
+    'limits:manage',
+    'bench:read',
+    'bench:dispatch',
+    'bench:attest',
+  ],
 };
 
 export function can(role: Role, perm: Permission): boolean {

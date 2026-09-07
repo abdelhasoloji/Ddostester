@@ -64,6 +64,21 @@ const fakeApi = makeApi({
   createBenchRun: vi
     .fn()
     .mockResolvedValue({ id: 'b2', scenario: 'udp_dns_reflection', status: 'REQUESTED' }),
+  benchCoverage: vi.fn().mockResolvedValue({
+    coverage: [
+      {
+        id: 'cov1',
+        vector: 'ip_spoofing',
+        method: 'ATTESTED',
+        outcome: 'PASS',
+        summary: 'Edge enforces BCP38/uRPF.',
+        source: 'edge-config',
+        recordedBy: 'ciso@wedos',
+        at: new Date().toISOString(),
+      },
+    ],
+  }),
+  recordBenchCoverage: vi.fn().mockResolvedValue({ id: 'cov2' }),
 });
 
 vi.mock('./context.js', async (orig) => {
@@ -115,6 +130,19 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
     const btn = await screen.findByText(/Request run/);
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.createBenchRun).toHaveBeenCalledWith('udp_dns_reflection'));
+  });
+
+  it('shows the coverage method for an out-of-model vector and records new evidence', async () => {
+    renderWithRouter(<SettingsPage />);
+    // ip_spoofing is covered by ATTESTED evidence (not a run).
+    expect(await screen.findByText('ATTESTED')).toBeTruthy();
+    // Open the record-coverage form and submit.
+    fireEvent.click(await screen.findByText(/Record coverage evidence/));
+    fireEvent.change(await screen.findByPlaceholderText(/BCP38/), {
+      target: { value: 'GRE dropped at the edge router.' },
+    });
+    fireEvent.click(screen.getByText('Record coverage'));
+    await waitFor(() => expect(fakeApi.recordBenchCoverage).toHaveBeenCalled());
   });
 
   it('hides the bench cockpit from non-CISO roles', async () => {

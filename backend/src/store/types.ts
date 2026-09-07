@@ -4,7 +4,7 @@ import type { AuditEntry } from '../modules/audit/model.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
-import type { BenchRun, BenchVerdict } from '../modules/bench/model.js';
+import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
@@ -74,5 +74,12 @@ export interface Store {
     id: string,
     result: { verdict?: BenchVerdict; error?: string },
   ): Promise<BenchRun | undefined>;
+  /**
+   * Coverage evidence for a bench vector (any method other than an actual run):
+   * ingested external verdicts, control attestations, modelled or replay
+   * judgements. Read-only assurance — no traffic is ever emitted from here.
+   */
+  saveBenchCoverage(c: BenchCoverage): Promise<void>;
+  listBenchCoverage(): Promise<BenchCoverage[]>;
   close(): Promise<void>;
 }

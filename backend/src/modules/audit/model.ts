@@ -17,7 +17,8 @@ export interface AuditEntry {
     | 'drs.verdict'
     | 'limits.update'
     | 'bench.request'
-    | 'bench.verdict';
+    | 'bench.verdict'
+    | 'bench.coverage';
   campaignId?: string;
   detail?: string;
   /**

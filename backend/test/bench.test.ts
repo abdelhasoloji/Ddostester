@@ -120,6 +120,67 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     const dump = JSON.stringify(audit.json());
     expect(dump).toContain('bench.request');
     expect(dump).toContain('bench.verdict');
+
+    // A real run also records MEASURED_LAB coverage for its vector.
+    const cov = (await asCiso('GET', '/api/bench/coverage')).json().coverage;
+    const measured = cov.find(
+      (c: { vector: string; method: string }) =>
+        c.vector === 'udp_dns_reflection' && c.method === 'MEASURED_LAB',
+    );
+    expect(measured).toBeTruthy();
+  });
+
+  it('lets the CISO record coverage for an out-of-model vector (attestation)', async () => {
+    const r = await asCiso('POST', '/api/bench/coverage', {
+      vector: 'ip_spoofing',
+      method: 'ATTESTED',
+      outcome: 'PASS',
+      summary: 'Edge enforces BCP38/uRPF ingress filtering; spoofed sources dropped.',
+      source: 'edge-config',
+    });
+    expect(r.statusCode).toBe(201);
+    const cov = (await asCiso('GET', '/api/bench/coverage')).json().coverage;
+    const att = cov.find((c: { vector: string; method: string }) => c.vector === 'ip_spoofing');
+    expect(att.method).toBe('ATTESTED');
+    expect(att.outcome).toBe('PASS');
+    const audit = await asCiso('GET', '/api/audit');
+    expect(JSON.stringify(audit.json())).toContain('bench.coverage');
+  });
+
+  it('rejects a hand-recorded MEASURED_LAB, an unknown vector, and a missing summary', async () => {
+    // MEASURED_LAB can only come from an actual run, never hand-recorded.
+    expect(
+      (
+        await asCiso('POST', '/api/bench/coverage', {
+          vector: 'ip_spoofing',
+          method: 'MEASURED_LAB',
+          summary: 'nope',
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await asCiso('POST', '/api/bench/coverage', {
+          vector: 'not-a-vector',
+          method: 'ATTESTED',
+          summary: 'x',
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (await asCiso('POST', '/api/bench/coverage', { vector: 'gre_packets', method: 'ATTESTED' }))
+        .statusCode,
+    ).toBe(400); // missing summary
+  });
+
+  it('coverage recording is CISO-only (officer 403)', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/bench/coverage',
+      headers: { authorization: `Bearer ${officer}` },
+      payload: { vector: 'gre_packets', method: 'ATTESTED', summary: 'GRE dropped at edge.' },
+    });
+    expect(r.statusCode).toBe(403);
   });
 
   it('refuses out-of-model vectors (TCP/GRE/spoofing) and unknown ids', async () => {

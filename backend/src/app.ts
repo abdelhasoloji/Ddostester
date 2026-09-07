@@ -23,8 +23,13 @@ import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
 import { HARD_CAPS, clampToCeiling, withinCeiling } from './config/limits.js';
 import type { HardCaps } from './config/limits.js';
-import { BENCH_SCENARIOS, isKnownBenchScenario, parseBenchVerdict } from './modules/bench/model.js';
-import type { BenchRun } from './modules/bench/model.js';
+import {
+  BENCH_SCENARIOS,
+  isKnownBenchScenario,
+  parseBenchVerdict,
+  parseCoverageInput,
+} from './modules/bench/model.js';
+import type { BenchRun, BenchCoverage } from './modules/bench/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
@@ -649,6 +654,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return reply.code(400).send({ error: (err as Error).message });
     }
     const updated = await store.setBenchRunResult(id, { verdict });
+    // A real run also records MEASURED_LAB coverage for its vector, so the
+    // coverage matrix reflects what was actually measured in the lab.
+    const drs = BENCH_SCENARIOS.find((s) => s.id === existing.scenario)?.drs;
+    await store.saveBenchCoverage({
+      id: randomUUID(),
+      vector: existing.scenario,
+      method: 'MEASURED_LAB',
+      outcome: verdict.outcome,
+      drs,
+      summary: `Bounded synthetic run — amplification ${verdict.amplificationFactor ?? '?'}×${
+        verdict.mitigation ? `, collateral ${verdict.mitigation.collateralPct ?? '?'}%` : ''
+      }.`,
+      source: existing.claimedBy ?? 'shieldtest-lab',
+      recordedBy: existing.claimedBy ?? 'runner',
+      at: new Date().toISOString(),
+    });
     await auditAs(
       existing.claimedBy ?? 'runner',
       'bench.verdict',
@@ -656,6 +677,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       `C/${existing.scenario} @ ${existing.labTarget} → ${verdict.outcome ?? 'COMPLETED'} · amp ${verdict.amplificationFactor ?? '?'}x`,
     );
     return reply.code(200).send(updated);
+  });
+
+  // Coverage evidence for a vector by a non-run method (ingested external
+  // verdict, control attestation, modelled/replay judgement). CISO records it;
+  // the control plane emits nothing. Applies to out-of-model vectors too.
+  app.get('/api/bench/coverage', { preHandler: guard('bench:read') }, async () => ({
+    coverage: await store.listBenchCoverage(),
+  }));
+
+  app.post('/api/bench/coverage', { preHandler: guard('bench:attest') }, async (req, reply) => {
+    let entry: Omit<BenchCoverage, 'id' | 'at'>;
+    try {
+      entry = parseCoverageInput(req.body, req.authUser?.email ?? 'dev');
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+    const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+    await store.saveBenchCoverage(record);
+    await audit(
+      req,
+      'bench.coverage',
+      undefined,
+      `${record.method} · ${record.vector} → ${record.outcome ?? 'recorded'} (${record.source})`,
+    );
+    return reply.code(201).send(record);
   });
 
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {

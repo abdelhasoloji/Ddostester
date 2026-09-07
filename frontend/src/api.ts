@@ -328,6 +328,34 @@ export interface BenchCatalogue {
   dispatchEnabled: boolean;
   labTargets: string[];
 }
+export type CoverageMethod =
+  'MEASURED_LAB' | 'INGESTED_EXTERNAL' | 'ATTESTED' | 'MODELLED' | 'REPLAY';
+// Methods a CISO can record by hand (MEASURED_LAB only comes from a real run).
+export const RECORDABLE_METHODS: CoverageMethod[] = [
+  'INGESTED_EXTERNAL',
+  'ATTESTED',
+  'MODELLED',
+  'REPLAY',
+];
+export interface BenchCoverage {
+  id: string;
+  vector: string;
+  method: CoverageMethod;
+  outcome?: string;
+  drs?: number;
+  summary: string;
+  source: string;
+  recordedBy: string;
+  at: string;
+}
+export interface CoverageInput {
+  vector: string;
+  method: CoverageMethod;
+  outcome?: string;
+  drs?: number;
+  summary: string;
+  source?: string;
+}
 
 /** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
@@ -446,6 +474,8 @@ export const api = {
   benchRuns: () => get<{ runs: BenchRun[] }>('/api/bench/runs'),
   createBenchRun: (scenario: string, labTarget?: string) =>
     post<BenchRun>('/api/bench/runs', labTarget ? { scenario, labTarget } : { scenario }),
+  benchCoverage: () => get<{ coverage: BenchCoverage[] }>('/api/bench/coverage'),
+  recordBenchCoverage: (input: CoverageInput) => post<BenchCoverage>('/api/bench/coverage', input),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

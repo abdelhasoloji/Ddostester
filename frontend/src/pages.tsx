@@ -12,7 +12,9 @@ import {
 import type {
   AuditVerdict,
   BenchCatalogue,
+  BenchCoverage,
   BenchRun,
+  CoverageMethod,
   Campaign,
   HardCaps,
   ManagedUser,
@@ -21,6 +23,7 @@ import type {
   SuiteSummary,
   WrsBreakdown,
 } from './api.js';
+import { RECORDABLE_METHODS } from './api.js';
 import { useApp, canDo } from './context.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import {
@@ -881,19 +884,50 @@ function outcomePill(outcome?: string) {
   );
 }
 
+const METHOD_COLOR: Record<CoverageMethod, string> = {
+  MEASURED_LAB: 'var(--success)',
+  INGESTED_EXTERNAL: 'var(--brand)',
+  ATTESTED: 'var(--warning)',
+  MODELLED: 'var(--muted)',
+  REPLAY: 'var(--brand)',
+};
+function methodPill(m?: CoverageMethod) {
+  if (!m) return <span className="hint">not covered</span>;
+  const c = METHOD_COLOR[m];
+  return (
+    <span className="badge" style={{ background: 'var(--surface-2)', color: c, borderColor: c }}>
+      {m.replace('_', ' ')}
+    </span>
+  );
+}
+
 function BenchCard() {
   const app = useApp();
   const canBench = canDo(app.role, 'bench', app.authRequired);
   const [cat, setCat] = useState<BenchCatalogue | null>(null);
   const [runs, setRuns] = useState<BenchRun[]>([]);
+  const [coverage, setCoverage] = useState<BenchCoverage[]>([]);
   const [scenario, setScenario] = useState('');
   const [busy, setBusy] = useState(false);
+  const [recVector, setRecVector] = useState('');
+  const [recMethod, setRecMethod] = useState<CoverageMethod>('ATTESTED');
+  const [recOutcome, setRecOutcome] = useState('');
+  const [recSummary, setRecSummary] = useState('');
+  const [recSource, setRecSource] = useState('');
+  const [recOpen, setRecOpen] = useState(false);
 
   const refreshRuns = async () => {
     try {
       setRuns((await api.benchRuns()).runs);
     } catch {
       /* transient — leave the last view in place */
+    }
+  };
+  const refreshCoverage = async () => {
+    try {
+      setCoverage((await api.benchCoverage()).coverage);
+    } catch {
+      /* transient */
     }
   };
 
@@ -906,10 +940,12 @@ function BenchCard() {
         if (!alive) return;
         setCat(c);
         setScenario(c.scenarios.find((s) => s.reproducible)?.id ?? '');
+        setRecVector(c.scenarios.find((s) => !s.reproducible)?.id ?? c.scenarios[0]?.id ?? '');
       } catch {
         /* no access / not configured */
       }
       await refreshRuns();
+      await refreshCoverage();
     })();
     return () => {
       alive = false;
@@ -940,10 +976,36 @@ function BenchCard() {
     }
   };
 
+  const recordCoverage = async () => {
+    if (!recVector || !recSummary.trim()) return;
+    setBusy(true);
+    try {
+      await api.recordBenchCoverage({
+        vector: recVector,
+        method: recMethod,
+        outcome: recOutcome.trim() || undefined,
+        summary: recSummary.trim(),
+        source: recSource.trim() || undefined,
+      });
+      app.push('success', `Coverage recorded for ${recVector} (${recMethod}).`);
+      setRecSummary('');
+      setRecOutcome('');
+      setRecOpen(false);
+      await refreshCoverage();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const dispatchEnabled = cat?.dispatchEnabled ?? false;
   const scenarios = cat?.scenarios ?? [];
   const runnable = scenarios.filter((s) => s.reproducible);
   const selected = scenarios.find((s) => s.id === scenario);
+  // Coverage is newest-first from the API → the first hit per vector is latest.
+  const latestByVector = new Map<string, BenchCoverage>();
+  for (const c of coverage) if (!latestByVector.has(c.vector)) latestByVector.set(c.vector, c);
 
   return (
     <div className="card">
@@ -1050,49 +1112,132 @@ function BenchCard() {
                   <th>Proto</th>
                   <th>DRS</th>
                   <th>Bench</th>
-                  <th style={{ whiteSpace: 'normal' }}>Note</th>
+                  <th>Coverage</th>
+                  <th style={{ whiteSpace: 'normal' }}>Latest evidence</th>
                 </tr>
               </thead>
               <tbody>
-                {scenarios.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <code>{s.id}</code>
-                    </td>
-                    <td>{s.proto}</td>
-                    <td className="num">{s.drs}</td>
-                    <td>
-                      {s.reproducible ? (
-                        <span
-                          className="badge"
-                          style={{
-                            background: 'var(--surface-2)',
-                            color: 'var(--success)',
-                            borderColor: 'var(--success)',
-                          }}
-                        >
-                          reproducible
-                        </span>
-                      ) : (
-                        <span
-                          className="badge"
-                          style={{
-                            background: 'var(--surface-2)',
-                            color: 'var(--muted)',
-                            borderColor: 'var(--border)',
-                          }}
-                        >
-                          out of model
-                        </span>
-                      )}
-                    </td>
-                    <td className="hint" style={{ whiteSpace: 'normal' }}>
-                      {s.note}
-                    </td>
-                  </tr>
-                ))}
+                {scenarios.map((s) => {
+                  const cov = latestByVector.get(s.id);
+                  return (
+                    <tr key={s.id}>
+                      <td>
+                        <code>{s.id}</code>
+                      </td>
+                      <td>{s.proto}</td>
+                      <td className="num">{s.drs}</td>
+                      <td>
+                        {s.reproducible ? (
+                          <span
+                            className="badge"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--success)',
+                              borderColor: 'var(--success)',
+                            }}
+                          >
+                            reproducible
+                          </span>
+                        ) : (
+                          <span
+                            className="badge"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--muted)',
+                              borderColor: 'var(--border)',
+                            }}
+                          >
+                            out of model
+                          </span>
+                        )}
+                      </td>
+                      <td>{methodPill(cov?.method)}</td>
+                      <td className="hint" style={{ whiteSpace: 'normal' }}>
+                        {cov ? (
+                          <>
+                            {cov.outcome ? <b>{cov.outcome}</b> : null} {cov.summary}{' '}
+                            <span style={{ opacity: 0.7 }}>· {cov.source}</span>
+                          </>
+                        ) : (
+                          s.note
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            <button className="btn btn-sm" onClick={() => setRecOpen((v) => !v)}>
+              {recOpen ? 'Cancel' : '+ Record coverage evidence'}
+            </button>
+            {recOpen && (
+              <div
+                className="attest"
+                style={{ display: 'block', marginTop: '.6rem', background: 'var(--surface-2)' }}
+              >
+                <p className="hint" style={{ margin: '0 0 .6rem' }}>
+                  Attach non-run evidence to any vector — an external bench verdict, a control
+                  attestation (e.g. BCP38/uRPF), a modelled or replay judgement. No traffic is
+                  emitted; this is read-only assurance, audited.
+                </p>
+                <div className="grid">
+                  <div className="field">
+                    <label>Vector</label>
+                    <select value={recVector} onChange={(e) => setRecVector(e.target.value)}>
+                      {scenarios.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Method</label>
+                    <select
+                      value={recMethod}
+                      onChange={(e) => setRecMethod(e.target.value as CoverageMethod)}
+                    >
+                      {RECORDABLE_METHODS.map((m) => (
+                        <option key={m} value={m}>
+                          {m.replace('_', ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>
+                      Outcome <span className="hint">(optional, e.g. PASS / MITIGATED)</span>
+                    </label>
+                    <input value={recOutcome} onChange={(e) => setRecOutcome(e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>
+                      Source <span className="hint">(e.g. network-team-bench)</span>
+                    </label>
+                    <input value={recSource} onChange={(e) => setRecSource(e.target.value)} />
+                  </div>
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
+                    <label>Evidence / rationale</label>
+                    <input
+                      value={recSummary}
+                      onChange={(e) => setRecSummary(e.target.value)}
+                      placeholder="e.g. Edge enforces BCP38/uRPF; spoofed sources dropped."
+                    />
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: '.6rem' }}
+                  onClick={recordCoverage}
+                  disabled={busy || !recVector || !recSummary.trim()}
+                >
+                  {busy ? 'Recording…' : 'Record coverage'}
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

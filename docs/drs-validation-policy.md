@@ -209,7 +209,21 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
     here by construction). The report's Layer-7 vectors are bounded-HTTP and live
     in the control-plane playbooks (`assessment-methodology.md`), not this bench.
 
-Remaining: the per-technique pass/fail history surfaced in the assessment report.
+  - **Coverage methods.** A vector is covered by an honest, labelled method, so
+    "out of model" becomes qualified coverage rather than "no data". Recorded as
+    read-only evidence via `POST /api/bench/coverage` (`bench:attest`, CISO;
+    audited `bench.coverage`), and surfaced per vector in the coverage matrix:
+    `MEASURED_LAB` (an actual bounded lab run — the only method that emits, and
+    only synthetic/loopback), `INGESTED_EXTERNAL` (a read-only verdict from the
+    network team's real L3/4 bench), `ATTESTED` (a control check, e.g. BCP38/uRPF
+    for `ip_spoofing`, GRE-drop for `gre_packets` — verification, not emission),
+    `MODELLED` (an estimated judgement with rationale, no traffic), and `REPLAY`
+    (a sanitized PCAP replayed in the isolated lab, spoofed sources rewritten to
+    lab addresses). None of these emit spoofed or raw-flood traffic — that stays
+    permanently refused.
+
+Remaining: the synthetic-lab realizations that emit (a no-spoof TCP conntrack
+module, sanitized PCAP replay) — separate lab engineering, tracked out of band.
 
 ## 9. Defensive matrix (the practical companion)
 
