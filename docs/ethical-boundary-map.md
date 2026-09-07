@@ -13,16 +13,17 @@ Two boundaries coexist and must both hold:
 
 ## Policy (intent)
 
-| File                      | Defines                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `SECURITY.md`             | Acceptable / prohibited use; synthetic-lab usage policy        |
-| `CLAUDE.md`               | Non-negotiable boundary for every contributor/agent            |
-| `docs/safeguards.md`      | Security model, "What is NOT implemented", lab carve-out       |
-| `README.md`               | "Defensive scope" banner + "What is NOT implemented"           |
-| `docs/roadmap.md`         | Scope banner (source of truth for status) + lab section        |
-| `docs/security-review.md` | Threat model, verified points, residual risks                  |
-| `docs/network-lab.md`     | Lab safety properties (no-spoofing, isolation, caps, profiles) |
-| `CONTRIBUTING.md`         | Contribution rules (points back to the safeguards)             |
+| File                            | Defines                                                           |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `SECURITY.md`                   | Acceptable / prohibited use; synthetic-lab usage policy           |
+| `CLAUDE.md`                     | Non-negotiable boundary for every contributor/agent               |
+| `docs/safeguards.md`            | Security model, "What is NOT implemented", lab carve-out          |
+| `README.md`                     | "Defensive scope" banner + "What is NOT implemented"              |
+| `docs/roadmap.md`               | Scope banner (source of truth for status) + lab section           |
+| `docs/security-review.md`       | Threat model, verified points, residual risks                     |
+| `docs/network-lab.md`           | Lab safety properties (no-spoofing, isolation, caps, profiles)    |
+| `docs/drs-validation-policy.md` | Governing red-team PoCs (classes A/B/C, `LAB_TARGETS`, deny-list) |
+| `CONTRIBUTING.md`               | Contribution rules (points back to the safeguards)                |
 
 ## Code — control plane (enforcement)
 
