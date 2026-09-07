@@ -73,4 +73,23 @@ describe('compliance / resilience assessment report', () => {
     expect(html).toContain('>Critical<');
     expect(html).toContain('found the target unavailable');
   });
+
+  it('renders the designed chrome: cover, management summary, gauge and distribution charts', () => {
+    expect(html).toContain('Confidential — WEDOS internal');
+    expect(html).toContain('class="lead"'); // management summary prose
+    expect(html).toContain('bounded assessment'); // summary wording
+    expect(html).toContain('chart-gauge'); // avg-WRS gauge
+    expect(html).toContain('chart-hbars'); // distribution bars
+    expect(html).toContain('At a glance');
+    expect(html).not.toMatch(/NaN|undefined/);
+  });
+
+  it('handles an empty period without charts blowing up', () => {
+    const empty = renderComplianceHtml([], [], {
+      from: '2000-01-01T00:00:00Z',
+      to: '2000-01-02T00:00:00Z',
+    });
+    expect(empty).toContain('No bounded assessments were recorded');
+    expect(empty).not.toMatch(/NaN|undefined/);
+  });
 });

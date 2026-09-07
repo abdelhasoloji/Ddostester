@@ -100,7 +100,7 @@ describe('executeCampaign — run time-series', () => {
     const run = await executeCampaign(campaign, ['127.0.0.1'], kill);
     const html = renderCampaignReportHtml(campaign, run);
     // The report must explain *why* the run ended, mirroring the UI drawer.
-    expect(html).toContain('KILLED_AUTO');
+    expect(html).toContain('KILLED AUTO'); // status pill (redesigned report)
     expect(html).toContain(run.statusDetail!);
     expect(html).toMatch(/Auto-killed/);
   }, 15000);
@@ -137,8 +137,8 @@ describe('executeCampaign — run time-series', () => {
     });
     const html = renderCampaignReportHtml(campaign, run);
     expect(html).toContain('Protection (measured)');
-    expect(html).toContain('Time to detect (TTD)');
-    expect(html).toContain('4 s'); // TTD
-    expect(html).toContain('11 s'); // TTM
+    expect(html).toContain('Time-to-detect');
+    expect(html).toContain('4s'); // TTD
+    expect(html).toContain('11s'); // TTM
   }, 15000);
 });

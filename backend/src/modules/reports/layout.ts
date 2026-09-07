@@ -1,0 +1,82 @@
+/**
+ * layout.ts — shared print-quality chrome for the HTML reports: one stylesheet,
+ * a branded cover band, and the small status-pill / scorecard helpers, so the
+ * per-run report and the aggregate assessment read as one designed document
+ * (not two ad-hoc table dumps). Self-contained: no web fonts, no external CSS.
+ */
+import { htmlEscape as esc } from '../../util/text.js';
+
+const LOGO = `<svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="wl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#wl)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+export const REPORT_CSS = `
+ :root{--brand:#003484;--ink:#1a1d21;--muted:#6b7280;--surface:#fff;--surface-2:#f6f8fb;--border:#e4e8ef;
+  --good:#0f8a5f;--good-bg:#e8f6f0;--warn:#b8860b;--warn-bg:#fdf6e3;--crit:#c23b34;--crit-bg:#fdeceb;--neutral:#6b7280;--neutral-bg:#f0f2f5;}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;color:var(--ink);background:#eef1f5}
+ .page{max-width:920px;margin:0 auto;padding:0 1.5rem 3rem}
+ .cover{background:linear-gradient(120deg,#003484,#0a4aa0);color:#fff;padding:1.4rem 1.5rem;margin:0 -1.5rem 1.5rem;border-bottom:4px solid #f5a623}
+ .cover .top{display:flex;align-items:center;gap:.6rem}
+ .cover h1{font-size:1.35rem;margin:.1rem 0 0;font-weight:800;letter-spacing:.2px}
+ .cover .sub{opacity:.9;font-size:.9rem;margin-top:.3rem}
+ .cover .wm{font-weight:800}
+ .cover .conf{display:inline-block;margin-top:.6rem;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.16);padding:.15rem .5rem;border-radius:4px}
+ h2{color:var(--brand);font-size:1.05rem;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--border)}
+ h3{font-size:.95rem;margin:1rem 0 .4rem}
+ p{margin:.5rem 0}
+ .muted{color:var(--muted)}
+ .lead{font-size:1rem;line-height:1.6;background:var(--surface-2);border-left:3px solid var(--brand);padding:.8rem 1rem;border-radius:0 8px 8px 0}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0;background:var(--surface)}
+ th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top}
+ thead th,table.kvs th{background:var(--surface-2);font-weight:600}
+ td.note{color:#444;font-size:.85rem;max-width:280px}
+ .grid{display:grid;gap:1rem}
+ .cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:.8rem 0}
+ .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+ .card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+ .card .v{font-size:1.5rem;font-weight:800;color:var(--ink);margin-top:.15rem}
+ .card .v.sm{font-size:1.05rem}
+ .scorecard{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+ .scorecard .pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.2rem}
+ .figure{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;margin:.6rem 0}
+ .figure .cap{font-size:.8rem;color:var(--muted);margin-bottom:.4rem}
+ .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+ .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.8rem;font-weight:700;padding:.2rem .6rem;border-radius:999px}
+ .p-good{color:var(--good);background:var(--good-bg)} .p-warn{color:var(--warn);background:var(--warn-bg)}
+ .p-crit{color:var(--crit);background:var(--crit-bg)} .p-neutral{color:var(--neutral);background:var(--neutral-bg)}
+ .callout{border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;font-size:.9rem;border:1px solid}
+ .callout.kill{border-color:#e8b4b0;background:var(--crit-bg);color:#8a221c;font-weight:600}
+ .callout.info{border-color:var(--border);background:var(--surface-2);color:#444}
+ .callout.warn{border-color:#e6d59a;background:var(--warn-bg);color:#7a5c07}
+ .chart-empty{color:var(--muted);font-size:.86rem;padding:1rem;text-align:center;background:var(--surface-2);border-radius:8px}
+ .r-low,.v-held{color:var(--good);font-weight:700}.r-med,.v-partial{color:var(--warn);font-weight:700}
+ .r-crit,.v-fail{color:var(--crit);font-weight:700}.v-aborted{color:var(--muted);font-weight:700}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+ @media print{.print-btn{display:none}body{background:#fff}.cover{margin:0 0 1rem}.page{max-width:none;padding:0}.card,.scorecard,.figure{box-shadow:none}}
+ @media(max-width:640px){.two-col{grid-template-columns:1fr}.scorecard{grid-template-columns:1fr;text-align:center}}
+`;
+
+/** The branded cover band + confidentiality mark. */
+export function coverBand(title: string, subtitle: string): string {
+  return `<div class="cover"><div class="top">${LOGO}<span class="wm">WEDOS ShieldTest</span></div>
+  <h1>${esc(title)}</h1>
+  <div class="sub">${esc(subtitle)}</div>
+  <span class="conf">Confidential — WEDOS internal</span></div>`;
+}
+
+/** A status pill (label + reserved status colour, never colour alone). */
+export function pill(label: string, cls: 'good' | 'warn' | 'crit' | 'neutral', icon = ''): string {
+  return `<span class="pill p-${cls}">${icon ? esc(icon) + ' ' : ''}${esc(label)}</span>`;
+}
+
+/** A small KPI card (uppercase key + big value). */
+export function statCard(k: string, v: string, small = false): string {
+  return `<div class="card"><div class="k">${esc(k)}</div><div class="v${small ? ' sm' : ''}">${v}</div></div>`;
+}
+
+/** The print button + opening document shell. `bodyClass` optional. */
+export function docHead(title: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><style>${REPORT_CSS}</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button><div class="page">`;
+}
+export const DOC_TAIL = `</div></body></html>`;

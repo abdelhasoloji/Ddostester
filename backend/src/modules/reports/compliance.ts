@@ -1,5 +1,7 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
+import { gaugeSvg, hbarsSvg, sparklineSvg, scoreColor, REPORT_COLORS } from './charts.js';
 
 /**
  * RPT-02 — Aggregated resilience assessment / compliance report.
@@ -97,11 +99,61 @@ export function renderComplianceHtml(
     perTarget.set(host, agg);
   }
 
-  const wrsAvg = total ? (wrsSum / total).toFixed(1) : '—';
+  const wrsAvgNum = total ? wrsSum / total : 0;
+  const wrsAvg = total ? wrsAvgNum.toFixed(1) : '—';
   const wrsMinStr = total ? String(wrsMin) : '—';
   const worst = inPeriod.filter((r) => r.wrs.wrs < 70);
   const row = (k: string, v: string | number) => `<tr><th>${k}</th><td>${v}</td></tr>`;
   const period = `${opts.from ? esc(opts.from) : 'origin'} → ${opts.to ? esc(opts.to) : 'now'}`;
+
+  // Risk distribution across the period.
+  const riskCount = { Low: 0, Medium: 0, Critical: 0 };
+  for (const r of inPeriod) riskCount[riskLevel(r).label as keyof typeof riskCount]++;
+
+  // Management summary — plain-language, generated from the aggregates.
+  const summary = total
+    ? `Across <b>${period}</b>, <b>${total}</b> bounded assessment${total > 1 ? 's' : ''} ran against ` +
+      `<b>${targets.size}</b> target${targets.size > 1 ? 's' : ''} using ${[...engines].map(esc).join(', ')}. ` +
+      `The average WEDOS Resiliency Score was <b>${wrsAvg}</b> (lowest ${wrsMinStr}); ` +
+      `<b>${worst.length}</b> run${worst.length === 1 ? '' : 's'} fell below the resilience threshold of 70. ` +
+      `RiskLevel spread: ${riskCount.Low} Low · ${riskCount.Medium} Medium · <b>${riskCount.Critical} Critical</b>. ` +
+      (anyEstimated
+        ? `Some runs have estimated detection/mitigation (no protection source), so their score reflects measured availability.`
+        : `Detection/mitigation timings were measured for these runs.`)
+    : `No bounded assessments were recorded in <b>${period}</b>.`;
+
+  // WRS-by-level distribution (single hue), ordered best→worst.
+  const LEVEL_ORDER = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'];
+  const levelBars = hbarsSvg(
+    LEVEL_ORDER.filter((l) => byLevel.has(l)).map((l) => ({
+      label: `Grade ${l}`,
+      value: byLevel.get(l) ?? 0,
+      display: String(byLevel.get(l) ?? 0),
+    })),
+    { max: Math.max(1, ...byLevel.values()) },
+  );
+  // Risk distribution, status-coloured (with labels, never colour alone).
+  const riskBars = hbarsSvg(
+    [
+      { label: 'Low', value: riskCount.Low, display: String(riskCount.Low) },
+      { label: 'Medium', value: riskCount.Medium, display: String(riskCount.Medium) },
+      { label: 'Critical', value: riskCount.Critical, display: String(riskCount.Critical) },
+    ],
+    {
+      max: Math.max(1, riskCount.Low, riskCount.Medium, riskCount.Critical),
+      barColor: (v) =>
+        v === riskCount.Critical && v > 0
+          ? REPORT_COLORS.crit
+          : v === riskCount.Medium
+            ? REPORT_COLORS.warn
+            : REPORT_COLORS.good,
+    },
+  );
+  // WRS trend across the period (chronological).
+  const trend = sparklineSvg(
+    inPeriod.map((r) => r.wrs.wrs),
+    { yMax: 100, width: 240, height: 44 },
+  );
 
   // Per-scenario results table (zeroBS "L7 Summary" shape, bounded).
   const scenarioRows = inPeriod
@@ -125,7 +177,7 @@ export function renderComplianceHtml(
  <td>${esc(c?.name ?? r.campaignId)}</td>
  <td>${esc(hostOf(c?.target ?? '—'))}</td>
  <td>${rps}</td>
- <td>${r.wrs.wrs} <span class="muted">${r.wrs.level}</span></td>
+ <td><b style="color:${scoreColor(r.wrs.wrs)}">${r.wrs.wrs}</b> <span class="muted">${r.wrs.level}</span></td>
  <td class="${mit.cls}">${mit.label}</td>
  <td class="${risk.cls}">${risk.label}</td>
  <td class="note">${note}</td>
@@ -133,87 +185,72 @@ export function renderComplianceHtml(
     })
     .join('');
 
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>Resilience assessment — WEDOS ShieldTest</title>
-<style>
- body{font:14px system-ui,sans-serif;margin:2rem;color:#111;max-width:960px}
- .brand{display:flex;align-items:center;gap:.6rem;border-bottom:3px solid #003484;padding-bottom:.6rem;margin-bottom:1rem}
- .brand h1{font-size:1.25rem;margin:0}.wm{font-weight:800;color:#003484}
- h2{color:#003484;margin-top:1.6rem}
- table{border-collapse:collapse;width:100%;margin:.6rem 0}
- th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:top}
- td.note{color:#444;font-size:.86rem;max-width:280px}
- .muted{color:#666}
- .r-low,.v-held{color:#0f8a5f;font-weight:600}
- .r-med,.v-partial{color:#b8860b;font-weight:600}
- .r-crit,.v-fail{color:#c23b34;font-weight:700}
- .v-aborted{color:#666;font-weight:600}
- .oos{background:#f6f8fa;color:#555;font-size:.86rem;border:1px solid #e1e6ea;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0}
- .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
- @media print{.print-btn{display:none}body{margin:0}}
-</style></head><body>
-<button class="print-btn" onclick="window.print()">Print / PDF</button>
-<div class="brand">
- <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
- <h1><span class="wm">WEDOS ShieldTest</span> — Resilience assessment</h1>
-</div>
-<p class="muted">Period: ${period} · generated on ${new Date().toISOString()} · WEDOS internal use</p>
-
-<h2>Scope</h2>
-<table>
+  return (
+    docHead('Resilience assessment — WEDOS ShieldTest') +
+    coverBand(
+      'Resilience assessment',
+      `Period ${period} · generated ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC`,
+    ) +
+    `<p class="lead">${summary}</p>` +
+    `<h2>At a glance</h2>
+<div class="scorecard">
+  <div>${gaugeSvg(wrsAvgNum, { sub: 'avg WRS', color: scoreColor(wrsAvgNum) })}
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Average across ${total} run${total === 1 ? '' : 's'}</div></div>
+  <div>
+    <div class="pills">${pill(`${riskCount.Critical} Critical`, riskCount.Critical ? 'crit' : 'neutral')} ${pill(`${riskCount.Medium} Medium`, riskCount.Medium ? 'warn' : 'neutral')} ${pill(`${riskCount.Low} Low`, 'good')}</div>
+    <div class="grid cards" style="margin-top:.7rem">
+      ${statCard('Runs assessed', String(total))}
+      ${statCard('Minimum WRS', wrsMinStr)}
+      ${statCard('Below WRS 70', String(worst.length))}
+      ${statCard('Targets', String(targets.size))}
+    </div>
+    <div style="margin-top:.5rem"><span class="muted" style="font-size:.8rem">WRS trend </span>${trend}</div>
+  </div>
+</div>` +
+    `<h2>Scope</h2>
+<table class="kvs">
  ${row('Runs assessed', total)}
  ${row('Targets', [...targets].map(esc).join(', ') || '—')}
  ${row('Load engines', [...engines].map(esc).join(', ') || '—')}
  ${row('Method', 'Bounded HTTP (GET/POST), allowlisted, capped ≤ 2000 rps / 500 conc / 900 s')}
  ${row('DRS note', 'Customer-defined targets — assessment capped at DRS 4.5 by methodology')}
-</table>
-
-<h2>Summary</h2>
+</table>` +
+    `<h2>Score &amp; risk distribution</h2>
+<div class="two-col">
+  <div class="figure"><div class="cap">Runs by WRS grade</div>${byLevel.size ? levelBars : '<div class="chart-empty">No runs in the period.</div>'}</div>
+  <div class="figure"><div class="cap">Runs by RiskLevel</div>${total ? riskBars : '<div class="chart-empty">No runs in the period.</div>'}</div>
+</div>` +
+    `<h2>Per-scenario results (Layer 7, bounded)</h2>
 <table>
- ${row('Average WRS', wrsAvg)}
- ${row('Minimum WRS', wrsMinStr)}
- ${row('Runs below resilience threshold (WRS &lt; 70)', worst.length)}
-</table>
-${
-  anyEstimated
-    ? `<p class="muted">Some runs have <strong>estimated</strong> detection/mitigation
-       (no protection integration reported real timings); their outcome reflects
-       measured availability. See methodology §3.2.</p>`
-    : ''
-}
-
-<h2>Per-scenario results (Layer 7, bounded)</h2>
-<table>
- <tr><th>#</th><th>Scenario</th><th>Target</th><th>Peak RPS</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr>
- ${scenarioRows || '<tr><td colspan="8" class="muted">No runs in the period.</td></tr>'}
+ <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Peak RPS</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr></thead>
+ <tbody>${scenarioRows || '<tr><td colspan="8" class="muted">No runs in the period.</td></tr>'}</tbody>
 </table>
 
-<div class="oos"><strong>Volumetric / L3-L4 — out of scope.</strong> UDP/TCP/ICMP
+<div class="callout info"><strong>Volumetric / L3-L4 — out of scope.</strong> UDP/TCP/ICMP
 floods, amplification, fragmentation and source spoofing are not implemented by
 this platform and are not run here. They are validated separately on an isolated
 network bench — see <em>drs-validation-policy.md</em> (class C).</div>
 
-<h2>Breakdown by status</h2>
-<table>${[...byStatus].map(([k, v]) => row(k, v)).join('') || row('—', 0)}</table>
-
-<h2>Breakdown by WRS level</h2>
-<table>${[...byLevel].map(([k, v]) => row(k, v)).join('') || row('—', 0)}</table>
-
 <h2>Coverage by target</h2>
-<table><tr><th>Target</th><th>Runs</th><th>Average WRS</th></tr>
-${[...perTarget].map(([t, a]) => `<tr><td>${esc(t)}</td><td>${a.n}</td><td>${(a.sum / a.n).toFixed(1)}</td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>'}
+<table>
+ <thead><tr><th>Target</th><th>Runs</th><th>Average WRS</th></tr></thead>
+ <tbody>${[...perTarget].map(([t, a]) => `<tr><td>${esc(t)}</td><td>${a.n}</td><td><b style="color:${scoreColor(a.sum / a.n)}">${(a.sum / a.n).toFixed(1)}</b></td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>'}</tbody>
 </table>
 
+<h2>Breakdown by status</h2>
+<table class="kvs">${[...byStatus].map(([k, v]) => row(k, v)).join('') || row('—', 0)}</table>
+
 <h2>Glossary</h2>
-<table>
+<table class="kvs">
  <tr><th>WRS / DRS</th><td>WEDOS Resiliency Score (0–100). DRS = zeroBS DDoS Resiliency Score; customer-defined targets cap the assessment at DRS 4.5.</td></tr>
- <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held & WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
+ <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
  <tr><th>Mitigation</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> auto-killed (target down ≥30 s) · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
  <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.</td></tr>
  <tr><th>RPS</th><td>Requests per second (Layer 7). Volumetric PPS is out of scope.</td></tr>
 </table>
 
-<p class="muted">Automatically generated resilience evidence. Bounded HTTP generator —
-no volumetric, amplification or spoofing vector. WEDOS internal use.</p>
-</body></html>`;
+<p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. Bounded HTTP generator —
+no volumetric, amplification or spoofing vector. WEDOS internal use.</p>` +
+    DOC_TAIL
+  );
 }

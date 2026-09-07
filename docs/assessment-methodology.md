@@ -50,9 +50,16 @@ The aggregate **Resilience Assessment** report follows the zeroBS layout:
 | Per-attack detail (schedule, TTD/TTM, mitigation) | Per-run notes (kill reason, availability, baseline Δ)     |
 | Glossary (RiskLevel, TTD/TTM, PPS/RPS…)           | Glossary (§3)                                             |
 
-The per-run detail already exists (campaign report, now with the kill
-explanation). This methodology adds the **assessment-level** shape to the
-aggregate compliance report.
+Both reports are **designed documents**, not table dumps: a branded cover with a
+confidentiality mark, an auto-generated **management summary** in prose, an
+_At a glance_ **scorecard** (a WRS gauge + RiskLevel / Mitigation status pills +
+KPI cards), and inline-SVG charts — the per-run report draws the **traffic
+timeline** (req/s) and the **availability timeline** on _separate_ axes (never a
+dual axis), the WRS-component and latency bars; the aggregate draws the
+score-by-grade and risk distributions and a WRS trend. Charts are self-contained
+SVG (no JS, no external libs) so the report stays one portable file that prints
+cleanly to PDF and satisfies the CSP. Chart helpers: `reports/charts.ts`; shared
+chrome: `reports/layout.ts`.
 
 **Before / after comparison.** `GET /api/reports/compare?a=<runId>&b=<runId>`
 (and the _Before / after comparison_ card on the Reports page) renders two runs
