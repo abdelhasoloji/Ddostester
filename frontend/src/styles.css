@@ -1514,6 +1514,21 @@ input.invalid {
   height: 100%;
   background: linear-gradient(90deg, var(--brand), var(--accent));
   transition: width 0.5s ease;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-fill {
+    animation: none;
+  }
 }
 .live-stats {
   display: flex;

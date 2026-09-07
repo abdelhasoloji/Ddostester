@@ -185,6 +185,18 @@ describe('campaign actions', () => {
     expect(fakeApi.execute).toHaveBeenCalledWith('c1');
   });
 
+  it('opens the drawer as soon as the run starts, before it completes', async () => {
+    // The run request blocks until the campaign finishes; the drawer (with the
+    // live progress bar) must open immediately, not only once it resolves.
+    let finish!: (v: unknown) => void;
+    fakeApi.execute.mockReturnValue(new Promise((r) => (finish = r)));
+    await mountReady();
+    fireEvent.click(screen.getByText('execute'));
+    // Drawer is expanded while the run is still in flight.
+    await waitFor(() => expect(screen.getByTestId('expanded').textContent).toBe('c1'));
+    finish({ status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } });
+  });
+
   it('execute surfaces an error as a toast', async () => {
     fakeApi.execute.mockRejectedValue(new Error('cap exceeded'));
     await mountReady();
