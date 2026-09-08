@@ -1,4 +1,5 @@
 import { runLoadTest } from '../engine/loadTest.js';
+import { runSlowloris } from '../engine/slowloris.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import type { AttackAgent } from './types.js';
@@ -20,6 +21,7 @@ export class BuiltinHttpAgent implements AttackAgent {
     killSignal?: AbortSignal,
     onProgress?: (p: LoadProgress) => void,
   ): Promise<LoadTestResult> {
+    if (config.slowloris) return runSlowloris(config, allowedHosts, killSignal, onProgress);
     return runLoadTest(config, allowedHosts, killSignal, onProgress);
   }
 }

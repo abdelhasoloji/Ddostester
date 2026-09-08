@@ -16,7 +16,7 @@ export type { AcceptanceCriteria, AcceptanceResult };
  * vectors (floods, amplification) and L7 exhaustion vectors (Slowloris, RUDY,
  * XML bomb…) from TSD §5.2 are NOT implemented — see README.
  */
-export type LoadVector = 'http-get' | 'http-post';
+export type LoadVector = 'http-get' | 'http-post' | 'http-slowloris';
 
 export type CampaignStatus =
   | 'PENDING_APPROVAL'

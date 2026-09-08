@@ -122,6 +122,7 @@ export async function executeCampaign(
     userAgents: campaign.userAgents,
     dataset: campaign.dataset,
     assertion: campaign.assertion,
+    slowloris: campaign.vector === 'http-slowloris',
     authorized: campaign.authorized,
   };
 

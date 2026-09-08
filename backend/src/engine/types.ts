@@ -140,6 +140,15 @@ export interface LoadTestConfig {
   /** Optional per-response assertion (built-in engine only). */
   assertion?: ResponseAssertion;
   /**
+   * Bounded slow-header ("SlowLoris") mode (built-in engine only). Instead of
+   * completing requests, opens up to `concurrency` connections and trickles
+   * partial headers to hold them open for `durationSec`, to test whether the
+   * target sheds slow/incomplete requests (good) or exhausts its connection
+   * pool (bad). Still bounded: capped connections, capped duration, allowlisted,
+   * authorized, killable. No exploit — just incomplete, rate-capped requests.
+   */
+  slowloris?: boolean;
+  /**
    * Responsibility acknowledgement: the user confirms the target belongs to
    * them or that they hold a written authorization. Without this flag, the test
    * is refused.

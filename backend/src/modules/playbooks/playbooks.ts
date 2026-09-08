@@ -911,6 +911,18 @@ export const PLAYBOOKS: Playbook[] = [
     },
     steps: [
       {
+        name: 'SlowLoris (DRS3)',
+        summary:
+          'Line 2 — bounded slow-header hold: 100 connections trickling partial ' +
+          'requests; a resilient edge sheds them (request/header timeout).',
+        maxRps: 10,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-slowloris',
+        agent: 'builtin',
+      },
+      {
         name: 'GET-Flood (DRS3)',
         summary: 'Line 3 — steady HTTP GET flood on the main path.',
         maxRps: 400,

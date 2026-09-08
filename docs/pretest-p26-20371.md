@@ -16,7 +16,7 @@ target to point at.
 | #   | DRS | zeroBS line                                    | Reproduced by                                                          | Status                                       |
 | --- | --- | ---------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
 | 1   | 3   | TCP-Handshakes                                 | class-C bench `tcp_synflood` / `tcp_maxpackets` (no-spoof state-table) | ✅ separate isolated runner                  |
-| 2   | 3   | SlowLoris                                      | —                                                                      | ❌ gap (generator is not slow-header)        |
+| 2   | 3   | SlowLoris                                      | `pretest-cra-l7` SlowLoris step (`http-slowloris`, bounded hold)       | ✅                                           |
 | 3   | 3   | HTTP GET-Flood                                 | `pretest-cra-l7` step 1                                                | ✅                                           |
 | 4   | 3   | GET-Random-Flood                               | step 2 (non-existent paths → edge 404)                                 | ✅                                           |
 | 5   | 4   | GET /VALID_RANDOM                              | step 3 (valid path set)                                                | ✅                                           |
@@ -30,7 +30,7 @@ target to point at.
 | 13  | 5   | MultiTarget / carpet-bombing                   | step 11 + instantiate once per allowlisted CRA host                    | ✅ via suite                                 |
 | 14  | 4   | RANDOM POST / LOGIN_BRUTE_FORCE                | POST covered; brute-force **not** (bounded flow only, by design)       | ⚠️ partial                                   |
 
-The one-click playbook is **`pretest-cra-l7`** (11 bounded L7 steps, DRS 3→5).
+The one-click playbook is **`pretest-cra-l7`** (12 bounded L7 steps, DRS 3→5).
 
 ## What the teams need to provide
 
@@ -75,14 +75,13 @@ we build, or is deliberately out on safety grounds. The security boundary is the
 same one that keeps the whole platform defensible: bounded, allowlisted,
 authorized, capped — no exploits, no amplification, no spoofing.
 
-- **SlowLoris (line 2)** — _buildable, scoped follow-up._ A bounded slow-header
-  vector (capped connections, capped hold time, capped duration, allowlist +
-  approval) is a legitimate L7 resilience test and consistent with the existing
-  bounded flood engines. It is **not built yet** because it needs a
-  connection-holding execution path distinct from the request-count engine
-  (`LoadTestResult` is per-request), i.e. a real feature with its own metrics —
-  worth doing deliberately, not bolted on. Until then: attest the target's
-  slow-request timeouts (`mod_reqtimeout` / proxy header-timeout) as evidence.
+- **SlowLoris (line 2)** — _built._ Bounded slow-header vector (`http-slowloris`):
+  opens up to `concurrency` connections and trickles partial headers to hold
+  them for `durationSec`, measuring whether the edge sheds slow/incomplete
+  requests (good) or lets them accumulate (bad). Capped on every axis
+  (connections ≤ concurrency, lifetime ≤ duration, kill-switch), allowlisted and
+  authorized — no exploit, just incomplete rate-capped requests. Now step 2 of
+  `pretest-cra-l7`.
 - **HPACK bomb (line 8c)** — _out by design (safety)._ A real HPACK bomb is a
   header-decompression **amplification exploit** — precisely the amplification/
   exploit class the platform never emits, at L7 instead of L3/4. We reproduce
@@ -99,5 +98,5 @@ authorized, capped — no exploits, no amplification, no spoofing.
 
 These are declared honestly in the assessment so a reader sees the full DRS
 matrix and exactly where each part is validated, attested, or intentionally not
-emitted. Building the SlowLoris vector is the one that would move coverage
-(11 → 12 of 14); the other three stay out on principle.
+emitted. SlowLoris is now built (coverage **12 of 14**); the remaining three
+(HPACK bomb, WAF-cracker, credential brute-force) stay out on principle.
