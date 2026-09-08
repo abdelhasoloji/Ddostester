@@ -234,6 +234,16 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
     identical submissions produce identical, auditable evidence. No traffic is
     generated — this records edge controls that are already configured.
 
+  - **External verdict import.** The network team's real L3/4 bench measures the
+    out-of-model vectors they own. `POST /api/bench/coverage/import`
+    (`bench:attest`, audited `bench.coverage`) bulk-imports their export as
+    read-only `INGESTED_EXTERNAL` coverage — JSON (an array of
+    `{ vector, outcome?, drs?, summary, source? }`) or CSV (header
+    `vector,outcome,drs,summary,source`). Each row is validated against the
+    catalogue and clamped; invalid rows are returned in an `errors` list rather
+    than silently dropped, so the import is auditable. Nothing is executed or
+    emitted — this only transcribes verdicts measured elsewhere.
+
 Remaining: the synthetic-lab realizations that emit (a no-spoof TCP conntrack
 module, sanitized PCAP replay) — separate lab engineering, tracked out of band.
 

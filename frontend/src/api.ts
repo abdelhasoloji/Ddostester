@@ -382,6 +382,11 @@ export interface AttestationInput {
   checkedItems: string[];
   note?: string;
 }
+export interface IngestResult {
+  imported: number;
+  errors: { row: number; error: string }[];
+  records: BenchCoverage[];
+}
 
 /** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
@@ -505,6 +510,8 @@ export const api = {
   benchAttestations: () => get<{ checklists: AttestationChecklist[] }>('/api/bench/attestations'),
   submitAttestation: (input: AttestationInput) =>
     post<BenchCoverage>('/api/bench/attestations', input),
+  importBenchCoverage: (format: 'json' | 'csv', data: string, source?: string) =>
+    post<IngestResult>('/api/bench/coverage/import', { format, data, source }),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

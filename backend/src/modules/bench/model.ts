@@ -483,3 +483,127 @@ export function parseAttestationInput(
     recordedBy,
   };
 }
+
+// --- External verdict import (INGESTED_EXTERNAL) ---------------------------
+//
+// The network team runs the real L3/4 bench for the vectors this synthetic
+// bench can never emit (spoofing, GRE, fragmentation, multi-proto combos).
+// Rather than transcribe their results one row at a time, a CISO can import a
+// batch — the export their bench produces — as read-only INGESTED_EXTERNAL
+// coverage. Nothing is executed or emitted here; this only records verdicts
+// measured elsewhere, honestly labelled as external. Every row is validated
+// against the catalogue and clamped; a row that fails is reported, not
+// silently dropped, so the import is auditable.
+
+export interface IngestRowError {
+  row: number;
+  error: string;
+}
+export interface ParsedIngest {
+  entries: Omit<BenchCoverage, 'id' | 'at'>[];
+  errors: IngestRowError[];
+}
+
+function ingestRow(
+  raw: Record<string, unknown>,
+  recordedBy: string,
+  defaultSource: string,
+): Omit<BenchCoverage, 'id' | 'at'> {
+  const vector = String(raw.vector ?? '').trim();
+  if (!CATALOGUE_IDS.has(vector)) throw new Error(`unknown vector "${vector || '(empty)'}"`);
+  const summary = String(raw.summary ?? '').trim();
+  if (!summary) throw new Error('summary is required');
+  const drsRaw = raw.drs;
+  const drsNum = typeof drsRaw === 'number' ? drsRaw : Number(drsRaw);
+  const drs = Number.isFinite(drsNum) && drsNum > 0 ? drsNum : undefined;
+  const source = String(raw.source ?? '').trim() || defaultSource;
+  return {
+    vector,
+    method: 'INGESTED_EXTERNAL',
+    outcome: raw.outcome ? String(raw.outcome).slice(0, 40) : undefined,
+    drs,
+    summary: summary.slice(0, 2000),
+    source: source.slice(0, 120),
+    recordedBy,
+  };
+}
+
+/** Minimal RFC-4180-ish CSV row splitter (handles quotes + escaped quotes). */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else inQ = false;
+      } else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}
+
+/**
+ * Parses an external-verdict batch into INGESTED_EXTERNAL coverage entries.
+ * `format` is 'json' (an array of row objects, or `{ rows: [...] }`) or 'csv'
+ * (a header row naming columns vector/outcome/drs/summary/source, then data).
+ * Returns valid entries plus a per-row error list; throws only on unusable input.
+ */
+export function parseIngestBatch(
+  data: unknown,
+  format: 'json' | 'csv',
+  recordedBy: string,
+  defaultSource = 'network-team-bench',
+): ParsedIngest {
+  const rows: Record<string, unknown>[] = [];
+  if (format === 'csv') {
+    const text = String(data ?? '').trim();
+    if (!text) throw new Error('empty CSV');
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) throw new Error('CSV needs a header row and at least one data row');
+    const header = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
+    for (let i = 1; i < lines.length; i++) {
+      const cells = splitCsvLine(lines[i]);
+      const obj: Record<string, unknown> = {};
+      header.forEach((h, idx) => (obj[h] = cells[idx]));
+      rows.push(obj);
+    }
+  } else {
+    let arr: unknown = data;
+    if (typeof data === 'string') {
+      try {
+        arr = JSON.parse(data);
+      } catch {
+        throw new Error('invalid JSON');
+      }
+    }
+    if (arr && typeof arr === 'object' && !Array.isArray(arr) && 'rows' in arr) {
+      arr = (arr as { rows: unknown }).rows;
+    }
+    if (!Array.isArray(arr)) throw new Error('JSON must be an array of rows (or { rows: [...] })');
+    for (const r of arr) rows.push((r ?? {}) as Record<string, unknown>);
+  }
+
+  if (rows.length === 0) throw new Error('no rows to import');
+  if (rows.length > 500) throw new Error('too many rows (max 500 per import)');
+
+  const entries: Omit<BenchCoverage, 'id' | 'at'>[] = [];
+  const errors: IngestRowError[] = [];
+  rows.forEach((r, idx) => {
+    try {
+      entries.push(ingestRow(r, recordedBy, defaultSource));
+    } catch (err) {
+      errors.push({ row: idx + 1, error: (err as Error).message });
+    }
+  });
+  return { entries, errors };
+}

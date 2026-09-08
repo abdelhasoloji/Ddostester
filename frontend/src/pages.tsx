@@ -921,6 +921,11 @@ function BenchCard() {
   const [attChecked, setAttChecked] = useState<Set<string>>(new Set());
   const [attNote, setAttNote] = useState('');
   const [attOpen, setAttOpen] = useState(false);
+  const [impOpen, setImpOpen] = useState(false);
+  const [impFormat, setImpFormat] = useState<'json' | 'csv'>('csv');
+  const [impData, setImpData] = useState('');
+  const [impSource, setImpSource] = useState('');
+  const [impErrors, setImpErrors] = useState<{ row: number; error: string }[]>([]);
 
   const refreshRuns = async () => {
     try {
@@ -1037,6 +1042,35 @@ function BenchCard() {
       setAttNote('');
       setAttOpen(false);
       await refreshCoverage();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importCoverage = async () => {
+    if (!impData.trim()) return;
+    setBusy(true);
+    setImpErrors([]);
+    try {
+      const res = await api.importBenchCoverage(
+        impFormat,
+        impData.trim(),
+        impSource.trim() || undefined,
+      );
+      setImpErrors(res.errors);
+      if (res.imported > 0) {
+        app.push(
+          'success',
+          `Imported ${res.imported} external verdict(s)${res.errors.length ? `, ${res.errors.length} row(s) skipped` : ''}.`,
+        );
+        setImpData('');
+        if (res.errors.length === 0) setImpOpen(false);
+        await refreshCoverage();
+      } else {
+        app.push('error', `No rows imported (${res.errors.length} invalid).`);
+      }
     } catch (err) {
       app.push('error', (err as Error).message);
     } finally {
@@ -1418,6 +1452,77 @@ function BenchCard() {
               )}
             </div>
           )}
+
+          <div style={{ marginTop: '.75rem' }}>
+            <button className="btn btn-sm" onClick={() => setImpOpen((v) => !v)}>
+              {impOpen ? 'Cancel' : '+ Import external verdicts'}
+            </button>
+            {impOpen && (
+              <div
+                className="attest"
+                style={{ display: 'block', marginTop: '.6rem', background: 'var(--surface-2)' }}
+              >
+                <p className="hint" style={{ margin: '0 0 .6rem' }}>
+                  Bulk-import the network team&apos;s real L3/4 bench results as read-only{' '}
+                  <b>INGESTED_EXTERNAL</b> coverage — the honest source for the out-of-model vectors
+                  they own. Nothing is executed or emitted; invalid rows are reported, not dropped.
+                </p>
+                <div className="btn-row" style={{ marginBottom: '.6rem' }}>
+                  <div className="field" style={{ minWidth: 120 }}>
+                    <label>Format</label>
+                    <select
+                      value={impFormat}
+                      onChange={(e) => setImpFormat(e.target.value as 'json' | 'csv')}
+                    >
+                      <option value="csv">CSV</option>
+                      <option value="json">JSON</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ flex: 1, minWidth: 200 }}>
+                    <label>
+                      Source <span className="hint">(default: network-team-bench)</span>
+                    </label>
+                    <input value={impSource} onChange={(e) => setImpSource(e.target.value)} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>
+                    {impFormat === 'csv'
+                      ? 'CSV — header: vector,outcome,drs,summary,source'
+                      : 'JSON — array of { vector, outcome?, drs?, summary, source? }'}
+                  </label>
+                  <textarea
+                    value={impData}
+                    onChange={(e) => setImpData(e.target.value)}
+                    rows={6}
+                    style={{ fontFamily: 'var(--mono)', fontSize: '.82rem' }}
+                    placeholder={
+                      impFormat === 'csv'
+                        ? 'vector,outcome,drs,summary,source\nip_spoofing,MITIGATED,4,"BCP38 upstream, spoofed sources dropped",acme-scrubbing'
+                        : '[{"vector":"gre_packets","outcome":"MITIGATED","drs":5,"summary":"GRE dropped at edge","source":"acme-scrubbing"}]'
+                    }
+                  />
+                </div>
+                {impErrors.length > 0 && (
+                  <ul className="hint" style={{ margin: '.3rem 0', color: 'var(--danger)' }}>
+                    {impErrors.slice(0, 10).map((e) => (
+                      <li key={e.row}>
+                        row {e.row}: {e.error}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: '.6rem' }}
+                  onClick={importCoverage}
+                  disabled={busy || !impData.trim()}
+                >
+                  {busy ? 'Importing…' : 'Import verdicts'}
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
 

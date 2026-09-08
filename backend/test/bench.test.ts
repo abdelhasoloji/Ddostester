@@ -330,6 +330,68 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(403);
   });
 
+  it('imports external verdicts (CSV) as INGESTED_EXTERNAL coverage', async () => {
+    const csv = [
+      'vector,outcome,drs,summary,source',
+      'ip_spoofing,MITIGATED,4,"BCP38 upstream, spoofed dropped",acme-scrubbing',
+      'gre_packets,MITIGATED,5,GRE dropped at edge,acme-scrubbing',
+    ].join('\n');
+    const r = await asCiso('POST', '/api/bench/coverage/import', { format: 'csv', data: csv });
+    expect(r.statusCode).toBe(201);
+    const body = r.json();
+    expect(body.imported).toBe(2);
+    expect(body.errors).toHaveLength(0);
+    const cov = (await asCiso('GET', '/api/bench/coverage')).json().coverage;
+    expect(
+      cov.some(
+        (c: { vector: string; method: string; summary: string }) =>
+          c.vector === 'ip_spoofing' &&
+          c.method === 'INGESTED_EXTERNAL' &&
+          c.summary.includes('BCP38'),
+      ),
+    ).toBe(true);
+  });
+
+  it('imports external verdicts (JSON) and reports invalid rows without dropping the rest', async () => {
+    const rows = [
+      {
+        vector: 'udp_fragmentation',
+        outcome: 'MITIGATED',
+        drs: 4,
+        summary: 'frag limits enforced',
+      },
+      { vector: 'not_a_vector', summary: 'bogus' },
+      { vector: 'tcp_fragmentation', summary: '' }, // missing summary
+    ];
+    const r = await asCiso('POST', '/api/bench/coverage/import', {
+      format: 'json',
+      data: JSON.stringify(rows),
+    });
+    expect(r.statusCode).toBe(201);
+    const body = r.json();
+    expect(body.imported).toBe(1);
+    expect(body.errors).toHaveLength(2);
+    expect(body.errors[0].row).toBe(2);
+  });
+
+  it('rejects an unparseable import body', async () => {
+    const r = await asCiso('POST', '/api/bench/coverage/import', {
+      format: 'json',
+      data: '{ not json',
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('coverage import is CISO-only (officer 403)', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/bench/coverage/import',
+      headers: { authorization: `Bearer ${officer}` },
+      payload: { format: 'json', data: '[]' },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
   it('dispatch fails closed without a runner token', async () => {
     const app2 = (
       await buildApp({

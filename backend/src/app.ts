@@ -29,6 +29,7 @@ import {
   parseBenchVerdict,
   parseCoverageInput,
   parseAttestationInput,
+  parseIngestBatch,
   ATTESTATION_CHECKLISTS,
 } from './modules/bench/model.js';
 import type { BenchRun, BenchCoverage } from './modules/bench/model.js';
@@ -735,6 +736,47 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     );
     return reply.code(201).send(record);
   });
+
+  // Bulk import of external (network-team) L3/4 bench verdicts as read-only
+  // INGESTED_EXTERNAL coverage. Accepts JSON rows or CSV; nothing is emitted.
+  // Invalid rows are reported, not silently dropped.
+  app.post(
+    '/api/bench/coverage/import',
+    { preHandler: guard('bench:attest') },
+    async (req, reply) => {
+      const b = (req.body ?? {}) as { format?: string; data?: unknown; source?: string };
+      const format = b.format === 'csv' ? 'csv' : 'json';
+      let parsed;
+      try {
+        parsed = parseIngestBatch(
+          b.data,
+          format,
+          req.authUser?.email ?? 'dev',
+          b.source ? String(b.source) : undefined,
+        );
+      } catch (err) {
+        return reply.code(400).send({ error: (err as Error).message });
+      }
+      const saved: BenchCoverage[] = [];
+      for (const entry of parsed.entries) {
+        const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+        await store.saveBenchCoverage(record);
+        saved.push(record);
+      }
+      if (saved.length > 0) {
+        const vectors = [...new Set(saved.map((r) => r.vector))].join(', ');
+        await audit(
+          req,
+          'bench.coverage',
+          undefined,
+          `INGESTED_EXTERNAL · imported ${saved.length} verdict(s) [${vectors}]`,
+        );
+      }
+      return reply
+        .code(201)
+        .send({ imported: saved.length, errors: parsed.errors, records: saved });
+    },
+  );
 
   app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
     return req.authUser ?? { email: null, role: null, authRequired: false };
