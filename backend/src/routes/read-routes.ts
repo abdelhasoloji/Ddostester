@@ -14,6 +14,11 @@ import {
   renderSuiteReportHtml,
   renderSuiteCompareHtml,
 } from '../modules/playbooks/suites.js';
+import {
+  analyzeGaps,
+  renderGapAnalysisHtml,
+  type ProtectionProfile,
+} from '../modules/reports/gap-analysis.js';
 
 /** Shared context the read-only routes need (no mutations, no run/audit writes). */
 export interface ReadRoutesCtx {
@@ -61,6 +66,23 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     if (!sa || !sb) return reply.code(404).send({ error: 'suite not found' });
     return reply.type('text/html').send(renderSuiteCompareHtml(sa, sb));
   });
+
+  // Protection-gap analyzer: map the declared WEDOS controls to a prioritised
+  // plan of bounded playbook lines to replay (tune-and-replay front half), plus
+  // the attestation-only lines. Analytical only — reads a declared profile,
+  // generates no traffic, synthesises no vectors. `?format=html` for print/PDF.
+  app.post(
+    '/api/reports/gap-analysis',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      const body = (req.body ?? {}) as { profile?: ProtectionProfile; target?: string };
+      const analysis = analyzeGaps(body.profile ?? {}, body.target);
+      if ((req.query as { format?: string }).format === 'html') {
+        return reply.type('text/html').send(renderGapAnalysisHtml(analysis));
+      }
+      return analysis;
+    },
+  );
 
   app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   api,
@@ -23,8 +23,13 @@ import type {
   Role,
   SuiteSummary,
   WrsBreakdown,
+  ControlKey,
+  ControlStatus,
+  ProtectionProfile,
+  GapAnalysis,
+  Priority,
 } from './api.js';
-import { RECORDABLE_METHODS } from './api.js';
+import { RECORDABLE_METHODS, GAP_CONTROLS } from './api.js';
 import { useApp, canDo } from './context.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import {
@@ -515,6 +520,124 @@ function SuitesSection() {
   );
 }
 
+const GAP_PILL: Record<Priority, string> = {
+  high: 'gap-high',
+  medium: 'gap-med',
+  low: 'gap-low',
+};
+const STATUS_OPTIONS: ControlStatus[] = ['unknown', 'present', 'partial', 'absent'];
+
+/**
+ * Protection-gap planner (RPT-05): declare the target's WEDOS controls and get a
+ * prioritised plan of which bounded playbook lines to replay first (the front
+ * half of the tune-and-replay loop), plus the attestation-only lines. Analytical
+ * only — it orders existing bounded tests, it does not synthesise attacks.
+ */
+function GapPlannerSection() {
+  const app = useApp();
+  const [target, setTarget] = useState('bank.cz');
+  const [profile, setProfile] = useState<ProtectionProfile>({});
+  const [analysis, setAnalysis] = useState<GapAnalysis | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const setControl = (key: ControlKey, status: ControlStatus) =>
+    setProfile((p) => ({ ...p, [key]: status }));
+
+  const analyze = async () => {
+    setBusy(true);
+    try {
+      setAnalysis(await api.gapAnalysis(profile, target.trim() || undefined));
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="section-title">Protection-gap planner</h2>
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Declare the target's WEDOS controls; get a prioritised plan of which bounded{' '}
+          <code>pretest-cra-l7</code> lines to replay first, then measure each with the
+          suite-compare. Analytical only — it orders existing bounded tests against the authorized
+          target; it never synthesises attacks or relaxes a cap.
+        </p>
+        <label className="field" style={{ maxWidth: '22rem' }}>
+          <span>Target</span>
+          <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="bank.cz" />
+        </label>
+        <div className="gap-controls">
+          {GAP_CONTROLS.map((c) => (
+            <Fragment key={c.key}>
+              <span className="gap-ctl-label">{c.label}</span>
+              <select
+                value={profile[c.key] ?? 'unknown'}
+                onChange={(e) => setControl(c.key, e.target.value as ControlStatus)}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Fragment>
+          ))}
+        </div>
+        <div className="row">
+          <button className="btn btn-primary" onClick={analyze} disabled={busy}>
+            {busy ? 'Analyzing…' : 'Analyze gaps'}
+          </button>
+        </div>
+
+        {analysis && (
+          <div style={{ marginTop: '1rem' }}>
+            <p>
+              <b>{analysis.summary.high}</b> high · <b>{analysis.summary.medium}</b> medium ·{' '}
+              <b>{analysis.summary.low}</b> low priority to replay ·{' '}
+              <b>{analysis.summary.attested}</b> attestation-only.
+            </p>
+            <h3 style={{ marginBottom: '.25rem' }}>Prioritised replay plan</h3>
+            {analysis.plan.map((p) => (
+              <div key={p.line} className="gap-plan-item">
+                <span className={`gap-pill ${GAP_PILL[p.priority]}`}>{p.priority}</span>
+                <div>
+                  <b>
+                    Line {p.line} · DRS{p.drs} — {p.name}
+                  </b>
+                  <div className="hint">
+                    {p.controlLabel} ({p.status}) → replay <code>{p.step}</code>. {p.rationale}
+                    {p.attestedNote ? ` ⚠ ${p.attestedNote}` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <h3 style={{ margin: '.75rem 0 .25rem' }}>
+              Attestation-only (out of the bounded model)
+            </h3>
+            {analysis.attestationOnly.map((x) => (
+              <div key={x.line} className="gap-plan-item">
+                <span className="gap-pill" style={{ background: 'var(--muted)' }}>
+                  attest
+                </span>
+                <div>
+                  <b>
+                    Line {x.line} · DRS{x.drs} — {x.name}
+                  </b>
+                  <div className="hint">
+                    {x.controlLabel} ({x.status}) — {x.note}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function ReportsPage() {
   const app = useApp();
   const withRun = app.campaigns.filter((c) => c.runId);
@@ -525,6 +648,7 @@ export function ReportsPage() {
         sub="Assessment suites, campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
       />
       <SuitesSection />
+      <GapPlannerSection />
       {withRun.length >= 2 && <CompareSection campaigns={withRun} />}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2>Aggregated compliance</h2>

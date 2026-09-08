@@ -189,6 +189,12 @@ their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
   comparison of two **suites** of the same playbook (the tune-and-replay loop):
   per-line WRS/verdict delta, `a` = baseline, `b` = newer replay. Read token
   accepted. See `docs/tune-and-replay.md`.
+- `POST /api/reports/gap-analysis` — protection-gap analyzer (`campaign:read`).
+  Body `{ profile: { <control>: 'present'|'partial'|'absent'|'unknown' }, target?
+}`; returns a prioritised plan of bounded `pretest-cra-l7` lines to replay plus
+  the attestation-only lines (JSON, or HTML with `?format=html`). Analytical
+  only — it orders existing bounded vectors, synthesises none. See
+  `docs/tune-and-replay.md`.
 
 ## Playbooks & suites
 

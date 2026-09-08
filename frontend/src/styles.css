@@ -1878,3 +1878,43 @@ table.remediations td {
 .suite-steps .chip-xs.step-pending {
   color: var(--muted);
 }
+
+/* Protection-gap planner (RPT-05) */
+.gap-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  margin: 0.5rem 0 0.75rem;
+}
+.gap-controls .gap-ctl-label {
+  font-size: 0.9rem;
+}
+.gap-plan-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+.gap-pill {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fff;
+  white-space: nowrap;
+  height: fit-content;
+}
+.gap-high {
+  background: var(--danger);
+}
+.gap-med {
+  background: var(--warning);
+}
+.gap-low {
+  background: var(--success);
+}

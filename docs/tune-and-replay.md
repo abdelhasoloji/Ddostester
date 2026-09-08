@@ -11,6 +11,26 @@ authorized `pretest-cra-l7` playbook (12 L7 steps, DRS 3→5). See
 `docs/pretest-p26-20371.md` for the line-by-line mapping and
 `docs/assessment-methodology.md` for how WRS is derived.
 
+## Where to start — the protection-gap planner
+
+Before the first replay, use the **protection-gap planner** (Reports →
+_Protection-gap planner_, or `POST /api/reports/gap-analysis`) to decide **which
+lines to replay first**. You declare the target's WEDOS controls — rate limiting,
+slow-request timeout, HTTP/2 guard, bot challenge, WAF ruleset, … — each as
+`present` / `partial` / `absent` / `unknown`, and it returns:
+
+- a **prioritised replay plan**: the bounded `pretest-cra-l7` lines ranked by DRS
+  level and how weakly the mitigating control is declared (an absent control on a
+  DRS-5 line ranks highest), each naming the exact step to replay and why;
+- the **attestation-only** lines (TCP handshake on the class-C bench, HPACK bomb,
+  WAF-cracker, credential brute-force) that stay out of the bounded model.
+
+It is analytical only: it **selects and orders existing bounded tests** against
+the authorized target from the declared defense — it never synthesises an attack,
+crafts an evasion payload, or relaxes a cap/allowlist. Knowing the defense only
+tells you where to point the same governed test first, not how to defeat a rule.
+Work the plan top-down through the loop below.
+
 ## The loop
 
 ```

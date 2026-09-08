@@ -537,7 +537,75 @@ export const api = {
   suites: () => get<SuiteSummary[]>('/api/suites'),
   runSuite: (id: string) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
+  gapAnalysis: (profile: ProtectionProfile, target?: string) =>
+    post<GapAnalysis>('/api/reports/gap-analysis', { profile, target }),
 };
+
+// ── Protection-gap analyzer (RPT-05) ────────────────────────────────────────
+
+export type ControlKey =
+  | 'synFloodProtection'
+  | 'slowRequestTimeout'
+  | 'rateLimiting'
+  | 'originShielding'
+  | 'cacheKeyPolicy'
+  | 'urlAllowlist'
+  | 'methodPolicy'
+  | 'http2Guard'
+  | 'challenge'
+  | 'wafSignatures'
+  | 'bruteForceProtection';
+
+export type ControlStatus = 'present' | 'partial' | 'absent' | 'unknown';
+export type ProtectionProfile = Partial<Record<ControlKey, ControlStatus>>;
+export type Priority = 'high' | 'medium' | 'low';
+
+/** Controls a user can declare in the planner (labels mirror the backend). */
+export const GAP_CONTROLS: { key: ControlKey; label: string }[] = [
+  { key: 'rateLimiting', label: 'Request rate limiting' },
+  { key: 'slowRequestTimeout', label: 'Slow-request / header timeout' },
+  { key: 'http2Guard', label: 'HTTP/2 abuse guard (rapid-reset / continuation)' },
+  { key: 'challenge', label: 'Bot challenge (JS / PoW / CAPTCHA)' },
+  { key: 'originShielding', label: 'Origin shielding / edge 404' },
+  { key: 'cacheKeyPolicy', label: 'Cache-key policy' },
+  { key: 'urlAllowlist', label: 'URL / path allowlist' },
+  { key: 'methodPolicy', label: 'HTTP method policy' },
+  { key: 'wafSignatures', label: 'WAF signature ruleset' },
+  { key: 'bruteForceProtection', label: 'Credential brute-force protection' },
+  { key: 'synFloodProtection', label: 'SYN-flood / handshake protection (L3/4)' },
+];
+
+export interface GapPlanItem {
+  line: number;
+  drs: number;
+  name: string;
+  control: ControlKey;
+  controlLabel: string;
+  status: ControlStatus;
+  priority: Priority;
+  score: number;
+  step: string;
+  rationale: string;
+  attestedNote?: string;
+}
+
+export interface GapAttestationItem {
+  line: number;
+  drs: number;
+  name: string;
+  control: ControlKey;
+  controlLabel: string;
+  status: ControlStatus;
+  note: string;
+}
+
+export interface GapAnalysis {
+  generatedAt: string;
+  target?: string;
+  plan: GapPlanItem[];
+  attestationOnly: GapAttestationItem[];
+  summary: { high: number; medium: number; low: number; attested: number };
+}
 
 export interface SuiteSummary {
   suiteId: string;
