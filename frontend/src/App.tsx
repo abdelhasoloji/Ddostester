@@ -10,6 +10,7 @@ import {
   ReportsPage,
   SettingsPage,
 } from './pages.js';
+import { TemplatesPage } from './templates-page.js';
 
 /**
  * Authentication gate: while auth is enabled and the operator is not signed in,
@@ -41,6 +42,7 @@ function Gate() {
       <Route element={<Layout />}>
         <Route index element={<OverviewPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="templates" element={<TemplatesPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="guide" element={<GuidePage />} />

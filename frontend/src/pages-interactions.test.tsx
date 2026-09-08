@@ -14,7 +14,8 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { SettingsPage, GuidePage, AuditPage } = await import('./pages.js');
+const { SettingsPage, AuditPage } = await import('./pages.js');
+const { TemplatesPage } = await import('./templates-page.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -125,11 +126,13 @@ describe('AuditPage integrity', () => {
   });
 });
 
-describe('PlaybooksSection', () => {
+describe('TemplatesPage', () => {
   it('launches an assessment for an allowlisted target', async () => {
-    renderWithRouter(<GuidePage />);
+    renderWithRouter(<TemplatesPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'staging.wedos' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Launch assessment/ }));
+    // Expand the (collapsed) template row, then launch.
+    fireEvent.click(await screen.findByText('Ramp'));
+    fireEvent.click(await screen.findByRole('button', { name: /Launch assessment/, hidden: true }));
     await waitFor(() =>
       expect(fakeApi.instantiatePlaybook).toHaveBeenCalledWith(
         'pb1',

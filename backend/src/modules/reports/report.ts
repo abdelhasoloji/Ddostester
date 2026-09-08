@@ -5,6 +5,29 @@ import { htmlEscape as esc } from '../../util/text.js';
 import { availabilityPct, mitigationVerdict, riskLevel } from './compliance.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, timelineSvg, scoreColor, REPORT_COLORS } from './charts.js';
+import { deriveRemediations, type Remediation } from './remediations.js';
+
+const SEVERITY_PILL = {
+  critical: 'crit',
+  high: 'warn',
+  medium: 'warn',
+  low: 'neutral',
+} as const;
+
+/** Renders the "Weaknesses & recommended remediations" block (empty → clean note). */
+export function remediationsHtml(items: Remediation[]): string {
+  if (items.length === 0) {
+    return `<h2>Weaknesses &amp; remediations</h2><p class="muted">No weaknesses identified — the target held cleanly for this scenario.</p>`;
+  }
+  const rows = items
+    .map(
+      (r) =>
+        `<tr><td>${pill(r.severity, SEVERITY_PILL[r.severity])}</td><td>${esc(r.weakness)}</td><td>${esc(r.remediation)}</td></tr>`,
+    )
+    .join('');
+  return `<h2>Weaknesses &amp; recommended remediations</h2>
+<table class="kvs remediations"><thead><tr><th>Severity</th><th>Weakness (observed)</th><th>Recommended remediation</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 
 /**
  * RPT — Campaign report (TSD §5.5). A self-contained, designed HTML report:
@@ -172,6 +195,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
             : '<p class="muted">All acceptance criteria met.</p>'
         }`
       : '') +
+    remediationsHtml(deriveRemediations(campaign, run)) +
     `<h2>Run detail</h2>
 <table class="kvs">
  <tr><th>Campaign</th><td>${esc(campaign.name)} <span class="muted">(${campaign.id})</span></td></tr>

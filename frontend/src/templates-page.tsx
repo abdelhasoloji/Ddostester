@@ -1,0 +1,367 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from './api.js';
+import type { Playbook } from './api.js';
+import { useApp, canDo } from './context.js';
+import { hostOf } from './ui.js';
+import { PageHead } from './pages.js';
+
+/**
+ * Campaign templates (assessment playbooks) — reorganized.
+ *
+ * The catalogue used to be one long, fully-expanded list buried in Settings.
+ * Here it is its own page: a compact launch bar, a search + category filter,
+ * playbooks grouped by category, and each one a collapsed row (name, DRS, step
+ * count, one-line summary) that expands on demand for its steps and threat
+ * context. Scannable instead of a ten-metre scroll.
+ */
+
+/** Preferred category order; anything else falls after these, alphabetically. */
+const CATEGORY_ORDER = ['Readiness', 'Capacity', 'Endurance', 'Threat-informed', 'Custom'];
+
+function categoryRank(cat: string): number {
+  const i = CATEGORY_ORDER.indexOf(cat);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
+
+function PlaybookRow({
+  pb,
+  canCreate,
+  busy,
+  launchable,
+  onLaunch,
+  onDelete,
+}: {
+  pb: Playbook;
+  canCreate: boolean;
+  busy: boolean;
+  launchable: boolean;
+  onLaunch: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <details className="tpl-row">
+      <summary className="tpl-summary">
+        <span className="tpl-name">{pb.name}</span>
+        {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
+        {pb.custom && <span className="engine-badge ok">custom</span>}
+        <span className="tpl-steps-count">
+          {pb.steps.length} step{pb.steps.length === 1 ? '' : 's'}
+        </span>
+        <span className="tpl-oneline">{pb.summary}</span>
+      </summary>
+      <div className="tpl-detail">
+        {pb.when && <p className="preset-when">{pb.when}</p>}
+        <ol className="playbook-steps">
+          {pb.steps.map((s, i) => (
+            <li key={i}>
+              <b>{s.name}</b> — {s.maxRps} rps · {s.maxDurationSec}s · {s.profile}
+              {s.vector === 'http-post' ? ' · POST' : ''}
+              {s.paths?.length ? ` · ${s.paths.length} endpoints` : ''}
+              {s.rotateUa ? ' · UA rotation' : ''}
+              {s.headers ? ` · ${Object.keys(s.headers).length} headers` : ''}
+            </li>
+          ))}
+        </ol>
+        {pb.threat && (
+          <div className="threat-box">
+            <div className="threat-title">
+              Threat-informed <span className="threat-ref">{pb.threat.reference}</span>
+            </div>
+            <div className="threat-line">
+              <span className="k">Profile</span> {pb.threat.technique}
+            </div>
+            <div className="threat-line">
+              <span className="k">Measures</span> {pb.threat.measures}
+            </div>
+            <div className="threat-line threat-excluded">
+              <span className="k">Not reproduced</span> {pb.threat.notReproduced}
+            </div>
+          </div>
+        )}
+        {canCreate && (
+          <div className="btn-row">
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={!launchable || busy}
+              onClick={onLaunch}
+            >
+              {busy ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
+            </button>
+            {pb.custom && (
+              <button className="btn btn-sm btn-ghost" onClick={onDelete}>
+                Delete
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+export function TemplatesPage() {
+  const app = useApp();
+  const navigate = useNavigate();
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [target, setTarget] = useState('');
+  const [recurMin, setRecurMin] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState<string>('all');
+  const [showNew, setShowNew] = useState(false);
+  const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
+  const [newPb, setNewPb] = useState({ ...emptyNew });
+
+  const load = () => {
+    api
+      .playbooks()
+      .then(setPlaybooks)
+      .catch(() => undefined);
+  };
+  useEffect(load, []);
+
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const targetHost = hostOf(target);
+  const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
+
+  const categories = useMemo(() => {
+    const set = [...new Set(playbooks.map((p) => p.category))];
+    return set.sort((a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b));
+  }, [playbooks]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return playbooks.filter((p) => {
+      if (cat !== 'all' && p.category !== cat) return false;
+      if (!needle) return true;
+      return (
+        p.name.toLowerCase().includes(needle) ||
+        p.summary.toLowerCase().includes(needle) ||
+        p.category.toLowerCase().includes(needle)
+      );
+    });
+  }, [playbooks, q, cat]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Playbook[]>();
+    for (const p of filtered) {
+      const arr = map.get(p.category) ?? [];
+      arr.push(p);
+      map.set(p.category, arr);
+    }
+    return [...map.entries()].sort(
+      ([a], [b]) => categoryRank(a) - categoryRank(b) || a.localeCompare(b),
+    );
+  }, [filtered]);
+
+  const createPlaybook = async () => {
+    try {
+      const steps = JSON.parse(newPb.stepsJson || '[]');
+      await api.createPlaybook({
+        name: newPb.name,
+        category: newPb.category,
+        summary: newPb.summary,
+        when: newPb.when,
+        steps,
+      });
+      app.push('success', `Playbook "${newPb.name}" created.`);
+      setNewPb({ ...emptyNew });
+      setShowNew(false);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
+  const removePlaybook = async (pb: Playbook) => {
+    try {
+      await api.deletePlaybook(pb.id);
+      app.push('success', `Playbook "${pb.name}" deleted.`);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
+  const launch = async (pb: Playbook) => {
+    if (!targetAllowed) return;
+    setBusy(pb.id);
+    try {
+      const r = await api.instantiatePlaybook(pb.id, {
+        target,
+        recurrenceMin: recurMin ? Number(recurMin) : undefined,
+      });
+      app.push(
+        'success',
+        `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
+      );
+      await app.refresh();
+      navigate('/campaigns');
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <PageHead
+        title="Campaign templates"
+        sub="One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole assessment is created — each campaign still goes through approval before it runs."
+      />
+
+      {/* Launch context: target + optional recurrence. */}
+      <div className="card tpl-launchbar">
+        <div className="field">
+          <label>Target for the assessment</label>
+          <input
+            placeholder="https://staging.example.com/"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          />
+          {app.allowed.length > 0 && (
+            <div className="allowed-chips">
+              {app.allowed.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="chip-xs"
+                  onClick={() => setTarget(`https://${h}/`)}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          )}
+          {target && !targetAllowed && (
+            <span className="hint">Host is not in the allowlist — pick one above.</span>
+          )}
+        </div>
+        <div className="field">
+          <label>Repeat (optional)</label>
+          <select value={recurMin} onChange={(e) => setRecurMin(e.target.value)}>
+            <option value="">Run once</option>
+            <option value="60">Every hour</option>
+            <option value="360">Every 6 hours</option>
+            <option value="720">Every 12 hours</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Search + category filter. */}
+      <div className="tpl-toolbar">
+        <input
+          className="tpl-search"
+          placeholder="Search templates…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div className="tpl-cats">
+          <button
+            className={`chip-xs${cat === 'all' ? ' active' : ''}`}
+            onClick={() => setCat('all')}
+          >
+            All ({playbooks.length})
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              className={`chip-xs${cat === c ? ' active' : ''}`}
+              onClick={() => setCat(c)}
+            >
+              {c} ({playbooks.filter((p) => p.category === c).length})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {grouped.length === 0 ? (
+        <p className="hint" style={{ marginTop: '1rem' }}>
+          {playbooks.length === 0 ? 'No templates available.' : 'No template matches your search.'}
+        </p>
+      ) : (
+        grouped.map(([category, items]) => (
+          <section key={category} className="tpl-group">
+            <h2 className="section-title tpl-group-title">
+              {category} <span className="tpl-group-count">{items.length}</span>
+            </h2>
+            <div className="tpl-list">
+              {items.map((pb) => (
+                <PlaybookRow
+                  key={pb.id}
+                  pb={pb}
+                  canCreate={canCreate}
+                  busy={busy === pb.id}
+                  launchable={targetAllowed}
+                  onLaunch={() => launch(pb)}
+                  onDelete={() => removePlaybook(pb)}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
+
+      {canCreate && (
+        <div className="card" style={{ marginTop: '1.25rem' }}>
+          <div className="card-head">
+            <h2>Custom template</h2>
+            <button className="btn btn-sm" onClick={() => setShowNew((v) => !v)}>
+              {showNew ? 'Cancel' : '＋ New template'}
+            </button>
+          </div>
+          {showNew && (
+            <div className="grid">
+              <div className="field">
+                <label>Name</label>
+                <input
+                  value={newPb.name}
+                  onChange={(e) => setNewPb({ ...newPb, name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Category</label>
+                <input
+                  value={newPb.category}
+                  onChange={(e) => setNewPb({ ...newPb, category: e.target.value })}
+                />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Summary</label>
+                <input
+                  value={newPb.summary}
+                  onChange={(e) => setNewPb({ ...newPb, summary: e.target.value })}
+                />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>Steps (JSON)</label>
+                <textarea
+                  rows={7}
+                  placeholder={
+                    '[\n  {"name":"Baseline","maxRps":100,"concurrency":20,"maxDurationSec":120,"profile":"constant","agent":"vegeta"},\n  {"name":"Ramp","maxRps":300,"concurrency":50,"maxDurationSec":180,"profile":"ramp","agent":"k6"}\n]'
+                  }
+                  value={newPb.stepsJson}
+                  onChange={(e) => setNewPb({ ...newPb, stepsJson: e.target.value })}
+                  style={{ fontFamily: 'var(--mono, monospace)' }}
+                />
+                <span className="hint">
+                  Each step: <code>name, maxRps, concurrency, maxDurationSec, profile</code>{' '}
+                  (constant/ramp/wave), optional <code>agent</code>. All within the caps.
+                </span>
+              </div>
+              <div className="field" style={{ alignSelf: 'end' }}>
+                <button
+                  className="btn btn-primary"
+                  disabled={!newPb.name.trim() || !newPb.stepsJson.trim()}
+                  onClick={createPlaybook}
+                >
+                  Save template
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}

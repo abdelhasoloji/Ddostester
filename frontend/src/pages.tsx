@@ -19,7 +19,6 @@ import type {
   Campaign,
   HardCaps,
   ManagedUser,
-  Playbook,
   Role,
   SuiteSummary,
   WrsBreakdown,
@@ -37,7 +36,6 @@ import {
   VerdictBadge,
   WrsPill,
   WrsTrend,
-  hostOf,
   wrsClass,
 } from './ui.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
@@ -56,6 +54,7 @@ const roleLabel: Record<Role, string> = {
 const NAV = [
   { to: '/', label: 'Overview', icon: '▚', end: true },
   { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
+  { to: '/templates', label: 'Templates', icon: '▦', end: false },
   { to: '/reports', label: 'Reports', icon: '▤', end: false },
   { to: '/audit', label: 'Audit log', icon: '☰', end: false },
   { to: '/guide', label: 'Guide', icon: '❔', end: false },
@@ -163,7 +162,7 @@ export function Layout() {
   );
 }
 
-function PageHead({ title, sub }: { title: string; sub?: React.ReactNode }) {
+export function PageHead({ title, sub }: { title: string; sub?: React.ReactNode }) {
   return (
     <div className="page-head">
       <h1 className="page-title">{title}</h1>
@@ -1789,247 +1788,6 @@ const WRS_LEVELS: {
   },
 ];
 
-function PlaybooksSection() {
-  const app = useApp();
-  const navigate = useNavigate();
-  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
-  const [target, setTarget] = useState('');
-  const [recurMin, setRecurMin] = useState('');
-  const [busy, setBusy] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
-  const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
-  const [newPb, setNewPb] = useState({ ...emptyNew });
-
-  const load = () => {
-    api
-      .playbooks()
-      .then(setPlaybooks)
-      .catch(() => undefined);
-  };
-  useEffect(load, []);
-
-  const canCreate = canDo(app.role, 'create', app.authRequired);
-
-  const createPlaybook = async () => {
-    try {
-      const steps = JSON.parse(newPb.stepsJson || '[]');
-      await api.createPlaybook({
-        name: newPb.name,
-        category: newPb.category,
-        summary: newPb.summary,
-        when: newPb.when,
-        steps,
-      });
-      app.push('success', `Playbook "${newPb.name}" created.`);
-      setNewPb({ ...emptyNew });
-      setShowNew(false);
-      load();
-    } catch (err) {
-      app.push('error', (err as Error).message);
-    }
-  };
-  const removePlaybook = async (pb: Playbook) => {
-    try {
-      await api.deletePlaybook(pb.id);
-      app.push('success', `Playbook "${pb.name}" deleted.`);
-      load();
-    } catch (err) {
-      app.push('error', (err as Error).message);
-    }
-  };
-  const targetHost = hostOf(target);
-  const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
-
-  const launch = async (pb: Playbook) => {
-    if (!targetAllowed) return;
-    setBusy(pb.id);
-    try {
-      const r = await api.instantiatePlaybook(pb.id, {
-        target,
-        recurrenceMin: recurMin ? Number(recurMin) : undefined,
-      });
-      app.push(
-        'success',
-        `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
-      );
-      await app.refresh();
-      navigate('/campaigns');
-    } catch (err) {
-      app.push('error', (err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  if (playbooks.length === 0) return null;
-
-  return (
-    <>
-      <h2 className="section-title">Assessment playbooks</h2>
-      <p className="subtitle" style={{ marginBottom: '.75rem' }}>
-        One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole
-        assessment is created — each campaign still goes through approval before it runs.
-      </p>
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div className="field">
-          <label>Target for the assessment</label>
-          <input
-            placeholder="https://staging.example.com/"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          />
-          {app.allowed.length > 0 && (
-            <div className="allowed-chips">
-              {app.allowed.map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  className="chip-xs"
-                  onClick={() => setTarget(`https://${h}/`)}
-                >
-                  {h}
-                </button>
-              ))}
-            </div>
-          )}
-          {target && !targetAllowed && (
-            <span className="hint">Host is not in the allowlist — pick one above.</span>
-          )}
-        </div>
-        <div className="field">
-          <label>Repeat the assessment (optional)</label>
-          <select value={recurMin} onChange={(e) => setRecurMin(e.target.value)}>
-            <option value="">Run once</option>
-            <option value="60">Every hour</option>
-            <option value="360">Every 6 hours</option>
-            <option value="720">Every 12 hours</option>
-          </select>
-          <span className="hint">
-            Each campaign re-runs on this cadence, within its 24 h approval window.
-          </span>
-        </div>
-      </div>
-      <div className="preset-cards">
-        {playbooks.map((pb) => (
-          <div key={pb.id} className="preset-card">
-            <div className="preset-head">
-              <span className="preset-name">{pb.name}</span>
-              {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
-              {pb.custom && <span className="engine-badge ok">custom</span>}
-            </div>
-            <p className="preset-summary">{pb.summary}</p>
-            <p className="preset-when">{pb.when}</p>
-            <ol className="playbook-steps">
-              {pb.steps.map((s, i) => (
-                <li key={i}>
-                  <b>{s.name}</b> — {s.maxRps} rps · {s.maxDurationSec}s · {s.profile}
-                  {s.vector === 'http-post' ? ' · POST' : ''}
-                  {s.paths?.length ? ` · ${s.paths.length} endpoints` : ''}
-                  {s.rotateUa ? ' · UA rotation' : ''}
-                  {s.headers ? ` · ${Object.keys(s.headers).length} headers` : ''}
-                </li>
-              ))}
-            </ol>
-            {pb.threat && (
-              <div className="threat-box">
-                <div className="threat-title">
-                  Threat-informed <span className="threat-ref">{pb.threat.reference}</span>
-                </div>
-                <div className="threat-line">
-                  <span className="k">Profile</span> {pb.threat.technique}
-                </div>
-                <div className="threat-line">
-                  <span className="k">Measures</span> {pb.threat.measures}
-                </div>
-                <div className="threat-line threat-excluded">
-                  <span className="k">Not reproduced</span> {pb.threat.notReproduced}
-                </div>
-              </div>
-            )}
-            {canCreate && (
-              <div className="btn-row">
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={!targetAllowed || busy === pb.id}
-                  onClick={() => launch(pb)}
-                >
-                  {busy === pb.id ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
-                </button>
-                {pb.custom && (
-                  <button className="btn btn-sm btn-ghost" onClick={() => removePlaybook(pb)}>
-                    Delete
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {canCreate && (
-        <div className="card" style={{ marginTop: '1rem' }}>
-          <div className="card-head">
-            <h2>Custom playbook</h2>
-            <button className="btn btn-sm" onClick={() => setShowNew((v) => !v)}>
-              {showNew ? 'Cancel' : '＋ New playbook'}
-            </button>
-          </div>
-          {showNew && (
-            <div className="grid">
-              <div className="field">
-                <label>Name</label>
-                <input
-                  value={newPb.name}
-                  onChange={(e) => setNewPb({ ...newPb, name: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Category</label>
-                <input
-                  value={newPb.category}
-                  onChange={(e) => setNewPb({ ...newPb, category: e.target.value })}
-                />
-              </div>
-              <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label>Summary</label>
-                <input
-                  value={newPb.summary}
-                  onChange={(e) => setNewPb({ ...newPb, summary: e.target.value })}
-                />
-              </div>
-              <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label>Steps (JSON)</label>
-                <textarea
-                  rows={7}
-                  placeholder={
-                    '[\n  {"name":"Baseline","maxRps":100,"concurrency":20,"maxDurationSec":120,"profile":"constant","agent":"vegeta"},\n  {"name":"Ramp","maxRps":300,"concurrency":50,"maxDurationSec":180,"profile":"ramp","agent":"k6"}\n]'
-                  }
-                  value={newPb.stepsJson}
-                  onChange={(e) => setNewPb({ ...newPb, stepsJson: e.target.value })}
-                  style={{ fontFamily: 'var(--mono, monospace)' }}
-                />
-                <span className="hint">
-                  Each step: <code>name, maxRps, concurrency, maxDurationSec, profile</code>{' '}
-                  (constant/ramp/wave), optional <code>agent</code>. All within the caps.
-                </span>
-              </div>
-              <div className="field" style={{ alignSelf: 'end' }}>
-                <button
-                  className="btn btn-primary"
-                  disabled={!newPb.name.trim() || !newPb.stepsJson.trim()}
-                  onClick={createPlaybook}
-                >
-                  Save playbook
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
-
 export function GuidePage() {
   const app = useApp();
   const navigate = useNavigate();
@@ -2058,8 +1816,6 @@ export function GuidePage() {
           </div>
         ))}
       </div>
-
-      <PlaybooksSection />
 
       <h2 className="section-title">Reading the WRS</h2>
       <div className="card">

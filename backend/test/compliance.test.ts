@@ -93,6 +93,14 @@ describe('compliance / resilience assessment report', () => {
     expect(empty).not.toMatch(/NaN|undefined/);
   });
 
+  it('renders post-test weaknesses + remediations for a degraded/failed run', () => {
+    expect(html).toContain('recommended remediations');
+    // The auto-killed c3 run yields a critical availability-loss remediation.
+    expect(html).toContain('always-on mitigation');
+    expect(html).toContain('Affected');
+    expect(html).not.toMatch(/NaN|undefined/);
+  });
+
   it('renders the class-C bench coverage matrix + rollup when bench data is supplied', () => {
     const bench = {
       scenarios: [

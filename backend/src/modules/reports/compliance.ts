@@ -3,6 +3,14 @@ import type { CampaignRun } from '../campaigns/runner.js';
 import type { BenchScenario, BenchCoverage, CoverageMethod } from '../bench/model.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, sparklineSvg, scoreColor, REPORT_COLORS } from './charts.js';
+import { aggregateRemediations } from './remediations.js';
+
+const SEVERITY_PILL = {
+  critical: 'crit',
+  high: 'warn',
+  medium: 'warn',
+  low: 'neutral',
+} as const;
 
 /**
  * RPT-02 — Aggregated resilience assessment / compliance report.
@@ -244,6 +252,25 @@ export function renderComplianceHtml(
 
   const benchSection = benchCoverageSection(opts.bench);
 
+  // Post-test weaknesses + concrete remediations, ranked across the period.
+  const remediations = aggregateRemediations(
+    inPeriod.map((r) => ({
+      campaign: campById.get(r.campaignId) ?? ({ id: r.campaignId } as Campaign),
+      run: r,
+    })),
+  );
+  const remediationSection = remediations.length
+    ? `<h2>Weaknesses &amp; recommended remediations</h2>
+<p class="muted">Ranked across ${total} run${total === 1 ? '' : 's'} — "Affected" is how many runs showed each weakness.</p>
+<table class="remediations"><thead><tr><th>Severity</th><th>Weakness (observed)</th><th>Recommended remediation</th><th>Affected</th></tr></thead>
+<tbody>${remediations
+        .map(
+          (r) =>
+            `<tr><td>${pill(r.severity, SEVERITY_PILL[r.severity])}</td><td>${esc(r.weakness)}</td><td>${esc(r.remediation)}</td><td>${r.affected}</td></tr>`,
+        )
+        .join('')}</tbody></table>`
+    : `<h2>Weaknesses &amp; recommended remediations</h2><p class="muted">No weaknesses identified across the assessed runs — targets held cleanly.</p>`;
+
   return (
     docHead('Resilience assessment — WEDOS ShieldTest') +
     coverBand(
@@ -291,6 +318,8 @@ control plane. The UDP amplification and no-spoof TCP state-table shapes are
 measured on the isolated network bench; spoofing/GRE/fragmentation are covered by
 attestation or ingestion — see <em>drs-validation-policy.md</em> and the coverage
 matrix below.</div>
+
+${remediationSection}
 
 ${benchSection}
 
