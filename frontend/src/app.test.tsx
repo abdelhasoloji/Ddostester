@@ -42,7 +42,7 @@ describe('App gate', () => {
       expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument(),
     );
     // The build version tag is shown at the bottom of every page (sidebar foot).
-    expect(screen.getByText(/^v\d+\.\d+\.\d+ · \S+$/)).toBeInTheDocument();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+\+\d+ · \S+$/)).toBeInTheDocument();
   });
 
   it('shows the sign-in screen when auth is required and no one is signed in', async () => {
@@ -52,6 +52,6 @@ describe('App gate', () => {
       expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument(),
     );
     // The version tag also appears on the sign-in gate.
-    expect(screen.getByText(/^v\d+\.\d+\.\d+ · \S+$/)).toBeInTheDocument();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+\+\d+ · \S+$/)).toBeInTheDocument();
   });
 });

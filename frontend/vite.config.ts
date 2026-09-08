@@ -7,21 +7,27 @@ import { readFileSync } from 'node:fs';
 // glance, exactly which build a running instance is serving (this is what would
 // have made the stale duplicate-instance obvious immediately).
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-const commit = (() => {
+const git = (args: string): string | null => {
   try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+    return execSync(`git ${args}`, { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString()
       .trim();
   } catch {
-    return 'dev';
+    return null;
   }
-})();
+};
+const commit = git('rev-parse --short HEAD') ?? 'dev';
+// Monotonic build number = commit count on HEAD. The semver in package.json is
+// stable, so this is what actually increments every commit/deploy — making the
+// footer version change on each release without hand-bumping package.json.
+const build = git('rev-list --count HEAD') ?? '0';
 
 export default defineConfig({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_COMMIT__: JSON.stringify(commit),
+    __APP_BUILD__: JSON.stringify(build),
     __APP_BUILT__: JSON.stringify(new Date().toISOString()),
   },
   server: {
