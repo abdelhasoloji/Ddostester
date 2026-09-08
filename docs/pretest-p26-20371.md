@@ -68,14 +68,36 @@ For the **one L3/4 line** (TCP-Handshakes) additionally:
 5. The TCP-Handshake line runs separately on the class-C bench once its isolated
    runner is active.
 
-## Gap register (documented as "not reproduced")
+## Gap register — not emitted, and why
 
-- **SlowLoris** — the generator sends complete, rate-capped requests, not
-  slow-drip headers. Would require a dedicated slow-header mode.
-- **HPACK bomb** — no HPACK decompression-bomb vector.
-- **Dedicated WAF-Cracker** — only approximated by `threat-l7-signature-evasion`.
-- **Credential brute-force** — we run a bounded POST flow, never a credential
-  brute-force (by design).
+Each gap is stated with its disposition: whether it _could_ be a bounded vector
+we build, or is deliberately out on safety grounds. The security boundary is the
+same one that keeps the whole platform defensible: bounded, allowlisted,
+authorized, capped — no exploits, no amplification, no spoofing.
+
+- **SlowLoris (line 2)** — _buildable, scoped follow-up._ A bounded slow-header
+  vector (capped connections, capped hold time, capped duration, allowlist +
+  approval) is a legitimate L7 resilience test and consistent with the existing
+  bounded flood engines. It is **not built yet** because it needs a
+  connection-holding execution path distinct from the request-count engine
+  (`LoadTestResult` is per-request), i.e. a real feature with its own metrics —
+  worth doing deliberately, not bolted on. Until then: attest the target's
+  slow-request timeouts (`mod_reqtimeout` / proxy header-timeout) as evidence.
+- **HPACK bomb (line 8c)** — _out by design (safety)._ A real HPACK bomb is a
+  header-decompression **amplification exploit** — precisely the amplification/
+  exploit class the platform never emits, at L7 instead of L3/4. We reproduce
+  the benign shape (bounded large header sets over h2, the Continuation step)
+  and cover the exploit itself by **attestation** of the server's HPACK table
+  size limit, not by firing one.
+- **WAF-Cracker (line 12)** — _out of the inert bounded model._ A real WAF
+  cracker sends live attack payloads (SQLi/XSS/RCE) to break the WAF. We
+  approximate the _signature-rotation shape_ with `threat-l7-signature-evasion`
+  (benign markers), and cover WAF efficacy by **attestation** of the WAF ruleset
+  / paranoia level rather than launching weaponized payloads at the target.
+- **Credential brute-force (line 14b)** — _out by design._ We run a bounded POST
+  flow, never a credential brute-force.
 
 These are declared honestly in the assessment so a reader sees the full DRS
-matrix and exactly where each part is (or is not) validated.
+matrix and exactly where each part is validated, attested, or intentionally not
+emitted. Building the SlowLoris vector is the one that would move coverage
+(11 → 12 of 14); the other three stay out on principle.
