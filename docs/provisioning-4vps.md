@@ -11,6 +11,12 @@ spare/standby.
 | **VPS 2** | Isolated class-C lab (shieldtest-lab runner)               | → VPS 1 API only; no other egress      |
 | target    | `bank.cz` (external, allowlisted + authorized)             | —                                      |
 
+**Bootstrap scripts** turn the manual steps below into one command per host —
+`deploy/provision/host-app.sh` (VPS 1) and `deploy/provision/host-lab.sh`
+(VPS 2). They are idempotent, take secrets via env (never invent them), and the
+app one hands off to the existing `deploy/setup.sh`. The manual steps that
+follow are the reference the scripts automate.
+
 Both VPS are plain **Debian 13** (root). Generate the two shared secrets once on
 your workstation and keep them in your password manager:
 
