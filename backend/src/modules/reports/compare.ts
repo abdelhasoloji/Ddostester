@@ -1,26 +1,15 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
-import { availabilityPct, mitigationVerdict, riskLevel } from './compliance.js';
+import { mitigationVerdict, riskLevel } from './compliance.js';
+import { availabilityPct } from '../../util/run-metrics.js';
+import { htmlEscape as esc } from '../../util/text.js';
+import { hostOf } from '../../util/net.js';
 
 /**
  * RPT-03 — Before / after comparison of two runs (typically the same target
  * before and after a protection change: "did the DRS improve?"). Purely
  * analytical — generates no traffic. See docs/assessment-methodology.md.
  */
-
-function esc(s: string): string {
-  return s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-  );
-}
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
 
 export interface CompareSide {
   campaign: Campaign;

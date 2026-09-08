@@ -55,6 +55,7 @@ Browser (via SSH tunnel)
 | Protection | `backend/src/modules/protection/`                     | Protection-provider hook for real detection/mitigation timing (default no-op)                                                                    |
 | Telemetry  | `backend/src/modules/target-telemetry/`               | Target host telemetry correlated to the run (default no-op)                                                                                      |
 | Users      | `backend/src/modules/users/service.ts`                | Runtime user management (officer); env users immutable                                                                                           |
+| Util       | `backend/src/util/{text,net,run-metrics}.ts`          | Shared dependency-free helpers: `htmlEscape`, `hostOf`, `availabilityPct` (single source of truth across the report/notify modules)              |
 
 ## Campaign flow
 

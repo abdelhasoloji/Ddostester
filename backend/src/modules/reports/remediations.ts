@@ -9,8 +9,17 @@
 
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { availabilityPct } from '../../util/run-metrics.js';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
+
+/** Severity → report pill class. Shared by the per-campaign and aggregate reports. */
+export const SEVERITY_PILL: Record<Severity, 'good' | 'warn' | 'crit' | 'neutral'> = {
+  critical: 'crit',
+  high: 'warn',
+  medium: 'warn',
+  low: 'neutral',
+};
 
 export interface Remediation {
   /** Stable key so identical weaknesses dedupe across runs in the aggregate. */
@@ -23,14 +32,6 @@ export interface Remediation {
 }
 
 const RANK: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-
-/** Legitimate availability as a percentage (probe successes / samples). */
-function availabilityPct(run: CampaignRun): number {
-  const p = run.probe;
-  if (!p || !p.samples) return 100;
-  const ok = p.successful ?? p.available ?? 0;
-  return Math.round((ok / p.samples) * 100);
-}
 
 /**
  * Derives the ranked weaknesses + remediations for a single run. Empty when the
@@ -55,7 +56,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
     out.push({
       id: 'availability-degraded',
       severity: avail < 90 ? 'high' : 'medium',
-      weakness: `Legitimate availability degraded to ${avail}% during the run — some real users would have been affected.`,
+      weakness: `Legitimate availability degraded to ${Math.round(avail)}% during the run — some real users would have been affected.`,
       remediation:
         'Add origin capacity or enable a rate-based challenge (JS / managed challenge) at the edge so legitimate traffic is served while the attack shape is absorbed.',
     });

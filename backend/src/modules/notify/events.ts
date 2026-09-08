@@ -4,6 +4,7 @@ import { computeBaselineDelta } from '../campaigns/baseline.js';
 import type { BaselineMetrics } from '../campaigns/baseline.js';
 import type { WrsSeries } from '../wrs/history.js';
 import type { NotificationEvent, NotificationField, Severity } from './types.js';
+import { hostOf } from '../../util/net.js';
 
 /** Thresholds for a baseline-drift alert (nominal health worsened between runs). */
 const DRIFT_AVAIL_DROP_PTS = 5;
@@ -56,14 +57,6 @@ const COLOR: Record<Severity, string> = {
   warning: '#ecb22e',
   critical: '#e01e5a',
 };
-
-function hostOf(target: string): string {
-  try {
-    return new URL(target).hostname;
-  } catch {
-    return target;
-  }
-}
 
 /**
  * Builds the notifications to emit for a finished run: one for the outcome

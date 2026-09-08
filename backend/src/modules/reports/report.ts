@@ -2,17 +2,12 @@ import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
-import { availabilityPct, mitigationVerdict, riskLevel } from './compliance.js';
+import { hostOf } from '../../util/net.js';
+import { mitigationVerdict, riskLevel } from './compliance.js';
+import { availabilityPct } from '../../util/run-metrics.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, timelineSvg, scoreColor, REPORT_COLORS } from './charts.js';
-import { deriveRemediations, type Remediation } from './remediations.js';
-
-const SEVERITY_PILL = {
-  critical: 'crit',
-  high: 'warn',
-  medium: 'warn',
-  low: 'neutral',
-} as const;
+import { deriveRemediations, SEVERITY_PILL, type Remediation } from './remediations.js';
 
 /** Renders the "Weaknesses & recommended remediations" block (empty → clean note). */
 export function remediationsHtml(items: Remediation[]): string {
@@ -44,14 +39,6 @@ const MIT_PILL = {
   'v-fail': 'crit',
   'v-aborted': 'neutral',
 } as const;
-const hostOf = (u: string): string => {
-  try {
-    return new URL(u).hostname;
-  } catch {
-    return u;
-  }
-};
-
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
   const w = run.wrs;

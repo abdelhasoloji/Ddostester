@@ -9,6 +9,8 @@
  * never a dual-axis chart (RPS and availability are two separate charts).
  */
 
+import { htmlEscape as esc } from '../../util/text.js';
+
 export const REPORT_COLORS = {
   brand: '#003484',
   brandFill: 'rgba(0, 52, 132, 0.14)',
@@ -22,12 +24,6 @@ export const REPORT_COLORS = {
   muted: '#6b7280',
 } as const;
 
-function esc(s: string): string {
-  return s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-  );
-}
 const n = (v: number): number => (Number.isFinite(v) ? v : 0);
 const r1 = (v: number): string => (Math.round(v * 10) / 10).toString();
 

@@ -3,14 +3,14 @@ import type { CampaignRun } from '../campaigns/runner.js';
 import type { BenchScenario, BenchCoverage, CoverageMethod } from '../bench/model.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, sparklineSvg, scoreColor, REPORT_COLORS } from './charts.js';
-import { aggregateRemediations } from './remediations.js';
+import { aggregateRemediations, SEVERITY_PILL } from './remediations.js';
+import { htmlEscape as esc } from '../../util/text.js';
+import { hostOf } from '../../util/net.js';
+import { availabilityPct } from '../../util/run-metrics.js';
 
-const SEVERITY_PILL = {
-  critical: 'crit',
-  high: 'warn',
-  medium: 'warn',
-  low: 'neutral',
-} as const;
+// Re-exported for the compare/report modules that historically imported these
+// run helpers from here.
+export { availabilityPct };
 
 /**
  * RPT-02 — Aggregated resilience assessment / compliance report.
@@ -78,26 +78,6 @@ function benchCoverageSection(bench?: ComplianceOptions['bench']): string {
 <p class="muted" style="font-size:.8rem">Class C (network bench). Measured vectors are bounded, synthetic, no-spoof lab
 runs; the rest are covered by attestation, ingestion from the network team's bench, or modelling. Source-IP spoofing and
 raw floods are never emitted by construction.</p>`;
-}
-
-function esc(s: string): string {
-  return s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-  );
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
-
-/** Probe availability (%) measured during the run; 100 when no probe samples. */
-export function availabilityPct(run: CampaignRun): number {
-  return run.probe.samples ? (run.probe.available / run.probe.samples) * 100 : 100;
 }
 
 /**
