@@ -482,7 +482,10 @@ function SuitesSection() {
                     className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
                     title={m.status}
                   >
-                    {m.order + 1}. {m.name.split(' — ').pop()}
+                    {m.order + 1}.{' '}
+                    {m.name.startsWith(`${s.suiteName} — `)
+                      ? m.name.slice(s.suiteName.length + 3)
+                      : m.name}
                     {m.wrs != null ? ` · ${m.wrs} ${m.level}` : ''}
                   </span>
                 ))}
