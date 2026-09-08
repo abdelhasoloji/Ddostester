@@ -133,10 +133,21 @@ out of scope. "Playbook" = a curated one-click sequence (`docs/usage.md`).
 
 `udp_dns_reflection`, `tcp_synflood`, `udp/tcp_maxpackets`, `ip_spoofing`,
 `udp/tcp_fragmentation`, `multi/gre multivector` → **class C** in
-`drs-validation-policy.md`: never in the platform; network team's isolated bench
-(TRex/MoonGen/pktgen) or a contracted provider. The report lists them as
-**"volumetric — out of scope"** so a reader sees the full DRS matrix and where
-each part is validated.
+`drs-validation-policy.md`: never emitted by the control plane; network team's
+isolated bench (TRex/MoonGen/pktgen) or a contracted provider. The report lists
+them under **"Volumetric / L3-L4 — class C, network bench"** so a reader sees the
+full DRS matrix and where each part is validated.
+
+Class C is now also surfaced in the app through a **governed record-and-dispatch
+bench** (`drs-validation-policy.md` §8, `docs/api.md` → Network bench): the
+control plane **records** a CISO-authorized run request and an **isolated
+external runner** (the [shieldtest-lab](https://github.com/abdelhasoloji/shieldtest-lab))
+executes a bounded, synthetic, loopback realization and posts back a read-only
+verdict — the control plane still emits nothing. The reproducible subset
+(UDP amplification/rate + the two no-spoof TCP state-table vectors) yields
+`MEASURED_LAB` coverage; the out-of-model vectors are covered by attestation
+checklists or imported external verdicts. None of this emits spoofed or raw
+flood traffic — that stays permanently refused.
 
 #### Current L3/L4 trends (2024–2025) — still class C, still out of the platform
 

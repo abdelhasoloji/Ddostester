@@ -165,3 +165,91 @@ Verifies the tamper-evident audit chain end to end. Returns
 
 Downloadable, self-verifiable audit export: all entries in chain order with
 their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
+
+## Auth & sharing
+
+- `POST /api/auth/login` — `{ email, password }` → `{ token, role }` (JWT). Public.
+- `GET /api/auth/me` — the caller's identity `{ email, role, authRequired }`
+  (`campaign:read`).
+- `POST /api/share` — mints a short-lived read token for browser links to the
+  HTML/CSV report endpoints (`campaign:read`). When auth is disabled, returns
+  `{ authRequired: false, token: null }`.
+
+## Runs, exports & history
+
+- `GET /api/runs` — list runs (optional `campaignId`). `GET /api/runs/:runId` —
+  raw run. Both `campaign:read`.
+- `GET /api/runs.csv`, `GET /api/runs/:runId/timeline.csv` — CSV downloads; a
+  read token in `?token=` is accepted for browser opening.
+- `GET /api/wrs/history` — per-target WRS history and regressions
+  (`campaign:read`).
+- `GET /api/reports/compare?a=<runId>&b=<runId>` — before/after HTML comparison
+  of two runs. Read token accepted.
+
+## Playbooks & suites
+
+- `GET /api/playbooks` — curated + custom assessment playbooks (`campaign:read`).
+- `POST /api/playbooks` / `DELETE /api/playbooks/:id` — manage **custom**
+  playbooks (`campaign:create`); built-ins are immutable.
+- `POST /api/playbooks/:id/instantiate` — expand a playbook into campaigns
+  (`campaign:create`).
+- `GET /api/suites`, `GET /api/suites/:id` — consolidated suites (campaigns
+  grouped by playbook run) (`campaign:read`). `GET /api/suites/:id/report` —
+  suite HTML report (read token accepted).
+
+## `POST /api/drs-validations`
+
+**Security Officer** (`campaign:approve`). Records a class **A/B** DRS validation
+(bounded L7 assessment). Class **C** (network bench, volumetric) is rejected here
+by construction — it is recorded only via the governed bench surface below. See
+[drs-validation-policy.md](./drs-validation-policy.md).
+
+## Network bench — class C (governed record-and-dispatch)
+
+The control plane **records** CISO-authorized class-C run requests and serves
+them to an **isolated external runner** (the [shieldtest-lab](https://github.com/abdelhasoloji/shieldtest-lab));
+it **never executes the scenario or emits any traffic**. Dispatch is fail-closed:
+disabled unless BOTH a `LAB_TARGETS` host and a `BENCH_RUNNER_TOKEN` are set.
+The catalogue mirrors the zeroBS DRS Volumetric matrix (report P25-20300). See
+[drs-validation-policy.md](./drs-validation-policy.md) §8.
+
+- `GET /api/bench/scenarios` — catalogue + `{ dispatchEnabled, labTargets }`
+  (`bench:read`).
+- `GET /api/bench/runs`, `GET /api/bench/runs/:id` — run requests + verdicts
+  (`bench:read`).
+- `POST /api/bench/runs` — **CISO** (`bench:dispatch`). Body `{ scenario, labTarget? }`.
+  Only a **reproducible** vector is accepted; TCP-stateful/GRE/spoofing/fragmentation
+  vectors are refused (out of model). `labTarget` must be an isolated `LAB_TARGETS`
+  host, never a production allowlist host. Audited `bench.request`.
+- `POST /api/bench/runs/next/claim`, `POST /api/bench/runs/:id/result` — the
+  **runner API**, authenticated by the `BENCH_RUNNER_TOKEN` bearer (never a user
+  JWT). `claim` returns the next `REQUESTED` run (204 if none). `result` accepts
+  a verdict **only while the run is `CLAIMED`** (otherwise `409`), records a
+  `MEASURED_LAB` coverage row, and audits `bench.verdict`.
+
+### Coverage & evidence
+
+- `GET /api/bench/coverage` — coverage records per vector (`bench:read`).
+- `POST /api/bench/coverage` — **CISO** (`bench:attest`). Hand-record non-run
+  evidence for a vector: `INGESTED_EXTERNAL`, `ATTESTED`, `MODELLED` or `REPLAY`
+  (never `MEASURED_LAB`, which only comes from a real run). Audited `bench.coverage`.
+- `GET /api/bench/attestations` — structured attestation checklists (BCP38/uRPF,
+  GRE-drop, fragment limits) for the out-of-model vectors (`bench:read`).
+  `POST /api/bench/attestations` — **CISO** (`bench:attest`) submits a completed
+  checklist; the server derives a deterministic `PASS`/`PARTIAL`/`FAIL` outcome
+  and stores it as `ATTESTED` coverage.
+- `POST /api/bench/coverage/import` — **CISO** (`bench:attest`). Bulk-import the
+  network team's L3/4 verdicts (`{ format: 'json'|'csv', data, source? }`) as
+  read-only `INGESTED_EXTERNAL` coverage; invalid rows are returned in an
+  `errors` list, not dropped. Nothing is executed or emitted.
+
+## User management
+
+`GET/POST /api/users`, `PATCH/DELETE /api/users/:email` — **Security Officer**
+(`user:manage`). Manages runtime users; env-defined users are immutable and the
+allowlist can never be weakened. See [auth.md](./auth.md).
+
+## `POST /api/notify/test`
+
+Sends a test notification to every configured sink (`campaign:create`). `400` if
+no sink is configured. See [notifications.md](./notifications.md).

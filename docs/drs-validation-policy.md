@@ -202,12 +202,17 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
   - The bench catalogue mirrors the **Volumetric** section of a zeroBS DRS
     stress-test (reference report **P25-20300**), so the CISO sees a 1:1 mapping
     with the report: each vector carries its DRS level and whether the bench can
-    reproduce it. Only the UDP amplification/rate vectors (`udp_dns_reflection`,
-    `udp_maxpackets`, `udp_multivector`) are reproducible; the TCP/GRE stateful
-    floods, `ip_spoofing` and fragmentation vectors are shown for coverage but are
-    **out of model** and can never be dispatched (spoofing is never permitted
-    here by construction). The report's Layer-7 vectors are bounded-HTTP and live
-    in the control-plane playbooks (`assessment-methodology.md`), not this bench.
+    reproduce it. Five vectors are **reproducible**: the UDP amplification/rate
+    vectors (`udp_dns_reflection`, `udp_maxpackets`, `udp_multivector`) and the
+    two no-spoof TCP connection/state-table pressure vectors (`tcp_synflood`,
+    `tcp_maxpackets` — real sources, capped, the flood's exhaustion shape without
+    spoofing). Six are **out of model** and can never be dispatched:
+    `ip_spoofing`, `udp_fragmentation`, `tcp_fragmentation`, `tcp_multivector`,
+    `multiproto_multivector` and `gre_packets` — spoofing is never permitted here
+    by construction, and fragment crafting / GRE / multi-proto combos are the
+    network team's real bench (covered via attestation or external import, below).
+    The report's Layer-7 vectors are bounded-HTTP and live in the control-plane
+    playbooks (`assessment-methodology.md`), not this bench.
 
   - **Coverage methods.** A vector is covered by an honest, labelled method, so
     "out of model" becomes qualified coverage rather than "no data". Recorded as

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
@@ -565,11 +565,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return host;
   }
 
-  /** Runner auth: a dedicated bearer token, never a user JWT. */
+  /** Runner auth: a dedicated bearer token, never a user JWT. Constant-time compare. */
   function runnerAuthed(req: FastifyRequest): boolean {
     const tok = opts.benchRunnerToken;
     if (!tok) return false;
-    return (req.headers.authorization ?? '') === `Bearer ${tok}`;
+    const got = Buffer.from(req.headers.authorization ?? '');
+    const want = Buffer.from(`Bearer ${tok}`);
+    return got.length === want.length && timingSafeEqual(got, want);
   }
 
   app.get('/api/bench/scenarios', { preHandler: guard('bench:read') }, async () => ({
@@ -639,6 +641,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const id = (req.params as { id: string }).id;
     const existing = await store.getBenchRun(id);
     if (!existing) return reply.code(404).send({ error: 'not found' });
+    // A verdict is accepted only for a run currently being executed (CLAIMED).
+    // This makes result-posting idempotent-safe: a duplicate or late post can't
+    // overwrite a terminal run or record a second MEASURED_LAB coverage row.
+    if (existing.status !== 'CLAIMED') {
+      return reply
+        .code(409)
+        .send({ error: `run is ${existing.status}, not CLAIMED — cannot post a result` });
+    }
     const b = (req.body ?? {}) as { verdict?: unknown; error?: string };
     if (b.error && !b.verdict) {
       const updated = await store.setBenchRunResult(id, { error: String(b.error).slice(0, 500) });

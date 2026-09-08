@@ -330,6 +330,20 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(403);
   });
 
+  it('refuses a duplicate result post (run no longer CLAIMED) — no double coverage', async () => {
+    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'udp_maxpackets' });
+    const run = created.json();
+    await asRunner('/api/bench/runs/next/claim', { runner: 'r-dup' });
+    const v = { ...validVerdict, scenario: 'udp_maxpackets' };
+    const first = await asRunner(`/api/bench/runs/${run.id}/result`, { verdict: v });
+    expect(first.statusCode).toBe(200);
+    const before = (await asCiso('GET', '/api/bench/coverage')).json().coverage.length;
+    const second = await asRunner(`/api/bench/runs/${run.id}/result`, { verdict: v });
+    expect(second.statusCode).toBe(409); // already COMPLETED, not CLAIMED
+    const after = (await asCiso('GET', '/api/bench/coverage')).json().coverage.length;
+    expect(after).toBe(before); // no duplicate MEASURED_LAB row
+  });
+
   it('imports external verdicts (CSV) as INGESTED_EXTERNAL coverage', async () => {
     const csv = [
       'vector,outcome,drs,summary,source',
