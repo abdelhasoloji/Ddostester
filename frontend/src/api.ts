@@ -431,6 +431,13 @@ export function suiteReportUrl(suiteId: string): string {
   return token ? `${u}?token=${encodeURIComponent(token)}` : u;
 }
 
+/** URL of the before/after comparison of two suites (tune-and-replay loop). */
+export function suiteCompareUrl(suiteIdA: string, suiteIdB: string): string {
+  const q = `a=${encodeURIComponent(suiteIdA)}&b=${encodeURIComponent(suiteIdB)}`;
+  const u = `/api/reports/suite-compare?${q}`;
+  return token ? `${u}&token=${encodeURIComponent(token)}` : u;
+}
+
 /** URL of a campaign's real-time progress SSE stream (EventSource). */
 export function streamUrl(campaignId: string): string {
   const u = `/api/campaigns/${campaignId}/stream`;

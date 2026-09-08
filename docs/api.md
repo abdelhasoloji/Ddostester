@@ -185,6 +185,10 @@ their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
   (`campaign:read`).
 - `GET /api/reports/compare?a=<runId>&b=<runId>` — before/after HTML comparison
   of two runs. Read token accepted.
+- `GET /api/reports/suite-compare?a=<suiteId>&b=<suiteId>` — before/after HTML
+  comparison of two **suites** of the same playbook (the tune-and-replay loop):
+  per-line WRS/verdict delta, `a` = baseline, `b` = newer replay. Read token
+  accepted. See `docs/tune-and-replay.md`.
 
 ## Playbooks & suites
 

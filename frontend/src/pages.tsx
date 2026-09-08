@@ -8,6 +8,7 @@ import {
   reportUrl,
   runsCsvUrl,
   suiteReportUrl,
+  suiteCompareUrl,
 } from './api.js';
 import type {
   AttestationChecklist,
@@ -425,9 +426,14 @@ function SuitesSection() {
     <>
       <h2 className="section-title">Assessment suites</h2>
       <div className="card" style={{ display: 'grid', gap: '.75rem', marginBottom: '1rem' }}>
-        {suites.map((s) => {
+        {suites.map((s, i) => {
           const remaining = s.total - s.completed;
           const sequencing = s.running > 0;
+          // Suites are newest-first; the previous replay of the same playbook on
+          // the same target (if any) is the next match further down the list.
+          const prev = suites
+            .slice(i + 1)
+            .find((o) => o.suiteName === s.suiteName && o.target === s.target);
           return (
             <div key={s.suiteId} className="wrs-hist">
               <div className="wrs-hist-main">
@@ -474,6 +480,17 @@ function SuitesSection() {
                 >
                   Suite report ↗
                 </a>
+                {prev && (
+                  <a
+                    className="btn btn-sm btn-ghost"
+                    href={suiteCompareUrl(prev.suiteId, s.suiteId)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Per-line WRS/verdict vs the previous replay of this playbook (tune & replay)"
+                  >
+                    Compare vs previous ↗
+                  </a>
+                )}
               </div>
               <div className="suite-steps">
                 {s.members.map((m) => (

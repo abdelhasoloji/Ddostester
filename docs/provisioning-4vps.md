@@ -101,6 +101,9 @@ control plane.
 3. Instantiate **`pretest-cra-l7`** against `https://bank.cz/` and press **Run
    sequence** (Reports → Assessment suites). Steps advance with real per-step
    verdicts; the class-C TCP line dispatches to the lab runner.
+4. To iterate on the WEDOS rules, follow the **tune-and-replay** loop
+   (`docs/tune-and-replay.md`): change one rule, replay the playbook, and read
+   the per-line WRS delta via **"Compare vs previous ↗"**.
 
 Note: `pretest-cra-l7`'s login step targets `/realms/srp/account` (the CRA
 path). Against `bank.cz`, set the target path or expect a 404 on that step —

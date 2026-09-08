@@ -9,7 +9,11 @@ import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
 import { runsSummaryCsv, runTimelineCsv } from '../modules/reports/csv.js';
-import { buildSuites, renderSuiteReportHtml } from '../modules/playbooks/suites.js';
+import {
+  buildSuites,
+  renderSuiteReportHtml,
+  renderSuiteCompareHtml,
+} from '../modules/playbooks/suites.js';
 
 /** Shared context the read-only routes need (no mutations, no run/audit writes). */
 export interface ReadRoutesCtx {
@@ -44,6 +48,18 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
     return reply.type('text/html').send(renderSuiteReportHtml(suite));
+  });
+
+  // Before / after comparison of two suites of the same playbook (the
+  // "tune-and-replay" loop: replay the playbook after a WEDOS rule change and
+  // read the per-line WRS/verdict delta). Read-only; generates no traffic.
+  app.get('/api/reports/suite-compare', async (req, reply) => {
+    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    const { a, b } = req.query as { a?: string; b?: string };
+    if (!a || !b) return reply.code(400).send({ error: 'both suite ids (a, b) are required' });
+    const [sa, sb] = await Promise.all([findSuite(a), findSuite(b)]);
+    if (!sa || !sb) return reply.code(404).send({ error: 'suite not found' });
+    return reply.type('text/html').send(renderSuiteCompareHtml(sa, sb));
   });
 
   app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {

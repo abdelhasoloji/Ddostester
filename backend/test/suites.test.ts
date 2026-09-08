@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildSuites, renderSuiteReportHtml } from '../src/modules/playbooks/suites.js';
+import {
+  buildSuites,
+  renderSuiteReportHtml,
+  renderSuiteCompareHtml,
+} from '../src/modules/playbooks/suites.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 import type { WrsBreakdown } from '../src/modules/wrs/scoring.js';
 
@@ -85,5 +89,68 @@ describe('renderSuiteReportHtml', () => {
     expect(html).toContain('75'); // avg of 90 and 60
     expect(html).toContain('worst level C');
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // header + 2 steps
+  });
+});
+
+describe('renderSuiteCompareHtml', () => {
+  const step = (over: Partial<Campaign>) =>
+    campaign({ suiteName: 'CRA L7', target: 'https://bank.cz/', ...over });
+
+  const [before] = buildSuites([
+    step({
+      suiteId: 'before',
+      suiteOrder: 0,
+      createdAt: '2026-01-01T00:00:00Z',
+      status: 'COMPLETED',
+      wrs: wrs(60, 'C'),
+      acceptanceResult: { verdict: 'FAIL' } as Campaign['acceptanceResult'],
+    }),
+    step({
+      suiteId: 'before',
+      suiteOrder: 1,
+      createdAt: '2026-01-01T00:00:00Z',
+      status: 'COMPLETED',
+      wrs: wrs(80, 'B'),
+      acceptanceResult: { verdict: 'PASS' } as Campaign['acceptanceResult'],
+    }),
+  ]);
+  const [after] = buildSuites([
+    step({
+      suiteId: 'after',
+      suiteOrder: 0,
+      createdAt: '2026-02-01T00:00:00Z',
+      status: 'COMPLETED',
+      wrs: wrs(85, 'A'),
+      acceptanceResult: { verdict: 'PASS' } as Campaign['acceptanceResult'],
+    }),
+    step({
+      suiteId: 'after',
+      suiteOrder: 1,
+      createdAt: '2026-02-01T00:00:00Z',
+      status: 'COMPLETED',
+      wrs: wrs(75, 'B'),
+      acceptanceResult: { verdict: 'PASS' } as Campaign['acceptanceResult'],
+    }),
+  ]);
+
+  it('pairs by order and shows per-line WRS/verdict deltas', () => {
+    const html = renderSuiteCompareHtml(before, after);
+    expect(html).toContain('Suite comparison');
+    expect(html).toContain('CRA L7');
+    expect(html).toContain('bank.cz');
+    // step 0 improved 60→85 and its verdict was fixed; step 1 regressed 80→75.
+    expect(html).toContain('1</b> step(s) improved');
+    expect(html).toContain('1</b> regressed');
+    expect(html).toContain('fixed');
+    expect(html).toContain('worst-step WRS <b>60</b> → <b>75</b>');
+  });
+
+  it('tolerates a step scored on only one side', () => {
+    const [partial] = buildSuites([
+      step({ suiteId: 'p', suiteOrder: 0, status: 'APPROVED' }), // unscored
+    ]);
+    const html = renderSuiteCompareHtml(before, partial);
+    expect(html).toContain('Suite comparison');
+    expect(html).toContain('—'); // unscored side rendered as a dash
   });
 });

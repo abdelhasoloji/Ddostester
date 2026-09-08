@@ -131,3 +131,113 @@ ${rows}
 allowlisted HTTP test; no volumetric or exhaustion vector is implemented.</p>
 </body></html>`;
 }
+
+/** Strips the "<suiteName> — " prefix so a step reads as its own line label. */
+function stepLabel(suiteName: string, name: string): string {
+  const prefix = `${suiteName} — `;
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
+}
+
+/** Signed WRS delta with an arrow (higher is better); '' when either side is unscored. */
+function wrsDelta(a?: number, b?: number): string {
+  if (a == null || b == null) return '<span class="muted">—</span>';
+  const d = b - a;
+  if (d === 0) return '<span class="muted">±0</span>';
+  const up = d > 0;
+  return `<span class="${up ? 'good' : 'bad'}">${up ? '▲ +' : '▼ '}${d}</span>`;
+}
+
+/** How a per-step verdict moved between the two runs (FAIL→PASS is a fix). */
+function verdictDelta(a?: 'PASS' | 'FAIL', b?: 'PASS' | 'FAIL'): string {
+  if (!a || !b || a === b) return '';
+  if (a === 'FAIL' && b === 'PASS') return '<span class="good">fixed</span>';
+  return '<span class="bad">regressed</span>';
+}
+
+/**
+ * RPT-04 — Before / after comparison of two assessment suites instantiated from
+ * the same playbook (typically the same target before and after a WEDOS rule
+ * change: the "tune-and-replay" loop). Members are paired by step order so each
+ * playbook line is shown with its WRS/verdict before (A) → after (B) and the
+ * delta. Purely analytical — generates no traffic.
+ */
+export function renderSuiteCompareHtml(a: SuiteSummary, b: SuiteSummary): string {
+  const byOrder = (s: SuiteSummary) => new Map(s.members.map((m) => [m.order, m]));
+  const ma = byOrder(a);
+  const mb = byOrder(b);
+  const orders = [...new Set([...ma.keys(), ...mb.keys()])].sort((x, y) => x - y);
+
+  let improved = 0;
+  let regressed = 0;
+  const rows = orders
+    .map((o) => {
+      const x = ma.get(o);
+      const y = mb.get(o);
+      if (x?.wrs != null && y?.wrs != null) {
+        if (y.wrs > x.wrs) improved++;
+        else if (y.wrs < x.wrs) regressed++;
+      }
+      const label = stepLabel(a.suiteName, x?.name ?? y?.name ?? `Step ${o + 1}`);
+      const cell = (m?: SuiteMember) =>
+        m?.wrs != null
+          ? `${m.wrs} <span class="muted">${m.level}</span>${m.verdict ? ` · ${m.verdict}` : ''}`
+          : '<span class="muted">—</span>';
+      return `<tr><td>${o + 1}</td><td>${esc(label)}</td><td>${cell(x)}</td><td>${cell(
+        y,
+      )}</td><td>${wrsDelta(x?.wrs, y?.wrs)} ${verdictDelta(x?.verdict, y?.verdict)}</td></tr>`;
+    })
+    .join('\n');
+
+  const aggDelta = a.wrs && b.wrs ? wrsDelta(a.wrs.min, b.wrs.min) : '<span class="muted">—</span>';
+  const summary =
+    a.wrs && b.wrs
+      ? `worst-step WRS <b>${a.wrs.min}</b> → <b>${b.wrs.min}</b> (${aggDelta}) · avg ${a.wrs.avg} → ${b.wrs.avg}`
+      : 'Not enough scored steps on both runs to summarise.';
+  const verdictLine =
+    a.verdict && b.verdict && a.verdict !== b.verdict
+      ? `<p class="verdict">SLO verdict <span class="${
+          a.verdict === 'FAIL' && b.verdict === 'PASS' ? 'good' : 'bad'
+        }">${a.verdict} → ${b.verdict}</span></p>`
+      : a.verdict || b.verdict
+        ? `<p class="verdict">SLO verdict ${a.verdict ?? '—'} → ${b.verdict ?? '—'}</p>`
+        : '';
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Suite comparison — WEDOS ShieldTest</title>
+<style>
+ body{font:14px system-ui,sans-serif;margin:2rem;color:#111;max-width:900px}
+ .brand{display:flex;align-items:center;gap:.6rem;border-bottom:3px solid #003484;padding-bottom:.6rem;margin-bottom:1rem}
+ .brand h1{font-size:1.25rem;margin:0}.wm{font-weight:800;color:#003484}
+ h2{color:#003484;margin-top:1.4rem;font-size:1.1rem}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0}
+ th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}
+ .muted{color:#666}
+ .good{color:#0f8a5f;font-weight:700}
+ .bad{color:#c23b34;font-weight:700}
+ .verdict{font-size:1.05rem;font-weight:700;margin:.4rem 0 0}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
+ @media print{.print-btn{display:none}body{margin:0}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button>
+<div class="brand">
+ <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+ <h1><span class="wm">WEDOS ShieldTest</span> — Suite comparison (tune &amp; replay)</h1>
+</div>
+<p class="muted">Generated on ${new Date().toISOString()} · WEDOS internal use</p>
+<p class="muted">Playbook <b>${esc(a.suiteName)}</b> · target <code>${esc(a.target)}</code></p>
+<p>A (before): <code>${esc(a.createdAt)}</code> &nbsp;→&nbsp; B (after): <code>${esc(b.createdAt)}</code></p>
+<h2>Overall</h2>
+<p>${summary}</p>
+<p><b>${improved}</b> step(s) improved · <b>${regressed}</b> regressed · ${
+    orders.length - improved - regressed
+  } unchanged/unscored</p>
+${verdictLine}
+<h2>Per-line WRS &amp; verdict</h2>
+<table><tr><th>#</th><th>Step</th><th>A (before)</th><th>B (after)</th><th>Δ WRS</th></tr>
+${rows}
+</table>
+<p class="muted">Steps are paired by playbook order. Bounded HTTP generator only —
+no volumetric or exhaustion vector. WRS is driven mainly by the legitimate probe;
+a higher WRS after a rule change means better protection with less collateral.</p>
+</body></html>`;
+}
