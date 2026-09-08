@@ -54,7 +54,7 @@ describe('compliance / resilience assessment report', () => {
     expect(html).toContain('Resilience assessment');
     expect(html).toContain('Per-scenario results');
     expect(html).toContain('Glossary');
-    expect(html).toContain('Volumetric / L3-L4 — out of scope');
+    expect(html).toContain('Volumetric / L3-L4 — class C, network bench');
     expect(html).toContain('DRS 4.5'); // customer-defined cap note
   });
 
@@ -91,5 +91,59 @@ describe('compliance / resilience assessment report', () => {
     });
     expect(empty).toContain('No bounded assessments were recorded');
     expect(empty).not.toMatch(/NaN|undefined/);
+  });
+
+  it('renders the class-C bench coverage matrix + rollup when bench data is supplied', () => {
+    const bench = {
+      scenarios: [
+        {
+          id: 'udp_dns_reflection',
+          title: 'UDP DNS Reflection',
+          proto: 'UDP' as const,
+          drs: 3,
+          reproducible: true,
+          note: 'x',
+        },
+        {
+          id: 'ip_spoofing',
+          title: 'IP Spoofing',
+          proto: 'IP' as const,
+          drs: 4,
+          reproducible: false,
+          note: 'spoofing never',
+        },
+      ],
+      coverage: [
+        {
+          id: 'a',
+          vector: 'udp_dns_reflection',
+          method: 'MEASURED_LAB' as const,
+          outcome: 'UNMITIGATED_BASELINE',
+          summary: 'amp 40x',
+          source: 'shieldtest-lab',
+          recordedBy: 'runner',
+          at: new Date().toISOString(),
+        },
+        {
+          id: 'b',
+          vector: 'ip_spoofing',
+          method: 'ATTESTED' as const,
+          outcome: 'PASS',
+          summary: 'BCP38/uRPF enforced',
+          source: 'edge-config',
+          recordedBy: 'ciso@wedos',
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+    const html = renderComplianceHtml([], [], { bench });
+    expect(html).toContain('zeroBS Volumetric coverage');
+    expect(html).toContain('udp_dns_reflection');
+    expect(html).toContain('MEASURED LAB');
+    expect(html).toContain('ATTESTED');
+    expect(html).toContain('BCP38/uRPF enforced');
+    // Rollup: 1 measured, 2 covered, 1 never emitted (ip_spoofing).
+    expect(html).toContain('Measured (lab)');
+    expect(html).not.toMatch(/NaN|undefined/);
   });
 });

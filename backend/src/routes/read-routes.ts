@@ -5,6 +5,7 @@ import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
+import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
 import { runsSummaryCsv, runTimelineCsv } from '../modules/reports/csv.js';
@@ -116,8 +117,18 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   app.get('/api/reports/compliance', async (req, reply) => {
     if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
     const { from, to } = req.query as { from?: string; to?: string };
-    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
-    return reply.type('text/html').send(renderComplianceHtml(campaigns, runs, { from, to }));
+    const [campaigns, runs, coverage] = await Promise.all([
+      store.listCampaigns(),
+      store.listRuns(),
+      store.listBenchCoverage(),
+    ]);
+    return reply.type('text/html').send(
+      renderComplianceHtml(campaigns, runs, {
+        from,
+        to,
+        bench: { scenarios: BENCH_SCENARIOS, coverage },
+      }),
+    );
   });
 
   app.get('/api/runs/:runId/report', async (req, reply) => {

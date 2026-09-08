@@ -1,5 +1,6 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import type { BenchScenario, BenchCoverage, CoverageMethod } from '../bench/model.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, sparklineSvg, scoreColor, REPORT_COLORS } from './charts.js';
 
@@ -13,6 +14,62 @@ import { gaugeSvg, hbarsSvg, sparklineSvg, scoreColor, REPORT_COLORS } from './c
 export interface ComplianceOptions {
   from?: string; // ISO
   to?: string; // ISO
+  /** Class-C network-bench coverage (zeroBS Volumetric matrix + evidence). */
+  bench?: { scenarios: BenchScenario[]; coverage: BenchCoverage[] };
+}
+
+const METHOD_PILL: Record<CoverageMethod, 'good' | 'warn' | 'neutral'> = {
+  MEASURED_LAB: 'good',
+  INGESTED_EXTERNAL: 'neutral',
+  ATTESTED: 'warn',
+  MODELLED: 'neutral',
+  REPLAY: 'neutral',
+};
+
+/**
+ * Class-C bench coverage section: the zeroBS Volumetric matrix with, per vector,
+ * its DRS level and how it is covered (measured in the lab, ingested from the
+ * network team's bench, attested, modelled). Read-only evidence — no emission.
+ */
+function benchCoverageSection(bench?: ComplianceOptions['bench']): string {
+  if (!bench || bench.scenarios.length === 0) return '';
+  const latest = new Map<string, BenchCoverage>();
+  for (const c of [...bench.coverage].sort((a, b) => b.at.localeCompare(a.at))) {
+    if (!latest.has(c.vector)) latest.set(c.vector, c);
+  }
+  const total = bench.scenarios.length;
+  const measured = bench.scenarios.filter(
+    (s) => latest.get(s.id)?.method === 'MEASURED_LAB',
+  ).length;
+  const covered = bench.scenarios.filter((s) => latest.has(s.id)).length;
+  const neverEmit = bench.scenarios.filter((s) => !s.reproducible).length;
+  const rows = bench.scenarios
+    .map((s) => {
+      const c = latest.get(s.id);
+      const method = c
+        ? pill(c.method.replace('_', ' '), METHOD_PILL[c.method])
+        : pill('not covered', 'crit');
+      const bcell = s.reproducible ? pill('reproducible', 'good') : pill('out of model', 'neutral');
+      const ev = c
+        ? `${c.outcome ? '<b>' + esc(c.outcome) + '</b> ' : ''}${esc(c.summary)} <span class="muted">· ${esc(c.source)}</span>`
+        : esc(s.note);
+      return `<tr><td><code>${esc(s.id)}</code></td><td>${esc(s.proto)}</td><td>${s.drs}</td><td>${bcell}</td><td>${method}</td><td>${ev}</td></tr>`;
+    })
+    .join('');
+  return `<h2>Network bench (class C) — zeroBS Volumetric coverage</h2>
+<div class="grid cards" style="margin-bottom:.7rem">
+  ${statCard('Vectors', String(total))}
+  ${statCard('Measured (lab)', String(measured))}
+  ${statCard('Covered (any method)', String(covered))}
+  ${statCard('Never emitted', String(neverEmit))}
+</div>
+<table>
+ <thead><tr><th>Vector</th><th>Proto</th><th>DRS</th><th>Bench</th><th>Coverage method</th><th>Latest evidence</th></tr></thead>
+ <tbody>${rows}</tbody>
+</table>
+<p class="muted" style="font-size:.8rem">Class C (network bench). Measured vectors are bounded, synthetic, no-spoof lab
+runs; the rest are covered by attestation, ingestion from the network team's bench, or modelling. Source-IP spoofing and
+raw floods are never emitted by construction.</p>`;
 }
 
 function esc(s: string): string {
@@ -185,6 +242,8 @@ export function renderComplianceHtml(
     })
     .join('');
 
+  const benchSection = benchCoverageSection(opts.bench);
+
   return (
     docHead('Resilience assessment — WEDOS ShieldTest') +
     coverBand(
@@ -226,10 +285,14 @@ export function renderComplianceHtml(
  <tbody>${scenarioRows || '<tr><td colspan="8" class="muted">No runs in the period.</td></tr>'}</tbody>
 </table>
 
-<div class="callout info"><strong>Volumetric / L3-L4 — out of scope.</strong> UDP/TCP/ICMP
-floods, amplification, fragmentation and source spoofing are not implemented by
-this platform and are not run here. They are validated separately on an isolated
-network bench — see <em>drs-validation-policy.md</em> (class C).</div>
+<div class="callout info"><strong>Volumetric / L3-L4 — class C, network bench.</strong> UDP/TCP/ICMP
+floods, amplification, fragmentation and source spoofing are never run by this
+control plane. The UDP amplification and no-spoof TCP state-table shapes are
+measured on the isolated network bench; spoofing/GRE/fragmentation are covered by
+attestation or ingestion — see <em>drs-validation-policy.md</em> and the coverage
+matrix below.</div>
+
+${benchSection}
 
 <h2>Coverage by target</h2>
 <table>

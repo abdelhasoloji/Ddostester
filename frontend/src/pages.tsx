@@ -1106,6 +1106,35 @@ function BenchCard() {
           <h3 style={{ fontSize: '.92rem', margin: '1.25rem 0 .5rem' }}>
             zeroBS Volumetric coverage
           </h3>
+          <div
+            className="hint"
+            style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '0 0 .6rem' }}
+          >
+            <span>
+              <b style={{ color: 'var(--text)' }}>{scenarios.length}</b> vectors
+            </span>
+            <span>
+              <b style={{ color: 'var(--success)' }}>
+                {
+                  scenarios.filter((s) => latestByVector.get(s.id)?.method === 'MEASURED_LAB')
+                    .length
+                }
+              </b>{' '}
+              measured (lab)
+            </span>
+            <span>
+              <b style={{ color: 'var(--text)' }}>
+                {scenarios.filter((s) => latestByVector.has(s.id)).length}
+              </b>{' '}
+              covered (any method)
+            </span>
+            <span>
+              <b style={{ color: 'var(--text)' }}>
+                {scenarios.filter((s) => !s.reproducible).length}
+              </b>{' '}
+              never emitted
+            </span>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="bench-table">
               <thead>
