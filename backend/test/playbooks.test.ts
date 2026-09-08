@@ -8,6 +8,7 @@ import {
   validatePlaybookInput,
 } from '../src/modules/playbooks/playbooks.js';
 import { createCampaign } from '../src/modules/campaigns/service.js';
+import { HARD_CAPS } from '../src/config/limits.js';
 
 const allowed = ['staging.example.com'];
 const target = {
@@ -26,6 +27,23 @@ describe('playbooks', () => {
     expect(PLAYBOOKS.length).toBeGreaterThanOrEqual(3);
     expect(getPlaybook('capacity-assessment')?.steps.length).toBe(3);
     expect(getPlaybook('nope')).toBeUndefined();
+  });
+
+  it('ships the P26-20371 L7 pre-test playbook, ordered DRS 3→5 and within caps', () => {
+    const pb = getPlaybook('pretest-cra-l7');
+    expect(pb).toBeTruthy();
+    expect(pb!.drsLevel).toBe(5);
+    // Every step stays inside the immutable ceiling (bounded, no widening).
+    for (const s of pb!.steps) {
+      expect(s.maxRps).toBeGreaterThan(0);
+      expect(s.maxRps).toBeLessThanOrEqual(HARD_CAPS.maxRps);
+      expect(s.concurrency).toBeLessThanOrEqual(HARD_CAPS.maxConcurrency);
+      expect(s.maxDurationSec).toBeLessThanOrEqual(HARD_CAPS.maxDurationSec);
+    }
+    // It instantiates into one bounded campaign per line, all on the given target.
+    const inputs = buildSuiteCampaigns(pb!, target, engines);
+    expect(inputs.length).toBe(pb!.steps.length);
+    expect(inputs.every((c) => c.target === target.target)).toBe(true);
   });
 
   it('buildScenario returns bounded phases for ramp/wave and none for constant', () => {

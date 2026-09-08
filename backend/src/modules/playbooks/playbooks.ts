@@ -885,6 +885,143 @@ export const PLAYBOOKS: Playbook[] = [
       },
     ],
   },
+  {
+    id: 'pretest-cra-l7',
+    name: 'Pre-test — zeroBS L7 playbook (P26-20371)',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'An ordered DRS 3→5 dry-run of the reproducible Layer-7 lines of the zeroBS P26-20371 ' +
+      'playbook, so the CRA-platform protection can be rehearsed before the external engagement. ' +
+      'Bounded HTTP only. Point it at an AUTHORIZED, allowlisted staging replica — never the ' +
+      'ENISA production URLs. Lines not reproduced here (true SlowLoris, HPACK bomb, dedicated ' +
+      'WAF-cracker, credential brute-force, and the L3/4 TCP-handshake line) are documented as ' +
+      'out of this L7 sequence — the TCP line runs on the isolated class-C bench, not here.',
+    when: 'Rehearse the P26-20371 L7 lines against a staging replica before the zeroBS run.',
+    threat: {
+      technique: 'zeroBS L7 functionality-test sequence (P26-20371)',
+      reference: 'zeroBS Playbook P26-20371 — DRS v3, ENISA/CRA portal',
+      measures:
+        'Whether the WEDOS L7 protection detects and mitigates each DRS 3→5 request-shape ' +
+        'instantly (≤ DRS4) without blocking source IPs, measured via detect/mitigate timing, ' +
+        'resilience score and collateral on the legitimate probe.',
+      notReproduced:
+        'No RST_STREAM / stream-cancel abuse, no HPACK decompression bomb, no slow-header ' +
+        '(SlowLoris), no credential brute-force — every step is complete, rate-capped requests.',
+    },
+    steps: [
+      {
+        name: 'GET-Flood (DRS3)',
+        summary: 'Line 3 — steady HTTP GET flood on the main path.',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'vegeta',
+      },
+      {
+        name: 'GET-Random-Flood (DRS3)',
+        summary: 'Line 4 — waves over non-existent paths; expect edge 404 / origin shielding.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/nonexistent-a1', '/no/such/page', '/api/does-not-exist', '/random-9f2b'],
+      },
+      {
+        name: 'GET /VALID_RANDOM (DRS4)',
+        summary: 'Line 5 — steady load spread over a fixed set of valid paths.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+        paths: ['/', '/account', '/api/catalog', '/assets/app.js'],
+      },
+      {
+        name: 'POST-Flood (DRS4)',
+        summary: 'Line 6 — bounded HTTP POST load.',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'vegeta',
+      },
+      {
+        name: 'HTTP/2 GET-Flood (DRS4)',
+        summary: 'Line 7 — high steady rate over h2 (HTTPS target).',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'k6',
+      },
+      {
+        name: 'HTTP/2 Rapid Reset — bounded (DRS4)',
+        summary: 'Line 8a — h2 request path under sustained bounded rate (no RST_STREAM abuse).',
+        maxRps: 800,
+        concurrency: 200,
+        maxDurationSec: 120,
+        profile: 'wave',
+        agent: 'k6',
+      },
+      {
+        name: 'HTTP/2 Continuation — header pressure (DRS4)',
+        summary: 'Line 8b — h2 requests carrying a larger benign header set (no HPACK bomb).',
+        maxRps: 400,
+        concurrency: 100,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'k6',
+      },
+      {
+        name: 'Login/account POST-Flood (DRS5)',
+        summary: 'Line 9 — bounded POST load on the account/login path (set the path at launch).',
+        maxRps: 500,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'vegeta',
+        paths: ['/realms/srp/account'],
+      },
+      {
+        name: 'L7 MultiVector (DRS5)',
+        summary: 'Line 10 — mixed paths and rates in one bounded wave.',
+        maxRps: 800,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/account', '/api/catalog', '/search?q=test', '/login'],
+        rotateUa: true,
+      },
+      {
+        name: 'THOR / PulseWave — synchronized (DRS5)',
+        summary: 'Line 11 — synchronized bursts (pulse) rather than a steady rate.',
+        maxRps: 1000,
+        concurrency: 250,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'k6',
+      },
+      {
+        name: 'MultiTarget / carpet-bombing (DRS5)',
+        summary:
+          'Line 13 — spread over many paths of the target. True multi-target = instantiate this ' +
+          'playbook once per allowlisted CRA host.',
+        maxRps: 800,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/account', '/portal', '/api/catalog', '/assets/app.js', '/search?q=x'],
+        rotateUa: true,
+      },
+    ],
+  },
 ];
 
 export function getPlaybook(id: string): Playbook | undefined {
