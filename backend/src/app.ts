@@ -28,6 +28,8 @@ import {
   isKnownBenchScenario,
   parseBenchVerdict,
   parseCoverageInput,
+  parseAttestationInput,
+  ATTESTATION_CHECKLISTS,
 } from './modules/bench/model.js';
 import type { BenchRun, BenchCoverage } from './modules/bench/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
@@ -704,6 +706,32 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       'bench.coverage',
       undefined,
       `${record.method} · ${record.vector} → ${record.outcome ?? 'recorded'} (${record.source})`,
+    );
+    return reply.code(201).send(record);
+  });
+
+  // Structured attestation checklists (BCP38/uRPF, GRE-drop, fragment limits)
+  // for the out-of-model vectors. Read the catalogue, then submit a completed
+  // checklist; the bench derives a deterministic ATTESTED coverage record. No
+  // traffic is generated — this records edge controls that are already enforced.
+  app.get('/api/bench/attestations', { preHandler: guard('bench:read') }, async () => ({
+    checklists: ATTESTATION_CHECKLISTS,
+  }));
+
+  app.post('/api/bench/attestations', { preHandler: guard('bench:attest') }, async (req, reply) => {
+    let entry: Omit<BenchCoverage, 'id' | 'at'>;
+    try {
+      entry = parseAttestationInput(req.body, req.authUser?.email ?? 'dev');
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
+    const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+    await store.saveBenchCoverage(record);
+    await audit(
+      req,
+      'bench.coverage',
+      undefined,
+      `ATTESTED · ${record.vector} → ${record.outcome ?? 'recorded'} (${record.source})`,
     );
     return reply.code(201).send(record);
   });

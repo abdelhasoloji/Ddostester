@@ -222,6 +222,18 @@ mitigationSec?, runner? }` into the **tamper-evident audit chain**
     lab addresses). None of these emit spoofed or raw-flood traffic — that stays
     permanently refused.
 
+  - **Attestation checklists.** For the out-of-model vectors, `ATTESTED` coverage
+    can be recorded as a structured, repeatable checklist rather than free text.
+    `GET /api/bench/attestations` serves predefined checklists keyed to the
+    relevant control — BCP38/uRPF (`ip_spoofing`), GRE-drop (`gre_packets`),
+    fragment reassembly limits (`udp_fragmentation`, `tcp_fragmentation`). The
+    CISO ticks the controls actually enforced; `POST /api/bench/attestations`
+    (`bench:attest`, audited `bench.coverage`) derives a deterministic
+    `PASS`/`PARTIAL`/`FAIL` outcome and a structured summary server-side (never
+    trusting the client), then stores it as an `ATTESTED` coverage entry. Two
+    identical submissions produce identical, auditable evidence. No traffic is
+    generated — this records edge controls that are already configured.
+
 Remaining: the synthetic-lab realizations that emit (a no-spoof TCP conntrack
 module, sanitized PCAP replay) — separate lab engineering, tracked out of band.
 

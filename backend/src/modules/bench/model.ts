@@ -316,3 +316,170 @@ export function parseCoverageInput(
     recordedBy,
   };
 }
+
+// --- Structured attestation checklists -------------------------------------
+//
+// For the out-of-model vectors — the ones this bench can NEVER emit (spoofing,
+// GRE, fragment crafting) — the honest form of coverage is *verification of a
+// control*, not simulation. A free-text ATTESTED note works, but a structured
+// checklist keyed to the relevant standard (BCP38/uRPF, GRE-drop, fragment
+// reassembly limits) makes the evidence auditable and repeatable: the CISO
+// ticks the controls that are actually enforced, and the bench derives a
+// deterministic PASS / PARTIAL / FAIL outcome and a structured summary. No
+// traffic is generated; this only records what is already configured at the
+// edge. The result is stored as a normal ATTESTED BenchCoverage entry, so it
+// flows into the same coverage matrix and assessment report.
+
+export interface AttestationItem {
+  id: string;
+  label: string;
+  required: boolean;
+}
+
+export interface AttestationChecklist {
+  id: string;
+  vector: string; // a BENCH_SCENARIOS id (typically an out-of-model one)
+  title: string;
+  standard: string; // the control/standard this attests to
+  guidance: string;
+  items: AttestationItem[];
+}
+
+export const ATTESTATION_CHECKLISTS: AttestationChecklist[] = [
+  {
+    id: 'bcp38-urpf',
+    vector: 'ip_spoofing',
+    title: 'Anti-spoofing (BCP38 / uRPF)',
+    standard: 'BCP 38 (RFC 2827) + uRPF (RFC 3704)',
+    guidance:
+      'Source-address validation at the edge. This bench never emits spoofed sources by construction; coverage for this vector is the enforcement evidence below.',
+    items: [
+      {
+        id: 'ingress_acl',
+        label: 'Ingress ACLs drop packets with source outside advertised prefixes',
+        required: true,
+      },
+      {
+        id: 'urpf',
+        label: 'uRPF enabled on customer/edge interfaces (strict or feasible)',
+        required: true,
+      },
+      {
+        id: 'urpf_strict',
+        label: 'uRPF in strict mode where topology is symmetric',
+        required: false,
+      },
+      { id: 'bogon', label: 'Bogon / martian source filtering in place', required: true },
+      { id: 'audited', label: 'Filters audited within the last review cycle', required: false },
+    ],
+  },
+  {
+    id: 'gre-drop',
+    vector: 'gre_packets',
+    title: 'GRE / tunnel-protocol handling',
+    standard: 'Edge protocol policy (GRE, protocol 47)',
+    guidance:
+      'GRE is not a UDP amplification shape and is out of this bench’s model. Coverage is the edge policy that drops or rate-limits unsolicited GRE.',
+    items: [
+      {
+        id: 'default_drop',
+        label: 'Unsolicited GRE (proto 47) dropped by default at the edge',
+        required: true,
+      },
+      {
+        id: 'allowlist',
+        label: 'GRE permitted only between known tunnel endpoints (allowlist)',
+        required: true,
+      },
+      { id: 'ratelimit', label: 'GRE rate-limited / policed on ingress', required: false },
+      {
+        id: 'telemetry',
+        label: 'GRE volume observable in flow telemetry / alerting',
+        required: false,
+      },
+    ],
+  },
+  {
+    id: 'frag-reassembly',
+    vector: 'udp_fragmentation',
+    title: 'IP fragmentation handling (UDP)',
+    standard: 'Fragment reassembly limits / drop policy',
+    guidance:
+      'Fragment crafting is outside the synthetic model (no raw packet crafting). Coverage is the reassembly-limit and tiny-fragment drop policy at the edge.',
+    items: [
+      {
+        id: 'reassembly_cap',
+        label: 'Per-source reassembly buffers capped (anti fragment-exhaustion)',
+        required: true,
+      },
+      { id: 'tiny_frag', label: 'Tiny / overlapping fragments dropped', required: true },
+      {
+        id: 'frag_ratelimit',
+        label: 'Fragmented traffic rate-limited on ingress',
+        required: false,
+      },
+      { id: 'timeout', label: 'Short reassembly timeout enforced', required: false },
+    ],
+  },
+  {
+    id: 'frag-reassembly-tcp',
+    vector: 'tcp_fragmentation',
+    title: 'IP fragmentation handling (TCP)',
+    standard: 'Fragment reassembly limits / drop policy',
+    guidance:
+      'TCP + fragment crafting is out of model. Coverage is the reassembly-limit and overlapping-fragment drop policy at the edge.',
+    items: [
+      { id: 'reassembly_cap', label: 'Per-source reassembly buffers capped', required: true },
+      { id: 'overlap_drop', label: 'Overlapping / inconsistent fragments dropped', required: true },
+      { id: 'mss_clamp', label: 'MSS clamping / PMTUD sanity enforced', required: false },
+      { id: 'timeout', label: 'Short reassembly timeout enforced', required: false },
+    ],
+  },
+];
+
+const CHECKLIST_BY_ID = new Map(ATTESTATION_CHECKLISTS.map((c) => [c.id, c]));
+
+/**
+ * Turns a completed attestation checklist (untrusted request body) into an
+ * ATTESTED coverage entry. The CISO submits the checklist id and the set of
+ * item ids they attest are enforced; the outcome and a structured, deterministic
+ * summary are derived here (never taken from the client), so two identical
+ * submissions produce identical evidence.
+ */
+export function parseAttestationInput(
+  input: unknown,
+  recordedBy: string,
+): Omit<BenchCoverage, 'id' | 'at'> {
+  const b = (input ?? {}) as Record<string, unknown>;
+  const checklist = CHECKLIST_BY_ID.get(String(b.checklistId ?? ''));
+  if (!checklist) throw new Error('checklistId must be a known attestation checklist');
+  const validIds = new Set(checklist.items.map((i) => i.id));
+  const rawChecked = Array.isArray(b.checkedItems) ? b.checkedItems : [];
+  const checked = new Set(rawChecked.map((x) => String(x)).filter((x) => validIds.has(x)));
+  const requiredIds = checklist.items.filter((i) => i.required).map((i) => i.id);
+  const requiredMet = requiredIds.every((id) => checked.has(id));
+  const outcome: 'PASS' | 'PARTIAL' | 'FAIL' =
+    checked.size === 0 ? 'FAIL' : requiredMet ? 'PASS' : 'PARTIAL';
+  const note = String(b.note ?? '').trim();
+
+  const lines = checklist.items.map(
+    (i) => `${checked.has(i.id) ? '[x]' : '[ ]'} ${i.label}${i.required ? '' : ' (optional)'}`,
+  );
+  const summary = [
+    `${checklist.title} — ${checklist.standard}`,
+    `Controls attested: ${checked.size}/${checklist.items.length} (required ${requiredIds.filter((id) => checked.has(id)).length}/${requiredIds.length}).`,
+    ...lines,
+    ...(note ? [`Note: ${note}`] : []),
+  ]
+    .join('\n')
+    .slice(0, 2000);
+
+  return {
+    vector: checklist.vector,
+    method: 'ATTESTED',
+    outcome,
+    summary,
+    source: checklist.standard.slice(0, 120),
+    recordedBy,
+  };
+}

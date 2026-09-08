@@ -364,6 +364,24 @@ export interface CoverageInput {
   summary: string;
   source?: string;
 }
+export interface AttestationItem {
+  id: string;
+  label: string;
+  required: boolean;
+}
+export interface AttestationChecklist {
+  id: string;
+  vector: string;
+  title: string;
+  standard: string;
+  guidance: string;
+  items: AttestationItem[];
+}
+export interface AttestationInput {
+  checklistId: string;
+  checkedItems: string[];
+  note?: string;
+}
 
 /** Report URL for a browser link (token in the query if auth is enabled). */
 export function reportUrl(runId: string): string {
@@ -484,6 +502,9 @@ export const api = {
     post<BenchRun>('/api/bench/runs', labTarget ? { scenario, labTarget } : { scenario }),
   benchCoverage: () => get<{ coverage: BenchCoverage[] }>('/api/bench/coverage'),
   recordBenchCoverage: (input: CoverageInput) => post<BenchCoverage>('/api/bench/coverage', input),
+  benchAttestations: () => get<{ checklists: AttestationChecklist[] }>('/api/bench/attestations'),
+  submitAttestation: (input: AttestationInput) =>
+    post<BenchCoverage>('/api/bench/attestations', input),
   listUsers: () => get<ManagedUser[]>('/api/users'),
   createUser: (body: { email: string; role: Role; password: string }) =>
     post<ManagedUser>('/api/users', body),

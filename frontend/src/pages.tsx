@@ -10,6 +10,7 @@ import {
   suiteReportUrl,
 } from './api.js';
 import type {
+  AttestationChecklist,
   AuditVerdict,
   BenchCatalogue,
   BenchCoverage,
@@ -915,6 +916,11 @@ function BenchCard() {
   const [recSummary, setRecSummary] = useState('');
   const [recSource, setRecSource] = useState('');
   const [recOpen, setRecOpen] = useState(false);
+  const [checklists, setChecklists] = useState<AttestationChecklist[]>([]);
+  const [attId, setAttId] = useState('');
+  const [attChecked, setAttChecked] = useState<Set<string>>(new Set());
+  const [attNote, setAttNote] = useState('');
+  const [attOpen, setAttOpen] = useState(false);
 
   const refreshRuns = async () => {
     try {
@@ -943,6 +949,15 @@ function BenchCard() {
         setRecVector(c.scenarios.find((s) => !s.reproducible)?.id ?? c.scenarios[0]?.id ?? '');
       } catch {
         /* no access / not configured */
+      }
+      try {
+        const cl = (await api.benchAttestations()).checklists;
+        if (alive) {
+          setChecklists(cl);
+          setAttId(cl[0]?.id ?? '');
+        }
+      } catch {
+        /* no access */
       }
       await refreshRuns();
       await refreshCoverage();
@@ -991,6 +1006,36 @@ function BenchCard() {
       setRecSummary('');
       setRecOutcome('');
       setRecOpen(false);
+      await refreshCoverage();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const activeChecklist = checklists.find((c) => c.id === attId) ?? null;
+  const toggleAtt = (itemId: string) =>
+    setAttChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+
+  const submitAttestation = async () => {
+    if (!activeChecklist) return;
+    setBusy(true);
+    try {
+      const rec = await api.submitAttestation({
+        checklistId: activeChecklist.id,
+        checkedItems: [...attChecked],
+        note: attNote.trim() || undefined,
+      });
+      app.push('success', `Attestation recorded for ${rec.vector} → ${rec.outcome ?? 'recorded'}.`);
+      setAttChecked(new Set());
+      setAttNote('');
+      setAttOpen(false);
       await refreshCoverage();
     } catch (err) {
       app.push('error', (err as Error).message);
@@ -1270,6 +1315,109 @@ function BenchCard() {
               </div>
             )}
           </div>
+
+          {checklists.length > 0 && (
+            <div style={{ marginTop: '.75rem' }}>
+              <button className="btn btn-sm" onClick={() => setAttOpen((v) => !v)}>
+                {attOpen ? 'Cancel' : '+ Attestation checklist'}
+              </button>
+              {attOpen && (
+                <div
+                  className="attest"
+                  style={{ display: 'block', marginTop: '.6rem', background: 'var(--surface-2)' }}
+                >
+                  <p className="hint" style={{ margin: '0 0 .6rem' }}>
+                    Structured control attestation for out-of-model vectors. Tick the controls
+                    actually enforced at the edge; the bench derives a deterministic{' '}
+                    <b>PASS / PARTIAL / FAIL</b> outcome and records it as <b>ATTESTED</b> coverage.
+                    No traffic is emitted.
+                  </p>
+                  <div className="field" style={{ marginBottom: '.6rem' }}>
+                    <label>Checklist</label>
+                    <select
+                      value={attId}
+                      onChange={(e) => {
+                        setAttId(e.target.value);
+                        setAttChecked(new Set());
+                      }}
+                    >
+                      {checklists.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title} → {c.vector}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {activeChecklist && (
+                    <>
+                      <p className="hint" style={{ margin: '0 0 .5rem' }}>
+                        <b>{activeChecklist.standard}</b> — {activeChecklist.guidance}
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 .5rem' }}>
+                        {activeChecklist.items.map((it) => (
+                          <li key={it.id} style={{ padding: '.15rem 0' }}>
+                            <label
+                              style={{
+                                display: 'flex',
+                                gap: '.5rem',
+                                alignItems: 'flex-start',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={attChecked.has(it.id)}
+                                onChange={() => toggleAtt(it.id)}
+                                style={{ marginTop: '.2rem' }}
+                              />
+                              <span>
+                                {it.label}
+                                {it.required ? (
+                                  <span style={{ color: 'var(--danger)' }}> *</span>
+                                ) : (
+                                  <span className="hint"> (optional)</span>
+                                )}
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="hint" style={{ margin: '0 0 .5rem' }}>
+                        Preview:{' '}
+                        <b>
+                          {attChecked.size === 0
+                            ? 'FAIL'
+                            : activeChecklist.items
+                                  .filter((i) => i.required)
+                                  .every((i) => attChecked.has(i.id))
+                              ? 'PASS'
+                              : 'PARTIAL'}
+                        </b>{' '}
+                        · {attChecked.size}/{activeChecklist.items.length} controls
+                      </p>
+                      <div className="field" style={{ marginBottom: '.6rem' }}>
+                        <label>
+                          Note <span className="hint">(optional)</span>
+                        </label>
+                        <input
+                          value={attNote}
+                          onChange={(e) => setAttNote(e.target.value)}
+                          placeholder="e.g. verified against edge running-config 2026-09-01"
+                        />
+                      </div>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={submitAttestation}
+                        disabled={busy}
+                      >
+                        {busy ? 'Recording…' : 'Record attestation'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 

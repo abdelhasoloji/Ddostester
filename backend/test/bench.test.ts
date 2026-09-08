@@ -270,6 +270,66 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(bad.json().error).toMatch(/class/i);
   });
 
+  it('exposes attestation checklists for the out-of-model vectors', async () => {
+    const r = await asCiso('GET', '/api/bench/attestations');
+    expect(r.statusCode).toBe(200);
+    const checklists = r.json().checklists;
+    const spoof = checklists.find((c: { id: string }) => c.id === 'bcp38-urpf');
+    expect(spoof).toBeTruthy();
+    expect(spoof.vector).toBe('ip_spoofing');
+    expect(spoof.items.some((i: { required: boolean }) => i.required)).toBe(true);
+  });
+
+  it('records a PASS attestation when all required controls are ticked', async () => {
+    const r = await asCiso('POST', '/api/bench/attestations', {
+      checklistId: 'bcp38-urpf',
+      checkedItems: ['ingress_acl', 'urpf', 'bogon'],
+      note: 'verified against edge running-config',
+    });
+    expect(r.statusCode).toBe(201);
+    const rec = r.json();
+    expect(rec.vector).toBe('ip_spoofing');
+    expect(rec.method).toBe('ATTESTED');
+    expect(rec.outcome).toBe('PASS');
+    expect(rec.summary).toContain('[x]');
+    expect(rec.summary).toContain('verified against edge running-config');
+    // It surfaces as coverage for the ip_spoofing vector.
+    const cov = (await asCiso('GET', '/api/bench/coverage')).json().coverage;
+    expect(
+      cov.some(
+        (c: { vector: string; method: string }) =>
+          c.vector === 'ip_spoofing' && c.method === 'ATTESTED',
+      ),
+    ).toBe(true);
+  });
+
+  it('derives PARTIAL when a required control is missing', async () => {
+    const r = await asCiso('POST', '/api/bench/attestations', {
+      checklistId: 'gre-drop',
+      checkedItems: ['default_drop'], // missing required 'allowlist'
+    });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().outcome).toBe('PARTIAL');
+  });
+
+  it('rejects an unknown checklist id', async () => {
+    const r = await asCiso('POST', '/api/bench/attestations', {
+      checklistId: 'no-such-checklist',
+      checkedItems: [],
+    });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('attestation is CISO-only (officer 403)', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/bench/attestations',
+      headers: { authorization: `Bearer ${officer}` },
+      payload: { checklistId: 'bcp38-urpf', checkedItems: ['ingress_acl'] },
+    });
+    expect(r.statusCode).toBe(403);
+  });
+
   it('dispatch fails closed without a runner token', async () => {
     const app2 = (
       await buildApp({
