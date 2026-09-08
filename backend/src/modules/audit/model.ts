@@ -18,7 +18,9 @@ export interface AuditEntry {
     | 'limits.update'
     | 'bench.request'
     | 'bench.verdict'
-    | 'bench.coverage';
+    | 'bench.coverage'
+    | 'suite.run'
+    | 'suite.skip';
   campaignId?: string;
   detail?: string;
   /**

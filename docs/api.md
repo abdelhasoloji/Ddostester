@@ -196,6 +196,14 @@ their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
 - `GET /api/suites`, `GET /api/suites/:id` — consolidated suites (campaigns
   grouped by playbook run) (`campaign:read`). `GET /api/suites/:id/report` —
   suite HTML report (read token accepted).
+- `POST /api/suites/:id/run` — **Security Officer** (`campaign:approve`).
+  Governed one-click sequencer: runs the suite's steps in `suiteOrder`, one at a
+  time, and **advances past a step that auto-kills** so one availability loss
+  doesn't strand the rest. Each pending step is approved as the caller
+  (author≠approver still enforced — a step the caller authored is skipped and
+  audited `suite.skip`); returns `202 { suiteId, steps, started }` and runs in
+  the background (poll `GET /api/suites/:id` to watch step statuses advance).
+  `409` if a sequence for that suite is already running. Audited `suite.run`.
 
 ## `POST /api/drs-validations`
 

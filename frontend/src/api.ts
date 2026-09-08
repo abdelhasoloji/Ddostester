@@ -528,6 +528,8 @@ export const api = {
     body: { target: string; probeUrl?: string; recurrenceMin?: number },
   ) => post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
   suites: () => get<SuiteSummary[]>('/api/suites'),
+  runSuite: (id: string) =>
+    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
 };
 
 export interface SuiteSummary {

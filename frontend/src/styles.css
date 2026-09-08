@@ -1860,3 +1860,21 @@ input.invalid {
 table.remediations td {
   vertical-align: top;
 }
+
+/* Suite step-status chips (sequencer progress) */
+.suite-steps .chip-xs.step-running {
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 600;
+}
+.suite-steps .chip-xs.step-done {
+  border-color: var(--success, #1a7f4b);
+  color: var(--success, #1a7f4b);
+}
+.suite-steps .chip-xs.step-killed {
+  border-color: var(--danger, #c0392b);
+  color: var(--danger, #c0392b);
+}
+.suite-steps .chip-xs.step-pending {
+  color: var(--muted);
+}

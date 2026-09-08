@@ -375,9 +375,21 @@ export function CampaignsPage() {
 }
 
 // ---------- Reports ----------
+const SUITE_STEP_CLASS: Record<string, string> = {
+  RUNNING: 'step-running',
+  COMPLETED: 'step-done',
+  KILLED_AUTO: 'step-killed',
+  KILLED_MANUAL: 'step-killed',
+  REJECTED: 'step-killed',
+  APPROVED: 'step-approved',
+  PENDING_APPROVAL: 'step-pending',
+};
+
 function SuitesSection() {
   const [suites, setSuites] = useState<SuiteSummary[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const app = useApp();
+  const canRun = canDo(app.role, 'approve', app.authRequired);
   useEffect(() => {
     api
       .suites()
@@ -385,51 +397,99 @@ function SuitesSection() {
       .catch(() => undefined);
     // Re-read when the campaign list changes (new suites / new scores).
   }, [app.campaigns]);
+
+  // While any suite still has steps to run, poll so the sequence is watchable.
+  const inFlight = suites.some((s) => s.completed < s.total);
+  useEffect(() => {
+    if (!inFlight) return;
+    const t = setInterval(() => app.refresh(), 4000);
+    return () => clearInterval(t);
+  }, [inFlight, app]);
+
   if (suites.length === 0) return null;
+
+  const runSequence = async (s: SuiteSummary) => {
+    setBusy(s.suiteId);
+    try {
+      const r = await api.runSuite(s.suiteId);
+      app.push('success', `Sequence started — ${r.steps} steps will run in order.`);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <>
       <h2 className="section-title">Assessment suites</h2>
       <div className="card" style={{ display: 'grid', gap: '.75rem', marginBottom: '1rem' }}>
-        {suites.map((s) => (
-          <div key={s.suiteId} className="wrs-hist">
-            <div className="wrs-hist-main">
-              <b>{s.suiteName}</b>
-              <code>{s.target}</code>
-              {s.wrs ? (
-                <span className={`wrs ${wrsClass(s.wrs.level)}`} title="Aggregate: worst-step WRS">
-                  <span className="wrs-score">{s.wrs.min}</span> {s.wrs.level}
-                  <span className="hint" style={{ marginLeft: '.4rem' }}>
-                    avg {s.wrs.avg}
+        {suites.map((s) => {
+          const remaining = s.total - s.completed;
+          const sequencing = s.running > 0;
+          return (
+            <div key={s.suiteId} className="wrs-hist">
+              <div className="wrs-hist-main">
+                <b>{s.suiteName}</b>
+                <code>{s.target}</code>
+                {s.wrs ? (
+                  <span
+                    className={`wrs ${wrsClass(s.wrs.level)}`}
+                    title="Aggregate: worst-step WRS"
+                  >
+                    <span className="wrs-score">{s.wrs.min}</span> {s.wrs.level}
+                    <span className="hint" style={{ marginLeft: '.4rem' }}>
+                      avg {s.wrs.avg}
+                    </span>
                   </span>
+                ) : (
+                  <span className="hint">not scored yet</span>
+                )}
+                {s.verdict && <VerdictBadge verdict={s.verdict} />}
+                <span className="hint">
+                  {s.completed}/{s.total} done
+                  {s.pending ? ` · ${s.pending} pending` : ''}
+                  {s.running ? ` · ${s.running} running` : ''}
                 </span>
-              ) : (
-                <span className="hint">not scored yet</span>
-              )}
-              {s.verdict && <VerdictBadge verdict={s.verdict} />}
-              <span className="hint">
-                {s.completed}/{s.total} done
-                {s.pending ? ` · ${s.pending} pending` : ''}
-                {s.running ? ` · ${s.running} running` : ''}
-              </span>
-              <a
-                className="btn btn-sm btn-ghost"
-                href={suiteReportUrl(s.suiteId)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Suite report ↗
-              </a>
+                {canRun && remaining > 0 && (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={busy === s.suiteId || sequencing}
+                    onClick={() => runSequence(s)}
+                    title="Approve + run every remaining step in order, advancing through auto-kills"
+                  >
+                    {busy === s.suiteId
+                      ? 'Starting…'
+                      : sequencing
+                        ? 'Running…'
+                        : `▶ Run sequence (${remaining})`}
+                  </button>
+                )}
+                <a
+                  className="btn btn-sm btn-ghost"
+                  href={suiteReportUrl(s.suiteId)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Suite report ↗
+                </a>
+              </div>
+              <div className="suite-steps">
+                {s.members.map((m) => (
+                  <span
+                    key={m.id}
+                    className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
+                    title={m.status}
+                  >
+                    {m.order + 1}. {m.name.split(' — ').pop()}
+                    {m.wrs != null ? ` · ${m.wrs} ${m.level}` : ''}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="suite-steps">
-              {s.members.map((m) => (
-                <span key={m.id} className="chip-xs" title={m.status}>
-                  {m.order + 1}. {m.name.split(' — ').pop()}
-                  {m.wrs != null ? ` · ${m.wrs} ${m.level}` : ''}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

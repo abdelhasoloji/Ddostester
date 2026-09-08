@@ -345,6 +345,50 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   }
 
+  // --- Multi-step suite sequencer -------------------------------------------
+  // A playbook instantiates into an ordered set of campaigns linked by suiteId.
+  // This runs them one at a time in suiteOrder, awaiting each step's terminal
+  // state before starting the next, and — crucially — advancing PAST a step that
+  // auto-kills (an availability loss on one vector must not strand the rest of
+  // the assessment). Governed one-click: the runner approves each pending step
+  // (author≠approver still enforced by approveCampaign — a step the runner
+  // authored is skipped and audited), then executes it. Runs in the background;
+  // progress is read from the member campaigns' statuses. One sequence per suite.
+  const runningSuites = new Set<string>();
+
+  async function runSuiteSequence(suiteId: string, actor: string): Promise<void> {
+    runningSuites.add(suiteId);
+    try {
+      const members = (await store.listCampaigns())
+        .filter((c) => c.suiteId === suiteId)
+        .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
+      for (const m of members) {
+        // Re-fetch: earlier steps may have changed state (and to see manual kills).
+        let c = await store.getCampaign(m.id);
+        if (!c) continue;
+        if (c.status === 'PENDING_APPROVAL') {
+          try {
+            c = approveCampaign(c, actor, 'APPROVED');
+            await store.saveCampaign(c);
+            await auditAs(actor, 'campaign.approve', c.id, `suite ${suiteId} sequence`);
+          } catch (err) {
+            await auditAs(actor, 'suite.skip', c.id, `not approved: ${(err as Error).message}`);
+            continue;
+          }
+        }
+        if (c.status !== 'APPROVED') continue; // terminal / rejected → leave as-is
+        try {
+          await runCampaign(c, actor); // awaits the step's terminal state
+        } catch (err) {
+          // A failed/blocked step still advances the sequence.
+          await auditAs(actor, 'suite.skip', c.id, `run error: ${(err as Error).message}`);
+        }
+      }
+    } finally {
+      runningSuites.delete(suiteId);
+    }
+  }
+
   app.get('/health', async () => ({
     status: 'ok',
     allowedTargets,
@@ -1029,6 +1073,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
     },
   );
+
+  // Run every step of a suite in order (governed one-click). Fire-and-forget:
+  // the sequence runs in the background and advances through auto-kills. Poll
+  // GET /api/suites/:id (or the campaign list) to watch step statuses advance.
+  app.post('/api/suites/:id/run', { preHandler: guard('campaign:approve') }, async (req, reply) => {
+    const suiteId = (req.params as { id: string }).id;
+    const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+    if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+    if (runningSuites.has(suiteId)) {
+      return reply.code(409).send({ error: 'this suite sequence is already running' });
+    }
+    const actor = req.authUser?.email ?? 'dev';
+    await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
+    // Do not await — the whole sequence can run for many minutes.
+    void runSuiteSequence(suiteId, actor);
+    return reply.code(202).send({ suiteId, steps: members.length, started: true });
+  });
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
