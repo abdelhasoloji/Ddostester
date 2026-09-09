@@ -444,14 +444,21 @@ export async function runLoadTest(
     progressTimer.unref?.();
   }
 
+  const et = () => ((Date.now() - startedAt.getTime()) / 1000).toFixed(1);
+  console.error(`[eng-dbg] workers start conc=${config.concurrency} phases=${phases.length} deadlineIn=${((deadline - Date.now()) / 1000).toFixed(0)}s`);
   try {
-    await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+    const workers = Array.from({ length: config.concurrency }, (_, i) =>
+      worker().then(() => console.error(`[eng-dbg] worker ${i} done t=${et()}`)),
+    );
+    await Promise.all(workers);
   } finally {
     if (progressTimer) clearInterval(progressTimer);
   }
+  console.error(`[eng-dbg] ALL workers done t=${et()} sent=${sent} latencies=${latencies.length}`);
 
   const finishedAt = new Date();
   const sorted = [...latencies].sort((a, b) => a - b);
+  console.error(`[eng-dbg] result computed t=${et()}`);
   const elapsedSec = (finishedAt.getTime() - startedAt.getTime()) / 1000;
   const mean = sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
 
