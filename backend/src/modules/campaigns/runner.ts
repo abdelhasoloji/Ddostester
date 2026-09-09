@@ -170,6 +170,13 @@ export async function executeCampaign(
       failed: gen?.failed ?? 0,
       actualRps: gen?.actualRps ?? 0,
       elapsedSec,
+      // Forward the engine's live latency/status snapshot when the built-in
+      // generator reports them (external engines leave them undefined).
+      latencyMs: gen?.latencyMs,
+      statusCounts: gen?.statusCounts,
+      // Rolling window (last 60s) of the per-second series for a live sparkline.
+      // The full series is still persisted with the finished run.
+      timeline: timeline.slice(-60),
       probe: { samples: pm.samples, available: pm.available, errorRate5xx: pm.errorRate5xx },
     });
   }, 1000);

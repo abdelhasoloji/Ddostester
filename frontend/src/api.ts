@@ -457,6 +457,12 @@ export interface LiveProgressData {
   maxDurationSec: number;
   status: 'RUNNING';
   engine?: string;
+  /** Live latency percentiles (ms) — built-in engine only. */
+  latencyMs?: { p50: number; p95: number; p99: number };
+  /** Live HTTP status buckets so far (`2xx`/`3xx`/`4xx`/`5xx`). */
+  statusCounts?: Record<string, number>;
+  /** Rolling last-60s per-second series for the live sparkline. */
+  timeline?: RunSample[];
   probe?: { samples: number; available: number; errorRate5xx: number };
 }
 

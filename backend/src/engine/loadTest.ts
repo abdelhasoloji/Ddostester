@@ -188,6 +188,27 @@ export interface LoadProgress {
   elapsedSec: number;
   actualRps: number;
   /**
+   * Live latency percentiles (ms) over all requests so far — same p50/p95/p99
+   * the final result reports, streamed each tick so the drawer shows latency
+   * as the run happens (not only at the end).
+   */
+  latencyMs?: { p50: number; p95: number; p99: number };
+  /** Live HTTP status buckets so far (`2xx`/`3xx`/`4xx`/`5xx`). Snapshot copy. */
+  statusCounts?: Record<string, number>;
+  /**
+   * Rolling per-second series for a live sparkline (attached by the runner, not
+   * the engine). Structurally a `RunSample[]` slice; typed inline here to keep
+   * the engine free of a back-import from the campaigns module.
+   */
+  timeline?: Array<{
+    t: number;
+    rps: number;
+    sent: number;
+    failed: number;
+    probe5xx: number;
+    availPct: number;
+  }>;
+  /**
    * Live probe snapshot, emitted by the runner for every engine (including
    * external ones that don't report per-request counters), so a running
    * campaign always shows target-health feedback.
@@ -402,12 +423,22 @@ export async function runLoadTest(
   if (onProgress) {
     progressTimer = setInterval(() => {
       const elapsed = (Date.now() - startedAt.getTime()) / 1000;
+      // Percentiles over the samples collected so far. Sorting a copy each tick
+      // mirrors the final computation; the cost is bounded by the run's rate cap
+      // and the timer is unref'd so it never keeps the process alive.
+      const snap = [...latencies].sort((a, b) => a - b);
       onProgress({
         sent,
         successful,
         failed,
         elapsedSec: Number(elapsed.toFixed(1)),
         actualRps: Number((sent / Math.max(elapsed, 0.001)).toFixed(2)),
+        latencyMs: {
+          p50: Number(percentile(snap, 50).toFixed(2)),
+          p95: Number(percentile(snap, 95).toFixed(2)),
+          p99: Number(percentile(snap, 99).toFixed(2)),
+        },
+        statusCounts: { ...statusCounts },
       });
     }, 1000);
     progressTimer.unref?.();

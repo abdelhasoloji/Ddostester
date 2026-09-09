@@ -211,12 +211,29 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         ) : (
           engine && <span>engine {engine} · running</span>
         )}
+        {hasCounters && p.latencyMs && (
+          <span title="Live latency percentiles over the run so far">
+            ⚡ p50 {p.latencyMs.p50} · p95 {p.latencyMs.p95} · p99 {p.latencyMs.p99} ms
+          </span>
+        )}
         {p.probe && p.probe.samples > 0 && (
           <span title="Legitimate probe against the target">
             🩺 probe {p.probe.available}/{p.probe.samples} up · {p.probe.errorRate5xx}% 5xx
           </span>
         )}
       </div>
+      {p.statusCounts && Object.keys(p.statusCounts).length > 0 && (
+        <div className="status-dist">
+          {Object.entries(p.statusCounts)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([bucket, n]) => (
+              <span key={bucket} className={`chip-xs ${bucket === '2xx' ? 'on' : 'off'}`}>
+                {bucket} {n}
+              </span>
+            ))}
+        </div>
+      )}
+      {p.timeline && p.timeline.length >= 2 && <RunTimeline samples={p.timeline} />}
     </div>
   );
 }
@@ -380,7 +397,12 @@ export function CampaignCard({ c }: { c: Campaign }) {
           </div>
         )}
 
-      {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
+      {/* Only mount the inline live stream when the detail drawer is NOT open
+          for this campaign — otherwise the drawer already shows it and both
+          would open their own EventSource to the same /stream. */}
+      {c.status === 'RUNNING' && app.expanded !== c.id && (
+        <LiveProgress campaignId={c.id} agent={c.agent} />
+      )}
     </div>
   );
 }
