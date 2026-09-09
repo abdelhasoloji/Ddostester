@@ -804,6 +804,56 @@ input.invalid {
   text-align: center;
   font-size: 0.95rem;
 }
+
+/* Campaign orchestration is the primary destination: give it visual weight. */
+.nav-link-primary {
+  color: var(--text);
+  font-size: 0.98rem;
+  background: var(--surface-2);
+}
+.nav-link-primary.active {
+  background: rgba(0, 52, 132, 0.14);
+  color: var(--brand);
+}
+
+/* Collapsible "More" group — everything non-campaign, one click away. */
+.nav-more {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.35rem;
+}
+.nav-more-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+}
+.nav-more-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-more-caret {
+  margin-left: auto;
+  font-size: 0.7rem;
+}
+.nav-more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  margin-left: 0.55rem;
+}
 .sidebar-foot {
   margin-top: auto;
   display: flex;

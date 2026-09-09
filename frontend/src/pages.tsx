@@ -50,7 +50,6 @@ import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './pr
 import type { Preset } from './presets.js';
 import { getTheme, setTheme as persistTheme } from './theme.js';
 import type { Theme } from './theme.js';
-import { PhaseRail } from './phase-rail.js';
 
 const roleLabel: Record<Role, string> = {
   officer: 'Security Officer',
@@ -60,17 +59,61 @@ const roleLabel: Record<Role, string> = {
 };
 
 // ---------- sidebar + layout ----------
-const NAV = [
-  { to: '/', label: 'Overview', icon: '▚', end: true },
-  { to: '/prepare', label: 'Preparation', icon: '◎', end: false },
-  { to: '/plan', label: 'Plan', icon: '◈', end: false },
-  { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
-  { to: '/templates', label: 'Templates', icon: '▦', end: false },
-  { to: '/reports', label: 'Reports', icon: '▤', end: false },
-  { to: '/audit', label: 'Audit log', icon: '☰', end: false },
-  { to: '/guide', label: 'Guide', icon: '❔', end: false },
-  { to: '/settings', label: 'Settings', icon: '⚙', end: false },
+// Campaign orchestration is the whole point of the tool, so it is the single
+// primary destination (the home page). Everything else — the assessment phases,
+// templates, reports, audit, guide and settings — stays one click away under a
+// collapsible "More" menu, keeping the sidebar focused instead of a flat list.
+const PRIMARY_NAV = { to: '/', label: 'Campaigns', icon: '◇', end: true };
+const MORE_NAV = [
+  { to: '/overview', label: 'Overview', icon: '▚' },
+  { to: '/prepare', label: 'Preparation', icon: '◎' },
+  { to: '/plan', label: 'Plan', icon: '◈' },
+  { to: '/templates', label: 'Templates', icon: '▦' },
+  { to: '/reports', label: 'Reports', icon: '▤' },
+  { to: '/audit', label: 'Audit log', icon: '☰' },
+  { to: '/guide', label: 'Guide', icon: '❔' },
+  { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
+
+/** Collapsible "More" group: keeps every non-campaign destination reachable
+ *  without cluttering the primary navigation. */
+function MoreNav() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`nav-more${open ? ' open' : ''}`}>
+      <button
+        type="button"
+        className="nav-more-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="nav-icon" aria-hidden="true">
+          ⋯
+        </span>
+        More
+        <span className="nav-more-caret" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && (
+        <div className="nav-more-list">
+          {MORE_NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon" aria-hidden="true">
+                {n.icon}
+              </span>
+              {n.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const THEME_OPTS: [Theme, string, string][] = [
   ['light', '☀', 'Light'],
@@ -133,19 +176,17 @@ export function Layout() {
             <span className="brand-tag">ShieldTest</span>
           </div>
           <nav className="nav">
-            {NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-              >
-                <span className="nav-icon" aria-hidden="true">
-                  {n.icon}
-                </span>
-                {n.label}
-              </NavLink>
-            ))}
+            <NavLink
+              to={PRIMARY_NAV.to}
+              end={PRIMARY_NAV.end}
+              className={({ isActive }) => `nav-link nav-link-primary${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon" aria-hidden="true">
+                {PRIMARY_NAV.icon}
+              </span>
+              {PRIMARY_NAV.label}
+            </NavLink>
+            <MoreNav />
           </nav>
           <div className="sidebar-foot">
             <ThemeToggle />
@@ -186,7 +227,6 @@ export function Layout() {
               (Cmd/Ctrl-Shift-R); if it persists, the server needs a rebuild/restart.
             </div>
           )}
-          <PhaseRail />
           <Outlet />
         </main>
       </div>

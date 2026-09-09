@@ -42,7 +42,8 @@ function Gate() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<OverviewPage />} />
+        <Route index element={<CampaignsPage />} />
+        <Route path="overview" element={<OverviewPage />} />
         <Route path="prepare" element={<PreparationPage />} />
         <Route path="plan" element={<PlanPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
