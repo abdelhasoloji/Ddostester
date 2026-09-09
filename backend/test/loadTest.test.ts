@@ -329,3 +329,44 @@ describe('builtin engine — redirects are not followed (allowlist/SSRF guard)',
     expect(secondaryHits).toBe(0); // the redirect target was never contacted
   });
 });
+
+describe('builtin engine — hard backstop (requests that never return)', () => {
+  let base = '';
+  const sockets = new Set<import('node:net').Socket>();
+  // Accepts the connection but NEVER responds — mimics a tarpit where fetch's
+  // AbortSignal may not cancel a request queued on an exhausted keep-alive pool.
+  const server = createServer(() => {
+    /* intentionally never write a response */
+  });
+  server.on('connection', (s) => sockets.add(s));
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(async () => {
+    for (const s of sockets) s.destroy();
+    await new Promise<void>((r) => server.close(() => r()));
+  });
+
+  it('settles at the deadline + grace instead of hanging forever', async () => {
+    // A high per-request timeout means the per-request abort will NOT fire before
+    // the run's deadline — the only thing that can end the run is the hard
+    // backstop. Without it, Promise.all(workers) never resolves and this hangs.
+    const r = await runLoadTest(
+      {
+        url: `${base}/`,
+        concurrency: 3,
+        durationSec: 1,
+        maxRps: 10,
+        authorized: true,
+        timeoutMs: 60000,
+      },
+      ['127.0.0.1'],
+    );
+    // Resolving at all (within the test timeout) proves the backstop tripped:
+    // the target never responds, so a normal completion is impossible.
+    expect(r).toBeDefined();
+    expect(r.totalRequests).toBeGreaterThanOrEqual(0);
+  }, 30000);
+});
