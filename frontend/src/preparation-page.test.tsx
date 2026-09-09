@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { ReconReport } from './api.js';
 
 let fakeApp: Record<string, unknown>;
@@ -67,15 +68,23 @@ const REPORT: ReconReport = {
   loginPath: '/login',
 };
 
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <PreparationPage />
+    </MemoryRouter>,
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
   fakeApp = { push: vi.fn() };
   recon.mockResolvedValue(REPORT);
+  sessionStorage.clear();
 });
 
 describe('PreparationPage', () => {
   it('runs recon and renders profile, preflight, surface and baseline', async () => {
-    render(<PreparationPage />);
+    renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Run recon/ }));
     await waitFor(() => expect(recon).toHaveBeenCalledTimes(1));
 
@@ -88,15 +97,25 @@ describe('PreparationPage', () => {
 
   it('shows the no-go banner when preflight fails', async () => {
     recon.mockResolvedValue({ ...REPORT, preflight: { go: false, items: REPORT.preflight.items } });
-    render(<PreparationPage />);
+    renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Run recon/ }));
     await waitFor(() => expect(screen.getByText(/No-go/)).toBeInTheDocument());
   });
 
   it('surfaces an error through app.push when recon fails', async () => {
     recon.mockRejectedValue(new Error('not allowlisted'));
-    render(<PreparationPage />);
+    renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Run recon/ }));
     await waitFor(() => expect(fakeApp.push).toHaveBeenCalledWith('error', 'not allowlisted'));
+  });
+
+  it('hands the recon findings off to the Plan phase', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Run recon/ }));
+    await screen.findByText(/Go — ready to run/);
+    fireEvent.click(screen.getByRole('button', { name: /Send to Plan/ }));
+    const handoff = JSON.parse(sessionStorage.getItem('shieldtest.reconHandoff') ?? '{}');
+    expect(handoff.target).toBe('https://bank.cz/');
+    expect(handoff.seededProfile.rateLimiting).toBe('present');
   });
 });

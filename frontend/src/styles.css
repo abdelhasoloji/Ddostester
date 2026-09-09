@@ -2007,3 +2007,53 @@ table.remediations td {
 .pf-grid > span {
   color: var(--muted);
 }
+
+/* Phase rail — five-phase engagement cycle */
+.phase-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.phase-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.phase-step:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.phase-step.active {
+  background: var(--brand);
+  color: var(--primary-contrast);
+}
+.phase-step .phase-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.phase-step.active .phase-n {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.phase-arrow {
+  margin-left: 0.4rem;
+  color: var(--border);
+}

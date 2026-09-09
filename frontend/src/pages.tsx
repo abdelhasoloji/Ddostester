@@ -48,6 +48,7 @@ import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './pr
 import type { Preset } from './presets.js';
 import { getTheme, setTheme as persistTheme } from './theme.js';
 import type { Theme } from './theme.js';
+import { PhaseRail } from './phase-rail.js';
 
 const roleLabel: Record<Role, string> = {
   officer: 'Security Officer',
@@ -60,6 +61,7 @@ const roleLabel: Record<Role, string> = {
 const NAV = [
   { to: '/', label: 'Overview', icon: '▚', end: true },
   { to: '/prepare', label: 'Preparation', icon: '◎', end: false },
+  { to: '/plan', label: 'Plan', icon: '◈', end: false },
   { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
   { to: '/templates', label: 'Templates', icon: '▦', end: false },
   { to: '/reports', label: 'Reports', icon: '▤', end: false },
@@ -151,6 +153,7 @@ export function Layout() {
         </aside>
 
         <main className="main">
+          <PhaseRail />
           <Outlet />
         </main>
       </div>
@@ -540,6 +543,23 @@ export function GapPlannerSection() {
   const [profile, setProfile] = useState<ProtectionProfile>({});
   const [analysis, setAnalysis] = useState<GapAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
+  const [seeded, setSeeded] = useState(false);
+
+  // Recon → Plan handoff: if the Preparation page sent observed controls, seed
+  // the target + profile from them (once), then clear the handoff.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('shieldtest.reconHandoff');
+      if (!raw) return;
+      sessionStorage.removeItem('shieldtest.reconHandoff');
+      const h = JSON.parse(raw) as { target?: string; seededProfile?: ProtectionProfile };
+      if (h.target) setTarget(h.target);
+      if (h.seededProfile) setProfile(h.seededProfile);
+      setSeeded(true);
+    } catch {
+      /* no usable handoff */
+    }
+  }, []);
 
   const setControl = (key: ControlKey, status: ControlStatus) =>
     setProfile((p) => ({ ...p, [key]: status }));
@@ -565,6 +585,11 @@ export function GapPlannerSection() {
           suite-compare. Analytical only — it orders existing bounded tests against the authorized
           target; it never synthesises attacks or relaxes a cap.
         </p>
+        {seeded && (
+          <p className="gap-break gap-break-ok" style={{ marginTop: 0 }}>
+            Seeded from recon — target and observed controls pre-filled. Adjust and analyze.
+          </p>
+        )}
         <label className="field" style={{ maxWidth: '22rem' }}>
           <span>Target</span>
           <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="bank.cz" />
@@ -695,7 +720,6 @@ export function ReportsPage() {
         sub="Assessment suites, campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
       />
       <SuitesSection />
-      <GapPlannerSection />
       {withRun.length >= 2 && <CompareSection campaigns={withRun} />}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2>Aggregated compliance</h2>

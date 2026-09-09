@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from './api.js';
 import type { ReconReport } from './api.js';
 import { useApp } from './context.js';
@@ -13,6 +14,7 @@ import { PageHead } from './pages.js';
  */
 export function PreparationPage() {
   const app = useApp();
+  const navigate = useNavigate();
   const [target, setTarget] = useState('https://bank.cz/');
   const [probeUrl, setProbeUrl] = useState('');
   const [report, setReport] = useState<ReconReport | null>(null);
@@ -35,6 +37,20 @@ export function PreparationPage() {
       () => app.push('success', 'Suggested paths copied to the clipboard.'),
       () => app.push('error', 'Clipboard unavailable.'),
     );
+  };
+
+  // Hand the observed profile off to the Plan phase (gap-planner).
+  const sendToPlan = () => {
+    if (!report) return;
+    try {
+      sessionStorage.setItem(
+        'shieldtest.reconHandoff',
+        JSON.stringify({ target: report.target, seededProfile: report.seededProfile }),
+      );
+    } catch {
+      /* sessionStorage unavailable — navigate anyway */
+    }
+    navigate('/plan');
   };
 
   return (
@@ -123,7 +139,10 @@ export function PreparationPage() {
             </div>
             <p className="hint">
               Seeds the gap-planner: {Object.keys(report.seededProfile).length} control(s) observed
-              present. Open the Reports → Protection-gap planner to use them.
+              present.{' '}
+              <button className="btn btn-sm btn-primary" onClick={sendToPlan}>
+                Send to Plan →
+              </button>
             </p>
           </div>
 

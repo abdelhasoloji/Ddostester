@@ -16,6 +16,7 @@ vi.mock('./api.js', async (orig) => {
 });
 
 const { GapPlannerSection } = await import('./pages.js');
+const { PlanPage } = await import('./plan-page.js');
 
 const weak = {
   key: 'rateLimiting' as const,
@@ -109,5 +110,23 @@ describe('GapPlannerSection', () => {
     render(<GapPlannerSection />);
     fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
     await waitFor(() => expect(fakeApp.push).toHaveBeenCalledWith('error', 'boom'));
+  });
+
+  it('seeds target + profile from a recon handoff and clears it', async () => {
+    sessionStorage.setItem(
+      'shieldtest.reconHandoff',
+      JSON.stringify({ target: 'bank.cz', seededProfile: { rateLimiting: 'present' } }),
+    );
+    render(<GapPlannerSection />);
+    expect(await screen.findByText(/Seeded from recon/)).toBeInTheDocument();
+    expect(sessionStorage.getItem('shieldtest.reconHandoff')).toBeNull(); // consumed once
+  });
+});
+
+describe('PlanPage', () => {
+  it('renders the Plan phase with the gap planner', () => {
+    render(<PlanPage />);
+    expect(screen.getByRole('heading', { name: 'Plan' })).toBeInTheDocument();
+    expect(screen.getByText('Protection-gap planner')).toBeInTheDocument();
   });
 });
