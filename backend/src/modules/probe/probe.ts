@@ -62,8 +62,15 @@ export class Probe {
     private readonly timeoutMs = 5000,
   ) {}
 
-  async run(): Promise<void> {
-    while (!this.kill.killed) {
+  /**
+   * Polls the target until the kill switch fires OR an absolute wall-clock
+   * deadline is reached. The deadline is a hard safety bound: it guarantees the
+   * probe (and thus the run's `Promise.all`) always terminates near the campaign
+   * cap, even if the kill switch is never triggered — so a run can never hang
+   * open indefinitely past its `maxDurationSec`.
+   */
+  async run(hardDeadlineMs?: number): Promise<void> {
+    while (!this.kill.killed && (hardDeadlineMs === undefined || Date.now() < hardDeadlineMs)) {
       await this.tick();
       await this.sleep(this.intervalMs);
     }
