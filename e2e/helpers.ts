@@ -16,9 +16,17 @@ export async function login(page: Page, role: RoleName): Promise<void> {
   await expect(page.getByRole('link', { name: 'Campaigns' })).toBeVisible();
 }
 
-/** Go to a nav section by its visible label ("Campaigns", "Reports", ...). */
+/** Go to a nav section by its visible label ("Campaigns", "Reports", ...).
+ *  Campaigns is the primary destination; every other section lives under the
+ *  collapsible "More" group, so reveal it first when the link is not visible. */
 export async function goTo(page: Page, label: string): Promise<void> {
-  await page.getByRole('link', { name: label }).click();
+  const link = page.getByRole('link', { name: label });
+  if (!(await link.isVisible().catch(() => false))) {
+    const more = page.getByRole('button', { name: /More/ });
+    if (await more.count()) await more.first().click();
+    await expect(link).toBeVisible();
+  }
+  await link.click();
 }
 
 /**
