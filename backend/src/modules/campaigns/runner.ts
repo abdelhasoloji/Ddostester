@@ -189,12 +189,21 @@ export async function executeCampaign(
     // never hang open past maxDurationSec + a small grace. The load engine
     // self-bounds on the same clock via its own deadline.
     const probeHardDeadlineMs = startedMs + campaign.maxDurationSec * 1000 + 20_000;
+    const dbgT = () => ((Date.now() - startedMs) / 1000).toFixed(1);
+    console.error(
+      `[run-dbg] ${campaign.name} start; cap=${campaign.maxDurationSec}s probeDeadline=+${((probeHardDeadlineMs - Date.now()) / 1000).toFixed(0)}s phases=${campaign.scenario?.length ?? 0}`,
+    );
     [generator] = await Promise.all([
-      agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
-        gen = p;
-      }),
-      probe.run(probeHardDeadlineMs),
+      agent
+        .run(genConfig, allowedHosts, killSwitch.signal, (p) => {
+          gen = p;
+        })
+        .finally(() => console.error(`[run-dbg] ${campaign.name} AGENT settled t=${dbgT()}`)),
+      probe
+        .run(probeHardDeadlineMs)
+        .finally(() => console.error(`[run-dbg] ${campaign.name} PROBE settled t=${dbgT()}`)),
     ]);
+    console.error(`[run-dbg] ${campaign.name} BOTH settled t=${dbgT()}`);
   } finally {
     clearTimeout(timeoutTimer);
     clearInterval(ticker);
