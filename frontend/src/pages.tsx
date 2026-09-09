@@ -533,7 +533,7 @@ const STATUS_OPTIONS: ControlStatus[] = ['unknown', 'present', 'partial', 'absen
  * half of the tune-and-replay loop), plus the attestation-only lines. Analytical
  * only — it orders existing bounded tests, it does not synthesise attacks.
  */
-function GapPlannerSection() {
+export function GapPlannerSection() {
   const app = useApp();
   const [target, setTarget] = useState('bank.cz');
   const [profile, setProfile] = useState<ProtectionProfile>({});
