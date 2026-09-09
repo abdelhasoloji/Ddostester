@@ -152,6 +152,42 @@ describe('builtin engine — response assertions', () => {
   });
 });
 
+describe('builtin engine — live progress payload', () => {
+  let base: string;
+  const server = createServer((_req, res) => {
+    res.statusCode = 200;
+    res.end('ok');
+  });
+
+  beforeAll(async () => {
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
+
+  it('streams live latency percentiles and status buckets each tick', async () => {
+    const ticks: import('../src/engine/loadTest.js').LoadProgress[] = [];
+    await runLoadTest(
+      { url: `${base}/`, concurrency: 2, durationSec: 2, maxRps: 20, authorized: true },
+      ['127.0.0.1'],
+      undefined,
+      (p) => ticks.push(p),
+    );
+    // At least one per-second tick fired during the 2s run.
+    expect(ticks.length).toBeGreaterThan(0);
+    const last = ticks[ticks.length - 1];
+    // Live percentiles are present and numeric (the drawer no longer has to
+    // wait for the final result to show latency).
+    expect(last.latencyMs).toBeDefined();
+    expect(typeof last.latencyMs!.p50).toBe('number');
+    expect(typeof last.latencyMs!.p95).toBe('number');
+    expect(typeof last.latencyMs!.p99).toBe('number');
+    // Live HTTP status buckets are present; a 200-only server yields a 2xx bucket.
+    expect(last.statusCounts).toBeDefined();
+    expect(last.statusCounts!['2xx']).toBeGreaterThan(0);
+  });
+});
+
 describe('builtin engine — endpoint mix', () => {
   let base: string;
   const seen: Record<string, number> = {};
