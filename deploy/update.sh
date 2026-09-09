@@ -38,6 +38,11 @@ fi
 
 cd "$REPO_DIR"
 
+# Self-heal git's "dubious ownership" refusal: the service repo is often owned
+# by a service user while the deploy (or a manual rebuild) runs as root. Without
+# this, every git call here — and the version stamp inside the build — fails.
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
+
 # Remember the currently-deployed commit so we can roll back on failure.
 PREV="$(git rev-parse HEAD)"
 

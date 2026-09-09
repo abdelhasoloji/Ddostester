@@ -128,3 +128,16 @@ in the **Preparation** phase finds the real one). See
 - **Auth needs at least two users** (author ≠ approver). Generate hashes with
   `node -e 'import("./backend/dist/auth/passwords.js").then(m=>console.log(m.hashPassword(process.argv[1])))' '<pw>'`
   and set `AUTH_USERS` (an `engineer` + an `officer`) in `/etc/ddostester.env`.
+- **Git "dubious ownership" (repo owned by `shieldtest`, you build as `root`).**
+  It breaks `git pull` _and_ the UI version stamp (footer stuck at `+0 · dev`).
+  `deploy/setup.sh` and `deploy/update.sh` now self-heal it; for a manual rebuild:
+  ```bash
+  git config --global --add safe.directory /home/shieldtest/ddostester
+  cd /home/shieldtest/ddostester && git pull
+  SHIELDTEST_COMMIT=$(git rev-parse --short HEAD) \
+  SHIELDTEST_BUILD=$(git rev-list --count HEAD) \
+    npm run build
+  systemctl restart ddostester
+  ```
+  The `SHIELDTEST_*` env vars stamp the footer version even if git is refused
+  inside Vite (see `frontend/vite.config.ts`).

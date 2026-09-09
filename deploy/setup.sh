@@ -35,12 +35,19 @@ echo "==> Directory: $REPO_DIR"
 echo "==> Allowed targets (allowlist): $ALLOWED_TARGETS"
 
 cd "$REPO_DIR"
+# Self-heal git's "dubious ownership" refusal when the repo is owned by a service
+# user but this runs as root (also lets the build stamp the UI version).
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
 echo "==> git pull"
 git pull --ff-only || echo "   (pull skipped: local repo modified or offline)"
 
 echo "==> npm install + build + test"
 npm install
-npm run build
+# Stamp the UI version from git, passed to the build via env so it survives a
+# git-less/again-refused build context inside Vite.
+SHIELDTEST_COMMIT="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)" \
+SHIELDTEST_BUILD="$(git -C "$REPO_DIR" rev-list --count HEAD 2>/dev/null || echo 0)" \
+  npm run build
 npm test
 
 echo "==> Writing secrets (EnvironmentFile, chmod 600)"
