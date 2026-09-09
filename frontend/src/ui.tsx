@@ -36,6 +36,7 @@ const badgeLabel: Record<CampaignStatus, string> = {
   COMPLETED: 'Completed',
   KILLED_AUTO: 'Auto-killed',
   KILLED_MANUAL: 'Manually killed',
+  CANCELLED: 'Cancelled',
 };
 
 export function StatusBadge({ status }: { status: CampaignStatus }) {
@@ -266,6 +267,17 @@ export function CampaignCard({ c }: { c: Campaign }) {
               Kill switch
             </button>
           )}
+          {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
+            canDo(role, 'approve', ar) && (
+              <button
+                className="btn btn-sm btn-ghost"
+                disabled={isBusy}
+                onClick={() => app.cancel(c)}
+                title="Cancel this unrun campaign (terminal)"
+              >
+                Cancel
+              </button>
+            )}
           {c.runId && (
             <a
               className="btn btn-sm btn-ghost"
@@ -318,11 +330,14 @@ export function CampaignCard({ c }: { c: Campaign }) {
         )}
       </div>
 
-      {c.statusDetail && (c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL') && (
-        <div className="kill-note" role="note">
-          <span aria-hidden="true">🛑</span> {c.statusDetail}
-        </div>
-      )}
+      {c.statusDetail &&
+        (c.status === 'KILLED_AUTO' ||
+          c.status === 'KILLED_MANUAL' ||
+          c.status === 'CANCELLED') && (
+          <div className="kill-note" role="note">
+            <span aria-hidden="true">🛑</span> {c.statusDetail}
+          </div>
+        )}
 
       {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
     </div>
@@ -604,6 +619,16 @@ export function CampaignDrawer() {
               Kill switch
             </button>
           )}
+          {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
+            canDo(role, 'approve', ar) && (
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => app.cancel(c)}
+                title="Cancel this unrun campaign (terminal)"
+              >
+                Cancel
+              </button>
+            )}
           {c.runId && (
             <a
               className="btn btn-sm btn-ghost"

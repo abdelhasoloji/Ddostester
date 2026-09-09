@@ -5,7 +5,8 @@ export type CampaignStatus =
   | 'RUNNING'
   | 'COMPLETED'
   | 'KILLED_AUTO'
-  | 'KILLED_MANUAL';
+  | 'KILLED_MANUAL'
+  | 'CANCELLED';
 
 export interface WrsBreakdown {
   detection: number;
@@ -495,6 +496,8 @@ export const api = {
   approve: (id: string, body: unknown) => post<Campaign>(`/api/campaigns/${id}/approval`, body),
   execute: (id: string) => post<CampaignRun>(`/api/campaigns/${id}/execute`),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
+  cancelCampaign: (id: string, reason?: string) =>
+    post<Campaign>(`/api/campaigns/${id}/cancel`, reason ? { reason } : undefined),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),

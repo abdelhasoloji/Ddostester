@@ -9,6 +9,7 @@ export interface AuditEntry {
     | 'campaign.reject'
     | 'campaign.execute'
     | 'campaign.kill'
+    | 'campaign.cancel'
     | 'user.upsert'
     | 'user.delete'
     | 'playbook.upsert'

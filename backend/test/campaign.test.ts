@@ -3,6 +3,7 @@ import {
   createCampaign,
   approveCampaign,
   assertExecutable,
+  cancelCampaign,
   CampaignError,
 } from '../src/modules/campaigns/service.js';
 import type { CampaignInput } from '../src/modules/campaigns/model.js';
@@ -54,6 +55,28 @@ describe('CAM workflow', () => {
   it('requires a reason for a rejection', () => {
     const c = createCampaign(base, allowed);
     expect(() => approveCampaign(c, 'officer@wedos', 'REJECTED')).toThrow(CampaignError);
+  });
+});
+
+describe('cancelCampaign (annulation)', () => {
+  it('cancels a pending campaign to a terminal CANCELLED', () => {
+    const c = cancelCampaign(createCampaign(base, allowed));
+    expect(c.status).toBe('CANCELLED');
+    expect(c.statusDetail).toBeTruthy();
+  });
+
+  it('cancels an approved (unrun) campaign, keeping the reason', () => {
+    const approved = approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
+    const c = cancelCampaign(approved, 'no longer needed');
+    expect(c.status).toBe('CANCELLED');
+    expect(c.statusDetail).toBe('no longer needed');
+  });
+
+  it('refuses to cancel a running or already-terminal campaign', () => {
+    const running = { ...createCampaign(base, allowed), status: 'RUNNING' as const };
+    expect(() => cancelCampaign(running)).toThrow(CampaignError);
+    const done = { ...createCampaign(base, allowed), status: 'COMPLETED' as const };
+    expect(() => cancelCampaign(done)).toThrow(CampaignError);
   });
 });
 

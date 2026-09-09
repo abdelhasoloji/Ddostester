@@ -300,6 +300,27 @@ export function approveCampaign(
   return { ...campaign, status: decision, approvedBy, approvalReason: reason, approvalExpiresAt };
 }
 
+/**
+ * Cancels an unrun campaign (CAM — annulation): a PENDING_APPROVAL or APPROVED
+ * campaign that will no longer run is moved to the terminal CANCELLED state.
+ * Refuses a running or already-terminal campaign (use the kill switch for a run
+ * in flight). Administrative, not an approval decision, so no author≠approver
+ * check — the author can cancel their own queued campaign.
+ */
+export function cancelCampaign(campaign: Campaign, reason?: string): Campaign {
+  if (campaign.status !== 'PENDING_APPROVAL' && campaign.status !== 'APPROVED') {
+    throw new CampaignError(
+      `Only a pending or approved campaign can be cancelled (status ${campaign.status}). ` +
+        `Use the kill switch for a run in flight.`,
+    );
+  }
+  return {
+    ...campaign,
+    status: 'CANCELLED',
+    statusDetail: reason?.trim() || 'Cancelled before execution',
+  };
+}
+
 /** Checks a campaign is executable now (approved, not expired). */
 export function assertExecutable(campaign: Campaign): void {
   if (campaign.status !== 'APPROVED') {

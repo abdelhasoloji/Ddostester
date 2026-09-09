@@ -14,6 +14,7 @@ import {
   createCampaign,
   approveCampaign,
   assertExecutable,
+  cancelCampaign,
   transition,
   CampaignError,
 } from './modules/campaigns/service.js';
@@ -1207,13 +1208,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       ctrl.paused = false; // release the pause gate so the loop can break out
       const current = ctrl.current;
       if (current) kills.get(current)?.trigger('KILLED_MANUAL');
+      // Close the scenario cleanly: cancel the steps that will now never run
+      // (pending or approved), so no orphan steps linger after the cancel. The
+      // step in flight (current) is left to its kill switch above.
+      let cancelledSteps = 0;
+      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+      for (const m of members) {
+        if (m.id === current) continue;
+        if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
+          await store.saveCampaign(cancelCampaign(m, `suite ${suiteId} cancelled`));
+          cancelledSteps += 1;
+        }
+      }
       await audit(
         req,
         'suite.cancel',
         current,
-        `sequence cancelled · ${suiteId}${current ? ` · killed step in flight` : ''}`,
+        `sequence cancelled · ${suiteId}${current ? ` · killed step in flight` : ''}` +
+          ` · ${cancelledSteps} step(s) cancelled`,
       );
-      return reply.send({ suiteId, cancelled: true, killedCurrent: Boolean(current) });
+      return reply.send({
+        suiteId,
+        cancelled: true,
+        killedCurrent: Boolean(current),
+        cancelledSteps,
+      });
     },
   );
 
@@ -1228,7 +1247,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       connection: 'keep-alive',
     });
     const send = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
-    const TERMINAL: CampaignStatus[] = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'REJECTED'];
+    const TERMINAL: CampaignStatus[] = [
+      'COMPLETED',
+      'KILLED_AUTO',
+      'KILLED_MANUAL',
+      'REJECTED',
+      'CANCELLED',
+    ];
     // Initial frame: current progress if any, else "waiting" (never "done" on
     // connect — the UI closes the stream on "done", so a premature one would
     // strand the progress view).
@@ -1262,6 +1287,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       kill.trigger('KILLED_MANUAL');
       await audit(req, 'campaign.kill', id);
       return { status: 'KILLED_MANUAL' };
+    },
+  );
+
+  // Cancel an unrun campaign (pending or approved) before it executes. Terminal
+  // CANCELLED — for a run in flight, use the kill switch instead.
+  app.post(
+    '/api/campaigns/:id/cancel',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const c = await store.getCampaign((req.params as { id: string }).id);
+      if (!c) return reply.code(404).send({ error: 'campaign not found' });
+      const reason = (req.body as { reason?: string } | undefined)?.reason;
+      try {
+        const cancelled = cancelCampaign(c, reason);
+        await store.saveCampaign(cancelled);
+        await audit(req, 'campaign.cancel', c.id, cancelled.statusDetail);
+        return cancelled;
+      } catch (err) {
+        return fail(err, reply);
+      }
     },
   );
 

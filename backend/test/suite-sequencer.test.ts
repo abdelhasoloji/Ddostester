@@ -167,10 +167,10 @@ describe('Multi-step suite sequencer', () => {
     }[];
     const members = list.filter((c) => c.suiteId === suiteId);
     expect(members).toHaveLength(4);
-    // Cancel stopped the sequence, so later steps were never run — they stay
-    // non-terminal (PENDING_APPROVAL, since the sequencer approves just-in-time).
-    const unrun = members.filter((c) => !TERMINAL.includes(c.status));
-    expect(unrun.length).toBeGreaterThan(0);
+    // Cancel stopped the sequence and closed it cleanly: later steps that never
+    // ran are now CANCELLED (not left dangling), and not every step COMPLETED.
+    expect(members.some((c) => c.status === 'CANCELLED')).toBe(true);
+    expect(members.filter((c) => c.status === 'COMPLETED').length).toBeLessThan(4);
 
     const audit = JSON.stringify((await as(off, 'GET', '/api/audit')).json());
     expect(audit).toContain('suite.cancel');
@@ -181,5 +181,36 @@ describe('Multi-step suite sequencer', () => {
     // Engineer lacks campaign:approve.
     const denied = await as(eng, 'POST', '/api/suites/whatever/run');
     expect(denied.statusCode).toBe(403);
+  });
+
+  it('cancels a single unrun campaign, and refuses to cancel it twice', async () => {
+    const created = await as(eng, 'POST', '/api/campaigns', {
+      name: 'Cancel me',
+      target: 'http://127.0.0.1/',
+      probeUrl: 'http://127.0.0.1/',
+      vector: 'http-get',
+      maxRps: 5,
+      concurrency: 2,
+      maxDurationSec: 5,
+      authorized: true,
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id as string;
+
+    const cancelled = await as(off, 'POST', `/api/campaigns/${id}/cancel`);
+    expect(cancelled.statusCode).toBe(200);
+    expect(cancelled.json().status).toBe('CANCELLED');
+
+    // Already terminal → 400.
+    const again = await as(off, 'POST', `/api/campaigns/${id}/cancel`);
+    expect(again.statusCode).toBe(400);
+
+    // Audited.
+    const audit = JSON.stringify((await as(off, 'GET', '/api/audit')).json());
+    expect(audit).toContain('campaign.cancel');
+  });
+
+  it('404s cancelling an unknown campaign', async () => {
+    expect((await as(off, 'POST', '/api/campaigns/nope/cancel')).statusCode).toBe(404);
   });
 });

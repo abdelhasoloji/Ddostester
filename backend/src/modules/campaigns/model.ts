@@ -25,7 +25,10 @@ export type CampaignStatus =
   | 'RUNNING'
   | 'COMPLETED'
   | 'KILLED_AUTO'
-  | 'KILLED_MANUAL';
+  | 'KILLED_MANUAL'
+  // Terminal: an unrun campaign (pending or approved) cancelled before execution
+  // — distinct from REJECTED (an approval decision) and the KILLED_* run outcomes.
+  | 'CANCELLED';
 
 export interface CampaignInput {
   name: string;

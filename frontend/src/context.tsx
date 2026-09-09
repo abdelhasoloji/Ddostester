@@ -91,6 +91,7 @@ interface Ctx {
   ) => Promise<void>;
   execute: (c: Campaign) => Promise<void>;
   kill: (c: Campaign) => Promise<void>;
+  cancel: (c: Campaign) => Promise<void>;
   toggleDetails: (c: Campaign) => Promise<void>;
   openDetail: (c: Campaign) => Promise<void>;
 }
@@ -280,6 +281,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /** Cancel an unrun (pending/approved) campaign before it executes. */
+  const cancel = async (c: Campaign) => {
+    setBusyFor(c.id, true);
+    try {
+      await api.cancelCampaign(c.id);
+      push('info', `Campaign "${c.name}" cancelled.`);
+      refresh();
+    } catch (err) {
+      push('error', (err as Error).message);
+    } finally {
+      setBusyFor(c.id, false);
+    }
+  };
+
   const fetchRun = async (c: Campaign) => {
     if (!runs[c.id] && c.runId) {
       try {
@@ -350,6 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     approve,
     execute,
     kill,
+    cancel,
     toggleDetails,
     openDetail,
   };

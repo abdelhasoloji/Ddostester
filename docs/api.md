@@ -86,6 +86,15 @@ curl -s -X POST localhost:8080/api/campaigns/<id>/kill
 # {"status":"KILLED_MANUAL"}
 ```
 
+## `POST /api/campaigns/:id/cancel`
+
+Cancels an **unrun** campaign — `PENDING_APPROVAL` or `APPROVED` — before it
+executes, moving it to the terminal **`CANCELLED`** state (distinct from
+`REJECTED`, an approval decision, and the `KILLED_*` run outcomes). Optional
+`{ reason }`. `400` for a running or already-terminal campaign (use the kill
+switch for a run in flight); `404` if not found. **Security Officer**
+(`campaign:approve`). Audited `campaign.cancel`.
+
 ## `GET /api/runs/:runId` — raw run result
 
 ## `GET /api/runs/:runId/report` — HTML report

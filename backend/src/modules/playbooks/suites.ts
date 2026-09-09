@@ -37,7 +37,7 @@ export interface SuiteSummary {
   verdict: 'PASS' | 'FAIL' | null;
 }
 
-const TERMINAL = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL'];
+const TERMINAL = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'CANCELLED'];
 
 /** Groups campaigns into suites and computes per-suite aggregates. */
 export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {

@@ -279,13 +279,19 @@ const STATUS_FILTERS: { id: StatusFilterId; label: string; match: (c: Campaign) 
   {
     id: 'done',
     label: 'Done',
-    match: (c) => ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL'].includes(c.status),
+    match: (c) => ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'CANCELLED'].includes(c.status),
   },
   { id: 'rejected', label: 'Rejected', match: (c) => c.status === 'REJECTED' },
 ];
 type SortId = 'recent' | 'name' | 'wrs';
 
-const TERMINAL_STATUS: CampaignStatus[] = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'REJECTED'];
+const TERMINAL_STATUS: CampaignStatus[] = [
+  'COMPLETED',
+  'KILLED_AUTO',
+  'KILLED_MANUAL',
+  'REJECTED',
+  'CANCELLED',
+];
 
 interface SuiteGroup {
   suiteId: string;
@@ -625,6 +631,7 @@ const SUITE_STEP_CLASS: Record<string, string> = {
   KILLED_AUTO: 'step-killed',
   KILLED_MANUAL: 'step-killed',
   REJECTED: 'step-killed',
+  CANCELLED: 'step-pending',
   APPROVED: 'step-approved',
   PENDING_APPROVAL: 'step-pending',
 };

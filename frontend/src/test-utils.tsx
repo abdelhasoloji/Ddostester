@@ -59,6 +59,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     approve: vi.fn().mockResolvedValue(undefined),
     execute: vi.fn().mockResolvedValue(undefined),
     kill: vi.fn().mockResolvedValue(undefined),
+    cancel: vi.fn().mockResolvedValue(undefined),
     toggleDetails: vi.fn().mockResolvedValue(undefined),
     openDetail: vi.fn().mockResolvedValue(undefined),
     ...overrides,

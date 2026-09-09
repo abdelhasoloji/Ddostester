@@ -408,6 +408,11 @@ input.invalid {
   color: var(--danger);
   border-color: var(--danger);
 }
+.badge-CANCELLED {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--border);
+}
 .badge .dot {
   display: inline-block;
   width: 7px;

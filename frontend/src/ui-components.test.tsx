@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { CampaignRun, Campaign } from './api.js';
 
 // CampaignCard reads the app context; keep canDo real, stub useApp per test.
@@ -111,6 +111,7 @@ function appWith(role: 'engineer' | 'officer' | 'viewer') {
     setApproveFor: vi.fn(),
     setConfirmExec: vi.fn(),
     kill: vi.fn(),
+    cancel: vi.fn(),
     openDetail: vi.fn(),
   };
 }
@@ -141,5 +142,20 @@ describe('CampaignCard RBAC gating', () => {
     fakeApp = appWith('officer');
     render(<CampaignCard c={{ ...baseCampaign, status: 'COMPLETED' }} />);
     expect(screen.queryByText(/Auto-killed:/)).toBeNull();
+  });
+
+  it('offers Cancel to an officer on an unrun campaign and calls app.cancel', () => {
+    fakeApp = appWith('officer');
+    render(<CampaignCard c={{ ...baseCampaign, status: 'APPROVED' }} />);
+    const btn = screen.getByRole('button', { name: /^Cancel$/ });
+    fireEvent.click(btn);
+    expect(fakeApp.cancel as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer Cancel once the campaign is terminal', () => {
+    fakeApp = appWith('officer');
+    render(<CampaignCard c={{ ...baseCampaign, status: 'CANCELLED', statusDetail: 'done' }} />);
+    expect(screen.queryByRole('button', { name: /^Cancel$/ })).toBeNull();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument(); // the badge
   });
 });
