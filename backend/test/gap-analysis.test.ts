@@ -3,35 +3,80 @@ import {
   analyzeGaps,
   postureToProfile,
   renderGapAnalysisHtml,
+  drsTier,
 } from '../src/modules/reports/gap-analysis.js';
 import type { PostureReport } from '../src/modules/posture/analyze.js';
 
 describe('analyzeGaps', () => {
-  it('splits bounded (plan) from attestation-only lines', () => {
+  it('splits bounded (ladder) from attestation-only lines', () => {
     const a = analyzeGaps({});
-    // 11 bounded lines in pretest-cra-l7; 3 out-of-model (TCP, WAF-cracker, brute-force).
     expect(a.plan).toHaveLength(11);
     expect(a.attestationOnly.map((x) => x.line).sort((p, q) => p - q)).toEqual([1, 12, 14]);
     expect(a.summary.attested).toBe(3);
   });
 
-  it('ranks by DRS level and how weakly the control is declared', () => {
-    const a = analyzeGaps({ slowRequestTimeout: 'present', rateLimiting: 'absent' });
-    // SlowLoris (DRS3, control present) drops to low priority…
-    const slow = a.plan.find((p) => p.name === 'SlowLoris');
-    expect(slow?.priority).toBe('low');
-    // …while the GET-Flood line (DRS3, rate limiting ABSENT) ranks above it.
-    const getFlood = a.plan.find((p) => p.name === 'HTTP GET-Flood');
-    expect(getFlood!.score).toBeGreaterThan(slow!.score);
-    // Plan is sorted highest score first.
+  it('lays the plan out as a DRS escalation ladder (ascending)', () => {
+    const a = analyzeGaps({});
     for (let i = 1; i < a.plan.length; i++) {
-      expect(a.plan[i - 1].score).toBeGreaterThanOrEqual(a.plan[i].score);
+      expect(a.plan[i].drs).toBeGreaterThanOrEqual(a.plan[i - 1].drs);
     }
+    expect(a.plan[0].tier).toBe(drsTier(3));
   });
 
-  it('every plan item names a concrete step to replay', () => {
+  it('coverage follows the weakest link of the control chain', () => {
+    // GET-Random-Flood mitigated by [originShielding, rateLimiting]; with origin
+    // shielding present but rate limiting absent, the weakest link is absent.
+    const a = analyzeGaps({ originShielding: 'present', rateLimiting: 'absent' });
+    const randomFlood = a.plan.find((p) => p.name === 'GET-Random-Flood')!;
+    expect(randomFlood.weakest.key).toBe('rateLimiting');
+    expect(randomFlood.weakest.status).toBe('absent');
+    expect(randomFlood.controls).toHaveLength(2);
+  });
+
+  it('ranks a fully-declared low-DRS line as low priority', () => {
+    const a = analyzeGaps({ slowRequestTimeout: 'present' });
+    const slow = a.plan.find((p) => p.name === 'SlowLoris')!;
+    expect(slow.weakest.status).toBe('present');
+    expect(slow.priority).toBe('low');
+  });
+
+  it('predicts the earliest gap on the ladder as the break point', () => {
+    // Only rate limiting absent → the first rate-limited rung (GET-Flood, DRS3) breaks.
+    const a = analyzeGaps({ rateLimiting: 'absent' });
+    expect(a.breakPoint?.line).toBe(3);
+    expect(a.breakPoint?.weakest.key).toBe('rateLimiting');
+  });
+
+  it('flags the DRS5 combination lines and carries capped intensity', () => {
     const a = analyzeGaps({});
+    const multi = a.plan.find((p) => p.name === 'HTTP MultiVector')!;
+    expect(multi.combination).toBe(true);
+    // Intensity is sourced from the real pretest-cra-l7 step.
+    expect(multi.intensity).toBeTruthy();
+    expect(multi.intensity!.maxRps).toBeGreaterThan(0);
     expect(a.plan.every((p) => p.step.length > 0)).toBe(true);
+  });
+
+  it('reports no break point when every control is declared present', () => {
+    const full = Object.fromEntries(
+      (
+        [
+          'synFloodProtection',
+          'slowRequestTimeout',
+          'rateLimiting',
+          'originShielding',
+          'cacheKeyPolicy',
+          'urlAllowlist',
+          'methodPolicy',
+          'http2Guard',
+          'challenge',
+          'wafSignatures',
+          'bruteForceProtection',
+        ] as const
+      ).map((k) => [k, 'present' as const]),
+    );
+    const a = analyzeGaps(full);
+    expect(a.breakPoint).toBeNull();
   });
 
   it('carries the target through', () => {
@@ -58,13 +103,13 @@ describe('postureToProfile', () => {
 });
 
 describe('renderGapAnalysisHtml', () => {
-  it('renders both tables and the priority summary', () => {
+  it('renders the ladder, break point and attestation table', () => {
     const html = renderGapAnalysisHtml(analyzeGaps({ rateLimiting: 'absent' }, 'bank.cz'));
     expect(html).toContain('Protection-gap analysis');
     expect(html).toContain('bank.cz');
-    expect(html).toContain('Prioritised replay plan');
-    expect(html).toContain('Attestation-only');
+    expect(html).toContain('escalation ladder');
+    expect(html).toContain('break point');
     expect(html).toContain('WAF-Cracker'); // attested line present
-    expect(html).toContain('pill'); // priority pills rendered
+    expect(html).toContain('combo'); // combination lines flagged
   });
 });

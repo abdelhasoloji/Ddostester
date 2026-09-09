@@ -17,11 +17,22 @@ Before the first replay, use the **protection-gap planner** (Reports →
 _Protection-gap planner_, or `POST /api/reports/gap-analysis`) to decide **which
 lines to replay first**. You declare the target's WEDOS controls — rate limiting,
 slow-request timeout, HTTP/2 guard, bot challenge, WAF ruleset, … — each as
-`present` / `partial` / `absent` / `unknown`, and it returns:
+`present` / `partial` / `absent` / `unknown`. The planner models the engagement
+the way zeroBS actually drives P26-20371 and returns:
 
-- a **prioritised replay plan**: the bounded `pretest-cra-l7` lines ranked by DRS
-  level and how weakly the mitigating control is declared (an absent control on a
-  DRS-5 line ranks highest), each naming the exact step to replay and why;
+- a **DRS escalation ladder (3 → 4 → 5)** — the real playbook order, grouped by
+  attacker-capability tier, because the run climbs capability and a collapsed
+  lower tier makes the higher tiers moot. Each rung names the exact
+  `pretest-cra-l7` step and its **real capped intensity** (rps / conns / duration
+  / shape);
+- **control chains with the weakest link flagged** — each line is mitigated by a
+  _combination_ of controls; the attacker works the weakest one, so coverage is
+  the worst control in the chain (shown in bold / red);
+- a **predicted break point** — the earliest rung on the ladder with a real gap,
+  where zeroBS would stop climbing and concentrate. Fix this first; it gates
+  everything above it;
+- **combination lines** (MultiVector, PulseWave, MultiTarget) flagged as the DRS5
+  culminations that chain the earlier primitives;
 - the **attestation-only** lines (TCP handshake on the class-C bench, HPACK bomb,
   WAF-cracker, credential brute-force) that stay out of the bounded model.
 
@@ -29,7 +40,7 @@ It is analytical only: it **selects and orders existing bounded tests** against
 the authorized target from the declared defense — it never synthesises an attack,
 crafts an evasion payload, or relaxes a cap/allowlist. Knowing the defense only
 tells you where to point the same governed test first, not how to defeat a rule.
-Work the plan top-down through the loop below.
+Start at the break point, then climb the ladder through the loop below.
 
 ## The loop
 

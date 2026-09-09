@@ -1918,3 +1918,47 @@ table.remediations td {
 .gap-low {
   background: var(--success);
 }
+
+/* Gap planner — zeroBS ladder view */
+.gap-tier {
+  font-weight: 700;
+  color: var(--brand);
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.gap-weak {
+  font-weight: 800;
+  color: var(--danger);
+}
+.gap-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  vertical-align: middle;
+}
+.gap-tag-break {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.gap-break {
+  margin: 0.6rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--danger);
+  background: var(--danger-bg);
+  border-radius: 6px;
+}
+.gap-break-ok {
+  border-left-color: var(--success);
+  background: rgba(22, 163, 74, 0.1);
+}
+.gap-breakrow {
+  background: var(--danger-bg);
+  border-radius: 6px;
+}

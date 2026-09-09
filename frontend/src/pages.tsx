@@ -598,21 +598,67 @@ function GapPlannerSection() {
               <b>{analysis.summary.low}</b> low priority to replay ·{' '}
               <b>{analysis.summary.attested}</b> attestation-only.
             </p>
-            <h3 style={{ marginBottom: '.25rem' }}>Prioritised replay plan</h3>
-            {analysis.plan.map((p) => (
-              <div key={p.line} className="gap-plan-item">
-                <span className={`gap-pill ${GAP_PILL[p.priority]}`}>{p.priority}</span>
-                <div>
-                  <b>
-                    Line {p.line} · DRS{p.drs} — {p.name}
-                  </b>
-                  <div className="hint">
-                    {p.controlLabel} ({p.status}) → replay <code>{p.step}</code>. {p.rationale}
-                    {p.attestedNote ? ` ⚠ ${p.attestedNote}` : ''}
-                  </div>
-                </div>
+            {analysis.breakPoint ? (
+              <div className="gap-break">
+                <b>
+                  Predicted break point — line {analysis.breakPoint.line} (
+                  {analysis.breakPoint.name}, DRS{analysis.breakPoint.drs}).
+                </b>{' '}
+                {analysis.breakPoint.note}
               </div>
-            ))}
+            ) : (
+              <div className="gap-break gap-break-ok">
+                <b>No gap on the ladder from the declared controls.</b> Escalate the full DRS 3→5
+                sequence to confirm the ceiling, watching collateral on the probe.
+              </div>
+            )}
+            <h3 style={{ marginBottom: '.25rem' }}>DRS escalation ladder (replay in this order)</h3>
+            {[...new Set(analysis.plan.map((p) => p.drs))]
+              .sort((x, y) => x - y)
+              .map((drs) => (
+                <div key={drs}>
+                  <p className="gap-tier">{analysis.plan.find((p) => p.drs === drs)!.tier}</p>
+                  {analysis.plan
+                    .filter((p) => p.drs === drs)
+                    .map((p) => (
+                      <div
+                        key={p.line}
+                        className={`gap-plan-item${
+                          p.line === analysis.breakPoint?.line ? ' gap-breakrow' : ''
+                        }`}
+                      >
+                        <span className={`gap-pill ${GAP_PILL[p.priority]}`}>{p.priority}</span>
+                        <div>
+                          <b>
+                            Line {p.line} — {p.name}
+                          </b>
+                          {p.combination && <span className="gap-tag">combo</span>}
+                          {p.line === analysis.breakPoint?.line && (
+                            <span className="gap-tag gap-tag-break">break point</span>
+                          )}
+                          <div className="hint">
+                            {p.controls.map((c, i) => (
+                              <span key={c.key}>
+                                {i > 0 ? ' · ' : ''}
+                                <span className={c.key === p.weakest.key ? 'gap-weak' : ''}>
+                                  {c.label} ({c.status})
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="hint">
+                            Replay <code>{p.step}</code>
+                            {p.intensity
+                              ? ` — ≤ ${p.intensity.maxRps} rps · ${p.intensity.concurrency} conns · ${p.intensity.durationSec}s · ${p.intensity.profile}`
+                              : ''}
+                            . {p.rationale}
+                            {p.attestedNote ? ` ⚠ ${p.attestedNote}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ))}
             <h3 style={{ margin: '.75rem 0 .25rem' }}>
               Attestation-only (out of the bounded model)
             </h3>
@@ -626,7 +672,7 @@ function GapPlannerSection() {
                     Line {x.line} · DRS{x.drs} — {x.name}
                   </b>
                   <div className="hint">
-                    {x.controlLabel} ({x.status}) — {x.note}
+                    {x.controls.map((c) => `${c.label} (${c.status})`).join(' · ')} — {x.note}
                   </div>
                 </div>
               </div>

@@ -575,16 +575,31 @@ export const GAP_CONTROLS: { key: ControlKey; label: string }[] = [
   { key: 'synFloodProtection', label: 'SYN-flood / handshake protection (L3/4)' },
 ];
 
+export interface ControlState {
+  key: ControlKey;
+  label: string;
+  status: ControlStatus;
+}
+
+export interface GapIntensity {
+  maxRps: number;
+  concurrency: number;
+  durationSec: number;
+  profile: 'constant' | 'ramp' | 'wave';
+}
+
 export interface GapPlanItem {
   line: number;
   drs: number;
+  tier: string;
   name: string;
-  control: ControlKey;
-  controlLabel: string;
-  status: ControlStatus;
+  controls: ControlState[];
+  weakest: ControlState;
   priority: Priority;
   score: number;
   step: string;
+  intensity?: GapIntensity;
+  combination: boolean;
   rationale: string;
   attestedNote?: string;
 }
@@ -592,10 +607,9 @@ export interface GapPlanItem {
 export interface GapAttestationItem {
   line: number;
   drs: number;
+  tier: string;
   name: string;
-  control: ControlKey;
-  controlLabel: string;
-  status: ControlStatus;
+  controls: ControlState[];
   note: string;
 }
 
@@ -604,6 +618,13 @@ export interface GapAnalysis {
   target?: string;
   plan: GapPlanItem[];
   attestationOnly: GapAttestationItem[];
+  breakPoint: {
+    line: number;
+    name: string;
+    drs: number;
+    weakest: ControlState;
+    note: string;
+  } | null;
   summary: { high: number; medium: number; low: number; attested: number };
 }
 
