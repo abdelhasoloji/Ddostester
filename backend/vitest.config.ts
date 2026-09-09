@@ -10,7 +10,15 @@ export default defineConfig({
       // Entry points / thin glue with no meaningful branches to unit-test
       // (the CLI orchestrates a live run against a lab target; its decision
       // logic lives in modules/campaigns/slogate.ts, which is unit-tested).
-      exclude: ['src/server.ts', 'src/cli/**', 'src/**/*.d.ts'],
+      exclude: [
+        'src/server.ts',
+        'src/cli/**',
+        'src/**/*.d.ts',
+        // Bounded network orchestration (needs a live authorized target) —
+        // integration-only, like the engine run() paths; its decision logic
+        // lives in modules/recon/recon.ts, which is unit-tested.
+        'src/modules/recon/fetch.ts',
+      ],
       // Floor tracking current coverage (external-tool run() paths need the
       // binaries and are integration-only); raised as unit coverage grows.
       thresholds: {

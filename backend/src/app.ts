@@ -52,6 +52,7 @@ import {
 } from './modules/users/service.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices } from './agents/index.js';
+import { runRecon } from './modules/recon/fetch.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
 import { buildRunNotifications } from './modules/notify/events.js';
 import { noopNotifier } from './modules/notify/notifier.js';
@@ -469,6 +470,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.get('/api/agents', async () => {
     const list = await describeAgents();
     return { default: agent.name, agents: list };
+  });
+
+  // Preparation-phase reconnaissance: passive + published-surface recon of an
+  // allowlisted, authorized target → target profile, real path set, pre-test
+  // baseline, preflight go/no-go, and the seeded gap-analyzer profile. Bounded
+  // and non-intrusive (no scan / fuzz / enumeration). See modules/recon.
+  app.get('/api/recon', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    const { target, probeUrl } = req.query as { target?: string; probeUrl?: string };
+    if (!target) return reply.code(400).send({ error: 'target is required' });
+    const engines = (await describeAgents()).filter((a) => a.available).length;
+    try {
+      return await runRecon(target, probeUrl ?? target, allowedTargets, {
+        enginesAvailable: engines,
+        capsConfigured: true,
+        protectionConfigured: protection.configured,
+        labRunnerConfigured: labTargets.length > 0,
+      });
+    } catch (err) {
+      return reply.code(400).send({ error: (err as Error).message });
+    }
   });
 
   // Anti-brute-force: temporary lock after several failures (per email+IP).
