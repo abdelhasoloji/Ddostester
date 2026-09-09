@@ -1,14 +1,15 @@
 name: Deploy
 
-# Continuous deployment via a SELF-HOSTED runner installed on the WEDOS server.
-# On a green CI run on main (and on manual dispatch) it updates the running
-# service in place — no inbound SSH, no secrets, works behind a firewall.
+# Continuous deployment via a SELF-HOSTED runner installed on VPS 1 (the
+# production control plane). On a green CI run on main (and on manual dispatch)
+# it updates the running service in place — no inbound SSH, no secrets, works
+# behind a firewall. The job requires the `vps1` runner label, so it only ever
+# runs on VPS 1 (the old ac02 runner, unlabelled, no longer matches).
 #
-# One-time server setup (see docs/ci-cd.md):
-#   1. Register a self-hosted runner for this repo, running as the deploy user
-#      (its home holds the ~/ddostester clone that the service runs from).
-#   2. Give that user passwordless sudo for: systemctl restart ddostester.
-# After that, every push to main that passes CI deploys automatically.
+# One-time server setup — run deploy/provision/host-runner.sh on VPS 1 (see
+# docs/ci-cd.md). It registers the runner as the service user (whose home holds
+# the ~/ddostester clone) with the `vps1` label and grants the one sudo rule
+# (systemctl restart ddostester) that deploy/update.sh needs.
 
 on:
   workflow_run:
@@ -33,7 +34,10 @@ jobs:
   deploy:
     # Deploy only when the triggering CI passed, or when dispatched manually.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted
+    # Pinned to the VPS 1 runner (label `vps1`) so deploys land on the
+    # production control plane and nowhere else. Register it with
+    # deploy/provision/host-runner.sh.
+    runs-on: [self-hosted, vps1]
     timeout-minutes: 15
     steps:
       - name: Update and restart the service

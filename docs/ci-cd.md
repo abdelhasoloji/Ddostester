@@ -36,7 +36,7 @@ the `schedule` in the workflow to run it nightly.
 push / PR ──► CI (lint, typecheck, test, build)
                      │ success on main
                      ▼
-              Deploy ──► self-hosted runner on the server:
+              Deploy ──► self-hosted runner on VPS 1 (label `vps1`):
                          deploy/update.sh
                          (fetch main, npm ci, build, test, restart)
 ```
@@ -46,17 +46,35 @@ server. It can also be started manually from the Actions tab (**Run workflow**),
 optionally choosing a branch to deploy (rollback). Once set up, **no manual
 deploy commands are needed** — every green push to `main` deploys itself.
 
-## Deployment model: self-hosted runner
+## Deployment model: self-hosted runner on VPS 1
 
-Deploy runs on a **self-hosted GitHub Actions runner installed on the WEDOS
-server**. The runner polls GitHub outbound (HTTPS 443), so:
+Deploy runs on a **self-hosted GitHub Actions runner installed on VPS 1** — the
+production control plane. The runner polls GitHub outbound (HTTPS 443), so:
 
 - no inbound SSH and no firewall changes — the app stays loopback-only,
 - no SSH key or deploy secrets stored in GitHub,
 - the deploy runs locally, updating the existing `~/ddostester` clone in place.
 
-The job runs `deploy/update.sh` in the service repo (default `~/ddostester`,
-override with the `DDOSTESTER_DIR` env var on the runner).
+The Deploy job requires the **`vps1`** runner label (`runs-on: [self-hosted,
+vps1]`), so it lands on VPS 1 and nowhere else. The job runs `deploy/update.sh`
+in the service repo (default `~/ddostester`, override with `DDOSTESTER_DIR`).
+
+### One-time setup on VPS 1
+
+Run the helper as root on VPS 1 (get the token from GitHub → repo → Settings →
+Actions → Runners → **New self-hosted runner**):
+
+```bash
+RUNNER_TOKEN=<registration token> bash deploy/provision/host-runner.sh
+```
+
+It installs the runner as the `shieldtest` service user with the `vps1` label,
+starts it as a systemd service, and grants the single sudo rule
+(`systemctl restart ddostester`) that `deploy/update.sh` needs. Then **remove the
+old `ac02` runner** from the same Runners page so deploys only land on VPS 1.
+
+Verify: the Runners page shows the VPS 1 runner idle; the next green push to
+`main` (or a manual **Run workflow**) deploys onto VPS 1 automatically.
 
 ## Deployment model: systemd or Docker Compose
 
