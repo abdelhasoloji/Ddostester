@@ -445,7 +445,29 @@ export async function runLoadTest(
   }
 
   try {
-    await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+    const workers = Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+    // Hard backstop: a run NEVER waits past its deadline + a fixed grace, even if
+    // in-flight requests to a tarpitting target ignore their AbortSignal. Node's
+    // fetch (undici) can leave a request queued on an exhausted keep-alive pool
+    // where neither the per-request timeout nor the kill signal cancels it,
+    // stranding the worker in `await fetch()` indefinitely. When that happens we
+    // abandon the stuck workers and settle the run with the metrics gathered so
+    // far; their sockets are reclaimed as the process continues.
+    const graceMs = Math.max(0, deadline - Date.now()) + 15_000;
+    let abandoned = false;
+    const backstop = new Promise<void>((resolve) => {
+      const t = setTimeout(() => {
+        abandoned = true;
+        resolve();
+      }, graceMs);
+      t.unref?.();
+    });
+    await Promise.race([workers, backstop]);
+    if (abandoned) {
+      console.warn(
+        `loadTest ${id}: hard-stopped past deadline+grace — some requests to ${config.url} never returned (target tarpit / undici pool exhaustion).`,
+      );
+    }
   } finally {
     if (progressTimer) clearInterval(progressTimer);
   }
