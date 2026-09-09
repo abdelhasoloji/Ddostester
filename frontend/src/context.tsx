@@ -16,15 +16,16 @@ export interface Identity {
   email: string;
   role: Role;
 }
-export type Perm = 'create' | 'approve' | 'execute' | 'kill' | 'manage' | 'limits' | 'bench';
+export type Perm =
+  'create' | 'approve' | 'cisoApprove' | 'execute' | 'kill' | 'manage' | 'limits' | 'bench';
 const PERMS: Record<Role, Perm[]> = {
   officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],
   viewer: ['kill'],
   // CISO: governance only — reads everything, emergency-kills, sets the
-  // operational limits ('limits'), and governs the class-C network bench
-  // ('bench': view + dispatch to the isolated runner). Not an operator.
-  ciso: ['kill', 'limits', 'bench'],
+  // operational limits ('limits'), governs the class-C network bench ('bench'),
+  // and gives the mandatory dual-control sign-off ('cisoApprove'). Not an operator.
+  ciso: ['kill', 'limits', 'bench', 'cisoApprove'],
 };
 export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
   if (!authRequired) return true;
@@ -48,6 +49,8 @@ interface Ctx {
   agentName: string;
   /** Build stamp of the running API server (from /health), for a mismatch check. */
   serverVersion: { version: string; build: string; commit: string; builtAt?: string } | null;
+  /** Dual control: this deployment mandates a CISO sign-off on every campaign. */
+  requireCisoApproval: boolean;
   notifications: string[];
   protection: boolean;
   tlsInsecure: boolean;
@@ -94,6 +97,7 @@ interface Ctx {
   execute: (c: Campaign) => Promise<void>;
   kill: (c: Campaign) => Promise<void>;
   cancel: (c: Campaign) => Promise<void>;
+  cisoApprove: (c: Campaign) => Promise<void>;
   toggleDetails: (c: Campaign) => Promise<void>;
   openDetail: (c: Campaign) => Promise<void>;
 }
@@ -112,6 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(DEFAULT_CAPS);
   const [agentName, setAgentName] = useState('');
   const [serverVersion, setServerVersion] = useState<Ctx['serverVersion']>(null);
+  const [requireCisoApproval, setRequireCisoApproval] = useState(false);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
   const [tlsInsecure, setTlsInsecure] = useState(false);
@@ -168,6 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
         setAgentName(h.agent ?? '');
         setServerVersion(h.version ?? null);
+        setRequireCisoApproval(h.requireCisoApproval ?? false);
         setNotifications(h.notifications ?? []);
         setProtection(h.protection ?? false);
         setTlsInsecure(h.tlsInsecure ?? false);
@@ -285,6 +291,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /** CISO dual-control sign-off on an officer-approved campaign. */
+  const cisoApprove = async (c: Campaign) => {
+    setBusyFor(c.id, true);
+    try {
+      await api.cisoApprove(c.id);
+      push('success', `CISO sign-off recorded for "${c.name}".`);
+      refresh();
+    } catch (err) {
+      push('error', (err as Error).message);
+    } finally {
+      setBusyFor(c.id, false);
+    }
+  };
+
   /** Cancel an unrun (pending/approved) campaign before it executes. */
   const cancel = async (c: Campaign) => {
     setBusyFor(c.id, true);
@@ -332,6 +352,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     hardCapsCeiling,
     agentName,
     serverVersion,
+    requireCisoApproval,
     notifications,
     protection,
     tlsInsecure,
@@ -371,6 +392,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     execute,
     kill,
     cancel,
+    cisoApprove,
     toggleDetails,
     openDetail,
   };

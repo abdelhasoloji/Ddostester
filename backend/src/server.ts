@@ -80,6 +80,9 @@ const { app, runCampaign } = await buildApp({
   targetTelemetry,
   maxConcurrentRuns: MAX_CONCURRENT_RUNS,
   benchRunnerToken: BENCH_RUNNER_TOKEN || undefined,
+  // Dual control: mandate a CISO sign-off on every campaign (the posture for a
+  // networked/public deployment). Off by default (single-officer approval).
+  requireCisoApproval: process.env.REQUIRE_CISO_APPROVAL === '1',
 });
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------

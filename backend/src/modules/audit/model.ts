@@ -6,6 +6,7 @@ export interface AuditEntry {
   action:
     | 'campaign.create'
     | 'campaign.approve'
+    | 'campaign.ciso_approve'
     | 'campaign.reject'
     | 'campaign.execute'
     | 'campaign.kill'

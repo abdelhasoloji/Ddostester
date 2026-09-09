@@ -13,6 +13,7 @@ import { liveProgress } from './runtime/live.js';
 import {
   createCampaign,
   approveCampaign,
+  cisoApproveCampaign,
   assertExecutable,
   cancelCampaign,
   transition,
@@ -94,6 +95,12 @@ export interface BuildOptions {
   /** Max campaigns running at once (safety guard against contention). Default 3. */
   maxConcurrentRuns?: number;
   /**
+   * Dual control: when true, a campaign needs a CISO sign-off (on top of the
+   * officer approval) before it can run — the governance posture for a
+   * networked/public deployment. Default false (single-officer approval).
+   */
+  requireCisoApproval?: boolean;
+  /**
    * Bearer token an isolated bench runner presents to claim/complete governed
    * class-C runs. Empty/undefined = governed dispatch disabled (fail-closed):
    * requests can't be created and the runner API is closed. The control plane
@@ -129,6 +136,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const protection = opts.protection ?? noopProtectionProvider;
   const targetTelemetry = opts.targetTelemetry ?? noopTargetTelemetryProvider;
   const maxConcurrentRuns = opts.maxConcurrentRuns ?? 3;
+  const requireCisoApproval = opts.requireCisoApproval ?? false;
 
   const app = Fastify({
     logger:
@@ -250,6 +258,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   ) => auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
 
   async function runCampaign(c: Campaign, actor: string): Promise<CampaignRun> {
+    // Dual control: enforced here so NEITHER the execute endpoint NOR the suite
+    // sequencer can bypass a mandatory CISO sign-off.
+    if (requireCisoApproval && !c.cisoApprovedBy) {
+      throw new CampaignError(
+        'CISO sign-off required before this campaign can run (dual control).',
+      );
+    }
     if (kills.count() >= maxConcurrentRuns) {
       throw new CampaignError(
         `Too many concurrent runs (max ${maxConcurrentRuns}). Try again once one finishes.`,
@@ -444,6 +459,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // Build stamp of THIS running server — lets you confirm which commit the API
     // actually serves (the frontend footer only reflects the bundle it shipped).
     version: getBuildInfo(),
+    // Governance posture: does this deployment require a CISO sign-off on every
+    // campaign (dual control)? The UI reads this to show/gate the CISO step.
+    requireCisoApproval,
     allowedTargets,
     labTargets,
     storage: store.backend,
@@ -1112,6 +1130,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
+  // Mandatory CISO sign-off (dual control). A CISO co-signs an officer-approved
+  // campaign; separation of duties (author ≠ officer ≠ CISO) is enforced.
+  app.post(
+    '/api/campaigns/:id/ciso-approval',
+    { preHandler: guard('campaign:ciso-approve') },
+    async (req, reply) => {
+      try {
+        const c = await store.getCampaign((req.params as { id: string }).id);
+        if (!c) return reply.code(404).send({ error: 'campaign not found' });
+        const body = (req.body ?? {}) as { cisoBy?: string };
+        const cisoBy = req.authUser?.email ?? body.cisoBy ?? '';
+        const updated = cisoApproveCampaign(c, cisoBy);
+        await store.saveCampaign(updated);
+        await audit(req, 'campaign.ciso_approve', c.id, `CISO sign-off by ${cisoBy}`);
+        return updated;
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
+
   app.post(
     '/api/campaigns/:id/execute',
     { preHandler: guard('campaign:execute') },
@@ -1128,7 +1167,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         });
       }
       try {
-        assertExecutable(c);
+        assertExecutable(c, { requireCiso: requireCisoApproval });
       } catch (err) {
         return fail(err, reply);
       }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createCampaign,
   approveCampaign,
+  cisoApproveCampaign,
   assertExecutable,
   cancelCampaign,
   CampaignError,
@@ -55,6 +56,36 @@ describe('CAM workflow', () => {
   it('requires a reason for a rejection', () => {
     const c = createCampaign(base, allowed);
     expect(() => approveCampaign(c, 'officer@wedos', 'REJECTED')).toThrow(CampaignError);
+  });
+});
+
+describe('cisoApproveCampaign (dual control)', () => {
+  const officerApproved = () =>
+    approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
+
+  it('co-signs an officer-approved campaign', () => {
+    const c = cisoApproveCampaign(officerApproved(), 'ciso@wedos');
+    expect(c.cisoApprovedBy).toBe('ciso@wedos');
+    expect(c.cisoApprovedAt).toBeTruthy();
+  });
+
+  it('refuses to sign a not-yet-officer-approved campaign', () => {
+    expect(() => cisoApproveCampaign(createCampaign(base, allowed), 'ciso@wedos')).toThrow(
+      CampaignError,
+    );
+  });
+
+  it('enforces separation of duties (CISO ≠ author, CISO ≠ officer approver)', () => {
+    expect(() => cisoApproveCampaign(officerApproved(), base.createdBy)).toThrow(/author/);
+    expect(() => cisoApproveCampaign(officerApproved(), 'officer@wedos')).toThrow(/officer/);
+  });
+
+  it('assertExecutable requires the CISO sign-off only when the gate is on', () => {
+    const approved = officerApproved();
+    expect(() => assertExecutable(approved)).not.toThrow(); // gate off (default)
+    expect(() => assertExecutable(approved, { requireCiso: true })).toThrow(/CISO sign-off/);
+    const signed = cisoApproveCampaign(approved, 'ciso@wedos');
+    expect(() => assertExecutable(signed, { requireCiso: true })).not.toThrow();
   });
 });
 

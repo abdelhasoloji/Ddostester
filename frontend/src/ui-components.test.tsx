@@ -103,16 +103,22 @@ const baseCampaign: Campaign = {
   maxDurationSec: 30,
 };
 
-function appWith(role: 'engineer' | 'officer' | 'viewer') {
+function appWith(
+  role: 'engineer' | 'officer' | 'viewer' | 'ciso',
+  extra: Record<string, unknown> = {},
+) {
   return {
     busy: {},
     role,
     authRequired: true,
+    requireCisoApproval: false,
     setApproveFor: vi.fn(),
     setConfirmExec: vi.fn(),
     kill: vi.fn(),
     cancel: vi.fn(),
+    cisoApprove: vi.fn(),
     openDetail: vi.fn(),
+    ...extra,
   };
 }
 
@@ -157,5 +163,31 @@ describe('CampaignCard RBAC gating', () => {
     render(<CampaignCard c={{ ...baseCampaign, status: 'CANCELLED', statusDetail: 'done' }} />);
     expect(screen.queryByRole('button', { name: /^Cancel$/ })).toBeNull();
     expect(screen.getByText('Cancelled')).toBeInTheDocument(); // the badge
+  });
+});
+
+describe('CampaignCard — dual control (CISO gate)', () => {
+  const approved = { ...baseCampaign, status: 'APPROVED' as const, approvedBy: 'off@wedos' };
+
+  it('offers the CISO sign-off to a CISO on an unsigned approved campaign', () => {
+    fakeApp = appWith('ciso', { requireCisoApproval: true, identity: { email: 'ciso@wedos' } });
+    render(<CampaignCard c={approved} />);
+    const btn = screen.getByRole('button', { name: /CISO sign-off/ });
+    fireEvent.click(btn);
+    expect(fakeApp.cisoApprove as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/CISO pending/)).toBeInTheDocument();
+  });
+
+  it('gates Run for the engineer until the CISO has signed off', () => {
+    fakeApp = appWith('engineer', { requireCisoApproval: true, identity: { email: 'eng@wedos' } });
+    render(<CampaignCard c={approved} />);
+    expect(screen.queryByRole('button', { name: /^Run$/ })).toBeNull();
+  });
+
+  it('shows CISO ✓ and allows Run once signed off', () => {
+    fakeApp = appWith('engineer', { requireCisoApproval: true, identity: { email: 'eng@wedos' } });
+    render(<CampaignCard c={{ ...approved, cisoApprovedBy: 'ciso@wedos' }} />);
+    expect(screen.getByText(/CISO ✓/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Run$/ })).toBeInTheDocument();
   });
 });

@@ -62,6 +62,16 @@ curl -s -X POST localhost:8080/api/campaigns/<id>/approval -H 'content-type: app
 # rejection: {"approvedBy":"officer@wedos","decision":"REJECTED","reason":"out of window"}
 ```
 
+## `POST /api/campaigns/:id/ciso-approval`
+
+Mandatory **CISO sign-off** (dual control), CISO role only
+(`campaign:ciso-approve`). Co-signs an officer-approved campaign; separation of
+duties is enforced (`ciso ≠ author`, `ciso ≠ officer approver`). Only meaningful
+when the deployment sets `REQUIRE_CISO_APPROVAL=1` (advertised by `/health` as
+`requireCisoApproval`): a campaign is then executable only after BOTH the officer
+approval and this sign-off — enforced server-side so neither the execute endpoint
+nor the suite sequencer can bypass it. Audited `campaign.ciso_approve`.
+
 ## `POST /api/campaigns/:id/execute`
 
 Executes an `APPROVED` campaign. Returns the run (generator + probe + WRS).

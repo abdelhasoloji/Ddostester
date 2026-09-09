@@ -27,6 +27,9 @@ export interface Campaign {
   status: CampaignStatus;
   createdBy: string;
   approvedBy?: string;
+  /** Mandatory CISO sign-off (dual control) — present once a CISO co-signs. */
+  cisoApprovedBy?: string;
+  cisoApprovedAt?: string;
   maxRps: number;
   concurrency: number;
   maxDurationSec: number;
@@ -477,6 +480,7 @@ export const api = {
       json<{
         status: string;
         version?: { version: string; build: string; commit: string; builtAt?: string };
+        requireCisoApproval?: boolean;
         allowedTargets: string[];
         labTargets?: string[];
         storage: string;
@@ -495,6 +499,7 @@ export const api = {
   listCampaigns: () => get<Campaign[]>('/api/campaigns'),
   createCampaign: (body: unknown) => post<Campaign>('/api/campaigns', body),
   approve: (id: string, body: unknown) => post<Campaign>(`/api/campaigns/${id}/approval`, body),
+  cisoApprove: (id: string) => post<Campaign>(`/api/campaigns/${id}/ciso-approval`),
   execute: (id: string) => post<CampaignRun>(`/api/campaigns/${id}/execute`),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   cancelCampaign: (id: string, reason?: string) =>

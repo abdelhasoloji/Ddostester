@@ -321,13 +321,44 @@ export function cancelCampaign(campaign: Campaign, reason?: string): Campaign {
   };
 }
 
-/** Checks a campaign is executable now (approved, not expired). */
-export function assertExecutable(campaign: Campaign): void {
+/**
+ * Mandatory CISO sign-off (dual control): a CISO co-signs a campaign the officer
+ * has already approved. Separation of duties across all three roles — the CISO
+ * signer must differ from both the author and the officer approver.
+ */
+export function cisoApproveCampaign(campaign: Campaign, cisoBy: string): Campaign {
+  if (campaign.status !== 'APPROVED') {
+    throw new CampaignError(
+      `CISO sign-off requires an officer-approved campaign (status ${campaign.status}).`,
+    );
+  }
+  if (!cisoBy?.trim()) throw new CampaignError('CISO approver is required.');
+  if (cisoBy === campaign.createdBy) {
+    throw new CampaignError('Separation of duties: the CISO approver ≠ the author.');
+  }
+  if (campaign.approvedBy && cisoBy === campaign.approvedBy) {
+    throw new CampaignError('Separation of duties: the CISO approver ≠ the officer approver.');
+  }
+  return { ...campaign, cisoApprovedBy: cisoBy, cisoApprovedAt: new Date().toISOString() };
+}
+
+/**
+ * Checks a campaign is executable now (approved, not expired). When
+ * `requireCiso` is set (the CISO gate — the posture for a networked/public
+ * deployment), a mandatory CISO sign-off must also be present.
+ */
+export function assertExecutable(campaign: Campaign, opts: { requireCiso?: boolean } = {}): void {
   if (campaign.status !== 'APPROVED') {
     throw new CampaignError(`Campaign is not executable (status ${campaign.status}).`);
   }
   if (campaign.approvalExpiresAt && Date.parse(campaign.approvalExpiresAt) < Date.now()) {
     throw new CampaignError('Approval has expired (valid for 24h) — please re-submit.');
+  }
+  if (opts.requireCiso && !campaign.cisoApprovedBy) {
+    throw new CampaignError(
+      'CISO sign-off required: this deployment mandates a CISO approval on every ' +
+        'campaign before it can run.',
+    );
   }
 }
 

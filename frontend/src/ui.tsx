@@ -226,12 +226,41 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
  * also execute it. Hide Run from the approver so no visible action leads to a
  * 403. Only meaningful when auth identifies the viewer.
  */
-function canRunCampaign(c: Campaign, role: Role | null, ar: boolean, myEmail?: string): boolean {
+function canRunCampaign(
+  c: Campaign,
+  role: Role | null,
+  ar: boolean,
+  myEmail?: string,
+  requireCiso = false,
+): boolean {
   if (c.status !== 'APPROVED' || !canDo(role, 'execute', ar)) return false;
   if (ar && myEmail && c.approvedBy && myEmail.toLowerCase() === c.approvedBy.toLowerCase()) {
     return false;
   }
+  // Dual control: no Run until the mandatory CISO sign-off is present.
+  if (requireCiso && !c.cisoApprovedBy) return false;
   return true;
+}
+
+/** Whether to offer the CISO sign-off action on this campaign to this viewer. */
+function canCisoApprove(c: Campaign, role: Role | null, ar: boolean): boolean {
+  return c.status === 'APPROVED' && !c.cisoApprovedBy && canDo(role, 'cisoApprove', ar);
+}
+
+/** A small badge showing the dual-control sign-off state. */
+export function CisoBadge({ c }: { c: Campaign }) {
+  if (c.cisoApprovedBy) {
+    return (
+      <span className="badge badge-APPROVED" title={`CISO sign-off by ${c.cisoApprovedBy}`}>
+        CISO ✓
+      </span>
+    );
+  }
+  return (
+    <span className="badge badge-PENDING_APPROVAL" title="Awaiting mandatory CISO sign-off">
+      CISO pending
+    </span>
+  );
 }
 
 export function CampaignCard({ c }: { c: Campaign }) {
@@ -239,18 +268,30 @@ export function CampaignCard({ c }: { c: Campaign }) {
   const isBusy = app.busy[c.id];
   const role = app.role;
   const ar = app.authRequired;
-  const canRun = canRunCampaign(c, role, ar, app.identity?.email);
+  const canRun = canRunCampaign(c, role, ar, app.identity?.email, app.requireCisoApproval);
+  const showCiso = app.requireCisoApproval && c.status !== 'PENDING_APPROVAL';
   return (
     <div className="campaign">
       <div className="campaign-head">
         <span className="campaign-name">{c.name}</span>
         <StatusBadge status={c.status} />
+        {showCiso && <CisoBadge c={c} />}
         {c.wrs && <WrsPill wrs={c.wrs} />}
         {c.acceptanceResult && <VerdictBadge verdict={c.acceptanceResult.verdict} />}
         <div className="campaign-actions">
           {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
             <button className="btn btn-sm" disabled={isBusy} onClick={() => app.setApproveFor(c)}>
               Approve / Reject
+            </button>
+          )}
+          {canCisoApprove(c, role, ar) && (
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={isBusy}
+              onClick={() => app.cisoApprove(c)}
+              title="Mandatory CISO sign-off (dual control)"
+            >
+              {isBusy ? <span className="spin" /> : null}CISO sign-off
             </button>
           )}
           {canRun && (
@@ -565,7 +606,9 @@ export function CampaignDrawer() {
   const c = app.campaigns.find((x) => x.id === id);
   const role = app.role;
   const ar = app.authRequired;
-  const canRun = c ? canRunCampaign(c, role, ar, app.identity?.email) : false;
+  const canRun = c
+    ? canRunCampaign(c, role, ar, app.identity?.email, app.requireCisoApproval)
+    : false;
 
   useEffect(() => {
     if (!id) return;
@@ -590,6 +633,7 @@ export function CampaignDrawer() {
           <div className="drawer-title">
             <span className="campaign-name">{c.name}</span>
             <StatusBadge status={c.status} />
+            {app.requireCisoApproval && c.status !== 'PENDING_APPROVAL' && <CisoBadge c={c} />}
             {c.wrs && <WrsPill wrs={c.wrs} />}
           </div>
           <button className="drawer-close" aria-label="Close" onClick={() => app.setExpanded(null)}>
@@ -607,6 +651,15 @@ export function CampaignDrawer() {
           {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
             <button className="btn btn-sm" onClick={() => app.setApproveFor(c)}>
               Approve / Reject
+            </button>
+          )}
+          {canCisoApprove(c, role, ar) && (
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => app.cisoApprove(c)}
+              title="Mandatory CISO sign-off (dual control)"
+            >
+              CISO sign-off
             </button>
           )}
           {canRun && (

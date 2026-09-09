@@ -7,6 +7,10 @@ export type Permission =
   | 'campaign:read'
   | 'campaign:create'
   | 'campaign:approve'
+  // Mandatory CISO sign-off on a campaign (dual control). Separate from
+  // 'campaign:approve' (the officer): when the CISO gate is enabled, a campaign
+  // is executable only after BOTH the officer approval and this CISO sign-off.
+  | 'campaign:ciso-approve'
   | 'campaign:execute'
   | 'campaign:kill'
   | 'user:manage'
@@ -44,6 +48,7 @@ const MATRIX: Record<Role, Permission[]> = {
   ciso: [
     'campaign:read',
     'campaign:kill',
+    'campaign:ciso-approve',
     'limits:manage',
     'bench:read',
     'bench:dispatch',

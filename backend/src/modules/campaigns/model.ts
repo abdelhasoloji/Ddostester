@@ -120,6 +120,10 @@ export interface Campaign extends CampaignInput {
   approvedBy?: string;
   approvalReason?: string;
   approvalExpiresAt?: string;
+  /** Mandatory CISO sign-off (dual control) — set once a CISO co-signs an
+   *  officer-approved campaign. When the CISO gate is on, execution needs both. */
+  cisoApprovedBy?: string;
+  cisoApprovedAt?: string;
   wrs?: WrsBreakdown;
   /** SLO verdict of the latest run (set alongside wrs/runId). */
   acceptanceResult?: AcceptanceResult;
