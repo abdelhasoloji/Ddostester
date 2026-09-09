@@ -183,6 +183,93 @@ describe('Multi-step suite sequencer', () => {
     expect(denied.statusCode).toBe(403);
   });
 
+  it('starts only ONE sequence when the run is submitted twice at once', async () => {
+    const pb = await as(eng, 'POST', '/api/playbooks', {
+      name: 'Race test',
+      category: 'Custom',
+      summary: 'steps',
+      when: 'test',
+      steps: [0, 1, 2].map((i) => ({
+        name: `step-${i}`,
+        maxRps: 5,
+        concurrency: 2,
+        maxDurationSec: 2,
+        profile: 'constant',
+      })),
+    });
+    const inst = await as(eng, 'POST', `/api/playbooks/${pb.json().id}/instantiate`, {
+      target: 'http://127.0.0.1/',
+    });
+    const suiteId = inst.json().campaigns[0].suiteId as string;
+
+    // Fire two run requests concurrently — the atomic reservation must let
+    // exactly one through (202) and reject the other (409).
+    const [a, b] = await Promise.all([
+      as(off, 'POST', `/api/suites/${suiteId}/run`),
+      as(off, 'POST', `/api/suites/${suiteId}/run`),
+    ]);
+    const codes = [a.statusCode, b.statusCode].sort();
+    expect(codes).toEqual([202, 409]);
+
+    // At no point should two steps of this suite be RUNNING simultaneously.
+    for (let i = 0; i < 30; i++) {
+      const list = (await as(off, 'GET', '/api/campaigns')).json() as {
+        suiteId?: string;
+        status: string;
+      }[];
+      const running = list.filter((c) => c.suiteId === suiteId && c.status === 'RUNNING');
+      expect(running.length).toBeLessThanOrEqual(1);
+      const members = list.filter((c) => c.suiteId === suiteId);
+      if (members.length === 3 && members.every((c) => TERMINAL.includes(c.status))) break;
+      await sleep(300);
+    }
+  }, 40000);
+
+  it('refuses a manual run of a step while its sequence is in flight', async () => {
+    const pb = await as(eng, 'POST', '/api/playbooks', {
+      name: 'Manual-during-seq',
+      category: 'Custom',
+      summary: 'steps',
+      when: 'test',
+      steps: [0, 1, 2, 3].map((i) => ({
+        name: `step-${i}`,
+        maxRps: 5,
+        concurrency: 2,
+        maxDurationSec: 3,
+        profile: 'constant',
+      })),
+    });
+    const inst = await as(eng, 'POST', `/api/playbooks/${pb.json().id}/instantiate`, {
+      target: 'http://127.0.0.1/',
+    });
+    const suiteId = inst.json().campaigns[0].suiteId as string;
+    const lastStep = inst
+      .json()
+      .campaigns.slice()
+      .sort(
+        (x: { suiteOrder: number }, y: { suiteOrder: number }) => y.suiteOrder - x.suiteOrder,
+      )[0].id as string;
+
+    await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    // While the sequence is live, a manual execute of a later step is refused.
+    let refused = false;
+    for (let i = 0; i < 20; i++) {
+      const seq = (await as(off, 'GET', '/api/suites/sequences')).json() as {
+        sequences: Record<string, unknown>;
+      };
+      if (suiteId in seq.sequences) {
+        const r = await as(eng, 'POST', `/api/campaigns/${lastStep}/execute`);
+        if (r.statusCode === 409) {
+          refused = true;
+          break;
+        }
+      }
+      await sleep(150);
+    }
+    expect(refused).toBe(true);
+    await as(off, 'POST', `/api/suites/${suiteId}/cancel`);
+  }, 40000);
+
   it('cancels a single unrun campaign, and refuses to cancel it twice', async () => {
     const created = await as(eng, 'POST', '/api/campaigns', {
       name: 'Cancel me',

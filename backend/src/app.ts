@@ -379,18 +379,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const suiteRuns = new Map<string, SuiteControl>();
   const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-  async function runSuiteSequence(suiteId: string, actor: string): Promise<void> {
-    const members = (await store.listCampaigns())
-      .filter((c) => c.suiteId === suiteId)
-      .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
-    const ctrl: SuiteControl = {
-      paused: false,
-      cancelled: false,
-      total: members.length,
-      started: 0,
-    };
+  /** Reserve a suite's run slot synchronously (atomic guard). Returns null if a
+   *  sequence is already registered for it — the caller must 409. Reserving
+   *  before any `await` is what prevents a double-submit from starting two
+   *  concurrent sequences (which would run two steps at once). */
+  function reserveSuiteRun(suiteId: string): SuiteControl | null {
+    if (suiteRuns.has(suiteId)) return null;
+    const ctrl: SuiteControl = { paused: false, cancelled: false, total: 0, started: 0 };
     suiteRuns.set(suiteId, ctrl);
+    return ctrl;
+  }
+
+  async function runSuiteSequence(
+    suiteId: string,
+    actor: string,
+    reserved?: SuiteControl,
+  ): Promise<void> {
+    // Use the pre-reserved control when the caller already claimed the slot
+    // (the /run endpoint does, synchronously); otherwise claim it now.
+    const ctrl = reserved ?? reserveSuiteRun(suiteId);
+    if (!ctrl) return; // a sequence is already running for this suite
     try {
+      const members = (await store.listCampaigns())
+        .filter((c) => c.suiteId === suiteId)
+        .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
+      ctrl.total = members.length;
       for (const m of members) {
         if (ctrl.cancelled) break;
         // Pause gate: hold between steps while paused (a cancel breaks out).
@@ -1105,6 +1118,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       const c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campaign not found' });
+      // A step whose suite sequence is running is driven by the sequencer — a
+      // manual run here would put two steps in flight at once. Refuse it.
+      if (c.suiteId && suiteRuns.has(c.suiteId)) {
+        return reply.code(409).send({
+          error:
+            'This campaign is part of a running assessment sequence — pause or cancel the ' +
+            'sequence before running a step manually.',
+        });
+      }
       try {
         assertExecutable(c);
       } catch (err) {
@@ -1141,13 +1163,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const suiteId = (req.params as { id: string }).id;
     const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
     if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
-    if (suiteRuns.has(suiteId)) {
+    // Reserve the slot synchronously here — BEFORE the audit await below — so two
+    // near-simultaneous submits can't both pass the guard and start two
+    // sequences (which would run two steps at once).
+    const ctrl = reserveSuiteRun(suiteId);
+    if (!ctrl) {
       return reply.code(409).send({ error: 'this suite sequence is already running' });
     }
+    ctrl.total = members.length;
     const actor = req.authUser?.email ?? 'dev';
     await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
     // Do not await — the whole sequence can run for many minutes.
-    void runSuiteSequence(suiteId, actor);
+    void runSuiteSequence(suiteId, actor, ctrl);
     return reply.code(202).send({ suiteId, steps: members.length, started: true });
   });
 
