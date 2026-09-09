@@ -210,7 +210,12 @@ export async function runLoadTest(
   const phases = config.phases?.length
     ? config.phases
     : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
-  const totalMs = phases.reduce((s, p) => s + p.durationSec * 1000, 0);
+  const phasesMs = phases.reduce((s, p) => s + p.durationSec * 1000, 0);
+  // Hard rule: a run NEVER lasts longer than the campaign's maxDurationSec
+  // (config.durationSec), even if the phases were configured to sum beyond it.
+  // The absolute per-run cap always wins — this is what stops a scenario whose
+  // phases overshoot from running "in the void" past its stated duration.
+  const totalMs = Math.min(phasesMs, config.durationSec * 1000);
   const deadline = startedAt.getTime() + totalMs;
   const shouldStop = (): boolean => Date.now() >= deadline || killSignal?.aborted === true;
 
@@ -267,6 +272,13 @@ export async function runLoadTest(
     const t0 = performance.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Abort an in-flight request immediately when the kill switch fires (manual
+    // stop, suite cancel, or the time-based timeout) — don't wait out its own
+    // per-request timeout. Without this a killed run keeps draining requests for
+    // up to `timeoutMs` against a tarpitting target.
+    const reqSignal = killSignal
+      ? AbortSignal.any([controller.signal, killSignal])
+      : controller.signal;
     // Rotate the User-Agent per request when a set is configured.
     let sendHeaders = headers ?? config.headers;
     if (userAgents) {
@@ -280,7 +292,7 @@ export async function runLoadTest(
         method,
         headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
-        signal: controller.signal,
+        signal: reqSignal,
         // Never auto-follow redirects: a 3xx to an off-allowlist host would
         // otherwise escape the allowlist (SSRF). A redirect is measured as the
         // 3xx it is, against the allowlisted host we were told to hit.

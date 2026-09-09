@@ -1,6 +1,7 @@
 import { createStore } from './store/index.js';
 import { initAuth } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
+import { reconcileOrphanedRuns } from './runtime/reconcile.js';
 import { dueCampaigns } from './modules/campaigns/scheduler.js';
 import { selectAgent } from './agents/index.js';
 import { createNotifier, notifyConfigFromEnv } from './modules/notify/notifier.js';
@@ -84,6 +85,21 @@ const { app, runCampaign } = await buildApp({
   // networked/public deployment). Off by default (single-officer approval).
   requireCisoApproval: process.env.REQUIRE_CISO_APPROVAL === '1',
 });
+
+// --- Reconcile orphaned RUNNING campaigns -----------------------------------
+// At boot the in-memory kill registry is empty, so any campaign the store still
+// marks RUNNING was left by a previous process that died mid-run (a deploy
+// restart, crash or OOM). That run is NOT in flight: it can never be killed or
+// completed and would sit "stuck" forever — the kill/cancel endpoints 404
+// because there is no live run to stop. Reset each back to APPROVED (re-runnable)
+// with a note, mirroring runCampaign's own failure path, so operators can act on
+// it again.
+{
+  const reset = await reconcileOrphanedRuns(store);
+  if (reset > 0) {
+    app.log.warn(`reconciled ${reset} orphaned RUNNING campaign(s) at startup → APPROVED`);
+  }
+}
 
 // --- Scheduler (CAM-01): runs due scheduled campaigns -----------------------
 if (SCHEDULER) {
