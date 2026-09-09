@@ -184,11 +184,16 @@ export async function executeCampaign(
 
   let generator: LoadTestResult;
   try {
+    // Hard wall-clock bound: the probe (and thus this Promise.all) must always
+    // terminate near the cap, even if the kill switch never fires — a run can
+    // never hang open past maxDurationSec + a small grace. The load engine
+    // self-bounds on the same clock via its own deadline.
+    const probeHardDeadlineMs = startedMs + campaign.maxDurationSec * 1000 + 20_000;
     [generator] = await Promise.all([
       agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
         gen = p;
       }),
-      probe.run(),
+      probe.run(probeHardDeadlineMs),
     ]);
   } finally {
     clearTimeout(timeoutTimer);
