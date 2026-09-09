@@ -20,7 +20,7 @@ import {
 import { executeCampaign } from './modules/campaigns/runner.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
-import type { Campaign, CampaignInput } from './modules/campaigns/model.js';
+import type { Campaign, CampaignInput, CampaignStatus } from './modules/campaigns/model.js';
 import { HARD_CAPS, clampToCeiling, withinCeiling } from './config/limits.js';
 import type { HardCaps } from './config/limits.js';
 import {
@@ -271,6 +271,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         status: 'RUNNING',
         engine: runAgent.name,
       });
+    // Seed a zeroed progress record immediately: the run opens with a baseline
+    // capture (awaited, a few seconds) during which the engine emits no
+    // progress. Without this seed the live stream would find no record and tell
+    // the UI the run is "done", stranding the progress view on "Starting run…".
+    // Cleared in the finally below; onProgress overwrites it once load begins.
+    onProgress({ sent: 0, successful: 0, failed: 0, elapsedSec: 0, actualRps: 0 });
     try {
       const run = await executeCampaign(
         c,
@@ -1123,14 +1129,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       connection: 'keep-alive',
     });
     const send = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
-    send(liveProgress.get(id) ?? { status: 'idle' });
-    const timer = setInterval(() => {
+    const TERMINAL: CampaignStatus[] = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'REJECTED'];
+    // Initial frame: current progress if any, else "waiting" (never "done" on
+    // connect — the UI closes the stream on "done", so a premature one would
+    // strand the progress view).
+    send(liveProgress.get(id) ?? { status: 'waiting' });
+    // Only close when the campaign has actually reached a terminal state. While
+    // it is still RUNNING/APPROVED/PENDING (e.g. the baseline capture before
+    // load, or a suite step awaiting its turn) there may be no live record yet —
+    // emit a "waiting" keepalive instead of a premature "done".
+    const timer = setInterval(async () => {
       const p = liveProgress.get(id);
-      if (p) send(p);
-      else {
+      if (p) return send(p);
+      const c = await store.getCampaign(id);
+      if (!c || TERMINAL.includes(c.status)) {
         send({ status: 'done' });
         clearInterval(timer);
         res.end();
+      } else {
+        send({ status: 'waiting' });
       }
     }, 1000);
     req.raw.on('close', () => clearInterval(timer));

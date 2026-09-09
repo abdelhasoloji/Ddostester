@@ -86,6 +86,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     createBenchRun: vi.fn().mockResolvedValue({}),
     benchCoverage: vi.fn().mockResolvedValue({ coverage: [] }),
     recordBenchCoverage: vi.fn().mockResolvedValue({}),
+    runSuite: vi.fn().mockResolvedValue({ suiteId: 's', steps: 3, started: true }),
     ...overrides,
   };
 }

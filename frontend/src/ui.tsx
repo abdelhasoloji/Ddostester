@@ -153,13 +153,22 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
 
 function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: string }) {
   const [p, setP] = useState<LiveProgressData | null>(null);
+  const [waiting, setWaiting] = useState(false);
   useEffect(() => {
     const es = new EventSource(streamUrl(campaignId));
     es.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
-        if (d.status === 'RUNNING') setP(d);
-        else if (d.status === 'done') es.close();
+        if (d.status === 'RUNNING') {
+          setP(d);
+          setWaiting(false);
+        } else if (d.status === 'waiting') {
+          // Run has started but is still capturing the pre-load baseline — keep
+          // the stream open (don't close) and show a "capturing baseline" note.
+          setWaiting(true);
+        } else if (d.status === 'done') {
+          es.close();
+        }
       } catch {
         /* ignore */
       }
@@ -172,7 +181,7 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
       <div className="details">
         <span className="hint">
           <span className="spin" />
-          Starting run…
+          {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
         </span>
       </div>
     );

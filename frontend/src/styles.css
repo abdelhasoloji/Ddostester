@@ -1878,6 +1878,36 @@ table.remediations td {
 .suite-steps .chip-xs.step-pending {
   color: var(--muted);
 }
+.suite-steps .chip-xs.step-approved {
+  border-color: var(--brand);
+  color: var(--text);
+}
+
+/* Assessment-suite banner (one-approval + live sequence progress) */
+.suite-banners {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.suite-banner {
+  border: 1px solid var(--brand);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+.suite-banner-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.suite-banner-status {
+  min-height: 1.1rem;
+  font-size: 0.85rem;
+}
 
 /* Protection-gap planner (RPT-05) */
 .gap-controls {

@@ -18,6 +18,7 @@ import type {
   BenchRun,
   CoverageMethod,
   Campaign,
+  CampaignStatus,
   HardCaps,
   ManagedUser,
   Role,
@@ -283,6 +284,162 @@ const STATUS_FILTERS: { id: StatusFilterId; label: string; match: (c: Campaign) 
 ];
 type SortId = 'recent' | 'name' | 'wrs';
 
+const TERMINAL_STATUS: CampaignStatus[] = ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'REJECTED'];
+
+interface SuiteGroup {
+  suiteId: string;
+  suiteName: string;
+  target: string;
+  members: Campaign[];
+  total: number;
+  done: number;
+  running: number;
+  pending: number;
+  remaining: number;
+  current?: Campaign;
+}
+
+/** Group the campaign list into the suites it belongs to (newest first). */
+export function groupSuites(campaigns: Campaign[]): SuiteGroup[] {
+  const byId = new Map<string, Campaign[]>();
+  for (const c of campaigns) {
+    if (!c.suiteId) continue;
+    const arr = byId.get(c.suiteId) ?? [];
+    arr.push(c);
+    byId.set(c.suiteId, arr);
+  }
+  const groups: SuiteGroup[] = [];
+  for (const [suiteId, raw] of byId) {
+    const members = [...raw].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
+    const done = members.filter((m) => TERMINAL_STATUS.includes(m.status)).length;
+    const running = members.filter((m) => m.status === 'RUNNING').length;
+    const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
+    const current =
+      members.find((m) => m.status === 'RUNNING') ??
+      members.find((m) => !TERMINAL_STATUS.includes(m.status));
+    groups.push({
+      suiteId,
+      suiteName: members[0]?.suiteName ?? 'Assessment suite',
+      target: members[0]?.target ?? '',
+      members,
+      total: members.length,
+      done,
+      running,
+      pending,
+      remaining: members.length - done,
+      current,
+    });
+  }
+  // Newest suite first (suiteId is time-ordered from the backend).
+  return groups.sort((a, b) => b.suiteId.localeCompare(a.suiteId));
+}
+
+/** Strip the redundant "<suite> — " prefix from a member's name for chips. */
+export function stepLabel(c: Campaign, suiteName: string): string {
+  const prefix = `${suiteName} — `;
+  return c.name.startsWith(prefix) ? c.name.slice(prefix.length) : c.name;
+}
+
+/**
+ * One banner per in-flight assessment suite. It replaces approving every step by
+ * hand: a single "Approve & run whole scenario" button approves and runs all
+ * remaining steps in order (governed by the existing suite sequencer — the
+ * author≠approver rule still holds), and the banner shows the sequence's live
+ * progression (step k/N, current step, per-step chips) as it advances.
+ */
+export function SuiteRunBanner() {
+  const app = useApp();
+  const canRun = canDo(app.role, 'approve', app.authRequired);
+  const [busy, setBusy] = useState<string | null>(null);
+  const groups = useMemo(() => groupSuites(app.campaigns), [app.campaigns]);
+  const active = groups.filter((g) => g.remaining > 0);
+
+  // Keep the list fresh for the whole sequence — between steps there may be no
+  // RUNNING campaign, so the global "anyRunning" poll can lapse; poll here too.
+  const inFlight = active.length > 0;
+  useEffect(() => {
+    if (!inFlight) return;
+    const t = setInterval(() => app.refresh(), 3000);
+    return () => clearInterval(t);
+  }, [inFlight, app]);
+
+  if (active.length === 0) return null;
+
+  const runWhole = async (g: SuiteGroup) => {
+    setBusy(g.suiteId);
+    try {
+      const r = await api.runSuite(g.suiteId);
+      app.push('success', `Scenario approved — ${r.steps} steps will run in order.`);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="suite-banners">
+      {active.map((g) => {
+        const pct = Math.round((g.done / Math.max(g.total, 1)) * 100);
+        const sequencing = g.running > 0;
+        const label = busy === g.suiteId ? 'Starting…' : sequencing ? 'Running…' : undefined;
+        return (
+          <div key={g.suiteId} className="suite-banner">
+            <div className="suite-banner-head">
+              <div>
+                <b>{g.suiteName}</b> <code>{g.target}</code>
+                <span className="hint" style={{ marginLeft: '.5rem' }}>
+                  {g.done}/{g.total} steps done
+                  {g.pending ? ` · ${g.pending} awaiting approval` : ''}
+                </span>
+              </div>
+              {canRun && (
+                <button
+                  className="btn btn-sm btn-primary"
+                  disabled={busy === g.suiteId || sequencing}
+                  onClick={() => runWhole(g)}
+                  title="One approval for the whole scenario: approves + runs every remaining step in order"
+                >
+                  {label ?? `▶ Approve & run whole scenario (${g.remaining})`}
+                </button>
+              )}
+            </div>
+            <div className="live-bar" aria-label="Scenario progress">
+              <div className="live-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="suite-banner-status">
+              {sequencing && g.current ? (
+                <span className="hint">
+                  <span className="spin" /> Running step {(g.current.suiteOrder ?? 0) + 1}/{g.total}
+                  : <b>{stepLabel(g.current, g.suiteName)}</b>
+                </span>
+              ) : g.current ? (
+                <span className="hint">
+                  Next: step {(g.current.suiteOrder ?? 0) + 1}/{g.total}{' '}
+                  <b>{stepLabel(g.current, g.suiteName)}</b>
+                </span>
+              ) : null}
+            </div>
+            <div className="suite-steps">
+              {g.members.map((m) => (
+                <span
+                  key={m.id}
+                  className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
+                  title={m.status}
+                >
+                  {(m.suiteOrder ?? 0) + 1}. {stepLabel(m, g.suiteName)}
+                  {m.wrs ? ` · ${m.wrs.wrs} ${m.wrs.level}` : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CampaignsPage() {
   const app = useApp();
   const [q, setQ] = useState('');
@@ -315,6 +472,8 @@ export function CampaignsPage() {
   return (
     <>
       <PageHead title="Campaigns" sub={app.anyRunning ? 'Auto-refreshing…' : undefined} />
+
+      <SuiteRunBanner />
 
       {canCreate && !showForm && (
         <div className="page-actions">
