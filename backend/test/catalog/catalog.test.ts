@@ -1821,8 +1821,13 @@ describe('V. Campaign shapes (all campaign types)', () => {
       );
       expect([...seenPaths].some((p) => p.includes('q=alpha') || p.includes('q=beta'))).toBe(true);
 
-      // B) endpoint mix spreads across both paths.
+      // B) endpoint mix spreads across both paths. Use enough requests
+      // (maxRps × duration) that an equal-weight random split hits BOTH paths
+      // deterministically — a handful of requests can miss one purely by chance.
       const b = await runShape({
+        maxRps: 40,
+        concurrency: 5,
+        maxDurationSec: 2,
         endpoints: [
           { url: `${base}/mix-a`, weight: 1 },
           { url: `${base}/mix-b`, weight: 1 },
