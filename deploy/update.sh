@@ -50,7 +50,12 @@ deploy_current() {
       ;;
     systemd)
       npm ci
-      npm run build
+      # Stamp the UI version from this (known-good) git context and pass it to
+      # the build via env: git inside Vite can fail on the server (dubious
+      # ownership / sanitized HOME), which used to leave the footer at "+0 · dev".
+      SHIELDTEST_COMMIT="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)" \
+      SHIELDTEST_BUILD="$(git -C "$REPO_DIR" rev-list --count HEAD 2>/dev/null || echo 0)" \
+        npm run build
       npm test
       sudo -n systemctl restart "${SERVICE}"
       ;;
