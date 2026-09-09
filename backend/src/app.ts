@@ -838,6 +838,48 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     coverage: await store.listBenchCoverage(),
   }));
 
+  // Protection metrics adapter: exposes the latest lab-scrubber-measured
+  // detection/mitigation timing in the exact shape the protection pull-connector
+  // (PROTECTION_METRICS_URL → PollProtectionProvider) expects. Point
+  // PROTECTION_METRICS_URL at this route so a campaign's WRS uses the lab's REAL
+  // measured TTD/TTM (source 'wedos-lab-scrubber') instead of a conservative
+  // estimate. Class-C lab measurements are not campaign-scoped, so the pull
+  // connector's query window (campaignId/target/from/to) is ignored and the most
+  // recent completed lab measurement is returned. When no lab mitigation has been
+  // measured yet, it 404s so the connector cleanly falls back to the estimate —
+  // never a fabricated zero.
+  //
+  // No user guard: the connector GETs this unauthenticated over loopback with a
+  // fixed marker header. We require that header and rely on the loopback-only
+  // bind; the response only ever carries aggregate lab timing, never secrets.
+  app.get('/api/protection/lab-metrics', async (req, reply) => {
+    if (req.headers['x-wedos-shieldtest'] !== 'protection-query') {
+      return reply.code(404).send({ error: 'not found' });
+    }
+    const runs = await store.listBenchRuns();
+    const latest = runs.find(
+      (r) =>
+        r.status === 'COMPLETED' &&
+        r.verdict?.class === 'C' &&
+        r.verdict.mitigation != null &&
+        typeof r.verdict.mitigation.detectionSec === 'number',
+    );
+    const m = latest?.verdict?.mitigation;
+    if (!m || typeof m.detectionSec !== 'number') {
+      return reply.code(404).send({ error: 'no lab measurement available' });
+    }
+    return {
+      detectionTimeSec: m.detectionSec,
+      // Mitigation starts at detection when the scrubber engages (mirrors the
+      // lab scrubber's own /protection contract); 0 when it never engaged.
+      mitigationTimeSec: m.engaged ? m.detectionSec : 0,
+      source: 'wedos-lab-scrubber',
+      strategy: m.strategy,
+      scenario: latest?.verdict?.scenario,
+      measuredAt: latest?.verdict?.generatedAt,
+    };
+  });
+
   app.post('/api/bench/coverage', { preHandler: guard('bench:attest') }, async (req, reply) => {
     let entry: Omit<BenchCoverage, 'id' | 'at'>;
     try {

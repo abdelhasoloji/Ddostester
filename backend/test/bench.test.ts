@@ -133,6 +133,46 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(measured).toBeTruthy();
   });
 
+  it('serves the latest lab-scrubber mitigation timing to the protection connector', async () => {
+    // Dispatch, claim and post a verdict where the scrubber DID engage.
+    const created = await asCiso('POST', '/api/bench/runs', { scenario: 'udp_dns_reflection' });
+    const run = created.json();
+    const claimed = await asRunner('/api/bench/runs/next/claim', { runner: 'lab-runner-1' });
+    const claimedId = claimed.json().id ?? run.id;
+    const mitigated = {
+      ...validVerdict,
+      outcome: 'MITIGATED',
+      mitigation: {
+        strategy: 'adaptive',
+        engaged: true,
+        detectionSec: 12,
+        dropped: 300,
+        collateralPct: 2,
+      },
+    };
+    const done = await asRunner(`/api/bench/runs/${claimedId}/result`, { verdict: mitigated });
+    expect(done.statusCode).toBe(200);
+
+    // The pull connector GETs with the marker header; the adapter maps the
+    // verdict's mitigation timing into the protection-measurement shape.
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/protection/lab-metrics?campaignId=c1&target=bank.cz&from=a&to=b',
+      headers: { 'x-wedos-shieldtest': 'protection-query' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      detectionTimeSec: 12,
+      mitigationTimeSec: 12, // mitigation starts at detection when engaged
+      source: 'wedos-lab-scrubber',
+      strategy: 'adaptive',
+    });
+
+    // Not exposed without the connector's marker header.
+    const noHeader = await app.inject({ method: 'GET', url: '/api/protection/lab-metrics' });
+    expect(noHeader.statusCode).toBe(404);
+  });
+
   it('lets the CISO record coverage for an out-of-model vector (attestation)', async () => {
     const r = await asCiso('POST', '/api/bench/coverage', {
       vector: 'ip_spoofing',
