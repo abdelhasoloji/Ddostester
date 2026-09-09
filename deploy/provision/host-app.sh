@@ -21,10 +21,12 @@ DB_USER="${DB_USER:-shieldtest}"
 : "${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET}"
 : "${ALLOWED_TARGETS:?set ALLOWED_TARGETS (e.g. bank.cz)}"
 
-echo "==> apt prerequisites (git, curl, postgresql, node 22)"
+echo "==> apt prerequisites (sudo, git, curl, postgresql, node 22)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq git curl ca-certificates postgresql >/dev/null
+# `sudo` is NOT present on a minimal Debian image, yet this script (and
+# setup.sh) rely on `sudo -u postgres` / `sudo -u shieldtest`.
+apt-get install -y -qq sudo git curl ca-certificates postgresql >/dev/null
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
   apt-get install -y -qq nodejs >/dev/null
@@ -37,8 +39,21 @@ sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'
   sudo -u postgres psql -qc "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
 
 echo "==> service user + repo clone"
-id -u "$SVC_USER" >/dev/null 2>&1 || adduser --system --group "$SVC_USER"
-SVC_HOME="$(getent passwd "$SVC_USER" | cut -d: -f6)"; SVC_HOME="${SVC_HOME:-/home/$SVC_USER}"
+SVC_HOME="/home/$SVC_USER"
+# `adduser --system` defaults the home to /nonexistent, which the git clone
+# below cannot write to — pin a real, writable home (and shell).
+if ! id -u "$SVC_USER" >/dev/null 2>&1; then
+  adduser --system --home "$SVC_HOME" --shell /bin/bash --group "$SVC_USER"
+fi
+# Repair a service user created earlier with an unusable home, moving any
+# existing .ssh (its deploy key) so it stays valid.
+CUR_HOME="$(getent passwd "$SVC_USER" | cut -d: -f6)"
+if [ "$CUR_HOME" != "$SVC_HOME" ]; then
+  mkdir -p "$SVC_HOME"
+  if [ -d "$CUR_HOME/.ssh" ] && [ ! -d "$SVC_HOME/.ssh" ]; then mv "$CUR_HOME/.ssh" "$SVC_HOME/.ssh"; fi
+  usermod -d "$SVC_HOME" "$SVC_USER"
+  chown -R "$SVC_USER:$SVC_USER" "$SVC_HOME"
+fi
 install -d -m 700 -o "$SVC_USER" -g "$SVC_USER" "$SVC_HOME/.ssh"
 if [ ! -f "$SVC_HOME/.ssh/id_ed25519" ]; then
   sudo -u "$SVC_USER" ssh-keygen -t ed25519 -f "$SVC_HOME/.ssh/id_ed25519" -N "" -q

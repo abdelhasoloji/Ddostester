@@ -107,5 +107,24 @@ control plane.
 
 Note: `pretest-cra-l7`'s login step targets `/realms/srp/account` (the CRA
 path). Against `bank.cz`, set the target path or expect a 404 on that step —
-adjust the step's `paths` if bank.cz uses a different login route. See
+adjust the step's `paths` if bank.cz uses a different login route (the recon
+in the **Preparation** phase finds the real one). See
 `docs/pretest-p26-20371.md` for the line-by-line mapping and the gap register.
+
+## Operational gotchas (learned in bring-up)
+
+- **WEDOS VPN filters the VPS subnet.** SSH and the KVM console to the VPS time
+  out while the WEDOS VPN is connected (it filters `31.31.74.0/24`). Disconnect
+  the VPN for admin access. A `443` connection is refused (host reachable) while
+  `22` times out — that mixed signal is the tell.
+- **Minimal Debian image has no `sudo`.** `host-app.sh` now installs it; if you
+  bootstrap by hand, `apt-get install -y sudo` first.
+- **`adduser --system` gives `/nonexistent` as home**, which the service clone
+  cannot write to. `host-app.sh` now pins `/home/shieldtest`; an older run is
+  repaired in place (its `.ssh` deploy key is moved, not regenerated).
+- **The API listens on loopback only.** Reach the UI from your workstation with
+  an SSH tunnel _run on the workstation_ (not on the VPS):
+  `ssh -L 8080:127.0.0.1:8080 root@<VPS1_IP>`, then open `http://localhost:8080`.
+- **Auth needs at least two users** (author ≠ approver). Generate hashes with
+  `node -e 'import("./backend/dist/auth/passwords.js").then(m=>console.log(m.hashPassword(process.argv[1])))' '<pw>'`
+  and set `AUTH_USERS` (an `engineer` + an `officer`) in `/etc/ddostester.env`.
