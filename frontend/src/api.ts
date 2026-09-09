@@ -476,6 +476,7 @@ export const api = {
     fetch('/health').then((r) =>
       json<{
         status: string;
+        version?: { version: string; build: string; commit: string; builtAt?: string };
         allowedTargets: string[];
         labTargets?: string[];
         storage: string;

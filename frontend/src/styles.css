@@ -820,6 +820,22 @@ input.invalid {
   color: var(--muted);
   opacity: 0.75;
 }
+.version-tag-warn {
+  color: var(--warning, #b8860b);
+  opacity: 1;
+}
+.build-mismatch {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--warning, #b8860b);
+  border-radius: 8px;
+  background: rgba(217, 119, 6, 0.1);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.build-mismatch code {
+  font-family: var(--mono);
+}
 .main {
   max-width: 1040px;
   width: 100%;

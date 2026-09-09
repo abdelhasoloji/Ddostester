@@ -33,7 +33,7 @@ import type {
 } from './api.js';
 import { RECORDABLE_METHODS, GAP_CONTROLS } from './api.js';
 import { useApp, canDo } from './context.js';
-import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
+import { APP_VERSION_LABEL, APP_BUILT, APP_COMMIT } from './version.js';
 import {
   ApproveModal,
   CampaignCard,
@@ -102,9 +102,26 @@ function ThemeToggle() {
   );
 }
 
+/**
+ * True when the API server serves a different commit than this bundle was built
+ * from — i.e. a partial deploy or a stale cached bundle (exactly the "served old
+ * code" trap we hit). Only fires when both commits are real (not "dev").
+ */
+export function isBuildMismatch(
+  server: { commit: string } | null,
+  frontendCommit: string = APP_COMMIT,
+): boolean {
+  if (!server) return false;
+  const s = server.commit;
+  if (!s || s === 'dev' || !frontendCommit || frontendCommit === 'dev') return false;
+  return s !== frontendCommit;
+}
+
 export function Layout() {
   const app = useApp();
   const { toasts } = app;
+  const sv = app.serverVersion;
+  const mismatch = isBuildMismatch(sv);
   return (
     <>
       <div className="accent-line" />
@@ -148,13 +165,27 @@ export function Layout() {
                 Dev mode · operator <b>{app.operator || '—'}</b>
               </span>
             )}
-            <span className="version-tag" title={APP_BUILT ? `Built ${APP_BUILT}` : undefined}>
+            <span
+              className={`version-tag${mismatch ? ' version-tag-warn' : ''}`}
+              title={
+                (APP_BUILT ? `UI built ${APP_BUILT}` : 'UI') +
+                (sv ? ` · server v${sv.version}+${sv.build} · ${sv.commit}` : '')
+              }
+            >
+              {mismatch ? '⚠ ' : ''}
               {APP_VERSION_LABEL}
             </span>
           </div>
         </aside>
 
         <main className="main">
+          {mismatch && sv && (
+            <div className="build-mismatch" role="alert">
+              ⚠ UI/API build mismatch — this page was built from <code>{APP_COMMIT}</code> but the
+              server is serving <code>{sv.commit}</code> (v{sv.version}+{sv.build}). Hard-reload
+              (Cmd/Ctrl-Shift-R); if it persists, the server needs a rebuild/restart.
+            </div>
+          )}
           <PhaseRail />
           <Outlet />
         </main>

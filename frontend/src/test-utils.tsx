@@ -13,6 +13,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     hardCapsCeiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     applyEffectiveCaps: vi.fn(),
     agentName: 'builtin-http',
+    serverVersion: null,
     notifications: [],
     protection: false,
     tlsInsecure: false,

@@ -46,6 +46,8 @@ interface Ctx {
   /** Immutable absolute ceiling; the CISO can never set an operational cap above it. */
   hardCapsCeiling: HardCaps;
   agentName: string;
+  /** Build stamp of the running API server (from /health), for a mismatch check. */
+  serverVersion: { version: string; build: string; commit: string; builtAt?: string } | null;
   notifications: string[];
   protection: boolean;
   tlsInsecure: boolean;
@@ -109,6 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hardCaps, setHardCaps] = useState<HardCaps>(DEFAULT_CAPS);
   const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(DEFAULT_CAPS);
   const [agentName, setAgentName] = useState('');
+  const [serverVersion, setServerVersion] = useState<Ctx['serverVersion']>(null);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
   const [tlsInsecure, setTlsInsecure] = useState(false);
@@ -164,6 +167,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
         setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
         setAgentName(h.agent ?? '');
+        setServerVersion(h.version ?? null);
         setNotifications(h.notifications ?? []);
         setProtection(h.protection ?? false);
         setTlsInsecure(h.tlsInsecure ?? false);
@@ -327,6 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     hardCaps,
     hardCapsCeiling,
     agentName,
+    serverVersion,
     notifications,
     protection,
     tlsInsecure,

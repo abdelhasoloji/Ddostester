@@ -70,6 +70,7 @@ import {
   PlaybookError,
 } from './modules/playbooks/playbooks.js';
 import { tlsInsecure } from './util/tls.js';
+import { getBuildInfo } from './version.js';
 
 export interface BuildOptions {
   store: Store;
@@ -427,6 +428,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/health', async () => ({
     status: 'ok',
+    // Build stamp of THIS running server — lets you confirm which commit the API
+    // actually serves (the frontend footer only reflects the bundle it shipped).
+    version: getBuildInfo(),
     allowedTargets,
     labTargets,
     storage: store.backend,

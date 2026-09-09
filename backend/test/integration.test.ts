@@ -38,6 +38,14 @@ describe('API — auth disabled', () => {
     expect(b.storage).toBe('memory');
   });
 
+  it('health reports a well-formed build stamp', async () => {
+    const b = (await app.inject({ method: 'GET', url: '/health' })).json();
+    expect(b.version).toBeTruthy();
+    expect(typeof b.version.version).toBe('string');
+    expect(typeof b.version.build).toBe('string');
+    expect(typeof b.version.commit).toBe('string');
+  });
+
   it('sets security headers on responses', async () => {
     const r = await app.inject({ method: 'GET', url: '/health' });
     expect(r.headers['x-content-type-options']).toBe('nosniff');

@@ -5,11 +5,13 @@ Base: `http://127.0.0.1:8080` (via SSH tunnel). JSON responses, except the repor
 
 ## `GET /health`
 
-Service status and allowed targets.
+Service status, the running build stamp, and allowed targets. `version` is the
+commit THIS API process serves (`{version, build, commit, builtAt}`) — use it to
+confirm a deploy actually landed, independently of the UI bundle's own footer.
 
 ```bash
 curl -s localhost:8080/health
-# {"status":"ok","allowedTargets":["127.0.0.1","localhost"]}
+# {"status":"ok","version":{"version":"0.1.0","build":"176","commit":"2a39232"},"allowedTargets":["127.0.0.1","localhost"]}
 ```
 
 ## `POST /api/campaigns`
