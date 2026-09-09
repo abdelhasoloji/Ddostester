@@ -23,6 +23,7 @@ import type {
   ManagedUser,
   Role,
   SuiteSummary,
+  SuiteSequenceState,
   WrsBreakdown,
   ControlKey,
   ControlStatus,
@@ -351,26 +352,37 @@ export function SuiteRunBanner() {
   const app = useApp();
   const canRun = canDo(app.role, 'approve', app.authRequired);
   const [busy, setBusy] = useState<string | null>(null);
+  const [sequences, setSequences] = useState<Record<string, SuiteSequenceState>>({});
   const groups = useMemo(() => groupSuites(app.campaigns), [app.campaigns]);
   const active = groups.filter((g) => g.remaining > 0);
 
   // Keep the list fresh for the whole sequence — between steps there may be no
-  // RUNNING campaign, so the global "anyRunning" poll can lapse; poll here too.
+  // RUNNING campaign, so the global "anyRunning" poll can lapse; poll here too,
+  // and refresh the live sequence-control state (paused / current step).
   const inFlight = active.length > 0;
+  const pullSequences = () =>
+    api
+      .suiteSequences()
+      .then((r) => setSequences(r.sequences))
+      .catch(() => undefined);
   useEffect(() => {
     if (!inFlight) return;
-    const t = setInterval(() => app.refresh(), 3000);
+    pullSequences();
+    const t = setInterval(() => {
+      app.refresh();
+      pullSequences();
+    }, 3000);
     return () => clearInterval(t);
   }, [inFlight, app]);
 
   if (active.length === 0) return null;
 
-  const runWhole = async (g: SuiteGroup) => {
-    setBusy(g.suiteId);
+  const act = async (id: string, fn: () => Promise<unknown>, ok: string) => {
+    setBusy(id);
     try {
-      const r = await api.runSuite(g.suiteId);
-      app.push('success', `Scenario approved — ${r.steps} steps will run in order.`);
-      await app.refresh();
+      await fn();
+      app.push('success', ok);
+      await Promise.all([app.refresh(), pullSequences()]);
     } catch (err) {
       app.push('error', (err as Error).message);
     } finally {
@@ -382,37 +394,100 @@ export function SuiteRunBanner() {
     <div className="suite-banners">
       {active.map((g) => {
         const pct = Math.round((g.done / Math.max(g.total, 1)) * 100);
-        const sequencing = g.running > 0;
-        const label = busy === g.suiteId ? 'Starting…' : sequencing ? 'Running…' : undefined;
+        const seq = sequences[g.suiteId];
+        const sequencing = Boolean(seq) || g.running > 0;
+        const paused = seq?.paused ?? false;
+        const isBusy = busy === g.suiteId;
         return (
-          <div key={g.suiteId} className="suite-banner">
+          <div key={g.suiteId} className={`suite-banner${paused ? ' suite-banner-paused' : ''}`}>
             <div className="suite-banner-head">
               <div>
                 <b>{g.suiteName}</b> <code>{g.target}</code>
                 <span className="hint" style={{ marginLeft: '.5rem' }}>
                   {g.done}/{g.total} steps done
                   {g.pending ? ` · ${g.pending} awaiting approval` : ''}
+                  {paused ? ' · paused' : ''}
                 </span>
               </div>
               {canRun && (
-                <button
-                  className="btn btn-sm btn-primary"
-                  disabled={busy === g.suiteId || sequencing}
-                  onClick={() => runWhole(g)}
-                  title="One approval for the whole scenario: approves + runs every remaining step in order"
-                >
-                  {label ?? `▶ Approve & run whole scenario (${g.remaining})`}
-                </button>
+                <div className="suite-banner-actions">
+                  {!sequencing ? (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      disabled={isBusy}
+                      onClick={() =>
+                        act(
+                          g.suiteId,
+                          () => api.runSuite(g.suiteId),
+                          `Scenario approved — remaining steps will run in order.`,
+                        )
+                      }
+                      title="One approval for the whole scenario: approves + runs every remaining step in order"
+                    >
+                      {isBusy ? 'Starting…' : `▶ Approve & run whole scenario (${g.remaining})`}
+                    </button>
+                  ) : (
+                    <>
+                      {paused ? (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          disabled={isBusy}
+                          onClick={() =>
+                            act(g.suiteId, () => api.resumeSuite(g.suiteId), 'Scenario resumed.')
+                          }
+                          title="Resume the sequence"
+                        >
+                          ▶ Resume
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-sm"
+                          disabled={isBusy}
+                          onClick={() =>
+                            act(
+                              g.suiteId,
+                              () => api.pauseSuite(g.suiteId),
+                              'Scenario will pause after the current step.',
+                            )
+                          }
+                          title="Pause: the current step finishes, the next won't start until you resume"
+                        >
+                          ⏸ Pause
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-sm btn-danger"
+                        disabled={isBusy}
+                        onClick={() =>
+                          act(
+                            g.suiteId,
+                            () => api.cancelSuite(g.suiteId),
+                            'Scenario cancelled — step in flight stopped.',
+                          )
+                        }
+                        title="Cancel the sequence and kill the step in flight (remaining steps stay approved, not run)"
+                      >
+                        ✕ Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
             <div className="live-bar" aria-label="Scenario progress">
               <div className="live-fill" style={{ width: `${pct}%` }} />
             </div>
             <div className="suite-banner-status">
-              {sequencing && g.current ? (
+              {paused ? (
+                <span className="hint">⏸ Paused — holding before the next step.</span>
+              ) : g.running > 0 && g.current ? (
                 <span className="hint">
                   <span className="spin" /> Running step {(g.current.suiteOrder ?? 0) + 1}/{g.total}
                   : <b>{stepLabel(g.current, g.suiteName)}</b>
+                </span>
+              ) : sequencing ? (
+                <span className="hint">
+                  <span className="spin" /> Advancing the sequence…
                 </span>
               ) : g.current ? (
                 <span className="hint">

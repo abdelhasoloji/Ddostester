@@ -361,15 +361,39 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // (author≠approver still enforced by approveCampaign — a step the runner
   // authored is skipped and audited), then executes it. Runs in the background;
   // progress is read from the member campaigns' statuses. One sequence per suite.
-  const runningSuites = new Set<string>();
+  //
+  // A sequence is controllable while it runs: PAUSE holds it between steps
+  // (the current step finishes, the next does not start) until RESUME; CANCEL
+  // stops it and kills the step in flight. The control lives in `suiteRuns` and
+  // is exposed via GET /api/suites/sequences so the UI can render the state.
+  interface SuiteControl {
+    paused: boolean;
+    cancelled: boolean;
+    /** The member campaign currently executing (for a cancel to kill it). */
+    current?: string;
+    total: number;
+    started: number;
+  }
+  const suiteRuns = new Map<string, SuiteControl>();
+  const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
   async function runSuiteSequence(suiteId: string, actor: string): Promise<void> {
-    runningSuites.add(suiteId);
+    const members = (await store.listCampaigns())
+      .filter((c) => c.suiteId === suiteId)
+      .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
+    const ctrl: SuiteControl = {
+      paused: false,
+      cancelled: false,
+      total: members.length,
+      started: 0,
+    };
+    suiteRuns.set(suiteId, ctrl);
     try {
-      const members = (await store.listCampaigns())
-        .filter((c) => c.suiteId === suiteId)
-        .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
       for (const m of members) {
+        if (ctrl.cancelled) break;
+        // Pause gate: hold between steps while paused (a cancel breaks out).
+        while (ctrl.paused && !ctrl.cancelled) await sleepMs(400);
+        if (ctrl.cancelled) break;
         // Re-fetch: earlier steps may have changed state (and to see manual kills).
         let c = await store.getCampaign(m.id);
         if (!c) continue;
@@ -384,15 +408,19 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           }
         }
         if (c.status !== 'APPROVED') continue; // terminal / rejected → leave as-is
+        ctrl.current = c.id;
+        ctrl.started += 1;
         try {
           await runCampaign(c, actor); // awaits the step's terminal state
         } catch (err) {
           // A failed/blocked step still advances the sequence.
           await auditAs(actor, 'suite.skip', c.id, `run error: ${(err as Error).message}`);
+        } finally {
+          ctrl.current = undefined;
         }
       }
     } finally {
-      runningSuites.delete(suiteId);
+      suiteRuns.delete(suiteId);
     }
   }
 
@@ -1108,7 +1136,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const suiteId = (req.params as { id: string }).id;
     const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
     if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
-    if (runningSuites.has(suiteId)) {
+    if (suiteRuns.has(suiteId)) {
       return reply.code(409).send({ error: 'this suite sequence is already running' });
     }
     const actor = req.authUser?.email ?? 'dev';
@@ -1117,6 +1145,77 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     void runSuiteSequence(suiteId, actor);
     return reply.code(202).send({ suiteId, steps: members.length, started: true });
   });
+
+  // Live state of the in-flight suite sequences (for the UI's pause/cancel
+  // controls). Only sequences currently running appear here.
+  app.get('/api/suites/sequences', { preHandler: guard('campaign:read') }, async () => {
+    const sequences: Record<
+      string,
+      { paused: boolean; current?: string; started: number; total: number }
+    > = {};
+    for (const [sid, ctrl] of suiteRuns) {
+      sequences[sid] = {
+        paused: ctrl.paused,
+        current: ctrl.current,
+        started: ctrl.started,
+        total: ctrl.total,
+      };
+    }
+    return { sequences };
+  });
+
+  // Pause a running sequence: the current step finishes, the next does not
+  // start until resumed. No effect on a step already in flight.
+  app.post(
+    '/api/suites/:id/pause',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const ctrl = suiteRuns.get(suiteId);
+      if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
+      ctrl.paused = true;
+      await audit(req, 'suite.pause', undefined, `sequence paused · ${suiteId}`);
+      return reply.send({ suiteId, paused: true });
+    },
+  );
+
+  // Resume a paused sequence.
+  app.post(
+    '/api/suites/:id/resume',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const ctrl = suiteRuns.get(suiteId);
+      if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
+      ctrl.paused = false;
+      await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
+      return reply.send({ suiteId, paused: false });
+    },
+  );
+
+  // Cancel a running sequence: stop before the next step and kill the step in
+  // flight (its kill switch fires — a KILLED_MANUAL terminal state). Steps not
+  // yet started are left as-is (approved but not run).
+  app.post(
+    '/api/suites/:id/cancel',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const ctrl = suiteRuns.get(suiteId);
+      if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
+      ctrl.cancelled = true;
+      ctrl.paused = false; // release the pause gate so the loop can break out
+      const current = ctrl.current;
+      if (current) kills.get(current)?.trigger('KILLED_MANUAL');
+      await audit(
+        req,
+        'suite.cancel',
+        current,
+        `sequence cancelled · ${suiteId}${current ? ` · killed step in flight` : ''}`,
+      );
+      return reply.send({ suiteId, cancelled: true, killedCurrent: Boolean(current) });
+    },
+  );
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;

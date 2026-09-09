@@ -71,8 +71,11 @@ curl -s -X POST localhost:8080/api/campaigns/<id>/execute
 ## `GET /api/campaigns/:id/stream`
 
 Real-time progress SSE stream during execution (CAM-04): events
-`{sent, successful, failed, elapsedSec, actualRps, maxDurationSec, status}` ~1×/s,
-then `{status:"done"}`. Token via `?token=` (EventSource).
+`{sent, successful, failed, elapsedSec, actualRps, maxDurationSec, status:"RUNNING"}`
+~1×/s. Before load begins (the awaited pre-load baseline capture) or between
+suite steps it emits `{status:"waiting"}` keepalives, and only sends
+`{status:"done"}` — closing the stream — once the campaign is terminal. Token
+via `?token=` (EventSource).
 
 ## `POST /api/campaigns/:id/kill`
 
@@ -224,6 +227,16 @@ their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
   audited `suite.skip`); returns `202 { suiteId, steps, started }` and runs in
   the background (poll `GET /api/suites/:id` to watch step statuses advance).
   `409` if a sequence for that suite is already running. Audited `suite.run`.
+- `GET /api/suites/sequences` — live control state of the in-flight sequences
+  (`campaign:read`): `{ sequences: { [suiteId]: { paused, current, started,
+total } } }`. Only sequences currently running appear.
+- `POST /api/suites/:id/pause` · `/resume` · `/cancel` — **Security Officer**
+  (`campaign:approve`), control a running sequence. **Pause** holds it between
+  steps (the current step finishes, the next doesn't start) until **resume**.
+  **Cancel** stops it and fires the kill switch on the step in flight
+  (`KILLED_MANUAL`); steps not yet started are left as-is (approved/pending, not
+  run). `404` when no sequence is running for that suite. Audited `suite.pause`
+  / `suite.resume` / `suite.cancel`.
 
 ## `POST /api/drs-validations`
 

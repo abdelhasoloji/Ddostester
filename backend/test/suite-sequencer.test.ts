@@ -97,6 +97,85 @@ describe('Multi-step suite sequencer', () => {
     expect(audit).toContain('suite.run');
   }, 40000);
 
+  it('pause/resume/cancel return 404 when no sequence is running', async () => {
+    for (const action of ['pause', 'resume', 'cancel']) {
+      const r = await as(off, 'POST', `/api/suites/does-not-exist/${action}`);
+      expect(r.statusCode).toBe(404);
+    }
+    // No sequences are in flight → empty map.
+    const seq = await as(off, 'GET', '/api/suites/sequences');
+    expect(seq.statusCode).toBe(200);
+    expect(seq.json().sequences).toEqual({});
+  });
+
+  it('cancels a running sequence: kills the step in flight and leaves the rest unrun', async () => {
+    // A 4-step playbook with longer steps, so there is time to cancel mid-flight.
+    const pb = await as(eng, 'POST', '/api/playbooks', {
+      name: 'Cancel test',
+      category: 'Custom',
+      summary: 'four steps',
+      when: 'test',
+      steps: [0, 1, 2, 3].map((i) => ({
+        name: `step-${i}`,
+        maxRps: 5,
+        concurrency: 2,
+        maxDurationSec: 3,
+        profile: 'constant',
+      })),
+    });
+    const pbId = pb.json().id;
+    const inst = await as(eng, 'POST', `/api/playbooks/${pbId}/instantiate`, {
+      target: 'http://127.0.0.1/',
+    });
+    const suiteId = inst.json().campaigns[0].suiteId as string;
+
+    const run = await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    expect(run.statusCode).toBe(202);
+
+    // Wait until the sequence is live (its control state is exposed).
+    let live = false;
+    for (let i = 0; i < 20 && !live; i++) {
+      const seq = (await as(off, 'GET', '/api/suites/sequences')).json() as {
+        sequences: Record<string, unknown>;
+      };
+      live = suiteId in seq.sequences;
+      if (!live) await sleep(200);
+    }
+    expect(live).toBe(true);
+
+    // Cancel it — the step in flight is killed, the sequence stops.
+    const cancel = await as(off, 'POST', `/api/suites/${suiteId}/cancel`);
+    expect(cancel.statusCode).toBe(200);
+    expect(cancel.json().cancelled).toBe(true);
+
+    // The sequence winds down (its control state disappears).
+    let cleared = false;
+    for (let i = 0; i < 40 && !cleared; i++) {
+      const seq = (await as(off, 'GET', '/api/suites/sequences')).json() as {
+        sequences: Record<string, unknown>;
+      };
+      cleared = !(suiteId in seq.sequences);
+      if (!cleared) await sleep(250);
+    }
+    expect(cleared).toBe(true);
+
+    // Not every step ran: cancel stopped the sequence, so later steps stay
+    // APPROVED (never executed).
+    const list = (await as(off, 'GET', '/api/campaigns')).json() as {
+      suiteId?: string;
+      status: string;
+    }[];
+    const members = list.filter((c) => c.suiteId === suiteId);
+    expect(members).toHaveLength(4);
+    // Cancel stopped the sequence, so later steps were never run — they stay
+    // non-terminal (PENDING_APPROVAL, since the sequencer approves just-in-time).
+    const unrun = members.filter((c) => !TERMINAL.includes(c.status));
+    expect(unrun.length).toBeGreaterThan(0);
+
+    const audit = JSON.stringify((await as(off, 'GET', '/api/audit')).json());
+    expect(audit).toContain('suite.cancel');
+  }, 40000);
+
   it('rejects a run for an unknown suite and requires approve permission', async () => {
     expect((await as(off, 'POST', '/api/suites/nope/run')).statusCode).toBe(404);
     // Engineer lacks campaign:approve.

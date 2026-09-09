@@ -79,6 +79,12 @@ describe('stepLabel', () => {
 describe('SuiteRunBanner', () => {
   beforeEach(() => {
     fakeApi.runSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', steps: 2, started: true });
+    fakeApi.pauseSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', paused: true });
+    fakeApi.resumeSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', paused: false });
+    fakeApi.cancelSuite = vi
+      .fn()
+      .mockResolvedValue({ suiteId: 'suite-1', cancelled: true, killedCurrent: true });
+    fakeApi.suiteSequences = vi.fn().mockResolvedValue({ sequences: {} });
   });
 
   it('renders nothing when there is no in-flight suite', () => {
@@ -106,17 +112,57 @@ describe('SuiteRunBanner', () => {
     expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1');
   });
 
-  it('disables the button and shows "Running…" while the sequence is in flight', () => {
+  it('shows Pause + Cancel while a step is running, and surfaces the current step', () => {
     currentApp = makeApp({
       authRequired: true,
       role: 'officer',
       campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);
-    const btn = screen.getByRole('button', { name: /Running…/ });
-    expect(btn).toBeDisabled();
-    // The current running step is surfaced.
+    // A running sequence is controllable, not just a disabled "run" button.
+    expect(screen.getByRole('button', { name: /Pause/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cancel/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Approve & run/ })).toBeNull();
     expect(screen.getByText(/Running step 2\/3:/)).toBeInTheDocument();
+  });
+
+  it('pauses a running sequence via api.pauseSuite', async () => {
+    currentApp = makeApp({
+      authRequired: true,
+      role: 'officer',
+      campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
+    });
+    renderWithRouter(<SuiteRunBanner />);
+    fireEvent.click(screen.getByRole('button', { name: /Pause/ }));
+    await waitFor(() => expect(fakeApi.pauseSuite).toHaveBeenCalledWith('suite-1'));
+  });
+
+  it('cancels a running sequence via api.cancelSuite', async () => {
+    currentApp = makeApp({
+      authRequired: true,
+      role: 'officer',
+      campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
+    });
+    renderWithRouter(<SuiteRunBanner />);
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/ }));
+    await waitFor(() => expect(fakeApi.cancelSuite).toHaveBeenCalledWith('suite-1'));
+  });
+
+  it('shows Resume when the live sequence state reports paused', async () => {
+    fakeApi.suiteSequences = vi
+      .fn()
+      .mockResolvedValue({ sequences: { 'suite-1': { paused: true, started: 1, total: 3 } } });
+    currentApp = makeApp({
+      authRequired: true,
+      role: 'officer',
+      campaigns: [member(0, 'COMPLETED'), member(1, 'APPROVED'), member(2, 'APPROVED')],
+    });
+    renderWithRouter(<SuiteRunBanner />);
+    // The sequence state is fetched async; the Resume control + paused note appear.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Resume/ })).toBeInTheDocument());
+    expect(screen.getByText(/Paused — holding before the next step/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Resume/ }));
+    await waitFor(() => expect(fakeApi.resumeSuite).toHaveBeenCalledWith('suite-1'));
   });
 
   it('hides the run action for a viewer (no approve permission)', () => {

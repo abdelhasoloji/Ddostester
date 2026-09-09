@@ -1908,6 +1908,18 @@ table.remediations td {
   min-height: 1.1rem;
   font-size: 0.85rem;
 }
+.suite-banner-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.suite-banner-paused {
+  border-color: var(--warning, #b8860b);
+}
+.suite-banner-paused .live-fill {
+  animation: none;
+  opacity: 0.6;
+}
 
 /* Protection-gap planner (RPT-05) */
 .gap-controls {

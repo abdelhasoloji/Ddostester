@@ -20,7 +20,10 @@ export interface AuditEntry {
     | 'bench.verdict'
     | 'bench.coverage'
     | 'suite.run'
-    | 'suite.skip';
+    | 'suite.skip'
+    | 'suite.pause'
+    | 'suite.resume'
+    | 'suite.cancel';
   campaignId?: string;
   detail?: string;
   /**

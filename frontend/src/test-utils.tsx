@@ -87,6 +87,10 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     benchCoverage: vi.fn().mockResolvedValue({ coverage: [] }),
     recordBenchCoverage: vi.fn().mockResolvedValue({}),
     runSuite: vi.fn().mockResolvedValue({ suiteId: 's', steps: 3, started: true }),
+    pauseSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: true }),
+    resumeSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: false }),
+    cancelSuite: vi.fn().mockResolvedValue({ suiteId: 's', cancelled: true, killedCurrent: true }),
+    suiteSequences: vi.fn().mockResolvedValue({ sequences: {} }),
     ...overrides,
   };
 }

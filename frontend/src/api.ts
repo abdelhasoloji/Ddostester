@@ -537,6 +537,15 @@ export const api = {
   suites: () => get<SuiteSummary[]>('/api/suites'),
   runSuite: (id: string) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
+  pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
+  resumeSuite: (id: string) =>
+    post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
+  cancelSuite: (id: string) =>
+    post<{ suiteId: string; cancelled: boolean; killedCurrent: boolean }>(
+      `/api/suites/${id}/cancel`,
+    ),
+  suiteSequences: () =>
+    get<{ sequences: Record<string, SuiteSequenceState> }>('/api/suites/sequences'),
   gapAnalysis: (profile: ProtectionProfile, target?: string) =>
     post<GapAnalysis>('/api/reports/gap-analysis', { profile, target }),
   recon: (target: string, probeUrl?: string) => {
@@ -689,6 +698,14 @@ export interface GapAnalysis {
     note: string;
   } | null;
   summary: { high: number; medium: number; low: number; attested: number };
+}
+
+/** Live control state of an in-flight suite sequence (GET /api/suites/sequences). */
+export interface SuiteSequenceState {
+  paused: boolean;
+  current?: string;
+  started: number;
+  total: number;
 }
 
 export interface SuiteSummary {
