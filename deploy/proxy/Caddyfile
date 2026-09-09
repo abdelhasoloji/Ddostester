@@ -1,20 +1,38 @@
-# TLS (+ optional mTLS) reverse proxy in front of the ShieldTest control plane.
-# Terminates TLS and forwards to the API (internal Docker loopback: api:8080).
-# The TSD calls for "HTTPS + mTLS"; this proxy provides that termination.
+# ShieldTest — TLS + mTLS reverse proxy in front of the control plane.
+#
+# The API listens on loopback only (HOST=127.0.0.1); this proxy is the ONLY way
+# in from the network, and it REQUIRES a client certificate signed by our
+# internal CA (mTLS). Generate the PKI and place the certs with
+# deploy/proxy/make-ca-certs.sh — see deploy/proxy/README.md.
+#
+# Env:
+#   SHIELDTEST_DOMAIN    the host clients connect to (domain or public IP)
+#   SHIELDTEST_UPSTREAM  the app address — default 127.0.0.1:8080 (systemd);
+#                        use api:8080 for the docker-compose proxy profile.
 
 {$SHIELDTEST_DOMAIN:shieldtest.internal} {
-	# TLS: self-signed internal certificate by default (this is an internal tool).
-	# For real certificates, replace with `tls email@wedos` (ACME) or `tls cert key`.
-	tls internal {
-		# --- mTLS (client-certificate authentication) -------------------------
-		# Uncomment to REQUIRE a client certificate signed by the WEDOS internal
-		# CA. Mount the CA into the container (see docker-compose, proxy profile).
-		# client_auth {
-		#	mode require_and_verify
-		#	trusted_ca_cert_file /etc/caddy/ca.crt
-		# }
+	# Server certificate. For a public VPS, use our internal-CA server cert
+	# (clients already trust the CA for mTLS). If you have a real domain you may
+	# instead use ACME: replace the whole `tls` block with `tls you@org`.
+	tls /etc/shieldtest/tls/server.crt /etc/shieldtest/tls/server.key {
+		# mTLS — only a client bearing a cert signed by our internal CA gets in.
+		# Caddy ≤2.7 uses `trusted_ca_cert_file`; on Caddy ≥2.8 use instead:
+		#   client_auth { mode require_and_verify; trust_pool file /etc/shieldtest/tls/ca.crt }
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file /etc/shieldtest/tls/ca.crt
+		}
 	}
 
 	encode gzip
-	reverse_proxy api:8080
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# The app stays on loopback; the bind guard (ALLOW_PUBLIC_BIND) keeps it there.
+	reverse_proxy {$SHIELDTEST_UPSTREAM:127.0.0.1:8080}
 }

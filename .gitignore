@@ -9,6 +9,12 @@ coverage/
 
 *.tsbuildinfo
 
+# mTLS PKI — private material must never be committed (deploy/proxy/make-ca-certs.sh
+# writes ./shieldtest-pki/). Blanket-ignore private keys and client bundles.
+shieldtest-pki/
+*.key
+*.p12
+
 # Playwright
 test-results/
 playwright-report/

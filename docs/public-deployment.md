@@ -26,6 +26,12 @@ reverse proxy (Caddy/nginx/Traefik) that:
 The lab runner (VPS 2) reaches the API over a **private tunnel** (WireGuard or
 SSH), not the public interface — see `docs/provisioning-4vps.md`.
 
+**Ready-to-use proxy config:** `deploy/proxy/` ships the mTLS `Caddyfile`, a PKI
+generator (`make-ca-certs.sh` — internal CA, server cert, per-admin client
+certs), and a step-by-step `README.md` (cert placement, firewall, verification,
+and an nginx alternative with built-in rate limiting). The private keys it
+produces are gitignored and never leave the operator's workstation / the VPS.
+
 ## Dual control — mandatory CISO sign-off
 
 Set `REQUIRE_CISO_APPROVAL=1` on the server. Every campaign then needs **two**
