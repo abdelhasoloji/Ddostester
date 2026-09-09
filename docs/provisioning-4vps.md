@@ -130,10 +130,13 @@ in the **Preparation** phase finds the real one). See
   and set `AUTH_USERS` (an `engineer` + an `officer`) in `/etc/ddostester.env`.
 - **Git "dubious ownership" (repo owned by `shieldtest`, you build as `root`).**
   It breaks `git pull` _and_ the UI version stamp (footer stuck at `+0 · dev`).
-  `deploy/setup.sh` and `deploy/update.sh` now self-heal it; for a manual rebuild:
+  `deploy/setup.sh` and `deploy/update.sh` now self-heal it; for a manual rebuild
+  (use `git reset --hard`, not `git pull` — a build regenerates no tracked files
+  now, but an older checkout may still have a dirty `results.md` that aborts a
+  pull):
   ```bash
   git config --global --add safe.directory /home/shieldtest/ddostester
-  cd /home/shieldtest/ddostester && git pull
+  cd /home/shieldtest/ddostester && git fetch origin main && git reset --hard origin/main
   SHIELDTEST_COMMIT=$(git rev-parse --short HEAD) \
   SHIELDTEST_BUILD=$(git rev-list --count HEAD) \
     npm run build

@@ -1983,10 +1983,17 @@ afterAll(() => {
   }
   lines.push('');
 
-  const out = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '../../../docs/test-catalog/results.md',
-  );
-  mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, lines.join('\n'));
+  // Write the durable report ONLY when explicitly asked (CATALOG_WRITE=1).
+  // results.md is a tracked file; regenerating it on every `npm test` dirties
+  // the working tree, which on a server breaks the next `git pull`
+  // (deploy/update.sh uses `git reset --hard`, but a manual pull aborts). Refresh
+  // it on demand: `CATALOG_WRITE=1 npm test -w backend`.
+  if (process.env.CATALOG_WRITE === '1') {
+    const out = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../../docs/test-catalog/results.md',
+    );
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, lines.join('\n'));
+  }
 });
