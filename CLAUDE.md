@@ -29,19 +29,50 @@ so the boundary is **structural, not conventional**: this control plane contains
 verdict contract (see `docs/drs-validation-policy.md`). See `docs/safeguards.md`
 and `docs/network-lab.md`.
 
-## Commands
+## Install / run / test
+
+Prerequisites: **Node ≥ 22**, **PostgreSQL** (falls back to in-memory store if
+unset), Docker only for the optional Compose stack / mTLS proxy.
 
 ```bash
+# Install (npm workspaces: backend + frontend)
 npm install
-npm run typecheck        # backend + frontend
-npm test                 # backend tests (Vitest)
-npm run build            # build backend + frontend
-npm run dev:api          # API in watch mode (tsx)
-npm run dev:web          # Vite UI
-npm run lint             # ESLint (if configured)
+cp .env.example .env             # then fill in DB URL, JWT secret, ALLOWLIST, etc.
+
+# Run (dev)
+npm run dev:api                  # Fastify API in watch mode (tsx)
+npm run dev:web                  # React/Vite UI
+# or the full Compose stack (API + Postgres + UI):
+docker compose up -d             # add --profile proxy for the TLS/mTLS reverse proxy
+
+# Test / verify
+npm run typecheck                # backend + frontend (tsc)
+npm test                         # backend (Vitest) + frontend
+npm run test:e2e                 # Playwright (builds first)
+npm run lint                     # ESLint + Prettier check
+npm run verify                   # lint + typecheck + test + build (run before every PR)
+npm run build                    # build backend + frontend
 ```
 
 Deployment: `bash deploy/setup.sh` (systemd, loopback). See `docs/deployment.md`.
+
+### Certificates (mTLS) — `~/shieldtest-pki`
+
+The mTLS PKI (CA, server cert/key, per-role client bundles `client-*.crt/.key/.p12`)
+lives **outside every repo**, in `~/shieldtest-pki`, and is **never committed**.
+`.gitignore` blanket-ignores `shieldtest-pki/`, `*.key` and `*.p12`; the deploy
+proxy mounts these files read-only. Regenerate with
+`deploy/proxy/make-ca-certs.sh`. Never copy private key material into the repo,
+`.env`, logs, or issues.
+
+## Relationship to `shieldtest-lab`
+
+The isolated mitigation bench [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab)
+runs entirely on its own. Its **telemetry / verdict artifacts feed the WRS**
+(WEDOS Resilience Score) here **read-only**, through the governed contract in
+`docs/drs-validation-policy.md` (UDP amplification = class C, standalone
+evidence; the control plane records class A/B only). This control plane **never**
+emits amplification traffic.
 
 ## Architecture (summary)
 
@@ -61,6 +92,17 @@ Full docs: `docs/` (index in `docs/README.md`).
 `docs/roadmap.md` is the **source of truth** for what is built vs. planned.
 Update it in the same PR that changes behaviour, and reconcile any external
 brief or plan against it rather than trusting the brief's own status.
+
+## Golden rule — no out-of-allowlist load generation
+
+**Never generate load — from any tool, script, or adapter — against a target
+that is not on the lab's allowlist.** The control plane's bounded HTTP generator
+enforces `ALLOWLIST` + `HARD_CAPS` at runtime; do not bypass, widen, or hard-code
+around them. All amplification-shaped traffic belongs to `shieldtest-lab`, whose
+`lib/net-guard.mjs` refuses any destination outside its RFC1918 `/24` and whose
+Compose network is `internal: true`. Do not point a generator at a real host,
+run bench components outside the isolated lab network, or launch load against
+production/public infrastructure under any circumstance.
 
 ## Conventions
 
