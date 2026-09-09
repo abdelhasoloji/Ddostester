@@ -123,6 +123,16 @@ curl -s localhost:8080/api/agents
 # {"default":"builtin-http","agents":[{"id":"builtin","name":"builtin-http","available":true,"multiPhase":true,...}, ...]}
 ```
 
+## `GET /api/recon?target=&probeUrl=`
+
+Preparation-phase reconnaissance (`campaign:read`). Passive + published-surface
+recon of an **allowlisted, authorized** target → a `ReconReport`: target profile
+(vendor, HTTP/2+3, cache, posture), published-surface path set + login path,
+pre-test baseline (availability + latency p50/p95), a preflight `{items, go}`
+checklist, and the gap-analyzer control profile seeded from the observed posture.
+Refuses off-allowlist hosts (400). Non-intrusive: no port scan, no vulnerability
+scan, no path fuzzing/brute-force, no enumeration of non-published resources.
+
 ## `GET /api/limits`
 
 The caps the server enforces. Any authenticated reader. Returns the immutable

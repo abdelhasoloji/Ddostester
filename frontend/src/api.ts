@@ -539,7 +539,70 @@ export const api = {
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
   gapAnalysis: (profile: ProtectionProfile, target?: string) =>
     post<GapAnalysis>('/api/reports/gap-analysis', { profile, target }),
+  recon: (target: string, probeUrl?: string) => {
+    const q = new URLSearchParams({ target });
+    if (probeUrl) q.set('probeUrl', probeUrl);
+    return get<ReconReport>(`/api/recon?${q.toString()}`);
+  },
 };
+
+// ── Preparation-phase reconnaissance (recon) ────────────────────────────────
+
+export type CacheBehavior = 'hit' | 'miss' | 'dynamic' | 'unknown';
+
+export interface TargetProfile {
+  posture: {
+    waf: boolean;
+    cdn: boolean;
+    rateLimiting: boolean;
+    loadBalancer: boolean;
+    hsts: boolean;
+    securityHeaders: string[];
+    server?: string;
+    signals: string[];
+  };
+  vendor?: string;
+  protocols: { http2: boolean; http3: boolean };
+  tls?: string;
+  cache: CacheBehavior;
+  server?: string;
+}
+
+export interface ReconSurface {
+  paths: string[];
+  loginPath?: string;
+  sitemaps: string[];
+  disallow: string[];
+}
+
+export interface ReconBaseline {
+  samples: number;
+  availabilityPct: number;
+  latencyP50: number;
+  latencyP95: number;
+  latencyMean: number;
+}
+
+export interface PreflightItem {
+  key: string;
+  label: string;
+  ok: boolean;
+  required: boolean;
+  detail: string;
+}
+
+export interface ReconReport {
+  target: string;
+  probeUrl: string;
+  generatedAt: string;
+  profile: TargetProfile;
+  surface: ReconSurface;
+  baseline: ReconBaseline;
+  preflight: { items: PreflightItem[]; go: boolean };
+  seededProfile: ProtectionProfile;
+  suggestedPaths: string[];
+  loginPath?: string;
+}
 
 // ── Protection-gap analyzer (RPT-05) ────────────────────────────────────────
 

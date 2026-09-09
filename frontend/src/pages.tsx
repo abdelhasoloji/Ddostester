@@ -59,6 +59,7 @@ const roleLabel: Record<Role, string> = {
 // ---------- sidebar + layout ----------
 const NAV = [
   { to: '/', label: 'Overview', icon: '▚', end: true },
+  { to: '/prepare', label: 'Preparation', icon: '◎', end: false },
   { to: '/campaigns', label: 'Campaigns', icon: '◇', end: false },
   { to: '/templates', label: 'Templates', icon: '▦', end: false },
   { to: '/reports', label: 'Reports', icon: '▤', end: false },

@@ -1962,3 +1962,48 @@ table.remediations td {
   background: var(--danger-bg);
   border-radius: 6px;
 }
+
+/* Preparation — recon / preflight */
+.pf-banner {
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--border);
+}
+.pf-go {
+  border-left-color: var(--success);
+  background: rgba(22, 163, 74, 0.1);
+}
+.pf-nogo {
+  border-left-color: var(--danger);
+  background: var(--danger-bg);
+}
+.pf-item {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border);
+}
+.pf-item:first-child {
+  border-top: 0;
+}
+.pf-ok {
+  color: var(--success);
+  font-weight: 800;
+}
+.pf-bad {
+  color: var(--danger);
+  font-weight: 800;
+}
+.pf-warn {
+  color: var(--warning);
+  font-weight: 800;
+}
+.pf-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.pf-grid > span {
+  color: var(--muted);
+}
