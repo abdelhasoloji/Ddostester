@@ -76,20 +76,49 @@ outbound to `bank.cz`:443. Verify `curl -s localhost:8080/health` shows
 
 ## VPS 2 — Isolated class-C lab (shieldtest-lab runner)
 
+The runner (`abdelhasoloji/shieldtest-lab`, `runner.mjs`) claims governed class-C
+jobs from the control plane and posts back read-only verdicts. One command
+bootstraps it (idempotent; installs a `shieldtest-lab-runner` systemd unit):
+
 ```bash
-apt-get update && apt-get install -y git ca-certificates curl
-curl -fsSL https://get.docker.com | sh          # if using the Docker lab
-git clone https://github.com/abdelhasoloji/shieldtest-lab.git ~/shieldtest-lab
-cd ~/shieldtest-lab
-BENCH_API_URL=https://<VPS1_PRIVATE_IP>:8080 \
-BENCH_RUNNER_TOKEN=<BENCH_RUNNER_TOKEN> \
-npm run runner
+BENCH_API_URL=http://<VPS1_PRIVATE_IP>:8080 \
+BENCH_RUNNER_TOKEN=<same token as VPS 1's /etc/ddostester.env> \
+bash deploy/provision/host-lab.sh
 ```
 
 Firewall (fail-closed): **deny all inbound**; allow outbound **only** to VPS 1's
 API port. All bench traffic stays on the host's internal/loopback network — no
 spoofing, no egress. This isolation keeps the offensive-shaped code off the
 control plane.
+
+### Making the control-plane API reachable from VPS 2
+
+The API binds **loopback only** by default, so VPS 2 cannot reach it as shipped.
+Pick one:
+
+- **Option A — private-IP bind (if VPS 1 and VPS 2 share the WEDOS private LAN).**
+  Set `HOST=<VPS1_PRIVATE_IP>` in `/etc/ddostester.env` and restart. The server
+  refuses a public / all-interfaces bind unless `ALLOW_PUBLIC_BIND=1`; a private
+  address is allowed with a firewall warning. Then **firewall tcp/8080 to VPS 2's
+  IP only** (e.g. `nft`/`ufw` allow from `<VPS2_IP>`, drop everything else).
+  `BENCH_API_URL` = `http://<VPS1_PRIVATE_IP>:8080`.
+- **Option B — WireGuard/SSH tunnel.** Keep the API on loopback; run a private
+  tunnel between the hosts and point `BENCH_API_URL` at VPS 1's tunnel address.
+  Nothing is exposed beyond the tunnel.
+
+Never set `HOST=0.0.0.0` or a public IP without a TLS/mTLS reverse proxy in
+front — the bind guard (`ALLOW_PUBLIC_BIND`) is there to stop that by accident.
+
+### Verify the runner is claiming jobs
+
+1. On VPS 1: `curl -s localhost:8080/health` → `labTargets` non-empty (dispatch
+   is enabled when both `LAB_TARGETS` and `BENCH_RUNNER_TOKEN` are set).
+2. On VPS 2: `systemctl status shieldtest-lab-runner --no-pager` → active; logs
+   show it polling the control plane.
+3. In the UI (CISO → Network bench), **Request run** on a reproducible vector →
+   the run moves `REQUESTED → CLAIMED → COMPLETED` with a read-only verdict.
+   Stuck at `REQUESTED` = the runner can't reach the API (revisit the bind /
+   firewall / token above; the token must match on both sides).
 
 ---
 

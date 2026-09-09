@@ -14,6 +14,7 @@ import {
 } from './modules/target-telemetry/provider.js';
 import { buildApp } from './app.js';
 import { applyTlsPolicy } from './util/tls.js';
+import { decideBind } from './util/bind.js';
 
 // Apply the TLS policy before any outbound connection (store, fetch) is opened.
 applyTlsPolicy((msg) => console.warn(`[tls] ${msg}`));
@@ -31,8 +32,16 @@ function intEnv(name: string, def: number): number {
 
 const PORT = intEnv('PORT', 8080);
 // Listen address. Default: loopback only — the tool must NEVER be exposed
-// publicly without a TLS/mTLS reverse proxy. Remote access via SSH tunnel.
+// publicly without a TLS/mTLS reverse proxy. Bind a PRIVATE address (firewalled
+// to the lab runner) to let VPS 2 claim jobs; a public/all-interfaces bind is
+// refused unless ALLOW_PUBLIC_BIND=1. Remote UI access is via SSH tunnel.
 const HOST = process.env.HOST ?? '127.0.0.1';
+const bind = decideBind(HOST, process.env.ALLOW_PUBLIC_BIND === '1');
+if (!bind.ok) {
+  console.error(`[bind] ${bind.error}`);
+  process.exit(1);
+}
+if (bind.warn) console.warn(`[bind] ${bind.warn}`);
 const ALLOWED_TARGETS = (process.env.ALLOWED_TARGETS ?? 'localhost,127.0.0.1')
   .split(',')
   .map((s) => s.trim())
