@@ -35,4 +35,20 @@ describe('runtime metrics registry', () => {
     metrics.addGauge('test_active', 'active', -1, { g: '1' });
     expect(metrics.render()).toContain('test_active{g="1"} 1');
   });
+
+  it('clearGauge retires a live series (per label set) so no stale line lingers', () => {
+    metrics.setGauge('test_live_rps', 'live', 42, { target: 'a', vector: 'http-get' });
+    metrics.setGauge('test_live_rps', 'live', 7, { target: 'b', vector: 'http-get' });
+    expect(metrics.render()).toContain('test_live_rps{target="a",vector="http-get"} 42');
+
+    // Clear only the 'a' series — 'b' survives.
+    metrics.clearGauge('test_live_rps', { target: 'a', vector: 'http-get' });
+    const out = metrics.render();
+    expect(out).not.toContain('test_live_rps{target="a"');
+    expect(out).toContain('test_live_rps{target="b",vector="http-get"} 7');
+
+    // Clearing an unknown metric/label set is a safe no-op.
+    expect(() => metrics.clearGauge('test_live_rps', { target: 'zzz' })).not.toThrow();
+    expect(() => metrics.clearGauge('does_not_exist')).not.toThrow();
+  });
 });

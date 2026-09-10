@@ -3,7 +3,7 @@
   "title": "ShieldTest \u00b7 Run & Absorption",
   "editable": true,
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "10s",
   "time": {
     "from": "now-15m",
@@ -49,8 +49,8 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Offered vs Achieved vs Reached-origin RPS",
-      "description": "What the generator offered vs what actually reached the origin \u2014 the gap is what the edge absorbed.",
+      "title": "Offered vs Reached-origin RPS (live)",
+      "description": "Real-time, straight from the in-flight run (mirrors the app's Run Theater). Empty when no run is in flight.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -67,7 +67,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_configured_rps_last{target=~\"$target\"}",
+          "expr": "shieldtest_run_live_offered_rps{target=~\"$target\"}",
           "legendFormat": "offered \u00b7 {{target}}/{{vector}}",
           "refId": "A"
         },
@@ -76,18 +76,9 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_achieved_rps_last{target=~\"$target\"}",
-          "legendFormat": "achieved \u00b7 {{target}}/{{vector}}",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "shieldtest_run_origin_rps_last{target=~\"$target\"}",
+          "expr": "shieldtest_run_live_origin_rps{target=~\"$target\"}",
           "legendFormat": "reached origin \u00b7 {{target}}/{{vector}}",
-          "refId": "C"
+          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -121,7 +112,7 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Absorption decomposition (%)",
+      "title": "Absorption decomposition \u2014 last settled run (%)",
       "description": "How the offered load was absorbed: fast rejects vs tarpitting vs load the generator itself never managed to offer.",
       "datasource": {
         "type": "prometheus",
@@ -324,7 +315,7 @@
     {
       "id": 12,
       "type": "stat",
-      "title": "Absorbed %",
+      "title": "Absorbed % (live)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -342,7 +333,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(shieldtest_run_absorbed_ratio_last{target=~\"$target\"})*100",
+          "expr": "max(shieldtest_run_live_absorbed_ratio{target=~\"$target\"})*100 or max(shieldtest_run_absorbed_ratio_last{target=~\"$target\"})*100",
           "legendFormat": "",
           "refId": "A"
         }
@@ -387,8 +378,8 @@
     {
       "id": 13,
       "type": "stat",
-      "title": "Event-loop lag p99 (ms)",
-      "description": "Measurement confidence: high control-plane event-loop lag means the RPS/latency numbers are under-counted \u2014 treat the WRS with caution.",
+      "title": "Legit probe % (live)",
+      "description": "Live availability of the legitimate-traffic probe during the run.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -405,14 +396,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(shieldtest_eventloop_lag_p99_ms)",
+          "expr": "min(shieldtest_run_live_probe_avail_pct{target=~\"$target\"})",
           "legendFormat": "",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "percent",
           "color": {
             "mode": "thresholds"
           },
@@ -420,16 +411,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
                 "color": "orange",
-                "value": 50
+                "value": 95
               },
               {
-                "color": "red",
-                "value": 200
+                "color": "green",
+                "value": 99
               }
             ]
           }
