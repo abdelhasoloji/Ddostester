@@ -19,6 +19,7 @@ import {
   cisoApproveCampaign,
   assertExecutable,
   cancelCampaign,
+  setArchived,
   transition,
   CampaignError,
 } from './modules/campaigns/service.js';
@@ -542,6 +543,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         acceptanceResult: run.acceptance,
         runId: run.runId,
         statusDetail: rearm ? undefined : run.statusDetail,
+        startedAt: run.generator.startedAt,
+        finishedAt: run.generator.finishedAt,
+        durationSec: Number(runDurationSec.toFixed(1)),
       });
       await auditAs(
         actor,
@@ -1409,6 +1413,58 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       } catch (err) {
         return fail(err, reply);
       }
+    },
+  );
+
+  // Archive / un-archive a campaign (organisational housekeeping — hides it from
+  // the default list without touching its run history, reports or audit).
+  app.post(
+    '/api/campaigns/:id/archive',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      try {
+        const c = await store.getCampaign((req.params as { id: string }).id);
+        if (!c) return reply.code(404).send({ error: 'campaign not found' });
+        const archived = ((req.body ?? {}) as { archived?: boolean }).archived !== false;
+        const updated = setArchived(c, archived);
+        await store.saveCampaign(updated);
+        await audit(req, 'campaign.archive', c.id, archived ? 'archived' : 'unarchived');
+        return updated;
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
+
+  // Archive / un-archive a whole assessment suite in one call (every member).
+  app.post(
+    '/api/suites/:id/archive',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const archived = ((req.body ?? {}) as { archived?: boolean }).archived !== false;
+      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+      if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+      let changed = 0;
+      for (const m of members) {
+        try {
+          const updated = setArchived(m, archived);
+          if (updated !== m) {
+            await store.saveCampaign(updated);
+            changed += 1;
+          }
+        } catch {
+          // Skip a member that can't be archived (e.g. a step still running) —
+          // the rest of the suite is still archived.
+        }
+      }
+      await audit(
+        req,
+        'campaign.archive',
+        undefined,
+        `suite ${suiteId} ${archived ? 'archived' : 'unarchived'} · ${changed}/${members.length} step(s)`,
+      );
+      return reply.send({ suiteId, archived, changed, total: members.length });
     },
   );
 

@@ -101,6 +101,8 @@ interface Ctx {
   execute: (c: Campaign) => Promise<void>;
   kill: (c: Campaign) => Promise<void>;
   cancel: (c: Campaign) => Promise<void>;
+  archive: (c: Campaign, archived: boolean) => Promise<void>;
+  archiveSuite: (suiteId: string, name: string, archived: boolean) => Promise<void>;
   cisoApprove: (c: Campaign) => Promise<void>;
   toggleDetails: (c: Campaign) => Promise<void>;
   openDetail: (c: Campaign) => Promise<void>;
@@ -342,6 +344,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /** Archive / un-archive a single campaign (hides it from the default view). */
+  const archive = async (c: Campaign, archived: boolean) => {
+    setBusyFor(c.id, true);
+    try {
+      await api.archiveCampaign(c.id, archived);
+      push('info', `Campaign "${c.name}" ${archived ? 'archived' : 'restored'}.`);
+      refresh();
+    } catch (err) {
+      push('error', (err as Error).message);
+    } finally {
+      setBusyFor(c.id, false);
+    }
+  };
+
+  /** Archive / un-archive every step of an assessment suite. */
+  const archiveSuite = async (suiteId: string, name: string, archived: boolean) => {
+    setBusyFor(suiteId, true);
+    try {
+      const res = await api.archiveSuite(suiteId, archived);
+      push(
+        'info',
+        `Suite "${name}" ${archived ? 'archived' : 'restored'} · ${res.changed}/${res.total} step(s).`,
+      );
+      refresh();
+    } catch (err) {
+      push('error', (err as Error).message);
+    } finally {
+      setBusyFor(suiteId, false);
+    }
+  };
+
   const fetchRun = async (c: Campaign) => {
     if (!runs[c.id] && c.runId) {
       try {
@@ -415,6 +448,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     createCampaign,
     approve,
     execute,
+    archive,
+    archiveSuite,
     kill,
     cancel,
     cisoApprove,

@@ -5,6 +5,7 @@ import {
   cisoApproveCampaign,
   assertExecutable,
   cancelCampaign,
+  setArchived,
   CampaignError,
 } from '../src/modules/campaigns/service.js';
 import type { CampaignInput } from '../src/modules/campaigns/model.js';
@@ -108,6 +109,27 @@ describe('cancelCampaign (annulation)', () => {
     expect(() => cancelCampaign(running)).toThrow(CampaignError);
     const done = { ...createCampaign(base, allowed), status: 'COMPLETED' as const };
     expect(() => cancelCampaign(done)).toThrow(CampaignError);
+  });
+});
+
+describe('setArchived', () => {
+  it('archives and un-archives a terminal campaign', () => {
+    const done = { ...createCampaign(base, allowed), status: 'COMPLETED' as const };
+    const archived = setArchived(done, true);
+    expect(archived.archived).toBe(true);
+    expect(setArchived(archived, false).archived).toBe(false);
+  });
+
+  it('is a no-op (same reference) when the flag is unchanged', () => {
+    const c = createCampaign(base, allowed);
+    expect(setArchived(c, false)).toBe(c); // already un-archived
+  });
+
+  it('refuses to archive a running campaign', () => {
+    const running = { ...createCampaign(base, allowed), status: 'RUNNING' as const };
+    expect(() => setArchived(running, true)).toThrow(CampaignError);
+    // …but un-archiving a running campaign is allowed (state-neutral).
+    expect(() => setArchived({ ...running, archived: true }, false)).not.toThrow();
   });
 });
 

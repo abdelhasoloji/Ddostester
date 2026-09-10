@@ -130,6 +130,21 @@ export interface Campaign extends CampaignInput {
   runId?: string;
   /** Why the latest run ended as it did (set for a kill), mirrored from the run. */
   statusDetail?: string;
+  /**
+   * Wall-clock of the latest run's load generator, mirrored from the run at
+   * settle time so the campaigns list can show start/end/duration without
+   * loading every run. Absent until the campaign has run at least once.
+   */
+  startedAt?: string;
+  finishedAt?: string;
+  durationSec?: number;
+  /**
+   * Archived campaigns are hidden from the default campaigns view (an
+   * organisational state, orthogonal to the run lifecycle — a COMPLETED or
+   * CANCELLED campaign can be archived and un-archived). Never blocks history,
+   * reports or audit.
+   */
+  archived?: boolean;
 }
 
 // Safety caps and the recurrence floor are defined once in config/limits.ts

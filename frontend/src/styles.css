@@ -341,6 +341,98 @@ input.invalid {
   font-family: var(--mono);
   font-size: 0.95em;
 }
+
+/* Suite group — the steps of one assessment scenario, grouped together. */
+.suite-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.85rem 1rem;
+}
+.suite-group.is-archived {
+  opacity: 0.62;
+  border-left-color: var(--muted);
+}
+.suite-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.suite-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.suite-group-toggle .caret {
+  color: var(--muted);
+  font-size: 0.8rem;
+  width: 0.8rem;
+}
+.suite-group-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.suite-progress {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.suite-progress.is-active {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.suite-group-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.suite-group-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.suite-group-meta code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+}
+.suite-group-members {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-left: 0.6rem;
+  border-left: 2px dashed var(--border);
+}
+/* Standalone archived campaign card */
+.campaign.is-archived {
+  opacity: 0.62;
+}
+.archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.archived-toggle input {
+  width: auto;
+  margin: 0;
+}
 .kill-note {
   margin-top: 0.5rem;
   padding: 0.5rem 0.7rem;

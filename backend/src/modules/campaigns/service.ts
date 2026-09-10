@@ -322,6 +322,19 @@ export function cancelCampaign(campaign: Campaign, reason?: string): Campaign {
 }
 
 /**
+ * Archive / un-archive a campaign — an organisational state that only hides it
+ * from the default list; it never changes the run lifecycle, history or audit.
+ * Refuses to archive a campaign whose run is in flight (archive it once settled).
+ */
+export function setArchived(campaign: Campaign, archived: boolean): Campaign {
+  if (archived && campaign.status === 'RUNNING') {
+    throw new CampaignError('Cannot archive a running campaign — wait for the run to settle.');
+  }
+  if (Boolean(campaign.archived) === archived) return campaign;
+  return { ...campaign, archived };
+}
+
+/**
  * Mandatory CISO sign-off (dual control): a CISO co-signs a campaign the officer
  * has already approved. Separation of duties across all three roles — the CISO
  * signer must differ from both the author and the officer approver.

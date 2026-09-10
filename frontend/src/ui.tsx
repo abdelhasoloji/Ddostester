@@ -525,9 +525,14 @@ export function CampaignCard({ c }: { c: Campaign }) {
   const canRun = canRunCampaign(c, role, ar, app.identity?.email, app.requireCisoApproval);
   const showCiso = app.requireCisoApproval && c.status !== 'PENDING_APPROVAL';
   return (
-    <div className="campaign">
+    <div className={`campaign${c.archived ? ' is-archived' : ''}`}>
       <div className="campaign-head">
         <span className="campaign-name">{c.name}</span>
+        {c.archived && (
+          <span className="badge badge-CANCELLED" title="Archived">
+            Archived
+          </span>
+        )}
         <StatusBadge status={c.status} />
         {showCiso && <CisoBadge c={c} />}
         {c.wrs && <WrsPill wrs={c.wrs} />}
@@ -582,6 +587,20 @@ export function CampaignCard({ c }: { c: Campaign }) {
             >
               Report ↗
             </a>
+          )}
+          {canDo(role, 'create', ar) && c.status !== 'RUNNING' && (
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={isBusy}
+              onClick={() => app.archive(c, !c.archived)}
+              title={
+                c.archived
+                  ? 'Restore to the active list'
+                  : 'Archive — hide from the default campaigns list'
+              }
+            >
+              {c.archived ? 'Restore' : 'Archive'}
+            </button>
           )}
           <button className="btn btn-sm btn-ghost" onClick={() => app.openDetail(c)}>
             Details
