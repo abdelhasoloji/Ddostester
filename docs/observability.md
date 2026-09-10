@@ -88,6 +88,20 @@ be drilled straight through to the exact run's log lines. Promtail on VPS 2
 scrapes this host; shipping VPS 1's journal into the same Loki is a documented
 follow-up in `host-loki.sh`.
 
+## App-native charts (option B)
+
+Beyond deep-linking into Grafana, the app can render **its own** charts from the
+**same** Prometheus, so a graph in the app reads like a Grafana panel without
+embedding Grafana. The backend exposes a bounded, read-only proxy
+`GET /api/metrics/range?series=<key>&target=<host>&minutes=&step=` — the client
+asks for a **named series** from a reviewed catalogue (`series-catalog.ts`),
+never raw PromQL, so there is no query injection or SSRF surface. The frontend
+renders it with **uPlot** (the engine Grafana itself uses). It is fail-soft:
+without `PROMETHEUS_URL` (or when Prometheus is unreachable) the endpoint returns
+`source: "unavailable"` and the UI hides the native chart. Prometheus is loopback
+on VPS 2, so `PROMETHEUS_URL` points at a VPS 1 → VPS 2 tunnel in production.
+First use: the **Live RPS** chart in Run Theater.
+
 ## Exposure
 
 Grafana binds loopback. Two ways to reach it:

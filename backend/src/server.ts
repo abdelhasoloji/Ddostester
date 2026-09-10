@@ -84,6 +84,7 @@ const { app, runCampaign } = await buildApp({
   // Dual control: mandate a CISO sign-off on every campaign (the posture for a
   // networked/public deployment). Off by default (single-officer approval).
   requireCisoApproval: process.env.REQUIRE_CISO_APPROVAL === '1',
+  prometheusUrl: process.env.PROMETHEUS_URL?.trim() || undefined,
 });
 
 // --- Reconcile orphaned RUNNING campaigns -----------------------------------
