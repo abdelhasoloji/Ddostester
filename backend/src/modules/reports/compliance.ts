@@ -154,6 +154,12 @@ export function renderComplianceHtml(
   // Risk distribution across the period.
   const riskCount = { Low: 0, Medium: 0, Critical: 0 };
   for (const r of inPeriod) riskCount[riskLevel(r).label as keyof typeof riskCount]++;
+  const meanAbsorbed = inPeriod.length
+    ? Math.round(
+        (inPeriod.reduce((s, r) => s + (r.absorption?.absorbedPct ?? 0), 0) / inPeriod.length) * 10,
+      ) / 10
+    : 0;
+  const degradedCount = inPeriod.filter((r) => r.confidence?.degraded).length;
 
   // Management summary — plain-language, generated from the aggregates.
   const summary = total
@@ -283,6 +289,8 @@ export function renderComplianceHtml(
       ${statCard('Runs assessed', String(total))}
       ${statCard('Minimum WRS', wrsMinStr)}
       ${statCard('Below WRS 70', String(worst.length))}
+      ${statCard('Mean absorbed', `${meanAbsorbed}%`, meanAbsorbed >= 20)}
+      ${statCard('Degraded measurements', String(degradedCount), false)}
       ${statCard('Targets', String(targets.size))}
     </div>
     <div style="margin-top:.5rem"><span class="muted" style="font-size:.8rem">WRS trend </span>${trend}</div>

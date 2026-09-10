@@ -87,8 +87,9 @@ describe('renderSuiteReportHtml', () => {
     expect(html).toContain('Assessment report — Capacity');
     expect(html).toContain('staging.example.com');
     expect(html).toContain('75'); // avg of 90 and 60
-    expect(html).toContain('worst level C');
+    expect(html).toContain('worst C'); // worst level
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // header + 2 steps
+    expect(html).toContain('resilience by attack shape'); // enriched steps table
   });
 });
 
