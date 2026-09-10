@@ -2355,28 +2355,191 @@ table.remediations td {
 }
 
 /* In-app alerts banner (top of main). */
-.alerts-banner {
-  margin-bottom: 1rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 10px;
+/* ── Notifications bell + slide-over panel (replaces the always-on banner) ── */
+.notif {
+  margin-left: auto;
+  position: relative;
+  display: inline-flex;
+}
+.notif-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+.notif-bell:hover {
   background: var(--surface-2);
 }
-.alerts-banner.alerts-critical {
-  border-color: var(--danger);
-  background: var(--danger-bg);
+.notif-bell.has-unread {
+  border-color: var(--brand);
 }
-.alerts-banner.alerts-warning {
-  border-color: var(--warning);
-  background: var(--warning-bg);
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 17px;
+  text-align: center;
 }
-.alerts-banner-head {
+.notif-badge.notif-warning {
+  background: var(--warning);
+}
+.notif-badge.notif-critical {
+  background: var(--danger);
+}
+.notif-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 60;
+}
+.notif-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 92vw);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
+  z-index: 61;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  animation: notif-slide 0.16s ease-out;
+}
+@keyframes notif-slide {
+  from {
+    transform: translateX(12px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.notif-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+}
+.notif-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.notif-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+.notif-close:hover {
+  color: var(--ink);
+}
+.notif-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.notif-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  border-radius: 9px;
+}
+.notif-item:hover {
+  background: var(--surface-2);
+}
+.notif-item.is-read {
+  opacity: 0.6;
+}
+.notif-item-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.6rem 0.4rem 0.6rem 0.55rem;
+  font: inherit;
+  color: inherit;
+}
+.notif-item .alert-dot {
+  margin-top: 0.32rem;
+}
+.notif-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.notif-item-title {
+  font-weight: 650;
+  font-size: 0.86rem;
+}
+.notif-item-detail {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.notif-item-meta {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+/* Clickable Command Center alert rows */
+.alert-row-btn {
+  display: grid;
+  grid-template-columns: auto minmax(9rem, auto) 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.28rem 0.3rem;
+  border-radius: 7px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.alert-row-btn:hover {
+  background: var(--surface-2);
+}
+.alert-go {
+  color: var(--muted);
   font-weight: 700;
-  font-size: 0.85rem;
-  margin-bottom: 0.4rem;
 }
 .alerts-list {
   list-style: none;
