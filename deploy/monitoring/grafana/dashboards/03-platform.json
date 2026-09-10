@@ -121,7 +121,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * sum(rate(shieldtest_http_requests_total{status=~\"[45]..\"}[5m])) / clamp_min(sum(rate(shieldtest_http_requests_total[5m])),1)",
+          "expr": "100 * (sum(rate(shieldtest_http_requests_total{status=~\"[45]..\"}[5m])) or vector(0)) / clamp_min(sum(rate(shieldtest_http_requests_total[5m])),1)",
           "legendFormat": "error %",
           "refId": "A"
         }
@@ -468,7 +468,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_runs_in_flight",
+          "expr": "shieldtest_runs_in_flight or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }

@@ -20,7 +20,7 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(shieldtest_run_achieved_rps_last, target)",
+          "query": "label_values(shieldtest_wrs_last, target)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -67,8 +67,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_wrs_last{target=~\"$target\"}",
-          "legendFormat": "{{target}} / {{vector}}",
+          "expr": "shieldtest_wrs_last{target=~\"$target\"}",
+          "legendFormat": "{{target}}",
           "refId": "A"
         }
       ],
@@ -175,7 +175,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "avg(shieldtest_run_wrs_last{target=~\"$target\"})",
+          "expr": "avg(shieldtest_wrs_last{target=~\"$target\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -238,7 +238,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(shieldtest_run_wrs_last{target=~\"$target\"} < bool 70)",
+          "expr": "sum(shieldtest_wrs_last{target=~\"$target\"} < bool 70) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -371,7 +371,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_wrs_last{target=~\"$target\"}",
+          "expr": "shieldtest_wrs_last{target=~\"$target\"}",
           "legendFormat": "",
           "refId": "A",
           "format": "table",
