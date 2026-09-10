@@ -189,6 +189,20 @@ describe('api surface (every endpoint maps to a URL and verb)', () => {
     );
     await check(() => api.suites(), '/api/suites', 'GET');
   });
+
+  it('metricsRange builds a named-series query with target + window', async () => {
+    await check(
+      () => api.metricsRange('run_rps', { target: 'bank.cz', minutes: 15, step: 5 }),
+      '/api/metrics/range?series=run_rps&target=bank.cz&minutes=15&step=5',
+      'GET',
+    );
+    // Optional params are omitted when not given.
+    await check(
+      () => api.metricsRange('eventloop_lag'),
+      '/api/metrics/range?series=eventloop_lag',
+      'GET',
+    );
+  });
 });
 
 describe('Grafana deep-linking', () => {

@@ -118,6 +118,12 @@ export interface BuildOptions {
    * never executes the run — only records it and serves it to the runner.
    */
   benchRunnerToken?: string;
+  /**
+   * Prometheus base URL for the app-native charts (`/api/metrics/range`). Absent
+   * = the native charts report `unavailable` and the UI hides them. Prometheus is
+   * loopback on the monitoring host, so in production this points at a tunnel.
+   */
+  prometheusUrl?: string;
 }
 
 export interface BuiltApp {
@@ -1751,7 +1757,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  registerReadRoutes(app, { store, guard, readTokenAllowed });
+  registerReadRoutes(app, { store, guard, readTokenAllowed, prometheusUrl: opts.prometheusUrl });
 
   return { app, runCampaign };
 }

@@ -267,6 +267,15 @@ export interface Alert {
   at?: string;
 }
 
+/** A named Prometheus range series for the app-native charts (option B). */
+export interface MetricsRange {
+  name: string;
+  title: string;
+  unit: string;
+  source: 'ok' | 'unavailable' | 'error';
+  series: { label: string; points: [number, number][] }[];
+}
+
 export type Role = 'engineer' | 'officer' | 'viewer' | 'ciso';
 
 export interface AuditEntry {
@@ -659,6 +668,16 @@ export const api = {
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
   observabilitySummary: () => get<AbsorptionSummaryRow[]>('/api/observability/summary'),
+  metricsRange: (
+    series: string,
+    opts: { target?: string; minutes?: number; step?: number } = {},
+  ) => {
+    const p = new URLSearchParams({ series });
+    if (opts.target) p.set('target', opts.target);
+    if (opts.minutes) p.set('minutes', String(opts.minutes));
+    if (opts.step) p.set('step', String(opts.step));
+    return get<MetricsRange>(`/api/metrics/range?${p.toString()}`);
+  },
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),

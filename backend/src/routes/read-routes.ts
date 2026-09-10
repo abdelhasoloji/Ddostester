@@ -5,6 +5,8 @@ import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { deriveAlerts } from '../modules/alerts/derive.js';
 import { buildAbsorptionSummary } from '../modules/observability/summary.js';
+import { queryRange, type PromResult } from '../modules/metrics/prometheus-query.js';
+import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
@@ -53,6 +55,12 @@ export interface ReadRoutesCtx {
   store: Store;
   guard: (perm: Permission) => preHandlerHookHandler;
   readTokenAllowed: (req: FastifyRequest) => boolean;
+  /**
+   * Prometheus base URL for the app-native charts (option B). Absent → the
+   * `/api/metrics/range` endpoint reports `unavailable` and the UI hides the
+   * native charts. See modules/metrics/prometheus-query.ts.
+   */
+  prometheusUrl?: string;
 }
 
 /**
@@ -61,7 +69,48 @@ export interface ReadRoutesCtx {
  * Extracted from app.ts to keep the route table legible.
  */
 export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): void {
-  const { store, guard, readTokenAllowed } = ctx;
+  const { store, guard, readTokenAllowed, prometheusUrl } = ctx;
+
+  // App-native charts (option B): a bounded, read-only Prometheus range-query
+  // proxy. The client asks for a NAMED series (never raw PromQL), scoped to an
+  // optional target and time window; the app renders it with its own charts, so
+  // the graph shows the same data as Grafana without embedding Grafana. Fail-
+  // soft: no PROMETHEUS_URL → `source: "unavailable"` and the UI hides the chart.
+  app.get('/api/metrics/range', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    const { series, target, minutes, step } = req.query as {
+      series?: string;
+      target?: string;
+      minutes?: string;
+      step?: string;
+    };
+    const resolved = series ? resolveSeries(series, target) : null;
+    if (!resolved) {
+      return reply
+        .code(400)
+        .send({ error: 'unknown series, or a per-run series is missing target' });
+    }
+    const mins = Math.min(Math.max(Number(minutes) || 15, 1), 1440);
+    const stepS = Math.min(Math.max(Number(step) || 15, 5), 3600);
+    const endS = Math.floor(Date.now() / 1000);
+    const startS = endS - mins * 60;
+
+    let source: PromResult['status'] = 'ok';
+    const out: { label: string; points: [number, number][] }[] = [];
+    for (const line of resolved.lines) {
+      const r = await queryRange(prometheusUrl, line.promql, { startS, endS, stepS });
+      if (r.status !== 'ok') source = r.status;
+      // A well-formed named series maps to a single Prometheus series; if a query
+      // fans out unexpectedly, take the first to keep the client contract simple.
+      out.push({ label: line.label, points: r.series[0]?.points ?? [] });
+    }
+    return {
+      name: series,
+      unit: resolved.def.unit,
+      title: resolved.def.title,
+      source,
+      series: out,
+    };
+  });
 
   // Consolidated assessment suites (campaigns grouped by playbook run).
   app.get('/api/suites', { preHandler: guard('campaign:read') }, async () =>
