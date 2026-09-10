@@ -997,15 +997,181 @@ export function SuiteRunBanner() {
   );
 }
 
+/** Human local date-time, or '—' when absent/unparseable. */
+function fmtWhen(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
+}
+
+/** Compact duration from seconds (75 → "1m 15s", 3900 → "1h 5m"). */
+export function fmtDur(sec?: number): string {
+  if (sec == null || !Number.isFinite(sec) || sec < 0) return '—';
+  const s = Math.round(sec);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m < 60) return r ? `${m}m ${r}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+interface SuiteTiming {
+  start?: string;
+  end?: string;
+  wallSec?: number;
+  runSec: number;
+}
+
+/** Start (earliest step), end (latest finish), wall-clock span and on-target time. */
+export function suiteTiming(members: Campaign[]): SuiteTiming {
+  const starts = members.map((m) => m.startedAt ?? m.createdAt).filter(Boolean) as string[];
+  const ends = members.map((m) => m.finishedAt).filter(Boolean) as string[];
+  const start = starts.length ? starts.reduce((a, b) => (a < b ? a : b)) : undefined;
+  const end = ends.length ? ends.reduce((a, b) => (a > b ? a : b)) : undefined;
+  const wallSec =
+    start && end ? (new Date(end).getTime() - new Date(start).getTime()) / 1000 : undefined;
+  const runSec = members.reduce((s, m) => s + (m.durationSec ?? 0), 0);
+  return { start, end, wallSec, runSec };
+}
+
+/** Aggregate WRS across scored members: average + worst (min) with its level. */
+export function suiteWrs(
+  members: Campaign[],
+): { avg: number; min: number; level: WrsBreakdown['level']; scored: number } | null {
+  const scored = members.filter((m) => m.wrs);
+  if (!scored.length) return null;
+  const vals = scored.map((m) => m.wrs!.wrs);
+  const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  let worst = scored[0];
+  for (const m of scored) if (m.wrs!.wrs < worst.wrs!.wrs) worst = m;
+  return { avg, min: worst.wrs!.wrs, level: worst.wrs!.level, scored: scored.length };
+}
+
+/**
+ * One collapsible card per assessment suite: the steps of a scenario grouped
+ * under a header that carries the suite's target, aggregate WRS, timing (start →
+ * end, elapsed, on-target time) and a whole-suite archive + assessment report.
+ * Collapsed shows a compact step strip; expanded mounts the full per-step cards.
+ */
+function SuiteGroupCard({ g }: { g: SuiteGroup }) {
+  const app = useApp();
+  const canArchive = canDo(app.role, 'create', app.authRequired);
+  const t = useMemo(() => suiteTiming(g.members), [g.members]);
+  const agg = useMemo(() => suiteWrs(g.members), [g.members]);
+  const active = g.remaining > 0;
+  const [open, setOpen] = useState(active);
+  const allArchived = g.members.every((m) => m.archived);
+  const busy = app.busy[g.suiteId];
+  const scored = agg ? `${agg.scored}/${g.total} scored` : 'not scored';
+  return (
+    <div className={`suite-group${allArchived ? ' is-archived' : ''}`}>
+      <div className="suite-group-head">
+        <button
+          type="button"
+          className="suite-group-toggle"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+        >
+          <span className="caret" aria-hidden="true">
+            {open ? '▾' : '▸'}
+          </span>
+          <span className="suite-group-name">📋 {g.suiteName}</span>
+        </button>
+        <span className={`chip-count suite-progress${active ? ' is-active' : ''}`}>
+          {g.done}/{g.total} steps
+        </span>
+        {agg && (
+          <span className={`wrs-pill ${wrsClass(agg.level)}`} title={`Average WRS · ${scored}`}>
+            avg {agg.avg} · worst {agg.min} {agg.level}
+          </span>
+        )}
+        <div className="suite-group-actions">
+          {g.done > 0 && (
+            <a
+              className="btn btn-sm btn-ghost"
+              href={suiteReportUrl(g.suiteId)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Assessment ↗
+            </a>
+          )}
+          {canArchive && (
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={busy || active}
+              onClick={() => app.archiveSuite(g.suiteId, g.suiteName, !allArchived)}
+              title={
+                active
+                  ? 'Finish or cancel the sequence before archiving'
+                  : allArchived
+                    ? 'Restore the whole suite to the active list'
+                    : 'Archive the whole suite (hide from the default list)'
+              }
+            >
+              {busy ? <span className="spin" /> : null}
+              {allArchived ? 'Restore' : 'Archive'}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="suite-group-meta">
+        <span>
+          Target: <code>{g.target}</code>
+        </span>
+        {active && <span className="hint">{g.remaining} remaining</span>}
+        <span title="First step start → last step end">
+          🕒 {fmtWhen(t.start)} → {fmtWhen(t.end)}
+        </span>
+        {t.wallSec != null && (
+          <span title="Wall-clock span, first start to last finish">
+            ⏱ {fmtDur(t.wallSec)} elapsed
+          </span>
+        )}
+        {t.runSec > 0 && (
+          <span title="Sum of per-step run durations">Σ {fmtDur(t.runSec)} on target</span>
+        )}
+      </div>
+      {open ? (
+        <div className="suite-group-members">
+          {g.members.map((m) => (
+            <CampaignCard key={m.id} c={m} />
+          ))}
+        </div>
+      ) : (
+        <div className="suite-steps">
+          {g.members.map((m) => (
+            <span
+              key={m.id}
+              className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
+              title={m.status}
+            >
+              {(m.suiteOrder ?? 0) + 1}. {stepLabel(m, g.suiteName)}
+              {m.wrs ? ` · ${m.wrs.wrs} ${m.wrs.level}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CampaignsPage() {
   const app = useApp();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<StatusFilterId>('all');
   const [sort, setSort] = useState<SortId>('recent');
+  const [showArchived, setShowArchived] = useState(false);
+
+  const archivedCount = useMemo(
+    () => app.campaigns.filter((c) => c.archived).length,
+    [app.campaigns],
+  );
 
   const filtered = useMemo(() => {
     const matchStatus = STATUS_FILTERS.find((f) => f.id === status)!.match;
-    let list = app.campaigns.filter(matchStatus);
+    let list = app.campaigns.filter((c) => showArchived || !c.archived).filter(matchStatus);
     const term = q.trim().toLowerCase();
     if (term) {
       list = list.filter(
@@ -1016,7 +1182,11 @@ export function CampaignsPage() {
     else if (sort === 'wrs')
       list = [...list].sort((a, b) => (b.wrs?.wrs ?? -1) - (a.wrs?.wrs ?? -1));
     return list;
-  }, [app.campaigns, status, q, sort]);
+  }, [app.campaigns, status, q, sort, showArchived]);
+
+  // Suites (grouped) render above the standalone campaigns.
+  const suiteGroups = useMemo(() => groupSuites(filtered), [filtered]);
+  const standalone = useMemo(() => filtered.filter((c) => !c.suiteId), [filtered]);
 
   const hasCampaigns = app.campaigns.length > 0;
   const canCreate = canDo(app.role, 'create', app.authRequired);
@@ -1057,7 +1227,9 @@ export function CampaignsPage() {
         <div className="filter-bar">
           <div className="filter-chips">
             {STATUS_FILTERS.map((f) => {
-              const n = app.campaigns.filter(f.match).length;
+              const n = app.campaigns.filter(
+                (c) => (showArchived || !c.archived) && f.match(c),
+              ).length;
               return (
                 <button
                   key={f.id}
@@ -1083,6 +1255,16 @@ export function CampaignsPage() {
               <option value="name">Name (A–Z)</option>
               <option value="wrs">WRS (high→low)</option>
             </select>
+            {archivedCount > 0 && (
+              <label className="archived-toggle" title="Include archived campaigns">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+                Archived <span className="chip-count">{archivedCount}</span>
+              </label>
+            )}
           </div>
         </div>
       )}
@@ -1092,7 +1274,10 @@ export function CampaignsPage() {
         {hasCampaigns && filtered.length === 0 && (
           <div className="empty">No campaigns match your filters.</div>
         )}
-        {filtered.map((c) => (
+        {suiteGroups.map((g) => (
+          <SuiteGroupCard key={g.suiteId} g={g} />
+        ))}
+        {standalone.map((c) => (
           <CampaignCard key={c.id} c={c} />
         ))}
       </div>

@@ -85,6 +85,45 @@ describe('API — auth disabled', () => {
     expect(r.statusCode).toBe(400);
   });
 
+  it('archives and un-archives a campaign, auditing both', async () => {
+    const c = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      payload: { ...campaignBody, createdBy: 'eng@wedos' },
+    });
+    const id = c.json().id;
+
+    const arc = await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/archive`,
+      payload: { archived: true },
+    });
+    expect(arc.statusCode).toBe(200);
+    expect(arc.json().archived).toBe(true);
+    expect((await app.inject({ method: 'GET', url: `/api/campaigns/${id}` })).json().archived).toBe(
+      true,
+    );
+
+    const restore = await app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${id}/archive`,
+      payload: { archived: false },
+    });
+    expect(restore.json().archived).toBe(false);
+
+    const audit = (await app.inject({ method: 'GET', url: '/api/audit' })).json();
+    expect(audit.some((e: { action: string }) => e.action === 'campaign.archive')).toBe(true);
+  });
+
+  it('404 when archiving an unknown campaign', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/campaigns/nope/archive',
+      payload: { archived: true },
+    });
+    expect(r.statusCode).toBe(404);
+  });
+
   it('404 on an unknown campaign', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/campaigns/unknown' });
     expect(r.statusCode).toBe(404);

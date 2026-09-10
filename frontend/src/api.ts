@@ -51,6 +51,13 @@ export interface Campaign {
   runId?: string;
   /** Why the latest run ended as it did (set for a kill), mirrored from the run. */
   statusDetail?: string;
+  createdAt?: string;
+  /** Latest run's generator wall-clock (mirrored at settle time). */
+  startedAt?: string;
+  finishedAt?: string;
+  durationSec?: number;
+  /** Hidden from the default campaigns view (organisational state). */
+  archived?: boolean;
 }
 
 export interface AcceptanceCriteria {
@@ -579,6 +586,13 @@ export const api = {
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   cancelCampaign: (id: string, reason?: string) =>
     post<Campaign>(`/api/campaigns/${id}/cancel`, reason ? { reason } : undefined),
+  archiveCampaign: (id: string, archived: boolean) =>
+    post<Campaign>(`/api/campaigns/${id}/archive`, { archived }),
+  archiveSuite: (id: string, archived: boolean) =>
+    post<{ suiteId: string; archived: boolean; changed: number; total: number }>(
+      `/api/suites/${id}/archive`,
+      { archived },
+    ),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),

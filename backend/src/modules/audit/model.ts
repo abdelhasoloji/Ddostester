@@ -12,6 +12,7 @@ export interface AuditEntry {
     | 'campaign.defer'
     | 'campaign.kill'
     | 'campaign.cancel'
+    | 'campaign.archive'
     | 'user.upsert'
     | 'user.delete'
     | 'playbook.upsert'
