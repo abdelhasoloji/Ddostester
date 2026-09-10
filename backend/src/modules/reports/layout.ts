@@ -51,7 +51,17 @@ export const REPORT_CSS = `
  .r-low,.v-held{color:var(--good);font-weight:700}.r-med,.v-partial{color:var(--warn);font-weight:700}
  .r-crit,.v-fail{color:var(--crit);font-weight:700}.v-aborted{color:var(--muted);font-weight:700}
  .print-btn{position:fixed;top:1rem;right:1rem;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
- @media print{.print-btn{display:none}body{background:#fff}.cover{margin:0 0 1rem}.page{max-width:none;padding:0}.card,.scorecard,.figure{box-shadow:none}}
+ .print-foot{display:none}
+ @page{size:A4;margin:16mm 14mm 20mm}
+ @media print{
+  .print-btn{display:none} body{background:#fff;font-size:10.5pt} .page{max-width:none;padding:0}
+  .cover{margin:0 0 1rem;break-after:avoid} .card,.scorecard,.figure{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{break-before:page;padding-top:.2rem} h2:first-of-type{break-before:auto}
+  h3{break-after:avoid} table,.figure,.scorecard,.card,tr,.callout{break-inside:avoid}
+  thead{display:table-header-group} a{color:inherit;text-decoration:none}
+  .print-foot{display:block;position:fixed;bottom:6mm;left:0;right:0;text-align:center;font-size:8pt;color:#8a8f99}
+ }
  @media(max-width:640px){.two-col{grid-template-columns:1fr}.scorecard{grid-template-columns:1fr;text-align:center}}
 `;
 
@@ -79,4 +89,4 @@ export function docHead(title: string): string {
 <title>${esc(title)}</title><style>${REPORT_CSS}</style></head><body>
 <button class="print-btn" onclick="window.print()">Print / PDF</button><div class="page">`;
 }
-export const DOC_TAIL = `</div></body></html>`;
+export const DOC_TAIL = `<div class="print-foot">Confidential — WEDOS ShieldTest · internal use only · must not be disclosed to third parties</div></div></body></html>`;
