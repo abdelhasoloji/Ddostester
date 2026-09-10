@@ -89,7 +89,7 @@ describe('deriveRegressions (E1 — baseline-relative)', () => {
       } as never,
       wrs: { wrs, level: 'A' } as never,
       absorption: { absorbedRatio } as never,
-    }) as CampaignRun;
+    }) as unknown as CampaignRun;
 
   it('stays inert below the baseline-run minimum', () => {
     const runs = [mkRun(0, 95, 0.8), mkRun(1, 95, 0.8), mkRun(2, 60, 0.1)]; // only 3
