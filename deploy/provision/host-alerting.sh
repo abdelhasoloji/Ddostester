@@ -92,6 +92,13 @@ YML
 promtool check rules /etc/prometheus/alert.rules.yml
 
 echo "==> alertmanager config (loopback; Rocket.Chat receiver if RC_WEBHOOK set)"
+# Debian's prometheus-alertmanager package ships its config at
+# /etc/prometheus/alertmanager.yml (not /etc/alertmanager). Storage lives under
+# /var/lib/prometheus/alertmanager and the daemon runs as user `prometheus`.
+AM_CONF=/etc/prometheus/alertmanager.yml
+AM_STORAGE=/var/lib/prometheus/alertmanager
+mkdir -p "$AM_STORAGE"
+chown -R prometheus:prometheus "$AM_STORAGE" 2>/dev/null || true
 if [ -n "$RC_WEBHOOK" ]; then
   RECEIVER_BLOCK=$(cat <<RCV
   - name: rocketchat
@@ -111,7 +118,7 @@ else
   RECEIVER_BLOCK=$'  - name: rocketchat'   # empty receiver: alerts fire, visible in UI, no push
   DEFAULT_RECEIVER=rocketchat
 fi
-cat > /etc/alertmanager/alertmanager.yml <<YML
+cat > "$AM_CONF" <<YML
 route:
   receiver: ${DEFAULT_RECEIVER}
   group_by: ['alertname', 'target']
@@ -128,12 +135,21 @@ inhibit_rules:
     target_matchers: [ severity="warning" ]
     equal: ['alertname', 'target']
 YML
-amtool check-config /etc/alertmanager/alertmanager.yml 2>/dev/null || true
+amtool check-config "$AM_CONF" 2>/dev/null || true
 
-echo "==> bind alertmanager to loopback"
+echo "==> point the daemon at our config + bind loopback (ARGS is empty by default)"
+# The service is ExecStart=/usr/bin/prometheus-alertmanager $ARGS with ARGS="",
+# so we must pass config.file + storage.path explicitly, plus the loopback bind
+# and an empty cluster address (disable clustering on this single node).
+AM_ARGS="--config.file=${AM_CONF} --storage.path=${AM_STORAGE} --web.listen-address=127.0.0.1:9093 --cluster.listen-address="
 if [ -f /etc/default/prometheus-alertmanager ]; then
-  sed -i 's#^ARGS=.*#ARGS="--web.listen-address=127.0.0.1:9093 --cluster.listen-address="#' /etc/default/prometheus-alertmanager || true
-  grep -q '^ARGS=' /etc/default/prometheus-alertmanager || echo 'ARGS="--web.listen-address=127.0.0.1:9093 --cluster.listen-address="' >> /etc/default/prometheus-alertmanager
+  if grep -q '^ARGS=' /etc/default/prometheus-alertmanager; then
+    sed -i "s#^ARGS=.*#ARGS=\"${AM_ARGS}\"#" /etc/default/prometheus-alertmanager
+  else
+    echo "ARGS=\"${AM_ARGS}\"" >> /etc/default/prometheus-alertmanager
+  fi
+else
+  echo "ARGS=\"${AM_ARGS}\"" > /etc/default/prometheus-alertmanager
 fi
 
 echo "==> wire Prometheus -> rules + alertmanager (idempotent append)"
