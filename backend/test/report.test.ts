@@ -115,4 +115,37 @@ describe('per-campaign report', () => {
     expect(noTl).toContain('No time-series captured');
     expect(noTl).not.toMatch(/NaN|undefined/);
   });
+
+  it('explains a flood the target absorbed (low success + heavy throttle), not just the score', () => {
+    const blocked = renderCampaignReportHtml(
+      campaign({ maxRps: 500, name: 'Random-URL wave' }),
+      run({
+        generator: {
+          totalRequests: 2028,
+          successful: 0,
+          failed: 2028,
+          actualRps: 11,
+          finishedAt: new Date().toISOString(),
+          latencyMs: { p50: 6500, p95: 9600, p99: 9950 },
+          statusCounts: { '4xx': 511 },
+          errors: { AbortError: 1517 },
+        },
+        timeline: Array.from({ length: 12 }, (_, t) => ({
+          t,
+          rps: 11,
+          sent: t * 11,
+          failed: t * 11,
+          probe5xx: 0,
+          availPct: 100,
+        })),
+      }),
+    );
+    // The contradiction (high score, zero success) is explained, not left bare.
+    expect(blocked).toContain('protection absorbed the load');
+    expect(blocked).toContain('rejected by the edge'); // failure split surfaced
+    // Configured intent is shown, not only the throttled achieved rate.
+    expect(blocked).toContain('Configured load');
+    expect(blocked).toMatch(/500 req\/s/);
+    expect(blocked).not.toMatch(/NaN|undefined/);
+  });
 });
