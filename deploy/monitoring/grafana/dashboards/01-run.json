@@ -220,7 +220,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_runs_in_flight",
+          "expr": "shieldtest_runs_in_flight or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
