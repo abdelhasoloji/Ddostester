@@ -78,9 +78,10 @@ emits amplification traffic.
 
 - `backend/src/app.ts` — `buildApp()`: routes + logic (injectable for tests).
 - `backend/src/server.ts` — entry point: store, auth, scheduler, listen, graceful shutdown.
-- `backend/src/engine/loadTest.ts` — bounded HTTP generator (phases, RPS cap, kill switch).
+- `backend/src/engine/loadTest.ts` — bounded HTTP generator (phases, RPS cap, kill switch). **Invariant: a run always settles at cap + grace** — the probe has a wall-clock deadline and the engine races the workers against a hard backstop, so a tarpitting target (undici pool exhaustion) can never hang a run (`LoadTestResult.hardStopped` flags it).
 - `backend/src/agents/` — `AttackAgent` contract + builtin/k6/vegeta/locust adapters.
 - `backend/src/modules/` — campaigns (CAM + scheduler), probe (+ kill switch), wrs (scoring + history), reports (campaign + compliance), metrics, audit.
+- **Observability**: `GET /metrics` (Prometheus — business + runtime: HTTP/route, runs in-flight/duration, `loadtest_hard_stopped_total`, event-loop lag, process) and structured `run.start`/`run.settled` pino logs. See `docs/monitoring.md`.
 - `backend/src/store/` — PostgreSQL persistence (+ best-effort TimescaleDB) or memory.
 - `backend/src/auth/` — JWT HS256 + RBAC (engineer/officer/viewer).
 - `frontend/src/` — React dashboard (login, campaigns, WRS, audit, live SSE progress).
