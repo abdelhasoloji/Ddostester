@@ -284,7 +284,6 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
      : ''
  }
  <tr><th>Configured / achieved rate</th><td>${configuredRps} req/s configured · ${g.actualRps} req/s effective · ${peakRps} req/s peak</td></tr>
- <tr><th>Effective RPS</th><td>${g.actualRps}</td></tr>
  <tr><th>Probe availability</th><td>${run.probe.available}/${run.probe.samples} samples · ${run.probe.errorRate5xx}% 5xx</td></tr>
 </table>` +
     (tt

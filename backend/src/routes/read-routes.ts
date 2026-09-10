@@ -55,7 +55,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
     const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
-    return reply.type('text/html').send(renderSuiteReportHtml(suite));
+    const runs = await store.listRuns();
+    return reply.type('text/html').send(renderSuiteReportHtml(suite, runs));
   });
 
   // Before / after comparison of two suites of the same playbook (the
