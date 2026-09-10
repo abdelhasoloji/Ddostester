@@ -444,6 +444,7 @@ export async function runLoadTest(
     progressTimer.unref?.();
   }
 
+  let abandoned = false;
   try {
     const workers = Promise.all(Array.from({ length: config.concurrency }, () => worker()));
     // Hard backstop: a run NEVER waits past its deadline + a fixed grace, even if
@@ -454,7 +455,6 @@ export async function runLoadTest(
     // abandon the stuck workers and settle the run with the metrics gathered so
     // far; their sockets are reclaimed as the process continues.
     const graceMs = Math.max(0, deadline - Date.now()) + 15_000;
-    let abandoned = false;
     const backstop = new Promise<void>((resolve) => {
       const t = setTimeout(() => {
         abandoned = true;
@@ -498,5 +498,6 @@ export async function runLoadTest(
     errors,
     assertionsChecked,
     assertionFailures,
+    hardStopped: abandoned,
   };
 }

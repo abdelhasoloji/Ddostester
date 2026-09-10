@@ -173,4 +173,10 @@ export interface LoadTestResult {
   assertionsChecked?: number;
   /** Number of responses that failed the assertion. */
   assertionFailures?: number;
+  /**
+   * True when the run was force-settled by the hard backstop (some in-flight
+   * requests never returned — target tarpit / undici pool exhaustion). A signal
+   * that the target held connections open past the cap; surfaced as a metric.
+   */
+  hardStopped?: boolean;
 }

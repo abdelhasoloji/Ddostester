@@ -10,6 +10,7 @@ import type { Store } from './store/index.js';
 import type { AuthState } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
 import { liveProgress } from './runtime/live.js';
+import { metrics } from './modules/metrics/runtime.js';
 import {
   createCampaign,
   approveCampaign,
@@ -164,6 +165,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     origin: corsOrigin ? corsOrigin.split(',').map((s) => s.trim()) : false,
   });
 
+  // HTTP observability: request throughput and latency by route + status. The
+  // route pattern (not the raw URL) keeps cardinality bounded.
+  app.addHook('onResponse', async (req, reply) => {
+    const route = (req.routeOptions?.url as string | undefined) ?? 'unmatched';
+    const status = String(reply.statusCode);
+    metrics.inc('shieldtest_http_requests_total', 'HTTP requests by route and status', {
+      method: req.method,
+      route,
+      status,
+    });
+    metrics.observe(
+      'shieldtest_http_request_duration_ms',
+      'HTTP request handling duration (ms) by route',
+      reply.elapsedTime,
+      { method: req.method, route },
+    );
+  });
+
   // Security headers on every response (the app hardens itself, not just its
   // targets). No external origins are used, so the CSP is strict; 'unsafe-inline'
   // is limited to styles (the HTML reports embed a <style> block).
@@ -295,6 +314,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // Cleared in the finally below; onProgress overwrites it once load begins.
     onProgress({ sent: 0, successful: 0, failed: 0, elapsedSec: 0, actualRps: 0 });
     try {
+      let host = c.target;
+      try {
+        host = new URL(c.target).hostname;
+      } catch {
+        /* keep raw */
+      }
+      const runStartedMs = Date.now();
+      metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', 1);
+      app.log.info(
+        {
+          evt: 'run.start',
+          campaignId: c.id,
+          campaign: c.name,
+          target: host,
+          engine: runAgent.name,
+          maxRps: c.maxRps,
+          maxDurationSec: c.maxDurationSec,
+          phases: c.scenario?.length ?? 0,
+        },
+        `run.start ${c.name}`,
+      );
       const run = await executeCampaign(
         c,
         allowedTargets,
@@ -304,6 +344,47 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         protection,
         undefined,
         targetTelemetry,
+      );
+      const runDurationSec = (Date.now() - runStartedMs) / 1000;
+      metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', -1);
+      metrics.inc('shieldtest_runs_completed_total', 'Runs by terminal status', {
+        status: run.status,
+        engine: runAgent.name,
+      });
+      metrics.observe(
+        'shieldtest_run_duration_seconds',
+        'Wall-clock duration of a campaign run',
+        runDurationSec,
+        { engine: runAgent.name },
+      );
+      metrics.setGauge('shieldtest_run_wrs_last', 'Last WRS per target', run.wrs.wrs, {
+        target: host,
+      });
+      if (run.generator.hardStopped) {
+        metrics.inc(
+          'shieldtest_loadtest_hard_stopped_total',
+          'Runs force-settled by the hard backstop (target held connections past the cap)',
+          { target: host, engine: runAgent.name },
+        );
+      }
+      app.log.info(
+        {
+          evt: 'run.settled',
+          campaignId: c.id,
+          runId: run.runId,
+          target: host,
+          status: run.status,
+          statusDetail: run.statusDetail,
+          wrs: run.wrs.wrs,
+          grade: run.wrs.level,
+          durationSec: Number(runDurationSec.toFixed(1)),
+          requests: run.generator.totalRequests,
+          successful: run.generator.successful,
+          failed: run.generator.failed,
+          actualRps: run.generator.actualRps,
+          configuredRps: c.maxRps,
+        },
+        `run.settled ${c.name} → ${run.status} · WRS ${run.wrs.wrs} in ${runDurationSec.toFixed(1)}s`,
       );
       await store.saveRun(run);
       // Recurring campaigns re-arm for their next run (within the approval
@@ -331,12 +412,6 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           store.listCampaigns(),
           store.listRuns(),
         ]);
-        let host = c.target;
-        try {
-          host = new URL(c.target).hostname;
-        } catch {
-          /* keep raw */
-        }
         const series = buildWrsHistory(allCampaigns, allRuns).find((s) => s.target === host);
         // Baseline drift: the most recent previous run against the same target
         // that carries a baseline (recurring campaigns re-run the same target).

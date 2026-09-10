@@ -4,6 +4,7 @@ import type { Permission } from '../auth/rbac.js';
 import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
+import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
 import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml } from '../modules/reports/compare.js';
@@ -91,7 +92,9 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
 
   app.get('/metrics', async (_req, reply) => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
-    return reply.type('text/plain; version=0.0.4').send(renderMetrics(campaigns, runs.length));
+    // Business metrics (on-demand) + live runtime/operational metrics.
+    const body = renderMetrics(campaigns, runs.length) + metrics.render();
+    return reply.type('text/plain; version=0.0.4').send(body);
   });
 
   app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
