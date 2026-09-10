@@ -62,11 +62,13 @@ fi
 # Grafana: loopback.
 sed -i 's/^;*http_addr =.*/http_addr = 127.0.0.1/' /etc/grafana/grafana.ini || true
 
-echo "==> enable + (re)start services"
+echo "==> enable + restart services (restart, not just start — apt already started"
+echo "    prometheus/node_exporter with the default config; we must reload ours)"
 systemctl daemon-reload
-systemctl enable --now prometheus-node-exporter >/dev/null 2>&1 || systemctl restart prometheus-node-exporter
-systemctl enable --now prometheus >/dev/null 2>&1 || systemctl restart prometheus
-systemctl enable --now grafana-server >/dev/null 2>&1 || systemctl restart grafana-server
+for svc in prometheus-node-exporter prometheus grafana-server; do
+  systemctl enable "$svc" >/dev/null 2>&1 || true
+  systemctl restart "$svc"
+done
 sleep 3
 
 echo "==> health"
