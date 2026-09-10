@@ -206,7 +206,15 @@ export function renderComplianceHtml(
       const c = campById.get(r.campaignId);
       const mit = mitigationVerdict(r);
       const risk = riskLevel(r);
-      const rps = Math.round(r.generator.actualRps);
+      const g = r.generator;
+      const rps = Math.round(g.actualRps);
+      // Show configured intent → effective achieved, so a flood the target
+      // throttled isn't misread as a trivial test (achieved rate only).
+      const cfgRps = c?.maxRps ?? 0;
+      const loadCell = cfgRps ? `${cfgRps}→${rps}` : `${rps}`;
+      const succRatio = g.totalRequests ? g.successful / g.totalRequests : 1;
+      const absorbed =
+        cfgRps > 0 && (rps < cfgRps * 0.6 || (g.totalRequests > 50 && succRatio < 0.5));
       const ttdttm = r.protection
         ? `TTD ${r.protection.detectionTimeSec}s · TTM ${r.protection.mitigationTimeSec}s · `
         : '';
@@ -216,12 +224,15 @@ export function renderComplianceHtml(
           ? esc(r.statusDetail)
           : `avail ${availabilityPct(r).toFixed(0)}%${
               r.baselineDelta ? ` · Δp95 ${r.baselineDelta.latencyP95DeltaMs} ms` : ''
-            }`);
+            }`) +
+        (absorbed
+          ? ` · protection absorbed the flood (${g.successful.toLocaleString('en-US')}/${g.totalRequests.toLocaleString('en-US')} ok)`
+          : '');
       return `<tr>
  <td>${i + 1}</td>
  <td>${esc(c?.name ?? r.campaignId)}</td>
  <td>${esc(hostOf(c?.target ?? '—'))}</td>
- <td>${rps}</td>
+ <td>${loadCell}</td>
  <td><b style="color:${scoreColor(r.wrs.wrs)}">${r.wrs.wrs}</b> <span class="muted">${r.wrs.level}</span></td>
  <td class="${mit.cls}">${mit.label}</td>
  <td class="${risk.cls}">${risk.label}</td>
@@ -288,7 +299,7 @@ export function renderComplianceHtml(
 </div>` +
     `<h2>Per-scenario results (Layer 7, bounded)</h2>
 <table>
- <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Peak RPS</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr></thead>
+ <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Load rps (cfg&rarr;eff)</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr></thead>
  <tbody>${scenarioRows || '<tr><td colspan="8" class="muted">No runs in the period.</td></tr>'}</tbody>
 </table>
 
@@ -318,7 +329,7 @@ ${benchSection}
  <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
  <tr><th>Mitigation</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> auto-killed (target down ≥30 s) · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
  <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.</td></tr>
- <tr><th>RPS</th><td>Requests per second (Layer 7). Volumetric PPS is out of scope.</td></tr>
+ <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; effective rate the target sustained; a large gap means the protection rate-limited or tarpitted the flood. Volumetric PPS is out of scope.</td></tr>
 </table>
 
 <p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. Bounded HTTP generator —
