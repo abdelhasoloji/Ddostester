@@ -218,6 +218,7 @@ export function renderComplianceHtml(
       const ttdttm = r.protection
         ? `TTD ${r.protection.detectionTimeSec}s · TTM ${r.protection.mitigationTimeSec}s · `
         : '';
+      const degraded = r.confidence?.degraded ?? false;
       const note =
         ttdttm +
         (r.statusDetail
@@ -227,13 +228,16 @@ export function renderComplianceHtml(
             }`) +
         (absorbed
           ? ` · protection absorbed the flood (${g.successful.toLocaleString('en-US')}/${g.totalRequests.toLocaleString('en-US')} ok)`
+          : '') +
+        (degraded
+          ? ` · <b>⚠ measurement degraded</b> (${esc(r.confidence?.reasons[0] ?? 'generator-side bottleneck')})`
           : '');
       return `<tr>
  <td>${i + 1}</td>
  <td>${esc(c?.name ?? r.campaignId)}</td>
  <td>${esc(hostOf(c?.target ?? '—'))}</td>
  <td>${loadCell}</td>
- <td><b style="color:${scoreColor(r.wrs.wrs)}">${r.wrs.wrs}</b> <span class="muted">${r.wrs.level}</span></td>
+ <td><b style="color:${scoreColor(r.wrs.wrs)}">${r.wrs.wrs}</b> <span class="muted">${r.wrs.level}</span>${degraded ? ' <span title="measurement degraded — WRS may be understated">⚠</span>' : ''}</td>
  <td class="${mit.cls}">${mit.label}</td>
  <td class="${risk.cls}">${risk.label}</td>
  <td class="note">${note}</td>

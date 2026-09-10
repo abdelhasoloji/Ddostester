@@ -16,7 +16,7 @@ test('serves the SPA, authenticates and reaches the campaigns view', async ({ pa
 
   // Authenticated shell: the nav is present; the Campaigns view offers creation
   // (officer has campaign:create), proving the UI talked to /health + /api.
-  await page.getByRole('link', { name: 'Campaigns' }).click();
+  await page.locator('nav.nav').getByRole('link', { name: 'Campaigns' }).click();
   await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
 });
 

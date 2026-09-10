@@ -42,8 +42,8 @@ test('full lifecycle: engineer creates → officer approves → engineer runs �
   // Close the detail drawer (auto-opened at run end) before navigating away.
   await eng.getByRole('button', { name: 'Close' }).click();
 
-  // Coherence J1: the completed run now surfaces in Reports.
-  await goTo(eng, 'Reports');
+  // Coherence J1: the completed run now surfaces in Results.
+  await goTo(eng, 'Results');
   await expect(eng.locator('.report-row', { hasText: name })).toBeVisible();
 
   await engCtx.close();
