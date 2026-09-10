@@ -72,6 +72,68 @@ export function WrsPill({ wrs }: { wrs: WrsBreakdown }) {
 }
 
 /**
+ * Flags a WRS whose measurement may be understated because OUR generator host was
+ * the bottleneck (hard-stopped, or high event-loop lag during the run) — so a low
+ * score isn't misread as the target failing.
+ */
+export function ConfidenceBadge({ run }: { run: CampaignRun }) {
+  if (!run.confidence?.degraded) return null;
+  return (
+    <span className="badge warn" title={run.confidence.reasons.join(' ')}>
+      ⚠ measurement degraded
+    </span>
+  );
+}
+
+/**
+ * Protection absorption widget: how much of the offered load the target's edge
+ * absorbed (rate-limited / tarpitted / 4xx) vs let through to origin — the
+ * product-level "protection working" signal, shown next to the WRS.
+ */
+export function AbsorptionWidget({ run }: { run: CampaignRun }) {
+  const g = run.generator;
+  const a =
+    run.absorption ??
+    ({
+      configuredRps: 0,
+      achievedRps: g.actualRps,
+      originRps: 0,
+      absorbedRatio: g.totalRequests ? g.failed / g.totalRequests : 0,
+      absorbedPct: g.totalRequests ? Math.round((g.failed / g.totalRequests) * 1000) / 10 : 0,
+      totalRequests: g.totalRequests,
+    } as NonNullable<CampaignRun['absorption']>);
+  return (
+    <div className="absorption">
+      <div className="absorption-head">
+        <span>Protection absorption</span>
+        <span className={`absorb-pct ${a.absorbedPct >= 20 ? 'good' : 'low'}`}>
+          {a.absorbedPct}% absorbed by edge
+        </span>
+      </div>
+      <div className="absorption-funnel">
+        <div>
+          <b>{a.configuredRps}</b>
+          <span>configured</span>
+        </div>
+        <div className="arrow">→</div>
+        <div>
+          <b>{a.achievedRps.toFixed(1)}</b>
+          <span>offered</span>
+        </div>
+        <div className="arrow">→</div>
+        <div>
+          <b>{a.originRps.toFixed(1)}</b>
+          <span>reached origin</span>
+        </div>
+      </div>
+      <div className="absorption-bar" title={`${a.absorbedPct}% absorbed by the target edge`}>
+        <div className="absorb-fill" style={{ width: `${Math.min(100, a.absorbedPct)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Full-width, interactive WRS trend for one target: hover a point for its
  * date/score, click it to open that run's report. Scales to its container
  * (viewBox matches measured pixel width, so points stay round).
@@ -207,6 +269,15 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
             <span>
               {p.successful} ok · {p.failed} failed
             </span>
+            {p.elapsedSec > 0 && (
+              <span
+                className="live-absorb"
+                title="Load reaching origin (2xx/3xx) vs the share the edge is absorbing right now"
+              >
+                → origin {(p.successful / p.elapsedSec).toFixed(1)}/s ·{' '}
+                <b>{p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0}% absorbed</b>
+              </span>
+            )}
           </>
         ) : (
           engine && <span>engine {engine} · running</span>
@@ -548,6 +619,13 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       {run.timeline && (
         <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
       )}
+      <AbsorptionWidget run={run} />
+      {run.confidence?.degraded && (
+        <p className="hint warn-hint" style={{ marginTop: '.5rem' }}>
+          ⚠ <b>Measurement degraded — this WRS may be understated.</b>{' '}
+          {run.confidence.reasons.join(' ')}
+        </p>
+      )}
       <div className="wrs-breakdown">
         <span>
           Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
@@ -657,6 +735,7 @@ export function CampaignDrawer() {
             <StatusBadge status={c.status} />
             {app.requireCisoApproval && c.status !== 'PENDING_APPROVAL' && <CisoBadge c={c} />}
             {c.wrs && <WrsPill wrs={c.wrs} />}
+            {run && <ConfidenceBadge run={run} />}
           </div>
           <button className="drawer-close" aria-label="Close" onClick={() => app.setExpanded(null)}>
             ×

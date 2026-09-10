@@ -160,6 +160,56 @@ export function isBuildMismatch(
   return s !== frontendCommit;
 }
 
+/**
+ * In-app alerts banner — surfaces the signals derived from recent run history
+ * (tarpit / low-WRS / measurement-degraded / auto-killed) so the app is a single
+ * pane of glass without opening Grafana. Alerts are dismissible for the session.
+ */
+function AlertsBanner() {
+  const { alerts } = useApp();
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const list = alerts ?? [];
+  const active = list.filter((a) => !dismissed.has(a.key));
+  if (active.length === 0) return null;
+  const worst = active.some((a) => a.severity === 'critical')
+    ? 'critical'
+    : active.some((a) => a.severity === 'warning')
+      ? 'warning'
+      : 'info';
+  return (
+    <div className={`alerts-banner alerts-${worst}`} role="alert">
+      <div className="alerts-banner-head">
+        <span>
+          🔔 {active.length} alert{active.length > 1 ? 's' : ''} from recent runs
+        </span>
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={() => setDismissed(new Set(list.map((a) => a.key)))}
+        >
+          Dismiss all
+        </button>
+      </div>
+      <ul className="alerts-list">
+        {active.slice(0, 5).map((a) => (
+          <li key={a.key} className={`alert-row alert-${a.severity}`}>
+            <span className="alert-dot" aria-hidden="true" />
+            <span className="alert-title">{a.title}</span>
+            <span className="alert-detail">{a.detail}</span>
+            <button
+              className="alert-x"
+              aria-label="Dismiss alert"
+              onClick={() => setDismissed((d) => new Set([...d, a.key]))}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+        {active.length > 5 && <li className="alert-more">+{active.length - 5} more…</li>}
+      </ul>
+    </div>
+  );
+}
+
 export function Layout() {
   const app = useApp();
   const { toasts } = app;
@@ -227,6 +277,7 @@ export function Layout() {
               (Cmd/Ctrl-Shift-R); if it persists, the server needs a rebuild/restart.
             </div>
           )}
+          <AlertsBanner />
           <Outlet />
         </main>
       </div>

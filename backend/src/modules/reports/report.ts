@@ -4,6 +4,8 @@ import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { mitigationVerdict, riskLevel } from './compliance.js';
+import { computeAbsorption } from './absorption.js';
+import { computeConfidence } from './confidence.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, timelineSvg, scoreColor, REPORT_COLORS } from './charts.js';
@@ -69,6 +71,21 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const successRatio = g.totalRequests ? g.successful / g.totalRequests : 1;
   const heavilyThrottled = configuredRps > 0 && peakRps < configuredRps * 0.6;
   const mostlyBlocked = g.totalRequests > 50 && successRatio < 0.5;
+
+  // Protection absorption (configured → offered → origin, + % absorbed) and
+  // measurement confidence (was OUR generator the bottleneck?), both shared with
+  // the /metrics gauges and the in-app widgets via the same helpers.
+  const absorption =
+    run.absorption ??
+    computeAbsorption({
+      configuredRps,
+      achievedRps: g.actualRps,
+      totalRequests: g.totalRequests,
+      successful: g.successful,
+      failed: g.failed,
+      durationSec: durSec,
+    });
+  const confidence = run.confidence ?? computeConfidence({ hardStopped: g.hardStopped });
 
   // Management summary — plain-language verdict generated from the run.
   const kill = run.status !== 'COMPLETED';
@@ -156,6 +173,9 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     ) +
     `<p class="lead">${summary}</p>` +
     (kill ? `<div class="callout kill">🛑 ${esc(run.statusDetail ?? run.status)}</div>` : '') +
+    (confidence.degraded
+      ? `<div class="callout warn">⚠ <b>Measurement degraded — this WRS may be understated.</b> ${esc(confidence.reasons.join(' '))}</div>`
+      : '') +
     absorbedCallout +
     `<h2>At a glance</h2>
 <div class="scorecard">
@@ -171,6 +191,14 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       ${statCard('Requests (ok)', `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
     </div>
   </div>
+</div>` +
+    `<h2>Protection absorption</h2>
+<p class="muted">How much of the offered load the target's edge absorbed (rate-limited / tarpitted / 4xx) versus let through to origin.</p>
+<div class="grid cards">
+  ${statCard('Configured', `${absorption.configuredRps} req/s`, false)}
+  ${statCard('Offered (sent)', `${absorption.achievedRps.toFixed(1)} req/s`, false)}
+  ${statCard('Reached origin', `${absorption.originRps.toFixed(1)} req/s`, false)}
+  ${statCard('Absorbed by edge', `${absorption.absorbedPct}%`, absorption.absorbedPct >= 20)}
 </div>` +
     `<h2>Traffic over time</h2>
 <div class="figure"><div class="cap">Generator request rate (req/s) across the run.</div>

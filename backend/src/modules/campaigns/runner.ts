@@ -15,6 +15,8 @@ import { captureBaseline, computeBaselineDelta } from './baseline.js';
 import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
 import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
+import type { RunConfidence } from '../reports/confidence.js';
+import type { Absorption } from '../reports/absorption.js';
 import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
@@ -69,6 +71,19 @@ export interface CampaignRun {
   baselineDelta?: BaselineDelta;
   /** Host-side counters of the target during the run (when a source is configured). */
   targetTelemetry?: TargetSample[];
+  /**
+   * Measurement confidence — whether the generator host itself may have been the
+   * bottleneck (hard-stopped, or high event-loop lag during the run). When
+   * `degraded`, the WRS is flagged in the UI/report as possibly understated.
+   * Computed at settle time in `app.ts` (which has the live event-loop lag).
+   */
+  confidence?: RunConfidence;
+  /**
+   * Protection absorption for this run (configured → offered → origin RPS, and
+   * the fraction the target edge absorbed). Computed at settle time; read by the
+   * report and the in-app absorption widget so all surfaces agree.
+   */
+  absorption?: Absorption;
 }
 
 /**

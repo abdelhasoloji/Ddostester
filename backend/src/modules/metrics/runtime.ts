@@ -96,6 +96,17 @@ class Registry {
     this.summaries.set(name, m);
   }
 
+  /**
+   * Current event-loop delay mean (ms), non-destructive (does NOT reset the
+   * histogram, unlike render()). Used by in-process integrity checks — the
+   * scheduler guardrail and per-run measurement-confidence — to tell whether the
+   * generator host itself is the bottleneck. Returns 0 before any samples.
+   */
+  eventLoopLagMs(): number {
+    const v = this.eld.mean / 1e6;
+    return Number.isFinite(v) ? v : 0;
+  }
+
   render(): string {
     const lines: string[] = [];
     // Process + event-loop snapshot (sampled at scrape time).

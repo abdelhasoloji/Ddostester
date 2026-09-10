@@ -11,6 +11,8 @@ import type { AuthState } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
 import { liveProgress } from './runtime/live.js';
 import { metrics } from './modules/metrics/runtime.js';
+import { computeAbsorption } from './modules/reports/absorption.js';
+import { computeConfidence, EVENT_LOOP_LAG_GUARD_MS } from './modules/reports/confidence.js';
 import {
   createCampaign,
   approveCampaign,
@@ -289,6 +291,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         `Too many concurrent runs (max ${maxConcurrentRuns}). Try again once one finishes.`,
       );
     }
+    // Integrity guardrail: never START a measurement while our own generator host
+    // is saturated — a WRS taken on a stalling event loop reflects OUR bottleneck,
+    // not the target's protection. The scheduler catches this and retries next
+    // tick (campaign stays APPROVED); a manual click gets a clear "try again".
+    const startLagMs = metrics.eventLoopLagMs();
+    if (startLagMs > EVENT_LOOP_LAG_GUARD_MS) {
+      metrics.inc(
+        'shieldtest_run_deferred_total',
+        'Runs deferred by the integrity guardrail (generator saturated at start)',
+        { actor },
+      );
+      await auditAs(
+        actor,
+        'campaign.defer',
+        c.id,
+        `deferred: generator event-loop lag ${Math.round(startLagMs)}ms > ${EVENT_LOOP_LAG_GUARD_MS}ms guard`,
+      );
+      throw new CampaignError(
+        `Generator saturated (event-loop lag ${Math.round(startLagMs)}ms) — deferring to protect measurement integrity. Try again shortly.`,
+      );
+    }
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     await store.saveCampaign(transition(c, 'RUNNING'));
@@ -300,13 +323,19 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (runAgent !== agent && !(await runAgent.available())) {
       runAgent = agent;
     }
-    const onProgress = (p: LoadProgress) =>
+    // Track the worst event-loop lag seen during the run so we can flag the WRS
+    // as measurement-degraded if the generator host was itself struggling.
+    let peakEventLoopLagMs = 0;
+    const onProgress = (p: LoadProgress) => {
+      const lag = metrics.eventLoopLagMs();
+      if (lag > peakEventLoopLagMs) peakEventLoopLagMs = lag;
       liveProgress.set(c.id, {
         ...p,
         maxDurationSec: c.maxDurationSec,
         status: 'RUNNING',
         engine: runAgent.name,
       });
+    };
     // Seed a zeroed progress record immediately: the run opens with a baseline
     // capture (awaited, a few seconds) during which the engine emits no
     // progress. Without this seed the live stream would find no record and tell
@@ -362,33 +391,37 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       });
       // Protection-absorption metrics: how much of the offered load the target's
       // edge absorbed (rate-limited/tarpitted/4xx) vs let through to origin.
-      // configured = what we asked for; achieved = what we actually sent;
-      // origin = what reached the backend (2xx/3xx); absorbed = fraction rejected.
-      const totalReq = run.generator.totalRequests;
-      const originRps = runDurationSec > 0 ? run.generator.successful / runDurationSec : 0;
-      const absorbedRatio = totalReq > 0 ? run.generator.failed / totalReq : 0;
+      // Single source of truth (computeAbsorption) shared with the report + UI.
+      const absorption = computeAbsorption({
+        configuredRps: c.maxRps,
+        achievedRps: run.generator.actualRps,
+        totalRequests: run.generator.totalRequests,
+        successful: run.generator.successful,
+        failed: run.generator.failed,
+        durationSec: runDurationSec,
+      });
       metrics.setGauge(
         'shieldtest_run_configured_rps_last',
         'Configured max RPS of the last run per target',
-        c.maxRps,
+        absorption.configuredRps,
         { target: host },
       );
       metrics.setGauge(
         'shieldtest_run_achieved_rps_last',
         'Achieved (sent) RPS of the last run per target',
-        run.generator.actualRps,
+        absorption.achievedRps,
         { target: host },
       );
       metrics.setGauge(
         'shieldtest_run_origin_rps_last',
         'RPS that reached origin (2xx/3xx) in the last run per target',
-        originRps,
+        absorption.originRps,
         { target: host },
       );
       metrics.setGauge(
         'shieldtest_run_absorbed_ratio_last',
         'Fraction of requests absorbed by the target edge (rate-limited/tarpitted/4xx) in the last run',
-        absorbedRatio,
+        absorption.absorbedRatio,
         { target: host },
       );
       if (run.generator.hardStopped) {
@@ -396,6 +429,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           'shieldtest_loadtest_hard_stopped_total',
           'Runs force-settled by the hard backstop (target held connections past the cap)',
           { target: host, engine: runAgent.name },
+        );
+      }
+      // Measurement confidence: was the generator host the bottleneck (hard-stop
+      // or high event-loop lag during the run)? If so, badge the WRS as degraded.
+      run.absorption = absorption;
+      run.confidence = computeConfidence({
+        hardStopped: run.generator.hardStopped,
+        peakEventLoopLagMs,
+      });
+      if (run.confidence.degraded) {
+        metrics.inc(
+          'shieldtest_run_confidence_degraded_total',
+          'Runs whose WRS is flagged measurement-degraded (generator-side bottleneck)',
+          { target: host },
         );
       }
       app.log.info(

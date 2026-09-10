@@ -9,6 +9,7 @@ export interface AuditEntry {
     | 'campaign.ciso_approve'
     | 'campaign.reject'
     | 'campaign.execute'
+    | 'campaign.defer'
     | 'campaign.kill'
     | 'campaign.cancel'
     | 'user.upsert'

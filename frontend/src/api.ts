@@ -153,6 +153,7 @@ export interface CampaignRun {
     errors: Record<string, number>;
     assertionsChecked?: number;
     assertionFailures?: number;
+    hardStopped?: boolean;
   };
   probe: {
     samples: number;
@@ -189,6 +190,38 @@ export interface CampaignRun {
     server?: string;
     signals: string[];
   };
+  /** Protection absorption: configured → offered → origin RPS + % absorbed by the edge. */
+  absorption?: Absorption;
+  /** Measurement confidence — whether the generator host itself was the bottleneck. */
+  confidence?: RunConfidence;
+}
+
+export interface Absorption {
+  configuredRps: number;
+  achievedRps: number;
+  originRps: number;
+  absorbedRatio: number;
+  absorbedPct: number;
+  totalRequests: number;
+}
+
+export interface RunConfidence {
+  degraded: boolean;
+  reasons: string[];
+  peakEventLoopLagMs?: number;
+}
+
+/** In-app alert derived from run history (GET /api/alerts). */
+export interface Alert {
+  severity: 'critical' | 'warning' | 'info';
+  key: string;
+  kind: 'tarpit' | 'low-wrs' | 'degraded' | 'auto-killed' | 'not-engaging';
+  title: string;
+  detail: string;
+  campaignId?: string;
+  runId: string;
+  target?: string;
+  at?: string;
 }
 
 export type Role = 'engineer' | 'officer' | 'viewer' | 'ciso';
@@ -512,6 +545,7 @@ export const api = {
     post<Campaign>(`/api/campaigns/${id}/cancel`, reason ? { reason } : undefined),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
+  alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
