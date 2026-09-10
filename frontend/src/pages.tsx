@@ -1204,7 +1204,7 @@ function SuitesSection() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Suite report ↗
+                  Assessment report ↗
                 </a>
                 {prev && (
                   <a
