@@ -360,6 +360,37 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       metrics.setGauge('shieldtest_run_wrs_last', 'Last WRS per target', run.wrs.wrs, {
         target: host,
       });
+      // Protection-absorption metrics: how much of the offered load the target's
+      // edge absorbed (rate-limited/tarpitted/4xx) vs let through to origin.
+      // configured = what we asked for; achieved = what we actually sent;
+      // origin = what reached the backend (2xx/3xx); absorbed = fraction rejected.
+      const totalReq = run.generator.totalRequests;
+      const originRps = runDurationSec > 0 ? run.generator.successful / runDurationSec : 0;
+      const absorbedRatio = totalReq > 0 ? run.generator.failed / totalReq : 0;
+      metrics.setGauge(
+        'shieldtest_run_configured_rps_last',
+        'Configured max RPS of the last run per target',
+        c.maxRps,
+        { target: host },
+      );
+      metrics.setGauge(
+        'shieldtest_run_achieved_rps_last',
+        'Achieved (sent) RPS of the last run per target',
+        run.generator.actualRps,
+        { target: host },
+      );
+      metrics.setGauge(
+        'shieldtest_run_origin_rps_last',
+        'RPS that reached origin (2xx/3xx) in the last run per target',
+        originRps,
+        { target: host },
+      );
+      metrics.setGauge(
+        'shieldtest_run_absorbed_ratio_last',
+        'Fraction of requests absorbed by the target edge (rate-limited/tarpitted/4xx) in the last run',
+        absorbedRatio,
+        { target: host },
+      );
       if (run.generator.hardStopped) {
         metrics.inc(
           'shieldtest_loadtest_hard_stopped_total',
