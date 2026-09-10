@@ -12,6 +12,9 @@ const {
   suiteReportUrl,
   streamUrl,
   auditExportUrl,
+  getGrafanaBase,
+  setGrafanaBase,
+  grafanaRunUrl,
 } = await import('./api.js');
 
 function stubFetch(body: unknown, init: { ok?: boolean; status?: number } = {}): Mock {
@@ -184,5 +187,39 @@ describe('api surface (every endpoint maps to a URL and verb)', () => {
       { target: 't' },
     );
     await check(() => api.suites(), '/api/suites', 'GET');
+  });
+});
+
+describe('Grafana deep-linking', () => {
+  beforeEach(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      /* ignore */
+    }
+  });
+
+  it('persists and clears the base URL (trimming a trailing slash)', () => {
+    expect(getGrafanaBase()).toBe('');
+    setGrafanaBase('http://localhost:3000/');
+    expect(getGrafanaBase()).toBe('http://localhost:3000');
+    setGrafanaBase('   ');
+    expect(getGrafanaBase()).toBe(''); // blank clears it
+  });
+
+  it('builds a dashboard link scoped to target + default live window', () => {
+    const u = new URL(grafanaRunUrl('http://localhost:3000', { target: 'bank.cz' }));
+    expect(u.pathname).toBe('/d/shieldtest-runs');
+    expect(u.searchParams.get('var-target')).toBe('bank.cz');
+    expect(u.searchParams.get('from')).toBe('now-15m');
+    expect(u.searchParams.get('to')).toBe('now');
+    expect(u.searchParams.get('refresh')).toBe('5s');
+  });
+
+  it('uses an explicit epoch window (no live refresh) when given from/to', () => {
+    const u = new URL(grafanaRunUrl('http://localhost:3000', { fromMs: 1000, toMs: 2000 }));
+    expect(u.searchParams.get('from')).toBe('1000');
+    expect(u.searchParams.get('to')).toBe('2000');
+    expect(u.searchParams.get('refresh')).toBeNull();
   });
 });
