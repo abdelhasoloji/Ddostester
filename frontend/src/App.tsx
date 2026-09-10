@@ -9,6 +9,7 @@ import {
   Layout,
   OverviewPage,
   ReportsPage,
+  RunTheaterPage,
   SettingsPage,
 } from './pages.js';
 import { TemplatesPage } from './templates-page.js';
@@ -48,6 +49,7 @@ function Gate() {
         <Route path="prepare" element={<PreparationPage />} />
         <Route path="plan" element={<PlanPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="theater" element={<RunTheaterPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />

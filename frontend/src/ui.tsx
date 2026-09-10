@@ -214,6 +214,150 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
   );
 }
 
+/**
+ * v2 Run Theater — a focused, full-width live view of the running campaign. The
+ * story is the two numbers pulling apart: offered load vs what reaches origin,
+ * with the gap (what the edge absorbs) front and center, and the kill switch
+ * always in reach. Subscribes to the same SSE stream as LiveProgress.
+ */
+export function RunTheater({
+  campaignId,
+  name,
+  target,
+  engine,
+  onKill,
+  killing,
+}: {
+  campaignId: string;
+  name: string;
+  target: string;
+  engine?: string;
+  onKill?: () => void;
+  killing?: boolean;
+}) {
+  const [p, setP] = useState<LiveProgressData | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    const es = new EventSource(streamUrl(campaignId));
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.status === 'RUNNING') {
+          setP(d);
+          setWaiting(false);
+        } else if (d.status === 'waiting') {
+          setWaiting(true);
+        } else if (d.status === 'done') {
+          es.close();
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [campaignId]);
+
+  const offered = p?.actualRps ?? 0;
+  const originRps = p && p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
+  const absorbedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0;
+  const pct = p
+    ? Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100))
+    : 0;
+  const eng = p?.engine ?? engine;
+
+  return (
+    <div className="theater">
+      <div className="theater-head">
+        <div>
+          <div className="theater-title">{name}</div>
+          <span className="hint">
+            {target} · engine {eng ?? '—'}
+            {p ? ` · ${p.elapsedSec}s / ${p.maxDurationSec}s` : ''}
+          </span>
+        </div>
+        <span className={`badge ${absorbedPct >= 20 ? 'warn' : ''}`}>
+          {waiting
+            ? '● capturing baseline'
+            : absorbedPct >= 20
+              ? '● protection engaging'
+              : '● running'}
+        </span>
+        {onKill && (
+          <button className="btn btn-danger theater-kill" onClick={onKill} disabled={killing}>
+            ◼ {killing ? 'Killing…' : 'Kill run'}
+          </button>
+        )}
+      </div>
+      <div className="live-bar">
+        <div className="live-fill" style={{ width: `${pct}%` }} />
+      </div>
+
+      {!p ? (
+        <p className="hint" style={{ marginTop: '1rem' }}>
+          <span className="spin" /> {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
+        </p>
+      ) : (
+        <>
+          <div className="theater-grid">
+            <div className="theater-metric">
+              <div className="tm-k">Offered</div>
+              <div className="tm-v">
+                {offered.toFixed(0)}
+                <small>req/s</small>
+              </div>
+            </div>
+            <div className="theater-metric">
+              <div className="tm-k">Reached origin</div>
+              <div className="tm-v good">
+                {originRps.toFixed(0)}
+                <small>req/s</small>
+              </div>
+            </div>
+            <div className="theater-metric absorb">
+              <div className="tm-k">Absorbed by edge</div>
+              <div className="tm-v warnv">
+                {absorbedPct}
+                <small>%</small>
+              </div>
+              <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
+                <div className="absorb-fill" style={{ width: `${Math.min(100, absorbedPct)}%` }} />
+              </div>
+            </div>
+            <div className="theater-metric">
+              <div className="tm-k">Legit probe</div>
+              <div className="tm-v good">
+                {p.probe && p.probe.samples > 0
+                  ? Math.round((p.probe.available / p.probe.samples) * 100)
+                  : 100}
+                <small>% up</small>
+              </div>
+            </div>
+          </div>
+
+          {p.statusCounts && Object.keys(p.statusCounts).length > 0 && (
+            <div className="status-dist" style={{ marginTop: '.8rem' }}>
+              {Object.entries(p.statusCounts)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([bucket, n]) => (
+                  <span key={bucket} className={`chip-xs ${bucket === '2xx' ? 'on' : 'off'}`}>
+                    {bucket} {n}
+                  </span>
+                ))}
+            </div>
+          )}
+
+          {p.timeline && p.timeline.length >= 2 && (
+            <div style={{ marginTop: '.8rem' }}>
+              <RunTimeline samples={p.timeline} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: string }) {
   const [p, setP] = useState<LiveProgressData | null>(null);
   const [waiting, setWaiting] = useState(false);

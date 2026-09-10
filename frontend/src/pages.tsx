@@ -47,6 +47,9 @@ import {
   WrsTrend,
   wrsClass,
   AbsorptionWidget,
+  ConfidenceBadge,
+  RunTheater,
+  RunDetails,
 } from './ui.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -72,6 +75,7 @@ const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/prepare', label: 'Prepare', icon: '🔍' },
   { to: '/campaigns', label: 'Campaigns', icon: '◇' },
+  { to: '/theater', label: 'Run Theater', icon: '📡' },
   { to: '/reports', label: 'Results', icon: '🛡' },
   { to: '/audit', label: 'Assurance', icon: '⚖' },
 ];
@@ -171,6 +175,61 @@ export function isBuildMismatch(
 const gradeFromScore = (n: number): WrsBreakdown['level'] =>
   n >= 90 ? 'A+' : n >= 80 ? 'A' : n >= 70 ? 'B' : n >= 60 ? 'C' : n >= 50 ? 'D' : 'F';
 
+/** Role-shaped call-to-action on the Command Center: each role opens on what its
+ *  job is (Officer → approvals, CISO → governance, Engineer → run, Viewer → watch). */
+function RoleFocus() {
+  const app = useApp();
+  const role = app.role;
+  const pending = app.campaigns.filter((c) => c.status === 'PENDING_APPROVAL');
+  const running = app.campaigns.filter((c) => c.status === 'RUNNING');
+  let label = 'For the Engineer';
+  let body: React.ReactNode = running.length ? (
+    <>
+      <b>{running.length}</b> run{running.length === 1 ? '' : 's'} live —{' '}
+      <Link to="/theater">open Run Theater →</Link>
+    </>
+  ) : (
+    <>
+      Ready to test. <Link to="/campaigns">New campaign →</Link>
+    </>
+  );
+  if (role === 'officer') {
+    label = 'For the Security Officer';
+    body = pending.length ? (
+      <>
+        <b>{pending.length}</b> campaign{pending.length === 1 ? '' : 's'} awaiting your approval.{' '}
+        <Link to="/campaigns">Review →</Link>
+      </>
+    ) : (
+      <>
+        No approvals waiting. <Link to="/campaigns">Browse campaigns →</Link>
+      </>
+    );
+  } else if (role === 'ciso') {
+    label = 'For the CISO';
+    body = (
+      <>
+        {pending.length} awaiting sign-off · governance &amp; tamper-evident evidence in{' '}
+        <Link to="/audit">Assurance →</Link>
+      </>
+    );
+  } else if (role === 'viewer') {
+    label = 'For you';
+    body = (
+      <>
+        Read-only access. Watch live in <Link to="/theater">Run Theater</Link> or review{' '}
+        <Link to="/reports">Results</Link>.
+      </>
+    );
+  }
+  return (
+    <div className="card" style={{ marginTop: '1rem' }}>
+      <div className="section-title">{label}</div>
+      <p style={{ margin: 0 }}>{body}</p>
+    </div>
+  );
+}
+
 /**
  * v2 Command Center — the new front door. Composes fleet resilience, live alerts,
  * runs in flight, generator health and the last result (with its absorption) from
@@ -242,6 +301,8 @@ export function CommandCenterPage() {
         </div>
       </div>
 
+      <RoleFocus />
+
       {alerts.length > 0 && (
         <div className="card" style={{ marginTop: '1rem' }}>
           <div className="section-title">Active alerts · from recent runs</div>
@@ -304,6 +365,61 @@ export function CommandCenterPage() {
             assessment.
           </p>
         </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * v2 Run Theater page — a focused live surface for whatever is running now. The
+ * demo moment: watch the edge absorb the flood in real time. Falls back to a
+ * pointer to Campaigns when nothing is in flight.
+ */
+export function RunTheaterPage() {
+  const app = useApp();
+  const running = app.campaigns.filter((c) => c.status === 'RUNNING');
+  const [active, setActive] = useState<string | null>(null);
+  const current = running.find((c) => c.id === active) ?? running[0];
+  return (
+    <>
+      <PageHead
+        title="Run Theater"
+        sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
+      />
+      {running.length === 0 ? (
+        <div className="card">
+          <p className="muted">
+            No run in flight. Launch one from <Link to="/campaigns">Campaigns</Link> and it appears
+            here live.
+          </p>
+        </div>
+      ) : (
+        <>
+          {running.length > 1 && (
+            <div style={{ display: 'flex', gap: '.4rem', marginBottom: '.8rem', flexWrap: 'wrap' }}>
+              {running.map((c) => (
+                <button
+                  key={c.id}
+                  className={`btn btn-sm ${current?.id === c.id ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setActive(c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {current && (
+            <div className="card">
+              <RunTheater
+                campaignId={current.id}
+                name={current.name}
+                target={current.target}
+                onKill={() => app.kill(current)}
+                killing={app.busy[current.id]}
+              />
+            </div>
+          )}
+        </>
       )}
     </>
   );
@@ -1230,11 +1346,31 @@ export function GapPlannerSection() {
 export function ReportsPage() {
   const app = useApp();
   const withRun = app.campaigns.filter((c) => c.runId);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [selRun, setSelRun] = useState<CampaignRun | null>(null);
+  const [loadingRun, setLoadingRun] = useState(false);
+  const openResult = (c: Campaign) => {
+    if (selected === c.id) {
+      setSelected(null);
+      setSelRun(null);
+      return;
+    }
+    setSelected(c.id);
+    setSelRun(null);
+    setLoadingRun(true);
+    api
+      .getRun(c.runId!)
+      .then((r) => {
+        setSelRun(r);
+        setLoadingRun(false);
+      })
+      .catch(() => setLoadingRun(false));
+  };
   return (
     <>
       <PageHead
-        title="Reports"
-        sub="Assessment suites, campaign reports (HTML/PDF) and aggregated DORA / NIS2 compliance."
+        title="Results"
+        sub="Every measured run — its WRS, protection absorption and measurement confidence — plus assessment suites and aggregated DORA / NIS2 compliance."
       />
       <SuitesSection />
       {withRun.length >= 2 && <CompareSection campaigns={withRun} />}
@@ -1255,25 +1391,59 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <h2 className="section-title">Campaign reports</h2>
+      <h2 className="section-title">Measured runs</h2>
       {withRun.length === 0 ? (
-        <div className="empty">No campaign has run yet — no report available.</div>
+        <div className="empty">No campaign has run yet — no result available.</div>
       ) : (
         <div className="card" style={{ display: 'grid', gap: '.5rem' }}>
           {withRun.map((c) => (
-            <div key={c.id} className="report-row">
-              <span className="report-name">{c.name}</span>
-              {c.wrs && <WrsPill wrs={c.wrs} />}
-              <code className="report-target">{c.target}</code>
-              <a
-                className="btn btn-sm btn-ghost"
-                href={reportUrl(c.runId!)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Report ↗
-              </a>
-            </div>
+            <Fragment key={c.id}>
+              <div className="report-row">
+                <span className="report-name">{c.name}</span>
+                {c.wrs && <WrsPill wrs={c.wrs} />}
+                <code className="report-target">{c.target}</code>
+                <button
+                  className={`btn btn-sm ${selected === c.id ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => openResult(c)}
+                >
+                  {selected === c.id ? 'Hide' : 'View'}
+                </button>
+                <a
+                  className="btn btn-sm btn-ghost"
+                  href={reportUrl(c.runId!)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Report ↗
+                </a>
+              </div>
+              {selected === c.id && (
+                <div
+                  style={{
+                    padding: '.4rem .2rem .8rem',
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '.6rem',
+                      marginBottom: '.5rem',
+                    }}
+                  >
+                    {c.wrs && <WrsPill wrs={c.wrs} />}
+                    {selRun && <ConfidenceBadge run={selRun} />}
+                  </div>
+                  {loadingRun && (
+                    <span className="hint">
+                      <span className="spin" /> Loading result…
+                    </span>
+                  )}
+                  {selRun && <RunDetails run={selRun} />}
+                </div>
+              )}
+            </Fragment>
           ))}
         </div>
       )}

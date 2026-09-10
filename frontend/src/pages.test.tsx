@@ -75,7 +75,7 @@ describe('pages render', () => {
 
   it('ReportsPage', () => {
     renderWithRouter(<ReportsPage />);
-    expect(screen.getByRole('heading', { name: 'Reports' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   });
 
   it('AuditPage shows an entry', () => {

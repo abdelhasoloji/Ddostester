@@ -2342,3 +2342,71 @@ table.remediations td {
   font-size: 0.75rem;
   color: var(--muted);
 }
+
+/* ── v2 Run Theater ─────────────────────────────────────────────────────── */
+.theater {
+  padding: 4px 2px;
+}
+.theater-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.theater-title {
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.theater-head .badge {
+  margin-left: auto;
+}
+.theater-kill {
+  white-space: nowrap;
+}
+.theater-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+@media (max-width: 780px) {
+  .theater-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.theater-metric {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.theater-metric.absorb {
+  border-color: var(--warning);
+}
+.tm-k {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.tm-v {
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tm-v small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 5px;
+}
+.tm-v.good {
+  color: var(--success);
+}
+.tm-v.warnv {
+  color: var(--warning);
+}
