@@ -18,7 +18,7 @@ test('rejects invalid credentials (A3)', async ({ page }) => {
 
 test('officer signs in and reaches the shell (A2)', async ({ page }) => {
   await login(page, 'officer');
-  await expect(page.getByRole('link', { name: 'Campaigns' })).toBeVisible();
+  await expect(page.locator('nav.nav').getByRole('link', { name: 'Campaigns' })).toBeVisible();
 });
 
 test('deep-link refresh on /campaigns is served by the SPA fallback (A7)', async ({ page }) => {
@@ -35,7 +35,7 @@ test('session persists across reload, and logout returns to the login screen (A5
   await login(page, 'officer');
   await page.reload();
   // A5: still authenticated after reload (no re-login).
-  await expect(page.getByRole('link', { name: 'Campaigns' })).toBeVisible();
+  await expect(page.locator('nav.nav').getByRole('link', { name: 'Campaigns' })).toBeVisible();
   // A6: signing out returns to the login screen.
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();

@@ -13,14 +13,18 @@ export async function login(page: Page, role: RoleName): Promise<void> {
   await page.locator('input[autocomplete="username"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('link', { name: 'Campaigns' })).toBeVisible();
+  // Shell loaded: the sidebar nav is present (scope to it — the v2 home also has
+  // "Campaigns" links in the page body).
+  await expect(page.locator('nav.nav').getByRole('link', { name: 'Campaigns' })).toBeVisible();
 }
 
 /** Go to a nav section by its visible label ("Campaigns", "Reports", ...).
  *  Campaigns is the primary destination; every other section lives under the
  *  collapsible "More" group, so reveal it first when the link is not visible. */
 export async function goTo(page: Page, label: string): Promise<void> {
-  const link = page.getByRole('link', { name: label });
+  // Scope to the sidebar nav so labels resolve uniquely (v2 page bodies can also
+  // contain links whose accessible name matches a nav label, e.g. "Campaigns").
+  const link = page.locator('nav.nav').getByRole('link', { name: label });
   if (!(await link.isVisible().catch(() => false))) {
     const more = page.getByRole('button', { name: /More/ });
     if (await more.count()) await more.first().click();
