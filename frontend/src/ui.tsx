@@ -141,6 +141,16 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
           </span>
         </div>
       )}
+      {run.edgeCorroboration && (
+        <div
+          className={`absorb-corr ${run.edgeCorroboration.agrees ? 'agree' : 'disagree'}`}
+          title="Bilateral: our inferred absorption vs the edge's own report"
+        >
+          {run.edgeCorroboration.agrees ? '✓ corroborated' : '⚠ disagrees'} — edge reports{' '}
+          {Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}% (
+          {run.edgeCorroboration.source})
+        </div>
+      )}
     </div>
   );
 }

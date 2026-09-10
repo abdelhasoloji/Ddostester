@@ -2435,3 +2435,16 @@ table.remediations td {
   color: var(--warning);
   border-color: color-mix(in srgb, var(--warning) 40%, transparent);
 }
+
+/* Bilateral absorption corroboration chip. */
+.absorb-corr {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.absorb-corr.agree {
+  color: var(--success);
+}
+.absorb-corr.disagree {
+  color: var(--warning);
+}
