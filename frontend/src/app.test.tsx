@@ -8,6 +8,7 @@ const fakeApi = {
   wrsHistory: vi.fn().mockResolvedValue([]),
   audit: vi.fn().mockResolvedValue([]),
   alerts: vi.fn().mockResolvedValue([]),
+  observabilitySummary: vi.fn().mockResolvedValue([]),
   me: vi.fn().mockResolvedValue({ email: null, role: null }),
   listUsers: vi.fn().mockResolvedValue([]),
   playbooks: vi.fn().mockResolvedValue([]),

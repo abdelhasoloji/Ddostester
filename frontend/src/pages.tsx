@@ -20,6 +20,7 @@ import type {
   Campaign,
   CampaignRun,
   CampaignStatus,
+  AbsorptionSummaryRow,
   HardCaps,
   ManagedUser,
   Role,
@@ -235,6 +236,68 @@ function RoleFocus() {
  * runs in flight, generator health and the last result (with its absorption) from
  * data already in context, so one scan tells you if anything needs you.
  */
+/** Command Center panel: per-attack-shape absorption from /api/observability/summary
+ *  (the durable-history rollup, not the lossy _last gauges). Hidden until data exists. */
+function AbsorptionByShape() {
+  const [rows, setRows] = useState<AbsorptionSummaryRow[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    api
+      .observabilitySummary()
+      .then((r) => live && setRows(r))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!rows || rows.length === 0) return null;
+  const host = (t: string) => {
+    try {
+      return new URL(t).hostname;
+    } catch {
+      return t;
+    }
+  };
+  return (
+    <div className="card" style={{ marginTop: '1rem' }}>
+      <div className="section-title">Absorption by attack shape</div>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="kvs abs-shape">
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th>Vector</th>
+              <th>Runs</th>
+              <th>Absorbed (last / mean)</th>
+              <th>Mechanism (last)</th>
+              <th>WRS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 12).map((r) => (
+              <tr key={`${r.target} ${r.vector}`}>
+                <td>{host(r.target)}</td>
+                <td>
+                  <code>{r.vector}</code>
+                </td>
+                <td>{r.runs}</td>
+                <td>
+                  <b>{r.lastAbsorbedPct}%</b> <span className="muted">/ {r.meanAbsorbedPct}%</span>
+                </td>
+                <td className="muted" style={{ fontSize: '.78rem' }}>
+                  reject {r.lastRejectedPct}% · tarpit {r.lastTarpitPct}% · shortfall{' '}
+                  {r.lastOfferedShortfallPct}%
+                </td>
+                <td>{r.lastWrs ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function CommandCenterPage() {
   const app = useApp();
   const c = app.campaigns;
@@ -376,6 +439,8 @@ export function CommandCenterPage() {
           <WrsTrend points={trend.points} regression={trend.regression} />
         </div>
       )}
+
+      <AbsorptionByShape />
 
       {scored.length === 0 && running.length === 0 && alerts.length === 0 && (
         <div className="card" style={{ marginTop: '1rem' }}>

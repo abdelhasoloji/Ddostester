@@ -95,6 +95,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     resumeSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: false }),
     cancelSuite: vi.fn().mockResolvedValue({ suiteId: 's', cancelled: true, killedCurrent: true }),
     suiteSequences: vi.fn().mockResolvedValue({ sequences: {} }),
+    observabilitySummary: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
