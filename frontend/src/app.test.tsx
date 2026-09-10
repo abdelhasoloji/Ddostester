@@ -40,7 +40,7 @@ describe('App gate', () => {
   it('renders the routed app when auth is not required', async () => {
     render(<App />);
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Campaigns' })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: 'Command Center' })).toBeInTheDocument(),
     );
     // The build version tag is shown at the bottom of every page (sidebar foot).
     expect(screen.getByText(/^v\d+\.\d+\.\d+\+\d+ · \S+$/)).toBeInTheDocument();

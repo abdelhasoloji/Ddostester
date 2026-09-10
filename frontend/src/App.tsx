@@ -4,6 +4,7 @@ import { Login } from './ui.js';
 import {
   AuditPage,
   CampaignsPage,
+  CommandCenterPage,
   GuidePage,
   Layout,
   OverviewPage,
@@ -42,7 +43,7 @@ function Gate() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<CampaignsPage />} />
+        <Route index element={<CommandCenterPage />} />
         <Route path="overview" element={<OverviewPage />} />
         <Route path="prepare" element={<PreparationPage />} />
         <Route path="plan" element={<PlanPage />} />

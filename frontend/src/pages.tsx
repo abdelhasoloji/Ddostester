@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import {
   api,
   auditExportUrl,
@@ -18,6 +18,7 @@ import type {
   BenchRun,
   CoverageMethod,
   Campaign,
+  CampaignRun,
   CampaignStatus,
   HardCaps,
   ManagedUser,
@@ -45,6 +46,7 @@ import {
   WrsPill,
   WrsTrend,
   wrsClass,
+  AbsorptionWidget,
 } from './ui.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -63,14 +65,20 @@ const roleLabel: Record<Role, string> = {
 // primary destination (the home page). Everything else — the assessment phases,
 // templates, reports, audit, guide and settings — stays one click away under a
 // collapsible "More" menu, keeping the sidebar focused instead of a flat list.
-const PRIMARY_NAV = { to: '/', label: 'Campaigns', icon: '◇', end: true };
+// v2 — the resilience spine: land on status (Command Center), then the workflow
+// arc (Prepare → Campaigns → Results) and governance (Assurance). Secondary
+// destinations stay reachable under "More"; Guide/Settings live in the foot.
+const SPINE_NAV = [
+  { to: '/', label: 'Command Center', icon: '🛰', end: true },
+  { to: '/prepare', label: 'Prepare', icon: '🔍' },
+  { to: '/campaigns', label: 'Campaigns', icon: '◇' },
+  { to: '/reports', label: 'Results', icon: '🛡' },
+  { to: '/audit', label: 'Assurance', icon: '⚖' },
+];
 const MORE_NAV = [
   { to: '/overview', label: 'Overview', icon: '▚' },
-  { to: '/prepare', label: 'Preparation', icon: '◎' },
   { to: '/plan', label: 'Plan', icon: '◈' },
   { to: '/templates', label: 'Templates', icon: '▦' },
-  { to: '/reports', label: 'Reports', icon: '▤' },
-  { to: '/audit', label: 'Audit log', icon: '☰' },
   { to: '/guide', label: 'Guide', icon: '❔' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
@@ -160,6 +168,147 @@ export function isBuildMismatch(
   return s !== frontendCommit;
 }
 
+const gradeFromScore = (n: number): WrsBreakdown['level'] =>
+  n >= 90 ? 'A+' : n >= 80 ? 'A' : n >= 70 ? 'B' : n >= 60 ? 'C' : n >= 50 ? 'D' : 'F';
+
+/**
+ * v2 Command Center — the new front door. Composes fleet resilience, live alerts,
+ * runs in flight, generator health and the last result (with its absorption) from
+ * data already in context, so one scan tells you if anything needs you.
+ */
+export function CommandCenterPage() {
+  const app = useApp();
+  const c = app.campaigns;
+  const scored = c.filter((x) => x.wrs);
+  const fleet = scored.length
+    ? Math.round(scored.reduce((s, x) => s + (x.wrs?.wrs ?? 0), 0) / scored.length)
+    : null;
+  const running = c.filter((x) => x.status === 'RUNNING');
+  const alerts = app.alerts ?? [];
+  const degraded = alerts.some((a) => a.kind === 'degraded');
+  const health = degraded ? 'degraded' : running.length ? 'busy' : 'nominal';
+  const last = scored.find((x) => x.runId) ?? scored[0];
+  const trend = app.wrsSeries.find((s) => s.points.length >= 2);
+
+  const [lastRun, setLastRun] = useState<CampaignRun | null>(null);
+  const lastRunId = last?.runId;
+  useEffect(() => {
+    let live = true;
+    if (lastRunId) {
+      api
+        .getRun(lastRunId)
+        .then((r) => live && setLastRun(r))
+        .catch(() => undefined);
+    } else {
+      setLastRun(null);
+    }
+    return () => {
+      live = false;
+    };
+  }, [lastRunId]);
+
+  return (
+    <>
+      <PageHead
+        title="Command Center"
+        sub="Fleet resilience, live alerts and what's running — the state of the estate at a glance."
+      />
+      <div className="kpis">
+        <div className="kpi">
+          <div className="kpi-v">
+            {fleet != null ? (
+              <WrsPill wrs={{ wrs: fleet, level: gradeFromScore(fleet) } as WrsBreakdown} />
+            ) : (
+              '—'
+            )}
+          </div>
+          <div className="kpi-k">
+            Fleet resilience · {scored.length} target{scored.length === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-v">{running.length}</div>
+          <div className="kpi-k">Runs in flight</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-v" style={{ textTransform: 'capitalize' }}>
+            {health}
+          </div>
+          <div className="kpi-k">Generator health</div>
+        </div>
+        <div className="kpi">
+          <div className="kpi-v">{alerts.length}</div>
+          <div className="kpi-k">Active alerts</div>
+        </div>
+      </div>
+
+      {alerts.length > 0 && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="section-title">Active alerts · from recent runs</div>
+          <ul className="alerts-list">
+            {alerts.slice(0, 6).map((a) => (
+              <li key={a.key} className={`alert-row alert-${a.severity}`}>
+                <span className="alert-dot" aria-hidden="true" />
+                <span className="alert-title">{a.title}</span>
+                <span className="alert-detail">{a.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {running.length > 0 && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="section-title">Running now</div>
+          {running.map((r) => (
+            <div key={r.id} style={{ padding: '.3rem 0' }}>
+              <b>{r.name}</b> <span className="muted">→ {r.target}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {last && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="section-title">
+            Last result · {last.name} <span className="muted">→ {last.target}</span>
+          </div>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '.6rem', marginBottom: '.4rem' }}
+          >
+            {last.wrs && <WrsPill wrs={last.wrs} />}
+            {lastRun?.confidence?.degraded && (
+              <span className="badge warn" title={lastRun.confidence.reasons.join(' ')}>
+                ⚠ measurement degraded
+              </span>
+            )}
+            <Link to="/reports" className="hint" style={{ marginLeft: 'auto' }}>
+              View reports →
+            </Link>
+          </div>
+          {lastRun && <AbsorptionWidget run={lastRun} />}
+        </div>
+      )}
+
+      {trend && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="section-title">WRS trend · {trend.target}</div>
+          <WrsTrend points={trend.points} regression={trend.regression} />
+        </div>
+      )}
+
+      {scored.length === 0 && running.length === 0 && alerts.length === 0 && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <p className="muted">
+            No runs yet. Head to <Link to="/campaigns">Campaigns</Link> to launch your first
+            assessment.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * In-app alerts banner — surfaces the signals derived from recent run history
  * (tarpit / low-WRS / measurement-degraded / auto-killed) so the app is a single
@@ -226,16 +375,21 @@ export function Layout() {
             <span className="brand-tag">ShieldTest</span>
           </div>
           <nav className="nav">
-            <NavLink
-              to={PRIMARY_NAV.to}
-              end={PRIMARY_NAV.end}
-              className={({ isActive }) => `nav-link nav-link-primary${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon" aria-hidden="true">
-                {PRIMARY_NAV.icon}
-              </span>
-              {PRIMARY_NAV.label}
-            </NavLink>
+            {SPINE_NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) =>
+                  `nav-link nav-link-primary${isActive ? ' active' : ''}`
+                }
+              >
+                <span className="nav-icon" aria-hidden="true">
+                  {n.icon}
+                </span>
+                {n.label}
+              </NavLink>
+            ))}
             <MoreNav />
           </nav>
           <div className="sidebar-foot">
