@@ -194,6 +194,14 @@ export interface CampaignRun {
   absorption?: Absorption;
   /** Measurement confidence — whether the generator host itself was the bottleneck. */
   confidence?: RunConfidence;
+  /** Bilateral corroboration: our inferred absorption vs the edge's own report. */
+  edgeCorroboration?: {
+    ourAbsorbedRatio: number;
+    edgeAbsorbedRatio: number;
+    agreementDelta: number;
+    agrees: boolean;
+    source: string;
+  };
 }
 
 export interface Absorption {

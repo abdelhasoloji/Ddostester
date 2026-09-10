@@ -64,6 +64,12 @@ import { noopNotifier } from './modules/notify/notifier.js';
 import type { Notifier } from './modules/notify/types.js';
 import { noopProtectionProvider } from './modules/protection/provider.js';
 import type { ProtectionProvider } from './modules/protection/types.js';
+import {
+  createEdgeAbsorptionProvider,
+  edgeAbsorptionConfigFromEnv,
+} from './modules/edge-absorption/provider.js';
+import type { EdgeAbsorptionProvider } from './modules/edge-absorption/types.js';
+import { corroborate } from './modules/edge-absorption/corroboration.js';
 import { noopTargetTelemetryProvider } from './modules/target-telemetry/provider.js';
 import type { TargetTelemetryProvider } from './modules/target-telemetry/types.js';
 import {
@@ -93,6 +99,7 @@ export interface BuildOptions {
   notifier?: Notifier;
   /** Protection integration for real detection/mitigation (default: no-op). */
   protection?: ProtectionProvider;
+  edgeAbsorption?: EdgeAbsorptionProvider;
   /** Target host-telemetry source correlated to the run (default: no-op). */
   targetTelemetry?: TargetTelemetryProvider;
   /** Max campaigns running at once (safety guard against contention). Default 3. */
@@ -137,6 +144,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const agent = opts.agent ?? new BuiltinHttpAgent();
   const notifier = opts.notifier ?? noopNotifier;
   const protection = opts.protection ?? noopProtectionProvider;
+  const edgeAbsorption =
+    opts.edgeAbsorption ?? createEdgeAbsorptionProvider(edgeAbsorptionConfigFromEnv());
   const targetTelemetry = opts.targetTelemetry ?? noopTargetTelemetryProvider;
   const maxConcurrentRuns = opts.maxConcurrentRuns ?? 3;
   const requireCisoApproval = opts.requireCisoApproval ?? false;
@@ -472,6 +481,35 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           'Runs whose WRS is flagged measurement-degraded (generator-side bottleneck)',
           runLabels,
         );
+      }
+      // Bilateral corroboration (I1): if an edge source is configured, compare our
+      // inferred absorption with the edge's own reported blocked/seen counts.
+      if (edgeAbsorption.configured) {
+        const edge = await edgeAbsorption
+          .report({
+            campaignId: c.id,
+            target: c.target,
+            startedAt: run.generator.startedAt,
+            finishedAt: run.generator.finishedAt,
+            tag: c.id,
+          })
+          .catch(() => null);
+        if (edge) {
+          const corr = corroborate(absorption.absorbedRatio, edge);
+          run.edgeCorroboration = corr;
+          metrics.setGauge(
+            'shieldtest_run_edge_absorbed_ratio_last',
+            'Absorbed fraction reported by the target edge itself (bilateral corroboration)',
+            corr.edgeAbsorbedRatio,
+            runLabels,
+          );
+          metrics.setGauge(
+            'shieldtest_run_absorption_agreement_last',
+            'Agreement between our inferred absorption and the edge report (1 - |delta|)',
+            1 - corr.agreementDelta,
+            runLabels,
+          );
+        }
       }
       app.log.info(
         {

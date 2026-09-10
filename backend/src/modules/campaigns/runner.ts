@@ -17,6 +17,7 @@ import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
+import type { AbsorptionCorroboration } from '../edge-absorption/types.js';
 import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
@@ -84,6 +85,11 @@ export interface CampaignRun {
    * report and the in-app absorption widget so all surfaces agree.
    */
   absorption?: Absorption;
+  /**
+   * Bilateral corroboration (I1): our inferred absorption vs the edge's own
+   * reported blocked/seen. Present only when an edge-absorption source answered.
+   */
+  edgeCorroboration?: AbsorptionCorroboration;
 }
 
 /**

@@ -206,7 +206,15 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   ${statCard('Tarpitted (held/abort)', `${(absorption.tarpitRatio * 100).toFixed(1)}%`, absorption.tarpitRatio >= 0.2)}
   ${statCard('Offered shortfall', `${(absorption.offeredShortfall * 100).toFixed(1)}%`, false)}
 </div>
-<p class="muted" style="font-size:.82rem">Rejected = the edge answered refusing (a fast "no"). Tarpitted = it held the connection until timeout (a slow "no" that costs the attacker most). Offered shortfall = we couldn't sustain the configured rate (latency/backpressure) — not the edge rejecting traffic.</p>` +
+<p class="muted" style="font-size:.82rem">Rejected = the edge answered refusing (a fast "no"). Tarpitted = it held the connection until timeout (a slow "no" that costs the attacker most). Offered shortfall = we couldn't sustain the configured rate (latency/backpressure) — not the edge rejecting traffic.</p>${
+      run.edgeCorroboration
+        ? `<div class="callout ${run.edgeCorroboration.agrees ? 'info' : 'warn'}"><b>Bilateral corroboration (${esc(run.edgeCorroboration.source)}):</b> we inferred <b>${Math.round(run.edgeCorroboration.ourAbsorbedRatio * 100)}%</b> absorbed; the edge itself reports <b>${Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}%</b> — ${
+            run.edgeCorroboration.agrees
+              ? 'the two sides <b>agree</b>, so this absorption is measured evidence, not inference.'
+              : `they <b>disagree</b> by ${Math.round(run.edgeCorroboration.agreementDelta * 100)} pts — investigate (measurement gap or partial edge visibility).`
+          }</div>`
+        : ''
+    }` +
     `<h2>Traffic over time</h2>
 <div class="figure"><div class="cap">Generator request rate (req/s) across the run.</div>
   ${timelineSvg(
