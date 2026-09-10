@@ -524,7 +524,14 @@ export function suiteCompareUrl(suiteIdA: string, suiteIdB: string): string {
 // reverse-proxied route) and the Run Theater / Results can deep-link into the
 // provisioned "ShieldTest — Runs" dashboard, scoped to a run's target + window.
 const GRAFANA_BASE_KEY = 'shieldtest.grafana.base';
-const GRAFANA_DASHBOARD = 'shieldtest-runs';
+
+/** The provisioned ShieldTest dashboards (uids), by observability plane. */
+export const GRAFANA_DASHBOARDS = {
+  run: 'shieldtest-run',
+  resilience: 'shieldtest-resilience',
+  platform: 'shieldtest-platform',
+} as const;
+export type GrafanaPlane = keyof typeof GRAFANA_DASHBOARDS;
 
 /** The configured Grafana base URL (no trailing slash), or '' when unset. */
 export function getGrafanaBase(): string {
@@ -547,12 +554,14 @@ export function setGrafanaBase(url: string): void {
 }
 
 /**
- * Deep link into the ShieldTest Grafana dashboard, scoped to a run's target and
- * time window. `fromMs`/`toMs` are epoch millis (Grafana's native range); when
- * omitted it defaults to the last 15 minutes with live refresh.
+ * Deep link into one of the ShieldTest Grafana dashboards (a plane of the
+ * observability model), optionally scoped to a target and time window.
+ * `fromMs`/`toMs` are epoch millis (Grafana's native range); when omitted it
+ * defaults to the last 15 minutes with live refresh.
  */
-export function grafanaRunUrl(
+export function grafanaDashUrl(
   base: string,
+  plane: GrafanaPlane,
   opts: { target?: string; fromMs?: number; toMs?: number } = {},
 ): string {
   const p = new URLSearchParams();
@@ -560,7 +569,15 @@ export function grafanaRunUrl(
   p.set('to', opts.toMs ? String(opts.toMs) : 'now');
   if (!opts.toMs) p.set('refresh', '5s');
   if (opts.target) p.set('var-target', opts.target);
-  return `${base.replace(/\/+$/, '')}/d/${GRAFANA_DASHBOARD}?${p.toString()}`;
+  return `${base.replace(/\/+$/, '')}/d/${GRAFANA_DASHBOARDS[plane]}?${p.toString()}`;
+}
+
+/** Deep link into the live Run & Absorption dashboard (Run Theater). */
+export function grafanaRunUrl(
+  base: string,
+  opts: { target?: string; fromMs?: number; toMs?: number } = {},
+): string {
+  return grafanaDashUrl(base, 'run', opts);
 }
 
 /** URL of a campaign's real-time progress SSE stream (EventSource). */

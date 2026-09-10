@@ -15,6 +15,7 @@ const {
   getGrafanaBase,
   setGrafanaBase,
   grafanaRunUrl,
+  grafanaDashUrl,
 } = await import('./api.js');
 
 function stubFetch(body: unknown, init: { ok?: boolean; status?: number } = {}): Mock {
@@ -207,13 +208,21 @@ describe('Grafana deep-linking', () => {
     expect(getGrafanaBase()).toBe(''); // blank clears it
   });
 
-  it('builds a dashboard link scoped to target + default live window', () => {
+  it('builds a run dashboard link scoped to target + default live window', () => {
     const u = new URL(grafanaRunUrl('http://localhost:3000', { target: 'bank.cz' }));
-    expect(u.pathname).toBe('/d/shieldtest-runs');
+    expect(u.pathname).toBe('/d/shieldtest-run');
     expect(u.searchParams.get('var-target')).toBe('bank.cz');
     expect(u.searchParams.get('from')).toBe('now-15m');
     expect(u.searchParams.get('to')).toBe('now');
     expect(u.searchParams.get('refresh')).toBe('5s');
+  });
+
+  it('maps each observability plane to its dashboard uid', () => {
+    expect(new URL(grafanaDashUrl('http://x', 'run')).pathname).toBe('/d/shieldtest-run');
+    expect(new URL(grafanaDashUrl('http://x', 'resilience')).pathname).toBe(
+      '/d/shieldtest-resilience',
+    );
+    expect(new URL(grafanaDashUrl('http://x', 'platform')).pathname).toBe('/d/shieldtest-platform');
   });
 
   it('uses an explicit epoch window (no live refresh) when given from/to', () => {

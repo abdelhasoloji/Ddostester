@@ -1,0 +1,31 @@
+# ShieldTest alerting rules — mirror the in-app deriveAlerts thresholds so the
+# bell (in-app) and Grafana/Alertmanager tell the same story. History-based
+# signals (wrs-regression, protection-regression) need a per-target baseline and
+# stay app-derived (see modules/alerts/derive.ts); the rules below are the
+# stateless ones that map cleanly to a PromQL threshold.
+groups:
+  - name: shieldtest-resilience
+    rules:
+      - alert: LowWRS
+        expr: shieldtest_run_wrs_last < 70
+        for: 0m
+        labels: { severity: warning, source: shieldtest }
+        annotations:
+          summary: 'Low WRS on {{ $labels.target }}/{{ $labels.vector }}'
+          description: 'WEDOS Resilience Score {{ $value | printf "%.0f" }} is below 70 (mirrors the in-app low-wrs alert).'
+      - alert: TarpitDominant
+        expr: shieldtest_run_tarpit_ratio_last > 0.5
+        for: 0m
+        labels: { severity: warning, source: shieldtest }
+        annotations:
+          summary: 'Tarpitting on {{ $labels.target }}/{{ $labels.vector }}'
+          description: '{{ $value | humanizePercentage }} of offered load was tarpitted (held/slow) — protection is stalling, not rejecting.'
+  - name: shieldtest-instrument
+    rules:
+      - alert: MeasurementDegraded
+        expr: shieldtest_eventloop_lag_p99_ms > 200
+        for: 1m
+        labels: { severity: warning, source: shieldtest }
+        annotations:
+          summary: 'Measurement confidence degraded (event-loop lag p99 {{ $value | printf "%.0f" }}ms)'
+          description: 'The control-plane event loop is lagging; RPS/latency are likely under-counted. Treat the WRS with caution (mirrors the in-app degraded alert).'
