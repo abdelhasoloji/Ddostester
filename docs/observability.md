@@ -34,9 +34,14 @@ in the app (Settings → Observability, or the ↗ buttons).
 
 > "What is happening **right now** on this run?"
 
-`shieldtest-run` — offered vs achieved vs reached-origin RPS, the absorption
-decomposition (absorbed / rejected / tarpit / offered-shortfall), live WRS, and
-the event-loop-lag confidence gauge. Anchored in **Run Theater**.
+`shieldtest-run` — offered / reached-origin RPS, absorbed % and legit-probe
+availability **updated every tick** from the in-flight run (the
+`shieldtest_run_live_*` gauges, mirroring the app's Run Theater), plus the
+settle-time absorption decomposition (absorbed / rejected / tarpit /
+offered-shortfall) and WRS. The live gauges are retired when the run ends, so a
+finished run leaves no stale line. Grafana samples them at the Prometheus scrape
+interval, so it is real-time at that resolution — the app's SSE Run Theater
+stays the per-second view. Anchored in **Run Theater**.
 
 ### Plane 2 · Resilience — _product signal / historical_
 

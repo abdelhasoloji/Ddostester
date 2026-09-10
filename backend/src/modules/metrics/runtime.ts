@@ -84,6 +84,22 @@ class Registry {
     this.gauges.set(name, m);
   }
 
+  /**
+   * Removes a gauge series (one label set), or the whole metric when `labels` is
+   * omitted. Used to retire the live per-run gauges when a run ends, so a
+   * finished run's last live value never lingers as a stale flat line.
+   */
+  clearGauge(name: string, labels?: Labels): void {
+    const m = this.gauges.get(name);
+    if (!m) return;
+    if (labels === undefined) {
+      this.gauges.delete(name);
+      return;
+    }
+    m.delete(labelKey(labels));
+    if (m.size === 0) this.gauges.delete(name);
+  }
+
   /** Records a duration/size observation (rendered as a Prometheus summary: _count + _sum). */
   observe(name: string, help: string, value: number, labels?: Labels): void {
     this.describe(name, help);

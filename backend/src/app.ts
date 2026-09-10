@@ -336,6 +336,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // Track the worst event-loop lag seen during the run so we can flag the WRS
     // as measurement-degraded if the generator host was itself struggling.
     let peakEventLoopLagMs = 0;
+    // Live per-run gauges (updated every tick) so Grafana animates the run in
+    // real time, mirroring the app's Run Theater — offered/reached-origin RPS,
+    // absorbed ratio and legit-probe availability. The settle-time `_last`
+    // gauges keep the post-run summary; these `_live` series are retired when the
+    // run ends (see the finally block) so a finished run leaves no stale line.
+    let liveHost = c.target;
+    try {
+      liveHost = new URL(c.target).hostname;
+    } catch {
+      /* keep raw */
+    }
+    const liveLabels = { target: liveHost, vector: c.vector };
     const onProgress = (p: LoadProgress) => {
       const lag = metrics.eventLoopLagMs();
       if (lag > peakEventLoopLagMs) peakEventLoopLagMs = lag;
@@ -345,6 +357,37 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         status: 'RUNNING',
         engine: runAgent.name,
       });
+      // Same definitions the Run Theater cards use (see frontend RunTheater):
+      // offered = achieved RPS, reached-origin = successful/elapsed, absorbed =
+      // failed/sent, probe availability from the live probe snapshot.
+      const originRps = p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
+      const absorbed = p.sent > 0 ? p.failed / p.sent : 0;
+      metrics.setGauge(
+        'shieldtest_run_live_offered_rps',
+        'Live offered RPS of the in-flight run',
+        p.actualRps,
+        liveLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_live_origin_rps',
+        'Live RPS reaching origin (successful) of the in-flight run',
+        originRps,
+        liveLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_live_absorbed_ratio',
+        'Live absorbed ratio (failed/sent) of the in-flight run',
+        absorbed,
+        liveLabels,
+      );
+      if (p.probe && p.probe.samples > 0) {
+        metrics.setGauge(
+          'shieldtest_run_live_probe_avail_pct',
+          'Live legit-probe availability % of the in-flight run',
+          (p.probe.available / p.probe.samples) * 100,
+          liveLabels,
+        );
+      }
     };
     // Seed a zeroed progress record immediately: the run opens with a baseline
     // capture (awaited, a few seconds) during which the engine emits no
@@ -589,6 +632,17 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     } finally {
       liveProgress.clear(c.id);
       kills.clear(c.id);
+      // Retire the live per-run gauges — the run is over; its summary lives in
+      // the settle-time `_last` gauges. Leaving these would strand a finished
+      // run's last value as a stale flat line on the Grafana live panels.
+      for (const g of [
+        'shieldtest_run_live_offered_rps',
+        'shieldtest_run_live_origin_rps',
+        'shieldtest_run_live_absorbed_ratio',
+        'shieldtest_run_live_probe_avail_pct',
+      ]) {
+        metrics.clearGauge(g, liveLabels);
+      }
     }
   }
 
