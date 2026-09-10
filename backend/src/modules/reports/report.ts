@@ -199,7 +199,14 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   ${statCard('Offered (sent)', `${absorption.achievedRps.toFixed(1)} req/s`, false)}
   ${statCard('Reached origin', `${absorption.originRps.toFixed(1)} req/s`, false)}
   ${statCard('Absorbed by edge', `${absorption.absorbedPct}%`, absorption.absorbedPct >= 20)}
-</div>` +
+</div>
+<p class="muted" style="margin-top:.6rem">By mechanism — how the edge said "no", and whether we were even able to offer the configured rate:</p>
+<div class="grid cards">
+  ${statCard('Rejected (4xx/5xx)', `${(absorption.rejectedRatio * 100).toFixed(1)}%`, false)}
+  ${statCard('Tarpitted (held/abort)', `${(absorption.tarpitRatio * 100).toFixed(1)}%`, absorption.tarpitRatio >= 0.2)}
+  ${statCard('Offered shortfall', `${(absorption.offeredShortfall * 100).toFixed(1)}%`, false)}
+</div>
+<p class="muted" style="font-size:.82rem">Rejected = the edge answered refusing (a fast "no"). Tarpitted = it held the connection until timeout (a slow "no" that costs the attacker most). Offered shortfall = we couldn't sustain the configured rate (latency/backpressure) — not the edge rejecting traffic.</p>` +
     `<h2>Traffic over time</h2>
 <div class="figure"><div class="cap">Generator request rate (req/s) across the run.</div>
   ${timelineSvg(

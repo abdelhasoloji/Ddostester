@@ -203,6 +203,12 @@ export interface Absorption {
   absorbedRatio: number;
   absorbedPct: number;
   totalRequests: number;
+  /** Backpressure: 1 - achieved/configured (latency-bound, not edge rejection). */
+  offeredShortfall?: number;
+  /** Fraction the edge rejected with a 4xx/5xx response. */
+  rejectedRatio?: number;
+  /** Fraction the edge tarpitted (held → timeout/abort). */
+  tarpitRatio?: number;
 }
 
 export interface RunConfidence {

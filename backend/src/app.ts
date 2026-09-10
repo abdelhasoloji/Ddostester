@@ -393,6 +393,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // Protection-absorption metrics: how much of the offered load the target's
       // edge absorbed (rate-limited/tarpitted/4xx) vs let through to origin.
       // Single source of truth (computeAbsorption) shared with the report + UI.
+      // Break absorption down by mechanism: rejected = 4xx/5xx (edge answered a
+      // refusal), tarpitted = transport errors (edge held the connection).
+      const gStatus = run.generator.statusCounts ?? {};
+      const rejected = Object.entries(gStatus)
+        .filter(([b]) => b !== '2xx' && b !== '3xx')
+        .reduce((s, [, n]) => s + n, 0);
+      const tarpitted = Object.values(run.generator.errors ?? {}).reduce((s, n) => s + n, 0);
       const absorption = computeAbsorption({
         configuredRps: c.maxRps,
         achievedRps: run.generator.actualRps,
@@ -400,6 +407,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         successful: run.generator.successful,
         failed: run.generator.failed,
         durationSec: runDurationSec,
+        rejected,
+        tarpitted,
       });
       metrics.setGauge(
         'shieldtest_run_configured_rps_last',
@@ -423,6 +432,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         'shieldtest_run_absorbed_ratio_last',
         'Fraction of requests absorbed by the target edge (rate-limited/tarpitted/4xx) in the last run',
         absorption.absorbedRatio,
+        runLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_rejected_ratio_last',
+        'Fraction the edge REJECTED with a 4xx/5xx response in the last run',
+        absorption.rejectedRatio,
+        runLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_tarpit_ratio_last',
+        'Fraction the edge TARPITTED (held → timeout/abort) in the last run',
+        absorption.tarpitRatio,
+        runLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_offered_shortfall_last',
+        'Backpressure: 1 - achieved/configured RPS (latency-bound, not edge rejection)',
+        absorption.offeredShortfall,
         runLabels,
       );
       if (run.generator.hardStopped) {
