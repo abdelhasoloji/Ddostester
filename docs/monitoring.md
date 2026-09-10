@@ -111,3 +111,7 @@ firing-alert panels driven by the `ALERTS` series.
 
 Point an existing Prometheus at `http://<loopback-host>:8080/metrics` and import
 `deploy/monitoring/grafana/dashboards/shieldtest.json` into Grafana.
+
+## Central logs (Loki)
+
+`deploy/provision/host-loki.sh` (run on VPS 2) stands up **Loki + Promtail** (loopback) and adds a Loki datasource to Grafana, so logs sit next to metrics in one pane. Promtail scrapes VPS 2's journald; shipping the control-plane `run.start`/`run.settled` logs from VPS 1 is a documented follow-up (a second Promtail on VPS 1 pushing over a VPS1→VPS2:3100 tunnel). Correlate a metric spike to its run via the `runId` field: `{unit="ddostester.service"} | json | runId=\`<id>\``.
