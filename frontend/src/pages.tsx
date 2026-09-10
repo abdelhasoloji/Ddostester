@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import {
   api,
@@ -11,6 +11,7 @@ import {
   suiteCompareUrl,
 } from './api.js';
 import type {
+  Alert,
   AttestationChecklist,
   AuditVerdict,
   BenchCatalogue,
@@ -300,6 +301,7 @@ function AbsorptionByShape() {
 
 export function CommandCenterPage() {
   const app = useApp();
+  const openAlert = useOpenAlert();
   const c = app.campaigns;
   const scored = c.filter((x) => x.wrs);
   const fleet = scored.length
@@ -391,11 +393,24 @@ export function CommandCenterPage() {
           <ul className="alerts-list">
             {alerts.slice(0, 6).map((a) => (
               <li key={a.key} className={`alert-row alert-${a.severity}`}>
-                <span className="alert-dot" aria-hidden="true" />
-                <span className="alert-title">{a.title}</span>
-                <span className="alert-detail">{a.detail}</span>
+                <button
+                  type="button"
+                  className="alert-row-btn"
+                  onClick={() => openAlert(a)}
+                  title="Open the related campaign / run"
+                >
+                  <span className="alert-dot" aria-hidden="true" />
+                  <span className="alert-title">{a.title}</span>
+                  <span className="alert-detail">{a.detail}</span>
+                  <span className="alert-go" aria-hidden="true">
+                    →
+                  </span>
+                </button>
               </li>
             ))}
+            {alerts.length > 6 && (
+              <li className="alert-more">+{alerts.length - 6} more — see the 🔔 bell</li>
+            )}
           </ul>
         </div>
       )}
@@ -509,52 +524,224 @@ export function RunTheaterPage() {
   );
 }
 
+// ---------- Notifications (the alerts, reworked into a bell + panel) ----------
+
+const ALERT_ICON: Record<Alert['kind'], string> = {
+  tarpit: '🕳',
+  'low-wrs': '📉',
+  degraded: '📡',
+  'auto-killed': '🛑',
+  'not-engaging': '🚱',
+  'wrs-regression': '⤵',
+  'protection-regression': '⤵',
+};
+function alertIcon(kind: Alert['kind']): string {
+  return ALERT_ICON[kind] ?? '🔔';
+}
+
+/** Compact relative time ("just now", "5m ago", "3h ago", "2d ago"). */
+function relTime(iso?: string): string {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+const NOTIF_READ_KEY = 'shieldtest.notif.read';
+function loadReadKeys(): Set<string> {
+  try {
+    const raw = localStorage.getItem(NOTIF_READ_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveReadKeys(keys: Set<string>): void {
+  try {
+    localStorage.setItem(NOTIF_READ_KEY, JSON.stringify([...keys]));
+  } catch {
+    /* private mode / storage disabled — read-state is best-effort */
+  }
+}
+
 /**
- * In-app alerts banner — surfaces the signals derived from recent run history
- * (tarpit / low-WRS / measurement-degraded / auto-killed) so the app is a single
- * pane of glass without opening Grafana. Alerts are dismissible for the session.
+ * Navigate to what an alert is about: the owning campaign's detail drawer when
+ * we still have it, otherwise the run's report. Shared by the bell panel and the
+ * Command Center list so a notification is always actionable, never a dead line.
  */
-function AlertsBanner() {
-  const { alerts } = useApp();
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const list = alerts ?? [];
-  const active = list.filter((a) => !dismissed.has(a.key));
-  if (active.length === 0) return null;
-  const worst = active.some((a) => a.severity === 'critical')
+function useOpenAlert(): (a: Alert) => void {
+  const app = useApp();
+  const navigate = useNavigate();
+  return useCallback(
+    (a: Alert) => {
+      const c = a.campaignId ? app.campaigns.find((x) => x.id === a.campaignId) : undefined;
+      if (c) {
+        navigate('/campaigns');
+        void app.openDetail(c);
+      } else if (a.runId) {
+        window.open(reportUrl(a.runId), '_blank', 'noopener');
+      }
+    },
+    [app, navigate],
+  );
+}
+
+const alertWorst = (list: Alert[]): 'critical' | 'warning' | 'info' =>
+  list.some((a) => a.severity === 'critical')
     ? 'critical'
-    : active.some((a) => a.severity === 'warning')
+    : list.some((a) => a.severity === 'warning')
       ? 'warning'
       : 'info';
+
+/** A single actionable notification row (clickable body + mark-read ×). */
+function NotificationRow({
+  a,
+  read,
+  onOpen,
+  onRead,
+}: {
+  a: Alert;
+  read: boolean;
+  onOpen: (a: Alert) => void;
+  onRead: (key: string) => void;
+}) {
   return (
-    <div className={`alerts-banner alerts-${worst}`} role="alert">
-      <div className="alerts-banner-head">
-        <span>
-          🔔 {active.length} alert{active.length > 1 ? 's' : ''} from recent runs
+    <li className={`notif-item alert-${a.severity}${read ? ' is-read' : ''}`}>
+      <button className="notif-item-main" onClick={() => onOpen(a)}>
+        <span className="alert-dot" aria-hidden="true" />
+        <span className="notif-item-body">
+          <span className="notif-item-title">
+            <span aria-hidden="true">{alertIcon(a.kind)}</span> {a.title}
+          </span>
+          <span className="notif-item-detail">{a.detail}</span>
+          <span className="notif-item-meta">
+            {a.target ? `${a.target} · ` : ''}
+            {relTime(a.at)}
+          </span>
         </span>
-        <button
-          className="btn btn-sm btn-ghost"
-          onClick={() => setDismissed(new Set(list.map((a) => a.key)))}
-        >
-          Dismiss all
-        </button>
-      </div>
-      <ul className="alerts-list">
-        {active.slice(0, 5).map((a) => (
-          <li key={a.key} className={`alert-row alert-${a.severity}`}>
-            <span className="alert-dot" aria-hidden="true" />
-            <span className="alert-title">{a.title}</span>
-            <span className="alert-detail">{a.detail}</span>
-            <button
-              className="alert-x"
-              aria-label="Dismiss alert"
-              onClick={() => setDismissed((d) => new Set([...d, a.key]))}
-            >
-              ×
-            </button>
-          </li>
-        ))}
-        {active.length > 5 && <li className="alert-more">+{active.length - 5} more…</li>}
-      </ul>
+      </button>
+      <button
+        className="alert-x"
+        aria-label="Mark as read"
+        title="Mark as read"
+        onClick={() => onRead(a.key)}
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Notifications bell — replaces the old always-on alerts banner. A discreet bell
+ * in the sidebar with an unread badge; clicking opens a slide-over panel where
+ * each alert (tarpit / low-WRS / regression / auto-killed …) is clickable
+ * through to the campaign or run. Read-state is remembered per browser so the
+ * badge only nags about what's new.
+ */
+export function NotificationsBell() {
+  const app = useApp();
+  const openAlert = useOpenAlert();
+  const [open, setOpen] = useState(false);
+  const [read, setRead] = useState<Set<string>>(loadReadKeys);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const list = app.alerts ?? [];
+  const unread = list.filter((a) => !read.has(a.key));
+  const badge = unread.length;
+  const worst = alertWorst(unread);
+
+  // Close on Escape while the panel is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const markRead = (key: string) =>
+    setRead((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      saveReadKeys(next);
+      return next;
+    });
+  const markAllRead = () => {
+    const next = new Set(list.map((a) => a.key));
+    setRead(next);
+    saveReadKeys(next);
+  };
+  const onOpen = (a: Alert) => {
+    markRead(a.key);
+    setOpen(false);
+    openAlert(a);
+  };
+
+  return (
+    <div className="notif">
+      <button
+        type="button"
+        className={`notif-bell${badge ? ' has-unread' : ''}`}
+        aria-label={`Notifications${badge ? ` (${badge} unread)` : ''}`}
+        aria-expanded={open}
+        title="Notifications"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span aria-hidden="true">🔔</span>
+        {badge > 0 && (
+          <span className={`notif-badge notif-${worst}`}>{badge > 9 ? '9+' : badge}</span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="notif-backdrop" onClick={() => setOpen(false)} />
+          <div className="notif-panel" role="dialog" aria-label="Notifications" ref={panelRef}>
+            <div className="notif-head">
+              <b>Notifications</b>
+              <div className="notif-head-actions">
+                {badge > 0 && (
+                  <button className="btn btn-sm btn-ghost" onClick={markAllRead}>
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="notif-close"
+                  aria-label="Close notifications"
+                  onClick={() => setOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            {list.length === 0 ? (
+              <div className="notif-empty">
+                <span aria-hidden="true">✓</span> All clear — nothing needs attention.
+              </div>
+            ) : (
+              <ul className="notif-list">
+                {list.map((a) => (
+                  <NotificationRow
+                    key={a.key}
+                    a={a}
+                    read={read.has(a.key)}
+                    onOpen={onOpen}
+                    onRead={markRead}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -573,6 +760,7 @@ export function Layout() {
             <img className="brand-logo logo-light" src="/wedos-logo.png" alt="WEDOS" />
             <img className="brand-logo logo-dark" src="/wedos-logo-white.png" alt="WEDOS" />
             <span className="brand-tag">ShieldTest</span>
+            <NotificationsBell />
           </div>
           <nav className="nav">
             {SPINE_NAV.map((n) => (
@@ -631,7 +819,6 @@ export function Layout() {
               (Cmd/Ctrl-Shift-R); if it persists, the server needs a rebuild/restart.
             </div>
           )}
-          <AlertsBanner />
           <Outlet />
         </main>
       </div>
