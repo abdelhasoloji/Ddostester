@@ -11,7 +11,14 @@ export interface Alert {
   severity: 'critical' | 'warning' | 'info';
   /** Stable-ish key for de-dup / React keys: `${runId}:${kind}`. */
   key: string;
-  kind: 'tarpit' | 'low-wrs' | 'degraded' | 'auto-killed' | 'not-engaging';
+  kind:
+    | 'tarpit'
+    | 'low-wrs'
+    | 'degraded'
+    | 'auto-killed'
+    | 'not-engaging'
+    | 'wrs-regression'
+    | 'protection-regression';
   title: string;
   detail: string;
   campaignId?: string;
@@ -22,6 +29,85 @@ export interface Alert {
 
 /** WRS at/below this is flagged (mirrors the Alertmanager WRSDrop rule). */
 export const LOW_WRS_THRESHOLD = 70;
+
+/** Regression detection (E1) — relative to a target's own history, not a static
+ *  threshold. A target that used to absorb 80% of a shape but now absorbs 30% is
+ *  a protection regression even if its WRS is still fine. */
+export const MIN_BASELINE_RUNS = 4;
+export const WRS_REGRESSION_DROP = 12; // WRS points below the target's baseline mean
+export const ABSORB_REGRESSION_FACTOR = 0.5; // absorbed < 50% of its baseline mean
+const ABSORB_BASELINE_FLOOR = 0.2; // only meaningful if the target normally absorbs ≥20%
+
+const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/**
+ * Flags the most-recent run per target when its WRS or protection absorption has
+ * regressed against that target's own recent baseline. Inert until a target has
+ * accumulated MIN_BASELINE_RUNS runs.
+ */
+export function deriveRegressions(runs: CampaignRun[], campaigns: Campaign[]): Alert[] {
+  const nameOf = new Map(campaigns.map((c) => [c.id, c.name] as const));
+  const targetOf = new Map(campaigns.map((c) => [c.id, c.target] as const));
+  // Group runs by resolved target, chronological.
+  const byTarget = new Map<string, CampaignRun[]>();
+  for (const r of runs) {
+    const t = targetOf.get(r.campaignId);
+    if (!t) continue;
+    (byTarget.get(t) ?? byTarget.set(t, []).get(t)!).push(r);
+  }
+  const absorbedOf = (r: CampaignRun): number =>
+    r.absorption?.absorbedRatio ??
+    (r.generator?.totalRequests ? r.generator.failed / r.generator.totalRequests : 0);
+
+  const alerts: Alert[] = [];
+  for (const [target, group] of byTarget) {
+    if (group.length < MIN_BASELINE_RUNS) continue;
+    const chron = [...group].sort((a, b) =>
+      (a.generator?.finishedAt ?? '').localeCompare(b.generator?.finishedAt ?? ''),
+    );
+    const latest = chron[chron.length - 1];
+    const prior = chron.slice(0, -1);
+    const label = nameOf.get(latest.campaignId) ?? target;
+    const base = {
+      campaignId: latest.campaignId,
+      runId: latest.runId,
+      target,
+      at: latest.generator?.finishedAt,
+    };
+
+    const wrsBaseline = mean(prior.map((r) => r.wrs?.wrs ?? 0));
+    if (
+      typeof latest.wrs?.wrs === 'number' &&
+      wrsBaseline - latest.wrs.wrs >= WRS_REGRESSION_DROP
+    ) {
+      alerts.push({
+        ...base,
+        severity: 'warning',
+        kind: 'wrs-regression',
+        key: `${latest.runId}:wrs-regression`,
+        title: `WRS regression — ${label}`,
+        detail: `WRS ${latest.wrs.wrs} is ${Math.round(wrsBaseline - latest.wrs.wrs)} pts below this target's recent baseline (~${Math.round(wrsBaseline)} over ${prior.length} runs). Protection may be degrading.`,
+      });
+    }
+
+    const absBaseline = mean(prior.map(absorbedOf));
+    const absLatest = absorbedOf(latest);
+    if (
+      absBaseline >= ABSORB_BASELINE_FLOOR &&
+      absLatest < absBaseline * ABSORB_REGRESSION_FACTOR
+    ) {
+      alerts.push({
+        ...base,
+        severity: 'warning',
+        kind: 'protection-regression',
+        key: `${latest.runId}:protection-regression`,
+        title: `Protection stopped engaging — ${label}`,
+        detail: `The edge absorbed ${Math.round(absLatest * 100)}% this run vs ~${Math.round(absBaseline * 100)}% baseline (${prior.length} runs). It used to bite this shape and now largely lets it through.`,
+      });
+    }
+  }
+  return alerts;
+}
 
 export interface DeriveOptions {
   /** Only consider the most recent N runs (by finishedAt). Default 30. */
@@ -44,7 +130,9 @@ export function deriveAlerts(
     (b.generator?.finishedAt ?? '').localeCompare(a.generator?.finishedAt ?? ''),
   );
 
-  const alerts: Alert[] = [];
+  // Regression alerts (relative to each target's own history) lead — they are the
+  // most actionable signal. Then the per-run alerts.
+  const alerts: Alert[] = deriveRegressions(runs, campaigns);
   for (const run of sorted.slice(0, recent)) {
     const label = nameOf.get(run.campaignId) ?? run.campaignId;
     const target = targetOf.get(run.campaignId);

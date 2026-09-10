@@ -221,7 +221,14 @@ export interface RunConfidence {
 export interface Alert {
   severity: 'critical' | 'warning' | 'info';
   key: string;
-  kind: 'tarpit' | 'low-wrs' | 'degraded' | 'auto-killed' | 'not-engaging';
+  kind:
+    | 'tarpit'
+    | 'low-wrs'
+    | 'degraded'
+    | 'auto-killed'
+    | 'not-engaging'
+    | 'wrs-regression'
+    | 'protection-regression';
   title: string;
   detail: string;
   campaignId?: string;
