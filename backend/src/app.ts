@@ -386,9 +386,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         runDurationSec,
         { engine: runAgent.name },
       );
-      metrics.setGauge('shieldtest_run_wrs_last', 'Last WRS per target', run.wrs.wrs, {
-        target: host,
-      });
+      // Slice run-outcome metrics by target AND vector (attack shape) — a bounded
+      // extra label so Grafana can answer "which shapes does this edge absorb?".
+      const runLabels = { target: host, vector: c.vector };
+      metrics.setGauge('shieldtest_run_wrs_last', 'Last WRS per target', run.wrs.wrs, runLabels);
       // Protection-absorption metrics: how much of the offered load the target's
       // edge absorbed (rate-limited/tarpitted/4xx) vs let through to origin.
       // Single source of truth (computeAbsorption) shared with the report + UI.
@@ -404,31 +405,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         'shieldtest_run_configured_rps_last',
         'Configured max RPS of the last run per target',
         absorption.configuredRps,
-        { target: host },
+        runLabels,
       );
       metrics.setGauge(
         'shieldtest_run_achieved_rps_last',
         'Achieved (sent) RPS of the last run per target',
         absorption.achievedRps,
-        { target: host },
+        runLabels,
       );
       metrics.setGauge(
         'shieldtest_run_origin_rps_last',
         'RPS that reached origin (2xx/3xx) in the last run per target',
         absorption.originRps,
-        { target: host },
+        runLabels,
       );
       metrics.setGauge(
         'shieldtest_run_absorbed_ratio_last',
         'Fraction of requests absorbed by the target edge (rate-limited/tarpitted/4xx) in the last run',
         absorption.absorbedRatio,
-        { target: host },
+        runLabels,
       );
       if (run.generator.hardStopped) {
         metrics.inc(
           'shieldtest_loadtest_hard_stopped_total',
           'Runs force-settled by the hard backstop (target held connections past the cap)',
-          { target: host, engine: runAgent.name },
+          { ...runLabels, engine: runAgent.name },
         );
       }
       // Measurement confidence: was the generator host the bottleneck (hard-stop
@@ -442,7 +443,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         metrics.inc(
           'shieldtest_run_confidence_degraded_total',
           'Runs whose WRS is flagged measurement-degraded (generator-side bottleneck)',
-          { target: host },
+          runLabels,
         );
       }
       app.log.info(

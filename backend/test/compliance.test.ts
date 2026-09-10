@@ -63,6 +63,31 @@ describe('compliance / resilience assessment report', () => {
     expect(html).toContain('>Low<');
   });
 
+  it('flags a measurement-degraded run in the per-scenario table', () => {
+    const degradedRun = {
+      campaignId: 'c1',
+      status: 'COMPLETED',
+      wrs: { wrs: 62, level: 'D', estimated: false },
+      probe: { samples: 10, available: 9 },
+      generator: {
+        actualRps: 80,
+        finishedAt: new Date().toISOString(),
+        totalRequests: 1000,
+        successful: 600,
+      },
+      confidence: {
+        degraded: true,
+        reasons: ['generator event-loop lag peaked at 180ms during the run'],
+      },
+    } as unknown as CampaignRun;
+    const out = renderComplianceHtml(
+      [campaign('c1', 'Baseline', 'https://127.0.0.1/', 'builtin')],
+      [degradedRun],
+    );
+    expect(out).toContain('measurement degraded');
+    expect(out).toContain('⚠');
+  });
+
   it('derives Partial / Medium for degraded availability', () => {
     expect(html).toContain('>Partial<');
     expect(html).toContain('>Medium<');
