@@ -4,6 +4,7 @@ import type { Permission } from '../auth/rbac.js';
 import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { deriveAlerts } from '../modules/alerts/derive.js';
+import { buildAbsorptionSummary } from '../modules/observability/summary.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
@@ -110,6 +111,13 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const { limit } = req.query as { limit?: string };
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     return deriveAlerts(runs, campaigns, { limit: limit ? Number(limit) : 50 });
+  });
+
+  // Analytics rollup (S1): per-(target, vector) absorption/WRS stats from the
+  // durable run history — the query surface the `_last` gauges can't provide.
+  app.get('/api/observability/summary', { preHandler: guard('campaign:read') }, async () => {
+    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+    return buildAbsorptionSummary(runs, campaigns);
   });
 
   // EPIC D: verify the tamper-evident audit chain end to end.
