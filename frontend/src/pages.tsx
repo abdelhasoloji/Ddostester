@@ -168,7 +168,8 @@ export function isBuildMismatch(
 function AlertsBanner() {
   const { alerts } = useApp();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const active = alerts.filter((a) => !dismissed.has(a.key));
+  const list = alerts ?? [];
+  const active = list.filter((a) => !dismissed.has(a.key));
   if (active.length === 0) return null;
   const worst = active.some((a) => a.severity === 'critical')
     ? 'critical'
@@ -183,7 +184,7 @@ function AlertsBanner() {
         </span>
         <button
           className="btn btn-sm btn-ghost"
-          onClick={() => setDismissed(new Set(alerts.map((a) => a.key)))}
+          onClick={() => setDismissed(new Set(list.map((a) => a.key)))}
         >
           Dismiss all
         </button>

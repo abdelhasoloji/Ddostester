@@ -8,6 +8,7 @@ const fakeApi = {
   listCampaigns: vi.fn(),
   wrsHistory: vi.fn(),
   audit: vi.fn(),
+  alerts: vi.fn().mockResolvedValue([]),
   me: vi.fn(),
   login: vi.fn(),
   createCampaign: vi.fn(),
@@ -75,6 +76,7 @@ beforeEach(() => {
   fakeApi.agents.mockResolvedValue({ default: 'builtin', agents: [{ id: 'builtin' }] });
   fakeApi.listCampaigns.mockResolvedValue([]);
   fakeApi.wrsHistory.mockResolvedValue([]);
+  fakeApi.alerts.mockResolvedValue([]);
   fakeApi.audit.mockResolvedValue([{ id: 'a1', at: 'now', actor: 'x', action: 'y' }]);
   fakeApi.me.mockResolvedValue({ email: 'off@wedos', role: 'officer' });
   fakeApi.login.mockResolvedValue({ token: 'tok', email: 'off@wedos', role: 'officer' });
