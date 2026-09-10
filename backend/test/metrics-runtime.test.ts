@@ -1,0 +1,38 @@
+import { describe, it, expect } from 'vitest';
+import { metrics } from '../src/modules/metrics/runtime.js';
+
+describe('runtime metrics registry', () => {
+  it('renders counters, gauges and summaries in Prometheus text', () => {
+    metrics.inc('test_things_total', 'A test counter', { kind: 'a' });
+    metrics.inc('test_things_total', 'A test counter', { kind: 'a' });
+    metrics.inc('test_things_total', 'A test counter', { kind: 'b' });
+    metrics.setGauge('test_in_flight', 'A test gauge', 3, { target: 'x' });
+    metrics.observe('test_duration_seconds', 'A test summary', 1.5);
+    metrics.observe('test_duration_seconds', 'A test summary', 2.5);
+
+    const out = metrics.render();
+
+    // Counter with per-label values.
+    expect(out).toContain('# TYPE test_things_total counter');
+    expect(out).toContain('test_things_total{kind="a"} 2');
+    expect(out).toContain('test_things_total{kind="b"} 1');
+    // Gauge.
+    expect(out).toContain('# TYPE test_in_flight gauge');
+    expect(out).toContain('test_in_flight{target="x"} 3');
+    // Summary → _count + _sum.
+    expect(out).toContain('# TYPE test_duration_seconds summary');
+    expect(out).toContain('test_duration_seconds_count 2');
+    expect(out).toContain('test_duration_seconds_sum 4');
+    // Runtime process + event-loop signals are always present.
+    expect(out).toContain('shieldtest_eventloop_lag_ms');
+    expect(out).toContain('shieldtest_process_heap_used_bytes');
+    expect(out).not.toMatch(/NaN|undefined/);
+  });
+
+  it('addGauge increments/decrements an in-flight gauge (run tracking)', () => {
+    metrics.addGauge('test_active', 'active', 1, { g: '1' });
+    metrics.addGauge('test_active', 'active', 1, { g: '1' });
+    metrics.addGauge('test_active', 'active', -1, { g: '1' });
+    expect(metrics.render()).toContain('test_active{g="1"} 1');
+  });
+});
