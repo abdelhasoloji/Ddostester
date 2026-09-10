@@ -2410,3 +2410,28 @@ table.remediations td {
 .tm-v.warnv {
   color: var(--warning);
 }
+
+/* Absorption mechanism breakdown (reject vs tarpit vs backpressure). */
+.absorb-mech {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.absorb-mech .mech {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.absorb-mech .mech.reject {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+.absorb-mech .mech.tarpit {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}

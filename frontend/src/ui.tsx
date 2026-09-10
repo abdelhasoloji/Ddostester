@@ -129,6 +129,18 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
       <div className="absorption-bar" title={`${a.absorbedPct}% absorbed by the target edge`}>
         <div className="absorb-fill" style={{ width: `${Math.min(100, a.absorbedPct)}%` }} />
       </div>
+      {(a.rejectedRatio != null || a.tarpitRatio != null || a.offeredShortfall != null) && (
+        <div
+          className="absorb-mech"
+          title="How the edge said no, and whether we could offer the configured rate"
+        >
+          <span className="mech reject">reject {((a.rejectedRatio ?? 0) * 100).toFixed(0)}%</span>
+          <span className="mech tarpit">tarpit {((a.tarpitRatio ?? 0) * 100).toFixed(0)}%</span>
+          <span className="mech shortfall">
+            shortfall {((a.offeredShortfall ?? 0) * 100).toFixed(0)}%
+          </span>
+        </div>
+      )}
     </div>
   );
 }
