@@ -89,7 +89,8 @@ const wrsSeries = [
 ];
 
 let currentApp: ReturnType<typeof makeApp>;
-const fakeApi = makeApi({ getRun: vi.fn().mockResolvedValue(runFixture) });
+const getRun = vi.fn().mockResolvedValue(runFixture);
+const fakeApi = makeApi({ getRun });
 
 vi.mock('./context.js', async (orig) => {
   const actual = await orig<typeof import('./context.js')>();
@@ -116,7 +117,7 @@ class MockES {
 }
 
 beforeEach(() => {
-  (fakeApi.getRun as ReturnType<typeof vi.fn>).mockResolvedValue(runFixture);
+  getRun.mockResolvedValue(runFixture);
   (globalThis as unknown as { EventSource: unknown }).EventSource = MockES;
   esInstances.length = 0;
 });
@@ -129,7 +130,7 @@ describe('Command Center', () => {
     expect(screen.getByRole('heading', { name: 'Command Center' })).toBeInTheDocument();
     expect(screen.getByText(/Active alerts · from recent runs/)).toBeInTheDocument();
     expect(screen.getByText(/Low WRS 62/)).toBeInTheDocument();
-    await waitFor(() => expect(fakeApi.getRun).toHaveBeenCalledWith('run1'));
+    await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
     await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
   });
 
@@ -198,7 +199,7 @@ describe('Results page', () => {
     currentApp = makeApp({ role: 'engineer', campaigns: [scoredCampaign] });
     renderWithRouter(<ReportsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
-    await waitFor(() => expect(fakeApi.getRun).toHaveBeenCalledWith('run1'));
+    await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
     await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
   });
 });
