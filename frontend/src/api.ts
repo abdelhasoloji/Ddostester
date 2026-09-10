@@ -217,6 +217,21 @@ export interface RunConfidence {
   peakEventLoopLagMs?: number;
 }
 
+/** Per-(target, vector) absorption rollup (GET /api/observability/summary). */
+export interface AbsorptionSummaryRow {
+  target: string;
+  vector: string;
+  runs: number;
+  lastAt?: string;
+  lastWrs?: number;
+  meanWrs: number;
+  lastAbsorbedPct: number;
+  meanAbsorbedPct: number;
+  lastRejectedPct: number;
+  lastTarpitPct: number;
+  lastOfferedShortfallPct: number;
+}
+
 /** In-app alert derived from run history (GET /api/alerts). */
 export interface Alert {
   severity: 'critical' | 'warning' | 'info';
@@ -559,6 +574,7 @@ export const api = {
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
+  observabilitySummary: () => get<AbsorptionSummaryRow[]>('/api/observability/summary'),
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
