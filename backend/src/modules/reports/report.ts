@@ -53,10 +53,29 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const durSec = tl.length ? Math.max(...tl.map((s) => s.t)) : campaign.maxDurationSec;
   const grade = w.level;
 
+  // Load INTENT vs. what the target actually sustained. A flood the target
+  // rate-limits or tarpits shows a low ACHIEVED rate and a low success ratio —
+  // reporting only the achieved rate understates the test, and a high score next
+  // to "0 successful" reads as a contradiction unless it's explained. Surface
+  // both, and split failures into "rejected by the edge" (a response) vs. "no
+  // response" (connection held / timed out).
+  const configuredRps = campaign.maxRps;
+  const statusCounts = g.statusCounts ?? {};
+  const errorsByName = g.errors ?? {};
+  const rejectedByEdge = Object.entries(statusCounts)
+    .filter(([b]) => b !== '2xx' && b !== '3xx')
+    .reduce((s, [, n]) => s + n, 0); // 4xx/5xx — the target answered, refusing the request
+  const noResponse = Object.values(errorsByName).reduce((s, n) => s + n, 0); // timeouts / conn errors
+  const successRatio = g.totalRequests ? g.successful / g.totalRequests : 1;
+  const heavilyThrottled = configuredRps > 0 && peakRps < configuredRps * 0.6;
+  const mostlyBlocked = g.totalRequests > 50 && successRatio < 0.5;
+
   // Management summary — plain-language verdict generated from the run.
   const kill = run.status !== 'COMPLETED';
   const summary =
-    `Under a bounded HTTP load peaking at <b>${peakRps} req/s</b> for <b>${durSec}s</b> against ` +
+    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> ` +
+    (heavilyThrottled ? `(the target sustained ~<b>${peakRps} req/s</b> effective) ` : '') +
+    `for <b>${durSec}s</b> against ` +
     `<b>${esc(hostOf(campaign.target))}</b>, the target scored <b>WRS ${w.wrs} (${grade})</b> — ` +
     `RiskLevel <b>${risk.label}</b>. Legitimate-traffic availability held at <b>${avail.toFixed(1)}%</b> ` +
     `and mitigation is rated <b>${mit.label}</b>. ` +
@@ -66,6 +85,24 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     (run.baselineDelta
       ? ` Under load, p95 latency shifted by ${run.baselineDelta.latencyP95DeltaMs} ms vs the pre-load baseline.`
       : '');
+
+  // When the target rejected or throttled most of the flood while legitimate
+  // traffic stayed up, say so plainly — otherwise a high score beside a low
+  // success count looks contradictory. This is the protection working, not a
+  // test failure.
+  const absorbedCallout =
+    (mostlyBlocked || heavilyThrottled) && !kill
+      ? `<div class="callout info"><b>The target's protection absorbed the load.</b> ` +
+        `Of ${g.totalRequests.toLocaleString('en-US')} bounded requests, ` +
+        `<b>${g.successful.toLocaleString('en-US')}</b> succeeded — ` +
+        `${rejectedByEdge.toLocaleString('en-US')} were rejected by the edge (4xx/5xx) and ` +
+        `${noResponse.toLocaleString('en-US')} got no response (rate-limited / connection held). ` +
+        (heavilyThrottled
+          ? `The configured ${configuredRps} req/s was throttled to ~${peakRps} req/s effective. `
+          : '') +
+        `Legitimate probe traffic stayed available throughout, so the resiliency score reflects the ` +
+        `protection blocking this attack shape — not the target failing.</div>`
+      : '';
 
   const riskPill = pill(risk.label, RISK_PILL[risk.cls as keyof typeof RISK_PILL] ?? 'neutral');
   const mitPill = pill(mit.label, MIT_PILL[mit.cls as keyof typeof MIT_PILL] ?? 'neutral');
@@ -119,6 +156,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     ) +
     `<p class="lead">${summary}</p>` +
     (kill ? `<div class="callout kill">🛑 ${esc(run.statusDetail ?? run.status)}</div>` : '') +
+    absorbedCallout +
     `<h2>At a glance</h2>
 <div class="scorecard">
   <div>${gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: scoreColor(w.wrs) })}
@@ -127,9 +165,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     <div class="pills">${riskPill} ${mitPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Availability', `${avail.toFixed(1)}%`)}
-      ${statCard('Peak load', `${peakRps}`, false)}
+      ${statCard('Configured load', `${configuredRps} req/s`, false)}
+      ${statCard('Achieved peak', `${peakRps} req/s`, false)}
       ${statCard('Duration', `${durSec}s`)}
-      ${statCard('Requests', g.totalRequests.toLocaleString('en-US'), true)}
+      ${statCard('Requests (ok)', `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
     </div>
   </div>
 </div>` +
@@ -190,6 +229,18 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>Vector</th><td>${campaign.vector} (bounded application HTTP)</td></tr>
  <tr><th>Author / Approver</th><td>${esc(campaign.createdBy)} / ${esc(campaign.approvedBy ?? '—')}</td></tr>
  <tr><th>Requests (success / fail)</th><td>${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')})</td></tr>
+ ${
+   g.failed > 0
+     ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} rejected by the edge (4xx/5xx) · ${noResponse.toLocaleString('en-US')} no response (rate-limited / timed out)${
+         Object.keys(errorsByName).length
+           ? ` <span class="muted">[${Object.entries(errorsByName)
+               .map(([k, n]) => `${esc(k)}×${n}`)
+               .join(', ')}]</span>`
+           : ''
+       }</td></tr>`
+     : ''
+ }
+ <tr><th>Configured / achieved rate</th><td>${configuredRps} req/s configured · ${g.actualRps} req/s effective · ${peakRps} req/s peak</td></tr>
  <tr><th>Effective RPS</th><td>${g.actualRps}</td></tr>
  <tr><th>Probe availability</th><td>${run.probe.available}/${run.probe.samples} samples · ${run.probe.errorRate5xx}% 5xx</td></tr>
 </table>` +
