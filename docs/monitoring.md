@@ -26,7 +26,7 @@ that make an incident diagnosable at runtime:
 | `shieldtest_run_configured_rps_last`                                                      | gauge   | `target`              | configured max RPS of the last run (**what we asked for**)                                                                            |
 | `shieldtest_run_achieved_rps_last`                                                        | gauge   | `target`              | RPS actually sent (**offered load**)                                                                                                  |
 | `shieldtest_run_origin_rps_last`                                                          | gauge   | `target`              | RPS that reached origin — 2xx/3xx (**let through**)                                                                                   |
-| `shieldtest_run_absorbed_ratio_last`                                                      | gauge   | `target`              | `failed/total` = **fraction the target edge absorbed** (rate-limited/tarpitted/4xx). The test↔protection loop, per run                 |
+| `shieldtest_run_absorbed_ratio_last`                                                      | gauge   | `target`              | `failed/total` = **fraction the target edge absorbed** (rate-limited/tarpitted/4xx). The test↔protection loop, per run                |
 | `shieldtest_loadtest_hard_stopped_total`                                                  | counter | `target,engine`       | runs force-settled by the engine **hard backstop** — a target holding connections open past the cap (tarpit / undici pool exhaustion) |
 | `shieldtest_eventloop_lag_ms` / `_p99_ms`                                                 | gauge   | —                     | event-loop delay (a spike here is what briefly makes the API unreachable under heavy load)                                            |
 | `shieldtest_process_heap_used_bytes` / `_rss_bytes` / `shieldtest_process_uptime_seconds` | gauge   | —                     | process health                                                                                                                        |
@@ -87,16 +87,16 @@ it, alerts still fire and are visible in the Alertmanager UI
 
 The rule set turns the metrics above into signals:
 
-| Alert                     | Fires when                                                        | Why it matters                                              |
-| ------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| `TargetTarpittingRuns`    | `increase(loadtest_hard_stopped_total[15m]) > 0`                  | the target edge is holding our runs past the cap (biting)   |
-| `WRSDrop`                 | `run_wrs_last < 70`                                               | protection degraded, or a template misbehaving              |
-| `ProtectionNotEngaging`   | `run_absorbed_ratio_last < 0.05`                                  | almost everything reached origin (edge not engaging)        |
-| `CampaignRunsFailing`     | `increase(runs_completed_total{status="failed"}[15m]) > 0`       | a template broke or the target is unreachable               |
-| `ControlPlaneEventLoopLag`| `eventloop_lag_p99_ms > 200` for 5m                              | VPS 1 is the bottleneck — WRS/achieved-RPS understated      |
-| `RunsInFlightSaturated`   | `runs_in_flight >= 5` for 10m                                     | capacity/scheduling pressure on VPS 1                       |
-| `ControlPlaneDown`        | `up{job="shieldtest-control-plane"} == 0` for 2m                 | app down or tunnel broken                                   |
-| `MonitoringTargetDown`    | `up == 0` for 5m                                                  | a scrape target is unreachable                              |
+| Alert                      | Fires when                                                 | Why it matters                                            |
+| -------------------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
+| `TargetTarpittingRuns`     | `increase(loadtest_hard_stopped_total[15m]) > 0`           | the target edge is holding our runs past the cap (biting) |
+| `WRSDrop`                  | `run_wrs_last < 70`                                        | protection degraded, or a template misbehaving            |
+| `ProtectionNotEngaging`    | `run_absorbed_ratio_last < 0.05`                           | almost everything reached origin (edge not engaging)      |
+| `CampaignRunsFailing`      | `increase(runs_completed_total{status="failed"}[15m]) > 0` | a template broke or the target is unreachable             |
+| `ControlPlaneEventLoopLag` | `eventloop_lag_p99_ms > 200` for 5m                        | VPS 1 is the bottleneck — WRS/achieved-RPS understated    |
+| `RunsInFlightSaturated`    | `runs_in_flight >= 5` for 10m                              | capacity/scheduling pressure on VPS 1                     |
+| `ControlPlaneDown`         | `up{job="shieldtest-control-plane"} == 0` for 2m           | app down or tunnel broken                                 |
+| `MonitoringTargetDown`     | `up == 0` for 5m                                           | a scrape target is unreachable                            |
 
 The Grafana dashboard (provisioned by `grafana-setup.mjs`) has a **protection
 absorption** row: configured-vs-sent-vs-origin RPS, a **% absorbed** gauge, and
