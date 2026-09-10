@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest, preHandlerHookHandler } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import type { Store } from '../store/index.js';
 import type { Permission } from '../auth/rbac.js';
 import { verifyChain } from '../modules/audit/integrity.js';
@@ -11,6 +11,7 @@ import { renderComplianceHtml } from '../modules/reports/compliance.js';
 import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
+import { htmlToPdf } from '../modules/reports/pdf.js';
 import { runsSummaryCsv, runTimelineCsv } from '../modules/reports/csv.js';
 import {
   buildSuites,
@@ -22,6 +23,30 @@ import {
   renderGapAnalysisHtml,
   type ProtectionProfile,
 } from '../modules/reports/gap-analysis.js';
+
+/**
+ * Sends a report as HTML, or as a paginated PDF when `?format=pdf` is requested
+ * AND a headless browser is available (otherwise gracefully serves the HTML with
+ * an `x-pdf-export: unavailable` header). See modules/reports/pdf.ts.
+ */
+async function sendReport(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  html: string,
+  filename: string,
+): Promise<unknown> {
+  if ((req.query as { format?: string }).format === 'pdf') {
+    const pdf = await htmlToPdf(html);
+    if (pdf) {
+      return reply
+        .type('application/pdf')
+        .header('content-disposition', `inline; filename="${filename}.pdf"`)
+        .send(pdf);
+    }
+    reply.header('x-pdf-export', 'unavailable');
+  }
+  return reply.type('text/html').send(html);
+}
 
 /** Shared context the read-only routes need (no mutations, no run/audit writes). */
 export interface ReadRoutesCtx {
@@ -56,7 +81,7 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
     const runs = await store.listRuns();
-    return reply.type('text/html').send(renderSuiteReportHtml(suite, runs));
+    return sendReport(req, reply, renderSuiteReportHtml(suite, runs), 'assessment');
   });
 
   // Before / after comparison of two suites of the same playbook (the
@@ -182,12 +207,15 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
       store.listRuns(),
       store.listBenchCoverage(),
     ]);
-    return reply.type('text/html').send(
+    return sendReport(
+      req,
+      reply,
       renderComplianceHtml(campaigns, runs, {
         from,
         to,
         bench: { scenarios: BENCH_SCENARIOS, coverage },
       }),
+      'compliance',
     );
   });
 
@@ -197,7 +225,7 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     if (!r) return reply.code(404).send({ error: 'run not found' });
     const c = await store.getCampaign(r.campaignId);
     if (!c) return reply.code(404).send({ error: 'campaign not found' });
-    return reply.type('text/html').send(renderCampaignReportHtml(c, r));
+    return sendReport(req, reply, renderCampaignReportHtml(c, r), 'report-' + r.runId.slice(0, 8));
   });
 
   // Before / after comparison of two runs (e.g. same target pre/post a
