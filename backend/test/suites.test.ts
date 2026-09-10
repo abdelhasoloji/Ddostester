@@ -84,12 +84,15 @@ describe('renderSuiteReportHtml', () => {
       }),
     ]);
     const html = renderSuiteReportHtml(s);
-    expect(html).toContain('Assessment report — Capacity');
+    expect(html).toContain('assessment Capacity'); // report title
+    expect(html).toContain('DDoS resilience assessment'); // zeroBS-style cover
     expect(html).toContain('staging.example.com');
     expect(html).toContain('75'); // avg of 90 and 60
     expect(html).toContain('worst C'); // worst level
-    expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // header + 2 steps
-    expect(html).toContain('resilience by attack shape'); // enriched steps table
+    expect(html).toContain('Management summary');
+    expect(html).toContain('Layer 7 summary');
+    expect(html).toContain('Glossary');
+    expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // steps + glossary rows
   });
 });
 

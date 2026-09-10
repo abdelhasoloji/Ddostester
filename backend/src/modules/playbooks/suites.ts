@@ -4,7 +4,9 @@ import { wrsLevel } from '../wrs/scoring.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from '../reports/layout.js';
-import { gaugeSvg, scoreColor, REPORT_COLORS } from '../reports/charts.js';
+import { gaugeSvg, scoreColor, REPORT_COLORS, timelineSvg } from '../reports/charts.js';
+import { riskLevel } from '../reports/compliance.js';
+import { availabilityPct } from '../../util/run-metrics.js';
 
 /**
  * Consolidated view of an assessment suite (campaigns created from one
@@ -102,88 +104,203 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
+/** Mitigation outcome (zeroBS style: fully / partially / none), from status + availability. */
+function mitigationOutcome(
+  run: CampaignRun | undefined,
+  status: SuiteMember['status'],
+): { label: string; cls: string } {
+  if (status === 'KILLED_AUTO') return { label: 'none', cls: 'r-crit' };
+  if (status === 'KILLED_MANUAL') return { label: 'aborted', cls: 'v-aborted' };
+  if (!run) return { label: '—', cls: 'muted' };
+  return availabilityPct(run) >= 99
+    ? { label: 'fully', cls: 'v-held' }
+    : { label: 'partially', cls: 'v-partial' };
+}
+
+/** DRS level parsed from a step name ("… (DRS4)" / "… DRS 4"), or '—'. */
+function drsOf(name: string): string {
+  const m = /DRS\s*([0-9])/i.exec(name);
+  return m ? m[1] : '—';
+}
+
+function riskPill(label: string): string {
+  return pill(label, label === 'Critical' ? 'crit' : label === 'Medium' ? 'warn' : 'good');
+}
+
+/** One plain-language observation line for a step, from its run. */
+function observationOf(run: CampaignRun | undefined, mit: { label: string }): string {
+  if (!run) return 'not run.';
+  const a = run.absorption;
+  const avail = availabilityPct(run).toFixed(0);
+  if (mit.label === 'none')
+    return `<b>Not mitigated</b> — the target went unavailable (${avail}% legitimate availability). ${esc(run.statusDetail ?? 'auto-killed to protect the target')}.`;
+  const mech = a
+    ? a.tarpitRatio && a.tarpitRatio >= (a.rejectedRatio ?? 0)
+      ? `mainly by tarpitting (holding connections)`
+      : `mainly by rejecting (4xx/5xx)`
+    : '';
+  return `The edge absorbed <b>${a ? a.absorbedPct : 0}%</b> of the offered load ${mech}; legitimate availability held at <b>${avail}%</b>. WRS ${run.wrs.wrs} (${run.wrs.level}).`;
+}
+
+/** Per-attack detail block (zeroBS "Attack N / name" + timeline + observation). */
+function attackDetail(
+  nr: number,
+  shape: string,
+  run: CampaignRun | undefined,
+  mit: { label: string; cls: string },
+  drs: string,
+): string {
+  const avgRps = run ? Math.round(run.generator.actualRps) : 0;
+  const chart =
+    run?.timeline && run.timeline.length >= 2
+      ? `<div class="figure"><div class="cap">Legitimate-probe availability across the attack (%).</div>${timelineSvg(
+          run.timeline.map((s) => ({ t: s.t, y: s.availPct })),
+          {
+            yMax: 100,
+            yUnit: '% avail',
+            color: REPORT_COLORS.good,
+            fill: REPORT_COLORS.goodFill,
+            height: 130,
+          },
+        )}</div>`
+      : '';
+  return `<h3>Attack ${nr} / ${esc(shape)}</h3>
+<table class="kvs">
+ <tr><th>DRS level</th><td>${drs}</td></tr>
+ <tr><th>Effective rate</th><td>${avgRps} req/s</td></tr>
+ <tr><th>Mitigation</th><td class="${mit.cls}">${mit.label}</td></tr>
+ <tr><th>Observation</th><td>${observationOf(run, mit)}</td></tr>
+</table>${chart}`;
+}
+
+/** Glossary — RiskLevel + Mitigation definitions (zeroBS convention). */
+function glossary(): string {
+  return `<h2>Glossary</h2>
+<h3>RiskLevel</h3>
+<table class="kvs">
+ <tr><th class="v-held">Low</th><td>Low risk — mitigation instant or within the agreed SLAs, no impact on the infrastructure behind.</td></tr>
+ <tr><th class="v-partial">Medium</th><td>Moderate risk — mitigation difficult, partial or by manual intervention; attack traffic passes for &gt;60 s.</td></tr>
+ <tr><th class="r-crit">Critical</th><td>No or inadequate mitigation — traffic passes and the target is impacted (here: legitimate availability breached, auto-kill).</td></tr>
+</table>
+<h3>Mitigation</h3>
+<table class="kvs">
+ <tr><th class="v-held">fully</th><td>The edge blocked/absorbed the attack and legitimate traffic held (≥99% availability).</td></tr>
+ <tr><th class="v-partial">partially</th><td>Some legitimate impact — availability dipped below 99% or the measurement was degraded.</td></tr>
+ <tr><th class="r-crit">none</th><td>The attack was not mitigated — the target went unavailable and the safety kill-switch stopped the run.</td></tr>
+</table>`;
+}
+
 export function renderSuiteReportHtml(suite: SuiteSummary, runs: CampaignRun[] = []): string {
   const runById = new Map(runs.map((r) => [r.runId, r] as const));
-  const scoredRuns = suite.members
-    .map((m) => (m.runId ? runById.get(m.runId) : undefined))
-    .filter((r): r is CampaignRun => !!r);
 
-  // Aggregate absorption across the suite's steps.
+  // The report is PER CAMPAIGN (assessment): each member step is one "attack".
+  const steps = suite.members.map((m) => {
+    const run = m.runId ? runById.get(m.runId) : undefined;
+    return {
+      m,
+      run,
+      shape: stepLabel(suite.suiteName, m.name),
+      drs: drsOf(m.name),
+      rpsEff: run ? Math.round(run.generator.actualRps) : 0,
+      rpsCfg: run?.absorption?.configuredRps ?? 0,
+      mit: mitigationOutcome(run, m.status),
+      risk: run ? riskLevel(run) : { label: '—', cls: 'muted' },
+    };
+  });
+
+  const scoredRuns = steps.map((s) => s.run).filter((r): r is CampaignRun => !!r);
   const meanAbsorbed = round1(mean(scoredRuns.map((r) => r.absorption?.absorbedPct ?? 0)));
-  const meanReject = round1(mean(scoredRuns.map((r) => (r.absorption?.rejectedRatio ?? 0) * 100)));
-  const meanTarpit = round1(mean(scoredRuns.map((r) => (r.absorption?.tarpitRatio ?? 0) * 100)));
-  const meanShortfall = round1(
-    mean(scoredRuns.map((r) => (r.absorption?.offeredShortfall ?? 0) * 100)),
-  );
   const degraded = scoredRuns.filter((r) => r.confidence?.degraded).length;
+  const fully = steps.filter((s) => s.mit.label === 'fully').length;
+  const notMitigated = steps.filter((s) => s.mit.label === 'none').length;
+  const worstRisk = steps.some((s) => s.risk.label === 'Critical')
+    ? 'Critical'
+    : steps.some((s) => s.risk.label === 'Medium')
+      ? 'Medium'
+      : 'Low';
+  const maxDrs = steps.reduce((mx, s) => (s.drs !== '—' && s.drs > mx ? s.drs : mx), '0');
 
   const avg = suite.wrs?.avg ?? 0;
   const worstLevel = suite.wrs?.level ?? '—';
-  const verdictPill = suite.verdict
-    ? pill(`SLO ${suite.verdict}`, suite.verdict === 'PASS' ? 'good' : 'crit')
-    : pill('SLO —', 'neutral');
+  const host = hostOfUrl(suite.target);
+  const date = esc(suite.createdAt).slice(0, 10);
 
-  const rows = suite.members
-    .map((m) => {
-      const run = m.runId ? runById.get(m.runId) : undefined;
-      const a = run?.absorption;
-      const mech = a
-        ? `${Math.round((a.rejectedRatio ?? 0) * 100)}% · ${Math.round((a.tarpitRatio ?? 0) * 100)}% · ${Math.round((a.offeredShortfall ?? 0) * 100)}%`
-        : '—';
-      const conf = run?.confidence?.degraded ? ' <span title="measurement degraded">⚠</span>' : '';
-      const wrsCell =
-        m.wrs != null
-          ? `<b style="color:${scoreColor(m.wrs)}">${m.wrs}</b> <span class="muted">${m.level}</span>`
-          : '—';
-      return `<tr><td>${m.order + 1}</td><td>${esc(m.name)}${conf}</td><td>${m.status.replace('_', ' ')}</td><td>${wrsCell}</td><td>${a ? `${a.absorbedPct}%` : '—'}</td><td class="muted" style="font-size:.82rem">${mech}</td><td>${m.verdict ?? '—'}</td></tr>`;
+  const narrative = scoredRuns.length
+    ? `On <b>${date}</b>, WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against <b>${esc(host)}</b> — <b>${suite.total}</b> attack vectors, up to <b>DRS ${maxDrs}</b>. ` +
+      `The edge <b>fully mitigated ${fully}</b> and <b>failed to mitigate ${notMitigated}</b> vector${notMitigated === 1 ? '' : 's'}; overall risk is <b>${worstRisk}</b>, average WRS <b>${avg}</b> (worst <b>${suite.wrs?.min}</b>, grade ${worstLevel}). ` +
+      (notMitigated
+        ? `Under the ${notMitigated} unmitigated shape${notMitigated === 1 ? '' : 's'} the target went unavailable (auto-kill) — a business-impacting gap.`
+        : `Legitimate traffic held throughout.`) +
+      (degraded
+        ? ` (${degraded} measurement${degraded === 1 ? '' : 's'} flagged generator-degraded.)`
+        : '')
+    : 'No scored attacks yet.';
+
+  const byDrs = new Map<string, typeof steps>();
+  for (const s of steps) {
+    const arr = byDrs.get(s.drs) ?? [];
+    arr.push(s);
+    byDrs.set(s.drs, arr);
+  }
+  const resultRows = [...byDrs.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([drs, ss]) => {
+      const maxRps = Math.max(0, ...ss.map((s) => s.rpsCfg || s.rpsEff));
+      const worst = ss.some((s) => s.risk.label === 'Critical')
+        ? riskPill('Critical')
+        : ss.some((s) => s.risk.label === 'Medium')
+          ? riskPill('Medium')
+          : riskPill('Low');
+      const none = ss.filter((s) => s.mit.label === 'none').length;
+      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${maxRps} req/s</td><td>${worst}</td><td class="${none ? 'r-crit' : 'v-held'}">${none ? `${none}/${ss.length} not mitigated` : 'fully mitigated'}</td></tr>`;
     })
-    .join('\n');
+    .join('');
 
-  const narrative =
-    suite.wrs && scoredRuns.length
-      ? `Across <b>${scoredRuns.length}</b> bounded L7 steps against <b>${esc(hostOfUrl(suite.target))}</b>, the target held an average <b>WRS ${avg}</b> (worst <b>${suite.wrs.min}</b>, grade <b>${worstLevel}</b>). ` +
-        `Its edge absorbed on average <b>${meanAbsorbed}%</b> of the offered load — mostly by ${meanTarpit >= meanReject ? '<b>tarpitting</b> (holding connections)' : '<b>rejecting</b> (4xx/5xx)'}. ` +
-        (degraded
-          ? `<b>${degraded}</b> step${degraded === 1 ? '' : 's'} carried a measurement-degraded flag (generator-side) — treat those with caution.`
-          : `No step was measurement-degraded — the scores are clean.`)
-      : 'No scored steps yet.';
+  const l7Rows = steps
+    .map((s) => {
+      const wrsCell =
+        s.m.wrs != null ? `<b style="color:${scoreColor(s.m.wrs)}">${s.m.wrs}</b>` : '—';
+      const abs = s.run?.absorption ? `${s.run.absorption.absorbedPct}%` : '—';
+      const conf = s.run?.confidence?.degraded
+        ? ' <span title="measurement degraded">⚠</span>'
+        : '';
+      const rps = s.rpsCfg ? `${s.rpsCfg}→${s.rpsEff}` : `${s.rpsEff}`;
+      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.shape)}${conf}</td><td>${rps}</td><td>${s.drs}</td><td class="${s.mit.cls}">${s.mit.label}</td><td class="${s.risk.cls}">${s.risk.label}</td><td>${wrsCell}</td><td>${abs}</td></tr>`;
+    })
+    .join('');
+
+  const details = steps
+    .map((s) => attackDetail(s.m.order + 1, s.shape, s.run, s.mit, s.drs))
+    .join('');
 
   return (
-    docHead(`ShieldTest assessment — ${suite.suiteName}`) +
+    docHead(`WEDOS ShieldTest — assessment ${suite.suiteName}`) +
     coverBand(
-      `Assessment report — ${suite.suiteName}`,
-      `Target ${esc(hostOfUrl(suite.target))} · ${suite.total} steps · created ${esc(suite.createdAt).slice(0, 16).replace('T', ' ')}`,
+      `DDoS resilience assessment — Layer 7`,
+      `Target ${esc(host)} · ${suite.total} attack vectors · ${date} · WEDOS ShieldTest · confidential`,
     ) +
-    `<p class="lead">${narrative}</p>` +
-    `<h2>At a glance</h2>
+    `<h2>Management summary</h2><p class="lead">${narrative}</p>
 <div class="scorecard">
   <div>${gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: scoreColor(avg) })}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Suite resilience (avg WRS)</div></div>
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Assessment resilience (avg WRS)</div></div>
   <div>
-    <div class="pills">${verdictPill} ${pill(`${suite.wrs?.scored ?? 0}/${suite.total} scored`, 'neutral')}${degraded ? ' ' + pill(`${degraded} degraded`, 'warn') : ''}</div>
+    <div class="pills">${riskPill(worstRisk)} ${pill(`${fully}/${suite.total} mitigated`, fully === suite.total ? 'good' : 'warn')}${notMitigated ? ' ' + pill(`${notMitigated} not mitigated`, 'crit') : ''}${degraded ? ' ' + pill(`${degraded} degraded`, 'warn') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
+      ${statCard('Vectors', String(suite.total))}
       ${statCard('Min WRS', suite.wrs ? String(suite.wrs.min) : '—')}
       ${statCard('Mean absorbed', `${meanAbsorbed}%`, meanAbsorbed >= 20)}
-      ${statCard('Completed', `${suite.completed}/${suite.total}`)}
-      ${statCard('Running', String(suite.running))}
+      ${statCard('Not mitigated', String(notMitigated), false)}
     </div>
   </div>
 </div>` +
-    `<h2>Protection absorption (suite mean)</h2>
-<p class="muted">How the edge defended across the whole assessment.</p>
-<div class="grid cards">
-  ${statCard('Absorbed', `${meanAbsorbed}%`, meanAbsorbed >= 20)}
-  ${statCard('Rejected (4xx/5xx)', `${meanReject}%`, false)}
-  ${statCard('Tarpitted (held/abort)', `${meanTarpit}%`, meanTarpit >= 20)}
-  ${statCard('Offered shortfall', `${meanShortfall}%`, false)}
-</div>` +
-    `<h2>Steps — resilience by attack shape</h2>
-<table class="kvs">
- <thead><tr><th>#</th><th>Step (attack shape)</th><th>Status</th><th>WRS</th><th>Absorbed</th><th>Reject·Tarpit·Shortfall</th><th>SLO</th></tr></thead>
- <tbody>${rows}</tbody>
-</table>
-<p class="muted" style="font-size:.82rem">⚠ = measurement degraded (generator-side bottleneck, WRS may be understated). Reject = fast 4xx/5xx; Tarpit = held to timeout; Shortfall = we couldn't sustain the configured rate (backpressure, not rejection).</p>` +
-    `<p class="muted" style="margin-top:2rem">Consolidated assessment — WEDOS internal use only. Every step is a bounded, allowlisted HTTP test (GET/POST, rate-capped); no volumetric, amplification or spoofing vector is implemented. See <em>docs/assessment-methodology.md</em>.</p>` +
+    `<h2>Results — protection level by DRS</h2>
+<table class="kvs"><thead><tr><th>Threat scenario</th><th>Attacks</th><th>Max rate</th><th>RiskLevel</th><th>Mitigation</th></tr></thead><tbody>${resultRows}</tbody></table>` +
+    `<h2>Layer 7 summary</h2>
+<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (cfg→eff)</th><th>DRS</th><th>Mitigation</th><th>RiskLevel</th><th>WRS</th><th>Absorbed</th></tr></thead><tbody>${l7Rows}</tbody></table>
+<p class="muted" style="font-size:.82rem">Mitigation: <b>fully</b> = blocked/absorbed, legitimate traffic held (≥99% avail); <b>partially</b> = some impact; <b>none</b> = target went unavailable (auto-kill). ⚠ = measurement generator-degraded.</p>` +
+    `<h2>Details — per attack</h2>${details}` +
+    glossary() +
+    `<p class="muted" style="margin-top:2rem">Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.</p>` +
     DOC_TAIL
   );
 }
