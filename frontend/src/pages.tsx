@@ -246,7 +246,26 @@ export function CommandCenterPage() {
   const alerts = app.alerts ?? [];
   const degraded = alerts.some((a) => a.kind === 'degraded');
   const health = degraded ? 'degraded' : running.length ? 'busy' : 'nominal';
-  const last = scored.find((x) => x.runId) ?? scored[0];
+  // Last result = the genuinely most-recent run (by WRS-history timestamp), not
+  // just the first scored campaign in list order.
+  const latestPoint = app.wrsSeries
+    .flatMap((s) => s.points.map((p) => ({ ...p, target: s.target })))
+    .sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+  const latestCampaign = latestPoint ? c.find((x) => x.runId === latestPoint.runId) : undefined;
+  const fallback = scored.find((x) => x.runId) ?? scored[0];
+  const last = latestPoint
+    ? {
+        runId: latestPoint.runId,
+        name: latestCampaign?.name ?? latestPoint.target,
+        target: latestCampaign?.target ?? latestPoint.target,
+        wrs: (latestCampaign?.wrs ?? {
+          wrs: latestPoint.wrs,
+          level: latestPoint.level,
+        }) as WrsBreakdown,
+      }
+    : fallback
+      ? { runId: fallback.runId!, name: fallback.name, target: fallback.target, wrs: fallback.wrs! }
+      : null;
   const trend = app.wrsSeries.find((s) => s.points.length >= 2);
 
   const [lastRun, setLastRun] = useState<CampaignRun | null>(null);
