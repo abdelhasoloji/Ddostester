@@ -9,6 +9,7 @@ import type {
   AuditEntry,
   WrsSeries,
   HardCaps,
+  Alert,
 } from './api.js';
 import type { Preset } from './presets.js';
 
@@ -65,6 +66,8 @@ interface Ctx {
   runs: Record<string, CampaignRun>;
   wrsSeries: WrsSeries[];
   auditRows: AuditEntry[] | null;
+  /** In-app alerts derived from run history (tarpit / low-WRS / degraded / auto-killed). */
+  alerts: Alert[];
   busy: Record<string, boolean>;
   expanded: string | null;
   operator: string;
@@ -85,6 +88,7 @@ interface Ctx {
   refresh: () => void;
   loadHistory: () => void;
   loadAudit: () => void;
+  loadAlerts: () => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   createCampaign: (payload: Record<string, unknown>) => Promise<void>;
@@ -132,6 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [confirmExec, setConfirmExec] = useState<Campaign | null>(null);
   const [approveFor, setApproveFor] = useState<Campaign | null>(null);
   const [auditRows, setAuditRows] = useState<AuditEntry[] | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [wrsSeries, setWrsSeries] = useState<WrsSeries[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [draftPreset, setDraftPreset] = useState<Preset | null>(null);
@@ -162,6 +167,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then(setAuditRows)
       .catch((e) => push('error', e.message));
   }, [push]);
+  const loadAlerts = useCallback(() => {
+    api
+      .alerts(50)
+      .then(setAlerts)
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api
@@ -201,8 +212,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (ready) {
       refresh();
       loadHistory();
+      loadAlerts();
     }
-  }, [ready, refresh, loadHistory]);
+  }, [ready, refresh, loadHistory, loadAlerts]);
 
   const anyRunning = campaigns.some((c) => c.status === 'RUNNING');
   useEffect(() => {
@@ -210,6 +222,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const t = setInterval(refresh, 2000);
     return () => clearInterval(t);
   }, [anyRunning, ready, refresh]);
+
+  // Refresh the in-app alerts feed periodically, and once more right after a run
+  // finishes (a completed run may raise a new tarpit / low-WRS / degraded alert).
+  useEffect(() => {
+    if (!ready) return;
+    const t = setInterval(loadAlerts, 20000);
+    return () => clearInterval(t);
+  }, [ready, loadAlerts]);
+  useEffect(() => {
+    if (ready && !anyRunning) loadAlerts();
+  }, [ready, anyRunning, loadAlerts]);
 
   useEffect(() => localStorage.setItem('operator', operator), [operator]);
 
@@ -367,6 +390,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     runs,
     wrsSeries,
     auditRows,
+    alerts,
     busy,
     expanded,
     operator,
@@ -385,6 +409,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refresh,
     loadHistory,
     loadAudit,
+    loadAlerts,
     login,
     logout,
     createCampaign,

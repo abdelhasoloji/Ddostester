@@ -3,6 +3,7 @@ import type { Store } from '../store/index.js';
 import type { Permission } from '../auth/rbac.js';
 import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
+import { deriveAlerts } from '../modules/alerts/derive.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
@@ -100,6 +101,15 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   app.get('/api/audit', { preHandler: guard('campaign:read') }, async (req) => {
     const { limit } = req.query as { limit?: string };
     return store.listAudit(limit ? Number(limit) : 200);
+  });
+
+  // In-app alerts derived from the platform's own run history (self-contained;
+  // no dependency on the Prometheus/Alertmanager reachability). Powers the
+  // header alerts banner so the app is a single pane of glass.
+  app.get('/api/alerts', { preHandler: guard('campaign:read') }, async (req) => {
+    const { limit } = req.query as { limit?: string };
+    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+    return deriveAlerts(runs, campaigns, { limit: limit ? Number(limit) : 50 });
   });
 
   // EPIC D: verify the tamper-evident audit chain end to end.
