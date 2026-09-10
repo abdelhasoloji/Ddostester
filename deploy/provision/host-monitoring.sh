@@ -29,6 +29,8 @@ cat > /etc/prometheus/prometheus.yml <<'YML'
 global:
   scrape_interval: 15s
   external_labels: { monitor: shieldtest }
+rule_files:
+  - /etc/prometheus/rules/shieldtest.rules.yml
 scrape_configs:
   # ShieldTest control-plane (VPS 1) — reached through the existing SSH tunnel
   # that already forwards 127.0.0.1:8080 -> VPS1:8080 for the lab runner.
@@ -61,6 +63,57 @@ if [ -f /etc/default/prometheus-node-exporter ]; then
 fi
 # Grafana: loopback.
 sed -i 's/^;*http_addr =.*/http_addr = 127.0.0.1/' /etc/grafana/grafana.ini || true
+
+# Repo root (this script lives in deploy/provision/); used to copy the versioned
+# Grafana provisioning + dashboards + Prometheus rules onto the host.
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+MON="$REPO_DIR/deploy/monitoring"
+
+echo "==> Prometheus alerting rules (mirror the in-app deriveAlerts thresholds)"
+mkdir -p /etc/prometheus/rules
+install -m 0644 "$MON/prometheus/shieldtest.rules.yml" /etc/prometheus/rules/shieldtest.rules.yml
+command -v promtool >/dev/null 2>&1 && promtool check rules /etc/prometheus/rules/shieldtest.rules.yml || true
+
+echo "==> Grafana datasource provisioning (loopback Prometheus + Loki, uid-stable)"
+mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards /var/lib/grafana/dashboards
+cat > /etc/grafana/provisioning/datasources/shieldtest.yaml <<'YML'
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:9090
+    isDefault: true
+    editable: false
+    jsonData: { httpMethod: POST, timeInterval: 15s }
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://127.0.0.1:3100
+    isDefault: false
+    editable: false
+YML
+
+echo "==> Grafana dashboard provider + the 3-plane ShieldTest dashboards"
+cat > /etc/grafana/provisioning/dashboards/shieldtest.yaml <<'YML'
+apiVersion: 1
+providers:
+  - name: ShieldTest
+    orgId: 1
+    folder: ShieldTest
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
+YML
+install -m 0644 "$MON"/grafana/dashboards/*.json /var/lib/grafana/dashboards/
+chown -R grafana:grafana /var/lib/grafana/dashboards 2>/dev/null || true
+echo "    installed: $(ls -1 "$MON"/grafana/dashboards/*.json | xargs -n1 basename | tr '\n' ' ')"
 
 echo "==> enable + restart services (restart, not just start — apt already started"
 echo "    prometheus/node_exporter with the default config; we must reload ours)"

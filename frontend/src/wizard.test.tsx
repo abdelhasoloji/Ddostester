@@ -106,7 +106,9 @@ describe('NewCampaignWizard', () => {
   it('blocks a target that is not in the allowlist', () => {
     render(<NewCampaignWizard />);
     fireEvent.click(screen.getByRole('button', { name: /Readiness/ }));
-    fireEvent.change(screen.getByPlaceholderText(/staging.example.com/), {
+    // Exact placeholder → the Target input only (the Probe input placeholder is
+    // ".../health", which the old regex also matched — an ambiguous, flaky query).
+    fireEvent.change(screen.getByPlaceholderText('https://staging.example.com/'), {
       target: { value: 'https://evil.example/' },
     });
     expect(screen.getByText(/not in the allowlist/i)).toBeInTheDocument();

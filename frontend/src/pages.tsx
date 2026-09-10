@@ -11,10 +11,11 @@ import {
   suiteCompareUrl,
   getGrafanaBase,
   setGrafanaBase,
-  grafanaRunUrl,
+  grafanaDashUrl,
 } from './api.js';
 import type {
   Alert,
+  GrafanaPlane,
   AttestationChecklist,
   AuditVerdict,
   BenchCatalogue,
@@ -483,25 +484,18 @@ export function RunTheaterPage() {
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   const [active, setActive] = useState<string | null>(null);
   const current = running.find((c) => c.id === active) ?? running[0];
-  const grafanaBase = getGrafanaBase();
   return (
     <>
       <PageHead
         title="Run Theater"
         sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
       />
-      {grafanaBase && current && (
-        <div className="page-actions">
-          <a
-            className="btn btn-sm btn-ghost"
-            href={grafanaRunUrl(grafanaBase, { target: hostOf(current.target) ?? current.target })}
-            target="_blank"
-            rel="noreferrer"
-            title="Open the Grafana dashboard scoped to this run's target and last 15 min"
-          >
-            📊 Open in Grafana ↗
-          </a>
-        </div>
+      {current && (
+        <GrafanaLink
+          plane="run"
+          label="Open this run in Grafana"
+          target={hostOf(current.target) ?? current.target}
+        />
       )}
       {running.length === 0 ? (
         <div className="card">
@@ -539,6 +533,37 @@ export function RunTheaterPage() {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * A one-click deep link into the ShieldTest Grafana dashboard for a given
+ * observability plane. Renders nothing until a Grafana base URL is configured
+ * (Settings → Observability), so the app degrades gracefully without Grafana.
+ */
+function GrafanaLink({
+  plane,
+  label,
+  target,
+}: {
+  plane: GrafanaPlane;
+  label: string;
+  target?: string;
+}) {
+  const base = getGrafanaBase();
+  if (!base) return null;
+  return (
+    <div className="page-actions">
+      <a
+        className="btn btn-sm btn-ghost"
+        href={grafanaDashUrl(base, plane, { target })}
+        target="_blank"
+        rel="noreferrer"
+        title="Open the ShieldTest Grafana dashboard for this view"
+      >
+        📊 {label} ↗
+      </a>
+    </div>
   );
 }
 
@@ -1846,6 +1871,7 @@ export function ReportsPage() {
         title="Results"
         sub="Every measured run — its WRS, protection absorption and measurement confidence — plus assessment suites and aggregated DORA / NIS2 compliance."
       />
+      <GrafanaLink plane="resilience" label="Resilience trends in Grafana" />
       <SuitesSection />
       {withRun.length >= 2 && <CompareSection campaigns={withRun} />}
       <div className="card" style={{ marginBottom: '1rem' }}>
@@ -3072,13 +3098,41 @@ function ObservabilityCard() {
         <span className="hint">
           {saved ? (
             <>
-              Linked to <code>{saved}</code> · dashboard <code>/d/shieldtest-runs</code>
+              Linked to <code>{saved}</code>
             </>
           ) : (
             'Not linked — the Open in Grafana buttons stay hidden until set.'
           )}
         </span>
       </div>
+      {saved && (
+        <div className="page-actions" style={{ marginTop: '.75rem' }}>
+          <a
+            className="btn btn-sm btn-ghost"
+            href={grafanaDashUrl(saved, 'run')}
+            target="_blank"
+            rel="noreferrer"
+          >
+            📊 Run &amp; Absorption ↗
+          </a>
+          <a
+            className="btn btn-sm btn-ghost"
+            href={grafanaDashUrl(saved, 'resilience')}
+            target="_blank"
+            rel="noreferrer"
+          >
+            📈 Resilience ↗
+          </a>
+          <a
+            className="btn btn-sm btn-ghost"
+            href={grafanaDashUrl(saved, 'platform')}
+            target="_blank"
+            rel="noreferrer"
+          >
+            🩺 Platform health ↗
+          </a>
+        </div>
+      )}
     </div>
   );
 }
