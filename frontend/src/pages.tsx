@@ -9,6 +9,9 @@ import {
   runsCsvUrl,
   suiteReportUrl,
   suiteCompareUrl,
+  getGrafanaBase,
+  setGrafanaBase,
+  grafanaRunUrl,
 } from './api.js';
 import type {
   Alert,
@@ -52,6 +55,7 @@ import {
   ConfidenceBadge,
   RunTheater,
   RunDetails,
+  hostOf,
 } from './ui.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -479,12 +483,26 @@ export function RunTheaterPage() {
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   const [active, setActive] = useState<string | null>(null);
   const current = running.find((c) => c.id === active) ?? running[0];
+  const grafanaBase = getGrafanaBase();
   return (
     <>
       <PageHead
         title="Run Theater"
         sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
       />
+      {grafanaBase && current && (
+        <div className="page-actions">
+          <a
+            className="btn btn-sm btn-ghost"
+            href={grafanaRunUrl(grafanaBase, { target: hostOf(current.target) ?? current.target })}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the Grafana dashboard scoped to this run's target and last 15 min"
+          >
+            📊 Open in Grafana ↗
+          </a>
+        </div>
+      )}
       {running.length === 0 ? (
         <div className="card">
           <p className="muted">
@@ -3011,6 +3029,60 @@ function NotificationsCard() {
   );
 }
 
+/**
+ * Observability card — point the app at a Grafana base URL (a local SSH tunnel
+ * `http://localhost:3000`, or a reverse-proxied route). Once set, the Run
+ * Theater and Results deep-link into the provisioned "ShieldTest — Runs"
+ * dashboard. Stored per browser (localStorage); no server round-trip.
+ */
+function ObservabilityCard() {
+  const app = useApp();
+  const [url, setUrl] = useState(getGrafanaBase());
+  const saved = getGrafanaBase();
+  const dirty = url.trim().replace(/\/+$/, '') !== saved;
+  const save = () => {
+    setGrafanaBase(url);
+    setUrl(getGrafanaBase());
+    app.push('success', getGrafanaBase() ? 'Grafana URL saved.' : 'Grafana link cleared.');
+  };
+  return (
+    <div className="card">
+      <h2>Observability (Grafana)</h2>
+      <p className="hint" style={{ marginBottom: '.75rem' }}>
+        Prometheus scrapes the control plane; Grafana holds the historical, multi-run view. Point
+        the app at your Grafana base URL and the Run Theater &amp; Results gain an{' '}
+        <b>Open in Grafana ↗</b> deep-link, scoped to the run. Use a local tunnel (
+        <code>ssh -L 3000:127.0.0.1:3000 …</code> → <code>http://localhost:3000</code>) or a
+        reverse-proxied route.
+      </p>
+      <div className="field" style={{ maxWidth: 460 }}>
+        <label htmlFor="grafana-url">Grafana base URL</label>
+        <div style={{ display: 'flex', gap: '.4rem' }}>
+          <input
+            id="grafana-url"
+            placeholder="http://localhost:3000"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+          />
+          <button className="btn btn-sm btn-primary" disabled={!dirty} onClick={save}>
+            Save
+          </button>
+        </div>
+        <span className="hint">
+          {saved ? (
+            <>
+              Linked to <code>{saved}</code> · dashboard <code>/d/shieldtest-runs</code>
+            </>
+          ) : (
+            'Not linked — the Open in Grafana buttons stay hidden until set.'
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const app = useApp();
   return (
@@ -3107,6 +3179,8 @@ export function SettingsPage() {
       <UsersCard />
 
       <NotificationsCard />
+
+      <ObservabilityCard />
 
       <div className="card">
         <h2>Load engines</h2>
