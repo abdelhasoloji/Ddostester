@@ -1,20 +1,16 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from './context.js';
 import { Login } from './ui.js';
 import {
   AuditPage,
-  CampaignsPage,
   CommandCenterPage,
-  GuidePage,
   Layout,
-  OverviewPage,
   ReportsPage,
   RunTheaterPage,
   SettingsPage,
 } from './pages.js';
-import { TemplatesPage } from './templates-page.js';
+import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { PreparationPage } from './preparation-page.js';
-import { PlanPage } from './plan-page.js';
 
 /**
  * Authentication gate: while auth is enabled and the operator is not signed in,
@@ -45,16 +41,17 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<CommandCenterPage />} />
-        <Route path="overview" element={<OverviewPage />} />
         <Route path="prepare" element={<PreparationPage />} />
-        <Route path="plan" element={<PlanPage />} />
-        <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />
-        <Route path="templates" element={<TemplatesPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />
-        <Route path="guide" element={<GuidePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        {/* Merged into the Campaigns workspace — redirect old paths to the tab. */}
+        <Route path="overview" element={<Navigate to="/" replace />} />
+        <Route path="templates" element={<Navigate to="/campaigns?tab=templates" replace />} />
+        <Route path="plan" element={<Navigate to="/campaigns?tab=plan" replace />} />
+        <Route path="guide" element={<Navigate to="/campaigns?tab=guide" replace />} />
       </Route>
     </Routes>
   );

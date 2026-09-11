@@ -20,7 +20,13 @@ export const PHASES: Phase[] = [
     route: '/prepare',
     what: 'Profile, surface, baseline, preflight',
   },
-  { n: 2, id: 'plan', name: 'Plan', route: '/plan', what: 'Gap ladder, weakest link, priorities' },
+  {
+    n: 2,
+    id: 'plan',
+    name: 'Plan',
+    route: '/campaigns?tab=plan',
+    what: 'Gap ladder, weakest link, priorities',
+  },
   {
     n: 3,
     id: 'execute',
@@ -38,8 +44,16 @@ export const PHASES: Phase[] = [
   { n: 5, id: 'report', name: 'Report', route: '/reports', what: 'Reports, remediations, compare' },
 ];
 
-/** The phase a route belongs to ('/' matches Measure exactly; others by prefix). */
-export function phaseForPath(pathname: string): Phase | undefined {
+/** The phase a route belongs to ('/' matches Measure exactly; others by prefix).
+ *  The Campaigns workspace hosts both Plan (the `?tab=plan` tab) and Execute (its
+ *  default), so the tab disambiguates when the pathname is `/campaigns`. */
+export function phaseForPath(pathname: string, search = ''): Phase | undefined {
   if (pathname === '/') return PHASES.find((p) => p.id === 'measure');
-  return PHASES.find((p) => p.route !== '/' && pathname.startsWith(p.route));
+  if (pathname.startsWith('/campaigns')) {
+    const tab = new URLSearchParams(search).get('tab');
+    return PHASES.find((p) => p.id === (tab === 'plan' ? 'plan' : 'execute'));
+  }
+  return PHASES.find(
+    (p) => p.route !== '/' && !p.route.startsWith('/campaigns') && pathname.startsWith(p.route),
+  );
 }

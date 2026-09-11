@@ -7,8 +7,8 @@ import { PHASES, phaseForPath } from './phases.js';
  * the whole assessment reads as one governed loop. See docs/five-phase-model.md.
  */
 export function PhaseRail() {
-  const { pathname } = useLocation();
-  const active = phaseForPath(pathname);
+  const { pathname, search } = useLocation();
+  const active = phaseForPath(pathname, search);
   return (
     <nav className="phase-rail" aria-label="Engagement phases">
       {PHASES.map((p, i) => (
