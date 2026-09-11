@@ -1019,6 +1019,90 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-ivan-ja4-sweep',
+    name: 'Ivan — JA4 fingerprint sweep',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a gentle, bounded GET sweep that rotates a set of realistic browser ' +
+      'User-Agents while carrying an "IvanTest" probe-label header — the bounded shape of ' +
+      "Ivan's JA4/TLS fingerprint-enumeration PoC (does the edge classify each browser " +
+      'fingerprint consistently, or let some BYPASS?).',
+    when: 'Measure how bot-management / JA4 fingerprint classification treats a rotating set of realistic browser fingerprints at a low, bounded rate.',
+    threat: {
+      technique: 'Browser/TLS (JA4) fingerprint enumeration — Ivan PoC',
+      reference:
+        "Ivan's JA4/TLS impersonation PoC (curl_cffi browser sweep, 2026-08); JA4+ fingerprinting (FoxIO)",
+      measures:
+        'Whether JA4 / bot-management classification is consistent across a rotating set of realistic browser fingerprints (e.g. BYPASS vs challenge/block).',
+      notReproduced:
+        'No TLS ClientHello / JA4 spoofing (the built-in engine sends a normal handshake, so real JA4 impersonation is NOT reproduced) and no volumetric — only a bounded GET sweep rotating benign browser User-Agents plus a probe-label header.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-fingerprint reference.',
+        maxRps: 50,
+        concurrency: 10,
+        maxDurationSec: 90,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Fingerprint sweep',
+        summary: 'Gentle bounded sweep rotating browser UAs, carrying the IvanTest probe label.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 150,
+        profile: 'constant',
+        agent: 'builtin',
+        paths: ['/'],
+        rotateUa: true,
+        headers: {
+          'X-Probe-Client': 'IvanTest 1.0',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+    ],
+  },
+  {
+    id: 'threat-ivan-ja4-random',
+    name: 'Ivan — JA4 classification (randomized)',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A single bounded wave that rotates browser User-Agents in bursts while carrying the ' +
+      '"IvanTest" probe-label header — the randomized-order variant of Ivan\'s JA4 ' +
+      'enumeration, to see whether classification stays stable under a varying fingerprint mix.',
+    when: 'Validate that JA4 / fingerprint classification stays stable when realistic browser fingerprints arrive in a randomized, bounded burst pattern.',
+    threat: {
+      technique: 'Randomized browser/TLS (JA4) fingerprint mix — Ivan PoC',
+      reference:
+        "Ivan's JA4/TLS impersonation PoC (curl_cffi, random mode, 2026-08); JA4+ fingerprinting (FoxIO)",
+      measures:
+        'Stability of JA4 / bot classification when a mix of realistic browser fingerprints arrives in a randomized, bounded burst.',
+      notReproduced:
+        'No TLS ClientHello / JA4 spoofing (normal handshake only) and no volumetric — a bounded GET wave rotating benign User-Agents plus a probe-label header.',
+    },
+    steps: [
+      {
+        name: 'Randomized fingerprint wave',
+        summary: 'Bounded wave rotating browser UAs, IvanTest probe label.',
+        maxRps: 120,
+        concurrency: 30,
+        maxDurationSec: 150,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/'],
+        rotateUa: true,
+        headers: {
+          'X-Probe-Client': 'IvanTest 1.0',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',
@@ -1250,6 +1334,8 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'threat-micro-burst-train': '2026-09-11',
   'threat-ransom-demo': '2026-09-11',
   'threat-api-post-storm': '2026-09-11',
+  'threat-ivan-ja4-sweep': '2026-09-11',
+  'threat-ivan-ja4-random': '2026-09-11',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
@@ -1320,45 +1406,98 @@ export function buildSuiteCampaigns(
   engines: EngineAvailability[] = [],
 ): CampaignInput[] {
   const suiteId = randomUUID();
-  const isAvailable = (id?: string): boolean =>
-    id != null && engines.some((e) => e.id === id && e.available);
-  let origin = t.target;
-  try {
-    origin = new URL(t.target).origin;
-  } catch {
-    /* keep raw; createCampaign will reject an invalid target */
-  }
-  return playbook.steps.map((step, i) => {
-    const agent = isAvailable(step.agent) ? step.agent : undefined;
-    // Endpoint mix and UA rotation are built-in-engine features: only attach
-    // them when the resolved engine is the built-in one (explicit or default).
-    const builtin = agent === 'builtin' || agent === undefined;
-    const endpoints =
-      builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
-    const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
-    const headers = builtin && step.headers ? step.headers : undefined;
-    return {
+  return playbook.steps.map((step, i) =>
+    campaignInputFromStep(step, {
       // A single-step playbook's one campaign is just the playbook name (its
       // name already carries the line); multi-step suites keep the step suffix.
       name: playbook.steps.length === 1 ? playbook.name : `${playbook.name} — ${step.name}`,
-      description: step.summary,
-      target: t.target,
-      vector: step.vector ?? 'http-get',
-      maxRps: step.maxRps,
-      concurrency: step.concurrency,
-      maxDurationSec: step.maxDurationSec,
-      probeUrl: t.probeUrl,
-      createdBy: t.createdBy,
-      authorized: true,
-      scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
-      agent,
-      endpoints,
-      userAgents,
-      headers,
-      recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
       suiteId,
       suiteName: playbook.name,
       suiteOrder: i,
-    };
-  });
+      t,
+      engines,
+    }),
+  );
+}
+
+/**
+ * Composes several playbooks into ONE suite: their steps are concatenated in
+ * template order under a single shared suiteId, so the result behaves exactly
+ * like any other suite (sequencer, aggregate WRS, one assessment report). Each
+ * step's name is prefixed with its source template so provenance stays visible
+ * (the suite name is the composite's, not any single playbook's). Governance is
+ * unchanged — every campaign still goes through approval + caps individually.
+ */
+export function buildCompositeSuite(
+  playbooks: Playbook[],
+  suiteName: string,
+  t: SuiteTarget,
+  engines: EngineAvailability[] = [],
+): CampaignInput[] {
+  const suiteId = randomUUID();
+  const inputs: CampaignInput[] = [];
+  let order = 0;
+  for (const pb of playbooks) {
+    for (const step of pb.steps) {
+      // Prefix with the source template name so a composed step reads e.g.
+      // "GET flood readiness — Ramp" even though the suite name is the mix's.
+      const name = pb.steps.length === 1 ? pb.name : `${pb.name} — ${step.name}`;
+      inputs.push(
+        campaignInputFromStep(step, { name, suiteId, suiteName, suiteOrder: order, t, engines }),
+      );
+      order += 1;
+    }
+  }
+  return inputs;
+}
+
+/** Maps one playbook step to a CampaignInput bound into a suite. */
+function campaignInputFromStep(
+  step: PlaybookStep,
+  o: {
+    name: string;
+    suiteId: string;
+    suiteName: string;
+    suiteOrder: number;
+    t: SuiteTarget;
+    engines: EngineAvailability[];
+  },
+): CampaignInput {
+  const isAvailable = (id?: string): boolean =>
+    id != null && o.engines.some((e) => e.id === id && e.available);
+  let origin = o.t.target;
+  try {
+    origin = new URL(o.t.target).origin;
+  } catch {
+    /* keep raw; createCampaign will reject an invalid target */
+  }
+  const agent = isAvailable(step.agent) ? step.agent : undefined;
+  // Endpoint mix and UA rotation are built-in-engine features: only attach
+  // them when the resolved engine is the built-in one (explicit or default).
+  const builtin = agent === 'builtin' || agent === undefined;
+  const endpoints =
+    builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
+  const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
+  const headers = builtin && step.headers ? step.headers : undefined;
+  return {
+    name: o.name,
+    description: step.summary,
+    target: o.t.target,
+    vector: step.vector ?? 'http-get',
+    maxRps: step.maxRps,
+    concurrency: step.concurrency,
+    maxDurationSec: step.maxDurationSec,
+    probeUrl: o.t.probeUrl,
+    createdBy: o.t.createdBy,
+    authorized: true,
+    scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
+    agent,
+    endpoints,
+    userAgents,
+    headers,
+    recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,
+    suiteId: o.suiteId,
+    suiteName: o.suiteName,
+    suiteOrder: o.suiteOrder,
+  };
 }

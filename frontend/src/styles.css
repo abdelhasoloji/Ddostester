@@ -871,6 +871,8 @@ input.invalid {
   padding: 0.35rem 0.5rem;
 }
 
+/* (chart legend styles live in the chart-legend PR) */
+
 /* ===== Sidebar layout ===== */
 .shell {
   display: grid;
@@ -2050,6 +2052,114 @@ input.invalid {
 }
 .tpl-row[open] {
   border-color: var(--brand);
+}
+.tpl-row.is-selected {
+  border-color: var(--brand);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.tpl-pick {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--brand);
+  cursor: pointer;
+  flex: none;
+}
+
+/* Compose basket — assemble several templates into one campaign (suite). */
+.tpl-compose-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--brand);
+  border-radius: var(--radius, 10px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.tcb-main {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+.tcb-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.tcb-steps {
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tcb-steps.over {
+  color: var(--danger);
+  font-weight: 600;
+}
+.tcb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.tcb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.3rem;
+  font-size: 0.78rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.tcb-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 999px;
+}
+.tcb-x {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+.tcb-x:hover {
+  color: var(--danger);
+}
+.tcb-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 1 auto;
+}
+.tcb-name {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  max-width: 12rem;
+}
+.tcb-hint {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.tcb-hint.over {
+  color: var(--danger);
 }
 .tpl-summary {
   display: flex;

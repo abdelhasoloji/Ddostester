@@ -187,3 +187,9 @@ export const MAX_DATASET_ROWS = 1000;
 export const MAX_PLAYBOOK_STEPS = 12;
 /** Max custom request headers per playbook step. */
 export const MAX_PLAYBOOK_HEADERS = 10;
+/**
+ * Max total steps when several templates are composed into one suite
+ * (`POST /api/suites/compose`). Bounds the length of an operator-assembled
+ * sequence; each composed campaign is still capped individually.
+ */
+export const MAX_COMPOSITE_STEPS = 24;
