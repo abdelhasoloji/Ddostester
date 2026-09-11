@@ -205,14 +205,19 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   // Security headers on every response (the app hardens itself, not just its
   // targets). No external origins are used, so the CSP is strict; 'unsafe-inline'
-  // is limited to styles (the HTML reports embed a <style> block).
+  // is limited to styles (the HTML reports embed a <style> block). The reports'
+  // one inline handler — the "Print / PDF" button's onclick="window.print()" —
+  // is allowed by its exact hash via 'unsafe-hashes' (only that literal handler,
+  // nothing else, so an injected script/handler is still blocked — no XSS hole).
+  const PRINT_HANDLER_HASH = "'sha256-MguIPR6qNR8D3B+eAlK+bIRTZe8t3wkOY4B/56Me9FU='";
   app.addHook('onSend', async (_req, reply, payload) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'no-referrer');
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      `default-src 'self'; script-src 'self' 'unsafe-hashes' ${PRINT_HANDLER_HASH}; ` +
+        "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; " +
         "base-uri 'self'; form-action 'self'",
     );
