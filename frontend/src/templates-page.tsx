@@ -59,6 +59,7 @@ function PlaybookRow({
   onLaunch: () => void;
   onDelete: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <details className={`tpl-row${selected ? ' is-selected' : ''}`}>
       <summary className="tpl-summary">
@@ -137,11 +138,31 @@ function PlaybookRow({
             >
               {busy ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
             </button>
-            {pb.custom && (
-              <button className="btn btn-sm btn-ghost" onClick={onDelete}>
-                Delete
-              </button>
-            )}
+            {pb.custom &&
+              (confirmingDelete ? (
+                <span className="row" style={{ gap: '.4rem', alignItems: 'center' }}>
+                  <span className="hint">Delete this template?</span>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                      onDelete();
+                    }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button className="btn btn-sm btn-ghost" onClick={() => setConfirmingDelete(true)}>
+                  Delete
+                </button>
+              ))}
           </div>
         )}
       </div>

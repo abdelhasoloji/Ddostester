@@ -242,7 +242,9 @@ export function RunTheater({
 }) {
   const [p, setP] = useState<LiveProgressData | null>(null);
   const [waiting, setWaiting] = useState(false);
+  const [errored, setErrored] = useState(false);
   useEffect(() => {
+    setErrored(false);
     const es = new EventSource(streamUrl(campaignId));
     es.onmessage = (e) => {
       try {
@@ -250,6 +252,7 @@ export function RunTheater({
         if (d.status === 'RUNNING') {
           setP(d);
           setWaiting(false);
+          setErrored(false);
         } else if (d.status === 'waiting') {
           setWaiting(true);
         } else if (d.status === 'done') {
@@ -259,7 +262,12 @@ export function RunTheater({
         /* ignore */
       }
     };
-    es.onerror = () => es.close();
+    // A dropped stream leaves the run going server-side; stop the spinner and
+    // say so instead of pretending progress is still arriving.
+    es.onerror = () => {
+      es.close();
+      setErrored(true);
+    };
     return () => es.close();
   }, [campaignId]);
 
@@ -303,9 +311,15 @@ export function RunTheater({
       </div>
 
       {!p ? (
-        <p className="hint" style={{ marginTop: '1rem' }}>
-          <span className="spin" /> {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
-        </p>
+        errored ? (
+          <p className="hint" style={{ marginTop: '1rem', color: 'var(--warning)' }}>
+            ⚠ Live updates interrupted — the run continues. Reopen or refresh to reconnect.
+          </p>
+        ) : (
+          <p className="hint" style={{ marginTop: '1rem' }}>
+            <span className="spin" /> {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
+          </p>
+        )
       ) : (
         <>
           <div className="theater-grid">
@@ -379,7 +393,9 @@ export function RunTheater({
 function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: string }) {
   const [p, setP] = useState<LiveProgressData | null>(null);
   const [waiting, setWaiting] = useState(false);
+  const [errored, setErrored] = useState(false);
   useEffect(() => {
+    setErrored(false);
     const es = new EventSource(streamUrl(campaignId));
     es.onmessage = (e) => {
       try {
@@ -387,6 +403,7 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         if (d.status === 'RUNNING') {
           setP(d);
           setWaiting(false);
+          setErrored(false);
         } else if (d.status === 'waiting') {
           // Run has started but is still capturing the pre-load baseline — keep
           // the stream open (don't close) and show a "capturing baseline" note.
@@ -398,15 +415,28 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         /* ignore */
       }
     };
-    es.onerror = () => es.close();
+    // Surface a dropped stream instead of spinning forever; the run itself
+    // keeps going server-side and the card refreshes on the next poll.
+    es.onerror = () => {
+      es.close();
+      setErrored(true);
+    };
     return () => es.close();
   }, [campaignId]);
   if (!p)
     return (
       <div className="details">
         <span className="hint">
-          <span className="spin" />
-          {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
+          {errored ? (
+            <span style={{ color: 'var(--warning)' }}>
+              ⚠ Live updates interrupted — refresh to reconnect.
+            </span>
+          ) : (
+            <>
+              <span className="spin" />
+              {waiting ? 'Capturing pre-load baseline…' : 'Starting run…'}
+            </>
+          )}
         </span>
       </div>
     );

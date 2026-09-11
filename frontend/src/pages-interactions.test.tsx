@@ -209,6 +209,32 @@ describe('TemplatesPage', () => {
     );
   });
 
+  it('requires a two-step confirmation before deleting a custom template', async () => {
+    fakeApi.playbooks.mockResolvedValue([
+      { ...twoPlaybooks[0], id: 'mine', name: 'My template', custom: true },
+    ]);
+    fakeApi.deletePlaybook.mockResolvedValue(undefined);
+    renderWithRouter(<TemplatesPage />);
+    // First click arms the confirm — nothing is deleted yet.
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(fakeApi.deletePlaybook).not.toHaveBeenCalled();
+    expect(screen.getByText(/Delete this template\?/)).toBeInTheDocument();
+    // Confirm actually deletes.
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(fakeApi.deletePlaybook).toHaveBeenCalledWith('mine'));
+  });
+
+  it('can cancel a template deletion', async () => {
+    fakeApi.playbooks.mockResolvedValue([
+      { ...twoPlaybooks[0], id: 'mine', name: 'My template', custom: true },
+    ]);
+    renderWithRouter(<TemplatesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(/Delete this template\?/)).not.toBeInTheDocument();
+    expect(fakeApi.deletePlaybook).not.toHaveBeenCalled();
+  });
+
   it('shows a loading hint until templates arrive', async () => {
     let resolve!: (v: unknown[]) => void;
     fakeApi.playbooks.mockReturnValue(new Promise((r) => (resolve = r)) as never);

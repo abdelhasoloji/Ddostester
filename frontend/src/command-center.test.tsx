@@ -192,6 +192,19 @@ describe('Run Theater', () => {
     expect(screen.getByText('Reached origin')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument(); // 800/1000 offered → 80% absorbed
   });
+
+  it('surfaces a dropped stream instead of spinning forever', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING' }],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    expect(esInstances.length).toBeGreaterThan(0);
+    // No data ever arrived, then the connection drops.
+    act(() => esInstances[0].onerror?.());
+    expect(screen.getByText(/Live updates interrupted/)).toBeInTheDocument();
+    expect(screen.queryByText(/Starting run…/)).not.toBeInTheDocument();
+  });
 });
 
 describe('Results page', () => {
