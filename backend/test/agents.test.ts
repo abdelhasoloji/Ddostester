@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildVegetaTarget, parseVegetaReport, mergeResults } from '../src/agents/vegeta.js';
+import {
+  buildVegetaTarget,
+  parseVegetaReport,
+  mergeResults,
+  VegetaLiveMeter,
+} from '../src/agents/vegeta.js';
 import { buildLocustfile, parseLocustStats } from '../src/agents/locust.js';
 import { selectAgent, AGENTS } from '../src/agents/index.js';
 import type { LoadTestConfig } from '../src/engine/types.js';
@@ -41,6 +46,31 @@ describe('vegeta', () => {
     expect(r.statusCounts['2xx']).toBe(490);
     expect(r.statusCounts['5xx']).toBe(10);
   });
+  it('live meter turns streamed results into a LoadProgress snapshot', () => {
+    const m = new VegetaLiveMeter();
+    // 3 ok (2xx), 1 edge-rejected (4xx), 1 transport error (code 0) → 2 failed.
+    m.add({ code: 200, latency: 5e6 }); // 5ms
+    m.add({ code: 204, latency: 10e6 }); // 10ms
+    m.add({ code: 302, latency: 15e6 }); // 15ms (3xx counts successful)
+    m.add({ code: 429, latency: 20e6 }); // 20ms, failed
+    m.add({ code: 0, latency: 30e6, error: 'dial tcp: timeout' }); // failed
+    const p = m.snapshot(5); // 5 requests over 5s
+    expect(p.sent).toBe(5);
+    expect(p.failed).toBe(2);
+    expect(p.successful).toBe(3);
+    expect(p.actualRps).toBe(1);
+    expect(p.statusCounts).toMatchObject({ '2xx': 2, '3xx': 1, '4xx': 1, err: 1 });
+    // Latency percentiles are reported in ms (ns / 1e6).
+    expect(p.latencyMs?.p50).toBeGreaterThanOrEqual(10);
+    expect(p.latencyMs?.p99).toBe(30);
+  });
+  it('live meter is empty-safe before any result', () => {
+    const p = new VegetaLiveMeter().snapshot(0);
+    expect(p.sent).toBe(0);
+    expect(p.actualRps).toBe(0);
+    expect(p.latencyMs?.p95).toBe(0);
+  });
+
   it('merges sequential phases', () => {
     const a = parseVegetaReport(
       {
