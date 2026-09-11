@@ -32,7 +32,7 @@ const row = (over: Partial<AbsorptionSummaryRow>): AbsorptionSummaryRow => ({
 const cov = (over: Partial<BenchCoverage>): BenchCoverage =>
   ({
     id: 'x',
-    vector: 'dns-amp',
+    vector: 'udp_dns_reflection', // a real DRS-3 BENCH_SCENARIOS id
     method: 'BENCH_EMITTED',
     summary: 's',
     source: 'network-team-bench',
