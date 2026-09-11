@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
-import { PromChart } from './PromChart.js';
+import { PromChart, UplotChart, type ChartSeries } from './PromChart.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -720,49 +720,26 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-/** Compact per-run time-series: requests/s and probe 5xx over elapsed time. */
+/** Per-run time-series (client-side, every engine): requests/s and probe 5xx
+ *  over elapsed seconds, rendered with uPlot so it matches the other charts. */
 function RunTimeline({ samples, csvHref }: { samples: RunSample[]; csvHref?: string }) {
   if (samples.length < 2) return null;
-  const W = 640;
-  const H = 120;
-  const padX = 14;
-  const padY = 16;
-  const tMax = Math.max(...samples.map((s) => s.t), 1);
-  const rpsMax = Math.max(...samples.map((s) => s.rps), 1);
-  const errMax = Math.max(...samples.map((s) => s.probe5xx), 1);
-  const x = (t: number) => padX + (t / tMax) * (W - 2 * padX);
-  const yTop = padY;
-  const yBot = H - padY;
-  const line = (sel: (s: RunSample) => number, max: number) =>
-    samples
-      .map((s, i) => {
-        const y = yBot - (sel(s) / max) * (yBot - yTop);
-        return `${i ? 'L' : 'M'}${x(s.t).toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
-
+  const tMax = Math.round(Math.max(...samples.map((s) => s.t), 1));
+  const series: ChartSeries[] = [
+    { label: 'requests/s', points: samples.map((s) => [s.t, s.rps]), color: '#3b82f6' },
+    {
+      label: 'probe 5xx %',
+      points: samples.map((s) => [s.t, s.probe5xx]),
+      color: '#ef4444',
+      axis: 'right',
+    },
+  ];
   return (
     <div className="posture">
       <div className="posture-title">Run timeline</div>
-      <div className="wrs-trend">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Run timeline">
-          <path d={line((s) => s.rps, rpsMax)} fill="none" stroke="var(--brand)" strokeWidth="2" />
-          <path
-            d={line((s) => s.probe5xx, errMax)}
-            fill="none"
-            stroke="var(--danger)"
-            strokeWidth="2"
-          />
-        </svg>
-      </div>
+      <UplotChart series={series} height={150} timeAxis={false} />
       <div className="timeline-legend">
-        <span>
-          <i style={{ background: 'var(--brand)' }} /> requests/s (peak {Math.round(rpsMax)})
-        </span>
-        <span>
-          <i style={{ background: 'var(--danger)' }} /> probe 5xx % (peak {errMax.toFixed(1)})
-        </span>
-        <span className="hint">over {Math.round(tMax)}s</span>
+        <span className="hint">over {tMax}s</span>
         {csvHref && (
           <a href={csvHref} target="_blank" rel="noreferrer">
             CSV ↗
