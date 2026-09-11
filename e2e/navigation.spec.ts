@@ -12,8 +12,6 @@ const SECTIONS: { link: string; title: string }[] = [
   { link: 'Run Theater', title: 'Run Theater' },
   { link: 'Results', title: 'Results' },
   { link: 'Assurance', title: 'Audit log' },
-  { link: 'Overview', title: 'Overview' },
-  { link: 'Guide', title: 'Guide' },
   { link: 'Settings', title: 'Settings' },
 ];
 
@@ -23,6 +21,20 @@ test('every section renders its page (officer)', async ({ page }) => {
     await goTo(page, s.link);
     await expect(page.getByRole('heading', { level: 1, name: s.title })).toBeVisible();
   }
+});
+
+test('the Campaigns workspace exposes its tabs and switches surfaces', async ({ page }) => {
+  await login(page, 'officer');
+  await goTo(page, 'Campaigns');
+  // The four workspace tabs (Templates + Plan + Guide are folded in here now).
+  for (const t of ['Launch', 'Templates', 'Plan', 'How it works']) {
+    await expect(page.getByRole('tab', { name: t })).toBeVisible();
+  }
+  // Switching tabs swaps the surface without leaving the workspace.
+  await page.getByRole('tab', { name: 'Templates' }).click();
+  await expect(page.getByPlaceholder('Search templates…')).toBeVisible();
+  await page.getByRole('tab', { name: 'How it works' }).click();
+  await expect(page.getByText('The four steps')).toBeVisible();
 });
 
 test('Reports shows an empty state before any run (E1)', async ({ page }) => {

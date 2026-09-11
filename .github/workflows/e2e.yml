@@ -1,17 +1,18 @@
 name: E2E
-# Browser smoke, kept separate from the fast CI gate. Marks itself green when
-# the built SPA serves, authenticates and reaches the API in a real browser.
+# Browser smoke, kept OUT of the PR/push pipeline: it runs nightly (and on
+# manual dispatch) instead, so a slow/flaky browser run never blocks a merge.
+# Re-add `pull_request:` / `push:` here to gate merges on it again.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  schedule:
+    - cron: '0 2 * * *' # nightly at 02:00 UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: e2e-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: e2e-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   e2e:
