@@ -123,15 +123,24 @@ export function parseFlow(raw: string, origin: string): RequestStep[] | undefine
     .filter(Boolean);
   if (lines.length === 0) return undefined;
   return lines.map((line) => {
-    const [m, p, t] = line.split(/\s+/);
-    const method = (m || 'GET').toUpperCase();
+    const tokens = line.split(/\s+/);
+    const method = (tokens[0] || 'GET').toUpperCase();
+    let pathTokens = tokens.slice(1);
+    // A trailing all-digits token is the think-time; anything else stays part of
+    // the path (so "GET /my page" keeps its space instead of dropping " page").
+    let thinkMs: number | undefined;
+    const last = pathTokens[pathTokens.length - 1];
+    if (pathTokens.length > 1 && last !== undefined && /^\d+$/.test(last)) {
+      thinkMs = Number(last);
+      pathTokens = pathTokens.slice(0, -1);
+    }
+    const p = pathTokens.join(' ');
     let url = origin;
     try {
       url = new URL(p || '/', origin).href;
     } catch {
       /* keep origin */
     }
-    const thinkMs = t ? Number(t) : undefined;
     return { method, url, thinkMs: Number.isFinite(thinkMs) ? thinkMs : undefined };
   });
 }

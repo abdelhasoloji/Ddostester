@@ -87,6 +87,17 @@ describe('parseFlow', () => {
   it('returns undefined when empty', () => {
     expect(parseFlow('   ', 'https://h.wedos')).toBeUndefined();
   });
+  it('keeps a path containing spaces instead of dropping the tail', () => {
+    const [step] = parseFlow('GET /my page', 'https://h.wedos')!;
+    // The space is preserved (URL-encoded) rather than being mistaken for think-time.
+    expect(step.url).toBe('https://h.wedos/my%20page');
+    expect(step.thinkMs).toBeUndefined();
+  });
+  it('still reads a trailing numeric think-time after a multi-word path', () => {
+    const [step] = parseFlow('POST /my page 250', 'https://h.wedos')!;
+    expect(step.url).toBe('https://h.wedos/my%20page');
+    expect(step.thinkMs).toBe(250);
+  });
 });
 
 describe('parseFlowJson', () => {
