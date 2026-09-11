@@ -14,7 +14,7 @@ import type {
   MetricsRange,
 } from './api.js';
 import { useApp, canDo } from './context.js';
-import { formatInterval } from './campaign-form.js';
+import { formatInterval, fmtDateTime } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
 export { NewCampaignWizard } from './new-campaign-wizard.js';
@@ -23,6 +23,7 @@ export {
   buildAssertion,
   buildScenario,
   formatInterval,
+  fmtDateTime,
   hostOf,
   parseDataset,
   parseEndpoints,
@@ -644,6 +645,11 @@ export function CampaignCard({ c }: { c: Campaign }) {
           by {c.createdBy}
           {c.approvedBy ? ` · appr. ${c.approvedBy}` : ''}
         </span>
+        {c.createdAt && (
+          <span title="When this campaign template was created (not its run)">
+            📅 created {fmtDateTime(c.createdAt)}
+          </span>
+        )}
         {c.scheduledAt && (
           <span title="Scheduled run">🕒 {new Date(c.scheduledAt).toLocaleString()}</span>
         )}
