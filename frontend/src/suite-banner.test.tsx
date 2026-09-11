@@ -93,7 +93,7 @@ describe('SuiteRunBanner', () => {
     expect(container.querySelector('.suite-banner')).toBeNull();
   });
 
-  it('shows the single approve-and-run action and calls runSuite once', async () => {
+  it('does not render for a pending-only suite (its group card carries the run action)', () => {
     currentApp = makeApp({
       authRequired: true,
       role: 'officer',
@@ -103,13 +103,11 @@ describe('SuiteRunBanner', () => {
         member(2, 'PENDING_APPROVAL'),
       ],
     });
-    renderWithRouter(<SuiteRunBanner />);
-    // Progress line reflects 1/3 done.
-    expect(screen.getByText(/1\/3 steps done/)).toBeInTheDocument();
-    const btn = screen.getByRole('button', { name: /Approve & run whole scenario/ });
-    fireEvent.click(btn);
-    await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledTimes(1));
-    expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1');
+    const { container } = renderWithRouter(<SuiteRunBanner />);
+    // Nothing is sequencing → the banner stays out of the way; Approve & run
+    // now lives on the suite group card.
+    expect(container.querySelector('.suite-banner')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Approve & run/ })).toBeNull();
   });
 
   it('shows Pause + Cancel while a step is running, and surfaces the current step', () => {
@@ -165,15 +163,16 @@ describe('SuiteRunBanner', () => {
     await waitFor(() => expect(fakeApi.resumeSuite).toHaveBeenCalledWith('suite-1'));
   });
 
-  it('hides the run action for a viewer (no approve permission)', () => {
+  it('shows a running sequence to a viewer but without controls', () => {
     currentApp = makeApp({
       authRequired: true,
       role: 'viewer',
-      campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
+      campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);
-    expect(screen.queryByRole('button', { name: /Approve & run/ })).toBeNull();
-    // But the progress banner still renders (visibility for all roles).
-    expect(screen.getByText(/0\/2 steps done/)).toBeInTheDocument();
+    // The live banner renders for all roles (visibility) …
+    expect(screen.getByText(/1\/3 steps done/)).toBeInTheDocument();
+    // … but a viewer gets no Pause / Cancel controls.
+    expect(screen.queryByRole('button', { name: /Pause|Cancel|Resume/ })).toBeNull();
   });
 });

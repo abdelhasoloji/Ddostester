@@ -48,6 +48,7 @@ import {
   ExecuteModal,
   NewCampaignForm,
   NewCampaignWizard,
+  StatusBadge,
   VerdictBadge,
   WrsPill,
   WrsTrend,
@@ -1066,26 +1067,29 @@ export function SuiteRunBanner() {
   const [busy, setBusy] = useState<string | null>(null);
   const [sequences, setSequences] = useState<Record<string, SuiteSequenceState>>({});
   const groups = useMemo(() => groupSuites(app.campaigns), [app.campaigns]);
-  const active = groups.filter((g) => g.remaining > 0);
+  // The banner is only for suites that are ACTIVELY sequencing (a step in flight
+  // or a live sequence between steps). A merely-pending suite lives in its group
+  // card, which carries its own "Approve & run" — no duplicate banner.
+  const active = groups.filter((g) => g.running > 0 || Boolean(sequences[g.suiteId]));
+  const anyRemaining = groups.some((g) => g.remaining > 0);
 
   // Keep the list fresh for the whole sequence — between steps there may be no
-  // RUNNING campaign, so the global "anyRunning" poll can lapse; poll here too,
-  // and refresh the live sequence-control state (paused / current step).
-  const inFlight = active.length > 0;
+  // RUNNING campaign, so the global "anyRunning" poll can lapse; poll here while
+  // any suite still has steps left to run so we catch a sequence starting.
   const pullSequences = () =>
     api
       .suiteSequences()
       .then((r) => setSequences(r.sequences))
       .catch(() => undefined);
   useEffect(() => {
-    if (!inFlight) return;
+    if (!anyRemaining) return;
     pullSequences();
     const t = setInterval(() => {
       app.refresh();
       pullSequences();
     }, 3000);
     return () => clearInterval(t);
-  }, [inFlight, app]);
+  }, [anyRemaining, app]);
 
   if (active.length === 0) return null;
 
@@ -1284,16 +1288,72 @@ export function suiteWrs(
  * end, elapsed, on-target time) and a whole-suite archive + assessment report.
  * Collapsed shows a compact step strip; expanded mounts the full per-step cards.
  */
+/** One compact line inside an expanded suite — label, status, spec, WRS, and the
+ *  few inline controls that matter (kill in-flight, report). Click opens the
+ *  full detail drawer, so per-step approve/run/cancel stay one click away
+ *  without 4 buttons on every row. */
+function SuiteStepRow({ m, suiteName }: { m: Campaign; suiteName: string }) {
+  const app = useApp();
+  const spec = `${m.maxRps} rps · ${m.maxDurationSec}s${
+    m.vector !== 'http-get' ? ` · ${m.vector.replace('http-', '')}` : ''
+  }`;
+  return (
+    <div className={`suite-step-row ${SUITE_STEP_CLASS[m.status] ?? ''}`}>
+      <button className="ssr-main" onClick={() => app.openDetail(m)} title="Open step details">
+        <span className="ssr-n">{(m.suiteOrder ?? 0) + 1}</span>
+        <span className="ssr-name">{stepLabel(m, suiteName)}</span>
+        <StatusBadge status={m.status} />
+        {m.wrs && <WrsPill wrs={m.wrs} />}
+        <span className="ssr-spec">{spec}</span>
+      </button>
+      <div className="ssr-actions">
+        {m.status === 'RUNNING' && canDo(app.role, 'kill', app.authRequired) && (
+          <button className="btn btn-sm btn-danger" onClick={() => app.kill(m)}>
+            Kill
+          </button>
+        )}
+        {m.runId && (
+          <a
+            className="btn btn-sm btn-ghost"
+            href={reportUrl(m.runId)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Report ↗
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const app = useApp();
   const canArchive = canDo(app.role, 'create', app.authRequired);
+  const canRun = canDo(app.role, 'approve', app.authRequired);
   const t = useMemo(() => suiteTiming(g.members), [g.members]);
   const agg = useMemo(() => suiteWrs(g.members), [g.members]);
   const active = g.remaining > 0;
-  const [open, setOpen] = useState(active);
+  const sequencing = g.running > 0; // a step is in flight → the live banner drives it
+  const [open, setOpen] = useState(false);
   const allArchived = g.members.every((m) => m.archived);
   const busy = app.busy[g.suiteId];
   const scored = agg ? `${agg.scored}/${g.total} scored` : 'not scored';
+  const [localBusy, setLocalBusy] = useState(false);
+
+  const runScenario = async () => {
+    setLocalBusy(true);
+    try {
+      await api.runSuite(g.suiteId);
+      app.push('success', `Scenario approved — remaining steps will run in order.`);
+      app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setLocalBusy(false);
+    }
+  };
+
   return (
     <div className={`suite-group${allArchived ? ' is-archived' : ''}`}>
       <div className="suite-group-head">
@@ -1317,6 +1377,16 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           </span>
         )}
         <div className="suite-group-actions">
+          {canRun && active && !sequencing && (
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={localBusy}
+              onClick={runScenario}
+              title="One approval for the whole scenario: approves + runs every remaining step in order"
+            >
+              {localBusy ? <span className="spin" /> : null}▶ Approve &amp; run ({g.remaining})
+            </button>
+          )}
           {g.done > 0 && (
             <a
               className="btn btn-sm btn-ghost"
@@ -1366,7 +1436,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
       {open ? (
         <div className="suite-group-members">
           {g.members.map((m) => (
-            <CampaignCard key={m.id} c={m} />
+            <SuiteStepRow key={m.id} m={m} suiteName={g.suiteName} />
           ))}
         </div>
       ) : (
