@@ -95,6 +95,27 @@ describe('NewCampaignWizard', () => {
     expect(payload.maxRps).toBe(10); // smoke preset (gentlest readiness template)
   });
 
+  it('keeps a manual template pick when the recommendation recomputes', async () => {
+    const { container, rerender } = render(<NewCampaignWizard onDone={vi.fn()} />);
+    pickTarget();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByText(/Recommended/);
+    const cards = () => Array.from(container.querySelectorAll('.template-card'));
+    // Pick a template other than the pre-selected recommendation.
+    const other = cards().find((c) => !c.className.includes('selected'));
+    expect(other).toBeTruthy();
+    fireEvent.click(other!);
+    expect(other!.className).toContain('selected');
+    // Force `reco` to recompute (new agents → new engines reference). Without the
+    // manual-pick guard this would snap the selection back to the recommendation.
+    currentApp = makeApp({ agents: [{ id: 'builtin', available: true }] });
+    currentApp.createCampaign.mockClear();
+    rerender(<NewCampaignWizard onDone={vi.fn()} />);
+    const stillSelected = Array.from(container.querySelectorAll('.template-card.selected'));
+    expect(stillSelected).toHaveLength(1);
+    expect(stillSelected[0].textContent).toBe(other!.textContent);
+  });
+
   it('creates a suite via instantiatePlaybook for the threat objective', async () => {
     render(<NewCampaignWizard onDone={vi.fn()} />);
     // Wait for playbooks to load, then choose the Threat objective.

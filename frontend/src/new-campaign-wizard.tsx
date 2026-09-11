@@ -88,15 +88,23 @@ export function NewCampaignWizard({ onDone }: { onDone?: () => void }) {
     [objective, catalogue, caps, lastWrs, engines],
   );
 
-  // When the objective (or its recommendation) changes, pre-select the pick.
+  // Pre-select the recommendation, but never override a deliberate choice: once
+  // the operator picks a template, recomputing `reco` must not yank it back.
+  const [manualPick, setManualPick] = useState(false);
   useEffect(() => {
-    if (reco.pick) setTpl(reco.pick);
-  }, [reco.pick]);
+    if (reco.pick && !manualPick) setTpl(reco.pick);
+  }, [reco.pick, manualPick]);
 
   const chooseObjective = (id: string) => {
     setObjectiveId(id);
     setTpl(null);
+    setManualPick(false);
     setStep(1);
+  };
+
+  const pickTemplate = (t: Template) => {
+    setManualPick(true);
+    setTpl(t);
   };
 
   const pickHost = (h: string) => setTarget((t) => withHost(t, h));
@@ -292,7 +300,7 @@ export function NewCampaignWizard({ onDone }: { onDone?: () => void }) {
             selected={tpl}
             recommended={reco.pick}
             caps={caps}
-            onPick={setTpl}
+            onPick={pickTemplate}
           />
           <TemplateGroup
             title="Full assessment (multi-step suite)"
@@ -300,7 +308,7 @@ export function NewCampaignWizard({ onDone }: { onDone?: () => void }) {
             selected={tpl}
             recommended={reco.pick}
             caps={caps}
-            onPick={setTpl}
+            onPick={pickTemplate}
           />
           <NavRow onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={!tpl} />
         </div>
