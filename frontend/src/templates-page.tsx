@@ -365,6 +365,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       <div className="tpl-toolbar">
         <input
           className="tpl-search"
+          aria-label="Search templates"
           placeholder="Search templates…"
           value={q}
           onChange={(e) => setQ(e.target.value)}

@@ -140,8 +140,10 @@ export function isBuildMismatch(
   return s !== frontendCommit;
 }
 
+// Must match the WRS bands documented in the guide (WRS_LEVELS): C 55–69,
+// D 40–54, F 0–39 — so the Command Center pill never disagrees with the legend.
 const gradeFromScore = (n: number): WrsBreakdown['level'] =>
-  n >= 90 ? 'A+' : n >= 80 ? 'A' : n >= 70 ? 'B' : n >= 60 ? 'C' : n >= 50 ? 'D' : 'F';
+  n >= 90 ? 'A+' : n >= 80 ? 'A' : n >= 70 ? 'B' : n >= 55 ? 'C' : n >= 40 ? 'D' : 'F';
 
 /** Role-shaped call-to-action on the Command Center: each role opens on what its
  *  job is (Officer → approvals, CISO → governance, Engineer → run, Viewer → watch). */
@@ -1438,6 +1440,7 @@ export function CampaignList() {
           <div className="filter-tools">
             <input
               className="filter-search"
+              aria-label="Search campaigns by name or target"
               type="search"
               placeholder="Search name or target…"
               value={q}
@@ -3440,7 +3443,7 @@ const STEPS = [
     n: 4,
     title: 'Score & report',
     icon: '🛡️',
-    body: 'Get the WEDOS Resiliency Score (WRS) and an HTML/PDF report; history and regressions tracked per target.',
+    body: 'Get the WEDOS Resilience Score (WRS) and an HTML/PDF report; history and regressions tracked per target.',
   },
 ];
 
@@ -3531,7 +3534,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
       <h2 className="section-title">Reading the score (WRS)</h2>
       <div className="card">
         <p className="subtitle" style={{ marginBottom: '.75rem' }}>
-          The <b>WEDOS Resiliency Score</b> (0–100) blends detection, mitigation, availability and
+          The <b>WEDOS Resilience Score</b> (0–100) blends detection, mitigation, availability and
           collateral impact (<code>WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C</code>). Higher is
           better. A drop of more than 10 points versus the previous run on the same target is
           flagged as a <b>regression</b> (and can notify your team).

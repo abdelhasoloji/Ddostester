@@ -33,7 +33,11 @@ export function PreparationPage() {
 
   const copyPaths = () => {
     if (!report) return;
-    navigator.clipboard?.writeText(report.suggestedPaths.join('\n')).then(
+    if (!navigator.clipboard) {
+      app.push('error', 'Clipboard unavailable in this browser.');
+      return;
+    }
+    navigator.clipboard.writeText(report.suggestedPaths.join('\n')).then(
       () => app.push('success', 'Suggested paths copied to the clipboard.'),
       () => app.push('error', 'Clipboard unavailable.'),
     );
@@ -56,7 +60,7 @@ export function PreparationPage() {
   return (
     <>
       <PageHead
-        title="Preparation"
+        title="Prepare"
         sub="Passive, published-surface reconnaissance of an authorized target — profile, real paths, baseline and a go/no-go before you run. No scan, no fuzzing, no enumeration."
       />
 
@@ -79,7 +83,7 @@ export function PreparationPage() {
             />
           </label>
           <button className="btn btn-primary" onClick={run} disabled={busy || !target.trim()}>
-            {busy ? 'Scanning…' : 'Run recon'}
+            {busy ? 'Running recon…' : 'Run recon'}
           </button>
         </div>
         <p className="hint" style={{ marginBottom: 0 }}>

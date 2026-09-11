@@ -49,11 +49,13 @@ function Gate() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        {/* Merged into the Campaigns workspace — redirect old paths to the tab. */}
+        {/* Bookmark-compat: old paths folded into the Campaigns workspace. */}
         <Route path="overview" element={<Navigate to="/" replace />} />
         <Route path="templates" element={<Navigate to="/campaigns?tab=templates" replace />} />
         <Route path="plan" element={<Navigate to="/campaigns?tab=plan" replace />} />
         <Route path="guide" element={<Navigate to="/campaigns?tab=guide" replace />} />
+        {/* Unknown URL → home, so the shell never shows a blank content area. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

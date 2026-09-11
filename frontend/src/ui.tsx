@@ -67,7 +67,7 @@ export function VerdictBadge({ verdict }: { verdict: 'PASS' | 'FAIL' }) {
 
 export function WrsPill({ wrs }: { wrs: WrsBreakdown }) {
   return (
-    <span className={`wrs ${wrsClass(wrs.level)}`} title="WEDOS Resiliency Score">
+    <span className={`wrs ${wrsClass(wrs.level)}`} title="WEDOS Resilience Score">
       <span className="wrs-score">{wrs.wrs}</span> {wrs.level}
     </span>
   );
@@ -571,7 +571,11 @@ export function CampaignCard({ c }: { c: Campaign }) {
             </button>
           )}
           {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
-            <button className="btn btn-sm btn-danger" onClick={() => app.kill(c)}>
+            <button
+              className="btn btn-sm btn-danger"
+              disabled={app.busy[c.id]}
+              onClick={() => app.kill(c)}
+            >
               Kill switch
             </button>
           )}
@@ -962,7 +966,11 @@ export function CampaignDrawer() {
             </button>
           )}
           {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
-            <button className="btn btn-sm btn-danger" onClick={() => app.kill(c)}>
+            <button
+              className="btn btn-sm btn-danger"
+              disabled={app.busy[c.id]}
+              onClick={() => app.kill(c)}
+            >
               Kill switch
             </button>
           )}
