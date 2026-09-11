@@ -1284,6 +1284,12 @@ function lineSlug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 }
+
+/** The single-step template id for a zeroBS L7 line (used by the gap planner to
+ *  turn a recommended line into a composable/replayable campaign). */
+export function zeroBsLineTemplateId(stepName: string): string {
+  return `cra-l7-${lineSlug(stepName)}`;
+}
 function drsOfName(name: string): number | undefined {
   const m = name.match(/DRS\s*([1-7])/i);
   return m ? Number(m[1]) : undefined;

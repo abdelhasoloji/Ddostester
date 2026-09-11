@@ -2,7 +2,7 @@ import { htmlEscape as esc } from '../../util/text.js';
 import type { PostureReport } from '../posture/analyze.js';
 import type { AbsorptionSummaryRow } from '../observability/summary.js';
 import { BENCH_SCENARIOS, type BenchCoverage } from '../bench/model.js';
-import { getPlaybook, type LoadProfile } from '../playbooks/playbooks.js';
+import { getPlaybook, zeroBsLineTemplateId, type LoadProfile } from '../playbooks/playbooks.js';
 
 /**
  * RPT-05 — Protection-gap analyzer, shaped to the real zeroBS P26-20371 run.
@@ -255,6 +255,9 @@ export interface PlanItem {
   priority: Priority;
   score: number;
   step: string;
+  /** The replayable single-step template for this line, when one exists — lets
+   *  the planner compose the recommended lines straight into a campaign. */
+  templateId?: string;
   intensity?: Intensity;
   combination: boolean;
   rationale: string;
@@ -353,6 +356,9 @@ export function analyzeGaps(profile: ProtectionProfile, target?: string): GapAna
         priority,
         score,
         step: t.step!,
+        templateId: getPlaybook(zeroBsLineTemplateId(t.step!))
+          ? zeroBsLineTemplateId(t.step!)
+          : undefined,
         intensity: STEP_INTENSITY.get(t.step!),
         combination: t.combination ?? false,
         rationale,
