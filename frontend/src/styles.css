@@ -802,43 +802,13 @@ input.invalid {
   background: var(--surface-2);
   border-radius: 6px;
 }
-.spark-thresh {
-  stroke: var(--muted);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-  opacity: 0.5;
-}
 
-/* Interactive WRS trend chart */
+/* WRS trend chart (uPlot) — see PromChart/UplotChart */
 .wrs-trend {
   width: 100%;
   background: var(--surface-2);
   border-radius: 8px;
   padding: 0.35rem 0.5rem;
-}
-.wrs-trend-svg {
-  display: block;
-}
-.trend-thresh-label {
-  fill: var(--muted);
-  font-size: 10px;
-}
-.trend-tip-box {
-  fill: var(--surface);
-  stroke: var(--border);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-.trend-tip-title {
-  fill: var(--text);
-  font-size: 11px;
-  font-weight: 700;
-}
-.trend-tip-sub {
-  fill: var(--muted);
-  font-size: 10px;
-}
-.wrs-trend a {
-  outline: none;
 }
 
 /* ===== Sidebar layout ===== */

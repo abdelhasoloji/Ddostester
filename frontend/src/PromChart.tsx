@@ -48,21 +48,41 @@ function buildData(series: ChartSeries[]): uPlot.AlignedData {
   return [xs, ...cols] as unknown as uPlot.AlignedData;
 }
 
+export interface Threshold {
+  value: number;
+  label?: string;
+  color?: string;
+}
+
 export function UplotChart({
   series,
   height = 190,
   timeAxis = true,
+  yRange,
+  thresholds,
+  onPointClick,
 }: {
   series: ChartSeries[];
   height?: number;
   timeAxis?: boolean;
+  /** Fixed left y-scale (e.g. [0, 100] for a score); omit to auto-range. */
+  yRange?: [number, number];
+  /** Dashed horizontal reference lines (e.g. an alert threshold). */
+  thresholds?: Threshold[];
+  /** Called with the nearest data index when the plot is clicked. */
+  onPointClick?: (dataIdx: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
   const hasRight = series.some((s) => s.axis === 'right');
+  // Keep the click handler current without rebuilding the plot.
+  const clickRef = useRef(onPointClick);
+  clickRef.current = onPointClick;
   const shapeKey =
     series.map((s) => `${s.label}:${s.axis ?? 'left'}:${s.color ?? ''}`).join('|') +
-    `@${height}@${timeAxis}`;
+    `@${height}@${timeAxis}@${yRange?.join('-') ?? ''}@${(thresholds ?? [])
+      .map((t) => t.value)
+      .join(',')}@${onPointClick ? 'clk' : ''}`;
 
   // Build (or rebuild when the series set / axes / height change).
   useEffect(() => {
@@ -103,23 +123,63 @@ export function UplotChart({
         size: 40,
       });
     }
+    const warn = cssVar('--warning', '#b8860b');
     const opts: uPlot.Options = {
       width: host.current.clientWidth || 560,
       height,
       series: uSeries,
       legend: { show: true },
       cursor: { points: { size: 6 } },
-      scales: { x: { time: timeAxis } },
+      scales: {
+        x: { time: timeAxis },
+        y: yRange ? { range: () => yRange } : {},
+      },
       axes,
+      hooks: thresholds?.length
+        ? {
+            draw: [
+              (u: uPlot) => {
+                const ctx = u.ctx;
+                for (const t of thresholds) {
+                  const yPos = Math.round(u.valToPos(t.value, 'y', true));
+                  ctx.save();
+                  ctx.strokeStyle = t.color ?? warn;
+                  ctx.setLineDash([4, 4]);
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(u.bbox.left, yPos);
+                  ctx.lineTo(u.bbox.left + u.bbox.width, yPos);
+                  ctx.stroke();
+                  if (t.label) {
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = t.color ?? warn;
+                    ctx.font = '10px system-ui, sans-serif';
+                    ctx.fillText(t.label, u.bbox.left + 4, yPos - 3);
+                  }
+                  ctx.restore();
+                }
+              },
+            ],
+          }
+        : undefined,
     };
     const u = new uPlot(opts, buildData(series), host.current);
     plot.current = u;
+    const onClick = () => {
+      const idx = u.cursor.idx;
+      if (idx != null && clickRef.current) clickRef.current(idx);
+    };
+    if (onPointClick) {
+      u.over.style.cursor = 'pointer';
+      u.over.addEventListener('click', onClick);
+    }
     const ro = new ResizeObserver(() => {
       if (host.current) u.setSize({ width: host.current.clientWidth, height });
     });
     ro.observe(host.current);
     return () => {
       ro.disconnect();
+      if (onPointClick) u.over.removeEventListener('click', onClick);
       u.destroy();
       plot.current = null;
     };

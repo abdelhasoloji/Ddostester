@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { PromChart, UplotChart, type ChartSeries } from './PromChart.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
@@ -158,82 +158,33 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
 }
 
 /**
- * Full-width, interactive WRS trend for one target: hover a point for its
- * date/score, click it to open that run's report. Scales to its container
- * (viewBox matches measured pixel width, so points stay round).
+ * Full-width WRS trend for one target, rendered with uPlot (homogeneous with the
+ * app's other charts): a fixed 0–100 scale, a dashed threshold at 70, and a
+ * click on the plot opens the nearest run's report. Hover shows the value in the
+ * legend; the x-axis carries the time.
  */
 export function WrsTrend({ points, regression }: { points: WrsPoint[]; regression: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(640);
-  const [hover, setHover] = useState<number | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => setW(Math.max(240, entries[0].contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const H = 120;
-  const padX = 14;
-  const padY = 18;
-  const y = (v: number) => H - padY - (v / 100) * (H - 2 * padY);
-  const xs =
-    points.length > 1
-      ? points.map((_, i) => padX + (i * (w - 2 * padX)) / (points.length - 1))
-      : [w / 2];
-  const ys = points.map((p) => y(p.wrs));
-  const d = xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-  const color = regression ? 'var(--danger)' : 'var(--brand)';
-  const ty = y(70);
-
-  const tipW = 150;
-  const hi = hover;
-  const tipX = hi !== null ? Math.min(Math.max(xs[hi] - tipW / 2, 2), w - tipW - 2) : 0;
-  const tipAbove = hi !== null ? ys[hi] > 46 : true;
-  const tipY = hi !== null ? (tipAbove ? ys[hi] - 44 : ys[hi] + 10) : 0;
-
+  const sorted = [...points].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const series: ChartSeries[] = [
+    {
+      label: 'WRS',
+      color: regression ? '#ef4444' : '#3b82f6',
+      points: sorted.map((p) => [Date.parse(p.at) / 1000, p.wrs]),
+    },
+  ];
   return (
-    <div className="wrs-trend" ref={ref}>
-      <svg viewBox={`0 0 ${w} ${H}`} width="100%" height={H} role="img" aria-label="WRS trend">
-        <line x1={padX} y1={ty} x2={w - padX} y2={ty} className="spark-thresh" />
-        <text x={padX} y={ty - 4} className="trend-thresh-label">
-          70
-        </text>
-        <path
-          d={d}
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {xs.map((x, i) => (
-          <a key={i} href={reportUrl(points[i].runId)} target="_blank" rel="noreferrer">
-            <circle cx={x} cy={ys[i]} r={hover === i ? 5 : 3.5} fill={color} />
-            <circle
-              cx={x}
-              cy={ys[i]}
-              r="12"
-              fill="transparent"
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-            />
-          </a>
-        ))}
-        {hi !== null && (
-          <g pointerEvents="none">
-            <rect className="trend-tip-box" x={tipX} y={tipY} width={tipW} height={34} rx="6" />
-            <text className="trend-tip-title" x={tipX + 8} y={tipY + 14}>
-              WRS {points[hi].wrs} ({points[hi].level})
-            </text>
-            <text className="trend-tip-sub" x={tipX + 8} y={tipY + 27}>
-              {new Date(points[hi].at).toLocaleString()}
-            </text>
-          </g>
-        )}
-      </svg>
+    <div className="wrs-trend">
+      <UplotChart
+        series={series}
+        height={140}
+        timeAxis
+        yRange={[0, 100]}
+        thresholds={[{ value: 70, label: 'target 70' }]}
+        onPointClick={(i) => {
+          const p = sorted[i];
+          if (p) window.open(reportUrl(p.runId), '_blank', 'noopener');
+        }}
+      />
     </div>
   );
 }
