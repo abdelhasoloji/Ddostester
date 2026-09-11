@@ -327,3 +327,45 @@ describe('DRS levels & the expanded threat catalogue', () => {
     ).toThrow(/drsLevel/);
   });
 });
+
+describe('zeroBS L7 single-line playbooks (P26-20371)', () => {
+  const singles = PLAYBOOKS.filter((p) => p.id.startsWith('cra-l7-'));
+  const target = {
+    target: 'https://staging.example.com/',
+    probeUrl: 'https://staging.example.com/health',
+    createdBy: 'e',
+  };
+  const engines = [{ id: 'builtin', available: true }];
+
+  it('derives one single-step template per parent line', () => {
+    const parent = getPlaybook('pretest-cra-l7')!;
+    expect(singles).toHaveLength(parent.steps.length);
+    for (const p of singles) {
+      expect(p.steps).toHaveLength(1);
+      expect(p.category).toBe('zeroBS L7 lines (P26-20371)');
+    }
+    // ids are unique across the whole library.
+    expect(new Set(PLAYBOOKS.map((p) => p.id)).size).toBe(PLAYBOOKS.length);
+  });
+
+  it('each line is independently instantiable into exactly one campaign', () => {
+    for (const p of singles) {
+      const inputs = buildSuiteCampaigns(p, target, engines);
+      expect(inputs).toHaveLength(1);
+      // Single-step campaign is named after the playbook itself — no doubled
+      // "<playbook> — <step>" suffix (the playbook name already carries the line).
+      expect(inputs[0].name).toBe(p.name);
+    }
+  });
+
+  it('preserves the SlowLoris vector and the random-flood realism', () => {
+    const slow = buildSuiteCampaigns(getPlaybook('cra-l7-slowloris')!, target, engines)[0];
+    expect(slow.vector).toBe('http-slowloris');
+    expect(slow.maxRps).toBe(10);
+
+    const rnd = buildSuiteCampaigns(getPlaybook('cra-l7-get-random-flood')!, target, engines)[0];
+    expect(rnd.endpoints).toHaveLength(4); // relative paths resolved against the target
+    expect(rnd.endpoints?.[0].url).toBe('https://staging.example.com/nonexistent-a1');
+    expect(rnd.scenario).toHaveLength(3); // wave profile
+  });
+});

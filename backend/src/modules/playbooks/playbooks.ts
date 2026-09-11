@@ -201,7 +201,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
   };
 }
 
-export const PLAYBOOKS: Playbook[] = [
+const CURATED_PLAYBOOKS: Playbook[] = [
   {
     id: 'quick-readiness',
     name: 'Quick readiness check',
@@ -1036,6 +1036,47 @@ export const PLAYBOOKS: Playbook[] = [
   },
 ];
 
+// Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
+// playbook, so an operator can replay any one line on its own — not only the
+// full 12-step sequence. Derived from the parent `pretest-cra-l7` steps so the
+// two can never drift: edit the parent, the single-line templates follow.
+const ZEROBS_PARENT_ID = 'pretest-cra-l7';
+
+function lineSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\(drs\d\)/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+function drsOfName(name: string): number | undefined {
+  const m = name.match(/DRS\s*([1-7])/i);
+  return m ? Number(m[1]) : undefined;
+}
+
+const ZEROBS_LINE_PLAYBOOKS: Playbook[] = (() => {
+  const parent = CURATED_PLAYBOOKS.find((p) => p.id === ZEROBS_PARENT_ID);
+  if (!parent) return [];
+  return parent.steps.map((step) => ({
+    id: `cra-l7-${lineSlug(step.name)}`,
+    name: `zeroBS L7 — ${step.name}`,
+    category: 'zeroBS L7 lines (P26-20371)',
+    drsLevel: drsOfName(step.name) ?? parent.drsLevel,
+    summary: step.summary,
+    when:
+      'Replay this single zeroBS P26-20371 L7 line on its own against an authorized, ' +
+      'allowlisted staging replica — never the ENISA production URLs.',
+    threat: parent.threat,
+    steps: [step],
+  }));
+})();
+
+/**
+ * The full playbook library: the curated multi-step scenarios plus one
+ * single-step template per zeroBS L7 line (each independently replayable).
+ */
+export const PLAYBOOKS: Playbook[] = [...CURATED_PLAYBOOKS, ...ZEROBS_LINE_PLAYBOOKS];
+
 export function getPlaybook(id: string): Playbook | undefined {
   return PLAYBOOKS.find((p) => p.id === id);
 }
@@ -1106,7 +1147,9 @@ export function buildSuiteCampaigns(
     const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
     const headers = builtin && step.headers ? step.headers : undefined;
     return {
-      name: `${playbook.name} — ${step.name}`,
+      // A single-step playbook's one campaign is just the playbook name (its
+      // name already carries the line); multi-step suites keep the step suffix.
+      name: playbook.steps.length === 1 ? playbook.name : `${playbook.name} — ${step.name}`,
       description: step.summary,
       target: t.target,
       vector: step.vector ?? 'http-get',
