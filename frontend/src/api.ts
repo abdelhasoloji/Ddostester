@@ -918,6 +918,8 @@ export interface GapPlanItem {
   priority: Priority;
   score: number;
   step: string;
+  /** Replayable single-step template for this line, when one exists. */
+  templateId?: string;
   intensity?: GapIntensity;
   combination: boolean;
   rationale: string;

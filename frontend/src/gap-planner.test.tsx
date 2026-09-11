@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { GapAnalysis } from './api.js';
 
 // GapPlannerSection reads the app context (for app.push) and calls api.gapAnalysis.
@@ -10,9 +11,10 @@ vi.mock('./context.js', async (orig) => {
 });
 
 const gapAnalysis = vi.fn();
+const composeSuite = vi.fn();
 vi.mock('./api.js', async (orig) => {
   const actual = await orig<typeof import('./api.js')>();
-  return { ...actual, api: { ...actual.api, gapAnalysis } };
+  return { ...actual, api: { ...actual.api, gapAnalysis, composeSuite } };
 });
 
 const { GapPlannerSection } = await import('./pages.js');
@@ -37,6 +39,7 @@ const ANALYSIS: GapAnalysis = {
       priority: 'medium',
       score: 6,
       step: 'GET-Flood (DRS3)',
+      templateId: 'cra-l7-get-flood',
       intensity: { maxRps: 400, concurrency: 80, durationSec: 120, profile: 'constant' },
       combination: false,
       rationale: 'Weakest link: no request rate limiting declared.',
@@ -51,6 +54,7 @@ const ANALYSIS: GapAnalysis = {
       priority: 'high',
       score: 8,
       step: 'L7 MultiVector (DRS5)',
+      templateId: 'cra-l7-l7-multivector',
       intensity: { maxRps: 800, concurrency: 200, durationSec: 180, profile: 'wave' },
       combination: true,
       rationale: 'Weakest link: no request rate limiting declared.',
@@ -78,13 +82,18 @@ const ANALYSIS: GapAnalysis = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  fakeApp = { push: vi.fn() };
+  fakeApp = { push: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined), role: 'officer' };
   gapAnalysis.mockResolvedValue(ANALYSIS);
+  composeSuite.mockResolvedValue({ suiteId: 's', campaigns: [{}, {}] });
 });
 
 describe('GapPlannerSection', () => {
   it('declares a control and renders the zeroBS ladder + break point on analyze', async () => {
-    render(<GapPlannerSection />);
+    render(
+      <MemoryRouter>
+        <GapPlannerSection />
+      </MemoryRouter>,
+    );
     // Flip one control to 'absent' (exercises the controlled <select> handler).
     const selects = screen.getAllByRole('combobox');
     fireEvent.change(selects[0], { target: { value: 'absent' } });
@@ -98,16 +107,45 @@ describe('GapPlannerSection', () => {
     expect(screen.getByText('break point')).toBeInTheDocument(); // break-point tag on the row
   });
 
+  it('composes the recommended lines into a campaign from the plan', async () => {
+    render(
+      <MemoryRouter>
+        <GapPlannerSection />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
+    // The actionable CTA appears with the count of prioritised replayable lines.
+    const cta = await screen.findByRole('button', { name: /Create campaign from this plan \(2\)/ });
+    fireEvent.click(cta);
+    await waitFor(() =>
+      expect(composeSuite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playbookIds: ['cra-l7-get-flood', 'cra-l7-l7-multivector'],
+          target: 'https://bank.cz/',
+        }),
+      ),
+    );
+    expect(fakeApp.refresh).toHaveBeenCalled();
+  });
+
   it('shows the no-gap banner when there is no break point', async () => {
     gapAnalysis.mockResolvedValue({ ...ANALYSIS, breakPoint: null });
-    render(<GapPlannerSection />);
+    render(
+      <MemoryRouter>
+        <GapPlannerSection />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
     await waitFor(() => expect(screen.getByText(/No gap on the ladder/)).toBeInTheDocument());
   });
 
   it('surfaces an error through app.push when the analysis fails', async () => {
     gapAnalysis.mockRejectedValue(new Error('boom'));
-    render(<GapPlannerSection />);
+    render(
+      <MemoryRouter>
+        <GapPlannerSection />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
     await waitFor(() => expect(fakeApp.push).toHaveBeenCalledWith('error', 'boom'));
   });
@@ -117,7 +155,11 @@ describe('GapPlannerSection', () => {
       'shieldtest.reconHandoff',
       JSON.stringify({ target: 'bank.cz', seededProfile: { rateLimiting: 'present' } }),
     );
-    render(<GapPlannerSection />);
+    render(
+      <MemoryRouter>
+        <GapPlannerSection />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText(/Seeded from recon/)).toBeInTheDocument();
     expect(sessionStorage.getItem('shieldtest.reconHandoff')).toBeNull(); // consumed once
   });
@@ -125,8 +167,12 @@ describe('GapPlannerSection', () => {
 
 describe('PlanPage', () => {
   it('renders the Plan phase with the gap planner', () => {
-    render(<PlanPage />);
+    render(
+      <MemoryRouter>
+        <PlanPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByRole('heading', { name: 'Plan' })).toBeInTheDocument();
-    expect(screen.getByText('Protection-gap planner')).toBeInTheDocument();
+    expect(screen.getByText(/Where it breaks/)).toBeInTheDocument();
   });
 });

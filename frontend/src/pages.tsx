@@ -1711,10 +1711,12 @@ function NetworkLadderPanel() {
 
 export function GapPlannerSection() {
   const app = useApp();
+  const navigate = useNavigate();
   const [target, setTarget] = useState('bank.cz');
   const [profile, setProfile] = useState<ProtectionProfile>({});
   const [analysis, setAnalysis] = useState<GapAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [seeded, setSeeded] = useState(false);
 
   // Recon → Plan handoff: if the Preparation page sent observed controls, seed
@@ -1772,18 +1774,61 @@ export function GapPlannerSection() {
     }
   };
 
+  // Lines worth testing: the prioritised (high/medium) replayable lines, in
+  // ladder order; fall back to every replayable line if nothing is prioritised.
+  const planPicks = useMemo(() => {
+    if (!analysis) return [];
+    const replayable = analysis.plan.filter((p) => p.templateId);
+    const prioritised = replayable.filter((p) => p.priority !== 'low');
+    const chosen = prioritised.length ? prioritised : replayable;
+    return [...new Set(chosen.map((p) => p.templateId as string))];
+  }, [analysis]);
+
+  // The whole point of the planner: turn the recommended lines into a runnable,
+  // governed campaign in one click — composed as a suite (or a single line).
+  const createFromPlan = async () => {
+    if (planPicks.length === 0) return;
+    const host = target.trim();
+    const targetUrl = /^https?:\/\//.test(host) ? host : `https://${host}/`;
+    setCreating(true);
+    try {
+      const name = `Plan — ${host.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+      const r =
+        planPicks.length >= 2
+          ? await api.composeSuite({ playbookIds: planPicks, name, target: targetUrl })
+          : await api.instantiatePlaybook(planPicks[0], { target: targetUrl });
+      app.push(
+        'success',
+        `Campaign created — ${r.campaigns.length} line${r.campaigns.length === 1 ? '' : 's'} from the plan (pending approval).`,
+      );
+      await app.refresh();
+      navigate('/campaigns?tab=launch');
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <>
+      <p className="guide-lead">
+        Plan turns what we <b>know</b> about the target's defenses into the <b>campaign</b> that
+        probes its weakest links. ① Seed the controls from evidence (recon, prior runs, the lab), ②
+        read the full-stack DRS ladder to see where it likely breaks, ③ create the campaign that
+        replays those lines — one governed click.
+      </p>
       <NetworkLadderPanel />
       <h2 className="section-title">
-        Protection-gap planner <span className="hint">— L7</span>
+        ② Where it breaks — L7 <span className="hint">protection-gap ladder</span>
       </h2>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <p className="hint" style={{ marginTop: 0 }}>
-          Declare the target's WEDOS controls; get a prioritised plan of which bounded{' '}
-          <code>pretest-cra-l7</code> lines to replay first, then measure each with the
-          suite-compare. Analytical only — it orders existing bounded tests against the authorized
-          target; it never synthesises attacks or relaxes a cap.
+          <b>① Seed</b> the target's WEDOS controls from evidence (or declare them), then{' '}
+          <b>Analyze</b> to get the prioritised ladder of bounded <code>pretest-cra-l7</code> lines
+          and the predicted break point. <b>③ Create the campaign</b> from the plan to replay those
+          lines. It only orders existing bounded tests against the authorized target — it never
+          synthesises attacks or relaxes a cap.
         </p>
         {seeded && (
           <p className="gap-break gap-break-ok" style={{ marginTop: 0 }}>
@@ -1835,6 +1880,24 @@ export function GapPlannerSection() {
 
         {analysis && (
           <div style={{ marginTop: '1rem' }}>
+            {planPicks.length > 0 && (
+              <div className="plan-cta">
+                <div>
+                  <b>Recommended campaign</b> — {planPicks.length} prioritised bounded line
+                  {planPicks.length === 1 ? '' : 's'}, in ladder order, composed into one governed
+                  campaign against <code>{target.trim()}</code>. It still goes through approval.
+                </div>
+                <button
+                  className="btn btn-primary"
+                  disabled={creating || !canDo(app.role, 'create', app.authRequired)}
+                  onClick={createFromPlan}
+                >
+                  {creating
+                    ? 'Creating…'
+                    : `▶ Create campaign from this plan (${planPicks.length})`}
+                </button>
+              </div>
+            )}
             <p>
               <b>{analysis.summary.high}</b> high · <b>{analysis.summary.medium}</b> medium ·{' '}
               <b>{analysis.summary.low}</b> low priority to replay ·{' '}
