@@ -300,8 +300,17 @@ export function RunTheater({
               </div>
             </div>
             <div className="theater-metric">
-              <div className="tm-k">Legit probe</div>
-              <div className="tm-v good">
+              <div className="tm-k">
+                Legit probe
+                {p.probe?.health && p.probe.health !== 'ok' && (
+                  <span className={`health-badge health-${p.probe.health}`}>
+                    {p.probe.health === 'critical' ? '● critical' : '▲ degraded'}
+                  </span>
+                )}
+              </div>
+              <div
+                className={`tm-v ${p.probe?.health === 'critical' ? 'bad' : p.probe?.health === 'degraded' ? 'warnv' : 'good'}`}
+              >
                 {p.probe && p.probe.samples > 0
                   ? Math.round((p.probe.available / p.probe.samples) * 100)
                   : 100}
@@ -454,6 +463,18 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         {p.probe && p.probe.samples > 0 && (
           <span title="Legitimate probe against the target">
             🩺 probe {p.probe.available}/{p.probe.samples} up · {p.probe.errorRate5xx}% 5xx
+          </span>
+        )}
+        {p.probe?.health && p.probe.health !== 'ok' && (
+          <span
+            className={`health-badge health-${p.probe.health}`}
+            title={
+              p.probe.health === 'critical'
+                ? 'Target availability at the auto-kill threshold — the run may be stopped to protect it'
+                : 'Target degrading — availability or latency is off nominal (early warning before any auto-kill)'
+            }
+          >
+            {p.probe.health === 'critical' ? '● critical' : '▲ degraded'}
           </span>
         )}
       </div>

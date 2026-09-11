@@ -213,7 +213,15 @@ export interface LoadProgress {
    * external ones that don't report per-request counters), so a running
    * campaign always shows target-health feedback.
    */
-  probe?: { samples: number; available: number; errorRate5xx: number };
+  probe?: {
+    samples: number;
+    available: number;
+    errorRate5xx: number;
+    /** Probe's own live latency percentiles (ms). */
+    latencyMs?: { p50: number; p95: number; p99: number };
+    /** Graduated target-health verdict ('ok' | 'degraded' | 'critical'). */
+    health?: 'ok' | 'degraded' | 'critical';
+  };
 }
 
 export async function runLoadTest(
