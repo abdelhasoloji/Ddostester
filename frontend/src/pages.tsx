@@ -35,6 +35,7 @@ import type {
   ControlKey,
   ControlStatus,
   ProtectionProfile,
+  InferredProfile,
   GapAnalysis,
   Priority,
 } from './api.js';
@@ -1691,8 +1692,33 @@ export function GapPlannerSection() {
     }
   }, []);
 
+  const [inferring, setInferring] = useState(false);
+  const [provenance, setProvenance] = useState<InferredProfile['provenance']>({});
+
   const setControl = (key: ControlKey, status: ControlStatus) =>
     setProfile((p) => ({ ...p, [key]: status }));
+
+  // Seed the control profile from evidence (recon + prior runs + class-C lab)
+  // instead of declaring every control by hand; the operator then reviews it.
+  const infer = async () => {
+    setInferring(true);
+    try {
+      const r = await api.inferProfile(target.trim() || undefined);
+      setProfile((p) => ({ ...p, ...r.profile }));
+      setProvenance(r.provenance);
+      const n = Object.keys(r.profile).length;
+      app.push(
+        n ? 'success' : 'info',
+        n
+          ? `Seeded ${n} control${n === 1 ? '' : 's'} from evidence — review, then analyze.`
+          : 'No evidence yet for this target (recon, prior runs or lab). Declare controls by hand.',
+      );
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setInferring(false);
+    }
+  };
 
   const analyze = async () => {
     setBusy(true);
@@ -1725,24 +1751,40 @@ export function GapPlannerSection() {
           <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="bank.cz" />
         </label>
         <div className="gap-controls">
-          {GAP_CONTROLS.map((c) => (
-            <Fragment key={c.key}>
-              <span className="gap-ctl-label">{c.label}</span>
-              <select
-                value={profile[c.key] ?? 'unknown'}
-                onChange={(e) => setControl(c.key, e.target.value as ControlStatus)}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Fragment>
-          ))}
+          {GAP_CONTROLS.map((c) => {
+            const ev = provenance[c.key];
+            return (
+              <Fragment key={c.key}>
+                <span className="gap-ctl-label">{c.label}</span>
+                <select
+                  value={profile[c.key] ?? 'unknown'}
+                  onChange={(e) => setControl(c.key, e.target.value as ControlStatus)}
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                {ev && ev.length > 0 ? (
+                  <span
+                    className={`gap-ctl-src src-${ev[0].source}`}
+                    title={ev.map((e) => `${e.source}: ${e.note}`).join('\n')}
+                  >
+                    {[...new Set(ev.map((e) => e.source))].join(' · ')}
+                  </span>
+                ) : (
+                  <span />
+                )}
+              </Fragment>
+            );
+          })}
         </div>
         <div className="row">
-          <button className="btn btn-primary" onClick={analyze} disabled={busy}>
+          <button className="btn" onClick={infer} disabled={inferring || busy}>
+            {inferring ? 'Inferring…' : '✨ Infer from evidence'}
+          </button>
+          <button className="btn btn-primary" onClick={analyze} disabled={busy || inferring}>
             {busy ? 'Analyzing…' : 'Analyze gaps'}
           </button>
         </div>

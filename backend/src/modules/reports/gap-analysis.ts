@@ -1,5 +1,7 @@
 import { htmlEscape as esc } from '../../util/text.js';
 import type { PostureReport } from '../posture/analyze.js';
+import type { AbsorptionSummaryRow } from '../observability/summary.js';
+import type { BenchCoverage } from '../bench/model.js';
 import { getPlaybook, type LoadProfile } from '../playbooks/playbooks.js';
 
 /**
@@ -422,6 +424,98 @@ export function postureToProfile(posture: PostureReport): ProtectionProfile {
     p.cacheKeyPolicy = 'present';
   }
   return p;
+}
+
+/** Where an inferred control status came from — carried so the operator sees the
+ *  evidence behind the seeded plan and can override it. */
+export type EvidenceSource = 'recon' | 'run' | 'lab';
+export interface ControlEvidence {
+  status: ControlStatus;
+  source: EvidenceSource;
+  note: string;
+}
+export interface InferredProfile {
+  profile: ProtectionProfile;
+  provenance: Partial<Record<ControlKey, ControlEvidence[]>>;
+}
+
+/** Evidence the planner can infer a profile from (all optional, all fail-soft). */
+export interface GapEvidence {
+  /** Passive recon posture for the target (latest run's inference). */
+  posture?: PostureReport;
+  /** Per-vector absorption rollup of prior BOUNDED runs against the target. */
+  absorption?: AbsorptionSummaryRow[];
+  /** Class-C lab (network-bench) coverage/verdicts — the L3/4 evidence the L7
+   *  control plane can never observe itself. */
+  labCoverage?: BenchCoverage[];
+}
+
+const SOURCE_RANK: Record<EvidenceSource, number> = { lab: 3, run: 2, recon: 1 };
+
+/**
+ * Infer a ProtectionProfile from evidence instead of a from-scratch manual
+ * declaration: recon fills what it observed passively, prior bounded runs fill
+ * what their absorption revealed (edge rejects → rate-limiting; tarpit → slow-
+ * request handling), and the class-C LAB fills the network controls (SYN/handshake
+ * protection) that no L7 test can see. Every control keeps its provenance so the
+ * operator reviews rather than trusts blindly; nothing is proven 'absent' from
+ * passive signals alone — only the lab's own verdict may mark a control absent.
+ */
+export function inferProfile(ev: GapEvidence): InferredProfile {
+  const provenance: Partial<Record<ControlKey, ControlEvidence[]>> = {};
+  const add = (key: ControlKey, status: ControlStatus, source: EvidenceSource, note: string) => {
+    (provenance[key] ??= []).push({ status, source, note });
+  };
+
+  // 1. Recon (passive) — only ever 'present'; passive signals can't prove absence.
+  if (ev.posture) {
+    for (const [k, st] of Object.entries(postureToProfile(ev.posture)) as [
+      ControlKey,
+      ControlStatus,
+    ][]) {
+      add(k, st, 'recon', 'observed passively during recon');
+    }
+  }
+
+  // 2. Prior bounded runs — the absorption mechanism split names the control.
+  for (const row of ev.absorption ?? []) {
+    if (row.lastRejectedPct >= 30) {
+      add('rateLimiting', 'present', 'run', `${row.vector}: ${row.lastRejectedPct}% edge-rejected`);
+    }
+    if (row.lastTarpitPct >= 30) {
+      add(
+        'slowRequestTimeout',
+        'present',
+        'run',
+        `${row.vector}: ${row.lastTarpitPct}% held/tarpitted`,
+      );
+    }
+  }
+
+  // 3. Class-C lab — network-bench verdicts inform SYN/handshake protection (the
+  //    L3/4 control the bounded L7 tests deliberately never exercise). A verdict
+  //    is the one signal that can prove a control 'absent'.
+  for (const c of ev.labCoverage ?? []) {
+    const status: ControlStatus = /not[_ -]?mitigated|fail/i.test(c.outcome ?? '')
+      ? 'absent'
+      : /mitigated|pass/i.test(c.outcome ?? '')
+        ? 'present'
+        : 'partial';
+    add(
+      'synFloodProtection',
+      status,
+      'lab',
+      `lab ${c.vector}: ${c.outcome ?? 'covered'} (${c.source})`,
+    );
+  }
+
+  // Resolve each control to its strongest-source evidence (lab > run > recon).
+  const profile: ProtectionProfile = {};
+  for (const [k, evs] of Object.entries(provenance) as [ControlKey, ControlEvidence[]][]) {
+    const best = [...evs].sort((a, b) => SOURCE_RANK[b.source] - SOURCE_RANK[a.source])[0];
+    profile[k] = best.status;
+  }
+  return { profile, provenance };
 }
 
 const PRIORITY_CLASS: Record<Priority, string> = { high: 'p-high', medium: 'p-med', low: 'p-low' };
