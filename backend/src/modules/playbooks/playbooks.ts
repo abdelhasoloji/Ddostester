@@ -98,6 +98,12 @@ export interface Playbook {
   drsLevel?: number;
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
+  /**
+   * When this template was created (ISO 8601). Curated templates carry the date
+   * the template was introduced; custom templates are stamped at creation. Used
+   * by the UI to show the date and to offer a "recent first" ordering.
+   */
+  createdAt?: string;
 }
 
 const PROFILES = ['constant', 'ramp', 'wave'];
@@ -198,6 +204,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
     steps: cleanSteps,
     drsLevel,
     custom: true,
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -1216,10 +1223,50 @@ const ZEROBS_LINE_PLAYBOOKS: Playbook[] = (() => {
 })();
 
 /**
- * The full playbook library: the curated multi-step scenarios plus one
- * single-step template per zeroBS L7 line (each independently replayable).
+ * When each curated template was introduced (date the template first shipped,
+ * from git history). Documentation/UX only — it never changes what is sent. The
+ * zeroBS single-line templates share the date they were split out (see below).
  */
-export const PLAYBOOKS: Playbook[] = [...CURATED_PLAYBOOKS, ...ZEROBS_LINE_PLAYBOOKS];
+const CURATED_CREATED_AT: Record<string, string> = {
+  'quick-readiness': '2026-09-05',
+  'capacity-assessment': '2026-09-05',
+  endurance: '2026-09-05',
+  'burst-resilience': '2026-09-06',
+  'threat-l7-signature-evasion': '2026-09-06',
+  'threat-http2-burst': '2026-09-06',
+  'threat-cache-key-stress': '2026-09-06',
+  'threat-url-allowlist': '2026-09-07',
+  'threat-method-policy': '2026-09-07',
+  'threat-l7-multivector': '2026-09-07',
+  'threat-iot-botnet': '2026-09-07',
+  'threat-ramp-plateau': '2026-09-07',
+  'threat-sync-pulse': '2026-09-07',
+  'threat-chaos': '2026-09-07',
+  'threat-header-fingerprint': '2026-09-07',
+  'threat-http2-continuation': '2026-09-07',
+  'threat-madeyoureset': '2026-09-07',
+  'threat-aisuru-botnet': '2026-09-07',
+  'pretest-cra-l7': '2026-09-08',
+  'threat-micro-burst-train': '2026-09-11',
+  'threat-ransom-demo': '2026-09-11',
+  'threat-api-post-storm': '2026-09-11',
+};
+/** Date the zeroBS L7 lines were split into their own single-step templates. */
+const ZEROBS_LINES_CREATED_AT = '2026-09-11';
+const toIso = (d: string): string => `${d}T00:00:00.000Z`;
+
+/**
+ * The full playbook library: the curated multi-step scenarios plus one
+ * single-step template per zeroBS L7 line (each independently replayable). Each
+ * template is stamped with its introduction date (`createdAt`).
+ */
+export const PLAYBOOKS: Playbook[] = [
+  ...CURATED_PLAYBOOKS.map((p) => ({
+    ...p,
+    createdAt: CURATED_CREATED_AT[p.id] ? toIso(CURATED_CREATED_AT[p.id]) : undefined,
+  })),
+  ...ZEROBS_LINE_PLAYBOOKS.map((p) => ({ ...p, createdAt: toIso(ZEROBS_LINES_CREATED_AT) })),
+];
 
 export function getPlaybook(id: string): Playbook | undefined {
   return PLAYBOOKS.find((p) => p.id === id);

@@ -93,6 +93,18 @@ describe('playbooks', () => {
     expect(pb.custom).toBe(true);
     expect(pb.id.startsWith('custom-')).toBe(true);
     expect(pb.steps).toHaveLength(1);
+    // A custom template is stamped with a creation date.
+    expect(pb.createdAt).toBeTruthy();
+    expect(Number.isNaN(Date.parse(pb.createdAt!))).toBe(false);
+  });
+
+  it('every curated template carries a valid createdAt date', () => {
+    const curated = PLAYBOOKS.filter((p) => !p.custom);
+    expect(curated.length).toBeGreaterThan(0);
+    for (const pb of curated) {
+      expect(pb.createdAt, `${pb.id} createdAt`).toBeTruthy();
+      expect(Number.isNaN(Date.parse(pb.createdAt!)), `${pb.id} parseable`).toBe(false);
+    }
   });
 
   it('validatePlaybookInput rejects a name-less playbook, no steps, and over-cap steps', () => {
