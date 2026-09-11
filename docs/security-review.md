@@ -39,6 +39,31 @@ only behind loopback + SSH tunnel or a TLS/mTLS reverse proxy.
   scope lies with the operator (cf. SECURITY.md).
 - **mTLS**: provided at the reverse-proxy level (Caddy), not in the application.
 
+## Secret rotation
+
+Runtime secrets live in `/etc/ddostester.env` (chmod 600) on the control-plane
+host, never in the repo or the systemd unit. To rotate them, run as root on
+VPS 1:
+
+```bash
+bash deploy/rotate-secrets.sh          # DB_PASSWORD + AUTH_JWT_SECRET
+bash deploy/rotate-secrets.sh --bench  # also BENCH_RUNNER_TOKEN
+```
+
+The script generates new values on-box (`openssl rand`), applies them behind a
+health gate, and **rolls the DB password and env file back automatically** if
+the service fails its post-restart `/health` check. It never prints a secret to
+stdout; the previous env file is kept as a timestamped `.bak` for you to `shred`
+once the rotation is confirmed. Rotating `AUTH_JWT_SECRET` invalidates live
+console sessions (operators simply sign in again).
+
+Two secrets live on other hosts and are rotated manually (the script prints the
+exact steps): the **`BENCH_RUNNER_TOKEN`** must be updated on the lab-runner
+unit in the same window (the control plane and runner share it), and the
+**Grafana admin password** (VPS 2) is reset with
+`grafana-cli admin reset-admin-password`. Store rotated values in a password
+manager — never paste a secret into a chat, ticket, or transcript.
+
 ## What the tool does not do (by design)
 
 No attack vector (L3/L4 floods, amplification, L7 exhaustion). The only generator
