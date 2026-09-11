@@ -189,6 +189,36 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
   );
 }
 
+/** Plain-language explanation of the run's protection state, shown on hover of
+ *  the status badge so "protection engaging" isn't an unexplained label. */
+function protectionBadgeTitle(
+  waiting: boolean,
+  absorbedPct: number,
+  p: LiveProgressData | null,
+): string {
+  if (waiting) {
+    return "Capturing the target's pre-load baseline (its normal availability and latency), so the run's impact can be measured against it.";
+  }
+  const c = p?.statusCounts ?? {};
+  const rej = c['4xx'] ?? 0;
+  const err5 = c['5xx'] ?? 0;
+  const probeUp =
+    p?.probe && p.probe.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 100;
+  if (absorbedPct >= 20) {
+    return (
+      `Protection engaging — the target's edge is absorbing ${absorbedPct}% of the offered load ` +
+      `(${p?.failed ?? 0} of ${p?.sent ?? 0} requests never reached a healthy origin).\n` +
+      `Mechanism so far: ${rej} edge rejections (4xx)${err5 ? `, ${err5} origin 5xx` : ''}.\n` +
+      `The legitimate probe is still ${probeUp}% up — real users are unaffected while the attack ` +
+      `shape is absorbed. That's protection working, not the target failing.`
+    );
+  }
+  return (
+    `Running — load is flowing and the edge is currently passing most of it through to origin ` +
+    `(only ${absorbedPct}% absorbed). Watch this climb if rate-limiting / bot-management kicks in.`
+  );
+}
+
 /**
  * v2 Run Theater — a focused, full-width live view of the running campaign. The
  * story is the two numbers pulling apart: offered load vs what reaches origin,
@@ -251,7 +281,11 @@ export function RunTheater({
             {p ? ` · ${p.elapsedSec}s / ${p.maxDurationSec}s` : ''}
           </span>
         </div>
-        <span className={`badge ${absorbedPct >= 20 ? 'warn' : ''}`}>
+        <span
+          className={`badge ${absorbedPct >= 20 ? 'warn' : ''}`}
+          style={{ cursor: 'help' }}
+          title={protectionBadgeTitle(waiting, absorbedPct, p)}
+        >
           {waiting
             ? '● capturing baseline'
             : absorbedPct >= 20
