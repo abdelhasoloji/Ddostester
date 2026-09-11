@@ -1,4 +1,7 @@
 import { writeFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig } from '../engine/loadTest.js';
@@ -111,6 +114,120 @@ export function mergeResults(parts: LoadTestResult[], meta: ResultMeta): LoadTes
   };
 }
 
+/** One decoded vegeta result line (`vegeta encode -to json`, one per request). */
+export interface VegetaResultLine {
+  code: number;
+  /** Latency in nanoseconds (vegeta's native unit). */
+  latency: number;
+  error?: string;
+}
+
+function pct(sorted: number[], p: number): number {
+  if (!sorted.length) return 0;
+  const i = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[i];
+}
+
+/**
+ * Accumulates streamed vegeta results into a live LoadProgress snapshot — the
+ * same shape the built-in engine emits, so external-engine runs animate Run
+ * Theater (offered/absorbed tiles, timeline) exactly like built-in ones.
+ */
+export class VegetaLiveMeter {
+  private sent = 0;
+  private failed = 0;
+  private readonly latenciesMs: number[] = [];
+  private readonly statusCounts: Record<string, number> = {};
+
+  add(r: VegetaResultLine): void {
+    this.sent += 1;
+    this.latenciesMs.push(r.latency / 1e6);
+    const bucket = r.code >= 100 ? `${String(r.code)[0]}xx` : 'err';
+    this.statusCounts[bucket] = (this.statusCounts[bucket] ?? 0) + 1;
+    // Successful = a real response in the 2xx/3xx range with no transport error;
+    // vegeta reports code 0 for transport failures (tarpit/reset/timeout).
+    const ok = !r.error && r.code >= 200 && r.code < 400;
+    if (!ok) this.failed += 1;
+  }
+
+  snapshot(elapsedSec: number): LoadProgress {
+    const snap = [...this.latenciesMs].sort((a, b) => a - b);
+    return {
+      sent: this.sent,
+      successful: this.sent - this.failed,
+      failed: this.failed,
+      elapsedSec: Number(elapsedSec.toFixed(1)),
+      actualRps: Number((this.sent / Math.max(elapsedSec, 0.001)).toFixed(2)),
+      latencyMs: {
+        p50: Number(pct(snap, 50).toFixed(2)),
+        p95: Number(pct(snap, 95).toFixed(2)),
+        p99: Number(pct(snap, 99).toFixed(2)),
+      },
+      statusCounts: { ...this.statusCounts },
+    };
+  }
+}
+
+/**
+ * Runs one `vegeta attack` phase, writing its binary results to `resultsBin`
+ * (for the unchanged final `vegeta report`) AND, best-effort, decoding a live
+ * per-request stream through `vegeta encode` to feed `meter`. Live decoding can
+ * never fail the run: the file → report path is the source of truth, and any
+ * encode/stream error just stops the live animation for that phase.
+ */
+export function streamVegetaPhase(
+  bin: string,
+  attackArgs: string[],
+  resultsBin: string,
+  killSignal: AbortSignal | undefined,
+  meter: VegetaLiveMeter,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // No `-output`: attack writes binary results to stdout, which we tee to the
+    // results file (byte-identical to `-output`) and to the live decoder.
+    const attack = spawn(bin, attackArgs);
+    const fileWS = createWriteStream(resultsBin);
+    attack.stdout.on('error', () => {});
+    attack.stdout.pipe(fileWS);
+
+    try {
+      const encode = spawn(bin, ['encode', '-to', 'json']);
+      encode.on('error', () => {}); // e.g. subcommand unavailable → skip live only
+      encode.stdin.on('error', () => {}); // swallow EPIPE if encode exits early
+      attack.stdout.pipe(encode.stdin);
+      createInterface({ input: encode.stdout }).on('line', (line) => {
+        const t = line.trim();
+        if (!t) return;
+        try {
+          const r = JSON.parse(t) as { code?: number; latency?: number; error?: string };
+          meter.add({ code: r.code ?? 0, latency: r.latency ?? 0, error: r.error || undefined });
+        } catch {
+          /* a partial/garbage line — ignore */
+        }
+      });
+    } catch {
+      /* live decode unavailable — the file → report path still runs */
+    }
+
+    const onAbort = () => attack.kill('SIGTERM');
+    killSignal?.addEventListener('abort', onAbort, { once: true });
+    const done = () => killSignal?.removeEventListener('abort', onAbort);
+    attack.on('error', (e) => {
+      done();
+      reject(e);
+    });
+    fileWS.on('error', (e) => {
+      done();
+      reject(e);
+    });
+    // The results file being fully flushed is what the final report needs.
+    fileWS.on('finish', () => {
+      done();
+      resolve();
+    });
+  });
+}
+
 export class VegetaAgent implements AttackAgent {
   readonly name = 'vegeta';
   readonly multiPhase = true;
@@ -128,7 +245,7 @@ export class VegetaAgent implements AttackAgent {
     config: LoadTestConfig,
     allowedHosts: string[],
     killSignal?: AbortSignal,
-    _onProgress?: (p: LoadProgress) => void,
+    onProgress?: (p: LoadProgress) => void,
   ): Promise<LoadTestResult> {
     validateConfig(config, allowedHosts);
     if (!(await this.available())) {
@@ -136,59 +253,72 @@ export class VegetaAgent implements AttackAgent {
         `vegeta agent unavailable (binary "${this.bin}"). Install Vegeta or choose AGENT=builtin.`,
       );
     }
-    const startedAt = new Date().toISOString();
-    return withTempDir('vegeta', async (dir) => {
-      let bodyFile: string | undefined;
-      if ((config.method ?? 'GET').toUpperCase() === 'POST' && config.body != null) {
-        bodyFile = join(dir, 'body.txt');
-        await writeFile(bodyFile, config.body, 'utf8');
-      }
-      const targetsFile = join(dir, 'targets.txt');
-      await writeFile(targetsFile, buildVegetaTarget(config, bodyFile), 'utf8');
+    const startedMs = Date.now();
+    const startedAt = new Date(startedMs).toISOString();
+    // Live meter fed by the streamed results; a 1×/s timer emits the cumulative
+    // snapshot so Run Theater animates a vegeta run like a built-in one.
+    const meter = new VegetaLiveMeter();
+    let ticker: ReturnType<typeof setInterval> | undefined;
+    if (onProgress) {
+      ticker = setInterval(() => onProgress(meter.snapshot((Date.now() - startedMs) / 1000)), 1000);
+      ticker.unref?.();
+    }
+    try {
+      return await withTempDir('vegeta', async (dir) => {
+        let bodyFile: string | undefined;
+        if ((config.method ?? 'GET').toUpperCase() === 'POST' && config.body != null) {
+          bodyFile = join(dir, 'body.txt');
+          await writeFile(bodyFile, config.body, 'utf8');
+        }
+        const targetsFile = join(dir, 'targets.txt');
+        await writeFile(targetsFile, buildVegetaTarget(config, bodyFile), 'utf8');
 
-      const phases: ScenarioPhase[] = config.phases?.length
-        ? config.phases
-        : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
+        const phases: ScenarioPhase[] = config.phases?.length
+          ? config.phases
+          : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
 
-      const parts: LoadTestResult[] = [];
-      for (let i = 0; i < phases.length; i++) {
-        if (killSignal?.aborted) break;
-        const ph = phases[i];
-        const resultsBin = join(dir, `r${i}.bin`);
-        await runProcess(
-          this.bin,
-          [
-            'attack',
-            '-targets',
-            targetsFile,
-            '-rate',
-            `${ph.maxRps}/1s`,
-            '-duration',
-            `${ph.durationSec}s`,
-            '-output',
+        const parts: LoadTestResult[] = [];
+        for (let i = 0; i < phases.length; i++) {
+          if (killSignal?.aborted) break;
+          const ph = phases[i];
+          const resultsBin = join(dir, `r${i}.bin`);
+          await streamVegetaPhase(
+            this.bin,
+            [
+              'attack',
+              '-targets',
+              targetsFile,
+              '-rate',
+              `${ph.maxRps}/1s`,
+              '-duration',
+              `${ph.durationSec}s`,
+            ],
             resultsBin,
-          ],
-          { killSignal },
-        );
-        const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], {
-          killSignal,
-        });
-        parts.push(
-          parseVegetaReport(JSON.parse(rep.stdout || '{}'), {
-            id: `p${i}`,
-            config,
-            startedAt,
-            finishedAt: new Date().toISOString(),
-          }),
-        );
-      }
-      const meta: ResultMeta = {
-        id: randomUUID(),
-        config,
-        startedAt,
-        finishedAt: new Date().toISOString(),
-      };
-      return mergeResults(parts.length ? parts : [emptyResult(meta)], meta);
-    });
+            killSignal,
+            meter,
+          );
+          const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], {
+            killSignal,
+          });
+          parts.push(
+            parseVegetaReport(JSON.parse(rep.stdout || '{}'), {
+              id: `p${i}`,
+              config,
+              startedAt,
+              finishedAt: new Date().toISOString(),
+            }),
+          );
+        }
+        const meta: ResultMeta = {
+          id: randomUUID(),
+          config,
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        };
+        return mergeResults(parts.length ? parts : [emptyResult(meta)], meta);
+      });
+    } finally {
+      if (ticker) clearInterval(ticker);
+    }
   }
 }
