@@ -231,9 +231,9 @@ function RoleFocus() {
     );
   }
   return (
-    <div className="card" style={{ marginTop: '1rem' }}>
-      <div className="section-title">{label}</div>
-      <p style={{ margin: 0 }}>{body}</p>
+    <div className="role-focus">
+      <span className="rf-label">{label}</span>
+      <span className="rf-body">{body}</span>
     </div>
   );
 }
@@ -380,8 +380,8 @@ export function CommandCenterPage() {
           <div className="kpi-k">Runs in flight</div>
         </div>
         <div className="kpi">
-          <div className="kpi-v" style={{ textTransform: 'capitalize' }}>
-            {health}
+          <div className="kpi-v">
+            <span className={`health-pill health-${health}`}>{health}</span>
           </div>
           <div className="kpi-k">Generator health</div>
         </div>
