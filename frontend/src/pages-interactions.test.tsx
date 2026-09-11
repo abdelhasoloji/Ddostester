@@ -32,6 +32,7 @@ beforeEach(() => {
   ]);
   fakeApi.notifyTest.mockResolvedValue({ delivered: true, sinks: ['slack'] });
   fakeApi.instantiatePlaybook.mockResolvedValue({ suiteId: 's', campaigns: [{}, {}] });
+  fakeApi.composeSuite.mockResolvedValue({ suiteId: 's', campaigns: [{}, {}] });
   fakeApi.playbooks.mockResolvedValue([
     {
       id: 'pb1',
@@ -52,6 +53,44 @@ beforeEach(() => {
     },
   ]);
 });
+
+/** Two templates — the compose tests need at least two to select. */
+const twoPlaybooks = [
+  {
+    id: 'pb1',
+    name: 'Ramp',
+    category: 'Baseline',
+    summary: 'A bounded ramp',
+    when: 'Before a release',
+    steps: [
+      {
+        name: 'warm-up',
+        summary: '',
+        maxRps: 10,
+        concurrency: 2,
+        maxDurationSec: 10,
+        profile: 'ramp',
+      },
+    ],
+  },
+  {
+    id: 'pb2',
+    name: 'Soak',
+    category: 'Endurance',
+    summary: 'A long steady soak',
+    when: 'Overnight',
+    steps: [
+      {
+        name: 'hold',
+        summary: '',
+        maxRps: 20,
+        concurrency: 4,
+        maxDurationSec: 30,
+        profile: 'constant',
+      },
+    ],
+  },
+];
 
 describe('UsersCard interactions', () => {
   it('changes a store user role through the dropdown', async () => {
@@ -138,6 +177,35 @@ describe('TemplatesPage', () => {
         'pb1',
         expect.objectContaining({ target: 'https://staging.wedos/' }),
       ),
+    );
+  });
+
+  it('composes several selected templates into one campaign', async () => {
+    fakeApi.playbooks.mockResolvedValue(twoPlaybooks);
+    renderWithRouter(<TemplatesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'staging.wedos' }));
+    // Select two templates via their compose checkboxes (in order).
+    fireEvent.click(await screen.findByLabelText('Select "Ramp" to compose'));
+    fireEvent.click(await screen.findByLabelText('Select "Soak" to compose'));
+    // The compose basket appears; launch the composition.
+    fireEvent.click(await screen.findByRole('button', { name: /Compose into one campaign/ }));
+    await waitFor(() =>
+      expect(fakeApi.composeSuite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          playbookIds: ['pb1', 'pb2'],
+          target: 'https://staging.wedos/',
+        }),
+      ),
+    );
+  });
+
+  it('clears the compose selection', async () => {
+    renderWithRouter(<TemplatesPage />);
+    fireEvent.click(await screen.findByLabelText('Select "Ramp" to compose'));
+    // Basket shows one selected; Clear empties it and hides the basket.
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument(),
     );
   });
 });

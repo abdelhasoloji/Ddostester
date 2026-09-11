@@ -1406,45 +1406,98 @@ export function buildSuiteCampaigns(
   engines: EngineAvailability[] = [],
 ): CampaignInput[] {
   const suiteId = randomUUID();
-  const isAvailable = (id?: string): boolean =>
-    id != null && engines.some((e) => e.id === id && e.available);
-  let origin = t.target;
-  try {
-    origin = new URL(t.target).origin;
-  } catch {
-    /* keep raw; createCampaign will reject an invalid target */
-  }
-  return playbook.steps.map((step, i) => {
-    const agent = isAvailable(step.agent) ? step.agent : undefined;
-    // Endpoint mix and UA rotation are built-in-engine features: only attach
-    // them when the resolved engine is the built-in one (explicit or default).
-    const builtin = agent === 'builtin' || agent === undefined;
-    const endpoints =
-      builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
-    const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
-    const headers = builtin && step.headers ? step.headers : undefined;
-    return {
+  return playbook.steps.map((step, i) =>
+    campaignInputFromStep(step, {
       // A single-step playbook's one campaign is just the playbook name (its
       // name already carries the line); multi-step suites keep the step suffix.
       name: playbook.steps.length === 1 ? playbook.name : `${playbook.name} — ${step.name}`,
-      description: step.summary,
-      target: t.target,
-      vector: step.vector ?? 'http-get',
-      maxRps: step.maxRps,
-      concurrency: step.concurrency,
-      maxDurationSec: step.maxDurationSec,
-      probeUrl: t.probeUrl,
-      createdBy: t.createdBy,
-      authorized: true,
-      scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
-      agent,
-      endpoints,
-      userAgents,
-      headers,
-      recurrence: t.recurrenceMin ? { intervalMin: t.recurrenceMin } : undefined,
       suiteId,
       suiteName: playbook.name,
       suiteOrder: i,
-    };
-  });
+      t,
+      engines,
+    }),
+  );
+}
+
+/**
+ * Composes several playbooks into ONE suite: their steps are concatenated in
+ * template order under a single shared suiteId, so the result behaves exactly
+ * like any other suite (sequencer, aggregate WRS, one assessment report). Each
+ * step's name is prefixed with its source template so provenance stays visible
+ * (the suite name is the composite's, not any single playbook's). Governance is
+ * unchanged — every campaign still goes through approval + caps individually.
+ */
+export function buildCompositeSuite(
+  playbooks: Playbook[],
+  suiteName: string,
+  t: SuiteTarget,
+  engines: EngineAvailability[] = [],
+): CampaignInput[] {
+  const suiteId = randomUUID();
+  const inputs: CampaignInput[] = [];
+  let order = 0;
+  for (const pb of playbooks) {
+    for (const step of pb.steps) {
+      // Prefix with the source template name so a composed step reads e.g.
+      // "GET flood readiness — Ramp" even though the suite name is the mix's.
+      const name = pb.steps.length === 1 ? pb.name : `${pb.name} — ${step.name}`;
+      inputs.push(
+        campaignInputFromStep(step, { name, suiteId, suiteName, suiteOrder: order, t, engines }),
+      );
+      order += 1;
+    }
+  }
+  return inputs;
+}
+
+/** Maps one playbook step to a CampaignInput bound into a suite. */
+function campaignInputFromStep(
+  step: PlaybookStep,
+  o: {
+    name: string;
+    suiteId: string;
+    suiteName: string;
+    suiteOrder: number;
+    t: SuiteTarget;
+    engines: EngineAvailability[];
+  },
+): CampaignInput {
+  const isAvailable = (id?: string): boolean =>
+    id != null && o.engines.some((e) => e.id === id && e.available);
+  let origin = o.t.target;
+  try {
+    origin = new URL(o.t.target).origin;
+  } catch {
+    /* keep raw; createCampaign will reject an invalid target */
+  }
+  const agent = isAvailable(step.agent) ? step.agent : undefined;
+  // Endpoint mix and UA rotation are built-in-engine features: only attach
+  // them when the resolved engine is the built-in one (explicit or default).
+  const builtin = agent === 'builtin' || agent === undefined;
+  const endpoints =
+    builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
+  const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
+  const headers = builtin && step.headers ? step.headers : undefined;
+  return {
+    name: o.name,
+    description: step.summary,
+    target: o.t.target,
+    vector: step.vector ?? 'http-get',
+    maxRps: step.maxRps,
+    concurrency: step.concurrency,
+    maxDurationSec: step.maxDurationSec,
+    probeUrl: o.t.probeUrl,
+    createdBy: o.t.createdBy,
+    authorized: true,
+    scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
+    agent,
+    endpoints,
+    userAgents,
+    headers,
+    recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,
+    suiteId: o.suiteId,
+    suiteName: o.suiteName,
+    suiteOrder: o.suiteOrder,
+  };
 }

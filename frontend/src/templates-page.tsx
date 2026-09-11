@@ -44,6 +44,8 @@ function PlaybookRow({
   busy,
   launchable,
   isNew,
+  selected,
+  onToggleSelect,
   onLaunch,
   onDelete,
 }: {
@@ -52,12 +54,30 @@ function PlaybookRow({
   busy: boolean;
   launchable: boolean;
   isNew: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
   onLaunch: () => void;
   onDelete: () => void;
 }) {
   return (
-    <details className="tpl-row">
+    <details className={`tpl-row${selected ? ' is-selected' : ''}`}>
       <summary className="tpl-summary">
+        {canCreate && (
+          // Selection for composing several templates into one campaign. The
+          // click must not toggle the <details> open/close, hence the guards.
+          <input
+            type="checkbox"
+            className="tpl-pick"
+            checked={selected}
+            aria-label={`Select "${pb.name}" to compose`}
+            title="Select to compose several templates into one campaign"
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect();
+            }}
+          />
+        )}
         <span className="tpl-name">{pb.name}</span>
         {isNew && (
           <span className="engine-badge ok" title="Recently added template">
@@ -136,6 +156,9 @@ export function TemplatesPage() {
   const [target, setTarget] = useState('');
   const [recurMin, setRecurMin] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [composeName, setComposeName] = useState('');
+  const [composing, setComposing] = useState(false);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<string>('all');
   const [sort, setSort] = useState<'category' | 'recent'>('category');
@@ -247,6 +270,50 @@ export function TemplatesPage() {
     }
   };
 
+  // ── Composing several templates into one campaign (suite) ──────────────────
+  // Mirrors backend MAX_COMPOSITE_STEPS (config/limits.ts); the server enforces
+  // it authoritatively, this only gives early feedback.
+  const MAX_COMPOSITE_STEPS = 24;
+  const toggleSelect = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  // Selected templates in click order, so the composed sequence is predictable.
+  const selectedPlaybooks = useMemo(
+    () =>
+      selected
+        .map((id) => playbooks.find((p) => p.id === id))
+        .filter((p): p is Playbook => p != null),
+    [selected, playbooks],
+  );
+  const selectedSteps = useMemo(
+    () => selectedPlaybooks.reduce((n, p) => n + p.steps.length, 0),
+    [selectedPlaybooks],
+  );
+  const overCap = selectedSteps > MAX_COMPOSITE_STEPS;
+  const compose = async () => {
+    if (selectedPlaybooks.length < 2 || !targetAllowed || overCap) return;
+    setComposing(true);
+    try {
+      const r = await api.composeSuite({
+        playbookIds: selectedPlaybooks.map((p) => p.id),
+        name: composeName.trim() || undefined,
+        target,
+        recurrenceMin: recurMin ? Number(recurMin) : undefined,
+      });
+      app.push(
+        'success',
+        `Composed campaign created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} templates (pending approval).`,
+      );
+      setSelected([]);
+      setComposeName('');
+      await app.refresh();
+      navigate('/campaigns');
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setComposing(false);
+    }
+  };
+
   return (
     <>
       <PageHead
@@ -353,6 +420,8 @@ export function TemplatesPage() {
                 busy={busy === pb.id}
                 launchable={targetAllowed}
                 isNew={isNewPb(pb)}
+                selected={selected.includes(pb.id)}
+                onToggleSelect={() => toggleSelect(pb.id)}
                 onLaunch={() => launch(pb)}
                 onDelete={() => removePlaybook(pb)}
               />
@@ -374,6 +443,8 @@ export function TemplatesPage() {
                   busy={busy === pb.id}
                   launchable={targetAllowed}
                   isNew={isNewPb(pb)}
+                  selected={selected.includes(pb.id)}
+                  onToggleSelect={() => toggleSelect(pb.id)}
                   onLaunch={() => launch(pb)}
                   onDelete={() => removePlaybook(pb)}
                 />
@@ -440,6 +511,72 @@ export function TemplatesPage() {
                 </button>
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Compose basket: assemble several templates into one campaign (suite). */}
+      {canCreate && selected.length > 0 && (
+        <div className="tpl-compose-bar">
+          <div className="tcb-main">
+            <div className="tcb-head">
+              <strong>Compose {selected.length} templates</strong>
+              <span className={`tcb-steps${overCap ? ' over' : ''}`}>
+                {selectedSteps} step{selectedSteps === 1 ? '' : 's'} · max {MAX_COMPOSITE_STEPS}
+              </span>
+              <button className="btn btn-sm btn-ghost" onClick={() => setSelected([])}>
+                Clear
+              </button>
+            </div>
+            <div className="tcb-chips">
+              {selectedPlaybooks.map((p, i) => (
+                <span key={p.id} className="tcb-chip" title={`${p.steps.length} steps`}>
+                  <span className="tcb-order">{i + 1}</span> {p.name}
+                  <button
+                    type="button"
+                    className="tcb-x"
+                    aria-label={`Remove ${p.name}`}
+                    onClick={() => toggleSelect(p.id)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="tcb-actions">
+            <input
+              className="tcb-name"
+              placeholder="Name (optional)"
+              value={composeName}
+              onChange={(e) => setComposeName(e.target.value)}
+            />
+            <button
+              className="btn btn-primary"
+              disabled={selected.length < 2 || !targetAllowed || overCap || composing}
+              onClick={compose}
+              title={
+                !targetAllowed
+                  ? 'Pick an allowlisted target above first'
+                  : overCap
+                    ? `Too many steps (${selectedSteps} > ${MAX_COMPOSITE_STEPS})`
+                    : 'Create one campaign from the selected templates, in order'
+              }
+            >
+              {composing ? 'Composing…' : `Compose into one campaign (${selectedSteps}) →`}
+            </button>
+          </div>
+          {selected.length < 2 && (
+            <span className="tcb-hint">Select at least two templates to compose.</span>
+          )}
+          {selected.length >= 2 && !targetAllowed && (
+            <span className="tcb-hint">Pick an allowlisted target in the bar above.</span>
+          )}
+          {overCap && (
+            <span className="tcb-hint over">
+              {selectedSteps} steps exceeds the {MAX_COMPOSITE_STEPS}-step limit — remove a
+              template.
+            </span>
           )}
         </div>
       )}

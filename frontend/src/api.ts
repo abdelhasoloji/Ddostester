@@ -734,6 +734,14 @@ export const api = {
     id: string,
     body: { target: string; probeUrl?: string; recurrenceMin?: number },
   ) => post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
+  /** Compose several templates into one suite (steps concatenated in order). */
+  composeSuite: (body: {
+    playbookIds: string[];
+    name?: string;
+    target: string;
+    probeUrl?: string;
+    recurrenceMin?: number;
+  }) => post<{ suiteId: string; campaigns: Campaign[] }>('/api/suites/compose', body),
   suites: () => get<SuiteSummary[]>('/api/suites'),
   runSuite: (id: string) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),

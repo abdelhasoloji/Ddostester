@@ -27,7 +27,7 @@ import { executeCampaign } from './modules/campaigns/runner.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './modules/campaigns/model.js';
-import { HARD_CAPS, clampToCeiling, withinCeiling } from './config/limits.js';
+import { HARD_CAPS, MAX_COMPOSITE_STEPS, clampToCeiling, withinCeiling } from './config/limits.js';
 import type { HardCaps } from './config/limits.js';
 import {
   BENCH_SCENARIOS,
@@ -77,9 +77,11 @@ import {
   PLAYBOOKS,
   getPlaybook,
   buildSuiteCampaigns,
+  buildCompositeSuite,
   validatePlaybookInput,
   PlaybookError,
 } from './modules/playbooks/playbooks.js';
+import type { Playbook } from './modules/playbooks/playbooks.js';
 import { tlsInsecure } from './util/tls.js';
 import { getBuildInfo } from './version.js';
 
@@ -1471,6 +1473,69 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
     },
   );
+
+  // Compose several templates into ONE suite (their steps concatenated in the
+  // given order under a single suiteId). Behaves like any other suite from
+  // there on: sequencer, aggregate WRS, one assessment report.
+  app.post('/api/suites/compose', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    const body = req.body as {
+      playbookIds?: string[];
+      name?: string;
+      target?: string;
+      probeUrl?: string;
+      recurrenceMin?: number;
+    };
+    const ids = Array.isArray(body.playbookIds) ? body.playbookIds : [];
+    if (ids.length < 2) {
+      return reply
+        .code(400)
+        .send({ error: 'playbookIds must list at least two templates to compose' });
+    }
+    if (!body.target) return reply.code(400).send({ error: 'target is required' });
+    const playbooks: Playbook[] = [];
+    for (const id of ids) {
+      const pb = getPlaybook(id) ?? (await store.getPlaybook(id));
+      if (!pb) return reply.code(404).send({ error: `playbook not found: ${id}` });
+      playbooks.push(pb);
+    }
+    const totalSteps = playbooks.reduce((n, p) => n + p.steps.length, 0);
+    if (totalSteps > MAX_COMPOSITE_STEPS) {
+      return reply.code(400).send({
+        error: `composed suite has ${totalSteps} steps; the maximum is ${MAX_COMPOSITE_STEPS} — remove a template`,
+      });
+    }
+    const name =
+      body.name?.trim() || `Composite — ${playbooks.map((p) => p.name).join(' + ')}`.slice(0, 120);
+    try {
+      const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+      const inputs = buildCompositeSuite(
+        playbooks,
+        name,
+        {
+          target: body.target,
+          probeUrl: body.probeUrl || body.target,
+          createdBy: req.authUser?.email ?? 'dev',
+          recurrenceMin: body.recurrenceMin,
+        },
+        engines,
+      );
+      const created: Campaign[] = [];
+      for (const input of inputs) {
+        const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+        await store.saveCampaign(campaign);
+        created.push(campaign);
+      }
+      await audit(
+        req,
+        'campaign.create',
+        undefined,
+        `composite "${name}" ← ${playbooks.length} templates → ${created.length} campaigns (suite ${created[0]?.suiteId})`,
+      );
+      return reply.code(201).send({ suiteId: created[0]?.suiteId, campaigns: created });
+    } catch (err) {
+      return fail(err, reply);
+    }
+  });
 
   app.post(
     '/api/campaigns/:id/approval',
