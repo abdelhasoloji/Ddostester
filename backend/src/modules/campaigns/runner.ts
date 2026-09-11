@@ -74,6 +74,23 @@ export interface CampaignRun {
   /** Host-side counters of the target during the run (when a source is configured). */
   targetTelemetry?: TargetSample[];
   /**
+   * Independent reference vantage (I2): a second endpoint polled alongside the
+   * target probe with no kill authority, used to attribute an outage. Present
+   * only when the campaign set a `referenceUrl`.
+   *   • targetAttributed = true  → the target degraded while the reference held,
+   *     so the impact is the target's (a trustworthy auto-kill / low WRS).
+   *   • targetAttributed = false → both degraded together, so the measurement is
+   *     inconclusive: the fault may be network-side or our own egress, not the
+   *     target. The run's verdict/statusDetail says so.
+   */
+  reference?: {
+    url: string;
+    samples: number;
+    available: number;
+    availPct: number;
+    targetAttributed: boolean;
+  };
+  /**
    * Measurement confidence — whether the generator host itself may have been the
    * bottleneck (hard-stopped, or high event-loop lag during the run). When
    * `degraded`, the WRS is flagged in the UI/report as possibly understated.
@@ -133,6 +150,20 @@ export async function executeCampaign(
     probeLimits.timeoutMs,
     probeLimits,
   );
+
+  // Optional independent reference vantage (I2): polled in parallel with its OWN
+  // kill switch so its availability never stops the run — it only informs
+  // outage attribution at settle. Stopped as soon as the run ends.
+  const referenceKill = new KillSwitch();
+  const referenceProbe = campaign.referenceUrl
+    ? new Probe(
+        campaign.referenceUrl,
+        referenceKill,
+        probeLimits.intervalMs,
+        probeLimits.timeoutMs,
+        probeLimits,
+      )
+    : undefined;
 
   const genConfig: LoadTestConfig = {
     url: campaign.target,
@@ -228,18 +259,24 @@ export async function executeCampaign(
     // never hang open past maxDurationSec + a small grace. The load engine
     // self-bounds on the same clock via its own deadline.
     const probeHardDeadlineMs = startedMs + campaign.maxDurationSec * 1000 + 20_000;
+    // The reference probe runs alongside but is NOT awaited by the run's
+    // completion — it's stopped in the finally so it can't hold the run open.
+    const referenceDone = referenceProbe?.run(probeHardDeadlineMs);
     [generator] = await Promise.all([
       agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
         gen = p;
       }),
       probe.run(probeHardDeadlineMs),
     ]);
+    referenceKill.trigger('KILLED_MANUAL'); // stop the reference probe now the run has ended
+    await referenceDone?.catch(() => undefined);
   } finally {
     clearTimeout(timeoutTimer);
     clearInterval(ticker);
   }
 
   const probeMetrics = probe.metrics();
+  const referenceMetrics = referenceProbe?.metrics();
 
   // Detection/mitigation: with no protection integration, we derive
   // conservative estimates from the probe's measurements. These values can be
@@ -284,7 +321,28 @@ export async function executeCampaign(
   const availPct = probeMetrics.samples
     ? Number(((probeMetrics.available / probeMetrics.samples) * 100).toFixed(1))
     : 100;
-  const statusDetail: string | undefined =
+
+  // Outage attribution from the independent reference vantage (I2), when set.
+  // The target is attributed the impact when it fared clearly worse than the
+  // reference; if both fell together the measurement is inconclusive.
+  const ATTRIBUTION_MARGIN_PCT = 20;
+  const reference =
+    referenceMetrics && campaign.referenceUrl
+      ? (() => {
+          const refAvailPct = referenceMetrics.samples
+            ? Number(((referenceMetrics.available / referenceMetrics.samples) * 100).toFixed(1))
+            : 100;
+          return {
+            url: campaign.referenceUrl,
+            samples: referenceMetrics.samples,
+            available: referenceMetrics.available,
+            availPct: refAvailPct,
+            targetAttributed: refAvailPct - availPct >= ATTRIBUTION_MARGIN_PCT,
+          };
+        })()
+      : undefined;
+
+  let statusDetail: string | undefined =
     status === 'KILLED_AUTO'
       ? `Auto-killed: the legitimate probe found the target unavailable for ≥30 s ` +
         `(availability ${availPct}% over ${probeMetrics.samples} checks). The kill ` +
@@ -292,6 +350,13 @@ export async function executeCampaign(
       : status === 'KILLED_MANUAL'
         ? `Manually stopped by an operator during the run.`
         : undefined;
+  // Fold the reference verdict into the explanation for a kill, so an operator
+  // reading the status knows whether to trust it as target-specific.
+  if (statusDetail && reference) {
+    statusDetail += reference.targetAttributed
+      ? ` The independent reference vantage stayed reachable (${reference.availPct}% available), corroborating that the impact was target-specific.`
+      : ` Note: the independent reference vantage was also unreachable (${reference.availPct}% available), so this may be a network-side or local-egress issue rather than the target — treat the verdict as inconclusive.`;
+  }
 
   const underLoadAvailPct = probeMetrics.samples
     ? (probeMetrics.available / probeMetrics.samples) * 100
@@ -338,5 +403,6 @@ export async function executeCampaign(
     baseline,
     baselineDelta,
     targetTelemetry: targetSeries.length ? targetSeries : undefined,
+    reference,
   };
 }

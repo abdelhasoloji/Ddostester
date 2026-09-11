@@ -104,6 +104,12 @@ export function NewCampaignForm({
     const h = hostOf(form.probeUrl);
     return h !== null && app.allowed.includes(h);
   })();
+  // Reference vantage is optional; when set it must be an allowlisted host too.
+  const referenceAllowed = (() => {
+    if (!form.referenceUrl.trim()) return true;
+    const h = hostOf(form.referenceUrl);
+    return h !== null && app.allowed.includes(h);
+  })();
   const capsOk =
     form.maxRps > 0 &&
     form.maxRps <= caps.maxRps &&
@@ -118,6 +124,7 @@ export function NewCampaignForm({
     identityOk &&
     targetAllowed &&
     probeAllowed &&
+    referenceAllowed &&
     capsOk &&
     attested &&
     canCreate;
@@ -130,6 +137,7 @@ export function NewCampaignForm({
         name: form.name,
         target: form.target,
         probeUrl: form.probeUrl,
+        referenceUrl: form.referenceUrl.trim() || undefined,
         vector: form.vector,
         body: form.vector === 'http-post' ? form.body : undefined,
         maxRps: Number(form.maxRps),
@@ -264,6 +272,25 @@ export function NewCampaignForm({
             </div>
           )}
           {form.probeUrl && !probeAllowed && (
+            <span className="hint" style={{ color: 'var(--danger)' }}>
+              Host not in allowlist — will be rejected.
+            </span>
+          )}
+        </div>
+        <div className="field">
+          <label>Reference vantage (URL, optional)</label>
+          <input
+            className={form.referenceUrl && !referenceAllowed ? 'invalid' : ''}
+            value={form.referenceUrl}
+            placeholder="independent canary — e.g. a known-good health URL"
+            onChange={(e) => setForm({ ...form, referenceUrl: e.target.value })}
+          />
+          <span className="hint">
+            Polled alongside the probe with no kill authority. If the target degrades while this
+            stays up, the outage is attributed to the target; if both fall together, the run is
+            flagged inconclusive.
+          </span>
+          {form.referenceUrl && !referenceAllowed && (
             <span className="hint" style={{ color: 'var(--danger)' }}>
               Host not in allowlist — will be rejected.
             </span>

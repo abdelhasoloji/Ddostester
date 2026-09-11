@@ -777,6 +777,24 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           )}
         </div>
       )}
+      {run.reference && (
+        <div className="metrics" style={{ marginTop: '.5rem' }}>
+          <Metric label="Reference vantage">
+            {run.reference.availPct}% up
+            <span
+              className={`health-badge ${run.reference.targetAttributed ? 'health-degraded' : 'health-critical'}`}
+              style={{ marginLeft: 6 }}
+              title={
+                run.reference.targetAttributed
+                  ? 'The independent reference stayed reachable while the target degraded — impact attributed to the target.'
+                  : 'The reference was also unreachable — the outage may be network-side or our own egress, not the target (verdict inconclusive).'
+              }
+            >
+              {run.reference.targetAttributed ? 'target-attributed' : 'inconclusive'}
+            </span>
+          </Metric>
+        </div>
+      )}
       {run.targetTelemetry && run.targetTelemetry.length > 0 && (
         <div className="metrics" style={{ marginTop: '.5rem' }}>
           {(() => {

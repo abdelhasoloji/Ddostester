@@ -12,6 +12,7 @@ export const emptyForm = {
   name: '',
   target: 'http://127.0.0.1:8080/health',
   probeUrl: 'http://127.0.0.1:8080/health',
+  referenceUrl: '',
   vector: 'http-get',
   maxRps: 20,
   concurrency: 5,
