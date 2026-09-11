@@ -39,8 +39,8 @@ function ZoneCard({ z, onOpen }: { z: ZoneSummary; onOpen: () => void }) {
         <span className={`zone-status ${status.cls}`}>{status.label}</span>
       </div>
       <div className="zone-wrs">
-        {z.lastWrs != null ? (
-          <span className={`wrs ${wrsClass((z.lastLevel ?? 'C') as never)}`} title="Latest WRS">
+        {z.lastWrs != null && z.lastLevel ? (
+          <span className={`wrs ${wrsClass(z.lastLevel)}`} title="Latest WRS">
             <span className="wrs-score">{z.lastWrs}</span> {z.lastLevel}
           </span>
         ) : (
@@ -73,12 +73,20 @@ function ZoneCard({ z, onOpen }: { z: ZoneSummary; onOpen: () => void }) {
 export function ZonesPage() {
   const navigate = useNavigate();
   const [zones, setZones] = useState<ZoneSummary[] | null>(null);
-  useEffect(() => {
+  const [errored, setErrored] = useState(false);
+  const load = () => {
+    setErrored(false);
     api
       .zones()
-      .then(setZones)
-      .catch(() => setZones([]));
-  }, []);
+      .then((z) => {
+        setZones(z);
+      })
+      .catch(() => {
+        setZones([]);
+        setErrored(true);
+      });
+  };
+  useEffect(load, []);
 
   return (
     <>
@@ -90,6 +98,13 @@ export function ZonesPage() {
         <p className="hint">
           <span className="spin" /> Loading zones…
         </p>
+      ) : errored ? (
+        <div className="empty">
+          Couldn&apos;t load protected zones.{' '}
+          <button className="btn btn-sm" onClick={load}>
+            Retry
+          </button>
+        </div>
       ) : zones.length === 0 ? (
         <div className="empty">
           No protected zones yet — run a campaign against a target and it appears here.

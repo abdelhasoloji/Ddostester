@@ -250,7 +250,7 @@ export interface ZoneSummary {
   suites: number;
   running: boolean;
   lastWrs?: number;
-  lastLevel?: string;
+  lastLevel?: WrsBreakdown['level'];
   meanWrs?: number;
   regression: boolean;
   lastAbsorbedPct?: number;

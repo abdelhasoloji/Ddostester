@@ -79,4 +79,19 @@ describe('ZonesPage', () => {
     renderWithRouter(<ZonesPage />);
     await waitFor(() => expect(screen.getByText(/No protected zones yet/)).toBeInTheDocument());
   });
+
+  it('distinguishes a load failure from an empty estate, and retries', async () => {
+    fakeApi.zones.mockRejectedValueOnce(new Error('offline'));
+    renderWithRouter(<ZonesPage />);
+    // A failure must NOT read as "no zones yet".
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't load protected zones/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/No protected zones yet/)).not.toBeInTheDocument();
+    // Retry re-fetches; this time it returns a zone.
+    fakeApi.zones.mockResolvedValue([zone({ host: 'bank.cz', lastWrs: 78, lastLevel: 'C' })]);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText(/bank\.cz/)).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't load protected zones/)).not.toBeInTheDocument();
+  });
 });
