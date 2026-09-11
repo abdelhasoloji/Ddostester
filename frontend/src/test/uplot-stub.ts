@@ -6,6 +6,10 @@
  */
 export default class UplotStub {
   static paths = { spline: () => () => {} };
+  /** The overlay element real uPlot exposes (used for the click handler). */
+  over: HTMLDivElement =
+    typeof document !== 'undefined' ? document.createElement('div') : ({} as HTMLDivElement);
+  cursor: { idx: number | null } = { idx: null };
   constructor(_opts?: unknown, _data?: unknown, _el?: HTMLElement) {}
   setData(): void {}
   setSize(): void {}
