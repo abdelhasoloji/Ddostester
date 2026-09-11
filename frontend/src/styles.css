@@ -871,6 +871,39 @@ input.invalid {
   padding: 0.35rem 0.5rem;
 }
 
+/* Always-on legend for UplotChart (replaces uPlot's hover-only native one). */
+.promchart-wrap {
+  width: 100%;
+}
+.uchart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem 1.1rem;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+}
+.ucl-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ucl-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  flex: none;
+}
+.ucl-k {
+  color: var(--muted);
+}
+.ucl-v {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 2.2rem;
+}
+
 /* ===== Sidebar layout ===== */
 .shell {
   display: grid;

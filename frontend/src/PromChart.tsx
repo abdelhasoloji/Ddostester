@@ -73,7 +73,11 @@ export function UplotChart({
   onPointClick?: (dataIdx: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const legend = useRef<HTMLDivElement>(null);
   const plot = useRef<uPlot | null>(null);
+  // The native uPlot legend only fills in on hover (blank "--" at rest), so we
+  // render our own: it shows the latest value idle, the cursor value on hover.
+  const updateLegendRef = useRef<((u: uPlot) => void) | null>(null);
   const hasRight = series.some((s) => s.axis === 'right');
   // Keep the click handler current without rebuilding the plot.
   const clickRef = useRef(onPointClick);
@@ -128,16 +132,18 @@ export function UplotChart({
       width: host.current.clientWidth || 560,
       height,
       series: uSeries,
-      legend: { show: true },
+      legend: { show: false },
       cursor: { points: { size: 6 } },
       scales: {
         x: { time: timeAxis },
         y: yRange ? { range: () => yRange } : {},
       },
       axes,
-      hooks: thresholds?.length
-        ? {
-            draw: [
+      hooks: {
+        // Keep the always-on legend in sync with the cursor (idle → latest).
+        setCursor: [(u: uPlot) => updateLegendRef.current?.(u)],
+        draw: thresholds?.length
+          ? [
               (u: uPlot) => {
                 const ctx = u.ctx;
                 for (const t of thresholds) {
@@ -159,12 +165,70 @@ export function UplotChart({
                   ctx.restore();
                 }
               },
-            ],
-          }
-        : undefined,
+            ]
+          : undefined,
+      },
     };
     const u = new uPlot(opts, buildData(series), host.current);
     plot.current = u;
+
+    // Build our always-on legend and its live-update function.
+    const valEls: HTMLElement[] = [];
+    let xEl: HTMLElement | null = null;
+    const legendHost = legend.current;
+    if (legendHost) {
+      legendHost.innerHTML = '';
+      const mkItem = (cls: string) => {
+        const item = document.createElement('span');
+        item.className = `ucl-item${cls}`;
+        return item;
+      };
+      const xItem = mkItem(' ucl-x');
+      const xk = document.createElement('span');
+      xk.className = 'ucl-k';
+      xk.textContent = timeAxis ? 'Time' : 'Value';
+      xEl = document.createElement('span');
+      xEl.className = 'ucl-v';
+      xEl.textContent = '--';
+      xItem.append(xk, xEl);
+      legendHost.appendChild(xItem);
+      series.forEach((s, i) => {
+        const item = mkItem('');
+        const sw = document.createElement('span');
+        sw.className = 'ucl-swatch';
+        sw.style.background = s.color ?? COLORS[i % COLORS.length];
+        const k = document.createElement('span');
+        k.className = 'ucl-k';
+        k.textContent = s.label;
+        const v = document.createElement('span');
+        v.className = 'ucl-v';
+        v.textContent = '--';
+        item.append(sw, k, v);
+        legendHost.appendChild(item);
+        valEls.push(v);
+      });
+    }
+    const fmtV = (v: number | null | undefined): string =>
+      v == null || Number.isNaN(v)
+        ? '--'
+        : Math.abs(v) >= 100
+          ? Math.round(v).toString()
+          : Math.abs(v) >= 1
+            ? v.toFixed(1)
+            : v.toFixed(2);
+    const fmtX = (x: number | null | undefined): string =>
+      x == null ? '--' : timeAxis ? new Date(x * 1000).toLocaleTimeString() : `${x}s`;
+    updateLegendRef.current = (uu: uPlot) => {
+      const xs = uu.data[0] as number[];
+      const idx = uu.cursor.idx ?? (xs.length ? xs.length - 1 : null);
+      if (xEl) xEl.textContent = idx == null ? '--' : fmtX(xs[idx]);
+      valEls.forEach((el, i) => {
+        const col = uu.data[i + 1] as (number | null)[] | undefined;
+        el.textContent = idx == null || !col ? '--' : fmtV(col[idx]);
+      });
+    };
+    updateLegendRef.current(u);
+
     const onClick = () => {
       const idx = u.cursor.idx;
       if (idx != null && clickRef.current) clickRef.current(idx);
@@ -182,6 +246,7 @@ export function UplotChart({
       if (onPointClick) u.over.removeEventListener('click', onClick);
       u.destroy();
       plot.current = null;
+      updateLegendRef.current = null;
     };
     // Data-only updates go through the effect below; `series` is read here at
     // build time but not a dependency.
@@ -189,10 +254,18 @@ export function UplotChart({
 
   // Re-feed data on each change without tearing down the plot.
   useEffect(() => {
-    plot.current?.setData(buildData(series));
+    const u = plot.current;
+    if (!u) return;
+    u.setData(buildData(series));
+    updateLegendRef.current?.(u); // keep the idle legend on the latest sample
   }, [series]);
 
-  return <div ref={host} className="promchart" />;
+  return (
+    <div className="promchart-wrap">
+      <div ref={host} className="promchart" />
+      <div ref={legend} className="uchart-legend" />
+    </div>
+  );
 }
 
 /** Adapts a Prometheus range response (all left-axis lines) to UplotChart. */

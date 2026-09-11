@@ -10,8 +10,14 @@ export default class UplotStub {
   over: HTMLDivElement =
     typeof document !== 'undefined' ? document.createElement('div') : ({} as HTMLDivElement);
   cursor: { idx: number | null } = { idx: null };
-  constructor(_opts?: unknown, _data?: unknown, _el?: HTMLElement) {}
-  setData(): void {}
+  /** Aligned data, exposed like real uPlot so the custom legend can read it. */
+  data: unknown[] = [[]];
+  constructor(_opts?: unknown, data?: unknown, _el?: HTMLElement) {
+    if (Array.isArray(data)) this.data = data;
+  }
+  setData(data?: unknown): void {
+    if (Array.isArray(data)) this.data = data;
+  }
   setSize(): void {}
   destroy(): void {}
 }
