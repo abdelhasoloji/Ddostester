@@ -1088,6 +1088,53 @@ input.invalid {
   letter-spacing: 0.04em;
   margin-top: 0.2rem;
 }
+/* Generator-health as a status pill (a word at number-size looked oversized) */
+.health-pill {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  line-height: 1.3;
+}
+.health-nominal {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.health-busy {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.health-degraded {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+/* Role focus — a slim, dense strip instead of a near-empty card */
+.role-focus {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+.rf-label {
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand);
+  white-space: nowrap;
+}
+.rf-body {
+  color: inherit;
+}
 
 /* Key/value pairs (Settings) */
 .kv {
