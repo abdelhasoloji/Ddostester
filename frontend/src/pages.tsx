@@ -80,6 +80,9 @@ const roleLabel: Record<Role, string> = {
 // v2 — the resilience spine: land on status (Command Center), then the workflow
 // arc (Prepare → Campaigns → Results) and governance (Assurance). Secondary
 // destinations stay reachable under "More"; Guide/Settings live in the foot.
+// The primary navigation — the resilience spine, then governance. Everything a
+// campaign needs (Templates, Plan, the guide) lives inside the Campaigns
+// workspace, so the sidebar stays a flat, focused list with Settings on it too.
 const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/prepare', label: 'Prepare', icon: '🔍' },
@@ -87,51 +90,8 @@ const SPINE_NAV = [
   { to: '/theater', label: 'Run Theater', icon: '📡' },
   { to: '/reports', label: 'Results', icon: '🛡' },
   { to: '/audit', label: 'Assurance', icon: '⚖' },
-];
-const MORE_NAV = [
-  { to: '/campaigns?tab=guide', label: 'Guide', icon: '❔' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
-
-/** Collapsible "More" group: keeps every non-campaign destination reachable
- *  without cluttering the primary navigation. */
-function MoreNav() {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`nav-more${open ? ' open' : ''}`}>
-      <button
-        type="button"
-        className="nav-more-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="nav-icon" aria-hidden="true">
-          ⋯
-        </span>
-        More
-        <span className="nav-more-caret" aria-hidden="true">
-          {open ? '▾' : '▸'}
-        </span>
-      </button>
-      {open && (
-        <div className="nav-more-list">
-          {MORE_NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon" aria-hidden="true">
-                {n.icon}
-              </span>
-              {n.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const THEME_OPTS: [Theme, string, string][] = [
   ['light', '☀', 'Light'],
@@ -820,7 +780,6 @@ export function Layout() {
                 {n.label}
               </NavLink>
             ))}
-            <MoreNav />
           </nav>
           <div className="sidebar-foot">
             <ThemeToggle />
