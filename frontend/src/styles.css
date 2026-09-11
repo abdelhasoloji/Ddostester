@@ -409,12 +409,72 @@ input.invalid {
   font-size: 0.95em;
 }
 .suite-group-members {
-  margin-top: 0.7rem;
+  margin-top: 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
   padding-left: 0.6rem;
   border-left: 2px dashed var(--border);
+}
+/* Compact one-line step inside an expanded suite */
+.suite-step-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px;
+}
+.suite-step-row:last-child {
+  border-bottom: none;
+}
+.suite-step-row:hover {
+  background: var(--surface-2);
+}
+.ssr-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 0.15rem 0.2rem;
+}
+.ssr-n {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 1.3rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+.ssr-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ssr-spec {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ssr-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+@media (max-width: 620px) {
+  .ssr-spec {
+    display: none;
+  }
 }
 /* Standalone archived campaign card */
 .campaign.is-archived {

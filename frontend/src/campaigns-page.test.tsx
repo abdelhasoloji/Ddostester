@@ -116,4 +116,34 @@ describe('CampaignsPage — suite grouping', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     await waitFor(() => expect(screen.getByText('Archived one')).toBeInTheDocument());
   });
+
+  it('runs the whole scenario from the suite group header (pending suite)', async () => {
+    fakeApi.runSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', steps: 2, started: true });
+    currentApp = makeApp({
+      role: 'officer',
+      authRequired: true,
+      campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
+    });
+    renderWithRouter(<CampaignsPage />);
+    // The run action now lives on the group header, not a separate banner.
+    const btn = screen.getByRole('button', { name: /Approve & run/ });
+    fireEvent.click(btn);
+    await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1'));
+  });
+
+  it('expands a suite into compact step rows (stripped labels, no card wall)', () => {
+    currentApp = makeApp({
+      role: 'officer',
+      campaigns: [
+        member(0, 'COMPLETED', { name: 'Suite X — SlowLoris', wrs: wrs(90) }),
+        member(1, 'COMPLETED', { name: 'Suite X — GET-Flood', wrs: wrs(80) }),
+      ],
+    });
+    renderWithRouter(<CampaignsPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Suite X/ }));
+    // Compact rows, not full CampaignCards; the suite prefix is stripped.
+    expect(document.querySelectorAll('.suite-step-row').length).toBe(2);
+    expect(screen.getByText('SlowLoris')).toBeInTheDocument();
+    expect(screen.getByText('GET-Flood')).toBeInTheDocument();
+  });
 });
