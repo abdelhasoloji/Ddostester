@@ -103,6 +103,7 @@ export interface Playbook {
   custom?: boolean;
   threat?: ThreatInfo;
   drsLevel?: number;
+  createdAt?: string;
   steps: {
     name: string;
     summary: string;

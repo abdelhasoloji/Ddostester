@@ -24,11 +24,26 @@ function categoryRank(cat: string): number {
   return i === -1 ? CATEGORY_ORDER.length : i;
 }
 
+/** Local date (day only) for display, or '' when absent/unparseable. */
+function fmtDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+}
+
+/** Sort key: newest createdAt first, then name. Missing dates sort last. */
+function byRecent(a: Playbook, b: Playbook): number {
+  const ta = a.createdAt ? Date.parse(a.createdAt) : -Infinity;
+  const tb = b.createdAt ? Date.parse(b.createdAt) : -Infinity;
+  return tb - ta || a.name.localeCompare(b.name);
+}
+
 function PlaybookRow({
   pb,
   canCreate,
   busy,
   launchable,
+  isNew,
   onLaunch,
   onDelete,
 }: {
@@ -36,6 +51,7 @@ function PlaybookRow({
   canCreate: boolean;
   busy: boolean;
   launchable: boolean;
+  isNew: boolean;
   onLaunch: () => void;
   onDelete: () => void;
 }) {
@@ -43,11 +59,24 @@ function PlaybookRow({
     <details className="tpl-row">
       <summary className="tpl-summary">
         <span className="tpl-name">{pb.name}</span>
+        {isNew && (
+          <span className="engine-badge ok" title="Recently added template">
+            🆕 new
+          </span>
+        )}
         {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
         {pb.custom && <span className="engine-badge ok">custom</span>}
         <span className="tpl-steps-count">
           {pb.steps.length} step{pb.steps.length === 1 ? '' : 's'}
         </span>
+        {pb.createdAt && (
+          <span
+            className="tpl-created"
+            title={`Template created ${new Date(pb.createdAt).toLocaleString()}`}
+          >
+            📅 {fmtDate(pb.createdAt)}
+          </span>
+        )}
         <span className="tpl-oneline">{pb.summary}</span>
       </summary>
       <div className="tpl-detail">
@@ -109,6 +138,7 @@ export function TemplatesPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<string>('all');
+  const [sort, setSort] = useState<'category' | 'recent'>('category');
   const [showNew, setShowNew] = useState(false);
   const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
   const [newPb, setNewPb] = useState({ ...emptyNew });
@@ -150,10 +180,24 @@ export function TemplatesPage() {
       arr.push(p);
       map.set(p.category, arr);
     }
+    // Within a category, newest templates first so recent ones lead.
+    for (const arr of map.values()) arr.sort(byRecent);
     return [...map.entries()].sort(
       ([a], [b]) => categoryRank(a) - categoryRank(b) || a.localeCompare(b),
     );
   }, [filtered]);
+
+  /** Flat catalogue, newest first — the "launch recent in priority" view. */
+  const recentList = useMemo(() => [...filtered].sort(byRecent), [filtered]);
+
+  /** Newest template date present — used to flag the freshest cohort as "new". */
+  const newestTs = useMemo(() => {
+    let max = -Infinity;
+    for (const p of playbooks) if (p.createdAt) max = Math.max(max, Date.parse(p.createdAt));
+    return max;
+  }, [playbooks]);
+  const isNewPb = (p: Playbook): boolean =>
+    p.createdAt != null && Date.parse(p.createdAt) === newestTs;
 
   const createPlaybook = async () => {
     try {
@@ -273,12 +317,48 @@ export function TemplatesPage() {
             </button>
           ))}
         </div>
+        <div className="tpl-sort" role="group" aria-label="Sort templates">
+          <button
+            className={`chip-xs${sort === 'category' ? ' active' : ''}`}
+            onClick={() => setSort('category')}
+            title="Group by category"
+          >
+            By category
+          </button>
+          <button
+            className={`chip-xs${sort === 'recent' ? ' active' : ''}`}
+            onClick={() => setSort('recent')}
+            title="Flat list, newest templates first — launch the recent ones in priority"
+          >
+            🆕 Recent first
+          </button>
+        </div>
       </div>
 
-      {grouped.length === 0 ? (
+      {recentList.length === 0 ? (
         <p className="hint" style={{ marginTop: '1rem' }}>
           {playbooks.length === 0 ? 'No templates available.' : 'No template matches your search.'}
         </p>
+      ) : sort === 'recent' ? (
+        <section className="tpl-group">
+          <h2 className="section-title tpl-group-title">
+            Recent first <span className="tpl-group-count">{recentList.length}</span>
+          </h2>
+          <div className="tpl-list">
+            {recentList.map((pb) => (
+              <PlaybookRow
+                key={pb.id}
+                pb={pb}
+                canCreate={canCreate}
+                busy={busy === pb.id}
+                launchable={targetAllowed}
+                isNew={isNewPb(pb)}
+                onLaunch={() => launch(pb)}
+                onDelete={() => removePlaybook(pb)}
+              />
+            ))}
+          </div>
+        </section>
       ) : (
         grouped.map(([category, items]) => (
           <section key={category} className="tpl-group">
@@ -293,6 +373,7 @@ export function TemplatesPage() {
                   canCreate={canCreate}
                   busy={busy === pb.id}
                   launchable={targetAllowed}
+                  isNew={isNewPb(pb)}
                   onLaunch={() => launch(pb)}
                   onDelete={() => removePlaybook(pb)}
                 />
