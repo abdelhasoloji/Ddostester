@@ -36,6 +36,7 @@ import type {
   ControlStatus,
   ProtectionProfile,
   InferredProfile,
+  NetworkLadder,
   GapAnalysis,
   Priority,
 } from './api.js';
@@ -1627,6 +1628,87 @@ const STATUS_OPTIONS: ControlStatus[] = ['unknown', 'present', 'partial', 'absen
  * half of the tune-and-replay loop), plus the attestation-only lines. Analytical
  * only — it orders existing bounded tests, it does not synthesise attacks.
  */
+const NET_STATUS_META: Record<string, { cls: string; icon: string; label: string }> = {
+  absorbed: { cls: 'net-ok', icon: '✓', label: 'absorbed' },
+  gap: { cls: 'net-gap', icon: '✕', label: 'gap' },
+  uncovered: { cls: 'net-none', icon: '–', label: 'no lab evidence' },
+};
+
+/**
+ * Network layer (from the closed class-C lab) — the L3/4 half of a full-stack
+ * plan. Shows the lab's per-scenario verdicts as a DRS 3→5 ladder (mirroring the
+ * L7 ladder below), so the plan spans the whole stack: the lab owns the network
+ * tiers the bounded L7 tests can never reach.
+ */
+function NetworkLadderPanel() {
+  const [ladder, setLadder] = useState<NetworkLadder | null>(null);
+  useEffect(() => {
+    api
+      .networkLadder()
+      .then(setLadder)
+      .catch(() => undefined);
+  }, []);
+  if (!ladder) return null;
+  return (
+    <div className="card" style={{ marginBottom: '1rem' }}>
+      <h2 className="section-title" style={{ marginTop: 0 }}>
+        Network layer <span className="hint">— from the lab (class C, L3/4)</span>
+      </h2>
+      <p className="hint" style={{ marginTop: 0 }}>
+        The closed synthetic lab reports whether the edge absorbs each network vector — the L3/4
+        tiers the bounded L7 tests below can never reach. Together they read as one full-stack DRS
+        ladder. <b>{ladder.covered}</b>/<b>{ladder.total}</b> vectors have a lab verdict.
+      </p>
+      {ladder.covered === 0 ? (
+        <div className="gap-break gap-break-ok" style={{ marginTop: 0 }}>
+          No lab evidence yet — the lab is feeding this. Network vectors will light up as class-C
+          verdicts arrive.
+        </div>
+      ) : (
+        <>
+          {ladder.weakest ? (
+            <div className="gap-break">
+              <b>
+                Network weakest link — DRS{ladder.weakest.drs}: {ladder.weakest.title}.
+              </b>{' '}
+              The lab found a gap here; the L3/4 foundation breaks before the L7 tiers matter.
+            </div>
+          ) : (
+            <div className="gap-break gap-break-ok">
+              <b>No network gap on the lab ladder.</b> The edge absorbed every covered L3/4 vector —
+              the plan can focus on the L7 tiers below.
+            </div>
+          )}
+          {ladder.tiers.map((t) => (
+            <div key={t.drs} className="net-tier">
+              <span className="net-tier-n">DRS {t.drs}</span>
+              <div className="net-vectors">
+                {t.vectors.map((v) => {
+                  const m = NET_STATUS_META[v.status];
+                  return (
+                    <span
+                      key={v.id}
+                      className={`net-vec ${m.cls}`}
+                      title={`${v.proto} · ${m.label}${v.outcome ? ` — ${v.outcome}` : ''}${
+                        v.source ? ` (${v.source})` : ''
+                      }`}
+                    >
+                      <span className="net-vec-i" aria-hidden="true">
+                        {m.icon}
+                      </span>{' '}
+                      {v.title}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function GapPlannerSection() {
   const app = useApp();
   const [target, setTarget] = useState('bank.cz');
@@ -1692,7 +1774,10 @@ export function GapPlannerSection() {
 
   return (
     <>
-      <h2 className="section-title">Protection-gap planner</h2>
+      <NetworkLadderPanel />
+      <h2 className="section-title">
+        Protection-gap planner <span className="hint">— L7</span>
+      </h2>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <p className="hint" style={{ marginTop: 0 }}>
           Declare the target's WEDOS controls; get a prioritised plan of which bounded{' '}

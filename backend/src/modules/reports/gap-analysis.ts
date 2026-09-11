@@ -1,7 +1,7 @@
 import { htmlEscape as esc } from '../../util/text.js';
 import type { PostureReport } from '../posture/analyze.js';
 import type { AbsorptionSummaryRow } from '../observability/summary.js';
-import type { BenchCoverage } from '../bench/model.js';
+import { BENCH_SCENARIOS, type BenchCoverage } from '../bench/model.js';
 import { getPlaybook, type LoadProfile } from '../playbooks/playbooks.js';
 
 /**
@@ -452,6 +452,95 @@ export interface GapEvidence {
 
 const SOURCE_RANK: Record<EvidenceSource, number> = { lab: 3, run: 2, recon: 1 };
 
+// Read the lab's free-but-bounded verdict text into a coarse status.
+const LAB_GAP_RE = /not[_ -]?mitigated|fail|breach|through|leak/i;
+const LAB_OK_RE = /mitigated|pass|absorb|dropped|blocked|contained/i;
+
+/** One L3/4 network vector on the lab's DRS ladder. */
+export type NetworkVectorStatus = 'absorbed' | 'gap' | 'uncovered';
+export interface NetworkVector {
+  id: string;
+  title: string;
+  proto: string;
+  drs: number;
+  status: NetworkVectorStatus;
+  outcome?: string;
+  source?: string;
+  at?: string;
+}
+export interface NetworkTier {
+  drs: number;
+  vectors: NetworkVector[];
+  verdict: NetworkVectorStatus | 'partial';
+}
+export interface NetworkLadder {
+  tiers: NetworkTier[];
+  /** Lowest DRS tier where the lab found a gap — the network weakest link. */
+  weakest?: { drs: number; id: string; title: string };
+  covered: number;
+  total: number;
+}
+
+function labStatusOf(c?: BenchCoverage): NetworkVectorStatus {
+  if (!c) return 'uncovered';
+  if (LAB_GAP_RE.test(c.outcome ?? '')) return 'gap';
+  if (LAB_OK_RE.test(c.outcome ?? '')) return 'absorbed';
+  return 'absorbed'; // covered with a neutral outcome → the lab has handling evidence
+}
+
+/**
+ * Turn the class-C lab's per-scenario coverage into a DRS 3→5 NETWORK ladder —
+ * the L3/4 half of a full-stack plan that the bounded L7 control plane can't
+ * test. Every network vector (BENCH_SCENARIOS) is placed on its DRS tier and
+ * overlaid with the lab's latest verdict (absorbed / gap / no lab evidence); the
+ * weakest link is the lowest tier the lab found a gap at, mirroring the L7 model.
+ */
+export function buildNetworkLadder(coverage: BenchCoverage[]): NetworkLadder {
+  const latest = new Map<string, BenchCoverage>();
+  for (const c of coverage) {
+    const prev = latest.get(c.vector);
+    if (!prev || c.at > prev.at) latest.set(c.vector, c);
+  }
+  const drsLevels = [...new Set(BENCH_SCENARIOS.map((s) => s.drs))].sort((a, b) => a - b);
+  const tiers: NetworkTier[] = drsLevels.map((drs) => {
+    const vectors: NetworkVector[] = BENCH_SCENARIOS.filter((s) => s.drs === drs).map((s) => {
+      const c = latest.get(s.id);
+      return {
+        id: s.id,
+        title: s.title,
+        proto: s.proto,
+        drs,
+        status: labStatusOf(c),
+        outcome: c?.outcome,
+        source: c?.source,
+        at: c?.at,
+      };
+    });
+    const hasGap = vectors.some((v) => v.status === 'gap');
+    const allUncovered = vectors.every((v) => v.status === 'uncovered');
+    const someUncovered = vectors.some((v) => v.status === 'uncovered');
+    const verdict: NetworkTier['verdict'] = hasGap
+      ? 'gap'
+      : allUncovered
+        ? 'uncovered'
+        : someUncovered
+          ? 'partial'
+          : 'absorbed';
+    return { drs, vectors, verdict };
+  });
+  let weakest: NetworkLadder['weakest'];
+  for (const t of tiers) {
+    const g = t.vectors.find((v) => v.status === 'gap');
+    if (g) {
+      weakest = { drs: t.drs, id: g.id, title: g.title };
+      break;
+    }
+  }
+  const known = new Set(BENCH_SCENARIOS.map((s) => s.id));
+  const covered = [...latest.keys()].filter((id) => known.has(id)).length;
+  return { tiers, weakest, covered, total: BENCH_SCENARIOS.length };
+}
+
 /**
  * Infer a ProtectionProfile from evidence instead of a from-scratch manual
  * declaration: recon fills what it observed passively, prior bounded runs fill
@@ -492,21 +581,28 @@ export function inferProfile(ev: GapEvidence): InferredProfile {
     }
   }
 
-  // 3. Class-C lab — network-bench verdicts inform SYN/handshake protection (the
-  //    L3/4 control the bounded L7 tests deliberately never exercise). A verdict
-  //    is the one signal that can prove a control 'absent'.
-  for (const c of ev.labCoverage ?? []) {
-    const status: ControlStatus = /not[_ -]?mitigated|fail/i.test(c.outcome ?? '')
-      ? 'absent'
-      : /mitigated|pass/i.test(c.outcome ?? '')
-        ? 'present'
-        : 'partial';
-    add(
-      'synFloodProtection',
-      status,
-      'lab',
-      `lab ${c.vector}: ${c.outcome ?? 'covered'} (${c.source})`,
-    );
+  // 3. Class-C lab — the network DRS ladder informs SYN/handshake protection (the
+  //    L3/4 control the bounded L7 tests deliberately never exercise). The weakest
+  //    link decides, mirroring the L7 model: a gap at the DRS-3 foundation proves
+  //    it 'absent'; a gap only at a higher tier is 'partial'; no gap → 'present'.
+  //    The lab is the one source allowed to prove this control absent.
+  const ladder = buildNetworkLadder(ev.labCoverage ?? []);
+  if (ladder.covered > 0) {
+    if (ladder.weakest) {
+      add(
+        'synFloodProtection',
+        ladder.weakest.drs <= 3 ? 'absent' : 'partial',
+        'lab',
+        `lab gap at DRS${ladder.weakest.drs}: ${ladder.weakest.title}`,
+      );
+    } else {
+      add(
+        'synFloodProtection',
+        'present',
+        'lab',
+        `lab: ${ladder.covered}/${ladder.total} network vectors absorbed, no gap`,
+      );
+    }
   }
 
   // Resolve each control to its strongest-source evidence (lab > run > recon).

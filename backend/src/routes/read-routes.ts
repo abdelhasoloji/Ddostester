@@ -23,6 +23,7 @@ import {
 import {
   analyzeGaps,
   inferProfile,
+  buildNetworkLadder,
   renderGapAnalysisHtml,
   type ProtectionProfile,
 } from '../modules/reports/gap-analysis.js';
@@ -196,6 +197,13 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
       );
       return inferProfile({ posture, absorption, labCoverage });
     },
+  );
+
+  // The class-C LAB's L3/4 network DRS ladder — the network half of a full-stack
+  // plan, overlaying the lab's per-scenario verdicts onto the DRS 3→5 tiers. Not
+  // target-scoped: the bench evidence is about the network edge, not one host.
+  app.get('/api/reports/network-ladder', { preHandler: guard('campaign:read') }, async () =>
+    buildNetworkLadder(await store.listBenchCoverage()),
   );
 
   app.get('/api/wrs/history', { preHandler: guard('campaign:read') }, async () => {

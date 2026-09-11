@@ -759,6 +759,8 @@ export const api = {
   /** Seed the control profile from evidence (recon + prior runs + class-C lab). */
   inferProfile: (target?: string) =>
     post<InferredProfile>('/api/reports/gap-analysis/infer', { target }),
+  /** The class-C lab's L3/4 network DRS ladder (network half of the plan). */
+  networkLadder: () => get<NetworkLadder>('/api/reports/network-ladder'),
   recon: (target: string, probeUrl?: string) => {
     const q = new URLSearchParams({ target });
     if (probeUrl) q.set('probeUrl', probeUrl);
@@ -851,6 +853,30 @@ export interface ControlEvidence {
 export interface InferredProfile {
   profile: ProtectionProfile;
   provenance: Partial<Record<ControlKey, ControlEvidence[]>>;
+}
+
+/** The class-C lab's L3/4 network DRS ladder (full-stack plan, network half). */
+export type NetworkVectorStatus = 'absorbed' | 'gap' | 'uncovered';
+export interface NetworkVector {
+  id: string;
+  title: string;
+  proto: string;
+  drs: number;
+  status: NetworkVectorStatus;
+  outcome?: string;
+  source?: string;
+  at?: string;
+}
+export interface NetworkTier {
+  drs: number;
+  vectors: NetworkVector[];
+  verdict: NetworkVectorStatus | 'partial';
+}
+export interface NetworkLadder {
+  tiers: NetworkTier[];
+  weakest?: { drs: number; id: string; title: string };
+  covered: number;
+  total: number;
 }
 export type Priority = 'high' | 'medium' | 'low';
 

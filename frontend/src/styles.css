@@ -2379,6 +2379,56 @@ table.remediations td {
   color: var(--success);
   border-color: color-mix(in srgb, var(--success) 40%, transparent);
 }
+
+/* Network layer (lab) DRS ladder. */
+.net-tier {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+}
+.net-tier-n {
+  flex: none;
+  width: 3.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+.net-vectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.net-vec {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: help;
+}
+.net-vec-i {
+  font-weight: 700;
+}
+.net-vec.net-ok {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+.net-vec.net-gap {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: var(--danger-bg);
+}
+.net-vec.net-none {
+  color: var(--muted);
+  opacity: 0.75;
+}
 .gap-plan-item {
   display: grid;
   grid-template-columns: auto 1fr;
