@@ -208,4 +208,25 @@ describe('TemplatesPage', () => {
       expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument(),
     );
   });
+
+  it('shows a loading hint until templates arrive', async () => {
+    let resolve!: (v: unknown[]) => void;
+    fakeApi.playbooks.mockReturnValue(new Promise((r) => (resolve = r)) as never);
+    renderWithRouter(<TemplatesPage />);
+    expect(screen.getByText(/Loading templates/)).toBeInTheDocument();
+    resolve([]);
+    await waitFor(() => expect(screen.queryByText(/Loading templates/)).not.toBeInTheDocument());
+  });
+
+  it('offers a Retry when the template load fails', async () => {
+    fakeApi.playbooks.mockRejectedValueOnce(new Error('network down'));
+    renderWithRouter(<TemplatesPage />);
+    expect(await screen.findByText(/Couldn't load templates/)).toBeInTheDocument();
+    // Retry re-fetches; this time it succeeds and the error clears.
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Couldn't load templates/)).not.toBeInTheDocument(),
+    );
+    expect(fakeApi.playbooks).toHaveBeenCalledTimes(2);
+  });
 });

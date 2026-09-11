@@ -68,6 +68,14 @@ describe('NewCampaignWizard', () => {
     }
   });
 
+  it('warns via a toast when the template catalogue fails to load', async () => {
+    fakeApi.playbooks.mockRejectedValueOnce(new Error('offline'));
+    render(<NewCampaignWizard onDone={vi.fn()} />);
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith('error', expect.stringMatching(/templates/i)),
+    );
+  });
+
   it('guides objective → target → template → review and creates a preset campaign', async () => {
     render(<NewCampaignWizard onDone={vi.fn()} />);
     pickTarget();

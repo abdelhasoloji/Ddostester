@@ -44,7 +44,11 @@ export function NewCampaignWizard({ onDone }: { onDone?: () => void }) {
     api
       .playbooks()
       .then(setPlaybooks)
-      .catch(() => setPlaybooks([]));
+      .catch(() => {
+        setPlaybooks([]);
+        app.push('error', "Couldn't load templates — the recommendation may be limited.");
+      });
+    // Fetch the template catalogue once on mount.
   }, []);
 
   const [step, setStep] = useState(0);

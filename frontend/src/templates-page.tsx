@@ -166,11 +166,16 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   const emptyNew = { name: '', category: 'Custom', summary: '', when: '', stepsJson: '' };
   const [newPb, setNewPb] = useState({ ...emptyNew });
 
+  const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading');
   const load = () => {
+    setLoadState('loading');
     api
       .playbooks()
-      .then(setPlaybooks)
-      .catch(() => undefined);
+      .then((p) => {
+        setPlaybooks(p);
+        setLoadState('ok');
+      })
+      .catch(() => setLoadState('error'));
   };
   useEffect(load, []);
 
@@ -405,7 +410,18 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
         </div>
       </div>
 
-      {recentList.length === 0 ? (
+      {loadState === 'loading' ? (
+        <p className="hint" style={{ marginTop: '1rem' }}>
+          <span className="spin" /> Loading templates…
+        </p>
+      ) : loadState === 'error' ? (
+        <div className="empty" style={{ marginTop: '1rem' }}>
+          Couldn't load templates.{' '}
+          <button className="btn btn-sm" onClick={load}>
+            Retry
+          </button>
+        </div>
+      ) : recentList.length === 0 ? (
         <p className="hint" style={{ marginTop: '1rem' }}>
           {playbooks.length === 0 ? 'No templates available.' : 'No template matches your search.'}
         </p>
