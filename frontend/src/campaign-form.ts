@@ -151,6 +151,13 @@ export function formatInterval(min: number): string {
   return `${min} min`;
 }
 
+/** Local date-time for display, or '—' when absent/unparseable. */
+export function fmtDateTime(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
+}
+
 /** Builds a ramp/wave scenario (phases) from a profile, or undefined for constant. */
 export function buildScenario(profile: string, maxRps: number, durationSec: number) {
   const third = Math.max(1, Math.round(durationSec / 3));

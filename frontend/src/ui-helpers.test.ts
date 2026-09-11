@@ -4,6 +4,7 @@ import {
   buildAssertion,
   buildScenario,
   formatInterval,
+  fmtDateTime,
   hostOf,
   parseDataset,
   parseEndpoints,
@@ -31,6 +32,14 @@ describe('formatInterval', () => {
     expect(formatInterval(60)).toBe('1 h');
     expect(formatInterval(360)).toBe('6 h');
     expect(formatInterval(30)).toBe('30 min');
+  });
+});
+
+describe('fmtDateTime', () => {
+  it('formats a valid ISO date and dashes out missing/invalid input', () => {
+    expect(fmtDateTime('2026-09-11T12:37:00Z')).not.toBe('—');
+    expect(fmtDateTime(undefined)).toBe('—');
+    expect(fmtDateTime('not a date')).toBe('—');
   });
 });
 
