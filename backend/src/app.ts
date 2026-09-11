@@ -328,6 +328,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         `Generator saturated (event-loop lag ${Math.round(startLagMs)}ms) — deferring to protect measurement integrity. Try again shortly.`,
       );
     }
+    // Per-campaign concurrency guard: never start a SECOND run for a campaign
+    // that already has one in flight. Without this, a duplicate start (double
+    // click, a manual run racing the sequencer) would `kills.set` over the live
+    // switch and ORPHAN the first engine loop — it keeps generating load with no
+    // registered kill switch, so neither the Kill button nor the timeout can
+    // ever stop it (only a process restart). The check + set below run with no
+    // await between them, so they are atomic on the single event-loop turn.
+    if (kills.get(c.id)) {
+      throw new CampaignError(
+        'This campaign already has a run in flight — kill or wait for it before starting another.',
+      );
+    }
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     await store.saveCampaign(transition(c, 'RUNNING'));
@@ -1763,10 +1775,30 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       const id = (req.params as { id: string }).id;
       const kill = kills.get(id);
-      if (!kill) return reply.code(404).send({ error: 'no run in progress' });
-      kill.trigger('KILLED_MANUAL');
-      await audit(req, 'campaign.kill', id);
-      return { status: 'KILLED_MANUAL' };
+      if (kill) {
+        kill.trigger('KILLED_MANUAL');
+        await audit(req, 'campaign.kill', id);
+        return { status: 'KILLED_MANUAL' };
+      }
+      // No live run is attached to this campaign. If the store still marks it
+      // RUNNING, that status is STALE — a previous process died mid-run, or a
+      // run settled without its status being updated. There is no in-flight load
+      // to signal, yet the operator is stuck watching a "RUNNING" they cannot
+      // stop, and a bare 404 leaves a server restart as the only escape. Instead
+      // force-reconcile just this campaign to APPROVED (re-runnable) on demand —
+      // the same reset reconcileOrphanedRuns applies at startup.
+      const c = await store.getCampaign(id);
+      if (c?.status === 'RUNNING') {
+        await store.saveCampaign({
+          ...c,
+          status: 'APPROVED',
+          statusDetail:
+            'Force-stopped from the console: no live run was attached (stale RUNNING) — reset to re-runnable.',
+        });
+        await audit(req, 'campaign.kill', id, 'force-reset stale RUNNING (no live run attached)');
+        return { status: 'RESET_STALE' };
+      }
+      return reply.code(404).send({ error: 'no run in progress' });
     },
   );
 
