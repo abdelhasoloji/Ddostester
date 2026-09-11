@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
-import { PromChart, UplotChart, type ChartSeries } from './PromChart.js';
+import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
+import { UplotChart, type ChartSeries } from './PromChart.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -11,7 +11,6 @@ import type {
   WrsBreakdown,
   WrsPoint,
   LiveProgressData,
-  MetricsRange,
 } from './api.js';
 import { useApp, canDo } from './context.js';
 import { formatInterval, fmtDateTime } from './campaign-form.js';
@@ -337,53 +336,8 @@ export function RunTheater({
               <RunTimeline samples={p.timeline} />
             </div>
           )}
-
-          <LiveRpsChart target={target} />
         </>
       )}
-    </div>
-  );
-}
-
-/**
- * App-native, Grafana-style live chart (option B): polls the same Prometheus
- * that feeds Grafana (via /api/metrics/range) and renders it with uPlot — the
- * engine Grafana uses. Hides itself when Prometheus isn't wired (`source` not
- * "ok") or has no points yet, so the app degrades gracefully.
- */
-function LiveRpsChart({ target }: { target: string }) {
-  const [range, setRange] = useState<MetricsRange | null>(null);
-  let host = target;
-  try {
-    host = new URL(target).hostname;
-  } catch {
-    /* keep raw */
-  }
-  useEffect(() => {
-    let alive = true;
-    const pull = () =>
-      api
-        .metricsRange('run_rps', { target: host, minutes: 15, step: 5 })
-        .then((r) => {
-          if (alive) setRange(r);
-        })
-        .catch(() => undefined);
-    pull();
-    const t = setInterval(pull, 5000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [host]);
-
-  if (!range || range.source !== 'ok') return null;
-  if (!range.series.some((s) => s.points.length > 0)) return null;
-  return (
-    <div className="figure" style={{ marginTop: '.8rem' }}>
-      <div className="posture-title">
-        Live RPS · Grafana-style <span className="hint">(uPlot, from Prometheus)</span>
-      </div>
-      <PromChart range={range} height={200} />
     </div>
   );
 }
