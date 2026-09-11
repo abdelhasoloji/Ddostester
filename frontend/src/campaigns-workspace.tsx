@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead, SuiteRunBanner, CampaignLaunch, CampaignList, GuidePage } from './pages.js';
 import { TemplatesPage } from './templates-page.js';
@@ -23,6 +24,21 @@ export function CampaignsWorkspace() {
   const requested = params.get('tab') ?? 'launch';
   const active = TABS.some((t) => t.id === requested) ? requested : 'launch';
   const select = (id: string) => setParams(id === 'launch' ? {} : { tab: id }, { replace: false });
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // WAI-ARIA tabs keyboard model: ←/→ (and Home/End) move between tabs with
+  // automatic activation, so the panel follows focus.
+  const onTabKey = (e: React.KeyboardEvent, index: number) => {
+    let next = index;
+    if (e.key === 'ArrowRight') next = (index + 1) % TABS.length;
+    else if (e.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = TABS.length - 1;
+    else return;
+    e.preventDefault();
+    select(TABS[next].id);
+    tabRefs.current[next]?.focus();
+  };
 
   return (
     <>
@@ -33,21 +49,28 @@ export function CampaignsWorkspace() {
       <SuiteRunBanner />
 
       <div className="ws-tabs" role="tablist" aria-label="Campaigns workspace">
-        {TABS.map((t) => (
+        {TABS.map((t, i) => (
           <button
             key={t.id}
+            ref={(el) => {
+              tabRefs.current[i] = el;
+            }}
+            id={`ws-tab-${t.id}`}
             type="button"
             role="tab"
             aria-selected={active === t.id}
+            aria-controls="ws-panel"
+            tabIndex={active === t.id ? 0 : -1}
             className={`ws-tab${active === t.id ? ' active' : ''}`}
             onClick={() => select(t.id)}
+            onKeyDown={(e) => onTabKey(e, i)}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="ws-panel" role="tabpanel">
+      <div className="ws-panel" role="tabpanel" id="ws-panel" aria-labelledby={`ws-tab-${active}`}>
         {active === 'launch' && <CampaignLaunch />}
         {active === 'templates' && <TemplatesPage embedded />}
         {active === 'plan' && <PlanPage embedded />}

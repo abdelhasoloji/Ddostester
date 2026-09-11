@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 let currentApp: ReturnType<typeof makeApp>;
@@ -70,6 +70,17 @@ describe('pages render', () => {
     // The four workspace tabs are present.
     expect(screen.getByRole('tab', { name: 'Launch' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Templates' })).toBeInTheDocument();
+  });
+
+  it('moves between workspace tabs with the arrow keys', () => {
+    renderWithRouter(<CampaignsWorkspace />);
+    const launch = screen.getByRole('tab', { name: 'Launch' });
+    expect(launch).toHaveAttribute('aria-selected', 'true');
+    // Roving tabindex: only the active tab is in the tab order.
+    expect(launch).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(launch, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('ReportsPage', () => {
