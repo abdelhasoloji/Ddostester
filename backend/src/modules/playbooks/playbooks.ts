@@ -1019,6 +1019,90 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-ivan-ja4-sweep',
+    name: 'Ivan — JA4 fingerprint sweep',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a gentle, bounded GET sweep that rotates a set of realistic browser ' +
+      'User-Agents while carrying an "IvanTest" probe-label header — the bounded shape of ' +
+      "Ivan's JA4/TLS fingerprint-enumeration PoC (does the edge classify each browser " +
+      'fingerprint consistently, or let some BYPASS?).',
+    when: 'Measure how bot-management / JA4 fingerprint classification treats a rotating set of realistic browser fingerprints at a low, bounded rate.',
+    threat: {
+      technique: 'Browser/TLS (JA4) fingerprint enumeration — Ivan PoC',
+      reference:
+        "Ivan's JA4/TLS impersonation PoC (curl_cffi browser sweep, 2026-08); JA4+ fingerprinting (FoxIO)",
+      measures:
+        'Whether JA4 / bot-management classification is consistent across a rotating set of realistic browser fingerprints (e.g. BYPASS vs challenge/block).',
+      notReproduced:
+        'No TLS ClientHello / JA4 spoofing (the built-in engine sends a normal handshake, so real JA4 impersonation is NOT reproduced) and no volumetric — only a bounded GET sweep rotating benign browser User-Agents plus a probe-label header.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-fingerprint reference.',
+        maxRps: 50,
+        concurrency: 10,
+        maxDurationSec: 90,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Fingerprint sweep',
+        summary: 'Gentle bounded sweep rotating browser UAs, carrying the IvanTest probe label.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 150,
+        profile: 'constant',
+        agent: 'builtin',
+        paths: ['/'],
+        rotateUa: true,
+        headers: {
+          'X-Probe-Client': 'IvanTest 1.0',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+    ],
+  },
+  {
+    id: 'threat-ivan-ja4-random',
+    name: 'Ivan — JA4 classification (randomized)',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A single bounded wave that rotates browser User-Agents in bursts while carrying the ' +
+      '"IvanTest" probe-label header — the randomized-order variant of Ivan\'s JA4 ' +
+      'enumeration, to see whether classification stays stable under a varying fingerprint mix.',
+    when: 'Validate that JA4 / fingerprint classification stays stable when realistic browser fingerprints arrive in a randomized, bounded burst pattern.',
+    threat: {
+      technique: 'Randomized browser/TLS (JA4) fingerprint mix — Ivan PoC',
+      reference:
+        "Ivan's JA4/TLS impersonation PoC (curl_cffi, random mode, 2026-08); JA4+ fingerprinting (FoxIO)",
+      measures:
+        'Stability of JA4 / bot classification when a mix of realistic browser fingerprints arrives in a randomized, bounded burst.',
+      notReproduced:
+        'No TLS ClientHello / JA4 spoofing (normal handshake only) and no volumetric — a bounded GET wave rotating benign User-Agents plus a probe-label header.',
+    },
+    steps: [
+      {
+        name: 'Randomized fingerprint wave',
+        summary: 'Bounded wave rotating browser UAs, IvanTest probe label.',
+        maxRps: 120,
+        concurrency: 30,
+        maxDurationSec: 150,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/'],
+        rotateUa: true,
+        headers: {
+          'X-Probe-Client': 'IvanTest 1.0',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+    ],
+  },
+  {
     id: 'endurance',
     name: 'Endurance / soak',
     category: 'Endurance',
@@ -1250,6 +1334,8 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'threat-micro-burst-train': '2026-09-11',
   'threat-ransom-demo': '2026-09-11',
   'threat-api-post-storm': '2026-09-11',
+  'threat-ivan-ja4-sweep': '2026-09-11',
+  'threat-ivan-ja4-random': '2026-09-11',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
