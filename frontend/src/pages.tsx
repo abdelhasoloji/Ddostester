@@ -3354,22 +3354,26 @@ const STEPS = [
   {
     n: 1,
     title: 'Create',
-    body: 'Everything lives in the Campaigns workspace. The Launch tab\'s guided wizard picks an objective, an allowlisted target, and recommends the best-fit template from the target\'s history, installed engines and current limits ("Advanced" opens the full form). Or use the Templates tab to browse the catalogue, replay a single line, or compose several templates into one campaign; and the Plan tab to turn recon into a prioritised replay ladder. You attest you are authorized to test the target.',
+    icon: '✍️',
+    body: 'In this workspace: the Launch wizard recommends a template for your objective, or browse Templates and compose lines, or build a Plan from recon. You attest you are authorized.',
   },
   {
     n: 2,
     title: 'Approve',
-    body: 'A Security Officer (different from the author) approves the campaign. Approval is valid for 24 h.',
+    icon: '✅',
+    body: 'A Security Officer — not the author — signs off. Approval is valid for 24 hours.',
   },
   {
     n: 3,
     title: 'Execute',
-    body: 'Run it manually or on a schedule. The bounded HTTP generator and the legitimate probe run in parallel, under a 3-level kill switch.',
+    icon: '📡',
+    body: 'Run now or on a schedule. The bounded HTTP generator and a legitimate probe run in parallel, under a 3-level kill switch.',
   },
   {
     n: 4,
     title: 'Score & report',
-    body: 'Get the WEDOS Resiliency Score (WRS) and an HTML/PDF report; track WRS history and regressions per target.',
+    icon: '🛡️',
+    body: 'Get the WEDOS Resiliency Score (WRS) and an HTML/PDF report; history and regressions tracked per target.',
   },
 ];
 
@@ -3436,20 +3440,28 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
         />
       )}
 
-      <h2 className="section-title">The four steps</h2>
-      <div className="steps">
-        {STEPS.map((s) => (
-          <div key={s.n} className="step">
-            <div className="step-n">{s.n}</div>
-            <div>
-              <div className="step-title">{s.title}</div>
-              <div className="step-body">{s.body}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <p className="guide-lead">
+        A campaign is one bounded, governed test — from <b>recon</b> to <b>report</b>. Four steps,
+        each safeguarded: an allowlist and hard caps up front, a second-person approval, a live kill
+        switch, and a signed, tamper-evident record at the end.
+      </p>
 
-      <h2 className="section-title">Reading the WRS</h2>
+      <ol className="guide-flow">
+        {STEPS.map((s) => (
+          <li key={s.n} className="guide-step">
+            <div className="guide-step-top">
+              <span className="guide-step-n">{s.n}</span>
+              <span className="guide-step-ico" aria-hidden="true">
+                {s.icon}
+              </span>
+            </div>
+            <div className="guide-step-title">{s.title}</div>
+            <p className="guide-step-body">{s.body}</p>
+          </li>
+        ))}
+      </ol>
+
+      <h2 className="section-title">Reading the score (WRS)</h2>
       <div className="card">
         <p className="subtitle" style={{ marginBottom: '.75rem' }}>
           The <b>WEDOS Resiliency Score</b> (0–100) blends detection, mitigation, availability and
@@ -3530,52 +3542,57 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
         );
       })}
 
-      <h2 className="section-title">Load engines</h2>
-      <div className="card">
-        <p className="subtitle" style={{ marginBottom: '.75rem' }}>
-          Every campaign runs on a <b>load engine</b>. The built-in one needs nothing installed; the
-          others delegate to team-operated tools (k6, Vegeta, Locust, JMeter, Gatling). All produce{' '}
-          <b>bounded HTTP</b> load only — no volumetric or exhaustion vector. Pick one per campaign
-          in the form; engines not installed on the server are greyed out, and constant-only engines
-          can't run ramp/wave profiles.
-        </p>
-        {app.agents.length === 0 ? (
-          <span className="hint">No engine information available.</span>
-        ) : (
-          <div className="engines">
-            {app.agents.map((a) => (
-              <div key={a.id} className="engine-row">
-                <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
-                <span className="engine-name">{a.name}</span>
-                <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
-                  {a.available ? 'Installed' : 'Not installed'}
-                </span>
-                {!a.multiPhase && <span className="engine-cap">constant only</span>}
-                <span className="engine-desc">{a.description}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="hint" style={{ marginTop: '.75rem' }}>
-          Installed status is also shown in <b>Settings → Load engines</b>. To enable an external
-          engine, install its binary on the server; it then becomes selectable here.
-        </p>
-      </div>
+      <h2 className="section-title">Engines &amp; safety</h2>
+      <div className="guide-two">
+        <div className="card">
+          <h3 className="guide-card-title">Load engines</h3>
+          <p className="subtitle" style={{ marginBottom: '.75rem' }}>
+            Every campaign runs on a <b>load engine</b>. The built-in one needs nothing installed;
+            the others delegate to team-operated tools (k6, Vegeta, Locust, JMeter, Gatling). All
+            produce <b>bounded HTTP</b> load only — no volumetric or exhaustion vector.
+            Not-installed engines are greyed out, and constant-only engines can't run ramp/wave
+            profiles.
+          </p>
+          {app.agents.length === 0 ? (
+            <span className="hint">No engine information available.</span>
+          ) : (
+            <div className="engines">
+              {app.agents.map((a) => (
+                <div key={a.id} className="engine-row">
+                  <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
+                  <span className="engine-name">{a.name}</span>
+                  <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
+                    {a.available ? 'Installed' : 'Not installed'}
+                  </span>
+                  {!a.multiPhase && <span className="engine-cap">constant only</span>}
+                  <span className="engine-desc">{a.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="hint" style={{ marginTop: '.75rem' }}>
+            Installed status is also in <b>Settings → Load engines</b>. Install an engine's binary
+            on the server and it becomes selectable here.
+          </p>
+        </div>
 
-      <div className="card" style={{ marginTop: '1.25rem' }}>
-        <h2>Safety reminders</h2>
-        <ul className="guide-list">
-          <li>Only allowlisted targets can be tested; everything else is rejected server-side.</li>
-          <li>
-            Hard caps apply to every run: ≤ 2000 rps, ≤ 500 concurrent, ≤ 900 s (15 min absolute
-            timeout).
-          </li>
-          <li>
-            The manual <b>kill switch</b> is always available during a run — use it if the target
-            starts to struggle.
-          </li>
-          <li>Keep an eye on the probe (5xx rate, availability) while a campaign runs.</li>
-        </ul>
+        <div className="card">
+          <h3 className="guide-card-title">Safety guardrails</h3>
+          <ul className="guide-list">
+            <li>
+              Only allowlisted targets can be tested; everything else is rejected server-side.
+            </li>
+            <li>
+              Hard caps on every run: ≤ 2000 rps, ≤ 500 concurrent, ≤ 900 s (15 min absolute
+              timeout).
+            </li>
+            <li>
+              The manual <b>kill switch</b> is always available during a run — use it if the target
+              starts to struggle.
+            </li>
+            <li>Keep an eye on the probe (5xx rate, availability) while a campaign runs.</li>
+          </ul>
+        </div>
       </div>
     </>
   );
