@@ -756,6 +756,9 @@ export const api = {
     get<{ sequences: Record<string, SuiteSequenceState> }>('/api/suites/sequences'),
   gapAnalysis: (profile: ProtectionProfile, target?: string) =>
     post<GapAnalysis>('/api/reports/gap-analysis', { profile, target }),
+  /** Seed the control profile from evidence (recon + prior runs + class-C lab). */
+  inferProfile: (target?: string) =>
+    post<InferredProfile>('/api/reports/gap-analysis/infer', { target }),
   recon: (target: string, probeUrl?: string) => {
     const q = new URLSearchParams({ target });
     if (probeUrl) q.set('probeUrl', probeUrl);
@@ -838,6 +841,17 @@ export type ControlKey =
 
 export type ControlStatus = 'present' | 'partial' | 'absent' | 'unknown';
 export type ProtectionProfile = Partial<Record<ControlKey, ControlStatus>>;
+
+/** Evidence behind an inferred control status (recon / prior run / class-C lab). */
+export interface ControlEvidence {
+  status: ControlStatus;
+  source: 'recon' | 'run' | 'lab';
+  note: string;
+}
+export interface InferredProfile {
+  profile: ProtectionProfile;
+  provenance: Partial<Record<ControlKey, ControlEvidence[]>>;
+}
 export type Priority = 'high' | 'medium' | 'low';
 
 /** Controls a user can declare in the planner (labels mirror the backend). */

@@ -22,6 +22,7 @@ import {
 } from '../modules/playbooks/suites.js';
 import {
   analyzeGaps,
+  inferProfile,
   renderGapAnalysisHtml,
   type ProtectionProfile,
 } from '../modules/reports/gap-analysis.js';
@@ -159,6 +160,41 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
         return reply.type('text/html').send(renderGapAnalysisHtml(analysis));
       }
       return analysis;
+    },
+  );
+
+  // Evidence-seeded planning: infer the WEDOS control profile for a target from
+  // recon posture, prior bounded runs' absorption, and the class-C LAB verdicts
+  // (the L3/4 network evidence the L7 control plane can't observe), with the
+  // provenance behind each. The operator reviews/overrides, then runs the plan.
+  app.post(
+    '/api/reports/gap-analysis/infer',
+    { preHandler: guard('campaign:read') },
+    async (req) => {
+      const { target } = (req.body ?? {}) as { target?: string };
+      const hostOf = (t?: string): string => {
+        if (!t) return '';
+        try {
+          return new URL(t).host || t;
+        } catch {
+          return t.replace(/^https?:\/\//, '').split('/')[0];
+        }
+      };
+      const wantHost = hostOf(target);
+      const [campaigns, runs, labCoverage] = await Promise.all([
+        store.listCampaigns(),
+        store.listRuns(),
+        store.listBenchCoverage(),
+      ]);
+      const hostOfCampaign = new Map(campaigns.map((c) => [c.id, hostOf(c.target)] as const));
+      const matches = (h: string): boolean => !wantHost || h === wantHost;
+      const posture = runs.find(
+        (r) => r.posture && matches(hostOfCampaign.get(r.campaignId) ?? ''),
+      )?.posture;
+      const absorption = buildAbsorptionSummary(runs, campaigns).filter((row) =>
+        matches(hostOf(row.target)),
+      );
+      return inferProfile({ posture, absorption, labCoverage });
     },
   );
 

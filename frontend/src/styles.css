@@ -2351,13 +2351,33 @@ table.remediations td {
 /* Protection-gap planner (RPT-05) */
 .gap-controls {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 0.35rem 0.75rem;
   align-items: center;
   margin: 0.5rem 0 0.75rem;
 }
 .gap-controls .gap-ctl-label {
   font-size: 0.9rem;
+}
+.gap-ctl-src {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: help;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.gap-ctl-src.src-lab {
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 40%, transparent);
+}
+.gap-ctl-src.src-run {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
 }
 .gap-plan-item {
   display: grid;
