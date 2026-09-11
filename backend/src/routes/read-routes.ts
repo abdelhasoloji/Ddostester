@@ -5,6 +5,7 @@ import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { deriveAlerts } from '../modules/alerts/derive.js';
 import { buildAbsorptionSummary } from '../modules/observability/summary.js';
+import { buildZones } from '../modules/zones/zones.js';
 import { queryRange, type PromResult } from '../modules/metrics/prometheus-query.js';
 import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
@@ -237,6 +238,14 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   app.get('/api/observability/summary', { preHandler: guard('campaign:read') }, async () => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     return buildAbsorptionSummary(runs, campaigns);
+  });
+
+  // Protected ZONES — per-customer/host assurance posture, derived from the
+  // existing campaign estate (see docs/vision-proving-ground.md). The unit WEDOS
+  // Protection is sold and measured by.
+  app.get('/api/zones', { preHandler: guard('campaign:read') }, async () => {
+    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+    return buildZones(campaigns, runs);
   });
 
   // EPIC D: verify the tamper-evident audit chain end to end.

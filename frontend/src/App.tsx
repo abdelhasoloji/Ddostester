@@ -10,6 +10,7 @@ import {
   SettingsPage,
 } from './pages.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
+import { ZonesPage } from './zones-page.js';
 import { PreparationPage } from './preparation-page.js';
 
 /**
@@ -41,6 +42,7 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<CommandCenterPage />} />
+        <Route path="zones" element={<ZonesPage />} />
         <Route path="prepare" element={<PreparationPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />

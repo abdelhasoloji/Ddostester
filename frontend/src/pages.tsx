@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   api,
   auditExportUrl,
@@ -86,6 +86,7 @@ const roleLabel: Record<Role, string> = {
 // workspace, so the sidebar stays a flat, focused list with Settings on it too.
 const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
+  { to: '/zones', label: 'Protected zones', icon: '🛡' },
   { to: '/prepare', label: 'Prepare', icon: '🔍' },
   { to: '/campaigns', label: 'Campaigns', icon: '◇' },
   { to: '/theater', label: 'Run Theater', icon: '📡' },
@@ -1374,7 +1375,10 @@ export function CampaignLaunch() {
  *  always shown at the foot of the Campaigns workspace, under the active tab. */
 export function CampaignList() {
   const app = useApp();
-  const [q, setQ] = useState('');
+  // Pre-fill the search from ?q= so a "Protected zones" card deep-links straight
+  // to that host's campaigns.
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState<StatusFilterId>('all');
   const [sort, setSort] = useState<SortId>('recent');
   const [showArchived, setShowArchived] = useState(false);

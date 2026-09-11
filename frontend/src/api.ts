@@ -243,6 +243,21 @@ export interface RunConfidence {
   peakEventLoopLagMs?: number;
 }
 
+/** A protected zone's assurance posture (GET /api/zones). */
+export interface ZoneSummary {
+  host: string;
+  campaigns: number;
+  suites: number;
+  running: boolean;
+  lastWrs?: number;
+  lastLevel?: string;
+  meanWrs?: number;
+  regression: boolean;
+  lastAbsorbedPct?: number;
+  maxDrs?: number;
+  lastTestAt?: string;
+}
+
 /** Per-(target, vector) absorption rollup (GET /api/observability/summary). */
 export interface AbsorptionSummaryRow {
   target: string;
@@ -687,6 +702,8 @@ export const api = {
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
   observabilitySummary: () => get<AbsorptionSummaryRow[]>('/api/observability/summary'),
+  /** Per-protected-zone assurance posture (WEDOS-Protection framing). */
+  zones: () => get<ZoneSummary[]>('/api/zones'),
   metricsRange: (
     series: string,
     opts: { target?: string; minutes?: number; step?: number } = {},
