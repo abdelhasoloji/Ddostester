@@ -66,6 +66,9 @@ export function createCampaign(
 
   assertHostAllowed(input.target, allowedHosts, 'Target');
   assertHostAllowed(input.probeUrl, allowedHosts, 'Probe');
+  // The optional reference vantage is a read-only health check; hold it to the
+  // same allowlist as the target/probe so it can never become an unbounded GET.
+  if (input.referenceUrl) assertHostAllowed(input.referenceUrl, allowedHosts, 'Reference');
 
   // Caps are whole numbers: rps, concurrent workers and seconds are counts, so a
   // fractional value is a client error, not a bounded-but-odd request.

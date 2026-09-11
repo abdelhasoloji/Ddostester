@@ -43,6 +43,16 @@ export interface CampaignInput {
   maxDurationSec: number;
   /** Probed endpoint to measure impact (often the target itself). */
   probeUrl: string;
+  /**
+   * Optional independent reference endpoint (a canary / second vantage) polled
+   * alongside the target probe but with NO kill authority. It lets a run tell
+   * "the target fell over" from "we can't reach anything" (our own egress is
+   * saturated, or a broader outage): if the target degrades while the reference
+   * stays healthy, the outage is target-attributed; if both degrade together,
+   * the verdict is flagged inconclusive. Must be http/https and in the
+   * allowlist, like the target/probe. Absent = no corroboration.
+   */
+  referenceUrl?: string;
   createdBy: string;
   /** The author attests the target is authorized (internal WEDOS / written mandate). */
   authorized: boolean;

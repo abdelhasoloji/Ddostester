@@ -23,6 +23,8 @@ export interface Campaign {
   name: string;
   target: string;
   probeUrl: string;
+  /** Optional independent reference vantage (canary) for outage attribution. */
+  referenceUrl?: string;
   vector: string;
   status: CampaignStatus;
   createdBy: string;
@@ -179,6 +181,14 @@ export interface CampaignRun {
     latencyP50DeltaMs: number;
     latencyP95DeltaMs: number;
     availabilityDeltaPct: number;
+  };
+  /** Independent reference vantage — outage attribution (present when set). */
+  reference?: {
+    url: string;
+    samples: number;
+    available: number;
+    availPct: number;
+    targetAttributed: boolean;
   };
   targetTelemetry?: {
     at: string;
