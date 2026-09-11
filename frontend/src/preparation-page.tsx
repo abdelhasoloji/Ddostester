@@ -50,7 +50,7 @@ export function PreparationPage() {
     } catch {
       /* sessionStorage unavailable — navigate anyway */
     }
-    navigate('/plan');
+    navigate('/campaigns?tab=plan');
   };
 
   return (

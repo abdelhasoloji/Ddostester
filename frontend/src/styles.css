@@ -1058,6 +1058,41 @@ input.invalid {
   display: flex;
   gap: 0.5rem;
   margin: 0.75rem 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Campaigns workspace tabs (Launch / Templates / Plan / How it works). */
+.ws-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin: 0.9rem 0 0;
+}
+.ws-tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.5rem 0.9rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 6px 6px 0 0;
+}
+.ws-tab:hover {
+  color: inherit;
+  background: var(--surface-2);
+}
+.ws-tab.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  font-weight: 600;
+}
+.ws-panel {
+  padding: 1rem 0 0.25rem;
 }
 @media (max-width: 720px) {
   .shell {

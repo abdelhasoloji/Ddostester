@@ -14,8 +14,8 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { OverviewPage, CampaignsPage, ReportsPage, AuditPage, SettingsPage, GuidePage } =
-  await import('./pages.js');
+const { ReportsPage, AuditPage, SettingsPage, GuidePage } = await import('./pages.js');
+const { CampaignsWorkspace } = await import('./campaigns-workspace.js');
 
 const sampleCampaign = {
   id: 'c1',
@@ -62,15 +62,14 @@ beforeEach(() => {
 });
 
 describe('pages render', () => {
-  it('OverviewPage', () => {
-    renderWithRouter(<OverviewPage />);
-    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
-  });
-
-  it('CampaignsPage lists campaigns', () => {
-    renderWithRouter(<CampaignsPage />);
+  it('CampaignsWorkspace lists campaigns under the workspace tabs', () => {
+    renderWithRouter(<CampaignsWorkspace />);
     expect(screen.getByRole('heading', { name: 'Campaigns' })).toBeInTheDocument();
+    // The persistent list shows below the tabs regardless of the active tab.
     expect(screen.getByText('Baseline')).toBeInTheDocument();
+    // The four workspace tabs are present.
+    expect(screen.getByRole('tab', { name: 'Launch' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Templates' })).toBeInTheDocument();
   });
 
   it('ReportsPage', () => {

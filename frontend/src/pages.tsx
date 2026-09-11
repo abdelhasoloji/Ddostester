@@ -88,10 +88,7 @@ const SPINE_NAV = [
   { to: '/audit', label: 'Assurance', icon: '⚖' },
 ];
 const MORE_NAV = [
-  { to: '/overview', label: 'Overview', icon: '▚' },
-  { to: '/plan', label: 'Plan', icon: '◈' },
-  { to: '/templates', label: 'Templates', icon: '▦' },
-  { to: '/guide', label: 'Guide', icon: '❔' },
+  { to: '/campaigns?tab=guide', label: 'Guide', icon: '❔' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
 
@@ -890,92 +887,6 @@ export function PageHead({ title, sub }: { title: string; sub?: React.ReactNode 
   );
 }
 
-// ---------- Overview ----------
-export function OverviewPage() {
-  const app = useApp();
-  const c = app.campaigns;
-  const scored = c.filter((x) => x.wrs);
-  const avgWrs = scored.length
-    ? Math.round(scored.reduce((s, x) => s + (x.wrs?.wrs ?? 0), 0) / scored.length)
-    : null;
-  const running = c.filter((x) => x.status === 'RUNNING').length;
-  const pending = c.filter((x) => x.status === 'PENDING_APPROVAL').length;
-  const completed = c.filter((x) =>
-    ['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL'].includes(x.status),
-  ).length;
-
-  return (
-    <>
-      <PageHead
-        title="Overview"
-        sub={
-          <>
-            Allowed targets: <code>{app.allowed.join(', ') || '—'}</code>
-            {app.agentName && (
-              <>
-                {' '}
-                · default engine <code>{app.agentName}</code>
-              </>
-            )}{' '}
-            · bounded HTTP generator (no volumetric vector).
-          </>
-        }
-      />
-
-      <div className="kpis">
-        <div className="kpi">
-          <div className="kpi-v">{c.length}</div>
-          <div className="kpi-k">Campaigns</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-v">{running}</div>
-          <div className="kpi-k">Running</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-v">{pending}</div>
-          <div className="kpi-k">Pending</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-v">{completed}</div>
-          <div className="kpi-k">Completed</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-v">{avgWrs ?? '—'}</div>
-          <div className="kpi-k">Avg. WRS</div>
-        </div>
-      </div>
-
-      <h2 className="section-title">WRS history by target</h2>
-      {app.wrsSeries.length === 0 ? (
-        <div className="empty">No scored runs yet.</div>
-      ) : (
-        <div className="card" style={{ display: 'grid', gap: '.75rem' }}>
-          {app.wrsSeries.map((s) => {
-            const last = s.points[s.points.length - 1];
-            return (
-              <div key={s.target} className="wrs-hist">
-                <div className="wrs-hist-main">
-                  <code>{s.target}</code>
-                  <span className={`wrs ${wrsClass(last.level as WrsBreakdown['level'])}`}>
-                    <span className="wrs-score">{last.wrs}</span> {last.level}
-                  </span>
-                  <span className="hint">{s.points.length} run(s)</span>
-                  {s.regression && (
-                    <span className="badge badge-REJECTED" title="Drop of more than 10 points">
-                      ▼ Regression −{s.drop}
-                    </span>
-                  )}
-                </div>
-                <WrsTrend points={s.points} regression={s.regression} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </>
-  );
-}
-
 // ---------- Campaigns ----------
 type StatusFilterId = 'all' | 'pending' | 'approved' | 'running' | 'done' | 'rejected';
 const STATUS_FILTERS: { id: StatusFilterId; label: string; match: (c: Campaign) => boolean }[] = [
@@ -1457,7 +1368,50 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   );
 }
 
-export function CampaignsPage() {
+/** The "Launch" surface of the Campaigns workspace: the guided wizard (or the
+ *  classic form when a preset is queued from the guide). */
+export function CampaignLaunch() {
+  const app = useApp();
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const [showForm, setShowForm] = useState(false);
+  // Open the form automatically when a preset is queued from the guide.
+  useEffect(() => {
+    if (app.draftPreset) setShowForm(true);
+  }, [app.draftPreset]);
+
+  if (!canCreate) {
+    return (
+      <p className="hint">
+        Read-only access — browse the Templates and Plan tabs; an engineer or officer creates and
+        runs campaigns.
+      </p>
+    );
+  }
+  return (
+    <>
+      {!showForm && (
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            ＋ New campaign
+          </button>
+          <span className="hint">
+            Guided: pick an objective and we recommend the template — or browse the Templates tab.
+          </span>
+        </div>
+      )}
+      {showForm &&
+        (app.draftPreset ? (
+          <NewCampaignForm onDone={() => setShowForm(false)} />
+        ) : (
+          <NewCampaignWizard onDone={() => setShowForm(false)} />
+        ))}
+    </>
+  );
+}
+
+/** The persistent campaign list (suites grouped above standalone) with filters —
+ *  always shown at the foot of the Campaigns workspace, under the active tab. */
+export function CampaignList() {
   const app = useApp();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<StatusFilterId>('all');
@@ -1489,38 +1443,12 @@ export function CampaignsPage() {
   const standalone = useMemo(() => filtered.filter((c) => !c.suiteId), [filtered]);
 
   const hasCampaigns = app.campaigns.length > 0;
-  const canCreate = canDo(app.role, 'create', app.authRequired);
-  const [showForm, setShowForm] = useState(false);
-  // Open the form automatically when a preset is queued from the Guide.
-  useEffect(() => {
-    if (app.draftPreset) setShowForm(true);
-  }, [app.draftPreset]);
 
   return (
     <>
-      <PageHead title="Campaigns" sub={app.anyRunning ? 'Auto-refreshing…' : undefined} />
-
-      <SuiteRunBanner />
-
-      {canCreate && !showForm && (
-        <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            ＋ New campaign
-          </button>
-        </div>
-      )}
-      {showForm &&
-        (app.draftPreset ? (
-          // A preset queued from the Guide jumps straight into the classic form
-          // (which consumes draftPreset); the "＋ New campaign" button uses the
-          // guided wizard.
-          <NewCampaignForm onDone={() => setShowForm(false)} />
-        ) : (
-          <NewCampaignWizard onDone={() => setShowForm(false)} />
-        ))}
-
       <h2 className="section-title">
         Campaign list <span className="hint">({filtered.length})</span>
+        {app.anyRunning && <span className="hint"> · auto-refreshing…</span>}
       </h2>
 
       {hasCampaigns && (
@@ -3340,7 +3268,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Create',
-    body: 'The guided wizard walks you through it: pick an objective, choose an allowlisted target, and it recommends the best-fit template (a single test or a full assessment) based on the target\'s history, installed engines and the current limits. "Advanced" opens the full form. You attest you are authorized to test the target.',
+    body: 'Everything lives in the Campaigns workspace. The Launch tab\'s guided wizard picks an objective, an allowlisted target, and recommends the best-fit template from the target\'s history, installed engines and current limits ("Advanced" opens the full form). Or use the Templates tab to browse the catalogue, replay a single line, or compose several templates into one campaign; and the Plan tab to turn recon into a prioritised replay ladder. You attest you are authorized to test the target.',
   },
   {
     n: 2,
@@ -3404,21 +3332,23 @@ const WRS_LEVELS: {
   },
 ];
 
-export function GuidePage() {
+export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
   const app = useApp();
   const navigate = useNavigate();
 
   const use = (p: Preset) => {
     app.applyPreset(p);
-    navigate('/campaigns');
+    navigate('/campaigns?tab=launch');
   };
 
   return (
     <>
-      <PageHead
-        title="Guide"
-        sub="How a campaign works, and ready-made configurations you can apply in one click."
-      />
+      {!embedded && (
+        <PageHead
+          title="Guide"
+          sub="How a campaign works, from recon to report — plus ready-made configurations you can apply in one click."
+        />
+      )}
 
       <h2 className="section-title">The four steps</h2>
       <div className="steps">

@@ -149,7 +149,7 @@ function PlaybookRow({
   );
 }
 
-export function TemplatesPage() {
+export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const app = useApp();
   const navigate = useNavigate();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
@@ -316,10 +316,12 @@ export function TemplatesPage() {
 
   return (
     <>
-      <PageHead
-        title="Campaign templates"
-        sub="One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole assessment is created — each campaign still goes through approval before it runs."
-      />
+      {!embedded && (
+        <PageHead
+          title="Campaign templates"
+          sub="One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole assessment is created — each campaign still goes through approval before it runs."
+        />
+      )}
 
       {/* Launch context: target + optional recurrence. */}
       <div className="card tpl-launchbar">

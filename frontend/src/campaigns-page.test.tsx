@@ -15,7 +15,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { CampaignsPage } = await import('./pages.js');
+const { CampaignList } = await import('./pages.js');
 
 function member(order: number, status: CampaignStatus, extra: Partial<Campaign> = {}): Campaign {
   return {
@@ -39,7 +39,7 @@ function member(order: number, status: CampaignStatus, extra: Partial<Campaign> 
 const wrs = (v: number) =>
   ({ detection: v, mitigation: v, availability: v, collateral: v, wrs: v, level: 'B' }) as never;
 
-describe('CampaignsPage — suite grouping', () => {
+describe('CampaignList — suite grouping', () => {
   it('renders a suite as one group with progress, aggregate WRS and timing', () => {
     currentApp = makeApp({
       role: 'officer',
@@ -58,7 +58,7 @@ describe('CampaignsPage — suite grouping', () => {
         }),
       ],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     expect(screen.getByText(/Suite X/)).toBeInTheDocument();
     expect(screen.getByText(/2\/2 steps/)).toBeInTheDocument();
     expect(screen.getByText(/avg 75 · worst 60/)).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('CampaignsPage — suite grouping', () => {
         member(1, 'COMPLETED', { wrs: wrs(80) }),
       ],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     // Collapsed: no per-step campaign card (.campaign) yet.
     expect(document.querySelector('.suite-group-members')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Suite X/ }));
@@ -88,7 +88,7 @@ describe('CampaignsPage — suite grouping', () => {
         member(1, 'COMPLETED', { wrs: wrs(80) }),
       ],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
     await waitFor(() =>
       expect(currentApp.archiveSuite).toHaveBeenCalledWith('suite-1', 'Suite X', true),
@@ -109,7 +109,7 @@ describe('CampaignsPage — suite grouping', () => {
         },
       ],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     expect(screen.getByText('Live one')).toBeInTheDocument();
     expect(screen.queryByText('Archived one')).toBeNull();
     // Enable "Archived" toggle → the archived card appears.
@@ -124,7 +124,7 @@ describe('CampaignsPage — suite grouping', () => {
       authRequired: true,
       campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     // The run action now lives on the group header, not a separate banner.
     const btn = screen.getByRole('button', { name: /Approve & run/ });
     fireEvent.click(btn);
@@ -139,7 +139,7 @@ describe('CampaignsPage — suite grouping', () => {
         member(1, 'COMPLETED', { name: 'Suite X — GET-Flood', wrs: wrs(80) }),
       ],
     });
-    renderWithRouter(<CampaignsPage />);
+    renderWithRouter(<CampaignList />);
     fireEvent.click(screen.getByRole('button', { name: /Suite X/ }));
     // Compact rows, not full CampaignCards; the suite prefix is stripped.
     expect(document.querySelectorAll('.suite-step-row').length).toBe(2);
