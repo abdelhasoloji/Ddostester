@@ -610,7 +610,15 @@ export interface LiveProgressData {
   statusCounts?: Record<string, number>;
   /** Rolling last-60s per-second series for the live sparkline. */
   timeline?: RunSample[];
-  probe?: { samples: number; available: number; errorRate5xx: number };
+  probe?: {
+    samples: number;
+    available: number;
+    errorRate5xx: number;
+    /** Probe's own live latency percentiles (ms). */
+    latencyMs?: { p50: number; p95: number; p99: number };
+    /** Graduated target-health verdict, surfaced before any hard auto-kill. */
+    health?: 'ok' | 'degraded' | 'critical';
+  };
 }
 
 /**

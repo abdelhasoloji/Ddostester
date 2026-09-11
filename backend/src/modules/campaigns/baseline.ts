@@ -52,16 +52,22 @@ export async function captureBaseline(
     const t0 = performance.now();
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
+    let ttfbMs = 0;
     try {
       const res = await fetch(url, { signal: ac.signal });
+      // TTFB (time to response headers), measured BEFORE draining the body —
+      // consistent with the live Probe, so the under-load-vs-baseline latency
+      // delta compares like with like and isn't skewed by response size.
+      ttfbMs = performance.now() - t0;
       if (res.ok) ok++;
       await res.arrayBuffer().catch(() => undefined);
     } catch {
       /* target unavailable → counts against availability */
+      ttfbMs = performance.now() - t0; // time to failure
     } finally {
       clearTimeout(timer);
     }
-    lat.push(performance.now() - t0);
+    lat.push(ttfbMs);
     if (i < count - 1 && !signal?.aborted) await new Promise((r) => setTimeout(r, intervalMs));
   }
   const n = lat.length || 1;

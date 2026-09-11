@@ -15,6 +15,7 @@ import { captureBaseline, computeBaselineDelta } from './baseline.js';
 import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
 import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
+import { probeLimitsFromEnv, ESTIMATED_TIMINGS } from '../../config/limits.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
 import type { AbsorptionCorroboration } from '../edge-absorption/types.js';
@@ -123,7 +124,15 @@ export async function executeCampaign(
     campaign.maxDurationSec * 1000,
   );
 
-  const probe = new Probe(campaign.probeUrl, killSwitch);
+  // Probe/kill-switch thresholds are centralised and env-tunable (config/limits).
+  const probeLimits = probeLimitsFromEnv();
+  const probe = new Probe(
+    campaign.probeUrl,
+    killSwitch,
+    probeLimits.intervalMs,
+    probeLimits.timeoutMs,
+    probeLimits,
+  );
 
   const genConfig: LoadTestConfig = {
     url: campaign.target,
@@ -198,7 +207,16 @@ export async function executeCampaign(
       // Rolling window (last 60s) of the per-second series for a live sparkline.
       // The full series is still persisted with the finished run.
       timeline: timeline.slice(-60),
-      probe: { samples: pm.samples, available: pm.available, errorRate5xx: pm.errorRate5xx },
+      // Probe health streamed live: its own latency percentiles and the
+      // graduated verdict, so the operator sees a 'degraded' target before any
+      // hard auto-kill — not only after the run settles.
+      probe: {
+        samples: pm.samples,
+        available: pm.available,
+        errorRate5xx: pm.errorRate5xx,
+        latencyMs: pm.latencyMs,
+        health: pm.health,
+      },
     });
   }, 1000);
   if (typeof ticker.unref === 'function') ticker.unref();
@@ -239,17 +257,13 @@ export async function executeCampaign(
       finishedAt: new Date().toISOString(),
     })
     .catch(() => null);
+  // When no protection source reports real timings, fall back to conservative
+  // named estimates (config/limits) — worse ones when the probe had to auto-kill.
+  const estimate =
+    killSwitch.reason === 'KILLED_AUTO' ? ESTIMATED_TIMINGS.autoKill : ESTIMATED_TIMINGS.held;
   const wrs = computeWrs({
-    detectionTimeSec: measured
-      ? measured.detectionTimeSec
-      : killSwitch.reason === 'KILLED_AUTO'
-        ? 30
-        : 10,
-    mitigationTimeSec: measured
-      ? measured.mitigationTimeSec
-      : killSwitch.reason === 'KILLED_AUTO'
-        ? 60
-        : 20,
+    detectionTimeSec: measured ? measured.detectionTimeSec : estimate.detectionTimeSec,
+    mitigationTimeSec: measured ? measured.mitigationTimeSec : estimate.mitigationTimeSec,
     legitimateSuccessful: probeMetrics.successful,
     legitimateTotal: probeMetrics.samples,
     adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),

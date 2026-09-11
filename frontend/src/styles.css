@@ -2635,6 +2635,34 @@ table.remediations td {
 .tm-v.warnv {
   color: var(--warning);
 }
+.tm-v.bad {
+  color: var(--danger);
+}
+
+/* Graduated probe-health badge (live drawer + progress line): an early amber
+   'degraded' warning, then a red 'critical' as the target nears the auto-kill
+   threshold — visible before any hard kill. */
+.health-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+  border: 1px solid transparent;
+}
+.health-badge.health-degraded {
+  color: var(--warning);
+  background: var(--warning-bg);
+  border-color: var(--warning);
+}
+.health-badge.health-critical {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
 
 /* Absorption mechanism breakdown (reject vs tarpit vs backpressure). */
 .absorb-mech {

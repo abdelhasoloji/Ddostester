@@ -581,6 +581,39 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         `run.settled ${c.name} → ${run.status} · WRS ${run.wrs.wrs} in ${runDurationSec.toFixed(1)}s`,
       );
       await store.saveRun(run);
+      // Publish the last run's probe health as Prometheus gauges, labelled by
+      // target, so Grafana can chart/alert on measured availability, latency and
+      // error rate — closing the loop with the monitoring stack (these otherwise
+      // live only inside the run record). Best-effort: never break a settle.
+      try {
+        let target = c.target;
+        try {
+          target = new URL(c.target).hostname;
+        } catch {
+          /* keep raw target label */
+        }
+        const availPct = run.probe.samples ? (run.probe.available / run.probe.samples) * 100 : 100;
+        metrics.setGauge(
+          'shieldtest_probe_availability_pct',
+          'Last run: legitimate-probe availability (%) by target',
+          Number(availPct.toFixed(1)),
+          { target },
+        );
+        metrics.setGauge(
+          'shieldtest_probe_latency_p95_ms',
+          'Last run: legitimate-probe p95 latency (ms) by target',
+          run.probe.latencyMs.p95,
+          { target },
+        );
+        metrics.setGauge(
+          'shieldtest_probe_error_rate_5xx_pct',
+          'Last run: legitimate-probe 5xx error rate (%) by target',
+          run.probe.errorRate5xx,
+          { target },
+        );
+      } catch (err) {
+        app.log.warn({ err }, 'failed to publish probe gauges');
+      }
       // Recurring campaigns re-arm for their next run (within the approval
       // window); otherwise the campaign settles into its terminal run status.
       const rearm = reArmRecurring(c, Date.now());
