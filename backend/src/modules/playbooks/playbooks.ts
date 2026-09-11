@@ -304,7 +304,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure how well the WAF / rate-limiter copes with rotating fingerprints and mixed URLs.',
     threat: {
       technique: 'Web DDoS "Tsunami" — randomized L7 flood',
-      reference: 'Industry L7 DDoS trend 2023–2024',
+      reference: 'Industry L7 DDoS trend 2023–2026; Cloudflare DDoS threat report H1 2026',
       measures: 'WAF / rate-limit efficacy against fingerprint rotation and endpoint spread.',
       notReproduced:
         'No exhaustion, no spoofing — only bounded HTTP with rotating benign headers and mixed paths.',
@@ -380,7 +380,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Assess cache-hit ratio and origin protection under a realistic mixed-URL load.',
     threat: {
       technique: 'Cache-key stress',
-      reference: 'Cache-targeting L7 patterns',
+      reference: 'Cache-targeting L7 patterns; Cloudflare DDoS threat report H1 2026',
       measures: 'Cache-hit behaviour and origin shielding across a set of URLs.',
       notReproduced:
         'No unique-per-request query strings (cache-buster bypass, TSD V-L7-05) — a fixed URL set only.',
@@ -833,9 +833,10 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Assess bot-management, fingerprint classification and rate-limiting against a large, diverse, bounded L7 fan-out.',
     threat: {
       technique: 'Hyper-volumetric L7 botnet fan-out (Aisuru / Mirai-class)',
-      reference: 'Aisuru / record hyper-volumetric L7 botnets (2024–2025)',
+      reference:
+        'Aisuru/Kimwolf record L7 botnets (2025–2026); Cloudflare H1 2026 record L7 attack — 2.45 billion HTTP requests across 1.2 million IPs',
       measures:
-        'Whether classification and rate-limiting stay stable when a diverse, high-concurrency but rate-bounded L7 load hits deep endpoints.',
+        'Whether classification and rate-limiting stay stable when a diverse, high-concurrency but rate-bounded L7 load hits deep endpoints — the bounded analogue of an extreme source/fingerprint diversity profile.',
       notReproduced:
         'No botnet, no real node count, no hyper-volume — bounded RPS/concurrency, benign UAs and headers from fixed sets, no spoofing.',
     },
@@ -862,6 +863,149 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         headers: {
           'Accept-Language': 'en-US,en;q=0.9',
           'Sec-CH-UA-Mobile': '?1',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      },
+    ],
+  },
+  {
+    id: 'threat-micro-burst-train',
+    name: 'Micro-burst train (sub-minute pulses)',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'A baseline, then a train of very short, back-to-back high-concurrency bursts rather ' +
+      'than one sustained wave — the bounded shape of the record-setting sub-minute ' +
+      'hyper-bursts (Aisuru/Kimwolf "Night Before Christmas", Dec 2025).',
+    when: 'Measure how fast the edge / autoscaling reacts to sub-minute bursts and recovers between them — detection latency, not sustained volume.',
+    threat: {
+      technique: 'Sub-minute hyper-burst train (record short-duration DDoS)',
+      reference:
+        'Aisuru/Kimwolf 31.4 Tbps / 35s burst & "The Night Before Christmas" campaign (Dec 2025); Cloudflare DDoS threat report H1 2026 (short attacks)',
+      measures:
+        'Reaction latency and recovery of rate-limiting / autoscaling against repeated short bursts too brief for slow mitigation to ramp.',
+      notReproduced:
+        'No hyper-volume, no botnet, no L3/4 — bounded RPS/concurrency, several short HTTP waves only. Volumetric short-burst shape belongs to shieldtest-lab.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Burst 1 (≈45s)',
+        summary: 'Short high-concurrency burst, then immediate lull.',
+        maxRps: 700,
+        concurrency: 300,
+        maxDurationSec: 45,
+        profile: 'wave',
+        agent: 'builtin',
+      },
+      {
+        name: 'Burst 2 (≈45s)',
+        summary: 'Repeat burst — tests reaction before mitigation settles.',
+        maxRps: 700,
+        concurrency: 300,
+        maxDurationSec: 45,
+        profile: 'wave',
+        agent: 'builtin',
+      },
+      {
+        name: 'Burst 3 (≈45s)',
+        summary: 'Third burst — recovery and stability between pulses.',
+        maxRps: 700,
+        concurrency: 300,
+        maxDurationSec: 45,
+        profile: 'wave',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-ransom-demo',
+    name: 'Ransom-DDoS demonstration burst',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a single short, bounded spike — the shape of the brief "demonstration" ' +
+      'burst an extortion actor fires alongside a ransom note to prove capability.',
+    when: 'Check whether a single brief L7 spike trips mitigation, and how quickly the service recovers afterwards.',
+    threat: {
+      technique: 'Ransom DDoS (RDDoS) demonstration spike',
+      reference: 'Cloudflare DDoS threat report H1 2026 (ransom DDoS trend)',
+      measures:
+        'Whether a one-off short spike is absorbed or triggers mitigation, and the recovery time once it stops.',
+      notReproduced:
+        'No extortion, no sustained campaign, no volumetric — one bounded HTTP wave only.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Demo spike',
+        summary: 'Single short bounded spike (demonstration shape).',
+        maxRps: 600,
+        concurrency: 150,
+        maxDurationSec: 90,
+        profile: 'wave',
+        agent: 'builtin',
+      },
+    ],
+  },
+  {
+    id: 'threat-api-post-storm',
+    name: 'API / JSON POST storm',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A GET baseline, then a bounded POST wave aimed at expensive application/API endpoints ' +
+      '(search, GraphQL, login, cart) carrying a realistic JSON API fingerprint — the modern ' +
+      'business-logic L7 shape, not a static-URL flood.',
+    when: 'Measure rate-limiting / WAF and origin protection on costly API endpoints, where each request does real work.',
+    threat: {
+      technique: 'API-targeted L7 (expensive business-logic endpoints)',
+      reference: 'Cloudflare DDoS threat report H1 2026 (sophisticated L7; API-targeted attacks)',
+      measures:
+        'Whether per-endpoint rate-limits / WAF rules protect costly API paths, and how the origin copes when each POST triggers real work.',
+      notReproduced:
+        'Bounded rate; benign JSON fingerprint from a fixed set; no credential stuffing, no injection payloads, no exhaustion.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady GET reference.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'API POST wave',
+        summary: 'Bounded POST load over API endpoints, JSON fingerprint, rotating UA.',
+        maxRps: 300,
+        concurrency: 100,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+        paths: ['/api/graphql', '/api/search', '/api/login', '/api/cart', '/api/checkout'],
+        rotateUa: true,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
         },
       },
