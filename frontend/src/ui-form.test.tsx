@@ -76,4 +76,35 @@ describe('modals', () => {
     expect(screen.getByText(/Confirm run/)).toBeInTheDocument();
     expect(screen.getByText(/50 rps/)).toBeInTheDocument();
   });
+
+  it('closes the ExecuteModal on Escape', () => {
+    currentApp = makeApp({
+      confirmExec: {
+        id: 'c1',
+        name: 'run',
+        target: 'https://h/',
+        maxRps: 50,
+        concurrency: 10,
+        maxDurationSec: 30,
+      },
+    });
+    render(<ExecuteModal />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(currentApp.setConfirmExec).toHaveBeenCalledWith(null);
+  });
+
+  it('closes the ApproveModal on Escape', () => {
+    currentApp = makeApp({
+      approveFor: {
+        id: 'c1',
+        name: 'Cap ceiling',
+        createdBy: 'off@wedos',
+        target: 'https://h/',
+        status: 'PENDING_APPROVAL',
+      },
+    });
+    render(<ApproveModal />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(currentApp.setApproveFor).toHaveBeenCalledWith(null);
+  });
 });

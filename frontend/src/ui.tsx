@@ -30,6 +30,21 @@ export {
   parseFlowJson,
 } from './campaign-form.js';
 
+/**
+ * Close a modal/overlay on the Escape key while it is open. Attaches the
+ * listener only when `active`, so a closed modal costs nothing.
+ */
+function useEscape(active: boolean, onClose: () => void): void {
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active, onClose]);
+}
+
 const badgeLabel: Record<CampaignStatus, string> = {
   PENDING_APPROVAL: 'Pending',
   APPROVED: 'Approved',
@@ -1121,10 +1136,17 @@ export function CampaignDrawer() {
 export function ExecuteModal() {
   const app = useApp();
   const c = app.confirmExec;
+  useEscape(!!c, () => app.setConfirmExec(null));
   if (!c) return null;
   return (
     <div className="overlay" onClick={() => app.setConfirmExec(null)}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Confirm run"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3>Confirm run</h3>
         <p>
           You are about to generate a bounded HTTP load of <b>{c.maxRps} rps</b> ({c.concurrency} in
@@ -1153,12 +1175,19 @@ export function ApproveModal() {
     () => setApprover(app.identity?.email ?? app.operator),
     [app.identity, app.operator, c],
   );
+  useEscape(!!c, () => app.setApproveFor(null));
   if (!c) return null;
   const effective = app.authRequired ? (app.identity?.email ?? '') : approver;
   const sameAsAuthor = effective.trim() !== '' && effective.trim() === c.createdBy;
   return (
     <div className="overlay" onClick={() => app.setApproveFor(null)}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Approval — ${c.name}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3>Approval — {c.name}</h3>
         <p>Separation of duties: the approver must differ from the author ({c.createdBy}).</p>
         {app.authRequired ? (
