@@ -59,6 +59,7 @@ export function UplotChart({
   height = 190,
   timeAxis = true,
   yRange,
+  yFromZero = false,
   thresholds,
   onPointClick,
 }: {
@@ -67,6 +68,12 @@ export function UplotChart({
   timeAxis?: boolean;
   /** Fixed left y-scale (e.g. [0, 100] for a score); omit to auto-range. */
   yRange?: [number, number];
+  /**
+   * Auto-range the left y-scale but anchor it at 0 (so a rate line — e.g.
+   * requests/s of any magnitude — is always fully in frame from 0 to its max,
+   * never clipped by uPlot's default range picking a non-zero floor/ceiling).
+   */
+  yFromZero?: boolean;
   /** Dashed horizontal reference lines (e.g. an alert threshold). */
   thresholds?: Threshold[];
   /** Called with the nearest data index when the plot is clicked. */
@@ -84,7 +91,7 @@ export function UplotChart({
   clickRef.current = onPointClick;
   const shapeKey =
     series.map((s) => `${s.label}:${s.axis ?? 'left'}:${s.color ?? ''}`).join('|') +
-    `@${height}@${timeAxis}@${yRange?.join('-') ?? ''}@${(thresholds ?? [])
+    `@${height}@${timeAxis}@${yRange?.join('-') ?? ''}@${yFromZero ? 'z' : ''}@${(thresholds ?? [])
       .map((t) => t.value)
       .join(',')}@${onPointClick ? 'clk' : ''}`;
 
@@ -136,7 +143,15 @@ export function UplotChart({
       cursor: { points: { size: 6 } },
       scales: {
         x: { time: timeAxis },
-        y: yRange ? { range: () => yRange } : {},
+        y: yRange
+          ? { range: () => yRange }
+          : yFromZero
+            ? { range: (_u: uPlot, _min: number, max: number): [number, number] => [0, max > 0 ? max : 1] }
+            : {},
+        // Declare the right scale explicitly (when used) so it is fully
+        // independent of the left one — a percentage series on 'y2' must never
+        // constrain a rate series on 'y' (which would clip requests/s > 100).
+        ...(hasRight ? { y2: {} } : {}),
       },
       axes,
       hooks: {

@@ -752,7 +752,7 @@ function RunTimeline({ samples, csvHref }: { samples: RunSample[]; csvHref?: str
   return (
     <div className="posture">
       <div className="posture-title">Run timeline</div>
-      <UplotChart series={series} height={150} timeAxis={false} />
+      <UplotChart series={series} height={150} timeAxis={false} yFromZero />
       <div className="timeline-legend">
         <span className="hint">over {tMax}s</span>
         {csvHref && (
