@@ -315,6 +315,41 @@ describe('Run Theater', () => {
     await waitFor(() => expect(currentApp.refresh).toHaveBeenCalled());
   });
 
+  it('shows an "origin appears down" card when the sequence auto-paused', async () => {
+    // The sequencer auto-paused because the target stayed unreachable — the gate
+    // must surface DOWN (not a plain "recovering"/"paused") so the operator acts.
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: true, autoPaused: true, downSkips: 2, started: 1, total: 3 } },
+    });
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [
+        {
+          ...scoredCampaign,
+          id: 'm0',
+          name: 'x — y — Search flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 0,
+          status: 'COMPLETED',
+          wrs,
+        },
+        {
+          ...scoredCampaign,
+          id: 'm1',
+          name: 'x — y — POST flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 1,
+          status: 'APPROVED',
+          wrs: undefined,
+        },
+      ],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    await waitFor(() => expect(screen.getByText('Origin appears down')).toBeInTheDocument());
+    expect(screen.getByText(/auto-paused/)).toBeInTheDocument();
+    expect(screen.queryByText('Recovery gate')).not.toBeInTheDocument();
+  });
+
   it('opens the full target-intelligence dossier from the recon strip', async () => {
     fakeApi.suiteSequences.mockResolvedValue({
       sequences: { S1: { paused: false, started: 1, total: 2 } },

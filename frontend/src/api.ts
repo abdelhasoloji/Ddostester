@@ -1054,6 +1054,10 @@ export interface SuiteSequenceState {
   current?: string;
   started: number;
   total: number;
+  /** Paused by the sequencer itself because the target looked genuinely down. */
+  autoPaused?: boolean;
+  /** Consecutive recovery-gate skips for an unreachable target. */
+  downSkips?: number;
 }
 
 export interface SuiteSummary {

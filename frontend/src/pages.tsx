@@ -858,7 +858,15 @@ function SuiteTheater({
     };
   }, [target]);
 
-  const phase = seq?.paused ? 'paused' : runningStep ? 'running' : inGate ? 'gate' : 'settling';
+  const phase = seq?.autoPaused
+    ? 'down'
+    : seq?.paused
+      ? 'paused'
+      : runningStep
+        ? 'running'
+        : inGate
+          ? 'gate'
+          : 'settling';
 
   return (
     <div className="suite-theater">
@@ -952,6 +960,18 @@ function SuiteTheater({
                   Next: <b>{shortStepName(nextStep.name)}</b>.
                 </>
               )}
+            </p>
+          </div>
+        </div>
+      ) : seq?.autoPaused ? (
+        <div className="gate-card down">
+          <div className="gate-text">
+            <div className="gate-title">Origin appears down</div>
+            <p className="hint">
+              <code>{hostOf(target) ?? target}</code> stayed unreachable across {seq.downSkips ?? 2}{' '}
+              recovery checks, so the sequence <b>auto-paused</b> to protect the target — it will
+              not relaunch load onto a downed origin. Bring the origin back, then <b>resume</b> to
+              continue the remaining steps.
             </p>
           </div>
         </div>

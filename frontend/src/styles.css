@@ -3430,6 +3430,18 @@ table.remediations td {
   border-color: var(--warning);
   background: var(--warning-bg);
 }
+.gate-card.down {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.gate-card.down .gate-title {
+  color: var(--danger);
+}
+.phase-down {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
 .gate-scan {
   position: absolute;
   inset: 0;

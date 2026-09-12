@@ -812,7 +812,17 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     current?: string;
     total: number;
     started: number;
+    /** Consecutive recovery-gate skips because the target stayed unreachable. */
+    downSkips: number;
+    /** Paused by the sequencer itself because the target looked genuinely down
+     *  (as opposed to a manual pause). Cleared on resume. */
+    autoPaused?: boolean;
   }
+  // Auto-pause the whole sequence after this many consecutive gate-skips for an
+  // unreachable target — the origin looks genuinely DOWN, so stop grinding
+  // through skips (and never risk relaunching load onto a downed host) and wait
+  // for an operator instead of the target's brief recovery.
+  const AUTO_PAUSE_AFTER_DOWN_SKIPS = 2;
   const suiteRuns = new Map<string, SuiteControl>();
   const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -822,7 +832,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
    *  concurrent sequences (which would run two steps at once). */
   function reserveSuiteRun(suiteId: string): SuiteControl | null {
     if (suiteRuns.has(suiteId)) return null;
-    const ctrl: SuiteControl = { paused: false, cancelled: false, total: 0, started: 0 };
+    const ctrl: SuiteControl = {
+      paused: false,
+      cancelled: false,
+      total: 0,
+      started: 0,
+      downSkips: 0,
+    };
     suiteRuns.set(suiteId, ctrl);
     return ctrl;
   }
@@ -872,9 +888,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           });
           const secs = Math.round(gate.waitedMs / 1000);
           if (!gate.available) {
+            ctrl.downSkips += 1;
             await auditAs(actor, 'suite.skip', c.id, `target unavailable after ${secs}s — skipped`);
+            // The target looks genuinely DOWN (repeated failed recovery). Stop
+            // grinding through skips and auto-pause the whole sequence — never
+            // keep cycling load attempts against a downed origin; wait for an
+            // operator to resume once it is back.
+            if (ctrl.downSkips >= AUTO_PAUSE_AFTER_DOWN_SKIPS && !ctrl.paused) {
+              ctrl.paused = true;
+              ctrl.autoPaused = true;
+              await auditAs(
+                actor,
+                'suite.pause',
+                c.id,
+                `origin unreachable — auto-paused after ${ctrl.downSkips} consecutive skips (protecting the target)`,
+              );
+            }
             continue;
           }
+          ctrl.downSkips = 0;
           await auditAs(actor, 'suite.gate', c.id, `target available after ${secs}s — proceeding`);
         }
         if (ctrl.cancelled) break;
@@ -2075,7 +2107,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.get('/api/suites/sequences', { preHandler: guard('campaign:read') }, async () => {
     const sequences: Record<
       string,
-      { paused: boolean; current?: string; started: number; total: number }
+      {
+        paused: boolean;
+        current?: string;
+        started: number;
+        total: number;
+        autoPaused?: boolean;
+        downSkips: number;
+      }
     > = {};
     for (const [sid, ctrl] of suiteRuns) {
       sequences[sid] = {
@@ -2083,6 +2122,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         current: ctrl.current,
         started: ctrl.started,
         total: ctrl.total,
+        autoPaused: ctrl.autoPaused,
+        downSkips: ctrl.downSkips,
       };
     }
     return { sequences };
@@ -2112,6 +2153,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const ctrl = suiteRuns.get(suiteId);
       if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
       ctrl.paused = false;
+      // Resume clears the auto-pause state and the down-skip counter, so the
+      // gate re-evaluates the target fresh rather than immediately re-pausing.
+      ctrl.autoPaused = false;
+      ctrl.downSkips = 0;
       await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
       return reply.send({ suiteId, paused: false });
     },
