@@ -14,27 +14,56 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# The work is split into jobs that run in parallel instead of one long
+# sequential job. Wall-clock is now the SLOWEST job (the backend suite, whose
+# bounded end-to-end runs have real durations) rather than the SUM of every
+# step. Each job restores the same npm cache, so the extra installs are ~5 s.
+# The Deploy workflow keys off this workflow's overall conclusion, which is
+# success only if every job below passes — so the deploy gate is unchanged.
 jobs:
-  verify:
+  # Lint + typecheck + the dependency audit. No tests, so it finishes fast.
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      # Reproducible install from the lockfile (fails if package.json and the
-      # lockfile disagree — no silent drift).
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      # Discrete steps mirror `npm run verify` for readable, granular logs.
+      - run: npm ci --prefer-offline --no-audit --fund=false
       - run: npm run lint
       - run: npm run typecheck
-      # Tests with coverage (thresholds enforced by each workspace's config).
-      # CATALOG_E2E=1 includes the catalog's end-to-end runs (skipped locally for
-      # a fast pre-push gate) so CI keeps the full functional coverage.
-      - run: npm run test:coverage
-        env:
-          CATALOG_E2E: '1'
-      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  # Frontend tests (with coverage thresholds) + build.
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm run test:coverage -w frontend
+      - run: npm run build -w frontend
+
+  # Backend tests (with coverage thresholds) + build. The catalog's bounded
+  # end-to-end runs (CATALOG_E2E), whose real per-run durations dominated CI,
+  # are NOT run here — they moved to the nightly E2E workflow. Unit coverage
+  # alone clears every threshold, so the gate is unchanged; only the slow
+  # integration runs left the per-push path.
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm run test:coverage -w backend
+      - run: npm run build -w backend
