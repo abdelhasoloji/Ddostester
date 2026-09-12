@@ -317,6 +317,22 @@ export class PostgresStore implements Store {
     return r.rows.map((x) => x.data);
   }
 
+  async deleteCampaigns(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    // Collect the run ids first so we can clean up the (non-FK) wrs_samples;
+    // deleting campaigns cascades to `runs` (ON DELETE CASCADE), never to audit.
+    const runIds = await this.pool.query<{ run_id: string }>(
+      'SELECT run_id FROM runs WHERE campaign_id = ANY($1)',
+      [ids],
+    );
+    const runIdList = runIds.rows.map((r) => r.run_id);
+    if (runIdList.length > 0) {
+      await this.pool.query('DELETE FROM wrs_samples WHERE run_id = ANY($1)', [runIdList]);
+    }
+    const del = await this.pool.query('DELETE FROM campaigns WHERE id = ANY($1)', [ids]);
+    return del.rowCount ?? 0;
+  }
+
   async saveRun(run: CampaignRun): Promise<void> {
     const target = (await this.getCampaign(run.campaignId))?.target ?? '';
     await this.pool.query(

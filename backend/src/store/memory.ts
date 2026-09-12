@@ -48,6 +48,14 @@ export class MemoryStore implements Store {
   async listCampaigns(): Promise<Campaign[]> {
     return [...this.campaigns.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
+  async deleteCampaigns(ids: string[]): Promise<number> {
+    const set = new Set(ids);
+    let removed = 0;
+    for (const id of set) if (this.campaigns.delete(id)) removed++;
+    // Cascade: drop the runs of the removed campaigns.
+    for (const [runId, r] of this.runs) if (set.has(r.campaignId)) this.runs.delete(runId);
+    return removed;
+  }
   async saveRun(r: CampaignRun): Promise<void> {
     this.runs.set(r.runId, r);
   }

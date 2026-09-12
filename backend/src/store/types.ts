@@ -24,6 +24,11 @@ export interface Store {
   saveCampaign(c: Campaign): Promise<void>;
   getCampaign(id: string): Promise<Campaign | undefined>;
   listCampaigns(): Promise<Campaign[]>;
+  /**
+   * Permanently deletes the given campaigns and their runs (admin purge). Returns
+   * how many campaigns were removed. Never deletes the tamper-evident audit log.
+   */
+  deleteCampaigns(ids: string[]): Promise<number>;
   saveRun(r: CampaignRun): Promise<void>;
   getRun(runId: string): Promise<CampaignRun | undefined>;
   /** Run history (all, or filtered by campaign), newest first. */

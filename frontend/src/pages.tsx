@@ -2343,6 +2343,74 @@ export function AuditPage() {
 }
 
 // ---------- Settings ----------
+/** Officer-only destructive purge of test campaigns (kept out of everyday flow). */
+function PurgeCard() {
+  const app = useApp();
+  const [scope, setScope] = useState<'settled' | 'all'>('settled');
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const show = app.authRequired && canDo(app.role, 'manage', app.authRequired);
+  if (!show) return null;
+
+  const purge = async () => {
+    setBusy(true);
+    try {
+      const r = await api.purgeCampaigns(scope);
+      app.push(
+        'success',
+        `Purged ${r.deleted} campaign(s)` +
+          `${r.killedRunning ? `, stopped ${r.killedRunning} running (re-purge once settled)` : ''}.`,
+      );
+      setConfirming(false);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <h2>Purge campaigns</h2>
+      <p className="hint" style={{ marginBottom: '.75rem' }}>
+        Permanently delete test campaigns and their runs. This <b>cannot be undone</b>; the
+        tamper-evident audit log is kept. Officer only, and audited.
+      </p>
+      <div className="row" style={{ gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <select
+          value={scope}
+          aria-label="Purge scope"
+          onChange={(e) => {
+            setScope(e.target.value as 'settled' | 'all');
+            setConfirming(false);
+          }}
+        >
+          <option value="settled">Settled only (completed / killed)</option>
+          <option value="all">Everything (stops running first)</option>
+        </select>
+        {confirming ? (
+          <>
+            <span className="hint" style={{ color: 'var(--danger)' }}>
+              Delete {scope === 'all' ? 'ALL' : 'settled'} campaigns permanently?
+            </span>
+            <button className="btn btn-sm btn-danger" disabled={busy} onClick={purge}>
+              {busy ? 'Purging…' : 'Confirm purge'}
+            </button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-sm btn-danger" onClick={() => setConfirming(true)}>
+            Purge…
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UsersCard() {
   const app = useApp();
   const [users, setUsers] = useState<ManagedUser[] | null>(null);
@@ -3590,6 +3658,7 @@ export function SettingsPage() {
       <BenchCard />
 
       <UsersCard />
+      <PurgeCard />
 
       <NotificationsCard />
 

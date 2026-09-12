@@ -754,6 +754,11 @@ export const api = {
       `/api/suites/${id}/archive`,
       { archived },
     ),
+  /** Admin purge (officer): permanently delete test campaigns + their runs. */
+  purgeCampaigns: (scope: 'settled' | 'all') =>
+    post<{ deleted: number; killedRunning: number; scope: string }>('/api/campaigns/purge', {
+      scope,
+    }),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),

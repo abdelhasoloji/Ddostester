@@ -112,6 +112,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     suiteSequences: vi.fn().mockResolvedValue({ sequences: {} }),
     observabilitySummary: vi.fn().mockResolvedValue([]),
     zones: vi.fn().mockResolvedValue([]),
+    purgeCampaigns: vi.fn().mockResolvedValue({ deleted: 3, killedRunning: 0, scope: 'settled' }),
     compareRuns: vi.fn().mockResolvedValue({
       target: 'h.wedos',
       before: { runId: 'r1', campaign: 'A', at: '', wrs: 41, level: 'D', status: 'KILLED_AUTO' },

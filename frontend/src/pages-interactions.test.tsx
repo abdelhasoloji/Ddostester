@@ -134,6 +134,15 @@ describe('UsersCard interactions', () => {
     await waitFor(() => expect(currentApp.push).toHaveBeenCalledWith('error', 'forbidden'));
   });
 
+  it('purges campaigns after a two-step confirm (officer)', async () => {
+    renderWithRouter(<SettingsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Purge…' }));
+    // Nothing purged until the explicit confirm.
+    expect(fakeApi.purgeCampaigns).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm purge' }));
+    await waitFor(() => expect(fakeApi.purgeCampaigns).toHaveBeenCalledWith('settled'));
+  });
+
   it('deactivates a store user', async () => {
     renderWithRouter(<SettingsPage />);
     await waitFor(() => expect(screen.getByText('eng@wedos')).toBeInTheDocument());

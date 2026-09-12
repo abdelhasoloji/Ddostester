@@ -1860,6 +1860,49 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
+  // Admin purge (officer only): permanently delete test campaigns and their
+  // runs. 'settled' removes only terminal campaigns; 'all' also removes pending/
+  // approved ones and stops (kill-switches) any RUNNING campaign — but never
+  // DELETES a running one (its engine is live), so re-purge after it settles.
+  // The tamper-evident audit log is never touched.
+  const TERMINAL_STATUSES = [
+    'COMPLETED',
+    'KILLED_AUTO',
+    'KILLED_MANUAL',
+    'CANCELLED',
+    'REJECTED',
+  ] as const;
+  app.post('/api/campaigns/purge', { preHandler: guard('user:manage') }, async (req, reply) => {
+    try {
+      const scope = ((req.body ?? {}) as { scope?: string }).scope === 'all' ? 'all' : 'settled';
+      const campaigns = await store.listCampaigns();
+      let killed = 0;
+      if (scope === 'all') {
+        for (const c of campaigns) {
+          if (c.status === 'RUNNING') {
+            kills.get(c.id)?.trigger('KILLED_MANUAL');
+            killed++;
+          }
+        }
+      }
+      const deletable =
+        scope === 'all'
+          ? [...TERMINAL_STATUSES, 'PENDING_APPROVAL', 'APPROVED']
+          : [...TERMINAL_STATUSES];
+      const ids = campaigns.filter((c) => deletable.includes(c.status)).map((c) => c.id);
+      const deleted = await store.deleteCampaigns(ids);
+      await audit(
+        req,
+        'campaign.purge',
+        undefined,
+        `scope=${scope} deleted=${deleted} killed=${killed}`,
+      );
+      return { deleted, killedRunning: killed, scope };
+    } catch (err) {
+      return fail(err, reply);
+    }
+  });
+
   // Archive / un-archive a whole assessment suite in one call (every member).
   app.post(
     '/api/suites/:id/archive',

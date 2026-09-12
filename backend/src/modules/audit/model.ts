@@ -13,6 +13,7 @@ export interface AuditEntry {
     | 'campaign.kill'
     | 'campaign.cancel'
     | 'campaign.archive'
+    | 'campaign.purge'
     | 'user.upsert'
     | 'user.delete'
     | 'user.status'
