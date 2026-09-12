@@ -313,7 +313,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   // ── Composing several templates into one campaign (suite) ──────────────────
   // Mirrors backend MAX_COMPOSITE_STEPS (config/limits.ts); the server enforces
   // it authoritatively, this only gives early feedback.
-  const MAX_COMPOSITE_STEPS = 24;
+  const MAX_COMPOSITE_STEPS = 200;
   const toggleSelect = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   // Selected templates in click order, so the composed sequence is predictable.

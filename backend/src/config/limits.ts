@@ -189,7 +189,10 @@ export const MAX_PLAYBOOK_STEPS = 12;
 export const MAX_PLAYBOOK_HEADERS = 10;
 /**
  * Max total steps when several templates are composed into one suite
- * (`POST /api/suites/compose`). Bounds the length of an operator-assembled
- * sequence; each composed campaign is still capped individually.
+ * (`POST /api/suites/compose`). A high sanity bound against pathological input
+ * (a runaway operator-assembled sequence) rather than a practical limit — a
+ * full multi-template "compose everything" suite fits comfortably. Each composed
+ * campaign is still capped individually, and the sequencer runs them one at a
+ * time behind the recovery gate.
  */
-export const MAX_COMPOSITE_STEPS = 24;
+export const MAX_COMPOSITE_STEPS = 200;
