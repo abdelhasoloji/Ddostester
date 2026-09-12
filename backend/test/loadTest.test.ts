@@ -369,4 +369,32 @@ describe('builtin engine — hard backstop (requests that never return)', () => 
     expect(r).toBeDefined();
     expect(r.totalRequests).toBeGreaterThanOrEqual(0);
   }, 30000);
+
+  it('a kill settles the run promptly instead of waiting out its full duration', async () => {
+    // The target never responds and the per-request timeout is far past the
+    // (long) run duration, so nothing but the kill can end this run early. A
+    // kill fired shortly after start must collapse the backstop to its short
+    // grace — the run settles in well under its 40s natural deadline. Before the
+    // kill-aware backstop, a kill on stuck workers waited the full duration.
+    const kill = new AbortController();
+    setTimeout(() => kill.abort(), 300).unref?.();
+    const start = Date.now();
+    const r = await runLoadTest(
+      {
+        url: `${base}/`,
+        concurrency: 8,
+        durationSec: 40,
+        maxRps: 40,
+        authorized: true,
+        timeoutMs: 60000,
+      },
+      ['127.0.0.1'],
+      kill.signal,
+    );
+    const elapsedMs = Date.now() - start;
+    expect(r).toBeDefined();
+    // Kill grace (15s) + margin, and far below the 40s deadline + 15s grace it
+    // would otherwise have waited.
+    expect(elapsedMs).toBeLessThan(25000);
+  }, 30000);
 });

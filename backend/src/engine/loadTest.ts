@@ -15,6 +15,14 @@ export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
 
 /**
+ * Grace after a kill fires before the run is force-settled, when workers are
+ * stranded in an un-abortable queued fetch (undici pool exhaustion). Abortable
+ * in-flight requests unwind well within this; the rest are abandoned. Keeps a
+ * manual/suite kill responsive instead of waiting out the run's full duration.
+ */
+export const KILL_BACKSTOP_GRACE_MS = 15_000;
+
+/**
  * Builds a weighted picker over endpoints. Returns a function that, given a
  * random number in [0,1), yields the chosen endpoint in proportion to weights
  * (default weight 1). Pure and deterministic for a given `rand`, so it is
@@ -464,11 +472,28 @@ export async function runLoadTest(
     // far; their sockets are reclaimed as the process continues.
     const graceMs = Math.max(0, deadline - Date.now()) + 15_000;
     const backstop = new Promise<void>((resolve) => {
-      const t = setTimeout(() => {
+      const finish = (): void => {
         abandoned = true;
         resolve();
-      }, graceMs);
+      };
+      const t = setTimeout(finish, graceMs);
       t.unref?.();
+      // A manual/suite kill must take effect PROMPTLY, not only at the run's
+      // natural deadline. When workers are stuck in an un-abortable queued fetch
+      // (undici pool exhaustion at high concurrency), aborting the kill signal
+      // does not free them — so without this a killed run keeps waiting out its
+      // full configured duration + grace (an operator clicks "kill" and nothing
+      // stops for minutes). Once the kill fires, collapse the backstop to a
+      // short grace: abortable requests unwind within it, truly-stuck sockets are
+      // abandoned and reclaimed. Whichever backstop fires first wins.
+      if (killSignal) {
+        const onKill = (): void => {
+          const k = setTimeout(finish, KILL_BACKSTOP_GRACE_MS);
+          k.unref?.();
+        };
+        if (killSignal.aborted) onKill();
+        else killSignal.addEventListener('abort', onKill, { once: true });
+      }
     });
     await Promise.race([workers, backstop]);
     if (abandoned) {
