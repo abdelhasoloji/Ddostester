@@ -490,7 +490,15 @@ const SUITE_TERMINAL: CampaignStatus[] = [
 /** Recon posture of the suite's target — what the assessment is up against.
  *  Foregrounds the reconnaissance the tool already performed (seeded paths,
  *  edge posture, preflight verdict). */
-function ReconStrip({ recon, loading }: { recon: ReconReport | null; loading: boolean }) {
+function ReconStrip({
+  recon,
+  loading,
+  onOpen,
+}: {
+  recon: ReconReport | null;
+  loading: boolean;
+  onOpen?: () => void;
+}) {
   if (!recon) {
     return (
       <div className="recon-strip">
@@ -516,7 +524,12 @@ function ReconStrip({ recon, loading }: { recon: ReconReport | null; loading: bo
   ];
   const seeded = recon.suggestedPaths?.length ?? 0;
   return (
-    <div className="recon-strip">
+    <button
+      type="button"
+      className="recon-strip clickable"
+      onClick={onOpen}
+      title="Open the full target intelligence"
+    >
       <span className="recon-label">🔎 Recon</span>
       {p.server && <span className="recon-chip srv">{p.server}</span>}
       {recon.profile.protocols?.http2 && <span className="recon-chip srv">HTTP/2</span>}
@@ -530,6 +543,246 @@ function ReconStrip({ recon, loading }: { recon: ReconReport | null; loading: bo
       <span className={`recon-chip ${recon.preflight.go ? 'go' : 'nogo'}`}>
         {recon.preflight.go ? 'preflight GO' : '⚠ preflight NO-GO'}
       </span>
+      <span className="recon-more">full intel →</span>
+    </button>
+  );
+}
+
+/** Humanised labels for the inferred defense controls (seededProfile). */
+const CONTROL_LABELS: Record<string, string> = {
+  synFloodProtection: 'SYN-flood protection',
+  slowRequestTimeout: 'Slow-request timeout',
+  rateLimiting: 'Rate limiting',
+  originShielding: 'Origin shielding',
+  cacheKeyPolicy: 'Cache-key policy',
+  urlAllowlist: 'URL allowlist',
+  methodPolicy: 'Method policy',
+  http2Guard: 'HTTP/2 guard',
+  challenge: 'Challenge / JS / CAPTCHA',
+  wafSignatures: 'WAF signatures',
+  bruteForceProtection: 'Brute-force protection',
+};
+
+/** The full target-intelligence dossier — every field recon returns, laid out
+ *  as a scannable dossier. Opened from the recon strip. */
+function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const p = recon.profile;
+  const post = p.posture;
+  const b = recon.baseline;
+  const host = hostOf(recon.target) ?? recon.target;
+  const yn = (v: boolean) => (v ? 'yes' : 'no');
+  const fingerprint: { k: string; v: string; on?: boolean }[] = [
+    { k: 'Server', v: post.server || p.server || '—' },
+    { k: 'Vendor', v: p.vendor || '—' },
+    { k: 'TLS', v: p.tls || '—' },
+    { k: 'HTTP/2', v: yn(p.protocols?.http2), on: p.protocols?.http2 },
+    { k: 'HTTP/3', v: yn(p.protocols?.http3), on: p.protocols?.http3 },
+    { k: 'Cache', v: p.cache ?? 'unknown' },
+  ];
+  const edge: { k: string; on: boolean }[] = [
+    { k: 'WAF', on: post.waf },
+    { k: 'CDN', on: post.cdn },
+    { k: 'Rate limiting', on: post.rateLimiting },
+    { k: 'Load balancer', on: post.loadBalancer },
+    { k: 'HSTS', on: post.hsts },
+  ];
+  const controls = Object.entries(recon.seededProfile ?? {});
+  const paths = recon.suggestedPaths ?? recon.surface?.paths ?? [];
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        className="modal recon-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Target intelligence for ${host}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="recon-modal-head">
+          <div>
+            <h3>Target intelligence</h3>
+            <span className="hint">
+              <code>{host}</code>
+              {recon.generatedAt ? ` · profiled ${relTime(recon.generatedAt)}` : ''}
+            </span>
+          </div>
+          <span className={`recon-verdict ${recon.preflight.go ? 'go' : 'nogo'}`}>
+            {recon.preflight.go ? '✓ preflight GO' : '⚠ preflight NO-GO'}
+          </span>
+          <button className="recon-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        <div className="recon-modal-body">
+          <section className="recon-sec">
+            <h4>Fingerprint</h4>
+            <div className="recon-kv-grid">
+              {fingerprint.map((f) => (
+                <div key={f.k} className="recon-kv">
+                  <span className="rk">{f.k}</span>
+                  <span className={`rv ${f.on === true ? 'good' : ''}`}>{f.v}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="recon-sec">
+            <h4>Edge posture</h4>
+            <div className="recon-chip-row">
+              {edge.map((c) => (
+                <span key={c.k} className={`recon-chip lg ${c.on ? 'on' : 'off'}`}>
+                  {c.on ? '✓' : '✗'} {c.k}
+                </span>
+              ))}
+            </div>
+            {post.signals?.length > 0 && (
+              <div className="recon-sub">
+                <span className="rk">Signals</span>
+                <div className="recon-chip-row">
+                  {post.signals.map((s, i) => (
+                    <span key={i} className="recon-chip sig">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {post.securityHeaders?.length > 0 && (
+              <div className="recon-sub">
+                <span className="rk">Security headers</span>
+                <div className="recon-chip-row">
+                  {post.securityHeaders.map((h) => (
+                    <span key={h} className="recon-chip on mono">
+                      {h}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="recon-sec">
+            <h4>Baseline (pre-load)</h4>
+            <div className="recon-stat-row">
+              <div className="recon-stat">
+                <div className="rs-v good">{b?.availabilityPct ?? 100}%</div>
+                <div className="rs-k">availability</div>
+              </div>
+              <div className="recon-stat">
+                <div className="rs-v">
+                  {b?.latencyP50 != null ? `${Math.round(b.latencyP50)}ms` : '—'}
+                </div>
+                <div className="rs-k">p50 latency</div>
+              </div>
+              <div className="recon-stat">
+                <div className="rs-v">
+                  {b?.latencyP95 != null ? `${Math.round(b.latencyP95)}ms` : '—'}
+                </div>
+                <div className="rs-k">p95 latency</div>
+              </div>
+              <div className="recon-stat">
+                <div className="rs-v">
+                  {b?.latencyMean != null ? `${Math.round(b.latencyMean)}ms` : '—'}
+                </div>
+                <div className="rs-k">mean</div>
+              </div>
+              <div className="recon-stat">
+                <div className="rs-v">{b?.samples ?? 0}</div>
+                <div className="rs-k">samples</div>
+              </div>
+            </div>
+          </section>
+
+          {controls.length > 0 && (
+            <section className="recon-sec">
+              <h4>Inferred defense controls</h4>
+              <div className="recon-ctrl-grid">
+                {controls.map(([key, status]) => (
+                  <div key={key} className="recon-ctrl">
+                    <span className="rc-name">{CONTROL_LABELS[key] ?? key}</span>
+                    <span className={`rc-status rc-${status}`}>{status}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="recon-sec">
+            <h4>Attack surface</h4>
+            {recon.loginPath && (
+              <div className="recon-sub">
+                <span className="rk">Login</span>
+                <span className="recon-chip login mono">{recon.loginPath}</span>
+              </div>
+            )}
+            {paths.length > 0 ? (
+              <div className="recon-sub">
+                <span className="rk">Seeded paths ({paths.length})</span>
+                <div className="recon-chip-row wrap">
+                  {paths.map((pt, i) => (
+                    <span key={i} className="recon-chip path mono">
+                      {pt}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="hint">No real paths discovered — templates in use.</p>
+            )}
+            {recon.surface?.sitemaps?.length > 0 && (
+              <div className="recon-sub">
+                <span className="rk">Sitemaps</span>
+                <div className="recon-chip-row wrap">
+                  {recon.surface.sitemaps.map((s, i) => (
+                    <span key={i} className="recon-chip mono">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {recon.surface?.disallow?.length > 0 && (
+              <div className="recon-sub">
+                <span className="rk">robots.txt disallow</span>
+                <div className="recon-chip-row wrap">
+                  {recon.surface.disallow.map((s, i) => (
+                    <span key={i} className="recon-chip off mono">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {recon.preflight.items?.length > 0 && (
+            <section className="recon-sec">
+              <h4>Preflight checklist</h4>
+              <ul className="recon-preflight">
+                {recon.preflight.items.map((it) => (
+                  <li key={it.key} className={it.ok ? 'ok' : it.required ? 'fail' : 'warn'}>
+                    <span className="pf-icon">{it.ok ? '✓' : it.required ? '✕' : '▲'}</span>
+                    <span className="pf-body">
+                      <b>{it.label}</b>
+                      {!it.required && !it.ok && <span className="pf-opt"> (optional)</span>}
+                      {it.detail && <span className="pf-detail">{it.detail}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -569,6 +822,7 @@ function SuiteTheater({
 
   const [recon, setRecon] = useState<ReconReport | null>(null);
   const [reconLoading, setReconLoading] = useState(false);
+  const [reconOpen, setReconOpen] = useState(false);
   useEffect(() => {
     if (!target) return;
     let alive = true;
@@ -608,7 +862,8 @@ function SuiteTheater({
         </div>
       </div>
 
-      <ReconStrip recon={recon} loading={reconLoading} />
+      <ReconStrip recon={recon} loading={reconLoading} onOpen={() => setReconOpen(true)} />
+      {reconOpen && recon && <ReconDetailModal recon={recon} onClose={() => setReconOpen(false)} />}
 
       <div className="stepper" role="list">
         {ordered.map((c, i) => {

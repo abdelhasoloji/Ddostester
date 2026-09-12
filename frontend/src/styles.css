@@ -3495,6 +3495,278 @@ table.remediations td {
   }
 }
 
+/* Recon strip as a button + the full target-intelligence dossier modal. */
+.recon-strip.clickable {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.recon-strip.clickable:hover {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface-2));
+}
+.recon-strip.clickable:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.recon-more {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.recon-modal {
+  max-width: 760px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.recon-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 1.1rem 1.3rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 8%, var(--surface)),
+    var(--surface)
+  );
+}
+.recon-modal-head h3 {
+  margin: 0 0 2px;
+}
+.recon-verdict {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.recon-verdict.go {
+  color: var(--success);
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.recon-verdict.nogo {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.recon-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.recon-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.recon-modal-body {
+  overflow-y: auto;
+  padding: 1rem 1.3rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.recon-sec h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.recon-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.recon-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.recon-kv .rk,
+.recon-sub .rk {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.recon-kv .rv {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.recon-kv .rv.good {
+  color: var(--success);
+}
+.recon-chip-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.recon-chip.lg {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+.recon-chip.sig,
+.recon-chip.path,
+.recon-chip.mono {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+.recon-chip.sig {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+.recon-chip.path {
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 35%, transparent);
+}
+.recon-sub {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.recon-stat-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.recon-stat {
+  flex: 1;
+  min-width: 84px;
+  text-align: center;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.recon-stat .rs-v {
+  font-size: 1.3rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.recon-stat .rs-v.good {
+  color: var(--success);
+}
+.recon-stat .rs-k {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.recon-ctrl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+}
+.recon-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.rc-name {
+  font-size: 0.8rem;
+}
+.rc-status {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.rc-present {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+}
+.rc-partial {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+.rc-absent {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.rc-unknown {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.recon-preflight {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.recon-preflight li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.recon-preflight .pf-icon {
+  font-weight: 800;
+  line-height: 1.3;
+}
+.recon-preflight li.ok .pf-icon {
+  color: var(--success);
+}
+.recon-preflight li.fail .pf-icon {
+  color: var(--danger);
+}
+.recon-preflight li.warn .pf-icon {
+  color: var(--warning);
+}
+.recon-preflight .pf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.82rem;
+}
+.recon-preflight .pf-opt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.recon-preflight .pf-detail {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 /* Graduated probe-health badge (live drawer + progress line): an early amber
    'degraded' warning, then a red 'critical' as the target nears the auto-kill
    threshold — visible before any hard kill. */

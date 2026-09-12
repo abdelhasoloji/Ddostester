@@ -246,6 +246,43 @@ describe('Run Theater', () => {
     // The next step appears in the stepper and again in the gate's "Next:" line.
     expect(screen.getAllByText('POST flood (A)').length).toBeGreaterThan(0);
   });
+
+  it('opens the full target-intelligence dossier from the recon strip', async () => {
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: false, started: 1, total: 2 } },
+    });
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [
+        {
+          ...scoredCampaign,
+          id: 'm0',
+          name: 'x — y — Search flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 0,
+          status: 'COMPLETED',
+          wrs,
+        },
+        {
+          ...scoredCampaign,
+          id: 'm1',
+          name: 'x — y — POST flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 1,
+          status: 'APPROVED',
+          wrs: undefined,
+        },
+      ],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    const strip = await screen.findByTitle('Open the full target intelligence');
+    fireEvent.click(strip);
+    // The dossier renders the full detail: heading, sections, and a seeded path.
+    expect(screen.getByRole('dialog', { name: /Target intelligence/ })).toBeInTheDocument();
+    expect(screen.getByText('Fingerprint')).toBeInTheDocument();
+    expect(screen.getByText('Edge posture')).toBeInTheDocument();
+    expect(screen.getByText('/search')).toBeInTheDocument();
+  });
 });
 
 describe('Results page', () => {
