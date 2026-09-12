@@ -3,6 +3,14 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
+    // These suites are dominated by real-time WAITS (bounded run durations,
+    // deadline/backstop timers, probe intervals), not CPU — so on a CI runner
+    // with few cores they serialise and wall-clock balloons. Overlap far more
+    // files than the core count to hide those waits behind each other. Safe:
+    // there is no shared mutable state across test files (no localStorage/db;
+    // each builds its own in-memory store and binds ephemeral ports).
+    pool: 'forks',
+    poolOptions: { forks: { minForks: 4, maxForks: 8 } },
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'html', 'lcov'],
