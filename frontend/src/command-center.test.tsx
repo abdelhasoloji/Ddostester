@@ -151,6 +151,39 @@ describe('Command Center', () => {
     expect(screen.getByText('For you')).toBeInTheDocument();
     expect(screen.getByText(/No runs yet/)).toBeInTheDocument();
   });
+
+  it('does not count suite steps of an active sequence as awaiting approval', async () => {
+    // The sequencer auto-approves each step just-in-time, so a PENDING step of a
+    // live suite is NOT an officer action item.
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: false, started: 1, total: 3 } },
+    });
+    currentApp = makeApp({
+      role: 'officer',
+      identity: { email: 'off@wedos', role: 'officer' },
+      campaigns: [
+        { ...scoredCampaign, id: 's-a', status: 'PENDING_APPROVAL', suiteId: 'S1', wrs: undefined },
+        { ...scoredCampaign, id: 's-b', status: 'PENDING_APPROVAL', suiteId: 'S1', wrs: undefined },
+      ],
+    });
+    renderWithRouter(<CommandCenterPage />);
+    // Once the sequence poll resolves, the false "awaiting approval" queue clears.
+    await waitFor(() =>
+      expect(screen.queryByText(/awaiting your approval/)).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText(/No approvals waiting/)).toBeInTheDocument();
+  });
+
+  it('still counts a genuinely-pending non-suite campaign', async () => {
+    fakeApi.suiteSequences.mockResolvedValue({ sequences: {} });
+    currentApp = makeApp({
+      role: 'officer',
+      identity: { email: 'off@wedos', role: 'officer' },
+      campaigns: [{ ...scoredCampaign, id: 'p1', status: 'PENDING_APPROVAL', wrs: undefined }],
+    });
+    renderWithRouter(<CommandCenterPage />);
+    expect(screen.getByText(/awaiting your approval/)).toBeInTheDocument();
+  });
 });
 
 describe('Run Theater', () => {

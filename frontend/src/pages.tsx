@@ -155,7 +155,15 @@ const gradeFromScore = (n: number): WrsBreakdown['level'] =>
 function RoleFocus() {
   const app = useApp();
   const role = app.role;
-  const pending = app.campaigns.filter((c) => c.status === 'PENDING_APPROVAL');
+  // Steps of an actively-sequencing suite are auto-approved just-in-time by the
+  // sequencer — they are not an action item for the officer, so exclude them
+  // from the "awaiting approval" count (they'd otherwise show as a false queue
+  // right after the operator clicked "Run suite").
+  const seqs = useSuiteSequences();
+  const inActiveSequence = (c: Campaign) => !!c.suiteId && c.suiteId in seqs;
+  const pending = app.campaigns.filter(
+    (c) => c.status === 'PENDING_APPROVAL' && !inActiveSequence(c),
+  );
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   let label = 'For the Engineer';
   let body: React.ReactNode = running.length ? (
