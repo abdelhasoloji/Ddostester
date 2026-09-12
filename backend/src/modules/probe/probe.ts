@@ -103,7 +103,25 @@ export class Probe {
    */
   async run(hardDeadlineMs?: number): Promise<void> {
     while (!this.kill.killed && (hardDeadlineMs === undefined || Date.now() < hardDeadlineMs)) {
-      await this.tick();
+      if (hardDeadlineMs === undefined) {
+        await this.tick();
+      } else {
+        // Bound the tick by the hard deadline. A request queued on an exhausted
+        // HTTP pool (undici) can hang past its own timeout — un-abortable — which
+        // would otherwise keep this loop (and the run's Promise.all) open forever
+        // and let the load run past its cap. Race the tick against the remaining
+        // wall-clock so run() ALWAYS returns by the deadline; a still-pending tick
+        // is abandoned (its sample just never lands).
+        const remaining = hardDeadlineMs - Date.now();
+        if (remaining <= 0) break;
+        let timer: ReturnType<typeof setTimeout>;
+        const bound = new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, remaining);
+          timer.unref?.();
+        });
+        await Promise.race([this.tick().finally(() => clearTimeout(timer)), bound]);
+        if (Date.now() >= hardDeadlineMs) break;
+      }
       await this.sleep(this.intervalMs);
     }
   }
