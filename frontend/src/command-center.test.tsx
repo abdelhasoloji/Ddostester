@@ -226,6 +226,37 @@ describe('Run Theater', () => {
     expect(screen.getByText('80')).toBeInTheDocument(); // 800/1000 offered → 80% absorbed
   });
 
+  it('shows connection-hold cards (not request cards) for a slowloris run', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING', vector: 'http-slowloris' }],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    expect(esInstances.length).toBeGreaterThan(0);
+    act(() => {
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 300, // connections opened
+          successful: 5, // currently held
+          failed: 295, // shed by target
+          elapsedSec: 20,
+          actualRps: 0,
+          maxDurationSec: 300,
+          engine: 'builtin-http',
+          probe: { samples: 5, available: 5, errorRate5xx: 0 },
+        }),
+      });
+    });
+    // Slowloris story, not the request-rate cards.
+    expect(screen.getByText('Connections opened')).toBeInTheDocument();
+    expect(screen.getByText('Currently held')).toBeInTheDocument();
+    expect(screen.getByText('Shed by target')).toBeInTheDocument();
+    expect(screen.queryByText('Offered')).not.toBeInTheDocument();
+    expect(screen.getByText('300')).toBeInTheDocument(); // opened
+    expect(screen.getByText(/98%/)).toBeInTheDocument(); // 295/300 shed
+  });
+
   it('surfaces a dropped stream instead of spinning forever', () => {
     currentApp = makeApp({
       role: 'engineer',

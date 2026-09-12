@@ -245,6 +245,7 @@ export function RunTheater({
   name,
   target,
   engine,
+  vector,
   onKill,
   killing,
 }: {
@@ -252,6 +253,9 @@ export function RunTheater({
   name: string;
   target: string;
   engine?: string;
+  /** The load vector — drives which live cards make sense (a slowloris holds
+   *  connections rather than streaming requests, so it shows a different set). */
+  vector?: string;
   onKill?: () => void;
   killing?: boolean;
 }) {
@@ -293,6 +297,11 @@ export function RunTheater({
     ? Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100))
     : 0;
   const eng = p?.engine ?? engine;
+  // A slow-header (SlowLoris) run holds connections instead of streaming
+  // requests — request/s cards read as all-zero and look "dead". Surface the
+  // connection-hold story instead: opened / currently held / shed by the target.
+  const isSlowloris = vector === 'http-slowloris';
+  const shedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0;
 
   return (
     <div className="theater">
@@ -338,30 +347,60 @@ export function RunTheater({
       ) : (
         <>
           <div className="theater-grid">
-            <div className="theater-metric">
-              <div className="tm-k">Offered</div>
-              <div className="tm-v">
-                {offered.toFixed(0)}
-                <small>req/s</small>
-              </div>
-            </div>
-            <div className="theater-metric">
-              <div className="tm-k">Reached origin</div>
-              <div className="tm-v good">
-                {originRps.toFixed(0)}
-                <small>req/s</small>
-              </div>
-            </div>
-            <div className="theater-metric absorb">
-              <div className="tm-k">Absorbed by edge</div>
-              <div className="tm-v warnv">
-                {absorbedPct}
-                <small>%</small>
-              </div>
-              <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
-                <div className="absorb-fill" style={{ width: `${Math.min(100, absorbedPct)}%` }} />
-              </div>
-            </div>
+            {isSlowloris ? (
+              <>
+                <div className="theater-metric">
+                  <div className="tm-k">Connections opened</div>
+                  <div className="tm-v">{p.sent}</div>
+                </div>
+                <div className="theater-metric">
+                  <div className="tm-k">Currently held</div>
+                  <div className="tm-v good">{p.successful}</div>
+                </div>
+                <div className="theater-metric absorb">
+                  <div className="tm-k">Shed by target</div>
+                  <div className="tm-v warnv">
+                    {p.failed} <small>· {shedPct}%</small>
+                  </div>
+                  <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
+                    <div className="absorb-fill" style={{ width: `${Math.min(100, shedPct)}%` }} />
+                  </div>
+                  <div className="hint" style={{ marginTop: '.35rem' }}>
+                    high shed = good defense (target drops slow requests)
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="theater-metric">
+                  <div className="tm-k">Offered</div>
+                  <div className="tm-v">
+                    {offered.toFixed(0)}
+                    <small>req/s</small>
+                  </div>
+                </div>
+                <div className="theater-metric">
+                  <div className="tm-k">Reached origin</div>
+                  <div className="tm-v good">
+                    {originRps.toFixed(0)}
+                    <small>req/s</small>
+                  </div>
+                </div>
+                <div className="theater-metric absorb">
+                  <div className="tm-k">Absorbed by edge</div>
+                  <div className="tm-v warnv">
+                    {absorbedPct}
+                    <small>%</small>
+                  </div>
+                  <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
+                    <div
+                      className="absorb-fill"
+                      style={{ width: `${Math.min(100, absorbedPct)}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <div className="theater-metric">
               <div className="tm-k">
                 Legit probe

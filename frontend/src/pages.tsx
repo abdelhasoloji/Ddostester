@@ -934,6 +934,7 @@ function SuiteTheater({
           name={shortStepName(runningStep.name)}
           target={runningStep.target}
           engine={runningStep.agent}
+          vector={runningStep.vector}
           onKill={() => onKill(runningStep)}
           killing={busy[runningStep.id]}
         />
@@ -1049,6 +1050,7 @@ export function RunTheaterPage() {
                 campaignId={current.id}
                 name={current.name}
                 target={current.target}
+                vector={current.vector}
                 onKill={() => app.kill(current)}
                 killing={app.busy[current.id]}
               />

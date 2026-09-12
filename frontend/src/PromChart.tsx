@@ -146,7 +146,12 @@ export function UplotChart({
         y: yRange
           ? { range: () => yRange }
           : yFromZero
-            ? { range: (_u: uPlot, _min: number, max: number): [number, number] => [0, max > 0 ? max : 1] }
+            ? {
+                range: (_u: uPlot, _min: number, max: number): [number, number] => [
+                  0,
+                  max > 0 ? max : 1,
+                ],
+              }
             : {},
         // Declare the right scale explicitly (when used) so it is fully
         // independent of the left one — a percentage series on 'y2' must never
