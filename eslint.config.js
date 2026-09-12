@@ -4,7 +4,9 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**', '**/*.d.ts'] },
+  // `.claude/` holds ephemeral agent worktrees (full repo checkouts); never lint
+  // a second copy of the tree.
+  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**', '**/*.d.ts', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
