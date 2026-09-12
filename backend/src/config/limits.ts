@@ -196,3 +196,12 @@ export const MAX_PLAYBOOK_HEADERS = 10;
  * time behind the recovery gate.
  */
 export const MAX_COMPOSITE_STEPS = 200;
+
+/**
+ * Throughput ceiling of the in-process built-in generator (rps). Above this it
+ * saturates its own event loop / shared connection pool and under-delivers, so a
+ * high-rate simple flood is auto-routed to an out-of-process engine (vegeta/k6)
+ * when one is available — see modules/campaigns/engine-route.ts. Observed live:
+ * built-in steps configured at 300–800 rps all capped ~130–141 rps.
+ */
+export const BUILTIN_RPS_CEILING = 150;

@@ -28,7 +28,14 @@ import { waitForTargetAvailable, type RecoveryOptions } from './modules/campaign
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './modules/campaigns/model.js';
-import { HARD_CAPS, MAX_COMPOSITE_STEPS, clampToCeiling, withinCeiling } from './config/limits.js';
+import {
+  HARD_CAPS,
+  MAX_COMPOSITE_STEPS,
+  BUILTIN_RPS_CEILING,
+  clampToCeiling,
+  withinCeiling,
+} from './config/limits.js';
+import { highRateEngineUpgrade } from './modules/campaigns/engine-route.js';
 import type { HardCaps } from './config/limits.js';
 import {
   BENCH_SCENARIOS,
@@ -103,6 +110,13 @@ export interface BuildOptions {
   serveStatic?: boolean;
   /** Load agent (default: built-in bounded HTTP generator). */
   agent?: AttackAgent;
+  /**
+   * Auto-route a high-rate simple flood off the built-in engine (which caps
+   * ~150 rps) onto an available out-of-process engine so it delivers the
+   * configured rate. Default true; set false to pin every run to its chosen
+   * engine (e.g. for deterministic tests).
+   */
+  autoRouteHighRps?: boolean;
   /** Notification sink (default: no-op — notifications are opt-in). */
   notifier?: Notifier;
   /** Protection integration for real detection/mitigation (default: no-op). */
@@ -411,6 +425,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     let runAgent = createAgent(c.agent) ?? agent;
     if (runAgent !== agent && !(await runAgent.available())) {
       runAgent = agent;
+    }
+    // Measurement fidelity: the in-process built-in generator caps out ~150 rps
+    // and silently under-delivers above it. When a high-rate simple flood would
+    // run on the built-in engine, auto-route it to an out-of-process engine
+    // (vegeta/k6) that can actually deliver the configured rate — but only if
+    // that engine is installed; otherwise keep built-in (still bounded/safe,
+    // just rate-limited). See modules/campaigns/engine-route.ts.
+    if ((opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
+      const upgradeId = highRateEngineUpgrade(c, BUILTIN_RPS_CEILING);
+      if (upgradeId) {
+        const upgraded = createAgent(upgradeId);
+        if (upgraded && (await upgraded.available())) {
+          app.log.info(
+            { evt: 'run.autoroute', campaignId: c.id, to: upgradeId, maxRps: c.maxRps },
+            `auto-routed to ${upgradeId} (maxRps ${c.maxRps} > built-in ceiling ${BUILTIN_RPS_CEILING} rps)`,
+          );
+          runAgent = upgraded;
+        }
+      }
     }
     // Track the worst event-loop lag seen during the run so we can flag the WRS
     // as measurement-degraded if the generator host was itself struggling.
