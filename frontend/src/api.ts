@@ -540,6 +540,43 @@ export function compareUrl(runIdA: string, runIdB: string): string {
   return token ? `${u}&token=${encodeURIComponent(token)}` : u;
 }
 
+/** Structured before/after comparison of two runs (Mitigation Proof). */
+export interface MetricDelta {
+  key: string;
+  label: string;
+  unit?: string;
+  before: number | null;
+  after: number | null;
+  delta: number | null;
+  betterWhenUp: boolean;
+  improved: boolean | null;
+}
+export interface RunComparisonSide {
+  runId: string;
+  campaign: string;
+  at: string;
+  wrs: number;
+  level: string;
+  status: string;
+}
+export interface RunComparison {
+  target: string;
+  before: RunComparisonSide;
+  after: RunComparisonSide;
+  wrsDelta: number;
+  levelBefore: string;
+  levelAfter: string;
+  verdict: 'improved' | 'regressed' | 'unchanged';
+  headline: string;
+  metrics: MetricDelta[];
+  remainingRemediations: {
+    id: string;
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    weakness: string;
+    remediation: string;
+  }[];
+}
+
 /** URL of an assessment suite's consolidated HTML report. */
 export function suiteReportUrl(suiteId: string): string {
   const u = `/api/suites/${suiteId}/report`;
@@ -714,6 +751,11 @@ export const api = {
   observabilitySummary: () => get<AbsorptionSummaryRow[]>('/api/observability/summary'),
   /** Per-protected-zone assurance posture (WEDOS-Protection framing). */
   zones: () => get<ZoneSummary[]>('/api/zones'),
+  /** Structured before/after comparison of two runs (Mitigation Proof). */
+  compareRuns: (a: string, b: string) =>
+    get<RunComparison>(
+      `/api/reports/compare.json?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
+    ),
   metricsRange: (
     series: string,
     opts: { target?: string; minutes?: number; step?: number } = {},

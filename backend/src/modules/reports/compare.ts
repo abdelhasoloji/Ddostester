@@ -1,6 +1,8 @@
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { mitigationVerdict, riskLevel } from './compliance.js';
+import { deriveRemediations } from './remediations.js';
+import type { Remediation } from './remediations.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
@@ -14,6 +16,152 @@ import { hostOf } from '../../util/net.js';
 export interface CompareSide {
   campaign: Campaign;
   run: CampaignRun;
+}
+
+// --- Structured comparison (Mitigation Proof) --------------------------------
+// The verdict/delta logic used to live only inside the HTML template. Promoted
+// here as a pure, reusable object so the UI and API can consume it directly.
+
+export type CompareVerdict = 'improved' | 'regressed' | 'unchanged';
+
+export interface MetricDelta {
+  key: string;
+  label: string;
+  unit?: string;
+  /** null when the metric is absent on a run (e.g. old runs lack absorption). */
+  before: number | null;
+  after: number | null;
+  /** after − before, or null when either side is missing. */
+  delta: number | null;
+  /** Whether a higher value is the good direction. */
+  betterWhenUp: boolean;
+  /** true = moved the good way · false = the bad way · null = no change / n/a. */
+  improved: boolean | null;
+}
+
+export interface RunComparison {
+  target: string;
+  before: RunComparisonSide;
+  after: RunComparisonSide;
+  wrsDelta: number;
+  levelBefore: string;
+  levelAfter: string;
+  verdict: CompareVerdict;
+  headline: string;
+  metrics: MetricDelta[];
+  /** What still needs fixing on the "after" run (empty when it held cleanly). */
+  remainingRemediations: Remediation[];
+}
+
+export interface RunComparisonSide {
+  runId: string;
+  campaign: string;
+  at: string;
+  wrs: number;
+  level: string;
+  status: string;
+}
+
+/** WRS levels, worst → best, for a categorical level-change verdict. */
+const LEVELS = ['F', 'D', 'C', 'B', 'A', 'A+'];
+/** A WRS move of at least this many points counts as a real change. */
+const WRS_CHANGE_THRESHOLD = 3;
+
+const origin5xx = (r: CampaignRun): number | null =>
+  r.generator.statusCounts ? (r.generator.statusCounts['5xx'] ?? 0) : null;
+
+function metricDelta(
+  key: string,
+  label: string,
+  before: number | null,
+  after: number | null,
+  betterWhenUp: boolean,
+  unit?: string,
+): MetricDelta {
+  const d = before != null && after != null ? Math.round((after - before) * 10) / 10 : null;
+  const improved = d != null && d !== 0 ? d > 0 === betterWhenUp : null;
+  return { key, label, unit, before, after, delta: d, betterWhenUp, improved };
+}
+
+const round0 = (n: number): number => Math.round(n);
+
+/**
+ * Structured before/after comparison of two runs — the "did the mitigation
+ * work?" verdict plus per-metric deltas. Pure; generates no traffic.
+ */
+export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
+  const before: RunComparisonSide = {
+    runId: a.run.runId,
+    campaign: a.campaign.name,
+    at: a.run.generator.finishedAt,
+    wrs: a.run.wrs.wrs,
+    level: a.run.wrs.level,
+    status: a.run.status,
+  };
+  const after: RunComparisonSide = {
+    runId: b.run.runId,
+    campaign: b.campaign.name,
+    at: b.run.generator.finishedAt,
+    wrs: b.run.wrs.wrs,
+    level: b.run.wrs.level,
+    status: b.run.status,
+  };
+  const wrsDelta = Math.round((b.run.wrs.wrs - a.run.wrs.wrs) * 10) / 10;
+  const levelUp = LEVELS.indexOf(after.level) > LEVELS.indexOf(before.level);
+  const levelDown = LEVELS.indexOf(after.level) < LEVELS.indexOf(before.level);
+
+  let verdict: CompareVerdict = 'unchanged';
+  if (wrsDelta >= WRS_CHANGE_THRESHOLD || levelUp) verdict = 'improved';
+  else if (wrsDelta <= -WRS_CHANGE_THRESHOLD || levelDown) verdict = 'regressed';
+
+  const verb =
+    verdict === 'improved' ? 'improved' : verdict === 'regressed' ? 'regressed' : 'unchanged';
+  const sign = wrsDelta > 0 ? '+' : '';
+  const headline =
+    `Resilience ${verb}: ${before.level}→${after.level} · ` +
+    `WRS ${before.wrs}→${after.wrs} (${sign}${wrsDelta})`;
+
+  const metrics: MetricDelta[] = [
+    metricDelta('wrs', 'WRS', before.wrs, after.wrs, true),
+    metricDelta(
+      'availability',
+      'Probe availability',
+      round0(availabilityPct(a.run)),
+      round0(availabilityPct(b.run)),
+      true,
+      '%',
+    ),
+    metricDelta(
+      'latencyP95',
+      'Probe latency p95',
+      round0(a.run.probe.latencyMs.p95),
+      round0(b.run.probe.latencyMs.p95),
+      false,
+      ' ms',
+    ),
+    metricDelta('origin5xx', 'Origin 5xx', origin5xx(a.run), origin5xx(b.run), false),
+    metricDelta(
+      'absorbedPct',
+      'Edge absorbed',
+      a.run.absorption ? round0(a.run.absorption.absorbedPct) : null,
+      b.run.absorption ? round0(b.run.absorption.absorbedPct) : null,
+      true,
+      '%',
+    ),
+  ];
+
+  return {
+    target: hostOf(b.campaign.target),
+    before,
+    after,
+    wrsDelta,
+    levelBefore: before.level,
+    levelAfter: after.level,
+    verdict,
+    headline,
+    metrics,
+    remainingRemediations: deriveRemediations(b.campaign, b.run),
+  };
 }
 
 /** Signed delta with an arrow; `betterWhenUp` decides the good direction. */

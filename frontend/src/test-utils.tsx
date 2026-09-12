@@ -108,6 +108,37 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     suiteSequences: vi.fn().mockResolvedValue({ sequences: {} }),
     observabilitySummary: vi.fn().mockResolvedValue([]),
     zones: vi.fn().mockResolvedValue([]),
+    compareRuns: vi.fn().mockResolvedValue({
+      target: 'h.wedos',
+      before: { runId: 'r1', campaign: 'A', at: '', wrs: 41, level: 'D', status: 'KILLED_AUTO' },
+      after: { runId: 'r2', campaign: 'B', at: '', wrs: 97, level: 'A+', status: 'COMPLETED' },
+      wrsDelta: 56,
+      levelBefore: 'D',
+      levelAfter: 'A+',
+      verdict: 'improved',
+      headline: 'Resilience improved: D→A+ · WRS 41→97 (+56)',
+      metrics: [
+        {
+          key: 'wrs',
+          label: 'WRS',
+          before: 41,
+          after: 97,
+          delta: 56,
+          betterWhenUp: true,
+          improved: true,
+        },
+        {
+          key: 'origin5xx',
+          label: 'Origin 5xx',
+          before: 11252,
+          after: 0,
+          delta: -11252,
+          betterWhenUp: false,
+          improved: true,
+        },
+      ],
+      remainingRemediations: [],
+    }),
     metricsRange: vi
       .fn()
       .mockResolvedValue({ name: '', title: '', unit: 'reqps', source: 'unavailable', series: [] }),

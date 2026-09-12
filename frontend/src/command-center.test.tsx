@@ -215,4 +215,19 @@ describe('Results page', () => {
     await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
     await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
   });
+
+  it('renders an inline mitigation-proof verdict when two runs are compared', async () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [
+        scoredCampaign,
+        { ...scoredCampaign, id: 'c2', runId: 'run2', name: 'After mitigation' },
+      ],
+    });
+    renderWithRouter(<ReportsPage />);
+    // CompareSection auto-fetches the structured comparison and shows the verdict.
+    expect(await screen.findByText('▲ Improved')).toBeInTheDocument();
+    expect(screen.getByText(/Resilience improved: D→A\+/)).toBeInTheDocument();
+    expect(fakeApi.compareRuns).toHaveBeenCalled();
+  });
 });

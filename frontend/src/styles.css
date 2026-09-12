@@ -3235,3 +3235,124 @@ table.remediations td {
 .absorb-corr.disagree {
   color: var(--warning);
 }
+
+/* Mitigation proof — structured before/after run comparison (Results). */
+.mproof {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.mproof.mp-improved {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+.mproof.mp-regressed {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+.mproof-head {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.mproof-badge {
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.mproof-badge.mp-improved {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+}
+.mproof-badge.mp-regressed {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.mproof-badge.mp-unchanged {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+.mproof-headline {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.mproof-scroll {
+  overflow-x: auto;
+}
+.mproof-metrics {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 460px;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+.mproof-metrics th,
+.mproof-metrics td {
+  padding: 0.45rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.mproof-metrics thead th {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mproof-metrics tbody th {
+  font-weight: 600;
+}
+.mproof-metrics tbody tr:last-child th,
+.mproof-metrics tbody tr:last-child td {
+  border-bottom: none;
+}
+.mproof-metrics .good {
+  color: var(--success);
+  font-weight: 700;
+}
+.mproof-metrics .bad {
+  color: var(--danger);
+  font-weight: 700;
+}
+.mproof-metrics .muted {
+  color: var(--muted);
+}
+.mproof-rem {
+  padding: 0.7rem 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.86rem;
+}
+.mproof-rem ul {
+  margin: 0.4rem 0 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.mproof-rem .sev {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  margin-right: 0.35rem;
+}
+.sev-critical {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.sev-high {
+  color: var(--warning);
+  background: var(--warning-bg);
+}
+.sev-medium {
+  color: var(--warning);
+}
+.sev-low {
+  color: var(--muted);
+}
