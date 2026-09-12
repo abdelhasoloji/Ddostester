@@ -115,15 +115,15 @@ describe('UsersCard interactions', () => {
     fireEvent.change(screen.getByPlaceholderText('first.last@wedos'), {
       target: { value: 'new@wedos' },
     });
-    fireEvent.change(screen.getByPlaceholderText('min. 8 characters'), {
-      target: { value: 'password1' },
+    fireEvent.change(screen.getByPlaceholderText('min. 12 characters'), {
+      target: { value: 'Str0ngPass!234' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add / update user' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add user' }));
     await waitFor(() =>
       expect(fakeApi.createUser).toHaveBeenCalledWith({
         email: 'new@wedos',
         role: 'viewer',
-        password: 'password1',
+        password: 'Str0ngPass!234',
       }),
     );
   });
@@ -132,6 +132,63 @@ describe('UsersCard interactions', () => {
     fakeApi.listUsers.mockRejectedValue(new Error('forbidden'));
     renderWithRouter(<SettingsPage />);
     await waitFor(() => expect(currentApp.push).toHaveBeenCalledWith('error', 'forbidden'));
+  });
+
+  it('deactivates a store user', async () => {
+    renderWithRouter(<SettingsPage />);
+    await waitFor(() => expect(screen.getByText('eng@wedos')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    await waitFor(() =>
+      expect(fakeApi.setUserStatus).toHaveBeenCalledWith('eng@wedos', 'disabled'),
+    );
+  });
+
+  it('resets a store user password to a temporary one', async () => {
+    renderWithRouter(<SettingsPage />);
+    await waitFor(() => expect(screen.getByText('eng@wedos')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+    fireEvent.change(screen.getByLabelText('New password for eng@wedos'), {
+      target: { value: 'Str0ngPass!234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Set temporary password' }));
+    await waitFor(() =>
+      expect(fakeApi.resetUserPassword).toHaveBeenCalledWith('eng@wedos', 'Str0ngPass!234'),
+    );
+  });
+});
+
+describe('ChangePasswordForm (self-service)', () => {
+  it('blocks a mismatched confirmation', async () => {
+    renderWithRouter(<SettingsPage />);
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'oldpass12345' },
+    });
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'Str0ngPass!234' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), {
+      target: { value: 'different!2345' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByText(/do not match/)).toBeInTheDocument();
+    expect(currentApp.changeOwnPassword).not.toHaveBeenCalled();
+  });
+
+  it('submits a matching change to the context', async () => {
+    renderWithRouter(<SettingsPage />);
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'oldpass12345' },
+    });
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'Str0ngPass!234' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), {
+      target: { value: 'Str0ngPass!234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    await waitFor(() =>
+      expect(currentApp.changeOwnPassword).toHaveBeenCalledWith('oldpass12345', 'Str0ngPass!234'),
+    );
   });
 });
 

@@ -81,6 +81,10 @@ export class MemoryStore implements Store {
   async deleteUser(email: string): Promise<void> {
     this.users.delete(email.toLowerCase());
   }
+  async recordLogin(email: string, at: string): Promise<void> {
+    const u = this.users.get(email.toLowerCase());
+    if (u) this.users.set(email.toLowerCase(), { ...u, lastLoginAt: at });
+  }
   async listPlaybooks(): Promise<Playbook[]> {
     return [...this.playbooks.values()].sort((a, b) => a.name.localeCompare(b.name));
   }

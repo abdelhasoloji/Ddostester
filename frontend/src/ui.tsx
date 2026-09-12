@@ -1302,3 +1302,136 @@ export function Login() {
     </section>
   );
 }
+
+/**
+ * Self-service password change. Used both inline in Settings and — with
+ * `forced` — as the blocking gate for an admin-set temporary password. Verifies
+ * the current password server-side; on success the token is rotated and other
+ * sessions are revoked.
+ */
+export function ChangePasswordForm({
+  forced = false,
+  onDone,
+}: {
+  forced?: boolean;
+  onDone?: () => void;
+}) {
+  const app = useApp();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (next !== confirm) {
+      setError('The new passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await app.changeOwnPassword(current, next);
+      app.push('success', 'Password changed.');
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+      onDone?.();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+      {error && (
+        <p
+          style={{
+            background: 'var(--danger-bg)',
+            color: 'var(--danger)',
+            padding: '.5rem .75rem',
+            borderRadius: 6,
+            margin: 0,
+          }}
+        >
+          {error}
+        </p>
+      )}
+      <div className="field">
+        <label htmlFor="cp-current">Current password</label>
+        <input
+          id="cp-current"
+          type="password"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          autoComplete="current-password"
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="cp-next">New password</label>
+        <input
+          id="cp-next"
+          type="password"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          autoComplete="new-password"
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="cp-confirm">Confirm new password</label>
+        <input
+          id="cp-confirm"
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          autoComplete="new-password"
+          required
+        />
+      </div>
+      <p className="hint" style={{ margin: 0 }}>
+        At least 12 characters. Avoid common passwords and your email name.
+      </p>
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={busy || !current || !next || !confirm}
+      >
+        {busy ? <span className="spin" /> : null}
+        {forced ? 'Set new password & continue' : 'Change password'}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Blocking screen shown when the account carries an admin-set temporary
+ * password: the operator must choose a new one before reaching the app.
+ */
+export function ForcedPasswordChange() {
+  const app = useApp();
+  return (
+    <>
+      <div className="accent-line" />
+      <div className="app">
+        <section className="card" style={{ maxWidth: 460, margin: '2rem auto' }}>
+          <h2>Choose a new password</h2>
+          <p className="hint">
+            Your account uses a temporary password{app.identity ? ` (${app.identity.email})` : ''}.
+            Set your own password to continue.
+          </p>
+          <ChangePasswordForm forced />
+          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <button className="btn btn-sm btn-ghost" onClick={() => app.logout()}>
+              Sign out
+            </button>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}

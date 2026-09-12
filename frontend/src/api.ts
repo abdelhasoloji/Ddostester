@@ -681,8 +681,18 @@ export const api = {
       }>(r),
     ),
   login: (email: string, password: string) =>
-    post<{ token: string; email: string; role: Role }>('/api/auth/login', { email, password }),
-  me: () => get<{ email: string | null; role: Role | null }>('/api/auth/me'),
+    post<{ token: string; email: string; role: Role; mustChangePassword?: boolean }>(
+      '/api/auth/login',
+      { email, password },
+    ),
+  me: () =>
+    get<{ email: string | null; role: Role | null; mustChangePassword?: boolean }>('/api/auth/me'),
+  logout: () => post<{ ok: boolean }>('/api/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    post<{ token: string; email: string; role: Role; mustChangePassword: boolean }>(
+      '/api/auth/password',
+      { currentPassword, newPassword },
+    ),
   listCampaigns: () => get<Campaign[]>('/api/campaigns'),
   createCampaign: (body: unknown) => post<Campaign>('/api/campaigns', body),
   approve: (id: string, body: unknown) => post<Campaign>(`/api/campaigns/${id}/approval`, body),
@@ -741,6 +751,13 @@ export const api = {
     post<ManagedUser>('/api/users', body),
   updateUserRole: (email: string, role: Role) =>
     patch<ManagedUser>(`/api/users/${encodeURIComponent(email)}`, { role }),
+  setUserStatus: (email: string, status: 'active' | 'disabled') =>
+    patch<ManagedUser>(`/api/users/${encodeURIComponent(email)}`, { status }),
+  resetUserPassword: (email: string, password: string) =>
+    post<{ email: string; mustChangePassword: boolean }>(
+      `/api/users/${encodeURIComponent(email)}/password`,
+      { password },
+    ),
   deleteUser: (email: string) =>
     del<{ deleted: string }>(`/api/users/${encodeURIComponent(email)}`),
   playbooks: () => get<Playbook[]>('/api/playbooks'),
@@ -1003,4 +1020,8 @@ export interface ManagedUser {
   email: string;
   role: Role;
   source: 'env' | 'store';
+  status?: 'active' | 'disabled';
+  mustChangePassword?: boolean;
+  createdAt?: string;
+  lastLoginAt?: string;
 }

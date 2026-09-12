@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertDelete,
+  assertReset,
   assertRoleChange,
+  assertStatusChange,
   assertUpsert,
   combineUsers,
   normalizeEmail,
@@ -41,7 +43,7 @@ describe('assertUpsert', () => {
 
   it('accepts a valid new store user', () => {
     const r = assertUpsert(
-      { email: 'Eng@Wedos', role: 'engineer', password: 'longenough' },
+      { email: 'Eng@Wedos', role: 'engineer', password: 'aValidPassw0rd' },
       ctx(current),
     );
     expect(r).toEqual({ email: 'eng@wedos', role: 'engineer' });
@@ -55,13 +57,16 @@ describe('assertUpsert', () => {
 
   it('rejects an invalid role', () => {
     expect(() =>
-      assertUpsert({ email: 'e@wedos', role: 'root', password: 'longenough' }, ctx(current)),
+      assertUpsert({ email: 'e@wedos', role: 'root', password: 'aValidPassw0rd' }, ctx(current)),
     ).toThrow(UserError);
   });
 
   it('refuses to modify an env-defined user', () => {
     expect(() =>
-      assertUpsert({ email: 'off@wedos', role: 'viewer', password: 'longenough' }, ctx(current)),
+      assertUpsert(
+        { email: 'off@wedos', role: 'viewer', password: 'aValidPassw0rd' },
+        ctx(current),
+      ),
     ).toThrow(/AUTH_USERS/);
   });
 
@@ -72,7 +77,7 @@ describe('assertUpsert', () => {
     ];
     expect(() =>
       assertUpsert(
-        { email: 'me@wedos', role: 'viewer', password: 'longenough' },
+        { email: 'me@wedos', role: 'viewer', password: 'aValidPassw0rd' },
         ctx(cur, 'me@wedos'),
       ),
     ).toThrow(/own account/);
@@ -83,7 +88,7 @@ describe('assertUpsert', () => {
     const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'officer', source: 'store' }];
     expect(() =>
       assertUpsert(
-        { email: 'solo@wedos', role: 'viewer', password: 'longenough' },
+        { email: 'solo@wedos', role: 'viewer', password: 'aValidPassw0rd' },
         { envEmails: new Set(), current: cur, actorEmail: 'other@wedos' },
       ),
     ).toThrow(/officer/);
@@ -160,5 +165,91 @@ describe('assertDelete', () => {
     expect(() =>
       assertDelete('solo@wedos', { envEmails: new Set(), current: cur, actorEmail: 'x@wedos' }),
     ).toThrow(/officer/);
+  });
+
+  it('counts a disabled officer as unavailable (last ACTIVE officer)', () => {
+    // One env officer is disabled? env is always active, so use a store officer.
+    const cur: ManagedUser[] = [
+      { email: 'act@wedos', role: 'officer', source: 'store', status: 'active' },
+      { email: 'dis@wedos', role: 'officer', source: 'store', status: 'disabled' },
+    ];
+    // Deleting the only ACTIVE officer must fail even though a disabled one exists.
+    expect(() =>
+      assertDelete('act@wedos', { envEmails: new Set(), current: cur, actorEmail: 'x@wedos' }),
+    ).toThrow(/active officer/);
+  });
+});
+
+describe('assertReset', () => {
+  const current: ManagedUser[] = [
+    { ...envOfficer, source: 'env' },
+    { email: 'eng@wedos', role: 'engineer', source: 'store' },
+  ];
+
+  it('accepts a policy-compliant reset of a store user', () => {
+    expect(assertReset('eng@wedos', 'aValidPassw0rd', ctx(current))).toEqual({
+      email: 'eng@wedos',
+    });
+  });
+
+  it('rejects a weak new password', () => {
+    expect(() => assertReset('eng@wedos', 'short', ctx(current))).toThrow(/at least 12/);
+  });
+
+  it('refuses to reset an env user', () => {
+    expect(() => assertReset('off@wedos', 'aValidPassw0rd', ctx(current))).toThrow(/AUTH_USERS/);
+  });
+
+  it('refuses to reset your own account (use self-service)', () => {
+    expect(() => assertReset('eng@wedos', 'aValidPassw0rd', ctx(current, 'eng@wedos'))).toThrow(
+      /change my password/,
+    );
+  });
+
+  it('refuses a non-existent user', () => {
+    expect(() => assertReset('ghost@wedos', 'aValidPassw0rd', ctx(current))).toThrow(/not found/);
+  });
+});
+
+describe('assertStatusChange', () => {
+  const current: ManagedUser[] = [
+    { ...envOfficer, source: 'env' },
+    { email: 'eng@wedos', role: 'engineer', source: 'store', status: 'active' },
+  ];
+
+  it('deactivates a store user', () => {
+    expect(assertStatusChange('eng@wedos', 'disabled', ctx(current))).toEqual({
+      email: 'eng@wedos',
+      status: 'disabled',
+    });
+  });
+
+  it('rejects an invalid status', () => {
+    expect(() => assertStatusChange('eng@wedos', 'paused', ctx(current))).toThrow(
+      /active.*disabled/,
+    );
+  });
+
+  it('refuses to change an env user', () => {
+    expect(() => assertStatusChange('off@wedos', 'disabled', ctx(current))).toThrow(/AUTH_USERS/);
+  });
+
+  it('refuses to change your own status (no self-lockout)', () => {
+    expect(() => assertStatusChange('eng@wedos', 'disabled', ctx(current, 'eng@wedos'))).toThrow(
+      /your own account status/,
+    );
+  });
+
+  it('refuses to disable the last active officer', () => {
+    const cur: ManagedUser[] = [
+      { email: 'solo@wedos', role: 'officer', source: 'store', status: 'active' },
+    ];
+    expect(() =>
+      assertStatusChange('solo@wedos', 'disabled', {
+        envEmails: new Set(),
+        current: cur,
+        actorEmail: 'x@wedos',
+      }),
+    ).toThrow(/active officer/);
   });
 });

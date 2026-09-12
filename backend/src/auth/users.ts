@@ -1,10 +1,29 @@
 import { isRole } from './rbac.js';
 import type { Role } from './rbac.js';
 
+export type UserStatus = 'active' | 'disabled';
+
 export interface User {
   email: string;
   role: Role;
   passwordHash: string;
+  /** Account status. Absent is treated as 'active' (back-compat with old rows). */
+  status?: UserStatus;
+  /** A temporary password set by an admin — the user must change it at next login. */
+  mustChangePassword?: boolean;
+  /** ISO timestamp the account was created (store users only). */
+  createdAt?: string;
+  /** ISO timestamp of the last successful login. */
+  lastLoginAt?: string;
+  /**
+   * Session-revocation counter (default 0). A token carries the version it was
+   * minted with; when it no longer matches the user's current version the token
+   * is rejected. Bumped on password change/reset, role change and deactivation
+   * so those take effect immediately instead of lingering until the token's exp.
+   * Timing-independent (unlike a timestamp, two events in the same second still
+   * differ).
+   */
+  tokenVersion?: number;
 }
 
 /**

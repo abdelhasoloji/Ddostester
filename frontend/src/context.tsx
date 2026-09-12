@@ -59,6 +59,7 @@ interface Ctx {
   authRequired: boolean;
   authChecked: boolean;
   identity: Identity | null;
+  mustChangePassword: boolean;
   role: Role | null;
   ready: boolean;
   anyRunning: boolean;
@@ -90,6 +91,7 @@ interface Ctx {
   loadAudit: () => void;
   loadAlerts: () => void;
   login: (email: string, password: string) => Promise<void>;
+  changeOwnPassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => void;
   createCampaign: (payload: Record<string, unknown>) => Promise<void>;
   approve: (
@@ -130,6 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authRequired, setAuthRequired] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [operator, setOperator] = useState(() => localStorage.getItem('operator') ?? '');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -194,8 +197,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (h.authRequired && getToken()) {
           try {
             const me = await api.me();
-            if (me.email && me.role) setIdentity({ email: me.email, role: me.role });
-            else setToken(null);
+            if (me.email && me.role) {
+              setIdentity({ email: me.email, role: me.role });
+              setMustChangePassword(!!me.mustChangePassword);
+            } else setToken(null);
           } catch {
             setToken(null);
           }
@@ -248,10 +253,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const r = await api.login(email, password);
     setToken(r.token);
     setIdentity({ email: r.email, role: r.role });
+    setMustChangePassword(!!r.mustChangePassword);
+  };
+  // Self-service password change. On success the server rotates the token (other
+  // sessions are revoked) and clears any forced-change flag.
+  const changeOwnPassword = async (currentPassword: string, newPassword: string) => {
+    const r = await api.changePassword(currentPassword, newPassword);
+    setToken(r.token);
+    setIdentity({ email: r.email, role: r.role });
+    setMustChangePassword(false);
   };
   const logout = () => {
+    // Best-effort audit; the token is discarded regardless of the result.
+    api.logout().catch(() => undefined);
     setToken(null);
     setIdentity(null);
+    setMustChangePassword(false);
     setCampaigns([]);
   };
 
@@ -416,6 +433,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     authRequired,
     authChecked,
     identity,
+    mustChangePassword,
     role,
     ready,
     anyRunning,
@@ -444,6 +462,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadAudit,
     loadAlerts,
     login,
+    changeOwnPassword,
     logout,
     createCampaign,
     approve,

@@ -312,7 +312,7 @@ describe('API — user management (officer only)', () => {
       method: 'POST',
       url: '/api/users',
       headers: { authorization: `Bearer ${to}` },
-      payload: { email: 'viewer@wedos', role: 'viewer', password: 'viewerpw1' },
+      payload: { email: 'viewer@wedos', role: 'viewer', password: 'Str0ngPass!234' },
     });
     expect(created.statusCode).toBe(201);
     expect(created.json()).toMatchObject({
@@ -324,7 +324,7 @@ describe('API — user management (officer only)', () => {
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: { email: 'viewer@wedos', password: 'viewerpw1' },
+      payload: { email: 'viewer@wedos', password: 'Str0ngPass!234' },
     });
     expect(login.statusCode).toBe(200);
     expect(login.json().role).toBe('viewer');
@@ -364,7 +364,7 @@ describe('API — user management (officer only)', () => {
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: { email: 'viewer@wedos', password: 'viewerpw1' },
+      payload: { email: 'viewer@wedos', password: 'Str0ngPass!234' },
     });
     expect(login.statusCode).toBe(401);
   });

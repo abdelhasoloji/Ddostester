@@ -4,6 +4,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export interface JwtPayload {
   sub: string; // email
   role: string;
+  /** Token version for session revocation (absent = 0). */
+  ver?: number;
   iat: number;
   exp: number;
 }

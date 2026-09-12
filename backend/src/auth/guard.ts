@@ -1,5 +1,6 @@
 import type { FastifyRequest } from 'fastify';
 import { verifyJwt, signJwt } from './jwt.js';
+import type { JwtPayload } from './jwt.js';
 import { verifyPassword } from './passwords.js';
 import { loadUsers } from './users.js';
 import type { User } from './users.js';
@@ -34,10 +35,15 @@ export function login(
   return { token, email: u.email, role: u.role };
 }
 
-export function identityFromRequest(state: AuthState, req: FastifyRequest): Identity | null {
+/** Verified JWT payload from the Bearer header, or null. */
+export function payloadFromRequest(state: AuthState, req: FastifyRequest): JwtPayload | null {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
-  const payload = verifyJwt(header.slice(7), state.secret);
+  return verifyJwt(header.slice(7), state.secret);
+}
+
+export function identityFromRequest(state: AuthState, req: FastifyRequest): Identity | null {
+  const payload = payloadFromRequest(state, req);
   if (!payload) return null;
   return { email: payload.sub, role: payload.role as Role };
 }
