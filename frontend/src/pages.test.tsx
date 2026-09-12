@@ -90,7 +90,7 @@ describe('pages render', () => {
 
   it('AuditPage shows an entry', () => {
     renderWithRouter(<AuditPage />);
-    expect(screen.getByRole('heading', { name: 'Audit log' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Assurance' })).toBeInTheDocument();
     expect(screen.getByText('campaign.create')).toBeInTheDocument();
   });
 
@@ -126,6 +126,6 @@ describe('pages render', () => {
 
   it('GuidePage', () => {
     renderWithRouter(<GuidePage />);
-    expect(screen.getByRole('heading', { name: 'Guide' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument();
   });
 });

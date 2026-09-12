@@ -19,6 +19,13 @@ export interface Identity {
 }
 export type Perm =
   'create' | 'approve' | 'cisoApprove' | 'execute' | 'kill' | 'manage' | 'limits' | 'bench';
+/**
+ * Client-side UX gate only — the backend `MATRIX` in `backend/src/auth/rbac.ts`
+ * is the authoritative enforcer (this just hides controls a role can't use).
+ * These short aliases mirror the backend permissions (create ↔ campaign:create,
+ * manage ↔ user:manage, limits ↔ limits:manage, bench ↔ bench:*). Keep the two
+ * in step — `rbac-mirror.test.ts` locks this table so drift fails CI.
+ */
 const PERMS: Record<Role, Perm[]> = {
   officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],

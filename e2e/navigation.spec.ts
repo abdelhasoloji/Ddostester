@@ -4,14 +4,14 @@ import { login, goTo } from './helpers.js';
 // Every top-level section is reachable and renders its own page title (J-nav /
 // catalog navigation coverage). Officer sees all sections.
 // v2 nav: the resilience spine (Command Center / Campaigns / Run Theater /
-// Results / Assurance) plus the secondary "More" group. `link` is the nav label,
-// `title` the page's own <h1> (which can differ, e.g. Assurance → Audit log).
+// Results / Assurance) plus the secondary "More" group. `link` is the nav label
+// and `title` the page's own <h1> — kept in step so the two never diverge.
 const SECTIONS: { link: string; title: string }[] = [
   { link: 'Command Center', title: 'Command Center' },
   { link: 'Campaigns', title: 'Campaigns' },
   { link: 'Run Theater', title: 'Run Theater' },
   { link: 'Results', title: 'Results' },
-  { link: 'Assurance', title: 'Audit log' },
+  { link: 'Assurance', title: 'Assurance' },
   { link: 'Settings', title: 'Settings' },
 ];
 

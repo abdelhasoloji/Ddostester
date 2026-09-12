@@ -85,13 +85,15 @@ const roleLabel: Record<Role, string> = {
 // The primary navigation — the resilience spine, then governance. Everything a
 // campaign needs (Templates, Plan, the guide) lives inside the Campaigns
 // workspace, so the sidebar stays a flat, focused list with Settings on it too.
+// One distinct emoji per destination — no repeats, no lone geometric glyph, so
+// the eight links stay tellable apart at a glance.
 const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
   { to: '/prepare', label: 'Prepare', icon: '🔍' },
-  { to: '/campaigns', label: 'Campaigns', icon: '◇' },
-  { to: '/theater', label: 'Run Theater', icon: '📡' },
-  { to: '/reports', label: 'Results', icon: '🛡' },
+  { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
+  { to: '/theater', label: 'Run Theater', icon: '🎬' },
+  { to: '/reports', label: 'Results', icon: '📊' },
   { to: '/audit', label: 'Assurance', icon: '⚖' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
@@ -2210,8 +2212,8 @@ export function AuditPage() {
   return (
     <>
       <PageHead
-        title="Audit log"
-        sub="Immutable trace of actions (creation, approval, run, kill switch)."
+        title="Assurance"
+        sub="Tamper-evident audit log — every governed action (creation, approval, run, kill switch), hash-chained."
       />
       <div className="page-actions">
         <button className="btn btn-sm" onClick={app.loadAudit}>
@@ -3622,7 +3624,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
     <>
       {!embedded && (
         <PageHead
-          title="Guide"
+          title="How it works"
           sub="How a campaign works, from recon to report — plus ready-made configurations you can apply in one click."
         />
       )}

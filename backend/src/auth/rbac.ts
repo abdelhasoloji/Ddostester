@@ -26,6 +26,9 @@ export type Permission =
   // control attestation, modelled/replay judgement). CISO only.
   | 'bench:attest';
 
+// Authoritative permission matrix — enforced on every request by `can()`. The
+// frontend keeps a UX-only mirror (`PERMS` in frontend/src/context.tsx) that
+// hides controls; it is not a security boundary. Keep the two in step.
 const MATRIX: Record<Role, Permission[]> = {
   // The officer can do everything operationally (including approve) and manages
   // runtime users (governance). The officer does NOT set the limits — that is
