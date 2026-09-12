@@ -6,8 +6,11 @@ import { initAuth } from '../src/auth/guard.js';
 import { PLAYBOOKS } from '../src/modules/playbooks/playbooks.js';
 import { MAX_COMPOSITE_STEPS } from '../src/config/limits.js';
 
-const allowed = ['bank.cz'];
-const TARGET = 'https://bank.cz/';
+// A local, fail-fast target: instantiation now runs a best-effort recon on the
+// target, so a real host would make (slow, flaky) external requests from CI. A
+// loopback address refuses instantly → recon falls back to template paths.
+const allowed = ['127.0.0.1'];
+const TARGET = 'http://127.0.0.1/';
 
 // Two distinct curated templates to compose.
 const twoIds = PLAYBOOKS.slice(0, 2).map((p) => p.id);

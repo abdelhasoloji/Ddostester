@@ -956,15 +956,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       error?: string;
     };
   }
+  // Recon makes real network requests; cap the total so instantiation/composition
+  // can never hang on a slow or unreachable target (it just falls back to the
+  // template paths). Kept short so a launch stays responsive.
+  const RECON_SEED_TIMEOUT_MS = 8000;
   async function reconSeed(target: string, probeUrl: string): Promise<ReconSeedResult> {
     try {
       const availN = (await describeAgents()).filter((a) => a.available).length;
-      const recon = await runRecon(target, probeUrl, allowedTargets, {
-        enginesAvailable: availN,
-        capsConfigured: true,
-        protectionConfigured: protection.configured,
-        labRunnerConfigured: labTargets.length > 0,
-      });
+      const recon = await Promise.race([
+        runRecon(target, probeUrl, allowedTargets, {
+          enginesAvailable: availN,
+          capsConfigured: true,
+          protectionConfigured: protection.configured,
+          labRunnerConfigured: labTargets.length > 0,
+        }),
+        new Promise<never>((_, reject) => {
+          const t = setTimeout(() => reject(new Error('recon timed out')), RECON_SEED_TIMEOUT_MS);
+          t.unref?.();
+        }),
+      ]);
       return {
         surface: { paths: recon.suggestedPaths, loginPath: recon.loginPath },
         summary: {
