@@ -45,6 +45,8 @@ export interface Store {
   getUser(email: string): Promise<User | undefined>;
   saveUser(u: User): Promise<void>;
   deleteUser(email: string): Promise<void>;
+  /** Records a successful login timestamp without touching credentials. */
+  recordLogin(email: string, at: string): Promise<void>;
   /** User-defined assessment playbooks (additive to the curated ones). */
   listPlaybooks(): Promise<Playbook[]>;
   getPlaybook(id: string): Promise<Playbook | undefined>;

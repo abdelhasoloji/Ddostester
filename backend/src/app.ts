@@ -44,14 +44,18 @@ import { registerReadRoutes } from './routes/read-routes.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
-import { login, identityFromRequest } from './auth/guard.js';
+import { login, identityFromRequest, payloadFromRequest } from './auth/guard.js';
 import { signJwt } from './auth/jwt.js';
 import { hashPassword, verifyPassword } from './auth/passwords.js';
+import { passwordProblem } from './auth/password-policy.js';
 import { can } from './auth/rbac.js';
 import type { Permission, Role } from './auth/rbac.js';
+import type { User } from './auth/users.js';
 import {
   assertDelete,
+  assertReset,
   assertRoleChange,
+  assertStatusChange,
   assertUpsert,
   combineUsers,
   UserError,
@@ -224,13 +228,55 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return payload;
   });
 
+  /**
+   * Resolves and *revalidates* the caller from their token: existence, status
+   * and the token version (so a deleted or disabled user — or one whose
+   * password/role changed — is rejected immediately instead of lingering until
+   * the token's exp). Env users are the immutable root and skip the store check;
+   * share/report tokens are ephemeral viewer grants with no store record.
+   */
+  type AuthResult =
+    | { ok: true; id: { email: string; role: Role }; mustChange: boolean }
+    | { ok: false; code: number; error: string };
+  async function resolveIdentity(req: FastifyRequest): Promise<AuthResult> {
+    const payload = payloadFromRequest(auth, req);
+    if (!payload) return { ok: false, code: 401, error: 'authentication required' };
+    const email = payload.sub;
+    if (email.startsWith('share:')) {
+      return { ok: true, id: { email, role: payload.role as Role }, mustChange: false };
+    }
+    if (auth.users.has(email.toLowerCase())) {
+      return { ok: true, id: { email, role: payload.role as Role }, mustChange: false };
+    }
+    const su = await store.getUser(email.toLowerCase());
+    if (!su) return { ok: false, code: 401, error: 'account no longer exists — sign in again' };
+    if ((su.status ?? 'active') === 'disabled') {
+      return { ok: false, code: 401, error: 'account disabled' };
+    }
+    if ((payload.ver ?? 0) !== (su.tokenVersion ?? 0)) {
+      return { ok: false, code: 401, error: 'session expired — sign in again' };
+    }
+    return {
+      ok: true,
+      id: { email: su.email, role: su.role },
+      mustChange: !!su.mustChangePassword,
+    };
+  }
+
   function guard(perm: Permission) {
     return async (req: FastifyRequest, reply: FastifyReply) => {
       if (!auth.enabled) return;
-      const id = identityFromRequest(auth, req);
-      if (!id) return reply.code(401).send({ error: 'authentication required' });
-      req.authUser = id;
-      if (!can(id.role, perm)) return reply.code(403).send({ error: `missing ${perm} permission` });
+      const r = await resolveIdentity(req);
+      if (!r.ok) return reply.code(r.code).send({ error: r.error });
+      req.authUser = r.id;
+      if (r.mustChange) {
+        return reply
+          .code(403)
+          .send({ error: 'password change required', code: 'password_change_required' });
+      }
+      if (!can(r.id.role, perm)) {
+        return reply.code(403).send({ error: `missing ${perm} permission` });
+      }
     };
   }
 
@@ -911,24 +957,102 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
       return reply.code(429).send({ error: 'too many attempts — try again later' });
     }
-    // Env-defined users first (unchanged path); then runtime store users.
+    const rejectLogin = async (reason: string, actor: string) => {
+      const count = (entry?.count ?? 0) + 1;
+      loginFails.set(key, { count, until: Date.now() + LOCK_MS });
+      req.log.warn({ email: email.toLowerCase(), ip: req.ip, reason }, 'login failed');
+      // Only the lock event reaches the (tamper-evident) audit chain, not every
+      // attempt — enough to flag an attack without flooding the governance log.
+      if (count === MAX_FAILS) {
+        await auditAs(
+          actor,
+          'auth.login_locked',
+          undefined,
+          `${count} failed attempts (${reason})`,
+        );
+      }
+      return reply.code(401).send({ error: 'invalid credentials' });
+    };
+
+    // Env-defined users first (immutable root); then runtime store users.
     let res = login(auth, email, password);
-    if (!res) {
+    let mustChangePassword = false;
+    if (res) {
+      await auditAs(res.email, 'auth.login', undefined, 'env user');
+    } else {
       const su = await store.getUser(email.toLowerCase());
       if (su && verifyPassword(password, su.passwordHash)) {
+        // Correct credentials but a deactivated account: refuse with the same
+        // generic message (no oracle), and record the reason out of band.
+        if ((su.status ?? 'active') === 'disabled') {
+          return rejectLogin('account disabled', su.email);
+        }
+        await store.recordLogin(su.email, new Date().toISOString());
+        mustChangePassword = !!su.mustChangePassword;
         res = {
-          token: signJwt({ sub: su.email, role: su.role }, auth.secret),
+          token: signJwt({ sub: su.email, role: su.role, ver: su.tokenVersion ?? 0 }, auth.secret),
           email: su.email,
           role: su.role,
         };
+        await auditAs(su.email, 'auth.login', undefined, undefined);
       }
     }
-    if (!res) {
-      loginFails.set(key, { count: (entry?.count ?? 0) + 1, until: Date.now() + LOCK_MS });
-      return reply.code(401).send({ error: 'invalid credentials' });
-    }
+    if (!res) return rejectLogin('bad credentials', email.toLowerCase());
     loginFails.delete(key);
-    return res;
+    return { ...res, mustChangePassword };
+  });
+
+  // Best-effort logout record. A stateless JWT can't be revoked server-side, so
+  // this only writes an audit trail; the client discards the token. (Immediate
+  // revocation on deactivation/password change is handled by resolveIdentity.)
+  app.post('/api/auth/logout', async (req, reply) => {
+    if (!auth.enabled) return { ok: true };
+    const r = await resolveIdentity(req);
+    if (!r.ok) return reply.code(r.code).send({ error: r.error });
+    req.authUser = r.id;
+    await audit(req, 'auth.logout', undefined, undefined);
+    return { ok: true };
+  });
+
+  // Self-service password change — works even while a forced change is pending.
+  // Store users only (env passwords are managed via configuration). Bumps the
+  // revocation epoch (killing other sessions) and returns a fresh token so the
+  // current session survives.
+  app.post('/api/auth/password', async (req, reply) => {
+    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+    const r = await resolveIdentity(req);
+    if (!r.ok) return reply.code(r.code).send({ error: r.error });
+    req.authUser = r.id;
+    const body = req.body as { currentPassword?: string; newPassword?: string };
+    const email = r.id.email.toLowerCase();
+    if (auth.users.has(email)) {
+      return reply
+        .code(400)
+        .send({ error: 'Your account is managed via configuration and cannot self-change here.' });
+    }
+    const su = await store.getUser(email);
+    if (!su) return reply.code(404).send({ error: 'user not found' });
+    if (!verifyPassword(body.currentPassword ?? '', su.passwordHash)) {
+      return reply.code(400).send({ error: 'Current password is incorrect.' });
+    }
+    const newPassword = body.newPassword ?? '';
+    const problem = passwordProblem(newPassword, email);
+    if (problem) return reply.code(400).send({ error: problem });
+    if (verifyPassword(newPassword, su.passwordHash)) {
+      return reply.code(400).send({ error: 'New password must differ from the current one.' });
+    }
+    const nextVer = (su.tokenVersion ?? 0) + 1;
+    await store.saveUser({
+      ...su,
+      passwordHash: hashPassword(newPassword),
+      mustChangePassword: false,
+      tokenVersion: nextVer,
+    });
+    await audit(req, 'password.change', undefined, email);
+    // Other sessions (old version) are now revoked; this fresh token carries the
+    // new version so the current session survives.
+    const token = signJwt({ sub: su.email, role: su.role, ver: nextVer }, auth.secret);
+    return { token, email: su.email, role: su.role, mustChangePassword: false };
   });
 
   // Mint a short-lived, read-only share token for report links. Downgraded to
@@ -1300,17 +1424,30 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  app.get('/api/auth/me', { preHandler: guard('campaign:read') }, async (req) => {
-    return req.authUser ?? { email: null, role: null, authRequired: false };
+  // Reachable during a forced password change (unlike guarded routes) so the UI
+  // can learn it must send the operator to the change-password screen.
+  app.get('/api/auth/me', async (req, reply) => {
+    if (!auth.enabled) return { email: null, role: null, authRequired: false };
+    const r = await resolveIdentity(req);
+    if (!r.ok) return reply.code(r.code).send({ error: r.error });
+    req.authUser = r.id;
+    return { email: r.id.email, role: r.id.role, mustChangePassword: r.mustChange };
   });
 
   // --- User management (officer only; env users are immutable) ---------------
   const envUsers = (): { email: string; role: Role }[] =>
     [...auth.users.values()].map((u) => ({ email: u.email, role: u.role }));
   const envEmailSet = (): Set<string> => new Set([...auth.users.keys()]);
-  /** Env-defined users merged with runtime store users (store role wins). */
+  /** Env-defined users merged with runtime store users (env wins on collision). */
   const currentUsers = async () => {
-    const stored = (await store.listUsers()).map((u) => ({ email: u.email, role: u.role }));
+    const stored = (await store.listUsers()).map((u) => ({
+      email: u.email,
+      role: u.role,
+      status: u.status ?? 'active',
+      mustChangePassword: u.mustChangePassword ?? false,
+      createdAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt,
+    }));
     return combineUsers(envUsers(), stored);
   };
 
@@ -1335,9 +1472,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           .code(409)
           .send({ error: `User ${email} already exists — use PATCH to change their role.` });
       }
-      await store.saveUser({ email, role, passwordHash: hashPassword(body.password ?? '') });
+      // Admin-set password is temporary: the user must change it at first login.
+      await store.saveUser({
+        email,
+        role,
+        passwordHash: hashPassword(body.password ?? ''),
+        status: 'active',
+        mustChangePassword: true,
+        createdAt: new Date().toISOString(),
+        tokenVersion: 0,
+      });
       await audit(req, 'user.upsert', undefined, `${email} → ${role} (create)`);
-      return reply.code(201).send({ email, role, source: 'store' });
+      return reply.code(201).send({ email, role, source: 'store', mustChangePassword: true });
     } catch (err) {
       if (err instanceof UserError) return reply.code(400).send({ error: err.message });
       return fail(err, reply);
@@ -1348,24 +1494,77 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
     try {
       const raw = decodeURIComponent((req.params as { email: string }).email);
-      const body = req.body as { role?: string };
-      const current = await currentUsers();
-      const { email, role } = assertRoleChange(raw, body.role ?? '', {
+      const body = req.body as { role?: string; status?: string };
+      if (body.role == null && body.status == null) {
+        return reply.code(400).send({ error: 'nothing to change (role or status required)' });
+      }
+      const ctx = {
         envEmails: envEmailSet(),
-        current,
+        current: await currentUsers(),
         actorEmail: req.authUser?.email ?? '',
-      });
-      // Role-only change: preserve the existing password hash.
-      const existing = await store.getUser(email);
+      };
+      // Validate against the combined view FIRST (env-immutable, self, existence)
+      // so those surface as 400s before we ever touch the store.
+      const nextRole = body.role != null ? assertRoleChange(raw, body.role, ctx).role : undefined;
+      const nextStatus =
+        body.status != null ? assertStatusChange(raw, body.status, ctx).status : undefined;
+      const existing = await store.getUser(raw.toLowerCase());
       if (!existing) return reply.code(404).send({ error: 'user not found' });
-      await store.saveUser({ ...existing, role });
-      await audit(req, 'user.upsert', undefined, `${email} → ${role} (role change)`);
-      return { email, role, source: 'store' };
+      let updated: User = existing;
+      let revoke = false;
+
+      if (nextRole !== undefined) {
+        updated = { ...updated, role: nextRole };
+        // A role change takes effect immediately: revoke outstanding tokens.
+        revoke = true;
+        await audit(req, 'user.upsert', undefined, `${existing.email} → ${nextRole} (role change)`);
+      }
+      if (nextStatus !== undefined) {
+        updated = { ...updated, status: nextStatus };
+        // Deactivation must cut access now, not at token exp.
+        if (nextStatus === 'disabled') revoke = true;
+        await audit(req, 'user.status', undefined, `${existing.email} → ${nextStatus}`);
+      }
+      if (revoke) updated = { ...updated, tokenVersion: (existing.tokenVersion ?? 0) + 1 };
+      await store.saveUser(updated);
+      return { email: updated.email, role: updated.role, status: updated.status, source: 'store' };
     } catch (err) {
       if (err instanceof UserError) return reply.code(400).send({ error: err.message });
       return fail(err, reply);
     }
   });
+
+  // Admin password reset — sets a temporary password the user must change at
+  // next login, and revokes their outstanding sessions.
+  app.post(
+    '/api/users/:email/password',
+    { preHandler: guard('user:manage') },
+    async (req, reply) => {
+      if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+      try {
+        const raw = decodeURIComponent((req.params as { email: string }).email);
+        const body = req.body as { password?: string };
+        const { email } = assertReset(raw, body.password ?? '', {
+          envEmails: envEmailSet(),
+          current: await currentUsers(),
+          actorEmail: req.authUser?.email ?? '',
+        });
+        const existing = await store.getUser(email);
+        if (!existing) return reply.code(404).send({ error: 'user not found' });
+        await store.saveUser({
+          ...existing,
+          passwordHash: hashPassword(body.password ?? ''),
+          mustChangePassword: true,
+          tokenVersion: (existing.tokenVersion ?? 0) + 1,
+        });
+        await audit(req, 'password.reset', undefined, email);
+        return { email, source: 'store', mustChangePassword: true };
+      } catch (err) {
+        if (err instanceof UserError) return reply.code(400).send({ error: err.message });
+        return fail(err, reply);
+      }
+    },
+  );
 
   app.delete('/api/users/:email', { preHandler: guard('user:manage') }, async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });

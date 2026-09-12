@@ -21,6 +21,34 @@ const { Pool } = pg;
 /** Advisory-lock key serializing audit-chain appends (arbitrary constant). */
 const AUDIT_LOCK_KEY = 4021;
 
+interface UserRow {
+  email: string;
+  role: string;
+  password_hash: string;
+  status: string;
+  must_change_password: boolean;
+  last_login_at: Date | null;
+  token_version: string | number | null;
+  created_at: Date | null;
+}
+
+const USER_SELECT =
+  'SELECT email, role, password_hash, status, must_change_password, last_login_at, ' +
+  'token_version, created_at FROM users';
+
+function rowToUser(x: UserRow): User {
+  return {
+    email: x.email,
+    role: x.role as User['role'],
+    passwordHash: x.password_hash,
+    status: x.status === 'disabled' ? 'disabled' : 'active',
+    mustChangePassword: x.must_change_password === true,
+    lastLoginAt: x.last_login_at instanceof Date ? x.last_login_at.toISOString() : undefined,
+    createdAt: x.created_at instanceof Date ? x.created_at.toISOString() : undefined,
+    tokenVersion: x.token_version != null ? Number(x.token_version) : 0,
+  };
+}
+
 /** Maps an audit row (with chain columns) to an AuditEntry. */
 function rowToAudit(x: Record<string, unknown>): AuditEntry {
   return {
@@ -161,6 +189,18 @@ const MIGRATIONS: { id: number; sql: string }[] = [
         at          timestamptz NOT NULL
       );
       CREATE INDEX IF NOT EXISTS bench_coverage_vector_idx ON bench_coverage (vector, at DESC);
+    `,
+  },
+  {
+    // Mature user management: account status (soft deactivation), forced
+    // password change for admin-set temporary passwords, last-login tracking,
+    // and a token-version counter used to revoke outstanding sessions.
+    id: 6,
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS status               text NOT NULL DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at        timestamptz;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version        integer NOT NULL DEFAULT 0;
     `,
   },
 ];
@@ -379,38 +419,50 @@ export class PostgresStore implements Store {
   }
 
   async listUsers(): Promise<User[]> {
-    const r = await this.pool.query<{ email: string; role: string; password_hash: string }>(
-      'SELECT email, role, password_hash FROM users ORDER BY email',
-    );
-    return r.rows
-      .filter((x) => isRole(x.role))
-      .map((x) => ({
-        email: x.email,
-        role: x.role as User['role'],
-        passwordHash: x.password_hash,
-      }));
+    const r = await this.pool.query<UserRow>(`${USER_SELECT} ORDER BY email`);
+    return r.rows.filter((x) => isRole(x.role)).map(rowToUser);
   }
 
   async getUser(email: string): Promise<User | undefined> {
-    const r = await this.pool.query<{ email: string; role: string; password_hash: string }>(
-      'SELECT email, role, password_hash FROM users WHERE email=$1',
-      [email.toLowerCase()],
-    );
+    const r = await this.pool.query<UserRow>(`${USER_SELECT} WHERE email=$1`, [
+      email.toLowerCase(),
+    ]);
     const x = r.rows[0];
     if (!x || !isRole(x.role)) return undefined;
-    return { email: x.email, role: x.role as User['role'], passwordHash: x.password_hash };
+    return rowToUser(x);
   }
 
   async saveUser(u: User): Promise<void> {
     await this.pool.query(
-      `INSERT INTO users (email, role, password_hash) VALUES ($1,$2,$3)
-       ON CONFLICT (email) DO UPDATE SET role=$2, password_hash=$3`,
-      [u.email.toLowerCase(), u.role, u.passwordHash],
+      `INSERT INTO users
+         (email, role, password_hash, status, must_change_password, last_login_at,
+          token_version, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, COALESCE($8, now()))
+       ON CONFLICT (email) DO UPDATE SET
+         role=$2, password_hash=$3, status=$4, must_change_password=$5,
+         last_login_at=$6, token_version=$7`,
+      [
+        u.email.toLowerCase(),
+        u.role,
+        u.passwordHash,
+        u.status ?? 'active',
+        u.mustChangePassword ?? false,
+        u.lastLoginAt ?? null,
+        u.tokenVersion ?? 0,
+        u.createdAt ?? null,
+      ],
     );
   }
 
   async deleteUser(email: string): Promise<void> {
     await this.pool.query('DELETE FROM users WHERE email=$1', [email.toLowerCase()]);
+  }
+
+  async recordLogin(email: string, at: string): Promise<void> {
+    await this.pool.query('UPDATE users SET last_login_at=$2 WHERE email=$1', [
+      email.toLowerCase(),
+      at,
+    ]);
   }
 
   async listPlaybooks(): Promise<Playbook[]> {
