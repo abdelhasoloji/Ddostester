@@ -381,3 +381,44 @@ describe('zeroBS L7 single-line playbooks (P26-20371)', () => {
     expect(rnd.scenario).toHaveLength(3); // wave profile
   });
 });
+
+describe('bank.cz connexes playbook (adjacent-scenario hypotheses)', () => {
+  const target = {
+    target: 'https://staging.example.com/',
+    probeUrl: 'https://staging.example.com/health',
+    createdBy: 'e',
+  };
+  const engines = [{ id: 'builtin', available: true }];
+
+  it('exists with the 8 adjacent lines and stays within HARD_CAPS', () => {
+    const pb = getPlaybook('bankcz-connexes');
+    expect(pb).toBeDefined();
+    expect(pb!.steps).toHaveLength(8);
+    for (const s of pb!.steps) {
+      expect(s.maxRps).toBeLessThanOrEqual(HARD_CAPS.maxRps);
+      expect(s.concurrency).toBeLessThanOrEqual(HARD_CAPS.maxConcurrency);
+      expect(s.maxDurationSec).toBeLessThanOrEqual(HARD_CAPS.maxDurationSec);
+    }
+  });
+
+  it('covers the two proven mechanisms: POST/dynamic and high concurrency', () => {
+    const pb = getPlaybook('bankcz-connexes')!;
+    // Mechanism A — several POST lines on dynamic/auth endpoints.
+    expect(pb.steps.filter((s) => s.vector === 'http-post').length).toBeGreaterThanOrEqual(3);
+    // Mechanism B — a high-concurrency hold beyond the THOR line's 250.
+    expect(pb.steps.some((s) => s.concurrency >= 300)).toBe(true);
+    // A bounded slow connection-hold line (no true SlowLoris abuse).
+    expect(pb.steps.some((s) => s.vector === 'http-slowloris')).toBe(true);
+  });
+
+  it('instantiates the whole suite into governed campaigns', () => {
+    const pb = getPlaybook('bankcz-connexes')!;
+    const inputs = buildSuiteCampaigns(pb, target, engines);
+    expect(inputs).toHaveLength(8);
+    // Every instantiated line carries the target and stays a bounded vector.
+    for (const c of inputs) {
+      expect(c.target).toBe('https://staging.example.com/');
+      expect(['http-get', 'http-post', 'http-slowloris']).toContain(c.vector);
+    }
+  });
+});

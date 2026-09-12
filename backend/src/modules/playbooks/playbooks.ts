@@ -1269,6 +1269,151 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
     ],
   },
+  {
+    // Adjacent bounded L7 scenarios derived from the 2026-09-12 bank.cz run
+    // analysis: the two mechanisms that passed on the (unprotected) origin were
+    // dynamic/POST compute (origin 5xx + latency collapse) and connection
+    // concurrency. Each line probes an adjacent request-shape and maps to the
+    // mitigation it would validate once WEDOS Protection fronts the target.
+    id: 'bankcz-connexes',
+    name: 'bank.cz L7 — connexes (hypotheses)',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'Adjacent bounded L7 lines derived from what already stressed the unprotected bank.cz ' +
+      'origin: dynamic/POST compute (5xx + latency) and connection concurrency. Each maps to a ' +
+      'mitigation it would validate. Bounded HTTP only, allowlisted, tagged, kill-switchable. ' +
+      'Set the real endpoints from Prepare/recon before launch — path-based lines 404 on a bare ' +
+      'root.',
+    when: 'After the P26-20371 dry-run, to probe adjacent shapes and validate mitigations.',
+    threat: {
+      technique: 'Adjacent L7 request-shapes (dynamic-compute + connection concurrency)',
+      reference: 'Derived from the 2026-09-12 bank.cz proving-ground run analysis',
+      measures:
+        'Whether the two mechanisms that passed (POST/dynamic → origin 5xx & latency; high ' +
+        'concurrency → connection backlog) also pass under adjacent shapes, and whether a ' +
+        'rate-limit / bot-challenge / concurrency-cap / cache would neutralise them.',
+      notReproduced:
+        'No credential brute-force, no RST_STREAM / HPACK abuse, no slow-header beyond a bounded ' +
+        'connection hold — every step is complete, rate-capped requests within HARD_CAPS.',
+    },
+    steps: [
+      {
+        name: 'Search/query flood — random terms (A)',
+        summary:
+          'Line A1 — uncacheable GET search over varied query terms; hits DB/full-text on the ' +
+          'origin, like the login POST. Validates: rate-limit + query-cost caps on search.',
+        maxRps: 500,
+        concurrency: 150,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'builtin',
+        paths: [
+          '/search?q=alpha',
+          '/search?q=bravo',
+          '/search?q=charlie',
+          '/search?q=delta',
+          '/search?q=echo',
+        ],
+      },
+      {
+        name: 'Password-reset / register POST-flood (A)',
+        summary:
+          'Line A2 — bounded POST on auth-adjacent write endpoints (heavier than login: token, ' +
+          'e-mail, DB write). Validates: rate-limit + challenge on auth POST.',
+        maxRps: 400,
+        concurrency: 100,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'builtin',
+        paths: ['/password-reset', '/account/recover', '/register'],
+      },
+      {
+        name: 'Endpoint-mix POST — weighted (A)',
+        summary:
+          'Line A3 — POST spread across several dynamic endpoints so a per-path throttle is ' +
+          'evaded; total origin compute stays high. Validates: a GLOBAL (not per-path) rate-limit.',
+        maxRps: 600,
+        concurrency: 150,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+        rotateUa: true,
+        paths: ['/login', '/account', '/contact', '/api/submit'],
+      },
+      {
+        name: 'Auth session pressure (A)',
+        summary:
+          'Line A4 — POST pressure on login/account with UA rotation to mimic many sessions; for ' +
+          'a true GET→POST→GET flow with think-time, build it in the campaign flow editor. ' +
+          'Validates: bot challenge / ATP + session-aware rate-limit.',
+        maxRps: 300,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'builtin',
+        rotateUa: true,
+        paths: ['/login', '/account'],
+      },
+      {
+        name: 'POST-flood in pulses (A)',
+        summary:
+          'Line A5 — the login POST delivered in synchronized bursts; pulses at the window reset ' +
+          'beat a FIXED-window rate-limit. Validates: a sliding-window rate-limit.',
+        maxRps: 600,
+        concurrency: 150,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'builtin',
+        paths: ['/login'],
+      },
+      {
+        name: 'Sustained max-concurrency GET (B)',
+        summary:
+          'Line B1 — moderate rate but a high concurrent connection hold (THOR dropped the probe ' +
+          'to 40% at 250 conns). Validates: edge→origin concurrency cap + connection draining. ' +
+          'Isolate the legitimate probe when running this so the verdict is attributable.',
+        maxRps: 300,
+        concurrency: 400,
+        maxDurationSec: 300,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'builtin',
+      },
+      {
+        name: 'Slow connection hold — bounded (B)',
+        summary:
+          'Line B2 — many connections held with trickled requests (bounded slow-header, no true ' +
+          'SlowLoris abuse); exhausts the connection pool without volume. Validates: request/' +
+          'header timeout + slow-body protection.',
+        maxRps: 10,
+        concurrency: 300,
+        maxDurationSec: 300,
+        profile: 'constant',
+        vector: 'http-slowloris',
+        agent: 'builtin',
+      },
+      {
+        name: 'Cache-buster GET — future-CDN bypass',
+        summary:
+          'Line C1 — GET on the main path with a unique query per variant so a CDN cannot serve ' +
+          'it; harmless on the bare origin today, becomes the CDN-bypass test once a cache is ' +
+          'added. Validates: cache-key policy + micro-cache.',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'builtin',
+        paths: ['/?_=a1', '/?_=b2', '/?_=c3', '/?_=d4'],
+      },
+    ],
+  },
 ];
 
 // Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
@@ -1342,6 +1487,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'threat-api-post-storm': '2026-09-11',
   'threat-ivan-ja4-sweep': '2026-09-11',
   'threat-ivan-ja4-random': '2026-09-11',
+  'bankcz-connexes': '2026-09-12',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
