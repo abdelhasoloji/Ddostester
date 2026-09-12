@@ -34,7 +34,7 @@ test('the Campaigns workspace exposes its tabs and switches surfaces', async ({ 
   await page.getByRole('tab', { name: 'Templates' }).click();
   await expect(page.getByPlaceholder('Search templates…')).toBeVisible();
   await page.getByRole('tab', { name: 'How it works' }).click();
-  await expect(page.getByText('The four steps')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Reading the score (WRS)' })).toBeVisible();
 });
 
 test('Reports shows an empty state before any run (E1)', async ({ page }) => {
