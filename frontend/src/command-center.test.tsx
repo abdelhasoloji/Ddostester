@@ -245,6 +245,10 @@ describe('Run Theater', () => {
     expect(screen.getByText('Search flood (A)')).toBeInTheDocument();
     // The next step appears in the stepper and again in the gate's "Next:" line.
     expect(screen.getAllByText('POST flood (A)').length).toBeGreaterThan(0);
+    // While a sequence is in flight, the page refreshes campaigns itself — the
+    // context's own poll is off during the gate (nothing RUNNING), so without
+    // this the theater would never advance past the gate banner.
+    await waitFor(() => expect(currentApp.refresh).toHaveBeenCalled());
   });
 
   it('opens the full target-intelligence dossier from the recon strip', async () => {

@@ -449,15 +449,28 @@ export function CommandCenterPage() {
  */
 /** Polls the live suite-sequence control state so the theater knows a suite is
  *  in flight even between steps (during the recovery gate, no single campaign is
- *  RUNNING). Light 3 s poll; stops on unmount. */
-function useSuiteSequences(): Record<string, SuiteSequenceState> {
+ *  RUNNING). Light 3 s poll; stops on unmount.
+ *
+ *  While a sequence is active it also fires `onActiveTick` each poll, so the
+ *  caller can refresh the campaigns list. This is essential: the app context
+ *  only auto-refreshes campaigns while some campaign is RUNNING — during the
+ *  recovery gate nothing is RUNNING, so without this the theater would never
+ *  learn that the next step has started and would stay stuck on the gate banner
+ *  until a manual navigation re-fetched. */
+function useSuiteSequences(onActiveTick?: () => void): Record<string, SuiteSequenceState> {
   const [seqs, setSeqs] = useState<Record<string, SuiteSequenceState>>({});
+  const cbRef = useRef(onActiveTick);
+  cbRef.current = onActiveTick;
   useEffect(() => {
     let alive = true;
     const tick = async () => {
       try {
         const r = await api.suiteSequences();
-        if (alive) setSeqs(r.sequences ?? {});
+        if (!alive) return;
+        const s = r.sequences ?? {};
+        setSeqs(s);
+        // A sequence is in flight (including a gate gap) → keep campaigns fresh.
+        if (Object.keys(s).length > 0) cbRef.current?.();
       } catch {
         /* transient — the next tick retries */
       }
@@ -957,7 +970,9 @@ function SuiteTheater({
  */
 export function RunTheaterPage() {
   const app = useApp();
-  const seqs = useSuiteSequences();
+  // Refresh campaigns on each sequence poll while a suite is in flight, so the
+  // theater advances through the recovery gate without a manual navigation.
+  const seqs = useSuiteSequences(app.refresh);
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   // An active suite = one with a live sequence, or (fallback) the suite of a
   // running step even if the poll hasn't landed yet.
