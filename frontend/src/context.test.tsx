@@ -11,6 +11,8 @@ const fakeApi = {
   alerts: vi.fn().mockResolvedValue([]),
   me: vi.fn(),
   login: vi.fn(),
+  logout: vi.fn().mockResolvedValue({ ok: true }),
+  changePassword: vi.fn(),
   createCampaign: vi.fn(),
   approve: vi.fn(),
   execute: vi.fn(),

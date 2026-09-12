@@ -47,6 +47,7 @@ import {
   ApproveModal,
   CampaignCard,
   CampaignDrawer,
+  ChangePasswordForm,
   ExecuteModal,
   NewCampaignForm,
   NewCampaignWizard,
@@ -2259,6 +2260,8 @@ function UsersCard() {
   const [users, setUsers] = useState<ManagedUser[] | null>(null);
   const [form, setForm] = useState({ email: '', role: 'viewer' as Role, password: '' });
   const [busy, setBusy] = useState(false);
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  const [resetPw, setResetPw] = useState('');
   const show = app.authRequired && canDo(app.role, 'manage', app.authRequired);
 
   const load = () => {
@@ -2306,6 +2309,30 @@ function UsersCard() {
       load(); // revert the dropdown to the stored value
     }
   };
+  const toggleStatus = async (u: ManagedUser) => {
+    const next = (u.status ?? 'active') === 'disabled' ? 'active' : 'disabled';
+    try {
+      await api.setUserStatus(u.email, next);
+      app.push('success', `${u.email} ${next === 'disabled' ? 'deactivated' : 'reactivated'}.`);
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
+  const submitReset = async (email: string) => {
+    try {
+      await api.resetUserPassword(email, resetPw);
+      app.push(
+        'success',
+        `Temporary password set for ${email} — they must change it at next login.`,
+      );
+      setResetFor(null);
+      setResetPw('');
+      load();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    }
+  };
 
   const me = app.identity?.email;
   return (
@@ -2319,32 +2346,108 @@ function UsersCard() {
         <span className="hint">Loading…</span>
       ) : (
         <div className="engines" style={{ marginBottom: '1rem' }}>
-          {users.map((u) => (
-            <div key={u.email} className="engine-row">
-              <span className="engine-name">{u.email}</span>
-              {u.source === 'store' && u.email !== me ? (
-                <select
-                  className="role-select"
-                  value={u.role}
-                  onChange={(e) => changeRole(u.email, e.target.value as Role)}
-                  title="Change role"
-                >
-                  <option value="viewer">SOC / NOC (read + kill)</option>
-                  <option value="engineer">Security Engineer</option>
-                  <option value="officer">Security Officer</option>
-                  <option value="ciso">CISO (governs limits)</option>
-                </select>
-              ) : (
-                <span className="engine-badge ok">{roleLabel[u.role]}</span>
-              )}
-              <span className={`engine-badge ${u.source === 'env' ? 'no' : 'ok'}`}>{u.source}</span>
-              {u.source === 'store' && u.email !== me && (
-                <button className="btn btn-sm btn-ghost" onClick={() => remove(u.email)}>
-                  Remove
-                </button>
-              )}
-            </div>
-          ))}
+          {users.map((u) => {
+            const disabled = (u.status ?? 'active') === 'disabled';
+            const editable = u.source === 'store' && u.email !== me;
+            return (
+              <div key={u.email} className="engine-row" style={{ flexWrap: 'wrap', gap: '.4rem' }}>
+                <span className="engine-name" style={disabled ? { opacity: 0.55 } : undefined}>
+                  {u.email}
+                </span>
+                {editable ? (
+                  <select
+                    className="role-select"
+                    value={u.role}
+                    onChange={(e) => changeRole(u.email, e.target.value as Role)}
+                    title="Change role"
+                    aria-label={`Role for ${u.email}`}
+                  >
+                    <option value="viewer">SOC / NOC (read + kill)</option>
+                    <option value="engineer">Security Engineer</option>
+                    <option value="officer">Security Officer</option>
+                    <option value="ciso">CISO (governs limits)</option>
+                  </select>
+                ) : (
+                  <span className="engine-badge ok">{roleLabel[u.role]}</span>
+                )}
+                <span className={`engine-badge ${u.source === 'env' ? 'no' : 'ok'}`}>
+                  {u.source}
+                </span>
+                {disabled && (
+                  <span className="engine-badge no" title="Deactivated — cannot sign in">
+                    disabled
+                  </span>
+                )}
+                {u.mustChangePassword && (
+                  <span
+                    className="engine-badge"
+                    title="Temporary password — change required at next login"
+                  >
+                    temp pw
+                  </span>
+                )}
+                <span className="hint" style={{ marginLeft: 'auto' }}>
+                  {u.lastLoginAt
+                    ? `last login ${new Date(u.lastLoginAt).toLocaleString()}`
+                    : u.source === 'store'
+                      ? 'never signed in'
+                      : ''}
+                </span>
+                {editable && (
+                  <>
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => {
+                        setResetFor(resetFor === u.email ? null : u.email);
+                        setResetPw('');
+                      }}
+                    >
+                      Reset password
+                    </button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => toggleStatus(u)}>
+                      {disabled ? 'Reactivate' : 'Deactivate'}
+                    </button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => remove(u.email)}>
+                      Remove
+                    </button>
+                  </>
+                )}
+                {resetFor === u.email && (
+                  <div
+                    className="row"
+                    style={{ flexBasis: '100%', gap: '.4rem', alignItems: 'center' }}
+                  >
+                    <input
+                      type="password"
+                      className="role-select"
+                      style={{ flex: '1 1 12rem' }}
+                      placeholder="New temporary password (min. 12 chars)"
+                      value={resetPw}
+                      autoComplete="new-password"
+                      aria-label={`New password for ${u.email}`}
+                      onChange={(e) => setResetPw(e.target.value)}
+                    />
+                    <button
+                      className="btn btn-sm btn-primary"
+                      disabled={!resetPw}
+                      onClick={() => submitReset(u.email)}
+                    >
+                      Set temporary password
+                    </button>
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => {
+                        setResetFor(null);
+                        setResetPw('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       <form className="grid" onSubmit={add}>
@@ -2371,21 +2474,25 @@ function UsersCard() {
           </select>
         </div>
         <div className="field">
-          <label>Password</label>
+          <label>Temporary password</label>
           <input
             type="password"
-            placeholder="min. 8 characters"
+            placeholder="min. 12 characters"
             value={form.password}
+            autoComplete="new-password"
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
           />
         </div>
         <div className="field" style={{ alignSelf: 'end' }}>
           <button className="btn btn-primary" disabled={busy} type="submit">
-            {busy ? 'Saving…' : 'Add / update user'}
+            {busy ? 'Saving…' : 'Add user'}
           </button>
         </div>
       </form>
+      <p className="hint" style={{ marginTop: '.5rem', marginBottom: 0 }}>
+        The password you set is temporary — the new user must choose their own at first sign-in.
+      </p>
     </div>
   );
 }
@@ -3322,6 +3429,16 @@ export function SettingsPage() {
           </div>
         )}
       </div>
+
+      {app.authRequired && app.identity && (
+        <div className="card" style={{ marginBottom: '1rem', maxWidth: 460 }}>
+          <h2>Change my password</h2>
+          <p className="hint" style={{ marginBottom: '.75rem' }}>
+            Changing your password signs out your other sessions.
+          </p>
+          <ChangePasswordForm />
+        </div>
+      )}
 
       <div className="card">
         <h2>Engine &amp; security</h2>

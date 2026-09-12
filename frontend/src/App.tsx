@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from './context.js';
-import { Login } from './ui.js';
+import { Login, ForcedPasswordChange } from './ui.js';
 import {
   AuditPage,
   CommandCenterPage,
@@ -37,6 +37,10 @@ function Gate() {
         </div>
       </>
     );
+  }
+  // Admin-set temporary password: block the app until it's changed.
+  if (app.authRequired && app.identity && app.mustChangePassword) {
+    return <ForcedPasswordChange />;
   }
   return (
     <Routes>
