@@ -24,6 +24,7 @@ import {
   CampaignError,
 } from './modules/campaigns/service.js';
 import { executeCampaign } from './modules/campaigns/runner.js';
+import { waitForTargetAvailable, type RecoveryOptions } from './modules/campaigns/recovery.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './modules/campaigns/model.js';
@@ -130,6 +131,13 @@ export interface BuildOptions {
    * loopback on the monitoring host, so in production this points at a tunnel.
    */
   prometheusUrl?: string;
+  /**
+   * Between-wave availability gate for suite sequences: after one step's load
+   * settles, hold the next step until the target is reachable again (bounded).
+   * Defaults to production values; pass a partial to tune, or `false` to disable
+   * (tests that target an intentionally-down host set this so they don't wait).
+   */
+  suiteRecovery?: Partial<RecoveryOptions> | false;
 }
 
 export interface BuiltApp {
@@ -819,6 +827,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           }
         }
         if (c.status !== 'APPROVED') continue; // terminal / rejected → leave as-is
+        // Recovery gate BETWEEN waves: once at least one step has run, don't start
+        // the next wave until the target is reachable again (it may still be
+        // recovering from the previous load). Bounded, so the suite never hangs;
+        // if the target never recovers we skip the step rather than hammer a down
+        // target. The wait time is recorded (a real recovery-time signal).
+        if (opts.suiteRecovery !== false && ctrl.started > 0 && !ctrl.cancelled) {
+          const gate = await waitForTargetAvailable(c.probeUrl || c.target, {
+            isCancelled: () => ctrl.cancelled,
+            ...(typeof opts.suiteRecovery === 'object' ? opts.suiteRecovery : {}),
+          });
+          const secs = Math.round(gate.waitedMs / 1000);
+          if (!gate.available) {
+            await auditAs(actor, 'suite.skip', c.id, `target unavailable after ${secs}s — skipped`);
+            continue;
+          }
+          await auditAs(actor, 'suite.gate', c.id, `target available after ${secs}s — proceeding`);
+        }
+        if (ctrl.cancelled) break;
         ctrl.current = c.id;
         ctrl.started += 1;
         try {

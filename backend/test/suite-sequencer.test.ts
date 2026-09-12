@@ -37,6 +37,9 @@ describe('Multi-step suite sequencer', () => {
         allowedTargets: ALLOWED,
         logger: false,
         serveStatic: false,
+        // The target (127.0.0.1, nothing listening) is intentionally down here;
+        // the between-wave availability gate would otherwise wait then skip.
+        suiteRecovery: false,
       })
     ).app;
     eng = await login(app, 'eng@wedos', 'pw-engineer-1');

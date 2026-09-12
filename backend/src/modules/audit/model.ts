@@ -31,6 +31,7 @@ export interface AuditEntry {
     | 'bench.verdict'
     | 'bench.coverage'
     | 'suite.run'
+    | 'suite.gate'
     | 'suite.skip'
     | 'suite.pause'
     | 'suite.resume'
