@@ -12,6 +12,7 @@
  * hard kill. It emits no attack load: these are legitimate measurement requests.
  */
 
+import { fetch as pooledFetch, Agent } from 'undici';
 import { analyzePosture } from '../posture/analyze.js';
 import type { PostureReport } from '../posture/analyze.js';
 import { percentile } from '../../engine/stats.js';
@@ -81,6 +82,17 @@ export class Probe {
   /** Last observed status class, so we snapshot headers on a *transition*. */
   private lastStatusClass: string | null = null;
   private readonly limits: ProbeLimits;
+  /**
+   * A DEDICATED HTTP connection pool for the probe, isolated from the load
+   * generator's. The builtin generator uses Node's global `fetch` (the global
+   * undici pool); under a high-concurrency in-process flood that pool saturates
+   * and a probe sharing it would time out — recording a false "unavailable" that
+   * reflects our own pool contention, not the target. Its own small pool lets
+   * the probe keep measuring the *target's* health. TLS behaviour is unchanged
+   * (it inherits the process-wide NODE_TLS_REJECT_UNAUTHORIZED, like global
+   * fetch), and undici's fetch keeps the same redirect/headers semantics.
+   */
+  readonly dispatcher = new Agent({ connections: 4 });
 
   constructor(
     private readonly url: string,
@@ -102,27 +114,36 @@ export class Probe {
    * open indefinitely past its `maxDurationSec`.
    */
   async run(hardDeadlineMs?: number): Promise<void> {
-    while (!this.kill.killed && (hardDeadlineMs === undefined || Date.now() < hardDeadlineMs)) {
-      if (hardDeadlineMs === undefined) {
-        await this.tick();
-      } else {
-        // Bound the tick by the hard deadline. A request queued on an exhausted
-        // HTTP pool (undici) can hang past its own timeout — un-abortable — which
-        // would otherwise keep this loop (and the run's Promise.all) open forever
-        // and let the load run past its cap. Race the tick against the remaining
-        // wall-clock so run() ALWAYS returns by the deadline; a still-pending tick
-        // is abandoned (its sample just never lands).
-        const remaining = hardDeadlineMs - Date.now();
-        if (remaining <= 0) break;
-        let timer: ReturnType<typeof setTimeout>;
-        const bound = new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, remaining);
-          timer.unref?.();
-        });
-        await Promise.race([this.tick().finally(() => clearTimeout(timer)), bound]);
-        if (Date.now() >= hardDeadlineMs) break;
+    try {
+      while (!this.kill.killed && (hardDeadlineMs === undefined || Date.now() < hardDeadlineMs)) {
+        if (hardDeadlineMs === undefined) {
+          await this.tick();
+        } else {
+          // Bound the tick by the hard deadline. A request queued on an exhausted
+          // HTTP pool (undici) can hang past its own timeout — un-abortable — which
+          // would otherwise keep this loop (and the run's Promise.all) open forever
+          // and let the load run past its cap. Race the tick against the remaining
+          // wall-clock so run() ALWAYS returns by the deadline; a still-pending tick
+          // is abandoned (its sample just never lands).
+          const remaining = hardDeadlineMs - Date.now();
+          if (remaining <= 0) break;
+          let timer: ReturnType<typeof setTimeout>;
+          const bound = new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, remaining);
+            timer.unref?.();
+          });
+          await Promise.race([this.tick().finally(() => clearTimeout(timer)), bound]);
+          if (Date.now() >= hardDeadlineMs) break;
+        }
+        await this.sleep(this.intervalMs);
       }
-      await this.sleep(this.intervalMs);
+    } finally {
+      // Release the dedicated pool's sockets when the probe stops. `destroy()`,
+      // not `close()`: when the run ends by the hard deadline a tick may still be
+      // in-flight against a never-responding target — `close()` would wait for it
+      // and hang past the deadline, defeating the very bound run() guarantees.
+      // `destroy()` aborts any in-flight request and closes immediately.
+      await this.dispatcher.destroy().catch(() => undefined);
     }
   }
 
@@ -134,14 +155,16 @@ export class Probe {
     let status = 0;
     let latencyMs = 0;
     try {
-      const res = await fetch(this.url, { signal: ac.signal });
+      // Dedicated dispatcher (see `dispatcher` field) so a saturated generator
+      // pool can never starve the probe.
+      const res = await pooledFetch(this.url, { signal: ac.signal, dispatcher: this.dispatcher });
       // TTFB: measured the moment response headers arrive, BEFORE draining the
       // body. This keeps the latency metric a measure of the server's
       // responsiveness rather than of the response size / our own bandwidth.
       latencyMs = performance.now() - t0;
       status = res.status;
       ok = res.ok;
-      this.captureHeadersOnChange(status, res.headers);
+      this.captureHeadersOnChange(status, res.headers as unknown as Headers);
       // Drain (and discard) the body to release the socket; not timed.
       await res.arrayBuffer().catch(() => undefined);
     } catch {
