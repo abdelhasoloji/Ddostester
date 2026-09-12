@@ -943,6 +943,42 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
+  // Best-effort recon used to seed a suite's endpoints from the target's real
+  // published surface (systematic recon). Never throws: on failure the caller
+  // falls back to the template paths and the summary says so.
+  interface ReconSeedResult {
+    surface?: { paths: string[]; loginPath?: string };
+    summary: {
+      seeded: boolean;
+      go?: boolean;
+      suggestedPaths?: string[];
+      loginPath?: string;
+      error?: string;
+    };
+  }
+  async function reconSeed(target: string, probeUrl: string): Promise<ReconSeedResult> {
+    try {
+      const availN = (await describeAgents()).filter((a) => a.available).length;
+      const recon = await runRecon(target, probeUrl, allowedTargets, {
+        enginesAvailable: availN,
+        capsConfigured: true,
+        protectionConfigured: protection.configured,
+        labRunnerConfigured: labTargets.length > 0,
+      });
+      return {
+        surface: { paths: recon.suggestedPaths, loginPath: recon.loginPath },
+        summary: {
+          seeded: true,
+          go: recon.preflight.go,
+          suggestedPaths: recon.suggestedPaths,
+          loginPath: recon.loginPath,
+        },
+      };
+    } catch (err) {
+      return { summary: { seeded: false, error: (err as Error).message } };
+    }
+  }
+
   // Anti-brute-force: temporary lock after several failures (per email+IP).
   const loginFails = new Map<string, { count: number; until: number }>();
   const MAX_FAILS = 5;
@@ -1649,6 +1685,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       if (!body.target) return reply.code(400).send({ error: 'target is required' });
       try {
         const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+        // Systematic recon: seed the suite's endpoints from the target's real
+        // published surface so path-based lines can't flood non-existent paths
+        // (404). Best-effort and non-blocking (see reconSeed).
+        const seed = await reconSeed(body.target, body.probeUrl || body.target);
         const inputs = buildSuiteCampaigns(
           pb,
           {
@@ -1656,6 +1696,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             probeUrl: body.probeUrl || body.target,
             createdBy: req.authUser?.email ?? 'dev',
             recurrenceMin: body.recurrenceMin,
+            recon: seed.surface,
           },
           engines,
         );
@@ -1669,9 +1710,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           req,
           'campaign.create',
           undefined,
-          `playbook "${pb.name}" → ${created.length} campaigns (suite ${created[0]?.suiteId})`,
+          `playbook "${pb.name}" → ${created.length} campaigns (suite ${created[0]?.suiteId}` +
+            `${seed.summary.seeded ? ', recon-seeded' : ''})`,
         );
-        return reply.code(201).send({ suiteId: created[0]?.suiteId, campaigns: created });
+        return reply
+          .code(201)
+          .send({ suiteId: created[0]?.suiteId, campaigns: created, recon: seed.summary });
       } catch (err) {
         return fail(err, reply);
       }
@@ -1712,6 +1756,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       body.name?.trim() || `Composite — ${playbooks.map((p) => p.name).join(' + ')}`.slice(0, 120);
     try {
       const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+      // Systematic recon-seeding (same as single-playbook instantiation).
+      const seed = await reconSeed(body.target, body.probeUrl || body.target);
       const inputs = buildCompositeSuite(
         playbooks,
         name,
@@ -1720,6 +1766,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           probeUrl: body.probeUrl || body.target,
           createdBy: req.authUser?.email ?? 'dev',
           recurrenceMin: body.recurrenceMin,
+          recon: seed.surface,
         },
         engines,
       );
@@ -1733,9 +1780,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         req,
         'campaign.create',
         undefined,
-        `composite "${name}" ← ${playbooks.length} templates → ${created.length} campaigns (suite ${created[0]?.suiteId})`,
+        `composite "${name}" ← ${playbooks.length} templates → ${created.length} campaigns ` +
+          `(suite ${created[0]?.suiteId}${seed.summary.seeded ? ', recon-seeded' : ''})`,
       );
-      return reply.code(201).send({ suiteId: created[0]?.suiteId, campaigns: created });
+      return reply
+        .code(201)
+        .send({ suiteId: created[0]?.suiteId, campaigns: created, recon: seed.summary });
     } catch (err) {
       return fail(err, reply);
     }

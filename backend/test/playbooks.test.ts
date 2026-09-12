@@ -4,6 +4,7 @@ import {
   PlaybookError,
   buildScenario,
   buildSuiteCampaigns,
+  seedPaths,
   getPlaybook,
   validatePlaybookInput,
 } from '../src/modules/playbooks/playbooks.js';
@@ -379,6 +380,53 @@ describe('zeroBS L7 single-line playbooks (P26-20371)', () => {
     expect(rnd.endpoints).toHaveLength(4); // relative paths resolved against the target
     expect(rnd.endpoints?.[0].url).toBe('https://staging.example.com/nonexistent-a1');
     expect(rnd.scenario).toHaveLength(3); // wave profile
+  });
+});
+
+describe('seedPaths (recon-seeded endpoints)', () => {
+  it('returns paths unchanged when no recon surface is supplied', () => {
+    expect(seedPaths(['/search?q=x'], undefined)).toEqual(['/search?q=x']);
+    expect(seedPaths(undefined, { paths: ['/'] })).toBeUndefined();
+  });
+
+  it('keeps on-surface paths and drops off-surface ones', () => {
+    const out = seedPaths(['/search?q=alpha', '/ghost', '/nope'], {
+      paths: ['/', '/search', '/about'],
+    });
+    expect(out).toEqual(['/search?q=alpha']); // /ghost, /nope dropped (would 404)
+  });
+
+  it('substitutes the discovered login path for auth-intent paths', () => {
+    const out = seedPaths(['/login', '/account', '/contact'], {
+      paths: ['/', '/contact'],
+      loginPath: '/realms/srp/account',
+    });
+    // /login + /account → the real login path (deduped); /contact kept (on surface).
+    expect(out).toEqual(['/realms/srp/account', '/contact']);
+  });
+
+  it('falls back to the root when nothing matches (never floods 404s)', () => {
+    expect(seedPaths(['/ghost', '/nope'], { paths: ['/', '/health'] })).toEqual(['/']);
+  });
+
+  it('threads recon through buildSuiteCampaigns into the resolved endpoints', () => {
+    const pb = getPlaybook('bankcz-connexes')!;
+    const inputs = buildSuiteCampaigns(
+      pb,
+      {
+        target: 'https://bank.cz/',
+        probeUrl: 'https://bank.cz/',
+        createdBy: 'e',
+        recon: { paths: ['/', '/search'], loginPath: '/account/login' },
+      },
+      [{ id: 'builtin', available: true }],
+    );
+    const search = inputs.find((c) => c.name.includes('Search/query flood'));
+    // /search is on the surface → kept and resolved against the origin.
+    expect(search?.endpoints?.some((e) => e.url === 'https://bank.cz/search?q=alpha')).toBe(true);
+    const pwreset = inputs.find((c) => c.name.includes('Password-reset'));
+    // /password-reset etc. are auth-intent → seeded to the discovered login path.
+    expect(pwreset?.endpoints?.every((e) => e.url === 'https://bank.cz/account/login')).toBe(true);
   });
 });
 

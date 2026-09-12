@@ -1283,8 +1283,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       'Adjacent bounded L7 lines derived from what already stressed the unprotected bank.cz ' +
       'origin: dynamic/POST compute (5xx + latency) and connection concurrency. Each maps to a ' +
       'mitigation it would validate. Bounded HTTP only, allowlisted, tagged, kill-switchable. ' +
-      'Set the real endpoints from Prepare/recon before launch — path-based lines 404 on a bare ' +
-      'root.',
+      'Endpoints are seeded automatically from a recon of the target at launch (off-surface paths ' +
+      'are dropped, so no 404 floods); the sequence escalates to the peak concurrency line last.',
     when: 'After the P26-20371 dry-run, to probe adjacent shapes and validate mitigations.',
     threat: {
       technique: 'Adjacent L7 request-shapes (dynamic-compute + connection concurrency)',
@@ -1373,17 +1373,18 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         paths: ['/login'],
       },
       {
-        name: 'Sustained max-concurrency GET (B)',
+        name: 'Cache-buster GET — future-CDN bypass',
         summary:
-          'Line B1 — moderate rate but a high concurrent connection hold (THOR dropped the probe ' +
-          'to 40% at 250 conns). Validates: edge→origin concurrency cap + connection draining. ' +
-          'Isolate the legitimate probe when running this so the verdict is attributable.',
-        maxRps: 300,
-        concurrency: 400,
-        maxDurationSec: 300,
+          'Line C1 — GET on the main path with a unique query per variant so a CDN cannot serve ' +
+          'it; harmless on the bare origin today, becomes the CDN-bypass test once a cache is ' +
+          'added. Validates: cache-key policy + micro-cache.',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
         profile: 'constant',
         vector: 'http-get',
         agent: 'builtin',
+        paths: ['/?_=a1', '/?_=b2', '/?_=c3', '/?_=d4'],
       },
       {
         name: 'Slow connection hold — bounded (B)',
@@ -1399,18 +1400,18 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'builtin',
       },
       {
-        name: 'Cache-buster GET — future-CDN bypass',
+        // Peak disruption — deliberately LAST in the escalation.
+        name: 'Sustained max-concurrency GET (B)',
         summary:
-          'Line C1 — GET on the main path with a unique query per variant so a CDN cannot serve ' +
-          'it; harmless on the bare origin today, becomes the CDN-bypass test once a cache is ' +
-          'added. Validates: cache-key policy + micro-cache.',
-        maxRps: 800,
-        concurrency: 150,
-        maxDurationSec: 120,
+          'Line B1 — moderate rate but a high concurrent connection hold (THOR dropped the probe ' +
+          'to 40% at 250 conns). Validates: edge→origin concurrency cap + connection draining. ' +
+          'Isolate the legitimate probe when running this so the verdict is attributable.',
+        maxRps: 300,
+        concurrency: 400,
+        maxDurationSec: 300,
         profile: 'constant',
         vector: 'http-get',
         agent: 'builtin',
-        paths: ['/?_=a1', '/?_=b2', '/?_=c3', '/?_=d4'],
       },
     ],
   },
@@ -1539,6 +1540,53 @@ export interface SuiteTarget {
   createdBy: string;
   /** Optional: make every campaign of the suite recurring (minutes between runs). */
   recurrenceMin?: number;
+  /**
+   * Optional real published surface from a recon of the target. When present,
+   * each step's TEMPLATED paths are seeded against it (see `seedPaths`) so a
+   * suite hits real endpoints instead of flooding non-existent ones (404).
+   */
+  recon?: ReconSurface;
+}
+
+/** The recon-derived surface used to seed playbook paths. */
+export interface ReconSurface {
+  /** Real paths found on the target's published surface. */
+  paths: string[];
+  /** Best-guess login / account path, if one surfaced. */
+  loginPath?: string;
+}
+
+/** A path minus its query string (`/search?q=x` → `/search`). */
+function basePath(p: string): string {
+  const q = p.indexOf('?');
+  return q === -1 ? p : p.slice(0, q);
+}
+
+/** Auth-adjacent intent in a templated path — substituted with the real login path. */
+const AUTH_INTENT = /login|account|password|register|recover|signin|auth/i;
+
+/**
+ * Resolves a step's TEMPLATED paths against a real published surface from recon:
+ * keeps paths whose base is on the surface, substitutes the discovered login /
+ * account path for auth-intent paths, drops off-surface paths, and falls back to
+ * the root when nothing is left — so a recon-seeded suite never floods 404s.
+ * Pure. Returns the paths unchanged when no recon surface is supplied.
+ */
+export function seedPaths(paths: string[] | undefined, recon?: ReconSurface): string[] | undefined {
+  if (!paths?.length || !recon) return paths;
+  const surface = new Set(recon.paths.map(basePath));
+  const out: string[] = [];
+  for (const p of paths) {
+    const base = basePath(p);
+    if (AUTH_INTENT.test(base) && recon.loginPath) {
+      out.push(recon.loginPath);
+    } else if (surface.has(base)) {
+      out.push(p);
+    }
+    // else: off the published surface → dropped (would only 404).
+  }
+  const unique = [...new Set(out)];
+  return unique.length ? unique : ['/'];
 }
 
 /** Metadata for an installed engine (to only pick engines that are available). */
@@ -1627,8 +1675,11 @@ function campaignInputFromStep(
   // Endpoint mix and UA rotation are built-in-engine features: only attach
   // them when the resolved engine is the built-in one (explicit or default).
   const builtin = agent === 'builtin' || agent === undefined;
+  // Seed the step's templated paths against the target's real surface (when a
+  // recon was supplied) so path-based lines hit real endpoints, not 404s.
+  const seededPaths = seedPaths(step.paths, o.t.recon);
   const endpoints =
-    builtin && step.paths?.length ? step.paths.map((p) => ({ url: `${origin}${p}` })) : undefined;
+    builtin && seededPaths?.length ? seededPaths.map((p) => ({ url: `${origin}${p}` })) : undefined;
   const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
   const headers = builtin && step.headers ? step.headers : undefined;
   return {

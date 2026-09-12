@@ -90,8 +90,12 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
       .mockResolvedValue({ token: 't', email: 'x', role: 'engineer', mustChangePassword: false }),
     createPlaybook: vi.fn().mockResolvedValue({}),
     deletePlaybook: vi.fn().mockResolvedValue({ deleted: 'x' }),
-    instantiatePlaybook: vi.fn().mockResolvedValue({ suiteId: 's', campaigns: [] }),
-    composeSuite: vi.fn().mockResolvedValue({ suiteId: 's', campaigns: [] }),
+    instantiatePlaybook: vi
+      .fn()
+      .mockResolvedValue({ suiteId: 's', campaigns: [], recon: { seeded: false } }),
+    composeSuite: vi
+      .fn()
+      .mockResolvedValue({ suiteId: 's', campaigns: [], recon: { seeded: false } }),
     notifyTest: vi.fn().mockResolvedValue({ delivered: true, sinks: [] }),
     verifyAudit: vi.fn().mockResolvedValue({ ok: true, count: 3, headHash: 'abc123def456' }),
     benchScenarios: vi

@@ -287,6 +287,20 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
         'success',
         `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
       );
+      // Recon-seeding is systematic: tell the operator what it found (or warn).
+      if (r.recon?.seeded) {
+        app.push(
+          'info',
+          `Endpoints seeded from recon: ${r.recon.suggestedPaths?.length ?? 0} real path(s)` +
+            `${r.recon.loginPath ? `, login ${r.recon.loginPath}` : ''}` +
+            `${r.recon.go === false ? ' · ⚠ preflight NO-GO — review before approving' : ''}.`,
+        );
+      } else if (r.recon) {
+        app.push(
+          'info',
+          'Recon unavailable — using template paths (verify endpoints before approving).',
+        );
+      }
       await app.refresh();
       navigate('/campaigns');
     } catch (err) {
@@ -329,6 +343,13 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
         'success',
         `Composed campaign created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} templates (pending approval).`,
       );
+      if (r.recon?.seeded) {
+        app.push(
+          'info',
+          `Endpoints seeded from recon: ${r.recon.suggestedPaths?.length ?? 0} real path(s)` +
+            `${r.recon.go === false ? ' · ⚠ preflight NO-GO — review before approving' : ''}.`,
+        );
+      }
       setSelected([]);
       setComposeName('');
       await app.refresh();

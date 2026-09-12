@@ -540,6 +540,15 @@ export function compareUrl(runIdA: string, runIdB: string): string {
   return token ? `${u}&token=${encodeURIComponent(token)}` : u;
 }
 
+/** Recon-seeding summary returned when a suite is instantiated. */
+export interface ReconSeedInfo {
+  seeded: boolean;
+  go?: boolean;
+  suggestedPaths?: string[];
+  loginPath?: string;
+  error?: string;
+}
+
 /** Structured before/after comparison of two runs (Mitigation Proof). */
 export interface MetricDelta {
   key: string;
@@ -809,7 +818,11 @@ export const api = {
   instantiatePlaybook: (
     id: string,
     body: { target: string; probeUrl?: string; recurrenceMin?: number },
-  ) => post<{ suiteId: string; campaigns: Campaign[] }>(`/api/playbooks/${id}/instantiate`, body),
+  ) =>
+    post<{ suiteId: string; campaigns: Campaign[]; recon: ReconSeedInfo }>(
+      `/api/playbooks/${id}/instantiate`,
+      body,
+    ),
   /** Compose several templates into one suite (steps concatenated in order). */
   composeSuite: (body: {
     playbookIds: string[];
@@ -817,7 +830,11 @@ export const api = {
     target: string;
     probeUrl?: string;
     recurrenceMin?: number;
-  }) => post<{ suiteId: string; campaigns: Campaign[] }>('/api/suites/compose', body),
+  }) =>
+    post<{ suiteId: string; campaigns: Campaign[]; recon: ReconSeedInfo }>(
+      '/api/suites/compose',
+      body,
+    ),
   suites: () => get<SuiteSummary[]>('/api/suites'),
   runSuite: (id: string) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
