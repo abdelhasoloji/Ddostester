@@ -31,6 +31,7 @@ import type {
   Role,
   SuiteSummary,
   SuiteSequenceState,
+  ReconReport,
   WrsBreakdown,
   ControlKey,
   ControlStatus,
@@ -446,25 +447,293 @@ export function CommandCenterPage() {
  * demo moment: watch the edge absorb the flood in real time. Falls back to a
  * pointer to Campaigns when nothing is in flight.
  */
+/** Polls the live suite-sequence control state so the theater knows a suite is
+ *  in flight even between steps (during the recovery gate, no single campaign is
+ *  RUNNING). Light 3 s poll; stops on unmount. */
+function useSuiteSequences(): Record<string, SuiteSequenceState> {
+  const [seqs, setSeqs] = useState<Record<string, SuiteSequenceState>>({});
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      try {
+        const r = await api.suiteSequences();
+        if (alive) setSeqs(r.sequences ?? {});
+      } catch {
+        /* transient — the next tick retries */
+      }
+    };
+    tick();
+    const t = setInterval(tick, 3000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+  return seqs;
+}
+
+/** Long curated step names read "target — playbook — shape — variant"; the
+ *  theater only needs the shape onward. */
+function shortStepName(n: string): string {
+  const parts = n.split('—').map((s) => s.trim());
+  return parts.length > 2 ? parts.slice(2).join(' — ') : parts[parts.length - 1] || n;
+}
+
+const SUITE_TERMINAL: CampaignStatus[] = [
+  'COMPLETED',
+  'KILLED_AUTO',
+  'KILLED_MANUAL',
+  'CANCELLED',
+  'REJECTED',
+];
+
+/** Recon posture of the suite's target — what the assessment is up against.
+ *  Foregrounds the reconnaissance the tool already performed (seeded paths,
+ *  edge posture, preflight verdict). */
+function ReconStrip({ recon, loading }: { recon: ReconReport | null; loading: boolean }) {
+  if (!recon) {
+    return (
+      <div className="recon-strip">
+        <span className="recon-label">🔎 Recon</span>
+        <span className="hint">
+          {loading ? (
+            <>
+              <span className="spin" /> profiling target…
+            </>
+          ) : (
+            'unavailable'
+          )}
+        </span>
+      </div>
+    );
+  }
+  const p = recon.profile.posture;
+  const edge: { k: string; on: boolean }[] = [
+    { k: 'WAF', on: p.waf },
+    { k: 'CDN', on: p.cdn },
+    { k: 'Rate-limit', on: p.rateLimiting },
+    { k: 'Load-balancer', on: p.loadBalancer },
+  ];
+  const seeded = recon.suggestedPaths?.length ?? 0;
+  return (
+    <div className="recon-strip">
+      <span className="recon-label">🔎 Recon</span>
+      {p.server && <span className="recon-chip srv">{p.server}</span>}
+      {recon.profile.protocols?.http2 && <span className="recon-chip srv">HTTP/2</span>}
+      {edge.map((c) => (
+        <span key={c.k} className={`recon-chip ${c.on ? 'on' : 'off'}`}>
+          {c.on ? '✓' : '✗'} {c.k}
+        </span>
+      ))}
+      {seeded > 0 && <span className="recon-chip paths">{seeded} seeded path(s)</span>}
+      {recon.loginPath && <span className="recon-chip login">login {recon.loginPath}</span>}
+      <span className={`recon-chip ${recon.preflight.go ? 'go' : 'nogo'}`}>
+        {recon.preflight.go ? 'preflight GO' : '⚠ preflight NO-GO'}
+      </span>
+    </div>
+  );
+}
+
+/** The multi-step assessment as one live surface: a recon strip, a stepper that
+ *  animates the wave in flight (and the recovery gate between waves), and the
+ *  live protection panel for whichever step is running. Stays present between
+ *  steps instead of collapsing to an empty "no run in flight". */
+function SuiteTheater({
+  seq,
+  members,
+  onKill,
+  busy,
+}: {
+  seq?: SuiteSequenceState;
+  members: Campaign[];
+  onKill: (c: Campaign) => void;
+  busy: Record<string, boolean>;
+}) {
+  const ordered = useMemo(
+    () => [...members].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0)),
+    [members],
+  );
+  const target = ordered[0]?.target ?? '';
+  const suiteName = ordered[0]?.suiteName ?? 'Assessment suite';
+  const runningStep = ordered.find((c) => c.status === 'RUNNING');
+  const doneCount = ordered.filter((c) => SUITE_TERMINAL.includes(c.status)).length;
+  const total = seq?.total ?? ordered.length;
+  const seqActive = !!seq;
+  // Between waves: the sequence is live but nothing is RUNNING yet — the
+  // recovery gate is holding for the target to come back.
+  const inGate = seqActive && !runningStep && doneCount < total && !seq?.paused;
+  const nextStep = ordered.find(
+    (c) => !SUITE_TERMINAL.includes(c.status) && c.status !== 'RUNNING',
+  );
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+
+  const [recon, setRecon] = useState<ReconReport | null>(null);
+  const [reconLoading, setReconLoading] = useState(false);
+  useEffect(() => {
+    if (!target) return;
+    let alive = true;
+    setReconLoading(true);
+    api
+      .recon(target)
+      .then((r) => alive && setRecon(r))
+      .catch(() => undefined)
+      .finally(() => alive && setReconLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [target]);
+
+  const phase = seq?.paused ? 'paused' : runningStep ? 'running' : inGate ? 'gate' : 'settling';
+
+  return (
+    <div className="suite-theater">
+      <div className="stheater-head">
+        <div className="stheater-id">
+          <div className="stheater-title">{suiteName}</div>
+          <span className="hint">
+            {hostOf(target) ?? target} · {total} steps
+          </span>
+        </div>
+        <div className="stheater-progress-wrap">
+          <div className="stheater-progress-label">
+            <b>
+              {doneCount}/{total}
+            </b>{' '}
+            steps
+            <span className={`phase-tag phase-${phase}`}>{phase}</span>
+          </div>
+          <div className="stheater-progress">
+            <div className="stheater-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <ReconStrip recon={recon} loading={reconLoading} />
+
+      <div className="stepper" role="list">
+        {ordered.map((c, i) => {
+          const isDone = SUITE_TERMINAL.includes(c.status);
+          const isRun = c.status === 'RUNNING';
+          const isGateHere = inGate && nextStep?.id === c.id;
+          const state = isRun ? 'run' : isGateHere ? 'gate' : isDone ? 'done' : 'queued';
+          const killed = c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL';
+          return (
+            <div key={c.id} className={`step-node step-${state}`} role="listitem">
+              <div className="step-connector" aria-hidden="true" />
+              <div className="step-dot">
+                {isDone
+                  ? c.status === 'COMPLETED'
+                    ? '✓'
+                    : killed
+                      ? '◼'
+                      : '✕'
+                  : isRun
+                    ? ''
+                    : i + 1}
+              </div>
+              <div className="step-meta">
+                <div className="step-name" title={c.name}>
+                  {shortStepName(c.name)}
+                </div>
+                {c.wrs ? (
+                  <span className={`wrs-pill ${wrsClass(c.wrs.level)}`}>
+                    {c.wrs.wrs} {c.wrs.level}
+                  </span>
+                ) : isRun ? (
+                  <span className="step-tag live">● live</span>
+                ) : isGateHere ? (
+                  <span className="step-tag gate">recovering…</span>
+                ) : (
+                  <span className="step-tag">queued</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {runningStep ? (
+        <RunTheater
+          campaignId={runningStep.id}
+          name={shortStepName(runningStep.name)}
+          target={runningStep.target}
+          engine={runningStep.agent}
+          onKill={() => onKill(runningStep)}
+          killing={busy[runningStep.id]}
+        />
+      ) : inGate ? (
+        <div className="gate-card">
+          <div className="gate-scan" aria-hidden="true" />
+          <div className="gate-text">
+            <div className="gate-title">Recovery gate</div>
+            <p className="hint">
+              Waiting for <code>{hostOf(target) ?? target}</code> to become reachable again before
+              the next wave — the origin may still be recovering from the previous step.
+              {nextStep && (
+                <>
+                  {' '}
+                  Next: <b>{shortStepName(nextStep.name)}</b>.
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+      ) : seq?.paused ? (
+        <div className="gate-card paused">
+          <div className="gate-text">
+            <div className="gate-title">Sequence paused</div>
+            <p className="hint">Resume from the campaigns view to continue the remaining steps.</p>
+          </div>
+        </div>
+      ) : (
+        <p className="hint" style={{ padding: '1rem' }}>
+          Suite settling — finalising the last step.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * v2 Run Theater page — a focused live surface for whatever is running now. For
+ * a multi-step suite it shows the whole sequence (recon, a live stepper, and the
+ * recovery gate between waves) so it never collapses to "no run" mid-suite;
+ * standalone campaigns still get the single live panel.
+ */
 export function RunTheaterPage() {
   const app = useApp();
+  const seqs = useSuiteSequences();
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
+  // An active suite = one with a live sequence, or (fallback) the suite of a
+  // running step even if the poll hasn't landed yet.
+  const activeSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const suiteMembers = activeSuiteId
+    ? app.campaigns.filter((c) => c.suiteId === activeSuiteId)
+    : [];
+  const hasSuite = !!activeSuiteId && suiteMembers.length > 0;
+
+  // Standalone runs (not part of the active suite) keep the single-run tabs.
+  // When no suite is active, every running campaign is standalone.
+  const standalone = running.filter((c) => !(hasSuite && c.suiteId === activeSuiteId));
   const [active, setActive] = useState<string | null>(null);
-  const current = running.find((c) => c.id === active) ?? running[0];
+  const current = standalone.find((c) => c.id === active) ?? standalone[0];
+
+  const grafanaTarget = suiteMembers[0]?.target ?? current?.target;
+
   return (
     <>
       <PageHead
         title="Run Theater"
         sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
       />
-      {current && (
+      {grafanaTarget && (
         <GrafanaLink
           plane="run"
           label="Open this run in Grafana"
-          target={hostOf(current.target) ?? current.target}
+          target={hostOf(grafanaTarget) ?? grafanaTarget}
         />
       )}
-      {running.length === 0 ? (
+      {!hasSuite && standalone.length === 0 ? (
         <div className="card">
           <p className="muted">
             No run in flight. Launch one from <Link to="/campaigns">Campaigns</Link> and it appears
@@ -473,9 +742,19 @@ export function RunTheaterPage() {
         </div>
       ) : (
         <>
-          {running.length > 1 && (
-            <div style={{ display: 'flex', gap: '.4rem', marginBottom: '.8rem', flexWrap: 'wrap' }}>
-              {running.map((c) => (
+          {hasSuite && (
+            <div className="card suite-theater-card">
+              <SuiteTheater
+                seq={activeSuiteId ? seqs[activeSuiteId] : undefined}
+                members={suiteMembers}
+                onKill={app.kill}
+                busy={app.busy}
+              />
+            </div>
+          )}
+          {standalone.length > 1 && (
+            <div style={{ display: 'flex', gap: '.4rem', margin: '.8rem 0', flexWrap: 'wrap' }}>
+              {standalone.map((c) => (
                 <button
                   key={c.id}
                   className={`btn btn-sm ${current?.id === c.id ? 'btn-primary' : 'btn-ghost'}`}
@@ -486,7 +765,7 @@ export function RunTheaterPage() {
               ))}
             </div>
           )}
-          {current && (
+          {standalone.length > 0 && current && (
             <div className="card">
               <RunTheater
                 campaignId={current.id}

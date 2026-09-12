@@ -205,6 +205,47 @@ describe('Run Theater', () => {
     expect(screen.getByText(/Live updates interrupted/)).toBeInTheDocument();
     expect(screen.queryByText(/Starting run…/)).not.toBeInTheDocument();
   });
+
+  it('keeps the suite surface between steps (recovery gate), not "no run"', async () => {
+    // A live suite whose current wave has settled (nothing RUNNING) but the
+    // sequence is still in flight: the recovery gate is holding for the next
+    // step. The theater must show the stepper + gate, never "no run in flight".
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: false, started: 1, total: 2 } },
+    });
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [
+        {
+          ...scoredCampaign,
+          id: 'm0',
+          name: 'x — y — Search flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 0,
+          status: 'COMPLETED',
+          wrs,
+        },
+        {
+          ...scoredCampaign,
+          id: 'm1',
+          name: 'x — y — POST flood (A)',
+          suiteId: 'S1',
+          suiteOrder: 1,
+          status: 'APPROVED',
+          wrs: undefined,
+        },
+      ],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    // The poll resolves the active sequence → suite surface renders.
+    await waitFor(() => expect(screen.getByText('Recovery gate')).toBeInTheDocument());
+    expect(screen.queryByText(/No run in flight/)).not.toBeInTheDocument();
+    // Recon is foregrounded, and the completed step shows its WRS.
+    await waitFor(() => expect(screen.getByText('LiteSpeed')).toBeInTheDocument());
+    expect(screen.getByText('Search flood (A)')).toBeInTheDocument();
+    // The next step appears in the stepper and again in the gate's "Next:" line.
+    expect(screen.getAllByText('POST flood (A)').length).toBeGreaterThan(0);
+  });
 });
 
 describe('Results page', () => {
