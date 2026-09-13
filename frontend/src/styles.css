@@ -2432,10 +2432,19 @@ input.invalid {
   border: 1px solid var(--brand);
   border-radius: var(--radius, 10px);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  /* Never let a big selection grow the sticky basket over the page — its own
+     content scrolls instead of covering the templates/campaigns behind it. */
+  max-height: 42vh;
+  overflow: hidden;
 }
 .tcb-main {
   flex: 1 1 20rem;
   min-width: 0;
+  /* Column so the chip list can scroll within the height-bounded basket. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
 }
 .tcb-head {
   display: flex;
@@ -2456,6 +2465,11 @@ input.invalid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  /* Scroll the selected-template chips inside a few rows so a large basket
+     stays compact instead of pushing the compose bar over the whole screen. */
+  max-height: calc(42vh - 6rem);
+  overflow-y: auto;
+  padding-right: 2px;
 }
 .tcb-chip {
   display: inline-flex;

@@ -43,8 +43,16 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
     expect(highRateEngineUpgrade(base({ flow }), CEIL)).toBeNull();
   });
 
-  it('keeps built-in for endpoint-mix / dataset / assertion / UA rotation', () => {
-    expect(highRateEngineUpgrade(base({ endpoints: [{ url: 'https://t/a' }] }), CEIL)).toBeNull();
+  it('routes a high-rate recon-seeded endpoint mix to vegeta (now endpoint-capable)', () => {
+    expect(
+      highRateEngineUpgrade(
+        base({ endpoints: [{ url: 'https://t/a' }, { url: 'https://t/b' }] }),
+        CEIL,
+      ),
+    ).toBe('vegeta');
+  });
+
+  it('keeps built-in for data-feeder / assertion / UA rotation (built-in-only features)', () => {
     expect(highRateEngineUpgrade(base({ dataset: [{ k: 'v' }] }), CEIL)).toBeNull();
     expect(
       highRateEngineUpgrade(base({ assertion: { status: 200 } } as Partial<Campaign>), CEIL),
