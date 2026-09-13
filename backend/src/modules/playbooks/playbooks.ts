@@ -61,6 +61,23 @@ export interface PlaybookStep {
    * Never changes how requests are sent, only what headers they carry.
    */
   headers?: Record<string, string>;
+  /**
+   * Cache-busting (vegeta/k6): append a unique `?_cb=` to every request so a
+   * cache/CDN can't absorb the flood — each request reaches origin. Measures the
+   * origin, not the edge cache.
+   */
+  cacheBust?: boolean;
+  /**
+   * No keep-alive: a fresh TCP (and TLS) connection per request, so the step also
+   * exercises the connection-accept / handshake path, not just request handling.
+   */
+  noKeepAlive?: boolean;
+  /**
+   * Parallel generation (vegeta): split the phase rate across N concurrent
+   * workers (each at rate/N), for a single box to sustain a higher offered rate.
+   * Clamped to [1, MAX_VEGETA_PARALLELISM] downstream.
+   */
+  parallelism?: number;
 }
 
 /**
@@ -108,6 +125,12 @@ export interface Playbook {
 
 const PROFILES = ['constant', 'ramp', 'wave'];
 const VECTORS = ['http-get', 'http-post'];
+/**
+ * Upper bound on a step's parallel-generation fan-out. Mirrors the vegeta
+ * adapter's `MAX_VEGETA_PARALLELISM` (the engine clamps to it anyway); kept as a
+ * local constant so the playbook module doesn't import the agent.
+ */
+const MAX_PLAYBOOK_PARALLELISM = 8;
 
 /**
  * Validates a user-submitted playbook and returns a clean, stored Playbook.
@@ -173,6 +196,16 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       }
       headers = Object.keys(clean).length ? clean : undefined;
     }
+    let parallelism: number | undefined;
+    if (s.parallelism !== undefined) {
+      const n = Number(s.parallelism);
+      if (!Number.isInteger(n) || n < 1 || n > MAX_PLAYBOOK_PARALLELISM) {
+        throw new PlaybookError(
+          `${label}: parallelism must be an integer within [1, ${MAX_PLAYBOOK_PARALLELISM}].`,
+        );
+      }
+      if (n > 1) parallelism = n;
+    }
     return {
       name: typeof s.name === 'string' && s.name.trim() ? s.name.trim() : label,
       summary: typeof s.summary === 'string' ? s.summary : '',
@@ -185,6 +218,9 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       paths,
       rotateUa: s.rotateUa === true,
       headers,
+      cacheBust: s.cacheBust === true || undefined,
+      noKeepAlive: s.noKeepAlive === true || undefined,
+      parallelism,
     };
   });
   let drsLevel: number | undefined;
@@ -1416,6 +1452,103 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'bankcz-breaker',
+    name: 'bank.cz breaker — all levers (demo)',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'The single scenario that stages every delivery lever at once against the unprotected ' +
+      'bank.cz origin, escalating to the one shape that actually degrades it. A paired GET ' +
+      'control vs. cache-busted GET makes the cache-bypass delta visible, then the POST · dynamic ' +
+      'endpoints ⚡ · cache-bust · no-keep-alive · parallel-generation line drives the origin past ' +
+      'its breaking point. Endpoints are recon-seeded at launch (off-surface paths dropped, no 404 ' +
+      'floods). Bounded HTTP only, allowlisted, tagged, kill-switchable — the levers change only ' +
+      'HOW the same capped requests are delivered, never the volume.',
+    when: 'For a demo / before-after: to show, in one suite, which lever each defense would neutralise.',
+    threat: {
+      technique:
+        'Combined L7 delivery levers (dynamic POST + cache-bypass + connection churn + parallel gen)',
+      reference:
+        'Derived from the 2026-09-12 bank.cz proving-ground run (POST @400rps → ~50% avail, WRS 66)',
+      measures:
+        'Which delivery lever each defense removes: whether a cache-key policy absorbs the ' +
+        'cache-busted GET, whether a connection-accept / keep-alive cap blunts the no-keep-alive ' +
+        'churn, and whether a global rate-limit + bot-challenge on dynamic POST neutralises the ' +
+        'one line that reaches the origin compute path.',
+      notReproduced:
+        'No spoofing, no protocol abuse (RST_STREAM / HPACK / slow-header beyond a bounded hold), ' +
+        'no credential brute-force — every step is complete, rate-capped requests within HARD_CAPS; ' +
+        'parallelism only splits the SAME offered rate across workers so a single box can sustain it.',
+    },
+    steps: [
+      {
+        name: 'Baseline — pre-load health',
+        summary:
+          'Low-rate GET to establish the origin is healthy before load, so the breaker line has a ' +
+          'clean before/after reference.',
+        maxRps: 20,
+        concurrency: 5,
+        maxDurationSec: 20,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'builtin',
+      },
+      {
+        name: 'GET control — cacheable (absorbed)',
+        summary:
+          'Plain GET on the main path, no levers. On a bare origin it is absorbed; once a CDN/cache ' +
+          'is added this is the line the edge should serve. The "before" half of the cache-bypass ' +
+          'delta — compare its availability with the next step.',
+        maxRps: 500,
+        concurrency: 150,
+        maxDurationSec: 90,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'builtin',
+        paths: ['/'],
+      },
+      {
+        name: 'GET cache-bypass — unique per request ⚡',
+        summary:
+          'Same GET and rate, but every request is unique (cache-bust) over fresh connections ' +
+          '(no keep-alive), split across parallel workers. A cache/CDN cannot absorb it — each ' +
+          'request reaches origin — and the connection-accept path is exercised too. The "after" ' +
+          'half of the delta. Validates: cache-key policy + connection/keep-alive cap.',
+        maxRps: 500,
+        concurrency: 150,
+        maxDurationSec: 90,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'vegeta',
+        paths: ['/'],
+        cacheBust: true,
+        noKeepAlive: true,
+        parallelism: 3,
+      },
+      {
+        // Peak disruption — deliberately LAST in the escalation.
+        name: 'POST breaker — dynamic endpoints, all levers',
+        summary:
+          'The breaker: bounded POST spread across dynamic (DB/compute) endpoints so a per-path ' +
+          'throttle is evaded, delivered cache-busted over fresh connections and split across ' +
+          'parallel workers, in pulses to beat a fixed-window limit. This is the shape that took ' +
+          'the unprotected origin to ~50% availability (WRS 66). Validates: a GLOBAL rate-limit + ' +
+          'bot-challenge on dynamic POST. Isolate the legitimate probe so the verdict is attributable.',
+        maxRps: 400,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-post',
+        agent: 'vegeta',
+        rotateUa: true,
+        paths: ['/login', '/api/search', '/password-reset', '/api/checkout'],
+        cacheBust: true,
+        noKeepAlive: true,
+        parallelism: 4,
+      },
+    ],
+  },
+  {
     id: 'full-review',
     name: 'Full review — escalating (curated)',
     category: 'Review',
@@ -1614,6 +1747,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'threat-ivan-ja4-sweep': '2026-09-11',
   'threat-ivan-ja4-random': '2026-09-11',
   'bankcz-connexes': '2026-09-12',
+  'bankcz-breaker': '2026-09-13',
   'full-review': '2026-09-13',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
@@ -1828,6 +1962,10 @@ function campaignInputFromStep(
     : undefined;
   const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
   const headers = builtin && step.headers ? step.headers : undefined;
+  // Delivery levers travel with the step regardless of engine: cache-busting and
+  // no-keep-alive are honoured by the built-in generator and by vegeta/k6, and
+  // parallelism is a vegeta fan-out (clamped downstream). They only shape HOW the
+  // same bounded, allowlisted, capped requests are delivered — never the volume.
   return {
     name: o.name,
     description: step.summary,
@@ -1844,6 +1982,9 @@ function campaignInputFromStep(
     endpoints,
     userAgents,
     headers,
+    cacheBust: step.cacheBust,
+    noKeepAlive: step.noKeepAlive,
+    parallelism: step.parallelism,
     recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,
     suiteId: o.suiteId,
     suiteName: o.suiteName,
