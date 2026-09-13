@@ -84,3 +84,19 @@ export function canonicalRole(x: string | undefined): Role | undefined {
   const mapped = x === 'officer' ? 'admin' : x;
   return isRole(mapped) ? mapped : undefined;
 }
+
+/**
+ * Returns a shallow copy of a stored user with its role canonicalised to a
+ * current Role (legacy `officer` → `admin`), or undefined when the stored role
+ * maps to no current Role. Every Store applies this on read so both memory and
+ * postgres behave identically and a legacy `officer` user is never dropped at
+ * the persistence layer — the store-side twin of the login / `resolveIdentity`
+ * canonicalisation (without it, `getUser` filtering on `isRole` locks the legacy
+ * user out BEFORE the authorization path can canonicalise their role).
+ */
+export function withCanonicalRole<T extends { role: string }>(
+  u: T,
+): (Omit<T, 'role'> & { role: Role }) | undefined {
+  const role = canonicalRole(u.role);
+  return role ? { ...u, role } : undefined;
+}
