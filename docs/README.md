@@ -26,6 +26,8 @@ code-anchored reference. Start with [overview.md](./overview.md).
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | [security-and-governance.md](./security-and-governance.md) | Safeguards, JWT/RBAC & user lifecycle, tamper-evident audit chain, security self-review, secret rotation                         |
 | [boundary-and-lab.md](./boundary-and-lab.md)               | What is _not_ implemented & why, the load engines, the class A/B/C policy, the governed read-only contract with `shieldtest-lab` |
+| [lab-assessment.md](./lab-assessment.md)                   | Lab état-des-lieux + expansion plan (E7): the `shieldtest-lab` bench's capabilities, limits and how to extend it                 |
+| [engine-strategy.md](./engine-strategy.md)                 | Load-engine keep/drop decision + maximising out-of-process usage (E8)                                                            |
 
 ## Measurement & reporting
 
