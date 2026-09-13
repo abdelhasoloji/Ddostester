@@ -57,7 +57,7 @@ import { login, identityFromRequest, payloadFromRequest } from './auth/guard.js'
 import { signJwt } from './auth/jwt.js';
 import { hashPassword, verifyPassword } from './auth/passwords.js';
 import { passwordProblem } from './auth/password-policy.js';
-import { can } from './auth/rbac.js';
+import { can, canonicalRole } from './auth/rbac.js';
 import type { Permission, Role } from './auth/rbac.js';
 import type { User } from './auth/users.js';
 import {
@@ -265,11 +265,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const payload = payloadFromRequest(auth, req);
     if (!payload) return { ok: false, code: 401, error: 'authentication required' };
     const email = payload.sub;
+    // Canonicalise the role from EVERY source (token payload or store) so a
+    // pre-overhaul `officer` id resolves to `admin` on the authorization path —
+    // this function feeds `guard()`/`req.authUser`, so a stale id here would
+    // deny a legacy user everything (MATRIX has no `officer`). identityFromRequest
+    // canonicalises too; this is the store-aware twin that must not drift.
     if (email.startsWith('share:')) {
-      return { ok: true, id: { email, role: payload.role as Role }, mustChange: false };
+      return {
+        ok: true,
+        id: { email, role: canonicalRole(payload.role) ?? (payload.role as Role) },
+        mustChange: false,
+      };
     }
     if (auth.users.has(email.toLowerCase())) {
-      return { ok: true, id: { email, role: payload.role as Role }, mustChange: false };
+      return {
+        ok: true,
+        id: { email, role: canonicalRole(payload.role) ?? (payload.role as Role) },
+        mustChange: false,
+      };
     }
     const su = await store.getUser(email.toLowerCase());
     if (!su) return { ok: false, code: 401, error: 'account no longer exists — sign in again' };
@@ -281,7 +294,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
     return {
       ok: true,
-      id: { email: su.email, role: su.role },
+      id: { email: su.email, role: canonicalRole(su.role) ?? su.role },
       mustChange: !!su.mustChangePassword,
     };
   }
@@ -1148,10 +1161,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         }
         await store.recordLogin(su.email, new Date().toISOString());
         mustChangePassword = !!su.mustChangePassword;
+        // Canonicalise the stored role (maps the legacy `officer` id to `admin`)
+        // so both the token and the login response carry a current Role — the
+        // same normalisation `identityFromRequest` applies on every request.
+        const role = canonicalRole(su.role) ?? su.role;
         res = {
-          token: signJwt({ sub: su.email, role: su.role, ver: su.tokenVersion ?? 0 }, auth.secret),
+          token: signJwt({ sub: su.email, role, ver: su.tokenVersion ?? 0 }, auth.secret),
           email: su.email,
-          role: su.role,
+          role,
         };
         await auditAs(su.email, 'auth.login', undefined, undefined);
       }

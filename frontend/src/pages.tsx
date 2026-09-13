@@ -80,10 +80,10 @@ const roleLabel: Record<Role, string> = {
 /** What each role can do — shown on the account page so a user understands their
  *  own access. Keyed by role id so it tracks the RBAC model. */
 const roleDescription: Record<Role, string> = {
-  officer: 'Approve campaigns, manage users and stop runs.',
-  engineer: 'Create campaigns and execute an approved one.',
+  engineer: 'Create campaigns and launch an approved one (and stop runs).',
+  ciso: 'Validate (approve) campaigns, co-sign under dual control, and govern the class-C bench.',
+  admin: 'Administer the platform — manage users and the operational limits.',
   viewer: 'Read-only access to campaigns, results and assurance.',
-  ciso: 'Set operational limits and co-sign campaigns under dual control.',
 };
 
 // ---------- sidebar + layout ----------

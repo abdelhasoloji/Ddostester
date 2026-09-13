@@ -111,13 +111,13 @@ describe('pages render', () => {
   it('AccountPage shows profile, role, security and appearance', () => {
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
-      identity: { email: 'off@wedos', role: 'officer' },
+      role: 'admin',
+      identity: { email: 'adm@wedos', role: 'admin' },
     });
     renderWithRouter(<AccountPage />);
     expect(screen.getByRole('heading', { name: 'My account' })).toBeInTheDocument();
-    expect(screen.getByText('off@wedos')).toBeInTheDocument();
-    expect(screen.getByText('Security Officer')).toBeInTheDocument(); // role chip
+    expect(screen.getByText('adm@wedos')).toBeInTheDocument();
+    expect(screen.getByText('Administrator')).toBeInTheDocument(); // role chip
     expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument(); // change-password
     expect(screen.getByText('Preferences')).toBeInTheDocument();
   });

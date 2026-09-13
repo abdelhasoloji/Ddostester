@@ -51,6 +51,28 @@ beforeEach(async () => {
   app = built.app;
 });
 
+describe('legacy role canonicalisation (RBAC overhaul)', () => {
+  it('logs a stored `officer` user in as `admin` (token + response)', async () => {
+    // Seed a pre-overhaul user directly (the API would reject the retired id).
+    await store.saveUser({
+      email: 'legacy@wedos',
+      role: 'officer' as never,
+      passwordHash: hashPassword(GOOD_PW),
+    } as never);
+    const r = await login('legacy@wedos', GOOD_PW);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().role).toBe('admin');
+    // And the issued token authorises as admin: it can manage users.
+    const t = r.json().token as string;
+    const who = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${t}` },
+    });
+    expect(who.json().role).toBe('admin');
+  });
+});
+
 describe('password policy on create', () => {
   it('rejects a password shorter than the floor', async () => {
     const r = await createUser('u1@wedos', 'viewer', 'short1');
