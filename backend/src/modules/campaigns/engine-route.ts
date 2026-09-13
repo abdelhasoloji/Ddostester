@@ -36,9 +36,13 @@ export function highRateEngineUpgrade(
     return 'k6'; // flow-capable, no correlation needed
   }
 
-  const complex =
-    !!c.endpoints?.length || !!c.dataset?.length || !!c.assertion || !!c.userAgents?.length;
-  if (complex) return null; // keep built-in — external support not guaranteed
+  // Features only the built-in engine implements — never route these away, or a
+  // step would silently lose its data-feeder / assertion / UA-rotation.
+  const builtinOnly = !!c.dataset?.length || !!c.assertion || !!c.userAgents?.length;
+  if (builtinOnly) return null;
 
-  return 'vegeta'; // simple rate-capped GET/POST flood (± phases)
+  // A rate-capped flood (± phases) OR a recon-seeded endpoint mix: vegeta now
+  // honours a multi-target endpoint set (see agents/vegeta.ts), so it delivers
+  // the real rate for these too — where the built-in engine would cap ~150 rps.
+  return 'vegeta';
 }
