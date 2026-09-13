@@ -539,6 +539,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         undefined,
         targetTelemetry,
       );
+      // Ground truth: record the engine that actually ran (may differ from the
+      // configured agent when a high-rate step was auto-routed). Read by the
+      // report and the campaign drawer (no more guessing built-in vs external).
+      run.engine = runAgent.name;
       const runDurationSec = (Date.now() - runStartedMs) / 1000;
       metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', -1);
       metrics.inc('shieldtest_runs_completed_total', 'Runs by terminal status', {

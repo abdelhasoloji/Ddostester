@@ -39,14 +39,23 @@ export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): st
 }
 
 /**
- * Bounded `vegeta attack` args for one phase. Critically caps MEMORY so a long,
- * high-rate attack against a slow/tarpitting target can't OOM the host (observed:
- * vegeta grew to 10.7 GB and the kernel OOM-killed the control plane mid-suite):
+ * Bounded `vegeta attack` args for one phase. Caps MEMORY so a long, high-rate
+ * attack against a slow/tarpitting target can't OOM the host (observed: vegeta
+ * grew to 10.7 GB and the kernel OOM-killed the control plane mid-suite):
  *   - `-max-body 0`  — discard response bodies (we only score status/latency);
- *     vegeta's default reads and buffers the FULL body of every response.
- *   - `-max-workers <concurrency>` — vegeta's default spawns UNBOUNDED workers to
- *     hold the rate when the target is slow; cap it to the campaign concurrency.
+ *     vegeta's default reads and buffers the FULL body of every response. THIS
+ *     is what caused the OOM, and it is the memory control.
  *   - `-timeout` — free a hung request promptly instead of holding it 30 s.
+ *   - `-max-workers` — vegeta grows workers LAZILY up to this ceiling to hold
+ *     the configured rate. It must be high enough to sustain `phaseRps` against
+ *     a slow target: holding R rps when each request takes up to T seconds needs
+ *     ≈ R×T concurrent workers. Sizing it to the campaign *concurrency* instead
+ *     THROTTLED vegeta to a fraction of the target rate on slow endpoints
+ *     (observed live: an 80-concurrency step delivered 10 rps against a 400 rps
+ *     target, while an identical step on a fast endpoint hit 390). Workers are
+ *     cheap goroutines — over-provisioning is free (lazy allocation) and memory
+ *     stays bounded by `-max-body 0`, not the worker count — so size for the
+ *     rate and floor at the concurrency the operator asked for.
  * Pure, so it is unit-tested.
  */
 export function vegetaAttackArgs(
@@ -55,8 +64,11 @@ export function vegetaAttackArgs(
   phaseDurationSec: number,
   targetsFile: string,
 ): string[] {
-  const workers = Math.max(1, Math.min(config.concurrency, 1000));
   const timeoutSec = Math.max(1, Math.ceil((config.timeoutMs ?? 10_000) / 1000));
+  // Enough workers to actually reach `phaseRps` (≈ rate × timeout, the worst
+  // case where every request runs to the timeout), never below the operator's
+  // concurrency, capped so a pathological rate×timeout can't spawn unbounded.
+  const workers = Math.min(20_000, Math.max(config.concurrency, Math.ceil(phaseRps * timeoutSec)));
   return [
     'attack',
     '-targets',
