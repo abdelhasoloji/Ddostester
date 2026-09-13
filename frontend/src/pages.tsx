@@ -1957,11 +1957,26 @@ export function suiteWrs(
  *  few inline controls that matter (kill in-flight, report). Click opens the
  *  full detail drawer, so per-step approve/run/cancel stay one click away
  *  without 4 buttons on every row. */
-function SuiteStepRow({ m, suiteName }: { m: Campaign; suiteName: string }) {
+function SuiteStepRow({
+  m,
+  suiteName,
+  suiteRunning,
+}: {
+  m: Campaign;
+  suiteName: string;
+  suiteRunning?: boolean;
+}) {
   const app = useApp();
   const spec = `${m.maxRps} rps · ${m.maxDurationSec}s${
     m.vector !== 'http-get' ? ` · ${m.vector.replace('http-', '')}` : ''
   }`;
+  // An APPROVED step whose suite sequence has stopped (target went down, an
+  // auto-kill halted it) can be launched here by an engineer — the two-step flow
+  // (a CISO approves, an engineer runs) applied to a single remaining step, so a
+  // stalled suite is never a dead end. Hidden while the sequence is live (the
+  // backend refuses a manual run then anyway).
+  const canRelaunch =
+    m.status === 'APPROVED' && !suiteRunning && canDo(app.role, 'execute', app.authRequired);
   return (
     <div className={`suite-step-row ${SUITE_STEP_CLASS[m.status] ?? ''}`}>
       <button className="ssr-main" onClick={() => app.openDetail(m)} title="Open step details">
@@ -1972,6 +1987,15 @@ function SuiteStepRow({ m, suiteName }: { m: Campaign; suiteName: string }) {
         <span className="ssr-spec">{spec}</span>
       </button>
       <div className="ssr-actions">
+        {canRelaunch && (
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => app.execute(m)}
+            title="Launch this approved step (the sequence stopped — run the remaining step)"
+          >
+            ▶ Run step
+          </button>
+        )}
         {m.status === 'RUNNING' && canDo(app.role, 'kill', app.authRequired) && (
           <button className="btn btn-sm btn-danger" onClick={() => app.kill(m)}>
             Kill
@@ -2065,11 +2089,11 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           {canArchive && (
             <button
               className="btn btn-sm btn-ghost"
-              disabled={busy || active}
+              disabled={busy || sequencing}
               onClick={() => app.archiveSuite(g.suiteId, g.suiteName, !allArchived)}
               title={
-                active
-                  ? 'Finish or cancel the sequence before archiving'
+                sequencing
+                  ? 'Pause or cancel the running sequence before archiving'
                   : allArchived
                     ? 'Restore the whole suite to the active list'
                     : 'Archive the whole suite (hide from the default list)'
@@ -2101,7 +2125,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
       {open ? (
         <div className="suite-group-members">
           {g.members.map((m) => (
-            <SuiteStepRow key={m.id} m={m} suiteName={g.suiteName} />
+            <SuiteStepRow key={m.id} m={m} suiteName={g.suiteName} suiteRunning={sequencing} />
           ))}
         </div>
       ) : sequencing ? (
