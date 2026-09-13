@@ -1892,10 +1892,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       recurrenceMin?: number;
     };
     const ids = Array.isArray(body.playbookIds) ? body.playbookIds : [];
-    if (ids.length < 2) {
+    if (ids.length < 1) {
       return reply
         .code(400)
-        .send({ error: 'playbookIds must list at least two templates to compose' });
+        .send({ error: 'playbookIds must list at least one template to compose' });
     }
     if (!body.target) return reply.code(400).send({ error: 'target is required' });
     const playbooks: Playbook[] = [];

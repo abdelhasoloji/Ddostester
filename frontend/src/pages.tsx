@@ -2104,6 +2104,13 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
             <SuiteStepRow key={m.id} m={m} suiteName={g.suiteName} />
           ))}
         </div>
+      ) : sequencing ? (
+        // The live banner above already shows the step-by-step progression for a
+        // suite in flight — don't repeat the chip strip here (it read as the
+        // detail appearing twice). Expand the card for the per-step rows.
+        <div className="suite-steps suite-steps-live">
+          <span className="hint">▲ Live step-by-step progress is shown in the banner above.</span>
+        </div>
       ) : (
         <div className="suite-steps">
           {g.members.map((m) => (

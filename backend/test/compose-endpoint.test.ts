@@ -47,14 +47,27 @@ describe('POST /api/suites/compose', () => {
     expect(body.campaigns.every((c) => c.status === 'PENDING_APPROVAL')).toBe(true);
   });
 
-  it('rejects fewer than two templates', async () => {
+  it('accepts a single (multi-step) template', async () => {
+    const one = twoPbs[0];
     const r = await app.inject({
       method: 'POST',
       url: '/api/suites/compose',
-      payload: { playbookIds: [twoIds[0]], target: TARGET },
+      payload: { playbookIds: [one.id], target: TARGET },
+    });
+    expect(r.statusCode).toBe(201);
+    const body = r.json() as { campaigns: { status: string }[] };
+    expect(body.campaigns.length).toBe(one.steps.length);
+    expect(body.campaigns.every((c) => c.status === 'PENDING_APPROVAL')).toBe(true);
+  });
+
+  it('rejects an empty template list', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/suites/compose',
+      payload: { playbookIds: [], target: TARGET },
     });
     expect(r.statusCode).toBe(400);
-    expect((r.json() as { error: string }).error).toMatch(/at least two/);
+    expect((r.json() as { error: string }).error).toMatch(/at least one/);
   });
 
   it('rejects an unknown template id', async () => {
