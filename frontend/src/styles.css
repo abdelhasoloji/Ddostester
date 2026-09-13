@@ -3855,6 +3855,43 @@ table.remediations td {
 .recon-modal-head h3 {
   margin: 0 0 2px;
 }
+.recon-first {
+  padding: 0.5rem 0.25rem;
+}
+.recon-first-head,
+.recon-first-back {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+.recon-first-head h3 {
+  margin: 0 0 0.2rem 0;
+}
+.recon-first-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.8rem;
+}
+.recon-first-suggest {
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.85rem;
+}
+.recon-first-suggest .rk {
+  font-weight: 680;
+  margin-bottom: 0.35rem;
+}
+.recon-first-suggest ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+  font-size: 0.85rem;
+}
 .recon-verdict {
   margin-left: auto;
   font-size: 0.72rem;

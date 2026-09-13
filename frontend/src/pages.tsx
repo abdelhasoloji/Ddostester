@@ -54,7 +54,6 @@ import {
   ChangePasswordForm,
   ExecuteModal,
   NewCampaignForm,
-  NewCampaignWizard,
   StatusBadge,
   VerdictBadge,
   WrsPill,
@@ -66,6 +65,7 @@ import {
   RunDetails,
   hostOf,
 } from './ui.js';
+import { ReconFirstCreate } from './recon-first-create.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
 import { getTheme, setTheme as persistTheme } from './theme.js';
@@ -2149,15 +2149,18 @@ export function CampaignLaunch() {
             ＋ New campaign
           </button>
           <span className="hint">
-            Guided: pick an objective and we recommend the template — or browse the Templates tab.
+            Recon-first: give a target, we profile it, then propose the configuration. Prefer
+            templates? Browse the <b>Templates</b> tab.
           </span>
         </div>
       )}
       {showForm &&
         (app.draftPreset ? (
+          // A preset queued from the Guide jumps straight to the seeded form.
           <NewCampaignForm onDone={() => setShowForm(false)} />
         ) : (
-          <NewCampaignWizard onDone={() => setShowForm(false)} />
+          // The single recon-first creation flow.
+          <ReconFirstCreate onDone={() => setShowForm(false)} />
         ))}
     </>
   );
