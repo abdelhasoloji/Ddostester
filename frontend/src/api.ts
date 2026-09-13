@@ -43,6 +43,8 @@ export interface Campaign {
   endpoints?: WeightedEndpoint[];
   userAgents?: string[];
   dataset?: Record<string, string>[];
+  /** Cache-busting: unique query param per request so no cache serves it. */
+  cacheBust?: boolean;
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;

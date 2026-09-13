@@ -277,6 +277,16 @@ export async function runLoadTest(
   const assertion = config.assertion;
   const userAgents = config.userAgents?.length ? config.userAgents : null;
 
+  // Cache-busting: append a unique query param so an edge/CDN/page cache can't
+  // serve a stored response — each request is forced through to the origin.
+  const cacheBust = config.cacheBust === true;
+  const withCacheBust = (u: string): string => {
+    if (!cacheBust) return u;
+    const sep = u.includes('?') ? '&' : '?';
+    // A short random token per request; no allocation of a full URL object.
+    return `${u}${sep}_cb=${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+  };
+
   // Throttle: never exceed maxRps requests per second (global).
   let windowStart = Date.now();
   let windowCount = 0;
@@ -325,7 +335,7 @@ export async function runLoadTest(
       };
     }
     try {
-      const res = await fetch(url, {
+      const res = await fetch(withCacheBust(url), {
         method,
         headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,

@@ -140,6 +140,16 @@ export interface LoadTestConfig {
   /** Optional per-response assertion (built-in engine only). */
   assertion?: ResponseAssertion;
   /**
+   * Cache-busting: append a unique query parameter (`_cb=<random>`) to every
+   * request URL so an edge/CDN cache (or LiteSpeed's page cache) cannot serve
+   * the response from cache — each request is forced through to the origin. This
+   * turns an otherwise trivially-absorbed GET flood into real origin pressure
+   * for measuring how the origin (not its cache) holds up. Honoured by the
+   * built-in engine, k6 and vegeta so it works at high rate. Still a benign,
+   * rate-capped request against an allowlisted, authorized target.
+   */
+  cacheBust?: boolean;
+  /**
    * Bounded slow-header ("SlowLoris") mode (built-in engine only). Instead of
    * completing requests, opens up to `concurrency` connections and trickles
    * partial headers to hold them open for `durationSec`, to test whether the

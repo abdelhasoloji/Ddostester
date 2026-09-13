@@ -20,15 +20,36 @@ import { emptyResult, type ResultMeta } from './results.js';
  *  recon-seeded suite) it emits one target block per endpoint — Vegeta rotates
  *  through them — so the flood hits the real surface, not just the root. Each
  *  block carries the endpoint's method (defaulting to the campaign method). */
+/** How many distinct cache-busted URLs to pre-generate per base target. Vegeta
+ *  cannot template a URL per request (unlike the built-in engine), so we emit a
+ *  pool of unique `?_cb=…` variants that it rotates through — enough that a
+ *  cache keyed on the full URL is defeated for the whole run before any repeat. */
+const VEGETA_CACHE_BUST_POOL = 400;
+
+function cacheBustUrl(url: string, n: number): string {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}_cb=${n.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): string {
   const defaultMethod = (config.method ?? 'GET').toUpperCase();
   const headerLines = Object.entries(config.headers ?? {}).map(([k, v]) => `${k}: ${v}`);
-  const targets = config.endpoints?.length
+  const base = config.endpoints?.length
     ? config.endpoints.map((e) => ({
         method: (e.method ?? defaultMethod).toUpperCase(),
         url: e.url,
       }))
     : [{ method: defaultMethod, url: config.url }];
+  // Cache-busting: expand each base target into a pool of unique-URL variants so
+  // vegeta's static targets file still defeats an edge/page cache.
+  const targets = config.cacheBust
+    ? base.flatMap(({ method, url }) =>
+        Array.from({ length: VEGETA_CACHE_BUST_POOL }, (_v, i) => ({
+          method,
+          url: cacheBustUrl(url, i),
+        })),
+      )
+    : base;
   const blocks = targets.map(({ method, url }) => {
     const lines = [`${method} ${url}`, ...headerLines];
     if (method === 'POST' && bodyFile) lines.push(`@${bodyFile}`);

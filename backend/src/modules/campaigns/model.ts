@@ -96,6 +96,14 @@ export interface CampaignInput {
    */
   dataset?: Record<string, string>[];
   /**
+   * Cache-busting: append a unique query param to every request so an edge/CDN
+   * or page cache can't serve a stored response — each request is forced to the
+   * origin. Works on the built-in engine, k6 and vegeta (unlike UA rotation, it
+   * does NOT pin the run to the built-in engine). Turns a trivially-cached GET
+   * flood into real origin pressure. Benign, still rate-capped and allowlisted.
+   */
+  cacheBust?: boolean;
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

@@ -54,6 +54,16 @@ describe('buildK6Script', () => {
     expect(s).toContain('{\\"a\\":1}');
   });
 
+  it('wraps the URL in the _cb() cache-buster when cacheBust is set', () => {
+    const s = buildK6Script({ ...cfg, cacheBust: true });
+    expect(s).toContain('const _cb ='); // helper injected
+    expect(s).toContain('http.request("GET", _cb("http://127.0.0.1/health")');
+  });
+  it('has no cache-buster when the flag is off', () => {
+    const s = buildK6Script(cfg);
+    expect(s).not.toContain('_cb');
+  });
+
   it('renders a multi-step flow and caps the iteration rate at maxRps/steps', () => {
     const s = buildK6Script({
       ...cfg,

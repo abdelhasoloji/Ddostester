@@ -16,9 +16,10 @@ import type { ResultMeta } from './results.js';
  * same safeguards apply (validateConfig).
  */
 
-/** One k6 request statement for a method/url/body. */
-function k6Call(method: string, url: string, body: string | undefined): string {
-  const u = JSON.stringify(url);
+/** One k6 request statement for a method/url/body. When cacheBust is set the URL
+ *  expression is wrapped in the in-script `_cb()` helper (defined in the script). */
+function k6Call(method: string, url: string, body: string | undefined, cacheBust = false): string {
+  const u = cacheBust ? `_cb(${JSON.stringify(url)})` : JSON.stringify(url);
   const b = body != null ? JSON.stringify(body) : 'null';
   return method === 'GET' || method === 'HEAD'
     ? `http.request(${JSON.stringify(method)}, ${u}, null, params)`
@@ -30,6 +31,7 @@ export function buildK6Script(config: LoadTestConfig): string {
   const method = (config.method ?? 'GET').toUpperCase();
   const headers = JSON.stringify(config.headers ?? {});
   const vus = Math.max(1, config.concurrency);
+  const cacheBust = config.cacheBust === true;
   const flow = config.flow?.length ? config.flow : null;
   // When a flow runs N requests per iteration, cap the ITERATION rate at
   // maxRps/N so the total request rate stays ≤ maxRps.
@@ -61,7 +63,7 @@ export function buildK6Script(config: LoadTestConfig): string {
   if (flow) {
     bodyFn = flow
       .map((s) => {
-        const call = `  ${k6Call(s.method.toUpperCase(), s.url, s.body)};`;
+        const call = `  ${k6Call(s.method.toUpperCase(), s.url, s.body, cacheBust)};`;
         return s.thinkMs ? `${call}\n  sleep(${(s.thinkMs / 1000).toFixed(3)});` : call;
       })
       .join('\n');
@@ -73,13 +75,20 @@ export function buildK6Script(config: LoadTestConfig): string {
       config.body != null && method !== 'GET' && method !== 'HEAD'
         ? JSON.stringify(config.body)
         : 'null';
-    bodyFn = `  const _eps = ${urls};\n  http.request(${JSON.stringify(method)}, _eps[Math.floor(Math.random() * _eps.length)], ${b}, params);`;
+    const pick = '_eps[Math.floor(Math.random() * _eps.length)]';
+    bodyFn = `  const _eps = ${urls};\n  http.request(${JSON.stringify(method)}, ${cacheBust ? `_cb(${pick})` : pick}, ${b}, params);`;
   } else {
-    bodyFn = `  ${k6Call(method, config.url, config.body)};`;
+    bodyFn = `  ${k6Call(method, config.url, config.body, cacheBust)};`;
   }
 
+  // In-script cache-buster: appends a unique query param per request so no cache
+  // (edge/CDN/page) can serve a stored response — every request hits the origin.
+  const cbHelper = cacheBust
+    ? `const _cb = (u) => u + (u.indexOf('?') >= 0 ? '&' : '?') + '_cb=' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);\n`
+    : '';
+
   return `${imports}
-export const options = {
+${cbHelper}export const options = {
   discardResponseBodies: true,
   summaryTrendStats: ['min', 'med', 'avg', 'p(95)', 'p(99)', 'max'],
   scenarios: { load: ${scenario} },

@@ -34,6 +34,7 @@ export const emptyForm = {
   endpoints: '',
   userAgents: '',
   dataset: '',
+  cacheBust: false,
 };
 
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */

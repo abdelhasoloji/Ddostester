@@ -78,6 +78,19 @@ describe('vegeta', () => {
     expect(t).toContain('POST http://127.0.0.1/api/reset');
     expect(t).not.toContain('http://127.0.0.1/health'); // root is not used when endpoints are set
   });
+  it('expands into a pool of unique cache-busted URLs when cacheBust is set', () => {
+    const t = buildVegetaTarget({ ...cfg, cacheBust: true });
+    const blocks = t.trim().split('\n\n');
+    // A pool of variants (not a single static line), each a unique _cb URL.
+    expect(blocks.length).toBeGreaterThan(100);
+    const urls = blocks.map((b) => b.split('\n')[0]);
+    expect(urls.every((u) => /[?&]_cb=/.test(u))).toBe(true);
+    expect(new Set(urls).size).toBe(urls.length); // all distinct
+  });
+  it('does not cache-bust when the flag is off', () => {
+    const t = buildVegetaTarget(cfg);
+    expect(t).not.toContain('_cb=');
+  });
   it('parse un rapport JSON (latences ns → ms)', () => {
     const rep = {
       requests: 500,

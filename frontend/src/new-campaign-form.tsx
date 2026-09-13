@@ -143,6 +143,7 @@ export function NewCampaignForm({
         maxRps: Number(form.maxRps),
         concurrency: Number(form.concurrency),
         maxDurationSec: Number(form.maxDurationSec),
+        cacheBust: form.cacheBust || undefined,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
@@ -367,6 +368,19 @@ export function NewCampaignForm({
             </p>
           );
         })()}
+        <label className="cachebust-toggle" style={{ gridColumn: '1 / -1' }}>
+          <input
+            type="checkbox"
+            checked={form.cacheBust}
+            onChange={(e) => {
+              setForm({ ...form, cacheBust: e.target.checked });
+              setAppliedPreset(null);
+            }}
+          />{' '}
+          Cache-busting — append a unique <code>?_cb=</code> to every request so an edge/CDN or page
+          cache can’t serve it. Forces each request through to the origin (defeats LiteSpeed/CDN
+          caching of a GET flood). Works on built-in, k6 and vegeta.
+        </label>
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>
           <div className="grid">
