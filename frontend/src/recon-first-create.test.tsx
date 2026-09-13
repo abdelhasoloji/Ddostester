@@ -1,6 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { suggestFromRecon } from './recon-first-create.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { makeApp } from './test-utils.js';
 import type { ReconReport } from './api.js';
+
+let currentApp: ReturnType<typeof makeApp>;
+vi.mock('./context.js', async (orig) => {
+  const actual = await orig<typeof import('./context.js')>();
+  return { ...actual, useApp: () => currentApp };
+});
+const reconMock = vi.fn();
+vi.mock('./api.js', async (orig) => {
+  const actual = await orig<typeof import('./api.js')>();
+  return { ...actual, api: { ...actual.api, recon: (...a: unknown[]) => reconMock(...a) } };
+});
+
+const { suggestFromRecon, ReconFirstCreate } = await import('./recon-first-create.js');
 
 const base = (over: Partial<ReconReport>): ReconReport =>
   ({
@@ -46,5 +60,51 @@ describe('suggestFromRecon (E15)', () => {
     const s = suggestFromRecon(base({ target: 'https://bank.cz/' }));
     expect(s.initial.target).toBe('https://bank.cz/');
     expect(s.initial.probeUrl).toBe('https://bank.cz/');
+  });
+});
+
+describe('ReconFirstCreate (recon-first flow)', () => {
+  beforeEach(() => {
+    currentApp = makeApp({ allowed: ['bank.cz'] });
+    reconMock.mockReset();
+  });
+
+  it('gates "Run recon" until the target is on the allowlist', () => {
+    render(<ReconFirstCreate />);
+    const btn = screen.getByRole('button', { name: /Run recon/i });
+    expect(btn).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://evil.example/' } });
+    expect(screen.getByRole('button', { name: /Run recon/i })).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    expect(screen.getByRole('button', { name: /Run recon/i })).toBeEnabled();
+  });
+
+  it('runs recon and shows the suggestion derived from the findings', async () => {
+    reconMock.mockResolvedValue(
+      base({
+        profile: { posture: { server: 'LiteSpeed', rateLimiting: true }, cache: 'hit' } as never,
+        dynamicPaths: ['/login'],
+        suggestedPaths: ['/', '/login'],
+        loginPath: '/login',
+      }),
+    );
+    render(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    await waitFor(() => expect(screen.getByText(/Suggested campaign/)).toBeInTheDocument());
+    expect(screen.getByText(/cache-busting ON/)).toBeInTheDocument();
+    expect(screen.getAllByText(/LiteSpeed/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/preflight GO/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Compose from these findings/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('surfaces a recon error and stays on the target step', async () => {
+    reconMock.mockRejectedValue(new Error('recon boom'));
+    render(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    await waitFor(() => expect(screen.getByText('recon boom')).toBeInTheDocument());
   });
 });
