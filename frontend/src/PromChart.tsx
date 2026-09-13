@@ -142,24 +142,14 @@ export function UplotChart({
       legend: { show: false },
       cursor: { points: { size: 6 } },
       scales: {
-        // For a numeric (elapsed-seconds) x-axis, range from a function so uPlot
-        // recomputes the extent from the data on EVERY redraw. Relying on
-        // setData's implicit reset (or a manual setScale after it) was unreliable
-        // on a live run: the x-scale stuck at its first-render extent (e.g. [1,2])
-        // while the series grew to 62s, so every later sample fell off the right
-        // edge and the chart looked empty. A range fn can't get stuck. Leave a
-        // time-axis to uPlot's own (correct) time ranging.
-        x: timeAxis
-          ? { time: true }
-          : {
-              time: false,
-              range: (u: uPlot): [number, number] => {
-                const xs = u.data[0] as number[] | undefined;
-                if (xs && xs.length > 1) return [xs[0], xs[xs.length - 1]];
-                if (xs && xs.length === 1) return [xs[0], xs[0] + 1];
-                return [0, 1];
-              },
-            },
+        // Leave the x-scale in uPlot's DEFAULT auto mode: it re-ranges to the
+        // data's [min,max] on every setData, so a live numeric (elapsed-seconds)
+        // axis tracks the newest sample on its own. The earlier bug was a manual
+        // `setScale('x', …)` in the data-update path: calling it once switches the
+        // scale OUT of auto mode, pinning it at that moment's extent (e.g. [1,2]
+        // from the first two samples) so it never advanced. No manual setScale and
+        // no range function here — auto mode is what keeps it moving.
+        x: { time: timeAxis },
         y: yRange
           ? { range: () => yRange }
           : yFromZero
@@ -303,9 +293,9 @@ export function UplotChart({
   useEffect(() => {
     const u = plot.current;
     if (!u) return;
-    // The x-scale re-ranges itself via its `range` function (see the scales
-    // config) on every redraw, so setData alone keeps the numeric x-axis tracking
-    // the latest sample — no fragile manual setScale needed.
+    // setData re-ranges every auto-mode scale (including the numeric x-axis) to
+    // the new data extent, so the live axis tracks the latest sample on its own.
+    // Never call setScale('x', …) here — that pins the scale and stops it moving.
     u.setData(buildData(series));
     updateLegendRef.current?.(u); // keep the idle legend on the latest sample
   }, [series]);
