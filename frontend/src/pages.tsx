@@ -16,6 +16,7 @@ import {
 } from './api.js';
 import type {
   Alert,
+  ImpactEntry,
   GrafanaPlane,
   AttestationChecklist,
   AuditVerdict,
@@ -291,6 +292,25 @@ function AbsorptionByShape() {
   );
 }
 
+/** Fetches the impact leaderboard (E16) — steps that floored the target. Kept
+ *  local (not in the global context) so it only loads on the Command Center. */
+function useImpact(): ImpactEntry[] {
+  const [impact, setImpact] = useState<ImpactEntry[]>([]);
+  useEffect(() => {
+    let live = true;
+    api
+      .impact(20)
+      .then((r) => {
+        if (live) setImpact(r.impact ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  return impact;
+}
+
 export function CommandCenterPage() {
   const app = useApp();
   const openAlert = useOpenAlert();
@@ -301,6 +321,7 @@ export function CommandCenterPage() {
     : null;
   const running = c.filter((x) => x.status === 'RUNNING');
   const alerts = app.alerts ?? [];
+  const impact = useImpact();
   const degraded = alerts.some((a) => a.kind === 'degraded');
   const health = degraded ? 'degraded' : running.length ? 'busy' : 'nominal';
   // Last result = the genuinely most-recent run (by WRS-history timestamp), not
@@ -414,6 +435,40 @@ export function CommandCenterPage() {
             {alerts.length > 6 && (
               <li className="alert-more">+{alerts.length - 6} more — see the 🔔 bell</li>
             )}
+          </ul>
+        </div>
+      )}
+
+      {impact.length > 0 && (
+        <div className="card" style={{ marginTop: '1rem' }}>
+          <div className="section-title">💥 Steps that floored the target · what actually hurt</div>
+          <ul className="impact-list">
+            {impact.slice(0, 8).map((im) => (
+              <li key={im.runId} className="impact-row">
+                <a
+                  className="impact-main"
+                  href={reportUrl(im.runId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`${im.at ? new Date(im.at).toLocaleString() : ''} · open the run report`}
+                >
+                  <span className="impact-name">{shortStepName(im.name)}</span>
+                  <span className="impact-chips">
+                    {im.breakingRps != null && (
+                      <span className="impact-chip broke">broke @ {im.breakingRps} rps</span>
+                    )}
+                    {im.availabilityPct < 100 && (
+                      <span className="impact-chip">avail {im.availabilityPct}%</span>
+                    )}
+                    {im.autoKilled && <span className="impact-chip">auto-killed</span>}
+                    {im.sustainedRps != null && im.sustainedRps > 0 && (
+                      <span className="impact-chip muted">held {im.sustainedRps} rps</span>
+                    )}
+                    {im.engine && <span className="impact-chip muted">⚙ {im.engine}</span>}
+                  </span>
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
       )}

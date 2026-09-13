@@ -4,6 +4,7 @@ import type { Permission } from '../auth/rbac.js';
 import { verifyChain } from '../modules/audit/integrity.js';
 import { buildWrsHistory } from '../modules/wrs/history.js';
 import { deriveAlerts } from '../modules/alerts/derive.js';
+import { deriveImpact } from '../modules/alerts/impact.js';
 import { buildAbsorptionSummary } from '../modules/observability/summary.js';
 import { buildZones } from '../modules/zones/zones.js';
 import { queryRange, type PromResult } from '../modules/metrics/prometheus-query.js';
@@ -231,6 +232,14 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const { limit } = req.query as { limit?: string };
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     return deriveAlerts(runs, campaigns, { limit: limit ? Number(limit) : 50 });
+  });
+
+  // Impact leaderboard (E16): the steps that actually floored the target, ranked
+  // by how hard they hit — excluding probe-contention false negatives (PF1).
+  app.get('/api/impact', { preHandler: guard('campaign:read') }, async (req) => {
+    const { limit } = req.query as { limit?: string };
+    const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
+    return { impact: deriveImpact(runs, campaigns, { limit: limit ? Number(limit) : 20 }) };
   });
 
   // Analytics rollup (S1): per-(target, vector) absorption/WRS stats from the

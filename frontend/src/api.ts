@@ -293,6 +293,22 @@ export interface AbsorptionSummaryRow {
   lastOfferedShortfallPct: number;
 }
 
+/** A step that floored the target (GET /api/impact, E16). */
+export interface ImpactEntry {
+  runId: string;
+  campaignId: string;
+  name: string;
+  target?: string;
+  engine?: string;
+  at?: string;
+  availabilityPct: number;
+  breakingRps?: number;
+  sustainedRps?: number;
+  autoKilled: boolean;
+  wrs: number;
+  severity: number;
+}
+
 /** In-app alert derived from run history (GET /api/alerts). */
 export interface Alert {
   severity: 'critical' | 'warning' | 'info';
@@ -787,6 +803,7 @@ export const api = {
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
+  impact: (limit = 20) => get<{ impact: ImpactEntry[] }>(`/api/impact?limit=${limit}`),
   observabilitySummary: () => get<AbsorptionSummaryRow[]>('/api/observability/summary'),
   /** Per-protected-zone assurance posture (WEDOS-Protection framing). */
   zones: () => get<ZoneSummary[]>('/api/zones'),

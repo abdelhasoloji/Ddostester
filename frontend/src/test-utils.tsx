@@ -143,6 +143,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
       loginPath: '/login',
     }),
     observabilitySummary: vi.fn().mockResolvedValue([]),
+    impact: vi.fn().mockResolvedValue({ impact: [] }),
     zones: vi.fn().mockResolvedValue([]),
     purgeCampaigns: vi.fn().mockResolvedValue({ deleted: 3, killedRunning: 0, scope: 'settled' }),
     compareRuns: vi.fn().mockResolvedValue({
