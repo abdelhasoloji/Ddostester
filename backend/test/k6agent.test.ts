@@ -69,6 +69,43 @@ describe('buildK6Script', () => {
     expect(buildK6Script(cfg)).not.toContain('noConnectionReuse');
   });
 
+  it('generates a correlated flow: captures a token and injects it into later steps (P6)', () => {
+    const s = buildK6Script({
+      ...cfg,
+      flow: [
+        {
+          method: 'POST',
+          url: 'https://t/login',
+          body: '{"u":"x"}',
+          extract: { name: 'token', from: 'json', expr: 'token' },
+        },
+        {
+          method: 'GET',
+          url: 'https://t/me',
+          headers: { Authorization: 'Bearer {{token}}' },
+        },
+      ],
+    });
+    expect(s).toContain('discardResponseBodies: false'); // needs bodies to extract
+    expect(s).toContain('function _extract'); // extractor injected
+    expect(s).toContain('const vars = {}');
+    expect(s).toContain('vars["token"] = _extract(_r0, "json", "token")');
+    // The captured var is interpolated into the next step's header.
+    expect(s).toContain('${vars["token"] ?? ""}');
+  });
+
+  it('keeps discardResponseBodies true for a non-correlated flow', () => {
+    const s = buildK6Script({
+      ...cfg,
+      flow: [
+        { method: 'GET', url: 'https://t/a' },
+        { method: 'GET', url: 'https://t/b' },
+      ],
+    });
+    expect(s).toContain('discardResponseBodies: true');
+    expect(s).not.toContain('_extract');
+  });
+
   it('renders a multi-step flow and caps the iteration rate at maxRps/steps', () => {
     const s = buildK6Script({
       ...cfg,

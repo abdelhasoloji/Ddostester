@@ -32,7 +32,7 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
     expect(highRateEngineUpgrade(base({ flow }), CEIL)).toBe('k6');
   });
 
-  it('keeps built-in for a correlation flow (only built-in supports it)', () => {
+  it('routes a CORRELATION flow to k6 too (k6 is now correlation-capable, P6)', () => {
     const flow = [
       {
         method: 'POST' as const,
@@ -41,7 +41,7 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
       },
       { method: 'GET' as const, url: 'https://t/me' },
     ];
-    expect(highRateEngineUpgrade(base({ flow }), CEIL)).toBeNull();
+    expect(highRateEngineUpgrade(base({ flow }), CEIL)).toBe('k6');
   });
 
   it('routes a high-rate recon-seeded endpoint mix to vegeta (now endpoint-capable)', () => {

@@ -2,6 +2,7 @@ import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validateConfig, iterationRate } from '../engine/loadTest.js';
+import { flowUsesCorrelation } from '../engine/correlation.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import type { LoadProgress } from '../engine/loadTest.js';
 import { AgentError, type AttackAgent } from './types.js';
@@ -16,6 +17,35 @@ import type { ResultMeta } from './results.js';
  * same safeguards apply (validateConfig).
  */
 
+/**
+ * Turns a string that may contain `{{name}}` correlation templates into a k6 JS
+ * expression: a plain JSON string when there is no template, else a template
+ * literal that reads the captured value from `vars` at runtime. Pure.
+ */
+function k6Interp(s: string): string {
+  if (!/\{\{[^}]+\}\}/.test(s)) return JSON.stringify(s);
+  const tpl = s
+    .split(/(\{\{[^}]+\}\})/g)
+    .map((part) => {
+      const m = part.match(/^\{\{([^}]+)\}\}$/);
+      if (m) return '${vars[' + JSON.stringify(m[1].trim()) + '] ?? ""}';
+      // Escape the literal chunks so they are safe inside a `template literal`.
+      return part.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+    })
+    .join('');
+  return '`' + tpl + '`';
+}
+
+/** k6 params object for a flow step: base headers merged with the step's own,
+ *  both interpolated for `{{vars}}`. Returns a JS object-literal expression. */
+function k6StepParams(baseHeaders: Record<string, string>, stepHeaders?: Record<string, string>) {
+  const entries = { ...baseHeaders, ...(stepHeaders ?? {}) };
+  const props = Object.entries(entries)
+    .map(([k, v]) => `${JSON.stringify(k)}: ${k6Interp(v)}`)
+    .join(', ');
+  return `{ headers: { ${props} } }`;
+}
+
 /** One k6 request statement for a method/url/body. When cacheBust is set the URL
  *  expression is wrapped in the in-script `_cb()` helper (defined in the script). */
 function k6Call(method: string, url: string, body: string | undefined, cacheBust = false): string {
@@ -29,10 +59,15 @@ function k6Call(method: string, url: string, body: string | undefined, cacheBust
 /** Builds the k6 script (bounded HTTP load) from the config. Pure function. */
 export function buildK6Script(config: LoadTestConfig): string {
   const method = (config.method ?? 'GET').toUpperCase();
-  const headers = JSON.stringify(config.headers ?? {});
+  const baseHeaders = config.headers ?? {};
+  const headers = JSON.stringify(baseHeaders);
   const vus = Math.max(1, config.concurrency);
   const cacheBust = config.cacheBust === true;
   const flow = config.flow?.length ? config.flow : null;
+  // Correlation (authenticated journeys at high rate): a flow that extracts a
+  // value from one response and injects it into later steps via {{name}}. k6
+  // must then KEEP response bodies (to read them) and capture into `vars`.
+  const correlated = !!flow && flowUsesCorrelation(flow);
   // When a flow runs N requests per iteration, cap the ITERATION rate at
   // maxRps/N so the total request rate stays ≤ maxRps.
   const div = flow ? flow.length : 1;
@@ -60,7 +95,30 @@ export function buildK6Script(config: LoadTestConfig): string {
   const imports = `import http from 'k6/http';${needsSleep ? "\nimport { sleep } from 'k6';" : ''}`;
 
   let bodyFn: string;
-  if (flow) {
+  if (flow && correlated) {
+    // Correlated flow: per-iteration `vars`, capture extracts, interpolate
+    // {{vars}} into every step's URL / body / headers.
+    const lines: string[] = ['  const vars = {};'];
+    flow.forEach((s, i) => {
+      const m = s.method.toUpperCase();
+      const urlExpr = cacheBust ? `_cb(${k6Interp(s.url)})` : k6Interp(s.url);
+      const bodyExpr =
+        m === 'GET' || m === 'HEAD' ? 'null' : s.body != null ? k6Interp(s.body) : 'null';
+      const paramsExpr = k6StepParams(baseHeaders, s.headers);
+      const needsResp = !!s.extract;
+      const lhs = needsResp ? `  const _r${i} = ` : '  ';
+      lines.push(
+        `${lhs}http.request(${JSON.stringify(m)}, ${urlExpr}, ${bodyExpr}, ${paramsExpr});`,
+      );
+      if (s.extract) {
+        lines.push(
+          `  vars[${JSON.stringify(s.extract.name)}] = _extract(_r${i}, ${JSON.stringify(s.extract.from)}, ${JSON.stringify(s.extract.expr)});`,
+        );
+      }
+      if (s.thinkMs) lines.push(`  sleep(${(s.thinkMs / 1000).toFixed(3)});`);
+    });
+    bodyFn = lines.join('\n');
+  } else if (flow) {
     bodyFn = flow
       .map((s) => {
         const call = `  ${k6Call(s.method.toUpperCase(), s.url, s.body, cacheBust)};`;
@@ -86,10 +144,23 @@ export function buildK6Script(config: LoadTestConfig): string {
   const cbHelper = cacheBust
     ? `const _cb = (u) => u + (u.indexOf('?') >= 0 ? '&' : '?') + '_cb=' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);\n`
     : '';
+  // Correlation extractor (json path / case-insensitive header / regex), mirroring
+  // the built-in engine's semantics. Only injected when a flow actually correlates.
+  const extractHelper = correlated
+    ? `function _extract(r, from, expr) {
+  try {
+    if (from === 'header') { const h = r.headers || {}; const k = Object.keys(h).find((x) => x.toLowerCase() === expr.toLowerCase()); return k ? String(h[k]) : ''; }
+    if (from === 'json') { const v = r.json(expr); return v == null ? '' : String(v); }
+    if (from === 'regex') { const m = String(r.body || '').match(new RegExp(expr)); return m ? String(m[1] != null ? m[1] : m[0]) : ''; }
+  } catch (e) {}
+  return '';
+}
+`
+    : '';
 
   return `${imports}
-${cbHelper}export const options = {
-  discardResponseBodies: true,${config.noKeepAlive ? '\n  noConnectionReuse: true,' : ''}
+${cbHelper}${extractHelper}export const options = {
+  discardResponseBodies: ${correlated ? 'false' : 'true'},${config.noKeepAlive ? '\n  noConnectionReuse: true,' : ''}
   summaryTrendStats: ['min', 'med', 'avg', 'p(95)', 'p(99)', 'max'],
   scenarios: { load: ${scenario} },
 };
@@ -152,9 +223,9 @@ export class K6Agent implements AttackAgent {
   readonly multiPhase = true;
   readonly flowCapable = true;
   readonly endpointCapable = true;
-  readonly correlationCapable = false;
+  readonly correlationCapable = true;
   readonly description =
-    'k6 (external) — arrival-rate load, supports ramping scenarios and multi-step flows.';
+    'k6 (external) — arrival-rate load, ramping scenarios, and multi-step flows with correlation (authenticated journeys at high rate).';
   constructor(private readonly bin = process.env.K6_BIN ?? 'k6') {}
 
   available(): Promise<boolean> {

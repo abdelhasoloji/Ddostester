@@ -21,7 +21,7 @@ import type { Campaign } from './model.js';
  * to keep the built-in engine. It is conservative — it only upgrades shapes the
  * candidate engine provably handles, so it never trades fidelity for a broken
  * run:
- *   - correlation flows  → only the built-in engine supports them → keep built-in.
+ *   - request flows (with or without correlation) → k6 (flow + correlation capable).
  *   - request flows (no correlation) → k6 (flow-capable).
  *   - simple floods (single URL ± phases, incl. POST) → vegeta (proven).
  *   - endpoint-mix / dataset / assertion / UA-rotation → keep built-in (the
@@ -42,12 +42,11 @@ export function highRateEngineUpgrade(
   const overConcurrency = c.concurrency > ceilingConcurrency;
   if (!overRate && !overConcurrency) return null;
 
-  const hasFlow = !!c.flow?.length;
-  if (hasFlow) {
-    const hasCorrelation = c.flow!.some((s) => s.extract != null);
-    if (hasCorrelation) return null; // built-in only
-    return 'k6'; // flow-capable, no correlation needed
-  }
+  // Any request flow (with or without correlation) routes to k6: it is
+  // flow-capable AND now correlation-capable (extracts a token from one response
+  // and injects it into later steps), so authenticated journeys run at high rate
+  // instead of being pinned to the ~150-rps built-in engine (P6).
+  if (c.flow?.length) return 'k6';
 
   // Features only the built-in engine implements — never route these away, or a
   // step would silently lose its data-feeder / assertion / UA-rotation.

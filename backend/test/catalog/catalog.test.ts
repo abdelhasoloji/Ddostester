@@ -1769,20 +1769,8 @@ describe('V. Campaign shapes (all campaign types)', () => {
           ],
         },
       ],
-      [
-        'correlation requires builtin',
-        {
-          agent: 'k6',
-          flow: [
-            {
-              method: 'GET',
-              url: `${base}/login`,
-              extract: { name: 'tok', from: 'json', expr: 'token' },
-            },
-            { method: 'GET', url: `${base}/d?t={{tok}}` },
-          ],
-        },
-      ],
+      // NOTE: correlation on k6 is NO LONGER a conflict — k6 is now
+      // correlation-capable (P6), so an authenticated journey runs at high rate.
       ['unknown engine', { agent: 'nope-engine' }],
     ];
     for (const [title, over] of conflicts) {
@@ -1791,6 +1779,19 @@ describe('V. Campaign shapes (all campaign types)', () => {
       reg('SHAPE', `reject: ${title}`, 'engine capabilities', '400', String(res.statusCode), pass);
       expect(pass, `${title} → ${res.statusCode}`).toBe(true);
     }
+    // Positive: a correlation flow on k6 is now ACCEPTED (P6 — k6 is correlation-capable).
+    const ok = await create({
+      agent: 'k6',
+      flow: [
+        {
+          method: 'GET',
+          url: `${base}/login`,
+          extract: { name: 'tok', from: 'json', expr: 'token' },
+        },
+        { method: 'GET', url: `${base}/d?t={{tok}}` },
+      ],
+    });
+    expect(ok.statusCode, `correlation on k6 accepted → ${ok.statusCode}`).toBe(201);
   });
 
   itE2E(
