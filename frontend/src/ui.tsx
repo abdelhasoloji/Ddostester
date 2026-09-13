@@ -957,6 +957,22 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           serving) — not the probe’s. No false auto-kill fired.
         </p>
       )}
+      {run.breakingPoint &&
+        (run.breakingPoint.reached ? (
+          <p className="hint warn-hint" style={{ marginTop: '.5rem' }}>
+            💥 <b>Breaking point ≈ {run.breakingPoint.rps} rps.</b> The target started failing en
+            masse ({Math.round((run.breakingPoint.failRate ?? 0) * 100)}% of requests) around{' '}
+            {run.breakingPoint.atSec}s. Highest rate it held cleanly:{' '}
+            <b>{run.breakingPoint.sustainedRps} rps</b>.
+          </p>
+        ) : (
+          run.breakingPoint.sustainedRps > 0 && (
+            <p className="hint" style={{ marginTop: '.5rem' }}>
+              🛡 <b>No breaking point reached.</b> The target held across the whole offered load —
+              sustained up to <b>{run.breakingPoint.sustainedRps} rps</b> without failing en masse.
+            </p>
+          )
+        ))}
       <div className="wrs-breakdown">
         <span>
           Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>

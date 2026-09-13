@@ -164,6 +164,15 @@ export interface CampaignRun {
       while the generator was serving it) — availability was taken from the
       generator's success ratio, not the probe's, and no false auto-kill fired. */
   probeContended?: boolean;
+  /** Breaking point: the offered rps at which the target started failing en masse,
+      and the highest rps it sustained cleanly. */
+  breakingPoint?: {
+    reached: boolean;
+    rps?: number;
+    atSec?: number;
+    failRate?: number;
+    sustainedRps: number;
+  };
   generator: {
     totalRequests: number;
     successful: number;

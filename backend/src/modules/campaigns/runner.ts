@@ -19,6 +19,7 @@ import { probeLimitsFromEnv, ESTIMATED_TIMINGS } from '../../config/limits.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
 import type { AbsorptionCorroboration } from '../edge-absorption/types.js';
+import { detectBreakingPoint, type BreakingPoint } from './breaking-point.js';
 import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
@@ -76,6 +77,13 @@ export interface CampaignRun {
   acceptance?: AcceptanceResult;
   /** Per-second time-series captured during the run (rps, errors, availability). */
   timeline?: RunSample[];
+  /**
+   * Breaking point (P5): the offered rps at which the target started failing en
+   * masse (from the generator's own failure rate, robust to probe contention),
+   * and the highest rps it sustained cleanly. `reached:false` = the target held
+   * across the whole offered load.
+   */
+  breakingPoint?: BreakingPoint;
   /** Source of the detection/mitigation timings when measured (e.g. 'mock', 'scrubbing'). */
   protectionSource?: string;
   /**
@@ -434,6 +442,7 @@ export async function executeCampaign(
     generator,
     probe: probeMetrics,
     probeContended,
+    breakingPoint: detectBreakingPoint(timeline),
     wrs,
     posture: probe.posture(),
     acceptance,
