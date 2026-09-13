@@ -562,7 +562,7 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
             ))}
         </div>
       )}
-      {p.timeline && p.timeline.length >= 2 && <RunTimeline samples={p.timeline} />}
+      <RunTimeline samples={p.timeline ?? []} pending />
     </div>
   );
 }
@@ -776,8 +776,28 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
 
 /** Per-run time-series (client-side, every engine): requests/s and probe 5xx
  *  over elapsed seconds, rendered with uPlot so it matches the other charts. */
-function RunTimeline({ samples, csvHref }: { samples: RunSample[]; csvHref?: string }) {
-  if (samples.length < 2) return null;
+function RunTimeline({
+  samples,
+  csvHref,
+  pending,
+}: {
+  samples: RunSample[];
+  csvHref?: string;
+  /** Live run: show a "collecting" placeholder before the first points land,
+      so an in-flight step never renders as a silent, empty chart. */
+  pending?: boolean;
+}) {
+  if (samples.length < 2) {
+    if (!pending) return null;
+    return (
+      <div className="posture">
+        <div className="posture-title">Run timeline</div>
+        <div className="timeline-pending hint">
+          Collecting run samples… the chart appears once the engine reports its first seconds.
+        </div>
+      </div>
+    );
+  }
   const tMax = Math.round(Math.max(...samples.map((s) => s.t), 1));
   const series: ChartSeries[] = [
     { label: 'requests/s', points: samples.map((s) => [s.t, s.rps]), color: '#3b82f6' },

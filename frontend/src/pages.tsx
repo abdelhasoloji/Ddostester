@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   api,
@@ -1298,48 +1299,53 @@ export function NotificationsBell() {
           <span className={`notif-badge notif-${worst}`}>{badge > 9 ? '9+' : badge}</span>
         )}
       </button>
-      {open && (
-        <>
-          <div className="notif-backdrop" onClick={() => setOpen(false)} />
-          <div className="notif-panel" role="dialog" aria-label="Notifications" ref={panelRef}>
-            <div className="notif-head">
-              <b>Notifications</b>
-              <div className="notif-head-actions">
-                {badge > 0 && (
-                  <button className="btn btn-sm btn-ghost" onClick={markAllRead}>
-                    Mark all read
+      {/* Portaled to <body>: the bell lives inside the sticky topbar, whose own
+          stacking context would otherwise trap the fixed panel below sibling
+          page content (the suite stepper bled through it). */}
+      {open &&
+        createPortal(
+          <>
+            <div className="notif-backdrop" onClick={() => setOpen(false)} />
+            <div className="notif-panel" role="dialog" aria-label="Notifications" ref={panelRef}>
+              <div className="notif-head">
+                <b>Notifications</b>
+                <div className="notif-head-actions">
+                  {badge > 0 && (
+                    <button className="btn btn-sm btn-ghost" onClick={markAllRead}>
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="notif-close"
+                    aria-label="Close notifications"
+                    onClick={() => setOpen(false)}
+                  >
+                    ×
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="notif-close"
-                  aria-label="Close notifications"
-                  onClick={() => setOpen(false)}
-                >
-                  ×
-                </button>
+                </div>
               </div>
+              {list.length === 0 ? (
+                <div className="notif-empty">
+                  <span aria-hidden="true">✓</span> All clear — nothing needs attention.
+                </div>
+              ) : (
+                <ul className="notif-list">
+                  {list.map((a) => (
+                    <NotificationRow
+                      key={a.key}
+                      a={a}
+                      read={read.has(a.key)}
+                      onOpen={onOpen}
+                      onRead={markRead}
+                    />
+                  ))}
+                </ul>
+              )}
             </div>
-            {list.length === 0 ? (
-              <div className="notif-empty">
-                <span aria-hidden="true">✓</span> All clear — nothing needs attention.
-              </div>
-            ) : (
-              <ul className="notif-list">
-                {list.map((a) => (
-                  <NotificationRow
-                    key={a.key}
-                    a={a}
-                    read={read.has(a.key)}
-                    onOpen={onOpen}
-                    onRead={markRead}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-        </>
-      )}
+          </>,
+          document.body,
+        )}
     </div>
   );
 }

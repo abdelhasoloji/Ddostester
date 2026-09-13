@@ -1862,6 +1862,16 @@ input.invalid {
   color: var(--muted);
   margin-bottom: 0.4rem;
 }
+.timeline-pending {
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  padding: 0 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, transparent);
+  line-height: 1.4;
+}
 .posture-chips {
   display: flex;
   flex-wrap: wrap;
