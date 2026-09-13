@@ -54,6 +54,9 @@ interface Ctx {
   hardCaps: HardCaps;
   /** Immutable absolute ceiling; the CISO can never set an operational cap above it. */
   hardCapsCeiling: HardCaps;
+  /** Built-in engine performance ceilings (from /health): above either, a simple
+   *  flood auto-routes to an out-of-process engine. Used for config-time hints. */
+  builtinCeilings: { rps: number; concurrency: number };
   agentName: string;
   /** Build stamp of the running API server (from /health), for a mismatch check. */
   serverVersion: { version: string; build: string; commit: string; builtAt?: string } | null;
@@ -129,6 +132,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [labTargets, setLabTargets] = useState<string[]>([]);
   const [hardCaps, setHardCaps] = useState<HardCaps>(DEFAULT_CAPS);
   const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(DEFAULT_CAPS);
+  const [builtinCeilings, setBuiltinCeilings] = useState<{ rps: number; concurrency: number }>({
+    rps: 150,
+    concurrency: 300,
+  });
   const [agentName, setAgentName] = useState('');
   const [serverVersion, setServerVersion] = useState<Ctx['serverVersion']>(null);
   const [requireCisoApproval, setRequireCisoApproval] = useState(false);
@@ -194,6 +201,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLabTargets(h.labTargets ?? []);
         setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
         setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
+        if (h.builtinCeilings) setBuiltinCeilings(h.builtinCeilings);
         setAgentName(h.agent ?? '');
         setServerVersion(h.version ?? null);
         setRequireCisoApproval(h.requireCisoApproval ?? false);
@@ -430,6 +438,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     labTargets,
     hardCaps,
     hardCapsCeiling,
+    builtinCeilings,
     agentName,
     serverVersion,
     requireCisoApproval,

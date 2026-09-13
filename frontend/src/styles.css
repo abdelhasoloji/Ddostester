@@ -214,6 +214,20 @@ body {
   color: var(--muted);
   font-weight: 400;
 }
+.engine-hint {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 8px;
+}
+.engine-hint.warn {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
 input,
 select,
 textarea {

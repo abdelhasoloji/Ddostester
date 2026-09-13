@@ -727,6 +727,7 @@ export const api = {
         tlsInsecure?: boolean;
         hardCaps?: HardCaps;
         hardCapsCeiling?: HardCaps;
+        builtinCeilings?: { rps: number; concurrency: number };
       }>(r),
     ),
   login: (email: string, password: string) =>

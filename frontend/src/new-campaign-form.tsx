@@ -332,6 +332,41 @@ export function NewCampaignForm({
           />
           <span className="hint">≤ {caps.maxDurationSec}s (15 min)</span>
         </div>
+        {(() => {
+          // Config-time delivery hint (E13): predict whether this rate/concurrency
+          // will actually be delivered — by the built-in engine, an auto-routed
+          // out-of-process engine, or not at all (built-in-only features pin it
+          // to the built-in engine, which can't be routed away).
+          const bc = app.builtinCeilings;
+          const overRate = form.maxRps > bc.rps;
+          const overConc = form.concurrency > bc.concurrency;
+          if (!overRate && !overConc) return null;
+          const why = overRate
+            ? `${form.maxRps} rps is above the built-in engine's ~${bc.rps} rps ceiling`
+            : `${form.concurrency} concurrent requests exceed the built-in engine's ${bc.concurrency} in-process limit`;
+          // Already on an external engine → it delivers the full rate, no hint.
+          if (selectedAgent && selectedAgent.id !== 'builtin') return null;
+          // Built-in-only features keep the step on the built-in engine: it can
+          // NOT auto-route away, so at this rate it will genuinely under-deliver.
+          const builtinOnly =
+            !!form.userAgents.trim() || !!form.dataset.trim() || !!buildAssertion(form);
+          if (builtinOnly) {
+            return (
+              <p className="hint engine-hint warn" style={{ gridColumn: '1 / -1' }}>
+                ⚠ {why} — but UA rotation / dataset / assertion are built-in-engine-only, so this
+                step can’t route to Vegeta/k6 and will under-deliver (~{bc.rps} rps). Lower the rate
+                and concurrency, or drop those features to let it run out-of-process.
+              </p>
+            );
+          }
+          return (
+            <p className="hint engine-hint" style={{ gridColumn: '1 / -1' }}>
+              ⚙ {why}. This step auto-routes to an out-of-process engine (Vegeta/k6) so it delivers
+              the full load without stalling the measurement loop. <b>If neither is installed</b>,
+              the built-in engine caps around {bc.rps} rps and this step will under-deliver.
+            </p>
+          );
+        })()}
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>
           <div className="grid">

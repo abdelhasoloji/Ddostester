@@ -967,6 +967,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // set an operational cap above it.
     hardCaps: effectiveCaps,
     hardCapsCeiling: { ...HARD_CAPS },
+    // Built-in engine performance ceilings (config/limits.ts). Above EITHER, a
+    // simple flood auto-routes to an out-of-process engine — the frontend reads
+    // these to predict, at config time, whether a configured rate/concurrency
+    // will actually be delivered by the built-in engine or routed away.
+    builtinCeilings: { rps: BUILTIN_RPS_CEILING, concurrency: BUILTIN_CONCURRENCY_CEILING },
   }));
 
   // Operational limits (the effective caps) and the immutable ceiling. Any

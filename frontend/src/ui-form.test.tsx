@@ -40,6 +40,30 @@ describe('NewCampaignForm', () => {
     fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'x' } });
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
   });
+
+  // E13 — config-time delivery hint. builtinCeilings default = { rps 150, conc 300 }.
+  it('shows no delivery hint when the rate is within the built-in ceiling', () => {
+    render(<NewCampaignForm />); // default maxRps 20
+    expect(screen.queryByText(/auto-routes|under-deliver/i)).not.toBeInTheDocument();
+  });
+
+  it('predicts an auto-route for a simple high-rate flood', () => {
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '800' } });
+    expect(screen.getByText(/auto-routes to an out-of-process engine/i)).toBeInTheDocument();
+  });
+
+  it('warns that a built-in-only feature (UA rotation) can’t route and will under-deliver', () => {
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '800' } });
+    fireEvent.change(screen.getByPlaceholderText(/One User-Agent per line/i), {
+      target: { value: 'Mozilla/5.0 test' },
+    });
+    expect(
+      screen.getByText(/can’t route to Vegeta\/k6 and will under-deliver/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/auto-routes to an out-of-process engine/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('modals', () => {
