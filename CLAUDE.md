@@ -26,8 +26,8 @@ hard caps, isolated `internal` network) lives in a **separate repository** —
 [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab) —
 so the boundary is **structural, not conventional**: this control plane contains
 **no attack vector at all**. The two connect only through a read-only, governed
-verdict contract (see `docs/drs-validation-policy.md`). See `docs/safeguards.md`
-and `docs/network-lab.md`.
+verdict contract (see `docs/boundary-and-lab.md`). See `docs/security-and-governance.md`
+and `docs/boundary-and-lab.md`.
 
 ## Install / run / test
 
@@ -54,7 +54,7 @@ npm run verify                   # lint + typecheck + test + build (run before e
 npm run build                    # build backend + frontend
 ```
 
-Deployment: `bash deploy/setup.sh` (systemd, loopback). See `docs/deployment.md`.
+Deployment: `bash deploy/setup.sh` (systemd, loopback). See `docs/operations.md`.
 
 ### Certificates (mTLS) — `~/shieldtest-pki`
 
@@ -70,7 +70,7 @@ proxy mounts these files read-only. Regenerate with
 The isolated mitigation bench [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab)
 runs entirely on its own. Its **telemetry / verdict artifacts feed the WRS**
 (WEDOS Resilience Score) here **read-only**, through the governed contract in
-`docs/drs-validation-policy.md` (UDP amplification = class C, standalone
+`docs/boundary-and-lab.md` (UDP amplification = class C, standalone
 evidence; the control plane records class A/B only). This control plane **never**
 emits amplification traffic.
 
@@ -81,7 +81,7 @@ emits amplification traffic.
 - `backend/src/engine/loadTest.ts` — bounded HTTP generator (phases, RPS cap, kill switch). **Invariant: a run always settles at cap + grace** — the probe has a wall-clock deadline and the engine races the workers against a hard backstop, so a tarpitting target (undici pool exhaustion) can never hang a run (`LoadTestResult.hardStopped` flags it).
 - `backend/src/agents/` — `AttackAgent` contract + builtin/k6/vegeta/locust adapters.
 - `backend/src/modules/` — campaigns (CAM + scheduler), probe (+ kill switch), wrs (scoring + history), reports (campaign + compliance), metrics, audit.
-- **Observability**: `GET /metrics` (Prometheus — business + runtime: HTTP/route, runs in-flight/duration, `loadtest_hard_stopped_total`, event-loop lag, process) and structured `run.start`/`run.settled` pino logs. See `docs/monitoring.md`.
+- **Observability**: `GET /metrics` (Prometheus — business + runtime: HTTP/route, runs in-flight/duration, `loadtest_hard_stopped_total`, event-loop lag, process) and structured `run.start`/`run.settled` pino logs. See `docs/observability.md`.
 - `backend/src/store/` — PostgreSQL persistence (+ best-effort TimescaleDB) or memory.
 - `backend/src/auth/` — JWT HS256 + RBAC (engineer/ciso/admin/viewer).
 - `frontend/src/` — React dashboard (login, campaigns, WRS, audit, live SSE progress).

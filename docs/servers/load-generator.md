@@ -60,4 +60,4 @@ Tous les runs restent sous les `HARD_CAPS` (`config/limits.ts:31-38`, voir
 Le registre en mémoire `kills` détient les `AbortController` des runs en vol
 (`runtime/kills.ts:8-16`) ; il alimente la garde de concurrence
 (`kills.count()`) et permet l'arrêt manuel/auto/temporisé (`modules/probe/probe.ts`).
-Détail : [bench-dispatch.md](bench-dispatch.md) pour l'arrêt, `docs/safeguards.md`.
+Détail : [bench-dispatch.md](bench-dispatch.md) pour l'arrêt, `docs/security-and-governance.md`.

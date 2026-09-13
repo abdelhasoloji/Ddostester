@@ -1,29 +1,57 @@
-# Documentation — WEDOS ShieldTest (Control Plane)
+# Documentation — WEDOS ShieldTest (control plane)
 
-Internal control plane for resilience testing. This folder gathers the technical
-and operational documentation.
+Internal control plane for **resilience testing**: it orchestrates, governs,
+measures and scores **bounded HTTP** load against authorized infrastructure. It
+implements **no attack vector** (see [boundary-and-lab.md](./boundary-and-lab.md)).
 
-| Document                                               | Contents                                                                             |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| [servers/](./servers/README.md)                        | Server reference (code-anchored): API, generator, bench, connectors, store, frontend |
-| [cross-repo-contract.md](./cross-repo-contract.md)     | Governed contract with the `shieldtest-lab` bench (dispatch + pull connectors)       |
-| [architecture.md](./architecture.md)                   | Overview, modules, campaign flow                                                     |
-| [deployment.md](./deployment.md)                       | Server deployment, systemd, SSH tunnel, updates                                      |
-| [ci-cd.md](./ci-cd.md)                                 | CI and CD pipelines, deploy secrets, rollback                                        |
-| [usage.md](./usage.md)                                 | Full walkthrough: create → approve → execute → report                                |
-| [api.md](./api.md)                                     | REST endpoint reference with `curl` examples                                         |
-| [auth.md](./auth.md)                                   | JWT authentication, roles (RBAC), separation of duties                               |
-| [wrs.md](./wrs.md)                                     | Formula and interpretation of the WEDOS Resiliency Score                             |
-| [audit.md](./audit.md)                                 | Tamper-evident audit chain: verification and export                                  |
-| [roadmap.md](./roadmap.md)                             | Implementation status vs plan (source of truth)                                      |
-| [safeguards.md](./safeguards.md)                       | Security model, scope, what is not implemented                                       |
-| [network-lab.md](./network-lab.md)                     | Synthetic UDP-amplification lab — now a separate repo (pointer)                      |
-| [offensive-integration.md](./offensive-integration.md) | Load generation: agents (builtin/k6), governance, external L3/L4                     |
-| [security-review.md](./security-review.md)             | Security review (threats, verified points, residual risks)                           |
-| [monitoring.md](./monitoring.md)                       | Prometheus + Grafana (provisioned dashboard)                                         |
-| [stack-vs-tsd.md](./stack-vs-tsd.md)                   | Mapping of the implemented stack vs the TSD specification                            |
+The docs are organised into a small set of **topic hubs** (below) plus a
+code-anchored reference. Start with [overview.md](./overview.md).
+
+> **Sourcing convention.** Every non-trivial claim in these docs points to where
+> it is true — a `path` or `path:line` in the repo, or a screenshot. If a doc and
+> the code disagree, the **code wins**; fix the doc in the same PR. The
+> [roadmap](./roadmap.md) is the single source of truth for built-vs-planned.
+
+## Start here
+
+| Doc                                  | What it covers                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [overview.md](./overview.md)         | What ShieldTest is & why (the proving ground for WEDOS Protection), the stack-vs-TSD mapping, defensive scope |
+| [usage.md](./usage.md)               | End-to-end walkthrough: create → approve → execute → report                                                   |
+| [architecture.md](./architecture.md) | Components, backend modules, campaign lifecycle, kill switch, stack                                           |
+
+## Security, governance & boundary
+
+| Doc                                                        | What it covers                                                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [security-and-governance.md](./security-and-governance.md) | Safeguards, JWT/RBAC & user lifecycle, tamper-evident audit chain, security self-review, secret rotation                         |
+| [boundary-and-lab.md](./boundary-and-lab.md)               | What is _not_ implemented & why, the load engines, the class A/B/C policy, the governed read-only contract with `shieldtest-lab` |
+
+## Measurement & reporting
+
+| Doc                                            | What it covers                                                                                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [measurement.md](./measurement.md)             | WRS formula & levels, the bounded-DRS assessment methodology + scenario catalogue, the five-phase engagement model, the tune-and-replay loop |
+| [pretest-p26-20371.md](./pretest-p26-20371.md) | The zeroBS P26-20371 L7 line-by-line mapping (reference record)                                                                              |
+
+## Operations
+
+| Doc                                    | What it covers                                                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [operations.md](./operations.md)       | Install/run, CI/CD (self-hosted runner, rollback), the 2-VPS topology, the go-live checklist, public/networked hardening (mTLS, CISO dossier), the ops runbook |
+| [observability.md](./observability.md) | `/metrics`, the 3-plane Grafana model, structured logs, alerts, Loki, app-native charts, notifications                                                         |
+
+## Reference
+
+| Doc                                                                                                                        | What it covers                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [api.md](./api.md)                                                                                                         | REST endpoint reference with `curl` examples                                       |
+| [servers/](./servers/README.md)                                                                                            | Code-anchored server reference: API, generator, bench, connectors, store, frontend |
+| [testing.md](./testing.md) · [functional-test-catalog.md](./functional-test-catalog.md) · [test-catalog/](./test-catalog/) | Test strategy, the functional catalogue and its generated results                  |
+| [roadmap.md](./roadmap.md)                                                                                                 | Implementation status vs plan (**source of truth**)                                |
+| [cmdb/](./cmdb/)                                                                                                           | Configuration-management database build script + export                            |
 
 > ⚠️ **Defensive scope.** This tool orchestrates, measures and scores **bounded
 > HTTP** load tests against authorized infrastructure. It implements **no attack
-> vector** (L3/L4 flood, amplification, L7 exhaustion).
-> See [safeguards.md](./safeguards.md).
+> vector** (L3/L4 flood, amplification, L7 exhaustion). See
+> [boundary-and-lab.md](./boundary-and-lab.md).

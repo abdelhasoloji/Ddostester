@@ -7,7 +7,7 @@ Quand le code ne précise pas une chose, la fiche l'écrit (« non spécifié da
 code ») au lieu d'inventer.
 
 > Cette référence complète la doc existante (`docs/api.md`, `docs/architecture.md`,
-> `docs/auth.md`, `docs/drs-validation-policy.md`…) : elle se concentre sur les
+> `docs/security-and-governance.md`, `docs/boundary-and-lab.md`…) : elle se concentre sur les
 > **processus qui écoutent le réseau** et leur configuration runtime, et renvoie à
 > ces documents pour le détail fonctionnel.
 

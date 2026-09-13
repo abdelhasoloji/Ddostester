@@ -43,7 +43,7 @@ the guided wizard above, or the classic form directly.
 
 ## Campaign against an authorized target
 
-1. Add the target to the allowlist (see [deployment.md](./deployment.md)):
+1. Add the target to the allowlist (see [operations.md](./operations.md)):
    ```bash
    ALLOWED_TARGETS="127.0.0.1,test-host.internal" bash deploy/setup.sh
    ```
@@ -94,7 +94,7 @@ Recurrence is deliberately bounded by governance: it **only fires while the
 approval is still valid** (24 h) and, if set, before its end time. When the
 approval window closes, recurrence stops and the campaign must be re-approved —
 so automation never bypasses the approval workflow or separation of duties.
-Combine it with [notifications](./notifications.md) to be alerted on completion
+Combine it with [notifications](./observability.md) to be alerted on completion
 or a WRS regression instead of watching the UI.
 
 ## Assessment playbooks (one-click sequences)
@@ -214,7 +214,7 @@ Locust, JMeter, Gatling) — all bounded HTTP. Engines not installed on the serv
 are greyed out; constant-only engines (locust/jmeter/gatling) disable the
 ramp/wave profiles. The **Guide** and **Settings → Load engines** pages show each
 engine's install status and capabilities. See
-[offensive-integration.md](./offensive-integration.md) for how engines are wired
+[boundary-and-lab.md](./boundary-and-lab.md) for how engines are wired
 and governed.
 
 ## PDF export of reports (RPT-01)

@@ -77,7 +77,7 @@ rows = [
     ("Purpose", "Single source of truth for everything that must be preserved for the ShieldTest engagement: hosts, network, repos, endpoints, env, and a secrets REGISTRY (names/locations only — never values)."),
     ("Project", "WEDOS ShieldTest — DDoS-resilience control plane. Engagement: rehearse the zeroBS L7 playbook (P26-20371) against the authorized target bank.cz and tune WEDOS mitigation rules."),
     ("Security boundary", "Bounded, allowlisted, authorized, capped HTTP only. No exploit / amplification / spoofing / evasion. Class-C volumetric on the isolated lab runner only. Never hit ENISA production."),
-    ("5-phase model", "Recon -> Plan -> Execute -> Measure -> Report (bounded analogues for phases 3-4). See docs/five-phase-model.md."),
+    ("5-phase model", "Recon -> Plan -> Execute -> Measure -> Report (bounded analogues for phases 3-4). See docs/measurement.md."),
     ("SECRETS RULE", "This workbook stores NO secret values. The 'Secrets Registry' sheet lists what exists and where it is kept (password manager). Rotate the WEDOS root passwords after first login."),
     ("Owner", "abdelha@gmail.com (WEDOS, internal usage)"),
     ("Last updated", "2026-09-09"),
@@ -251,7 +251,7 @@ sheet(
         ["Out of model (attested)", "HPACK bomb, WAF-cracker, credential brute-force, L3/4 handshake (bench)"],
         ["DRS target cap", "4.5 (customer-defined targets capped)"],
         ["Loop", "Recon -> Plan (gap ladder) -> Execute -> Measure (WRS) -> Report -> tune-and-replay"],
-        ["Key docs", "docs/five-phase-model.md, docs/pretest-p26-20371.md, docs/tune-and-replay.md, docs/provisioning-4vps.md"],
+        ["Key docs", "docs/measurement.md, docs/pretest-p26-20371.md, docs/measurement.md, docs/operations.md"],
     ],
     [26, 86],
 )
