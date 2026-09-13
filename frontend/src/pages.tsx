@@ -530,6 +530,38 @@ const SUITE_TERMINAL: CampaignStatus[] = [
   'REJECTED',
 ];
 
+/** Live countdown for the recovery gate: how long it has waited for the target
+ *  to come back, and how long until it gives up and skips the wave. Ticks once a
+ *  second off a fixed start time so it stays smooth between sequence polls. */
+function GateTimer({ startedAt, maxWaitMs }: { startedAt: number; maxWaitMs: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const maxS = Math.max(1, Math.round(maxWaitMs / 1000));
+  const elapsed = Math.min(maxS, Math.max(0, Math.floor((now - startedAt) / 1000)));
+  const remaining = Math.max(0, maxS - elapsed);
+  const pct = Math.min(100, (elapsed / maxS) * 100);
+  return (
+    <div className="gate-timer">
+      <div className="gate-timer-row">
+        <span>
+          ⏱ waited <b>{elapsed}s</b> <span className="hint">/ {maxS}s</span>
+        </span>
+        <span className="hint">
+          {remaining > 0
+            ? `re-checking every 2s · skips this wave in ${remaining}s`
+            : 'timed out — skipping this wave'}
+        </span>
+      </div>
+      <div className="gate-timer-bar">
+        <div className="gate-timer-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 /** Recon posture of the suite's target — what the assessment is up against.
  *  Foregrounds the reconnaissance the tool already performed (seeded paths,
  *  edge posture, preflight verdict). */
@@ -983,6 +1015,9 @@ function SuiteTheater({
                 </>
               )}
             </p>
+            {seq?.gateStartedAt && (
+              <GateTimer startedAt={seq.gateStartedAt} maxWaitMs={seq.gateMaxWaitMs ?? 90_000} />
+            )}
           </div>
         </div>
       ) : seq?.autoPaused ? (
