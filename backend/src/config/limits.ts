@@ -205,3 +205,17 @@ export const MAX_COMPOSITE_STEPS = 200;
  * built-in steps configured at 300–800 rps all capped ~130–141 rps.
  */
 export const BUILTIN_RPS_CEILING = 150;
+
+/**
+ * Concurrency ceiling of the in-process built-in generator. Above this, the
+ * in-process worker fan-out saturates the Node EVENT LOOP (not just the rate):
+ * the generator monopolises the loop, stalls its own progress AND starves the
+ * legitimate probe's fetch callbacks — which then records false unavailability
+ * and can trigger a SELF-INFLICTED auto-kill that looks like a target failure.
+ * Observed live: a conc-400 step sent 0 requests, peaked 189ms event-loop lag,
+ * and auto-killed with a corrupted WRS. A dedicated socket pool does NOT help —
+ * the event loop itself is the shared resource — so a high-concurrency run is
+ * auto-routed OUT of process (vegeta/k6), where its workers never touch our
+ * loop. See modules/campaigns/engine-route.ts. Steps at ≤300 ran cleanly.
+ */
+export const BUILTIN_CONCURRENCY_CEILING = 300;

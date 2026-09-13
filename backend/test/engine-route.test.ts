@@ -3,6 +3,7 @@ import { highRateEngineUpgrade } from '../src/modules/campaigns/engine-route.js'
 import type { Campaign } from '../src/modules/campaigns/model.js';
 
 const CEIL = 150;
+const CONC = 300;
 const base = (over: Partial<Campaign>): Parameters<typeof highRateEngineUpgrade>[0] =>
   ({ maxRps: 400, ...over }) as Campaign;
 
@@ -58,5 +59,26 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
       highRateEngineUpgrade(base({ assertion: { status: 200 } } as Partial<Campaign>), CEIL),
     ).toBeNull();
     expect(highRateEngineUpgrade(base({ userAgents: ['x', 'y'] }), CEIL)).toBeNull();
+  });
+
+  it('routes a LOW-rate but HIGH-concurrency flood off the loop (event-loop safety)', () => {
+    // At/below both ceilings → keep built-in.
+    expect(highRateEngineUpgrade(base({ maxRps: 100, concurrency: 300 }), CEIL, CONC)).toBeNull();
+    // Rate is fine but concurrency saturates the in-process loop → route to vegeta.
+    expect(highRateEngineUpgrade(base({ maxRps: 100, concurrency: 400 }), CEIL, CONC)).toBe(
+      'vegeta',
+    );
+  });
+
+  it('does not route high concurrency when the concurrency ceiling is not supplied', () => {
+    // Back-compat: a 2-arg call keeps the rate-only behaviour (ceiling = ∞).
+    expect(highRateEngineUpgrade(base({ maxRps: 100, concurrency: 999 }), CEIL)).toBeNull();
+  });
+
+  it('still respects built-in-only features even when concurrency is high', () => {
+    // A high-concurrency UA-rotation flood can't route (only built-in rotates UAs).
+    expect(
+      highRateEngineUpgrade(base({ maxRps: 100, concurrency: 400, userAgents: ['x'] }), CEIL, CONC),
+    ).toBeNull();
   });
 });

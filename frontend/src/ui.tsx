@@ -1119,7 +1119,27 @@ export function CampaignDrawer() {
           </div>
           <div>
             <dt>Engine</dt>
-            <dd>{c.agent ?? 'server default'}</dd>
+            <dd>
+              {(() => {
+                const configured = c.agent ?? 'server default';
+                const actual = run?.engine;
+                // Show the engine that actually ran; when it was auto-routed off
+                // the configured one, surface both so the measurement is honest.
+                const norm = (e?: string) => (e === 'builtin-http' ? 'builtin' : e);
+                const actualN = norm(actual);
+                if (actualN && actualN !== (c.agent ?? 'builtin')) {
+                  return (
+                    <>
+                      {actualN}{' '}
+                      <span className="hint">
+                        (auto-routed from {configured} — built-in rps ceiling)
+                      </span>
+                    </>
+                  );
+                }
+                return actualN ?? configured;
+              })()}
+            </dd>
           </div>
           <div>
             <dt>Load</dt>

@@ -50,6 +50,15 @@ export interface CampaignRun {
    * "Auto-killed" badge with no cause. Undefined for a clean completion.
    */
   statusDetail?: string;
+  /**
+   * The load engine that ACTUALLY ran this campaign — e.g. 'builtin-http',
+   * 'vegeta', 'k6'. This can differ from the campaign's configured `agent` when
+   * a high-rate step is auto-routed off the built-in engine (see app.ts /
+   * engine-route.ts), so it is the ground truth for "which engine measured this
+   * run". Stamped at settle time; the report/drawer surface it. Absent on runs
+   * created before this was recorded.
+   */
+  engine?: string;
   generator: LoadTestResult;
   probe: ProbeMetrics;
   wrs: WrsBreakdown;

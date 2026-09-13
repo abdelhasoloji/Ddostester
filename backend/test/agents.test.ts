@@ -31,7 +31,7 @@ describe('vegeta', () => {
     expect(t).toContain('GET http://127.0.0.1/health');
     expect(t).toContain('X-WEDOS-TEST: abc');
   });
-  it('bounds attack memory: -max-body 0, -max-workers=concurrency, -timeout', async () => {
+  it('bounds attack memory (-max-body 0, -timeout) and sizes workers to the RATE', async () => {
     const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
     const args = vegetaAttackArgs(
       { ...cfg, concurrency: 80, timeoutMs: 8000 },
@@ -41,10 +41,28 @@ describe('vegeta', () => {
     );
     expect(args).toContain('-max-body');
     expect(args[args.indexOf('-max-body') + 1]).toBe('0');
-    expect(args[args.indexOf('-max-workers') + 1]).toBe('80');
+    // Workers must sustain the rate against a slow target (≈ rate × timeout),
+    // NOT the campaign concurrency — capping at concurrency (80) throttled
+    // vegeta to ~10 rps on slow endpoints. 400 rps × 8 s = 3200.
+    expect(args[args.indexOf('-max-workers') + 1]).toBe('3200');
     expect(args[args.indexOf('-timeout') + 1]).toBe('8s');
     expect(args).toContain('-rate');
     expect(args[args.indexOf('-rate') + 1]).toBe('400/1s');
+  });
+
+  it('never sizes workers below the operator concurrency, and caps the ceiling', async () => {
+    const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
+    // Low rate × short timeout would give few workers → floor at concurrency.
+    const low = vegetaAttackArgs({ ...cfg, concurrency: 200, timeoutMs: 1000 }, 50, 60, '/t/f.txt');
+    expect(low[low.indexOf('-max-workers') + 1]).toBe('200');
+    // Pathological rate × long timeout is capped so workers can't grow unbounded.
+    const high = vegetaAttackArgs(
+      { ...cfg, concurrency: 10, timeoutMs: 60_000 },
+      2000,
+      60,
+      '/t/f.txt',
+    );
+    expect(high[high.indexOf('-max-workers') + 1]).toBe('20000');
   });
 
   it('emits one target block per endpoint (recon-seeded surface)', () => {

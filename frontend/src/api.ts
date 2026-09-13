@@ -153,6 +153,9 @@ export interface CampaignRun {
   status: CampaignStatus;
   /** Human-readable explanation of the terminal status (e.g. why an auto-kill fired). */
   statusDetail?: string;
+  /** The engine that ACTUALLY ran (may differ from the configured agent when a
+      high-rate step was auto-routed off the built-in engine). */
+  engine?: string;
   generator: {
     totalRequests: number;
     successful: number;

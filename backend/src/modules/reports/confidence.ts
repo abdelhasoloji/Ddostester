@@ -28,6 +28,10 @@ export interface RunConfidence {
 export function computeConfidence(input: {
   hardStopped?: boolean;
   peakEventLoopLagMs?: number;
+  /** Whether the run ended in an automatic (probe-driven) kill. */
+  killedAuto?: boolean;
+  /** Total requests the generator managed to send during the run. */
+  generatorRequests?: number;
 }): RunConfidence {
   const reasons: string[] = [];
   if (input.hardStopped) {
@@ -39,6 +43,20 @@ export function computeConfidence(input: {
   if (peak > EVENT_LOOP_LAG_DEGRADED_MS) {
     reasons.push(
       `Generator event-loop lag peaked at ${Math.round(peak)}ms during the run — the generator host may have been the bottleneck, not the target.`,
+    );
+  }
+  // A self-inflicted auto-kill: the probe declared the target unavailable WHILE
+  // our own event loop was stalling and the generator barely made progress. The
+  // probe shares the event loop with the generator, so its "unavailable" reading
+  // reflects OUR stall, not the target — the auto-kill (and any low WRS from it)
+  // is not attributable to the target. Re-run out-of-process before trusting it.
+  if (
+    input.killedAuto &&
+    peak > EVENT_LOOP_LAG_DEGRADED_MS &&
+    (input.generatorRequests ?? 0) < 50
+  ) {
+    reasons.push(
+      'Auto-kill is likely generator-side, NOT a target failure: the probe read the target as unavailable while the generator stalled its own event loop and sent almost no load. Re-run on an out-of-process engine (vegeta/k6) before trusting this verdict.',
     );
   }
   return {
