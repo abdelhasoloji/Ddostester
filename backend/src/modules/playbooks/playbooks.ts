@@ -1676,10 +1676,14 @@ function campaignInputFromStep(
   // them when the resolved engine is the built-in one (explicit or default).
   const builtin = agent === 'builtin' || agent === undefined;
   // Seed the step's templated paths against the target's real surface (when a
-  // recon was supplied) so path-based lines hit real endpoints, not 404s.
+  // recon was supplied) so path-based lines hit real endpoints, not 404s. The
+  // seeded endpoints attach for EVERY engine — the out-of-process engines
+  // (vegeta/k6) honour a multi-target endpoint set too, so a recon-seeded step
+  // hits the real surface whatever engine runs it (not just the built-in one).
   const seededPaths = seedPaths(step.paths, o.t.recon);
-  const endpoints =
-    builtin && seededPaths?.length ? seededPaths.map((p) => ({ url: `${origin}${p}` })) : undefined;
+  const endpoints = seededPaths?.length
+    ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
+    : undefined;
   const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
   const headers = builtin && step.headers ? step.headers : undefined;
   return {

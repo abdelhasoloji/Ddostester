@@ -105,9 +105,27 @@ describe('createCampaign flow validation', () => {
     authorized: true,
   };
   const agents = [
-    { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
-    { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
-    { id: 'vegeta', multiPhase: true, flowCapable: false, correlationCapable: false },
+    {
+      id: 'builtin',
+      multiPhase: true,
+      flowCapable: true,
+      endpointCapable: true,
+      correlationCapable: true,
+    },
+    {
+      id: 'k6',
+      multiPhase: true,
+      flowCapable: true,
+      endpointCapable: true,
+      correlationCapable: false,
+    },
+    {
+      id: 'vegeta',
+      multiPhase: true,
+      flowCapable: false,
+      endpointCapable: true,
+      correlationCapable: false,
+    },
   ];
   const corrFlow = [
     {

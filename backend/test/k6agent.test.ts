@@ -23,6 +23,19 @@ describe('buildK6Script', () => {
     expect(s).toContain('http.request("GET", "http://127.0.0.1/health"');
     expect(s).toContain('X-WEDOS-TEST');
   });
+  it('spreads over a recon-seeded endpoint set (random pick per iteration)', () => {
+    const s = buildK6Script({
+      ...cfg,
+      method: 'POST',
+      body: '{"a":1}',
+      endpoints: [{ url: 'http://127.0.0.1/login' }, { url: 'http://127.0.0.1/api/reset' }],
+    });
+    expect(s).toContain('http://127.0.0.1/login');
+    expect(s).toContain('http://127.0.0.1/api/reset');
+    expect(s).toContain('Math.random()');
+    expect(s).toContain('http.request("POST"');
+    expect(s).not.toContain('"http://127.0.0.1/health"'); // root not used with endpoints
+  });
   it('generates ramping phases when a scenario is given', () => {
     const s = buildK6Script({
       ...cfg,

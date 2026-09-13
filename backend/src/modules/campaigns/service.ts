@@ -45,6 +45,8 @@ export interface AgentChoice {
   multiPhase: boolean;
   flowCapable: boolean;
   correlationCapable: boolean;
+  /** Honours a multi-URL endpoint set (recon-seeded surface). */
+  endpointCapable: boolean;
 }
 
 export function createCampaign(
@@ -198,9 +200,9 @@ export function createCampaign(
     if (totalWeight <= 0) {
       throw new CampaignError('Endpoint mix: at least one weight must be > 0.');
     }
-    if (input.agent && input.agent !== 'builtin') {
-      throw new CampaignError('An endpoint mix requires the built-in engine.');
-    }
+    // Endpoint-capability is validated against the chosen engine below (with the
+    // other capability checks), so a recon-seeded endpoint set is allowed on any
+    // engine that honours it (built-in, vegeta, k6).
   }
 
   if (input.userAgents) {
@@ -257,6 +259,12 @@ export function createCampaign(
       throw new CampaignError(
         `Load engine "${input.agent}" does not support multi-step flows — ` +
           `choose builtin/k6/jmeter/gatling/locust.`,
+      );
+    }
+    if (input.endpoints && input.endpoints.length > 0 && !chosen.endpointCapable) {
+      throw new CampaignError(
+        `Load engine "${input.agent}" does not support an endpoint mix — ` +
+          `choose builtin/vegeta/k6.`,
       );
     }
     if (flowUsesCorrelation(input.flow) && !chosen.correlationCapable) {

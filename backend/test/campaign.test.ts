@@ -187,10 +187,46 @@ describe('endpoint mix validation', () => {
     ).toThrow(/flow or an endpoint mix/);
   });
 
-  it('rejects a mix on a non-builtin engine', () => {
+  it('accepts a mix on an endpoint-capable engine (k6/vegeta), rejects a non-capable one', () => {
+    const AGENTS = [
+      {
+        id: 'builtin',
+        multiPhase: true,
+        flowCapable: true,
+        endpointCapable: true,
+        correlationCapable: true,
+      },
+      {
+        id: 'k6',
+        multiPhase: true,
+        flowCapable: true,
+        endpointCapable: true,
+        correlationCapable: false,
+      },
+      {
+        id: 'locust',
+        multiPhase: true,
+        flowCapable: true,
+        endpointCapable: false,
+        correlationCapable: false,
+      },
+    ];
+    // k6 honours a recon-seeded endpoint set now.
+    expect(
+      createCampaign(
+        { ...base, agent: 'k6', endpoints: [{ url: 'http://localhost/a' }] },
+        allowed,
+        AGENTS,
+      ).endpoints,
+    ).toHaveLength(1);
+    // An engine that can't do an endpoint mix is still rejected.
     expect(() =>
-      createCampaign({ ...base, agent: 'k6', endpoints: [{ url: 'http://localhost/a' }] }, allowed),
-    ).toThrow(/built-in engine/);
+      createCampaign(
+        { ...base, agent: 'locust', endpoints: [{ url: 'http://localhost/a' }] },
+        allowed,
+        AGENTS,
+      ),
+    ).toThrow(/endpoint mix/);
   });
 });
 

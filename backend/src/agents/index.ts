@@ -44,6 +44,8 @@ export interface AgentInfo {
   multiPhase: boolean;
   /** Whether the agent can run a multi-step request flow (L7 journey). */
   flowCapable: boolean;
+  /** Whether the agent honours a multi-URL endpoint set (recon-seeded surface). */
+  endpointCapable: boolean;
   /** Whether the agent supports flow correlation. */
   correlationCapable: boolean;
   description: string;
@@ -54,6 +56,7 @@ export function agentChoices(): {
   id: string;
   multiPhase: boolean;
   flowCapable: boolean;
+  endpointCapable: boolean;
   correlationCapable: boolean;
 }[] {
   return Object.keys(FACTORIES).map((id) => {
@@ -62,6 +65,7 @@ export function agentChoices(): {
       id,
       multiPhase: a.multiPhase,
       flowCapable: a.flowCapable,
+      endpointCapable: a.endpointCapable,
       correlationCapable: a.correlationCapable,
     };
   });
@@ -80,6 +84,7 @@ export async function describeAgents(): Promise<AgentInfo[]> {
         available,
         multiPhase: a.multiPhase,
         flowCapable: a.flowCapable,
+        endpointCapable: a.endpointCapable,
         correlationCapable: a.correlationCapable,
         description: a.description,
       };

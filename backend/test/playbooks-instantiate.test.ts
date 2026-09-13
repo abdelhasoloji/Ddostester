@@ -21,9 +21,27 @@ const ENGINES = [
 // flow validation in createCampaign is exercised faithfully. builtin, vegeta and
 // k6 all support multi-phase scenarios (ramp/wave) — the profiles the templates use.
 const AGENTS = [
-  { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
-  { id: 'vegeta', multiPhase: true, flowCapable: false, correlationCapable: false },
-  { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+  {
+    id: 'builtin',
+    multiPhase: true,
+    flowCapable: true,
+    endpointCapable: true,
+    correlationCapable: true,
+  },
+  {
+    id: 'vegeta',
+    multiPhase: true,
+    flowCapable: false,
+    endpointCapable: true,
+    correlationCapable: false,
+  },
+  {
+    id: 'k6',
+    multiPhase: true,
+    flowCapable: true,
+    endpointCapable: true,
+    correlationCapable: false,
+  },
 ];
 
 describe('curated templates instantiate into valid campaigns for bank.cz', () => {

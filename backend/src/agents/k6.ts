@@ -65,6 +65,15 @@ export function buildK6Script(config: LoadTestConfig): string {
         return s.thinkMs ? `${call}\n  sleep(${(s.thinkMs / 1000).toFixed(3)});` : call;
       })
       .join('\n');
+  } else if (config.endpoints?.length) {
+    // Recon-seeded endpoint set: pick one at random per iteration so the flood
+    // spreads over the real surface (matches the built-in engine's endpoint mix).
+    const urls = JSON.stringify(config.endpoints.map((e) => e.url));
+    const b =
+      config.body != null && method !== 'GET' && method !== 'HEAD'
+        ? JSON.stringify(config.body)
+        : 'null';
+    bodyFn = `  const _eps = ${urls};\n  http.request(${JSON.stringify(method)}, _eps[Math.floor(Math.random() * _eps.length)], ${b}, params);`;
   } else {
     bodyFn = `  ${k6Call(method, config.url, config.body)};`;
   }
@@ -133,6 +142,7 @@ export class K6Agent implements AttackAgent {
   readonly name = 'k6';
   readonly multiPhase = true;
   readonly flowCapable = true;
+  readonly endpointCapable = true;
   readonly correlationCapable = false;
   readonly description =
     'k6 (external) — arrival-rate load, supports ramping scenarios and multi-step flows.';

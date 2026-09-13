@@ -9,6 +9,7 @@ export class BuiltinHttpAgent implements AttackAgent {
   readonly name = 'builtin-http';
   readonly multiPhase = true;
   readonly flowCapable = true;
+  readonly endpointCapable = true;
   readonly correlationCapable = true;
   readonly description =
     'Built-in bounded HTTP generator (no external tool required) — flows with correlation.';

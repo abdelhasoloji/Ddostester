@@ -125,8 +125,20 @@ describe('playbooks', () => {
     const inputs = buildSuiteCampaigns(getPlaybook('quick-readiness')!, target, engines);
     for (const input of inputs) {
       const c = createCampaign(input, allowed, [
-        { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
-        { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+        {
+          id: 'builtin',
+          multiPhase: true,
+          flowCapable: true,
+          endpointCapable: true,
+          correlationCapable: true,
+        },
+        {
+          id: 'k6',
+          multiPhase: true,
+          flowCapable: true,
+          endpointCapable: true,
+          correlationCapable: false,
+        },
       ]);
       expect(c.status).toBe('PENDING_APPROVAL');
       expect(c.suiteName).toBe('Quick readiness check');
@@ -161,8 +173,20 @@ describe('threat-informed playbooks', () => {
     for (const pb of PLAYBOOKS.filter((p) => p.threat)) {
       for (const input of buildSuiteCampaigns(pb, target, engines)) {
         const c = createCampaign(input, allowed, [
-          { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
-          { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+          {
+            id: 'builtin',
+            multiPhase: true,
+            flowCapable: true,
+            endpointCapable: true,
+            correlationCapable: true,
+          },
+          {
+            id: 'k6',
+            multiPhase: true,
+            flowCapable: true,
+            endpointCapable: true,
+            correlationCapable: false,
+          },
         ]);
         expect(c.status).toBe('PENDING_APPROVAL');
       }

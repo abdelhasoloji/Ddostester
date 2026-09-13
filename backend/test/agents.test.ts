@@ -31,6 +31,19 @@ describe('vegeta', () => {
     expect(t).toContain('GET http://127.0.0.1/health');
     expect(t).toContain('X-WEDOS-TEST: abc');
   });
+  it('emits one target block per endpoint (recon-seeded surface)', () => {
+    const t = buildVegetaTarget({
+      ...cfg,
+      method: 'POST',
+      endpoints: [{ url: 'http://127.0.0.1/login' }, { url: 'http://127.0.0.1/api/reset' }],
+    });
+    // Two blocks separated by a blank line, each carrying the campaign method.
+    const blocks = t.trim().split('\n\n');
+    expect(blocks).toHaveLength(2);
+    expect(t).toContain('POST http://127.0.0.1/login');
+    expect(t).toContain('POST http://127.0.0.1/api/reset');
+    expect(t).not.toContain('http://127.0.0.1/health'); // root is not used when endpoints are set
+  });
   it('parse un rapport JSON (latences ns → ms)', () => {
     const rep = {
       requests: 500,

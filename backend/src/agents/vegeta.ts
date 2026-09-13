@@ -16,13 +16,26 @@ import { emptyResult, type ResultMeta } from './results.js';
  * Rate capped via `-rate`; bounded HTTP load only.
  */
 
-/** Builds the Vegeta targets file (one request). Pure function. */
+/** Builds the Vegeta targets file. Pure function. With an endpoint set (e.g. a
+ *  recon-seeded suite) it emits one target block per endpoint — Vegeta rotates
+ *  through them — so the flood hits the real surface, not just the root. Each
+ *  block carries the endpoint's method (defaulting to the campaign method). */
 export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): string {
-  const method = (config.method ?? 'GET').toUpperCase();
-  const lines = [`${method} ${config.url}`];
-  for (const [k, v] of Object.entries(config.headers ?? {})) lines.push(`${k}: ${v}`);
-  if (method === 'POST' && bodyFile) lines.push(`@${bodyFile}`);
-  return lines.join('\n') + '\n';
+  const defaultMethod = (config.method ?? 'GET').toUpperCase();
+  const headerLines = Object.entries(config.headers ?? {}).map(([k, v]) => `${k}: ${v}`);
+  const targets = config.endpoints?.length
+    ? config.endpoints.map((e) => ({
+        method: (e.method ?? defaultMethod).toUpperCase(),
+        url: e.url,
+      }))
+    : [{ method: defaultMethod, url: config.url }];
+  const blocks = targets.map(({ method, url }) => {
+    const lines = [`${method} ${url}`, ...headerLines];
+    if (method === 'POST' && bodyFile) lines.push(`@${bodyFile}`);
+    return lines.join('\n');
+  });
+  // Vegeta separates targets by a blank line.
+  return blocks.join('\n\n') + '\n';
 }
 
 interface VegetaReport {
@@ -232,6 +245,7 @@ export class VegetaAgent implements AttackAgent {
   readonly name = 'vegeta';
   readonly multiPhase = true;
   readonly flowCapable = false;
+  readonly endpointCapable = true;
   readonly correlationCapable = false;
   readonly description =
     'Vegeta (external) — fixed-rate load, runs phases sequentially (no multi-step flows).';

@@ -1739,8 +1739,8 @@ describe('V. Campaign shapes (all campaign types)', () => {
   it('engine capability conflicts are rejected (400)', async () => {
     const conflicts: [string, Record<string, unknown>][] = [
       [
-        'endpoint mix requires builtin',
-        { agent: 'k6', endpoints: [{ url: `${base}/a`, weight: 1 }] },
+        'endpoint mix requires an endpoint-capable engine',
+        { agent: 'locust', endpoints: [{ url: `${base}/a`, weight: 1 }] },
       ],
       ['UA rotation requires builtin', { agent: 'k6', userAgents: ['A', 'B'] }],
       ['data feeder requires builtin', { agent: 'k6', dataset: [{ q: 'a' }] }],

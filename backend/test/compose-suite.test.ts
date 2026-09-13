@@ -15,9 +15,27 @@ const ENGINES = [
   { id: 'k6', available: true },
 ];
 const AGENTS = [
-  { id: 'builtin', multiPhase: true, flowCapable: true, correlationCapable: true },
-  { id: 'vegeta', multiPhase: true, flowCapable: false, correlationCapable: false },
-  { id: 'k6', multiPhase: true, flowCapable: true, correlationCapable: false },
+  {
+    id: 'builtin',
+    multiPhase: true,
+    flowCapable: true,
+    endpointCapable: true,
+    correlationCapable: true,
+  },
+  {
+    id: 'vegeta',
+    multiPhase: true,
+    flowCapable: false,
+    endpointCapable: true,
+    correlationCapable: false,
+  },
+  {
+    id: 'k6',
+    multiPhase: true,
+    flowCapable: true,
+    endpointCapable: true,
+    correlationCapable: false,
+  },
 ];
 
 const multiStep = PLAYBOOKS.filter((p) => p.steps.length > 1);

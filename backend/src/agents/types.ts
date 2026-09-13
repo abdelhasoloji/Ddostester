@@ -20,6 +20,8 @@ export interface AttackAgent {
   readonly multiPhase: boolean;
   /** Whether the agent can run a multi-step request flow (L7 journey). */
   readonly flowCapable: boolean;
+  /** Whether the agent honours a multi-URL endpoint set (recon-seeded surface). */
+  readonly endpointCapable: boolean;
   /**
    * Whether the agent supports flow correlation (extract a response value and
    * inject it into later steps via `{{vars}}`).
