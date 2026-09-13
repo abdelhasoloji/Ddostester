@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PLAYBOOKS, buildCompositeSuite } from '../src/modules/playbooks/playbooks.js';
+import {
+  PLAYBOOKS,
+  buildCompositeSuite,
+  isBaselineStep,
+} from '../src/modules/playbooks/playbooks.js';
 import { createCampaign } from '../src/modules/campaigns/service.js';
 import { HARD_CAPS } from '../src/config/limits.js';
 
@@ -42,9 +46,41 @@ const multiStep = PLAYBOOKS.filter((p) => p.steps.length > 1);
 const singleStep = PLAYBOOKS.filter((p) => p.steps.length === 1);
 
 describe('buildCompositeSuite', () => {
+  it('dedupes baselines across the composite (keeps the first, contiguous order)', () => {
+    const step = (name: string) => ({
+      name,
+      summary: '',
+      maxRps: 100,
+      concurrency: 20,
+      maxDurationSec: 60,
+      profile: 'constant' as const,
+    });
+    const pb = (id: string, steps: ReturnType<typeof step>[]) =>
+      ({ id, name: id.toUpperCase(), category: 'x', summary: '', when: '', steps }) as never;
+    const pbs = [
+      pb('a', [step('Baseline'), step('Wave A')]),
+      pb('b', [step('Baseline'), step('Wave B')]),
+      pb('c', [step('Baseline')]),
+    ];
+    const inputs = buildCompositeSuite(
+      pbs,
+      'mix',
+      { target: TARGET, probeUrl: TARGET, createdBy: 'x' },
+      ENGINES,
+    );
+    // One baseline survives (A's); B's and C's are dropped. Both waves stay.
+    expect(inputs.filter((i) => /baseline/i.test(i.name))).toHaveLength(1);
+    expect(inputs.filter((i) => /Wave/.test(i.name))).toHaveLength(2);
+    expect(inputs).toHaveLength(3);
+    expect(inputs.map((i) => i.suiteOrder)).toEqual([0, 1, 2]);
+  });
+
   it('concatenates the steps of several templates under one suite', () => {
     const picks = [multiStep[0], singleStep[0], multiStep[1]].filter(Boolean);
     const total = picks.reduce((n, p) => n + p.steps.length, 0);
+    // Baselines are deduped across the composite (keep the first).
+    const baselineCount = picks.reduce((n, p) => n + p.steps.filter(isBaselineStep).length, 0);
+    const expected = total - Math.max(0, baselineCount - 1);
     const inputs = buildCompositeSuite(
       picks,
       'My mix',
@@ -52,14 +88,14 @@ describe('buildCompositeSuite', () => {
       ENGINES,
     );
 
-    // One campaign per source step, in template order.
-    expect(inputs.length).toBe(total);
+    // One campaign per source step, minus the deduped baselines, in template order.
+    expect(inputs.length).toBe(expected);
     // A single shared suiteId, and the suiteName is the composite's own.
     const suiteIds = new Set(inputs.map((i) => i.suiteId));
     expect(suiteIds.size).toBe(1);
     expect(inputs.every((i) => i.suiteName === 'My mix')).toBe(true);
     // suiteOrder is a contiguous 0..n-1 running index across all templates.
-    expect(inputs.map((i) => i.suiteOrder)).toEqual([...Array(total).keys()]);
+    expect(inputs.map((i) => i.suiteOrder)).toEqual([...Array(expected).keys()]);
   });
 
   it('keeps the source template visible in each step name', () => {

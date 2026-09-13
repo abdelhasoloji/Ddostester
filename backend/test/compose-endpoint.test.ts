@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { MemoryStore } from '../src/store/memory.js';
 import { initAuth } from '../src/auth/guard.js';
-import { PLAYBOOKS } from '../src/modules/playbooks/playbooks.js';
+import { PLAYBOOKS, isBaselineStep } from '../src/modules/playbooks/playbooks.js';
 import { MAX_COMPOSITE_STEPS } from '../src/config/limits.js';
 
 // A local, fail-fast target: instantiation now runs a best-effort recon on the
@@ -13,8 +13,12 @@ const allowed = ['127.0.0.1'];
 const TARGET = 'http://127.0.0.1/';
 
 // Two distinct curated templates to compose.
-const twoIds = PLAYBOOKS.slice(0, 2).map((p) => p.id);
-const twoSteps = PLAYBOOKS.slice(0, 2).reduce((n, p) => n + p.steps.length, 0);
+const twoPbs = PLAYBOOKS.slice(0, 2);
+const twoIds = twoPbs.map((p) => p.id);
+// Steps concatenated, minus the deduped baselines (one baseline kept per suite).
+const rawSteps = twoPbs.reduce((n, p) => n + p.steps.length, 0);
+const twoBaselines = twoPbs.reduce((n, p) => n + p.steps.filter(isBaselineStep).length, 0);
+const twoSteps = rawSteps - Math.max(0, twoBaselines - 1);
 
 describe('POST /api/suites/compose', () => {
   let app: FastifyInstance;
