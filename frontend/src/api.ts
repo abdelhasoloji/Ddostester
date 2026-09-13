@@ -294,6 +294,10 @@ export interface Alert {
   runId: string;
   target?: string;
   at?: string;
+  /** Investigation context (E10). */
+  engine?: string;
+  durationSec?: number;
+  metric?: { label: string; value: string };
 }
 
 /** A named Prometheus range series for the app-native charts (option B). */

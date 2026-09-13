@@ -389,11 +389,22 @@ export function CommandCenterPage() {
                   type="button"
                   className="alert-row-btn"
                   onClick={() => openAlert(a)}
-                  title="Open the related campaign / run"
+                  title={[
+                    a.at ? new Date(a.at).toLocaleString() : null,
+                    a.target ? `target ${hostOf(a.target) ?? a.target}` : null,
+                    a.metric ? `${a.metric.label} ${a.metric.value}` : null,
+                    a.engine ? `engine ${a.engine}` : null,
+                    a.durationSec != null ? `${a.durationSec}s` : null,
+                    'Open the related campaign / run',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 >
                   <span className="alert-dot" aria-hidden="true" />
                   <span className="alert-title">{a.title}</span>
-                  <span className="alert-detail">{a.detail}</span>
+                  <span className="alert-detail">
+                    {a.metric && <b className="alert-metric">{a.metric.value}</b>} {a.detail}
+                  </span>
                   <span className="alert-go" aria-hidden="true">
                     →
                   </span>
@@ -1211,6 +1222,18 @@ function NotificationRow({
   onOpen: (a: Alert) => void;
   onRead: (key: string) => void;
 }) {
+  // Investigation links (E10): Grafana deep-linked to this run's exact window.
+  const grafanaBase = getGrafanaBase();
+  const finishedMs = a.at ? Date.parse(a.at) : NaN;
+  const grafanaHref =
+    grafanaBase && a.target && !Number.isNaN(finishedMs)
+      ? grafanaDashUrl(grafanaBase, 'run', {
+          target: hostOf(a.target) ?? a.target,
+          fromMs: a.durationSec ? finishedMs - a.durationSec * 1000 - 60_000 : undefined,
+          toMs: finishedMs + 60_000,
+        })
+      : null;
+  const absTime = a.at && !Number.isNaN(finishedMs) ? new Date(finishedMs).toLocaleString() : '';
   return (
     <li className={`notif-item alert-${a.severity}${read ? ' is-read' : ''}`}>
       <button className="notif-item-main" onClick={() => onOpen(a)}>
@@ -1220,12 +1243,47 @@ function NotificationRow({
             <span aria-hidden="true">{alertIcon(a.kind)}</span> {a.title}
           </span>
           <span className="notif-item-detail">{a.detail}</span>
-          <span className="notif-item-meta">
-            {a.target ? `${a.target} · ` : ''}
+          {(a.metric || a.engine || a.durationSec != null) && (
+            <span className="notif-item-chips">
+              {a.metric && (
+                <span className="notif-chip notif-chip-metric">
+                  {a.metric.label}: <b>{a.metric.value}</b>
+                </span>
+              )}
+              {a.engine && <span className="notif-chip">⚙ {a.engine}</span>}
+              {a.durationSec != null && <span className="notif-chip">⏱ {a.durationSec}s</span>}
+            </span>
+          )}
+          <span className="notif-item-meta" title={absTime}>
+            {a.target ? `${hostOf(a.target) ?? a.target} · ` : ''}
             {relTime(a.at)}
           </span>
         </span>
       </button>
+      <div className="notif-item-links">
+        {a.runId && (
+          <a
+            className="notif-link"
+            href={reportUrl(a.runId)}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the run report in a new tab"
+          >
+            Report ↗
+          </a>
+        )}
+        {grafanaHref && (
+          <a
+            className="notif-link"
+            href={grafanaHref}
+            target="_blank"
+            rel="noreferrer"
+            title="Open Grafana at this run's time window"
+          >
+            📊 Grafana ↗
+          </a>
+        )}
+      </div>
       <button
         className="alert-x"
         aria-label="Mark as read"

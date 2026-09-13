@@ -3198,6 +3198,36 @@ table.remediations td {
   color: var(--muted);
   font-size: 0.72rem;
 }
+.notif-item-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.15rem 0;
+}
+.notif-chip {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+}
+.notif-chip-metric {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.notif-item-links {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0 0.75rem 0.1rem 2rem;
+}
+.notif-link {
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.notif-link:hover {
+  text-decoration: underline;
+}
 /* Clickable Command Center alert rows */
 .alert-row-btn {
   display: grid;
@@ -3260,6 +3290,9 @@ table.remediations td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.alert-metric {
+  color: var(--text);
 }
 .alert-x {
   background: none;
