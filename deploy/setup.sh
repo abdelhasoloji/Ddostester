@@ -86,6 +86,17 @@ Environment=AGENT=${AGENT}
 EnvironmentFile=-${ENVFILE}
 ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure
+RestartSec=2
+# Memory safety: cap the whole service (node + any spawned load engine) so a
+# runaway generator (e.g. vegeta buffering under a slow target) is killed by the
+# cgroup — the biggest process, i.e. the engine — instead of the kernel OOM
+# picking a victim and taking the control plane (and the box) down. OOMPolicy=
+# continue keeps node alive when a child engine is OOM-killed, so the suite
+# survives. Tune MemoryMax to the host (VPS1 = 16 GB; leave room for Postgres).
+MemoryAccounting=yes
+MemoryHigh=5G
+MemoryMax=7G
+OOMPolicy=continue
 
 [Install]
 WantedBy=multi-user.target

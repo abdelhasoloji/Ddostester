@@ -38,6 +38,42 @@ export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): st
   return blocks.join('\n\n') + '\n';
 }
 
+/**
+ * Bounded `vegeta attack` args for one phase. Critically caps MEMORY so a long,
+ * high-rate attack against a slow/tarpitting target can't OOM the host (observed:
+ * vegeta grew to 10.7 GB and the kernel OOM-killed the control plane mid-suite):
+ *   - `-max-body 0`  — discard response bodies (we only score status/latency);
+ *     vegeta's default reads and buffers the FULL body of every response.
+ *   - `-max-workers <concurrency>` — vegeta's default spawns UNBOUNDED workers to
+ *     hold the rate when the target is slow; cap it to the campaign concurrency.
+ *   - `-timeout` — free a hung request promptly instead of holding it 30 s.
+ * Pure, so it is unit-tested.
+ */
+export function vegetaAttackArgs(
+  config: LoadTestConfig,
+  phaseRps: number,
+  phaseDurationSec: number,
+  targetsFile: string,
+): string[] {
+  const workers = Math.max(1, Math.min(config.concurrency, 1000));
+  const timeoutSec = Math.max(1, Math.ceil((config.timeoutMs ?? 10_000) / 1000));
+  return [
+    'attack',
+    '-targets',
+    targetsFile,
+    '-rate',
+    `${phaseRps}/1s`,
+    '-duration',
+    `${phaseDurationSec}s`,
+    '-max-body',
+    '0',
+    '-max-workers',
+    `${workers}`,
+    '-timeout',
+    `${timeoutSec}s`,
+  ];
+}
+
 interface VegetaReport {
   latencies?: {
     mean?: number;
@@ -298,15 +334,7 @@ export class VegetaAgent implements AttackAgent {
           const resultsBin = join(dir, `r${i}.bin`);
           await streamVegetaPhase(
             this.bin,
-            [
-              'attack',
-              '-targets',
-              targetsFile,
-              '-rate',
-              `${ph.maxRps}/1s`,
-              '-duration',
-              `${ph.durationSec}s`,
-            ],
+            vegetaAttackArgs(config, ph.maxRps, ph.durationSec, targetsFile),
             resultsBin,
             killSignal,
             meter,

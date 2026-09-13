@@ -31,6 +31,22 @@ describe('vegeta', () => {
     expect(t).toContain('GET http://127.0.0.1/health');
     expect(t).toContain('X-WEDOS-TEST: abc');
   });
+  it('bounds attack memory: -max-body 0, -max-workers=concurrency, -timeout', async () => {
+    const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
+    const args = vegetaAttackArgs(
+      { ...cfg, concurrency: 80, timeoutMs: 8000 },
+      400,
+      120,
+      '/t/f.txt',
+    );
+    expect(args).toContain('-max-body');
+    expect(args[args.indexOf('-max-body') + 1]).toBe('0');
+    expect(args[args.indexOf('-max-workers') + 1]).toBe('80');
+    expect(args[args.indexOf('-timeout') + 1]).toBe('8s');
+    expect(args).toContain('-rate');
+    expect(args[args.indexOf('-rate') + 1]).toBe('400/1s');
+  });
+
   it('emits one target block per endpoint (recon-seeded surface)', () => {
     const t = buildVegetaTarget({
       ...cfg,
