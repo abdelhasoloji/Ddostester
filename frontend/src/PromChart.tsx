@@ -147,10 +147,20 @@ export function UplotChart({
           ? { range: () => yRange }
           : yFromZero
             ? {
-                range: (_u: uPlot, _min: number, max: number): [number, number] => [
-                  0,
-                  max > 0 ? max : 1,
-                ],
+                // Anchor at 0 and span to the max of ALL left-axis data — not
+                // uPlot's per-x-window max. When the x-view is narrow (or was
+                // briefly pinned), the window max can be ~0 and the axis collapses
+                // to [0,1], hiding a 514 rps line entirely. Scanning the full data
+                // keeps the rate line in frame regardless of the x-scale.
+                range: (u: uPlot): [number, number] => {
+                  let mx = 0;
+                  for (let i = 1; i < u.series.length; i++) {
+                    if ((u.series[i].scale ?? 'y') !== 'y') continue;
+                    const col = u.data[i] as (number | null)[] | undefined;
+                    if (col) for (const v of col) if (v != null && v > mx) mx = v;
+                  }
+                  return [0, mx > 0 ? mx : 1];
+                },
               }
             : {},
         // Declare the right scale explicitly (when used) so it is fully
