@@ -51,6 +51,7 @@ code-anchored reference. Start with [overview.md](./overview.md).
 | [servers/](./servers/README.md)                                                                                            | Code-anchored server reference: API, generator, bench, connectors, store, frontend |
 | [testing.md](./testing.md) · [functional-test-catalog.md](./functional-test-catalog.md) · [test-catalog/](./test-catalog/) | Test strategy, the functional catalogue and its generated results                  |
 | [roadmap.md](./roadmap.md)                                                                                                 | Implementation status vs plan (**source of truth**)                                |
+| [versioning.md](./versioning.md)                                                                                           | SemVer + Conventional Commits, the generated CHANGELOG, tag-driven releases        |
 | [cmdb/](./cmdb/)                                                                                                           | Configuration-management database build script + export                            |
 
 > ⚠️ **Defensive scope.** This tool orchestrates, measures and scores **bounded

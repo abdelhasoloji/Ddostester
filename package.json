@@ -1,7 +1,7 @@
 {
   "name": "ddostester",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Load / resilience testing control plane for authorized infrastructure.",
   "workspaces": [
     "backend",
@@ -20,7 +20,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml}\"",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:fast": "npm run lint && npm run typecheck && npm test",
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "changelog": "node scripts/changelog.mjs"
   },
   "engines": {
     "node": ">=22"
