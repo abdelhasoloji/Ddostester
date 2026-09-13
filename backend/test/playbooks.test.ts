@@ -264,6 +264,80 @@ describe('playbook step vector validation', () => {
     )!;
     expect(wave.headers).toMatchObject({ 'Accept-Language': expect.any(String) });
   });
+
+  it('accepts the delivery levers (cacheBust, noKeepAlive, parallelism) on a step', () => {
+    const pb = validatePlaybookInput({
+      name: 'x',
+      steps: [step({ cacheBust: true, noKeepAlive: true, parallelism: 4 })],
+    });
+    expect(pb.steps[0]).toMatchObject({ cacheBust: true, noKeepAlive: true, parallelism: 4 });
+    // Absent/false levers stay undefined (not persisted), and parallelism 1 is a no-op.
+    const bare = validatePlaybookInput({ name: 'x', steps: [step({ parallelism: 1 })] });
+    expect(bare.steps[0].cacheBust).toBeUndefined();
+    expect(bare.steps[0].noKeepAlive).toBeUndefined();
+    expect(bare.steps[0].parallelism).toBeUndefined();
+  });
+
+  it('rejects a parallelism outside [1, 8]', () => {
+    expect(() => validatePlaybookInput({ name: 'x', steps: [step({ parallelism: 9 })] })).toThrow(
+      /parallelism/,
+    );
+    expect(() => validatePlaybookInput({ name: 'x', steps: [step({ parallelism: 2.5 })] })).toThrow(
+      /parallelism/,
+    );
+  });
+});
+
+describe('bank.cz breaker playbook', () => {
+  it('stages a paired GET control vs. cache-bypass and a levers-on POST breaker (last)', () => {
+    const pb = getPlaybook('bankcz-breaker')!;
+    expect(pb).toBeTruthy();
+    expect(pb.drsLevel).toBe(5);
+    const inputs = buildSuiteCampaigns(pb, target, engines);
+    // Ordered escalation: baseline → GET control → GET cache-bypass → POST breaker (last).
+    const control = inputs.find((i) => i.name.includes('GET control'))!;
+    const bypass = inputs.find((i) => i.name.includes('cache-bypass'))!;
+    const breaker = inputs[inputs.length - 1];
+    // Control carries no levers (the "before" of the delta).
+    expect(control.cacheBust).toBeUndefined();
+    expect(control.noKeepAlive).toBeUndefined();
+    // Cache-bypass turns on every delivery lever at the SAME rate as the control.
+    expect(bypass.maxRps).toBe(control.maxRps);
+    expect(bypass).toMatchObject({ cacheBust: true, noKeepAlive: true, parallelism: 3 });
+    // The breaker is the last step: POST, dynamic endpoints, all levers on.
+    expect(breaker.name).toMatch(/breaker/i);
+    expect(breaker.vector).toBe('http-post');
+    expect(breaker).toMatchObject({ cacheBust: true, noKeepAlive: true, parallelism: 4 });
+    // Every step stays within the immutable ceiling.
+    for (const s of pb.steps) {
+      expect(s.maxRps).toBeLessThanOrEqual(HARD_CAPS.maxRps);
+      expect(s.concurrency).toBeLessThanOrEqual(HARD_CAPS.maxConcurrency);
+      expect(s.maxDurationSec).toBeLessThanOrEqual(HARD_CAPS.maxDurationSec);
+    }
+  });
+
+  it('breaker campaigns pass createCampaign validation', () => {
+    const inputs = buildSuiteCampaigns(getPlaybook('bankcz-breaker')!, target, engines);
+    for (const input of inputs) {
+      const c = createCampaign(input, allowed, [
+        {
+          id: 'builtin',
+          multiPhase: true,
+          flowCapable: true,
+          endpointCapable: true,
+          correlationCapable: true,
+        },
+        {
+          id: 'vegeta',
+          multiPhase: true,
+          flowCapable: false,
+          endpointCapable: true,
+          correlationCapable: false,
+        },
+      ]);
+      expect(c.status).toBe('PENDING_APPROVAL');
+    }
+  });
 });
 
 describe('DRS levels & the expanded threat catalogue', () => {
