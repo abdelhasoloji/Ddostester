@@ -15,7 +15,9 @@ const distDir = join(backendRoot, 'dist');
 
 let pkgVersion = '0.0.0';
 try {
-  pkgVersion = JSON.parse(readFileSync(join(backendRoot, 'package.json'), 'utf8')).version;
+  // The ROOT package.json is the single source of truth for the SemVer (the one
+  // the changelog + release workflow bump); read it, not the backend workspace's.
+  pkgVersion = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version;
 } catch {
   /* keep default */
 }

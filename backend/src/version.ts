@@ -31,7 +31,10 @@ export function getBuildInfo(): BuildInfo {
   const here = dirname(fileURLToPath(import.meta.url));
 
   let version = '0.0.0';
-  const pkgRaw = readMaybe(join(here, '..', 'package.json'));
+  // Root package.json is the SemVer source of truth (backend/dist → ../.. = root
+  // in prod; backend/src → ../.. = root in dev/tests). build-info.json overrides
+  // it below at build time, but the fallback must agree so dev/prod never drift.
+  const pkgRaw = readMaybe(join(here, '..', '..', 'package.json'));
   if (pkgRaw) {
     try {
       const v = (JSON.parse(pkgRaw) as { version?: string }).version;
