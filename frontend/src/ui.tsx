@@ -206,19 +206,42 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
 
 /** Plain-language explanation of the run's protection state, shown on hover of
  *  the status badge so "protection engaging" isn't an unexplained label. */
-function protectionBadgeTitle(
+export function protectionBadgeTitle(
   waiting: boolean,
   absorbedPct: number,
   p: LiveProgressData | null,
+  vector?: string,
 ): string {
   if (waiting) {
     return "Capturing the target's pre-load baseline (its normal availability and latency), so the run's impact can be measured against it.";
   }
+  const probeUp =
+    p?.probe && p.probe.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 100;
+  // Slow-header (Slowloris) has NO request stream to absorb — the vector holds
+  // connections open, and "protection" means the target SHEDS the slow ones. So
+  // the mechanism is connections shed, not requests rejected. (E12)
+  if (vector === 'http-slowloris') {
+    const opened = p?.sent ?? 0;
+    const shed = p?.failed ?? 0;
+    const held = Math.max(0, opened - shed);
+    if (absorbedPct >= 20) {
+      return (
+        `Protection engaging — the target is shedding slow connections: ${shed} of ${opened} ` +
+        `opened connections dropped (${absorbedPct}%), only ${held} still held.\n` +
+        `Shedding slow/partial connections is the correct defense against a slow-header attack — ` +
+        `the target refuses to let them tie up its workers.\n` +
+        `The legitimate probe is still ${probeUp}% up — real users keep their connections.`
+      );
+    }
+    return (
+      `Running — the target is holding ${held} of ${opened} slow connections open ` +
+      `(only ${absorbedPct}% shed so far). Watch the shed rate climb if it starts dropping ` +
+      `slow/partial connections to protect its worker pool.`
+    );
+  }
   const c = p?.statusCounts ?? {};
   const rej = c['4xx'] ?? 0;
   const err5 = c['5xx'] ?? 0;
-  const probeUp =
-    p?.probe && p.probe.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 100;
   if (absorbedPct >= 20) {
     return (
       `Protection engaging — the target's edge is absorbing ${absorbedPct}% of the offered load ` +
@@ -316,7 +339,7 @@ export function RunTheater({
         <span
           className={`badge ${absorbedPct >= 20 ? 'warn' : ''}`}
           style={{ cursor: 'help' }}
-          title={protectionBadgeTitle(waiting, absorbedPct, p)}
+          title={protectionBadgeTitle(waiting, absorbedPct, p, vector)}
         >
           {waiting
             ? '● capturing baseline'

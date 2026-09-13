@@ -25,6 +25,21 @@ export interface Alert {
   runId: string;
   target?: string;
   at?: string; // ISO (generator.finishedAt when available)
+  // Investigation context (E10): each alert is a self-contained starting point.
+  /** The load engine that actually ran (post auto-route), when recorded. */
+  engine?: string;
+  /** Run wall-clock in seconds, from the generator's own timestamps. */
+  durationSec?: number;
+  /** The single metric that triggered this alert, structured for display. */
+  metric?: { label: string; value: string };
+}
+
+/** Run wall-clock (s) from the generator's own start/finish timestamps. */
+function runDurationSec(run: CampaignRun): number | undefined {
+  const s = run.generator?.startedAt ? Date.parse(run.generator.startedAt) : NaN;
+  const f = run.generator?.finishedAt ? Date.parse(run.generator.finishedAt) : NaN;
+  if (Number.isNaN(s) || Number.isNaN(f) || f < s) return undefined;
+  return Math.round((f - s) / 1000);
 }
 
 /** WRS at/below this is flagged (mirrors the Alertmanager WRSDrop rule). */
@@ -73,6 +88,8 @@ export function deriveRegressions(runs: CampaignRun[], campaigns: Campaign[]): A
       runId: latest.runId,
       target,
       at: latest.generator?.finishedAt,
+      engine: latest.engine,
+      durationSec: runDurationSec(latest),
     };
 
     const wrsBaseline = mean(prior.map((r) => r.wrs?.wrs ?? 0));
@@ -87,6 +104,7 @@ export function deriveRegressions(runs: CampaignRun[], campaigns: Campaign[]): A
         key: `${latest.runId}:wrs-regression`,
         title: `WRS regression — ${label}`,
         detail: `WRS ${latest.wrs.wrs} is ${Math.round(wrsBaseline - latest.wrs.wrs)} pts below this target's recent baseline (~${Math.round(wrsBaseline)} over ${prior.length} runs). Protection may be degrading.`,
+        metric: { label: 'WRS drop', value: `${Math.round(wrsBaseline - latest.wrs.wrs)} pts` },
       });
     }
 
@@ -103,6 +121,10 @@ export function deriveRegressions(runs: CampaignRun[], campaigns: Campaign[]): A
         key: `${latest.runId}:protection-regression`,
         title: `Protection stopped engaging — ${label}`,
         detail: `The edge absorbed ${Math.round(absLatest * 100)}% this run vs ~${Math.round(absBaseline * 100)}% baseline (${prior.length} runs). It used to bite this shape and now largely lets it through.`,
+        metric: {
+          label: 'Absorbed',
+          value: `${Math.round(absLatest * 100)}% (was ${Math.round(absBaseline * 100)}%)`,
+        },
       });
     }
   }
@@ -137,7 +159,19 @@ export function deriveAlerts(
     const label = nameOf.get(run.campaignId) ?? run.campaignId;
     const target = targetOf.get(run.campaignId);
     const at = run.generator?.finishedAt;
-    const base = { campaignId: run.campaignId, runId: run.runId, target, at };
+    const base = {
+      campaignId: run.campaignId,
+      runId: run.runId,
+      target,
+      at,
+      engine: run.engine,
+      durationSec: runDurationSec(run),
+    };
+    const availPct =
+      run.probe?.windowAvailPct ??
+      (run.probe?.samples
+        ? Math.round((run.probe.available / run.probe.samples) * 100)
+        : undefined);
 
     if (run.generator?.hardStopped) {
       alerts.push({
@@ -148,6 +182,10 @@ export function deriveAlerts(
         title: `Target tarpitting — ${label}`,
         detail:
           'A run was force-settled by the hard backstop (the edge held connections past the cap). Protection is biting; achieved load may be understated.',
+        metric:
+          run.absorption?.absorbedPct != null
+            ? { label: 'Absorbed', value: `${Math.round(run.absorption.absorbedPct)}%` }
+            : { label: 'Hard-stopped', value: 'yes' },
       });
     }
 
@@ -159,6 +197,10 @@ export function deriveAlerts(
         key: `${run.runId}:auto-killed`,
         title: `Auto-killed — ${label}`,
         detail: run.statusDetail ?? 'Run auto-killed by a safety threshold.',
+        metric:
+          availPct != null
+            ? { label: 'Availability', value: `${availPct}%` }
+            : { label: 'Status', value: 'auto-killed' },
       });
     }
 
@@ -170,10 +212,12 @@ export function deriveAlerts(
         key: `${run.runId}:low-wrs`,
         title: `Low WRS ${run.wrs.wrs} (${run.wrs.level}) — ${label}`,
         detail: `WEDOS Resilience Score ${run.wrs.wrs} is below ${LOW_WRS_THRESHOLD}. Protection may be degraded, or a template misbehaving.`,
+        metric: { label: 'WRS', value: `${run.wrs.wrs} (${run.wrs.level})` },
       });
     }
 
     if (run.confidence?.degraded) {
+      const lag = run.confidence.peakEventLoopLagMs;
       alerts.push({
         ...base,
         severity: 'info',
@@ -183,6 +227,10 @@ export function deriveAlerts(
         detail:
           run.confidence.reasons[0] ??
           'The generator host may have been the bottleneck; treat the WRS with caution.',
+        metric:
+          lag != null
+            ? { label: 'Event-loop lag', value: `${Math.round(lag)}ms` }
+            : { label: 'Confidence', value: 'degraded' },
       });
     }
   }

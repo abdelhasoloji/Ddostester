@@ -48,6 +48,29 @@ describe('deriveAlerts', () => {
     expect(low?.severity).toBe('warning');
   });
 
+  it('carries investigation context (E10): engine, duration, and the triggering metric', () => {
+    const alerts = deriveAlerts(
+      [
+        run({
+          runId: 'r1',
+          campaignId: 'c1',
+          engine: 'vegeta',
+          wrs: { wrs: 55, level: 'F' } as never,
+          generator: {
+            startedAt: '2026-09-10T00:00:00.000Z',
+            finishedAt: '2026-09-10T00:02:00.000Z',
+            hardStopped: false,
+          } as never,
+        }),
+      ],
+      campaigns,
+    );
+    const low = alerts.find((a) => a.kind === 'low-wrs');
+    expect(low?.engine).toBe('vegeta');
+    expect(low?.durationSec).toBe(120);
+    expect(low?.metric).toEqual({ label: 'WRS', value: '55 (F)' });
+  });
+
   it('flags an auto-kill and degraded confidence', () => {
     const alerts = deriveAlerts(
       [

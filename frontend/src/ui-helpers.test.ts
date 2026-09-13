@@ -10,6 +10,7 @@ import {
   parseEndpoints,
   parseFlow,
   parseFlowJson,
+  protectionBadgeTitle,
   wrsClass,
 } from './ui.js';
 
@@ -17,6 +18,27 @@ describe('wrsClass', () => {
   it('maps levels to CSS classes (A+ → wrs-Ap)', () => {
     expect(wrsClass('A+')).toBe('wrs-Ap');
     expect(wrsClass('B')).toBe('wrs-B');
+  });
+});
+
+describe('protectionBadgeTitle (E12 — vector-aware)', () => {
+  const eng = { sent: 100, failed: 40, statusCounts: {}, probe: { samples: 10, available: 10 } };
+  it('frames a flood as request absorption', () => {
+    const t = protectionBadgeTitle(false, 40, eng as never, 'http-get');
+    expect(t).toMatch(/absorbing 40% of the offered load/);
+    expect(t).toMatch(/requests never reached/);
+    expect(t).not.toMatch(/connections/);
+  });
+  it('frames slowloris as connections shed, not requests', () => {
+    const t = protectionBadgeTitle(false, 40, eng as never, 'http-slowloris');
+    expect(t).toMatch(/shedding slow connections/);
+    expect(t).toMatch(/40 of 100 opened connections dropped/);
+    expect(t).toMatch(/correct defense against a slow-header attack/);
+    expect(t).not.toMatch(/requests never reached/);
+  });
+  it('slowloris low-shed message talks about held connections', () => {
+    const t = protectionBadgeTitle(false, 5, { ...eng, failed: 5 } as never, 'http-slowloris');
+    expect(t).toMatch(/holding 95 of 100 slow connections/);
   });
 });
 
