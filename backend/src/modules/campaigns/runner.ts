@@ -193,6 +193,7 @@ export async function executeCampaign(
     dataset: campaign.dataset,
     assertion: campaign.assertion,
     cacheBust: campaign.cacheBust,
+    noKeepAlive: campaign.noKeepAlive,
     slowloris: campaign.vector === 'http-slowloris',
     authorized: campaign.authorized,
   };

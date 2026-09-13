@@ -104,6 +104,9 @@ export function vegetaAttackArgs(
     `${workers}`,
     '-timeout',
     `${timeoutSec}s`,
+    // Fresh connection per request when keep-alive is disabled (connection-accept
+    // pressure). Passed explicitly either way so the intent is unambiguous.
+    `-keepalive=${config.noKeepAlive ? 'false' : 'true'}`,
   ];
 }
 

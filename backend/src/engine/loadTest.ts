@@ -280,6 +280,7 @@ export async function runLoadTest(
   // Cache-busting: append a unique query param so an edge/CDN/page cache can't
   // serve a stored response — each request is forced through to the origin.
   const cacheBust = config.cacheBust === true;
+  const noKeepAlive = config.noKeepAlive === true;
   const withCacheBust = (u: string): string => {
     if (!cacheBust) return u;
     const sep = u.includes('?') ? '&' : '?';
@@ -333,6 +334,11 @@ export async function runLoadTest(
         ...sendHeaders,
         'user-agent': userAgents[Math.floor(Math.random() * userAgents.length)],
       };
+    }
+    // Ask the origin to close the connection after each response (no keep-alive),
+    // so the next request pays a fresh handshake — connection-accept pressure.
+    if (noKeepAlive) {
+      sendHeaders = { ...sendHeaders, connection: 'close' };
     }
     try {
       const res = await fetch(withCacheBust(url), {

@@ -144,6 +144,7 @@ export function NewCampaignForm({
         concurrency: Number(form.concurrency),
         maxDurationSec: Number(form.maxDurationSec),
         cacheBust: form.cacheBust || undefined,
+        noKeepAlive: form.noKeepAlive || undefined,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
@@ -380,6 +381,19 @@ export function NewCampaignForm({
           Cache-busting — append a unique <code>?_cb=</code> to every request so an edge/CDN or page
           cache can’t serve it. Forces each request through to the origin (defeats LiteSpeed/CDN
           caching of a GET flood). Works on built-in, k6 and vegeta.
+        </label>
+        <label className="cachebust-toggle" style={{ gridColumn: '1 / -1' }}>
+          <input
+            type="checkbox"
+            checked={form.noKeepAlive}
+            onChange={(e) => {
+              setForm({ ...form, noKeepAlive: e.target.checked });
+              setAppliedPreset(null);
+            }}
+          />{' '}
+          No keep-alive — open a fresh connection for every request instead of reusing one.
+          Pressures the origin’s connection-accept path (handshake / accept queue) that a keep-alive
+          flood never touches. Works on built-in, k6 and vegeta.
         </label>
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>

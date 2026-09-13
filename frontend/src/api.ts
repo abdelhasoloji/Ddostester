@@ -45,6 +45,8 @@ export interface Campaign {
   dataset?: Record<string, string>[];
   /** Cache-busting: unique query param per request so no cache serves it. */
   cacheBust?: boolean;
+  /** No keep-alive: a fresh connection per request (connection-accept pressure). */
+  noKeepAlive?: boolean;
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;

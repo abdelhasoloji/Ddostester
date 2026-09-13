@@ -104,6 +104,12 @@ export interface CampaignInput {
    */
   cacheBust?: boolean;
   /**
+   * Disable HTTP keep-alive — a fresh connection per request, to pressure the
+   * origin's connection-accept path (handshake/accept queue). Works on the
+   * built-in engine, k6 and vegeta. Benign, rate-capped, allowlisted.
+   */
+  noKeepAlive?: boolean;
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

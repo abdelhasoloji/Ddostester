@@ -150,6 +150,15 @@ export interface LoadTestConfig {
    */
   cacheBust?: boolean;
   /**
+   * Disable HTTP keep-alive: open a fresh TCP (+ TLS) connection for every
+   * request instead of reusing one, exercising the origin's connection-accept
+   * path (handshake / accept queue / per-connection setup) that a keep-alive
+   * flood never touches — a real pressure point for a server like LiteSpeed.
+   * vegeta `-keepalive=false`, k6 `noConnectionReuse`, built-in `Connection:
+   * close`. Benign, still rate-capped and allowlisted.
+   */
+  noKeepAlive?: boolean;
+  /**
    * Bounded slow-header ("SlowLoris") mode (built-in engine only). Instead of
    * completing requests, opens up to `concurrency` connections and trickles
    * partial headers to hold them open for `durationSec`, to test whether the

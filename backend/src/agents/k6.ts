@@ -89,7 +89,7 @@ export function buildK6Script(config: LoadTestConfig): string {
 
   return `${imports}
 ${cbHelper}export const options = {
-  discardResponseBodies: true,
+  discardResponseBodies: true,${config.noKeepAlive ? '\n  noConnectionReuse: true,' : ''}
   summaryTrendStats: ['min', 'med', 'avg', 'p(95)', 'p(99)', 'max'],
   scenarios: { load: ${scenario} },
 };

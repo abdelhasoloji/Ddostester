@@ -91,6 +91,13 @@ describe('vegeta', () => {
     const t = buildVegetaTarget(cfg);
     expect(t).not.toContain('_cb=');
   });
+  it('passes -keepalive=false when keep-alive is disabled, true otherwise', async () => {
+    const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
+    const off = vegetaAttackArgs({ ...cfg, noKeepAlive: true }, 100, 30, '/t/f.txt');
+    expect(off).toContain('-keepalive=false');
+    const on = vegetaAttackArgs(cfg, 100, 30, '/t/f.txt');
+    expect(on).toContain('-keepalive=true');
+  });
   it('parse un rapport JSON (latences ns → ms)', () => {
     const rep = {
       requests: 500,

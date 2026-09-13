@@ -64,6 +64,11 @@ describe('buildK6Script', () => {
     expect(s).not.toContain('_cb');
   });
 
+  it('sets noConnectionReuse when keep-alive is disabled', () => {
+    expect(buildK6Script({ ...cfg, noKeepAlive: true })).toContain('noConnectionReuse: true');
+    expect(buildK6Script(cfg)).not.toContain('noConnectionReuse');
+  });
+
   it('renders a multi-step flow and caps the iteration rate at maxRps/steps', () => {
     const s = buildK6Script({
       ...cfg,
