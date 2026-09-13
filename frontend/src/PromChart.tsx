@@ -142,7 +142,24 @@ export function UplotChart({
       legend: { show: false },
       cursor: { points: { size: 6 } },
       scales: {
-        x: { time: timeAxis },
+        // For a numeric (elapsed-seconds) x-axis, range from a function so uPlot
+        // recomputes the extent from the data on EVERY redraw. Relying on
+        // setData's implicit reset (or a manual setScale after it) was unreliable
+        // on a live run: the x-scale stuck at its first-render extent (e.g. [1,2])
+        // while the series grew to 62s, so every later sample fell off the right
+        // edge and the chart looked empty. A range fn can't get stuck. Leave a
+        // time-axis to uPlot's own (correct) time ranging.
+        x: timeAxis
+          ? { time: true }
+          : {
+              time: false,
+              range: (u: uPlot): [number, number] => {
+                const xs = u.data[0] as number[] | undefined;
+                if (xs && xs.length > 1) return [xs[0], xs[xs.length - 1]];
+                if (xs && xs.length === 1) return [xs[0], xs[0] + 1];
+                return [0, 1];
+              },
+            },
         y: yRange
           ? { range: () => yRange }
           : yFromZero
@@ -286,19 +303,10 @@ export function UplotChart({
   useEffect(() => {
     const u = plot.current;
     if (!u) return;
-    const data = buildData(series);
-    u.setData(data);
-    // Force the x-scale to the data extent. uPlot's implicit reset on setData was
-    // observed NOT to re-range x on a live run (the axis stuck at 1–2s while the
-    // series grew to 38s — data[0] and the legend advanced, the scale did not),
-    // leaving the whole run squashed into the first two seconds. Setting the
-    // scale explicitly makes the axis always track the latest sample. For a
-    // time-axis chart uPlot's own ranging is fine, so only override the numeric
-    // (elapsed-seconds) charts.
-    const xs = data[0] as number[] | undefined;
-    if (!timeAxis && xs && xs.length > 1) {
-      u.setScale('x', { min: xs[0], max: xs[xs.length - 1] });
-    }
+    // The x-scale re-ranges itself via its `range` function (see the scales
+    // config) on every redraw, so setData alone keeps the numeric x-axis tracking
+    // the latest sample — no fragile manual setScale needed.
+    u.setData(buildData(series));
     updateLegendRef.current?.(u); // keep the idle legend on the latest sample
   }, [series]);
 
