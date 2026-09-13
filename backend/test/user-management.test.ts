@@ -12,9 +12,9 @@ import { hashPassword } from '../src/auth/passwords.js';
  * outstanding token stops working at once, not at the 8h token expiry).
  */
 const allowed = ['127.0.0.1'];
-// An env officer is the immutable root that can always manage users.
+// An env admin is the immutable root that can always manage users.
 const ENV_USERS = JSON.stringify([
-  { email: 'root@wedos', role: 'officer', passwordHash: hashPassword('rootpassword!') },
+  { email: 'root@wedos', role: 'admin', passwordHash: hashPassword('rootpassword!') },
 ]);
 const GOOD_PW = 'Str0ngPass!234';
 const GOOD_PW2 = 'An0therStr0ng!';
@@ -28,7 +28,7 @@ const login = async (email: string, password: string) =>
 const tokenFor = async (email: string, password: string): Promise<string> =>
   (await login(email, password)).json().token as string;
 
-/** Create a store user via the API as the env officer; returns nothing. */
+/** Create a store user via the API as the env admin; returns nothing. */
 const createUser = async (email: string, role: string, password = GOOD_PW) => {
   const t = await tokenFor('root@wedos', 'rootpassword!');
   return app.inject({
@@ -193,11 +193,11 @@ describe('admin password reset', () => {
     const userToken = await tokenFor('ar@wedos', GOOD_PW2);
 
     // Officer resets their password.
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
     const reset = await app.inject({
       method: 'POST',
       url: '/api/users/ar@wedos/password',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { password: 'Reset!Pass123' },
     });
     expect(reset.statusCode).toBe(200);
@@ -219,11 +219,11 @@ describe('admin password reset', () => {
   });
 
   it('refuses to reset an env user', async () => {
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
     const r = await app.inject({
       method: 'POST',
       url: '/api/users/root@wedos/password',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { password: 'Reset!Pass123' },
     });
     expect(r.statusCode).toBe(400);
@@ -234,12 +234,12 @@ describe('deactivation & session revocation', () => {
   it('deactivates an account: existing token dies and login is refused', async () => {
     await createUser('dz@wedos', 'engineer');
     const userToken = await tokenFor('dz@wedos', GOOD_PW);
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
 
     const patch = await app.inject({
       method: 'PATCH',
       url: '/api/users/dz@wedos',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { status: 'disabled' },
     });
     expect(patch.statusCode).toBe(200);
@@ -259,12 +259,12 @@ describe('deactivation & session revocation', () => {
 
   it('reactivation restores login', async () => {
     await createUser('re@wedos', 'engineer');
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
     const patch = (status: string) =>
       app.inject({
         method: 'PATCH',
         url: '/api/users/re@wedos',
-        headers: { authorization: `Bearer ${officer}` },
+        headers: { authorization: `Bearer ${admin}` },
         payload: { status },
       });
     await patch('disabled');
@@ -284,11 +284,11 @@ describe('deactivation & session revocation', () => {
       payload: { currentPassword: GOOD_PW, newPassword: GOOD_PW2 },
     });
     const viewerToken = await tokenFor('rc@wedos', GOOD_PW2);
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
     await app.inject({
       method: 'PATCH',
       url: '/api/users/rc@wedos',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { role: 'engineer' },
     });
     const after = await app.inject({
@@ -299,15 +299,15 @@ describe('deactivation & session revocation', () => {
     expect(after.statusCode).toBe(401);
   });
 
-  it('cannot deactivate the last active officer', async () => {
-    await createUser('off2@wedos', 'officer');
-    const officer = await tokenFor('root@wedos', 'rootpassword!');
-    // root is env (not deactivatable); off2 is the only STORE officer, but the
-    // env officer keeps an active officer present, so disabling off2 is allowed.
+  it('cannot deactivate the last active admin', async () => {
+    await createUser('off2@wedos', 'admin');
+    const admin = await tokenFor('root@wedos', 'rootpassword!');
+    // root is env (not deactivatable); off2 is the only STORE admin, but the
+    // env admin keeps an active admin present, so disabling off2 is allowed.
     const ok = await app.inject({
       method: 'PATCH',
       url: '/api/users/off2@wedos',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { status: 'disabled' },
     });
     expect(ok.statusCode).toBe(200);

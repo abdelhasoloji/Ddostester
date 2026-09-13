@@ -15,13 +15,13 @@ describe('passwords', () => {
 
 describe('jwt', () => {
   it('signs and verifies', () => {
-    const t = signJwt({ sub: 'a@wedos', role: 'officer' }, 'secret');
+    const t = signJwt({ sub: 'a@wedos', role: 'ciso' }, 'secret');
     const p = verifyJwt(t, 'secret');
     expect(p?.sub).toBe('a@wedos');
-    expect(p?.role).toBe('officer');
+    expect(p?.role).toBe('ciso');
   });
   it('rejects a bad signature', () => {
-    const t = signJwt({ sub: 'a@wedos', role: 'officer' }, 'secret');
+    const t = signJwt({ sub: 'a@wedos', role: 'ciso' }, 'secret');
     expect(verifyJwt(t, 'autre')).toBeNull();
   });
   it('rejects an expired token', () => {
@@ -31,18 +31,18 @@ describe('jwt', () => {
 });
 
 describe('rbac', () => {
-  it('officer can approve, engineer cannot', () => {
-    expect(can('officer', 'campaign:approve')).toBe(true);
+  it('ciso can approve, engineer cannot', () => {
+    expect(can('ciso', 'campaign:approve')).toBe(true);
     expect(can('engineer', 'campaign:approve')).toBe(false);
     expect(can('engineer', 'campaign:create')).toBe(true);
     expect(can('viewer', 'campaign:create')).toBe(false);
-    expect(can('viewer', 'campaign:kill')).toBe(true);
+    expect(can('viewer', 'campaign:kill')).toBe(false);
   });
 });
 
 describe('users + login', () => {
   const users = JSON.stringify([
-    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('pw1') },
+    { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw1') },
   ]);
   it('loads users', () => {
     expect(loadUsers(users).size).toBe(1);
@@ -54,7 +54,7 @@ describe('users + login', () => {
     const state = initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv);
     expect(state.enabled).toBe(true);
     const res = login(state, 'off@wedos', 'pw1');
-    expect(res?.role).toBe('officer');
+    expect(res?.role).toBe('ciso');
     const id = identityFromRequest(state, {
       headers: { authorization: `Bearer ${res!.token}` },
     } as never);

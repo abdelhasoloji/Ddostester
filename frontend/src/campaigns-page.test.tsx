@@ -42,7 +42,7 @@ const wrs = (v: number) =>
 describe('CampaignList — suite grouping', () => {
   it('renders a suite as one group with progress, aggregate WRS and timing', () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         member(0, 'COMPLETED', {
           wrs: wrs(90),
@@ -67,7 +67,7 @@ describe('CampaignList — suite grouping', () => {
 
   it('collapses done suites and expands to show per-step cards on toggle', () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         member(0, 'COMPLETED', { wrs: wrs(90) }),
         member(1, 'COMPLETED', { wrs: wrs(80) }),
@@ -82,7 +82,7 @@ describe('CampaignList — suite grouping', () => {
 
   it('archives a whole suite via app.archiveSuite', async () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         member(0, 'COMPLETED', { wrs: wrs(90) }),
         member(1, 'COMPLETED', { wrs: wrs(80) }),
@@ -97,7 +97,7 @@ describe('CampaignList — suite grouping', () => {
 
   it('hides archived campaigns until the toggle is enabled', async () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         { ...member(0, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Live one' },
         {
@@ -120,7 +120,7 @@ describe('CampaignList — suite grouping', () => {
   it('runs the whole scenario from the suite group header (pending suite)', async () => {
     fakeApi.runSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', steps: 2, started: true });
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       authRequired: true,
       campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
     });
@@ -133,7 +133,7 @@ describe('CampaignList — suite grouping', () => {
 
   it('expands a suite into compact step rows (stripped labels, no card wall)', () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         member(0, 'COMPLETED', { name: 'Suite X — SlowLoris', wrs: wrs(90) }),
         member(1, 'COMPLETED', { name: 'Suite X — GET-Flood', wrs: wrs(80) }),

@@ -104,7 +104,7 @@ const baseCampaign: Campaign = {
 };
 
 function appWith(
-  role: 'engineer' | 'officer' | 'viewer' | 'ciso',
+  role: 'engineer' | 'ciso' | 'viewer' | 'ciso',
   extra: Record<string, unknown> = {},
 ) {
   return {
@@ -124,7 +124,7 @@ function appWith(
 
 describe('CampaignCard RBAC gating', () => {
   it('shows Approve/Reject to an officer on a pending campaign', () => {
-    fakeApp = appWith('officer');
+    fakeApp = appWith('ciso');
     render(<CampaignCard c={baseCampaign} />);
     expect(screen.getByRole('button', { name: /Approve \/ Reject/ })).toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe('CampaignCard RBAC gating', () => {
   });
 
   it('explains an auto-kill instead of showing a bare status', () => {
-    fakeApp = appWith('officer');
+    fakeApp = appWith('ciso');
     const detail =
       'Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 12% over 8 checks).';
     render(<CampaignCard c={{ ...baseCampaign, status: 'KILLED_AUTO', statusDetail: detail }} />);
@@ -145,13 +145,13 @@ describe('CampaignCard RBAC gating', () => {
   });
 
   it('does not render a kill note for a clean completion', () => {
-    fakeApp = appWith('officer');
+    fakeApp = appWith('ciso');
     render(<CampaignCard c={{ ...baseCampaign, status: 'COMPLETED' }} />);
     expect(screen.queryByText(/Auto-killed:/)).toBeNull();
   });
 
   it('offers Cancel to an officer on an unrun campaign and calls app.cancel', () => {
-    fakeApp = appWith('officer');
+    fakeApp = appWith('ciso');
     render(<CampaignCard c={{ ...baseCampaign, status: 'APPROVED' }} />);
     const btn = screen.getByRole('button', { name: /^Cancel$/ });
     fireEvent.click(btn);
@@ -159,7 +159,7 @@ describe('CampaignCard RBAC gating', () => {
   });
 
   it('does not offer Cancel once the campaign is terminal', () => {
-    fakeApp = appWith('officer');
+    fakeApp = appWith('ciso');
     render(<CampaignCard c={{ ...baseCampaign, status: 'CANCELLED', statusDetail: 'done' }} />);
     expect(screen.queryByRole('button', { name: /^Cancel$/ })).toBeNull();
     expect(screen.getByText('Cancelled')).toBeInTheDocument(); // the badge

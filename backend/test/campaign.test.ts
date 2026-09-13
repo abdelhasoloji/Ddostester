@@ -49,43 +49,44 @@ describe('CAM workflow', () => {
   });
 
   it('approves and makes the campaign executable', () => {
-    const c = approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
+    const c = approveCampaign(createCampaign(base, allowed), 'ciso@wedos', 'APPROVED');
     expect(c.status).toBe('APPROVED');
     expect(() => assertExecutable(c)).not.toThrow();
   });
 
   it('requires a reason for a rejection', () => {
     const c = createCampaign(base, allowed);
-    expect(() => approveCampaign(c, 'officer@wedos', 'REJECTED')).toThrow(CampaignError);
+    expect(() => approveCampaign(c, 'ciso@wedos', 'REJECTED')).toThrow(CampaignError);
   });
 });
 
 describe('cisoApproveCampaign (dual control)', () => {
-  const officerApproved = () =>
-    approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
+  // Approved by one CISO; the dual-control sign-off is a SECOND, different CISO.
+  const cisoApproved = () =>
+    approveCampaign(createCampaign(base, allowed), 'ciso@wedos', 'APPROVED');
 
-  it('co-signs an officer-approved campaign', () => {
-    const c = cisoApproveCampaign(officerApproved(), 'ciso@wedos');
-    expect(c.cisoApprovedBy).toBe('ciso@wedos');
+  it('a second CISO co-signs an approved campaign', () => {
+    const c = cisoApproveCampaign(cisoApproved(), 'ciso2@wedos');
+    expect(c.cisoApprovedBy).toBe('ciso2@wedos');
     expect(c.cisoApprovedAt).toBeTruthy();
   });
 
-  it('refuses to sign a not-yet-officer-approved campaign', () => {
-    expect(() => cisoApproveCampaign(createCampaign(base, allowed), 'ciso@wedos')).toThrow(
+  it('refuses to sign a not-yet-approved campaign', () => {
+    expect(() => cisoApproveCampaign(createCampaign(base, allowed), 'ciso2@wedos')).toThrow(
       CampaignError,
     );
   });
 
-  it('enforces separation of duties (CISO ≠ author, CISO ≠ officer approver)', () => {
-    expect(() => cisoApproveCampaign(officerApproved(), base.createdBy)).toThrow(/author/);
-    expect(() => cisoApproveCampaign(officerApproved(), 'officer@wedos')).toThrow(/officer/);
+  it('enforces separation of duties (co-signer ≠ author, co-signer ≠ approver)', () => {
+    expect(() => cisoApproveCampaign(cisoApproved(), base.createdBy)).toThrow(/author/);
+    expect(() => cisoApproveCampaign(cisoApproved(), 'ciso@wedos')).toThrow(/approver/);
   });
 
   it('assertExecutable requires the CISO sign-off only when the gate is on', () => {
-    const approved = officerApproved();
+    const approved = cisoApproved();
     expect(() => assertExecutable(approved)).not.toThrow(); // gate off (default)
     expect(() => assertExecutable(approved, { requireCiso: true })).toThrow(/CISO sign-off/);
-    const signed = cisoApproveCampaign(approved, 'ciso@wedos');
+    const signed = cisoApproveCampaign(approved, 'ciso2@wedos');
     expect(() => assertExecutable(signed, { requireCiso: true })).not.toThrow();
   });
 });
@@ -98,7 +99,7 @@ describe('cancelCampaign (annulation)', () => {
   });
 
   it('cancels an approved (unrun) campaign, keeping the reason', () => {
-    const approved = approveCampaign(createCampaign(base, allowed), 'officer@wedos', 'APPROVED');
+    const approved = approveCampaign(createCampaign(base, allowed), 'ciso@wedos', 'APPROVED');
     const c = cancelCampaign(approved, 'no longer needed');
     expect(c.status).toBe('CANCELLED');
     expect(c.statusDetail).toBe('no longer needed');

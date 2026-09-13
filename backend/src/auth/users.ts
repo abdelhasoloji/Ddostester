@@ -1,4 +1,4 @@
-import { isRole } from './rbac.js';
+import { canonicalRole } from './rbac.js';
 import type { Role } from './rbac.js';
 
 export type UserStatus = 'active' | 'disabled';
@@ -42,10 +42,12 @@ export function loadUsers(raw: string | undefined): Map<string, User> {
   }
   if (!Array.isArray(arr)) throw new Error('AUTH_USERS: array expected.');
   for (const u of arr as User[]) {
-    if (!u.email || !u.passwordHash || !isRole(u.role)) {
+    const role = canonicalRole(u.role);
+    if (!u.email || !u.passwordHash || !role) {
       throw new Error(`AUTH_USERS: invalid entry (${JSON.stringify(u)}).`);
     }
-    map.set(u.email.toLowerCase(), u);
+    // Canonicalise the legacy `officer` id to `admin` so pre-overhaul users work.
+    map.set(u.email.toLowerCase(), { ...u, role });
   }
   return map;
 }

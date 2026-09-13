@@ -27,13 +27,15 @@ export type Perm =
  * in step — `rbac-mirror.test.ts` locks this table so drift fails CI.
  */
 const PERMS: Record<Role, Perm[]> = {
-  officer: ['create', 'approve', 'execute', 'kill', 'manage'],
+  // Operator: creates campaigns and launches approved ones.
   engineer: ['create', 'execute', 'kill'],
-  viewer: ['kill'],
-  // CISO: governance only — reads everything, emergency-kills, sets the
-  // operational limits ('limits'), governs the class-C network bench ('bench'),
-  // and gives the mandatory dual-control sign-off ('cisoApprove'). Not an operator.
-  ciso: ['kill', 'limits', 'bench', 'cisoApprove'],
+  // Validation/governance: the ONLY role that approves ('approve'), plus the
+  // dual-control sign-off ('cisoApprove') and the class-C bench ('bench').
+  ciso: ['approve', 'cisoApprove', 'kill', 'bench'],
+  // Platform administration: users ('manage') + operational limits ('limits').
+  admin: ['manage', 'limits', 'kill'],
+  // Read-only (SOC/NOC).
+  viewer: [],
 };
 export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
   if (!authRequired) return true;

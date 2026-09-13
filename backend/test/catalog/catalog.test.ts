@@ -174,17 +174,20 @@ describe('A. RBAC route matrix', () => {
     }
   });
 
-  it('kill switch is available to every role (SPEC-RBAC-4)', async () => {
+  it('kill switch is available to every operating role, not the viewer (SPEC-RBAC-4)', async () => {
     for (const role of ROLE_KEYS) {
       const res = await hit(authed.app, 'POST', '/api/campaigns/nope/kill', {
         token: authed.tokens[role],
       });
-      const pass = res.statusCode !== 403; // reaches handler (404, no active run)
+      // Engineer/CISO/admin reach the handler (404, no active run); the read-only
+      // viewer is forbidden (403).
+      const expectAllowed = role !== 'viewer';
+      const pass = (res.statusCode !== 403) === expectAllowed;
       reg(
         'RBAC',
-        `${role} may use kill switch`,
+        `${role} kill switch ${expectAllowed ? 'allowed' : 'forbidden'}`,
         'SPEC-RBAC-4',
-        'not 403',
+        expectAllowed ? 'not 403' : '403',
         String(res.statusCode),
         pass,
       );
@@ -403,13 +406,13 @@ describe('E. Approval & separation of duties', () => {
     });
   }
 
-  it('officer approves a campaign authored by the engineer (SoD satisfied)', async () => {
+  it('ciso approves a campaign authored by the engineer (SoD satisfied)', async () => {
     const c = await createAs('engineer');
-    const res = await approve('officer', c.id, CREDS.officer.email);
+    const res = await approve('ciso', c.id, CREDS.ciso.email);
     const pass = res.statusCode === 200;
     reg(
       'SOD',
-      'officer approves engineer’s campaign',
+      'ciso approves engineer’s campaign',
       'SPEC-SOD-1',
       '200',
       String(res.statusCode),
@@ -418,11 +421,22 @@ describe('E. Approval & separation of duties', () => {
     expect(pass).toBe(true);
   });
 
-  it('officer cannot approve their own campaign (author = approver)', async () => {
-    const c = await createAs('officer');
-    const res = await approve('officer', c.id, CREDS.officer.email);
-    const pass = res.statusCode === 400;
-    reg('SOD', 'self-approval blocked', 'SPEC-SOD-1', '400', String(res.statusCode), pass);
+  it('ciso cannot author a campaign, so self-approval cannot arise', async () => {
+    // The approver (CISO) has no create permission — author ≠ approver is
+    // structural, not just a runtime check.
+    const res = await hit(authed.app, 'POST', '/api/campaigns', {
+      token: authed.tokens.ciso,
+      body: campaign({ createdBy: CREDS.ciso.email }),
+    });
+    const pass = res.statusCode === 403;
+    reg(
+      'SOD',
+      'ciso cannot author (self-approval impossible)',
+      'SPEC-SOD-1',
+      '403',
+      String(res.statusCode),
+      pass,
+    );
     expect(pass).toBe(true);
   });
 
@@ -435,7 +449,7 @@ describe('E. Approval & separation of duties', () => {
   });
 
   it('approving a non-existent campaign is 404', async () => {
-    const res = await approve('officer', 'does-not-exist', CREDS.officer.email);
+    const res = await approve('ciso', 'does-not-exist', CREDS.ciso.email);
     const pass = res.statusCode === 404;
     reg('SOD', 'approve unknown id', 'SPEC-LIFE-3', '404', String(res.statusCode), pass);
     expect(pass).toBe(true);
@@ -444,9 +458,9 @@ describe('E. Approval & separation of duties', () => {
   it('the approver of a campaign cannot also execute it (SoD extended)', async () => {
     // Officer approves a campaign they did not author, then tries to run it.
     const c = await createAs('engineer', { maxDurationSec: 1 });
-    await approve('officer', c.id, CREDS.officer.email);
+    await approve('ciso', c.id, CREDS.ciso.email);
     const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
-      token: authed.tokens.officer,
+      token: authed.tokens.ciso,
     });
     const blocked = run.statusCode === 403;
     reg(
@@ -457,14 +471,14 @@ describe('E. Approval & separation of duties', () => {
       String(run.statusCode),
       blocked,
     );
-    expect(blocked, `officer approve+execute → ${run.statusCode}`).toBe(true);
+    expect(blocked, `ciso approve+execute → ${run.statusCode}`).toBe(true);
   });
 
   itE2E(
-    'a different actor (the engineer author) may execute an officer-approved campaign',
+    'a different actor (the engineer author) may execute an ciso-approved campaign',
     async () => {
       const c = await createAs('engineer', { maxDurationSec: 1 });
-      await approve('officer', c.id, CREDS.officer.email);
+      await approve('ciso', c.id, CREDS.ciso.email);
       const run = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
         token: authed.tokens.engineer,
       });
@@ -523,7 +537,7 @@ describe('F. Lifecycle & execution', () => {
     );
     expect(ex.statusCode).toBe(404);
     const k = await hit(authed.app, 'POST', '/api/campaigns/none/kill', {
-      token: authed.tokens.viewer,
+      token: authed.tokens.engineer,
     });
     reg(
       'LIFE',
@@ -541,9 +555,9 @@ describe('F. Lifecycle & execution', () => {
 // G. Users governance (SPEC-USER-1/2/3).
 // ---------------------------------------------------------------------------
 describe('G. Users governance', () => {
-  it('only the officer manages users; validation & immutability hold', async () => {
-    // Non-officers are denied (already in the matrix, re-asserted for the area).
-    for (const role of ['engineer', 'viewer'] as RoleKey[]) {
+  it('only the admin manages users; validation & immutability hold', async () => {
+    // Non-cisos are denied (already in the matrix, re-asserted for the area).
+    for (const role of ['engineer', 'ciso', 'viewer'] as RoleKey[]) {
       const r = await hit(authed.app, 'GET', '/api/users', { token: authed.tokens[role] });
       reg(
         'USER',
@@ -559,12 +573,12 @@ describe('G. Users governance', () => {
     // Create a valid user.
     const email = `new-${Math.random().toString(36).slice(2)}@wedos`;
     const create = await hit(authed.app, 'POST', '/api/users', {
-      token: authed.tokens.officer,
+      token: authed.tokens.admin,
       body: { email, role: 'engineer', password: 'a-strong-password' },
     });
     reg(
       'USER',
-      'officer creates a valid user',
+      'ciso creates a valid user',
       'SPEC-USER-1',
       '2xx',
       String(create.statusCode),
@@ -574,7 +588,7 @@ describe('G. Users governance', () => {
 
     // Re-creating an existing store user is a 409 (create-only, no silent overwrite).
     const dup = await hit(authed.app, 'POST', '/api/users', {
-      token: authed.tokens.officer,
+      token: authed.tokens.admin,
       body: { email, role: 'viewer', password: 'a-different-password' },
     });
     const is409 = dup.statusCode === 409;
@@ -590,7 +604,7 @@ describe('G. Users governance', () => {
 
     // Weak password rejected.
     const weak = await hit(authed.app, 'POST', '/api/users', {
-      token: authed.tokens.officer,
+      token: authed.tokens.admin,
       body: {
         email: `weak-${Math.random().toString(36).slice(2)}@wedos`,
         role: 'viewer',
@@ -609,7 +623,7 @@ describe('G. Users governance', () => {
 
     // Invalid role rejected.
     const badRole = await hit(authed.app, 'POST', '/api/users', {
-      token: authed.tokens.officer,
+      token: authed.tokens.admin,
       body: {
         email: `role-${Math.random().toString(36).slice(2)}@wedos`,
         role: 'superadmin',
@@ -630,9 +644,9 @@ describe('G. Users governance', () => {
     const delEnv = await hit(
       authed.app,
       'DELETE',
-      `/api/users/${encodeURIComponent(CREDS.officer.email)}`,
+      `/api/users/${encodeURIComponent(CREDS.ciso.email)}`,
       {
-        token: authed.tokens.officer,
+        token: authed.tokens.admin,
       },
     );
     reg(
@@ -657,7 +671,7 @@ describe('H. Audit trail', () => {
       token: authed.tokens.engineer,
       body: campaign(),
     });
-    const list = await hit(authed.app, 'GET', '/api/audit', { token: authed.tokens.officer });
+    const list = await hit(authed.app, 'GET', '/api/audit', { token: authed.tokens.ciso });
     const entries = list.json() as unknown[];
     const nonEmpty = Array.isArray(entries) && entries.length > 0;
     reg(
@@ -671,7 +685,7 @@ describe('H. Audit trail', () => {
     expect(nonEmpty).toBe(true);
 
     const verify = await hit(authed.app, 'GET', '/api/audit/verify', {
-      token: authed.tokens.officer,
+      token: authed.tokens.ciso,
     });
     const v = verify.json() as { ok?: boolean; valid?: boolean };
     const intact = verify.statusCode === 200 && (v.ok === true || v.valid === true);
@@ -758,7 +772,7 @@ describe('J. Login', () => {
     expect(noPw.statusCode).toBe(400);
 
     const ok = await hit(authed.app, 'POST', '/api/auth/login', {
-      body: { email: CREDS.officer.email, password: CREDS.officer.pw },
+      body: { email: CREDS.ciso.email, password: CREDS.ciso.pw },
     });
     const gotToken = ok.statusCode === 200 && typeof ok.json().token === 'string';
     reg(
@@ -842,7 +856,7 @@ describe('K. Read-token routes', () => {
       expect(hdr.statusCode, `header ${u}`).not.toBe(401);
 
       const sep = u.includes('?') ? '&' : '?';
-      const qry = await hit(authed.app, 'GET', `${u}${sep}token=${authed.tokens.officer}`);
+      const qry = await hit(authed.app, 'GET', `${u}${sep}token=${authed.tokens.ciso}`);
       reg(
         'RTOKEN',
         `query token ${u}`,
@@ -868,7 +882,7 @@ describe('L. Unknown routes & methods', () => {
       ['GET', '/api/../etc'],
     ];
     for (const [m, u] of cases) {
-      const res = await hit(authed.app, m, u, { token: authed.tokens.officer });
+      const res = await hit(authed.app, m, u, { token: authed.tokens.ciso });
       const pass = res.statusCode === 404;
       reg('ROUTE', `${m} ${u} → 404`, 'routing', '404', String(res.statusCode), pass);
       expect(pass, `${m} ${u} → ${res.statusCode}`).toBe(true);
@@ -890,8 +904,8 @@ describe('M. Approval decisions', () => {
   it('reject with a reason moves the campaign to REJECTED', async () => {
     const id = await pending();
     const res = await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
-      token: authed.tokens.officer,
-      body: { decision: 'REJECTED', approvedBy: CREDS.officer.email, reason: 'out of scope' },
+      token: authed.tokens.ciso,
+      body: { decision: 'REJECTED', approvedBy: CREDS.ciso.email, reason: 'out of scope' },
     });
     const rejected =
       res.statusCode === 200 && (res.json() as { status?: string }).status === 'REJECTED';
@@ -909,12 +923,12 @@ describe('M. Approval decisions', () => {
   it('an approved campaign cannot be re-approved (no double transition)', async () => {
     const id = await pending();
     await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
-      token: authed.tokens.officer,
-      body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+      token: authed.tokens.ciso,
+      body: { decision: 'APPROVED', approvedBy: CREDS.ciso.email },
     });
     const again = await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
-      token: authed.tokens.officer,
-      body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+      token: authed.tokens.ciso,
+      body: { decision: 'APPROVED', approvedBy: CREDS.ciso.email },
     });
     const blocked = again.statusCode >= 400 && again.statusCode < 500;
     reg(
@@ -1161,8 +1175,8 @@ async function runOne(): Promise<{ id: string; runId: string }> {
   });
   const id = (created.json() as { id: string }).id;
   await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
-    token: authed.tokens.officer,
-    body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+    token: authed.tokens.ciso,
+    body: { decision: 'APPROVED', approvedBy: CREDS.ciso.email },
   });
   const run = await hit(authed.app, 'POST', `/api/campaigns/${id}/execute`, {
     token: authed.tokens.engineer,
@@ -1183,7 +1197,7 @@ describe('P. Exports & reports', () => {
     'a completed run exposes its detail, report, CSVs, WRS history and compliance',
     async () => {
       const { runId } = await ensureRun();
-      const t = authed.tokens.officer;
+      const t = authed.tokens.ciso;
 
       const runs = await hit(authed.app, 'GET', '/api/runs', { token: t });
       const inRuns = (runs.json() as { runId: string }[]).some((r) => r.runId === runId);
@@ -1284,7 +1298,7 @@ describe('P. Exports & reports', () => {
 // ---------------------------------------------------------------------------
 describe('Q. Audit export & growth', () => {
   it('the trail grows with activity and exports', async () => {
-    const t = authed.tokens.officer;
+    const t = authed.tokens.ciso;
     const len = async () =>
       ((await hit(authed.app, 'GET', '/api/audit', { token: t })).json() as unknown[]).length;
     const before = await len();
@@ -1321,7 +1335,7 @@ describe('Q. Audit export & growth', () => {
 // ---------------------------------------------------------------------------
 describe('R. Playbooks & suites', () => {
   it('CRUD + instantiate + suite report', async () => {
-    const t = authed.tokens.officer;
+    const t = authed.tokens.engineer;
     const list = await hit(authed.app, 'GET', '/api/playbooks', { token: t });
     const curated = (list.json() as { custom: boolean }[]).some((p) => p.custom === false);
     reg(
@@ -1467,7 +1481,7 @@ describe('R. Playbooks & suites', () => {
 // ---------------------------------------------------------------------------
 describe('S. User lifecycle', () => {
   it('create → login → role change → delete → login fails; self/env protected', async () => {
-    const t = authed.tokens.officer;
+    const t = authed.tokens.admin;
     const email = `life-${Math.random().toString(36).slice(2)}@wedos`;
     const pw = 'strong-pass-123';
 
@@ -1526,7 +1540,7 @@ describe('S. User lifecycle', () => {
     const patchSelf = await hit(
       authed.app,
       'PATCH',
-      `/api/users/${encodeURIComponent(CREDS.officer.email)}`,
+      `/api/users/${encodeURIComponent(CREDS.ciso.email)}`,
       { token: t, body: { role: 'viewer' } },
     );
     reg(
@@ -1578,10 +1592,10 @@ describe('T. Rejection & post-run', () => {
     });
     const id = (created.json() as { id: string }).id;
     await hit(authed.app, 'POST', `/api/campaigns/${id}/approval`, {
-      token: authed.tokens.officer,
+      token: authed.tokens.ciso,
       body: {
         decision: 'REJECTED',
-        approvedBy: CREDS.officer.email,
+        approvedBy: CREDS.ciso.email,
         reason: 'out-of-scope-target',
       },
     });
@@ -1662,8 +1676,8 @@ describe('V. Campaign shapes (all campaign types)', () => {
   }> {
     const c = (await create(over)).json() as { id: string };
     await hit(authed.app, 'POST', `/api/campaigns/${c.id}/approval`, {
-      token: authed.tokens.officer,
-      body: { decision: 'APPROVED', approvedBy: CREDS.officer.email },
+      token: authed.tokens.ciso,
+      body: { decision: 'APPROVED', approvedBy: CREDS.ciso.email },
     });
     const res = await hit(authed.app, 'POST', `/api/campaigns/${c.id}/execute`, {
       token: authed.tokens.engineer,

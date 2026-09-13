@@ -80,8 +80,8 @@ beforeEach(() => {
   fakeApi.wrsHistory.mockResolvedValue([]);
   fakeApi.alerts.mockResolvedValue([]);
   fakeApi.audit.mockResolvedValue([{ id: 'a1', at: 'now', actor: 'x', action: 'y' }]);
-  fakeApi.me.mockResolvedValue({ email: 'off@wedos', role: 'officer' });
-  fakeApi.login.mockResolvedValue({ token: 'tok', email: 'off@wedos', role: 'officer' });
+  fakeApi.me.mockResolvedValue({ email: 'off@wedos', role: 'ciso' });
+  fakeApi.login.mockResolvedValue({ token: 'tok', email: 'off@wedos', role: 'ciso' });
   fakeApi.createCampaign.mockResolvedValue({});
   fakeApi.approve.mockResolvedValue({});
   fakeApi.execute.mockResolvedValue({ status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } });
@@ -94,7 +94,7 @@ describe('canDo', () => {
     expect(canDo(null, 'approve', false)).toBe(true);
   });
   it('enforces the role matrix when auth is on', () => {
-    expect(canDo('officer', 'approve', true)).toBe(true);
+    expect(canDo('ciso', 'approve', true)).toBe(true);
     expect(canDo('engineer', 'approve', true)).toBe(false);
     expect(canDo('viewer', 'create', true)).toBe(false);
     expect(canDo(null, 'kill', true)).toBe(false);

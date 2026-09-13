@@ -70,10 +70,10 @@ import { getTheme, setTheme as persistTheme } from './theme.js';
 import type { Theme } from './theme.js';
 
 const roleLabel: Record<Role, string> = {
-  officer: 'Security Officer',
   engineer: 'Security Engineer',
-  viewer: 'SOC / NOC',
   ciso: 'CISO',
+  admin: 'Administrator',
+  viewer: 'SOC / NOC',
 };
 
 // ---------- sidebar + layout ----------
@@ -176,8 +176,8 @@ function RoleFocus() {
       Ready to test. <Link to="/campaigns">New campaign →</Link>
     </>
   );
-  if (role === 'officer') {
-    label = 'For the Security Officer';
+  if (role === 'ciso') {
+    label = 'For the CISO';
     body = pending.length ? (
       <>
         <b>{pending.length}</b> campaign{pending.length === 1 ? '' : 's'} awaiting your approval.{' '}
@@ -185,15 +185,16 @@ function RoleFocus() {
       </>
     ) : (
       <>
-        No approvals waiting. <Link to="/campaigns">Browse campaigns →</Link>
+        No approvals waiting. Governance &amp; tamper-evident evidence in{' '}
+        <Link to="/audit">Assurance →</Link>
       </>
     );
-  } else if (role === 'ciso') {
-    label = 'For the CISO';
+  } else if (role === 'admin') {
+    label = 'For the Administrator';
     body = (
       <>
-        {pending.length} awaiting sign-off · governance &amp; tamper-evident evidence in{' '}
-        <Link to="/audit">Assurance →</Link>
+        Administer the platform — users, roles and the operational limits in{' '}
+        <Link to="/settings">Settings →</Link>
       </>
     );
   } else if (role === 'viewer') {
@@ -1929,8 +1930,8 @@ export function CampaignLaunch() {
   if (!canCreate) {
     return (
       <p className="hint">
-        Read-only access — browse the Templates and Plan tabs; an engineer or officer creates and
-        runs campaigns.
+        Read-only access — browse the Templates and Plan tabs; an engineer creates and launches
+        campaigns (a CISO approves them).
       </p>
     );
   }
@@ -3097,10 +3098,10 @@ function UsersCard() {
                     title="Change role"
                     aria-label={`Role for ${u.email}`}
                   >
-                    <option value="viewer">SOC / NOC (read + kill)</option>
-                    <option value="engineer">Security Engineer</option>
-                    <option value="officer">Security Officer</option>
-                    <option value="ciso">CISO (governs limits)</option>
+                    <option value="viewer">SOC / NOC (read only)</option>
+                    <option value="engineer">Security Engineer (create + launch)</option>
+                    <option value="ciso">CISO (approves)</option>
+                    <option value="admin">Administrator (platform)</option>
                   </select>
                 ) : (
                   <span className="engine-badge ok">{roleLabel[u.role]}</span>
@@ -3202,10 +3203,10 @@ function UsersCard() {
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
           >
-            <option value="viewer">SOC / NOC (read + kill)</option>
-            <option value="engineer">Security Engineer</option>
-            <option value="officer">Security Officer</option>
-            <option value="ciso">CISO (governs limits)</option>
+            <option value="viewer">SOC / NOC (read only)</option>
+            <option value="engineer">Security Engineer (create + launch)</option>
+            <option value="ciso">CISO (approves)</option>
+            <option value="admin">Administrator (platform)</option>
           </select>
         </div>
         <div className="field">
@@ -3275,7 +3276,7 @@ function LimitsCard() {
 
   return (
     <div className="card">
-      <h2>Operational limits (CISO)</h2>
+      <h2>Operational limits (admin)</h2>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Set the caps ShieldTest enforces on every campaign and playbook. They can be tightened
         freely or raised up to — but <b>never above</b> — the immutable safety ceiling below. The
@@ -3998,7 +3999,9 @@ function NotificationsCard() {
   const app = useApp();
   const [testing, setTesting] = useState(false);
   const configured = app.notifications.length > 0;
-  const canTest = canDo(app.role, 'create', app.authRequired);
+  // Testing notification delivery is platform administration (settings), so it's
+  // gated on the admin's manage capability.
+  const canTest = canDo(app.role, 'manage', app.authRequired);
   const sendTest = async () => {
     setTesting(true);
     try {

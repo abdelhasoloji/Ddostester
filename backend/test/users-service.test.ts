@@ -11,7 +11,7 @@ import {
 } from '../src/modules/users/service.js';
 import type { ManagedUser } from '../src/modules/users/service.js';
 
-const envOfficer = { email: 'off@wedos', role: 'officer' as const };
+const envOfficer = { email: 'off@wedos', role: 'admin' as const };
 const envEmails = new Set([normalizeEmail(envOfficer.email)]);
 
 function ctx(current: ManagedUser[], actorEmail = 'off@wedos') {
@@ -21,14 +21,14 @@ function ctx(current: ManagedUser[], actorEmail = 'off@wedos') {
 describe('combineUsers', () => {
   it('merges env and store, env winning on collision', () => {
     const out = combineUsers(
-      [{ email: 'a@wedos', role: 'officer' }],
+      [{ email: 'a@wedos', role: 'admin' }],
       [
         { email: 'a@wedos', role: 'viewer' },
         { email: 'b@wedos', role: 'engineer' },
       ],
     );
     expect(out.find((u) => u.email === 'a@wedos')).toMatchObject({
-      role: 'officer',
+      role: 'admin',
       source: 'env',
     });
     expect(out.find((u) => u.email === 'b@wedos')).toMatchObject({
@@ -73,7 +73,7 @@ describe('assertUpsert', () => {
   it('refuses to modify your own account', () => {
     const cur: ManagedUser[] = [
       { ...envOfficer, source: 'env' },
-      { email: 'me@wedos', role: 'officer', source: 'store' },
+      { email: 'me@wedos', role: 'admin', source: 'store' },
     ];
     expect(() =>
       assertUpsert(
@@ -83,15 +83,15 @@ describe('assertUpsert', () => {
     ).toThrow(/own account/);
   });
 
-  it('refuses a change that would leave no officer', () => {
-    // Only officer is a store user; demoting it to viewer leaves zero officers.
-    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'officer', source: 'store' }];
+  it('refuses a change that would leave no admin', () => {
+    // Only admin is a store user; demoting it to viewer leaves zero admins.
+    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'admin', source: 'store' }];
     expect(() =>
       assertUpsert(
         { email: 'solo@wedos', role: 'viewer', password: 'aValidPassw0rd' },
         { envEmails: new Set(), current: cur, actorEmail: 'other@wedos' },
       ),
-    ).toThrow(/officer/);
+    ).toThrow(/admin/);
   });
 });
 
@@ -117,7 +117,7 @@ describe('assertRoleChange', () => {
   });
 
   it('refuses to change your own account', () => {
-    expect(() => assertRoleChange('eng@wedos', 'officer', ctx(current, 'eng@wedos'))).toThrow(
+    expect(() => assertRoleChange('eng@wedos', 'admin', ctx(current, 'eng@wedos'))).toThrow(
       /own account/,
     );
   });
@@ -126,15 +126,15 @@ describe('assertRoleChange', () => {
     expect(() => assertRoleChange('ghost@wedos', 'viewer', ctx(current))).toThrow(/not found/);
   });
 
-  it('refuses to demote the last officer', () => {
-    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'officer', source: 'store' }];
+  it('refuses to demote the last admin', () => {
+    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'admin', source: 'store' }];
     expect(() =>
       assertRoleChange('solo@wedos', 'viewer', {
         envEmails: new Set(),
         current: cur,
         actorEmail: 'x@wedos',
       }),
-    ).toThrow(/officer/);
+    ).toThrow(/admin/);
   });
 });
 
@@ -144,7 +144,7 @@ describe('assertDelete', () => {
     { email: 'eng@wedos', role: 'engineer', source: 'store' },
   ];
 
-  it('deletes a store user (officer remains via env)', () => {
+  it('deletes a store user (admin remains via env)', () => {
     expect(assertDelete('eng@wedos', ctx(current))).toBe('eng@wedos');
   });
 
@@ -160,23 +160,23 @@ describe('assertDelete', () => {
     expect(() => assertDelete('ghost@wedos', ctx(current))).toThrow(/not found/);
   });
 
-  it('refuses to delete the last officer', () => {
-    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'officer', source: 'store' }];
+  it('refuses to delete the last admin', () => {
+    const cur: ManagedUser[] = [{ email: 'solo@wedos', role: 'admin', source: 'store' }];
     expect(() =>
       assertDelete('solo@wedos', { envEmails: new Set(), current: cur, actorEmail: 'x@wedos' }),
-    ).toThrow(/officer/);
+    ).toThrow(/admin/);
   });
 
-  it('counts a disabled officer as unavailable (last ACTIVE officer)', () => {
-    // One env officer is disabled? env is always active, so use a store officer.
+  it('counts a disabled admin as unavailable (last ACTIVE admin)', () => {
+    // One env admin is disabled? env is always active, so use a store admin.
     const cur: ManagedUser[] = [
-      { email: 'act@wedos', role: 'officer', source: 'store', status: 'active' },
-      { email: 'dis@wedos', role: 'officer', source: 'store', status: 'disabled' },
+      { email: 'act@wedos', role: 'admin', source: 'store', status: 'active' },
+      { email: 'dis@wedos', role: 'admin', source: 'store', status: 'disabled' },
     ];
-    // Deleting the only ACTIVE officer must fail even though a disabled one exists.
+    // Deleting the only ACTIVE admin must fail even though a disabled one exists.
     expect(() =>
       assertDelete('act@wedos', { envEmails: new Set(), current: cur, actorEmail: 'x@wedos' }),
-    ).toThrow(/active officer/);
+    ).toThrow(/active admin/);
   });
 });
 
@@ -240,9 +240,9 @@ describe('assertStatusChange', () => {
     );
   });
 
-  it('refuses to disable the last active officer', () => {
+  it('refuses to disable the last active admin', () => {
     const cur: ManagedUser[] = [
-      { email: 'solo@wedos', role: 'officer', source: 'store', status: 'active' },
+      { email: 'solo@wedos', role: 'admin', source: 'store', status: 'active' },
     ];
     expect(() =>
       assertStatusChange('solo@wedos', 'disabled', {
@@ -250,6 +250,6 @@ describe('assertStatusChange', () => {
         current: cur,
         actorEmail: 'x@wedos',
       }),
-    ).toThrow(/active officer/);
+    ).toThrow(/active admin/);
   });
 });
