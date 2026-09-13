@@ -330,7 +330,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   );
   const overCap = selectedSteps > MAX_COMPOSITE_STEPS;
   const compose = async () => {
-    if (selectedPlaybooks.length < 2 || !targetAllowed || overCap) return;
+    if (selectedPlaybooks.length < 1 || !targetAllowed || overCap) return;
     setComposing(true);
     try {
       const r = await api.composeSuite({
@@ -341,7 +341,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       });
       app.push(
         'success',
-        `Composed campaign created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} templates (pending approval).`,
+        `Composed campaign created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} template${selectedPlaybooks.length === 1 ? '' : 's'} (pending approval).`,
       );
       if (r.recon?.seeded) {
         app.push(
@@ -581,7 +581,9 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
         <div className="tpl-compose-bar">
           <div className="tcb-main">
             <div className="tcb-head">
-              <strong>Compose {selected.length} templates</strong>
+              <strong>
+                Compose {selected.length} template{selected.length === 1 ? '' : 's'}
+              </strong>
               <span className={`tcb-steps${overCap ? ' over' : ''}`}>
                 {selectedSteps} step{selectedSteps === 1 ? '' : 's'} · max {MAX_COMPOSITE_STEPS}
               </span>
@@ -614,23 +616,20 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
             />
             <button
               className="btn btn-primary"
-              disabled={selected.length < 2 || !targetAllowed || overCap || composing}
+              disabled={selected.length < 1 || !targetAllowed || overCap || composing}
               onClick={compose}
               title={
                 !targetAllowed
                   ? 'Pick an allowlisted target above first'
                   : overCap
                     ? `Too many steps (${selectedSteps} > ${MAX_COMPOSITE_STEPS})`
-                    : 'Create one campaign from the selected templates, in order'
+                    : 'Create one campaign from the selected template(s), in order'
               }
             >
               {composing ? 'Composing…' : `Compose into one campaign (${selectedSteps}) →`}
             </button>
           </div>
-          {selected.length < 2 && (
-            <span className="tcb-hint">Select at least two templates to compose.</span>
-          )}
-          {selected.length >= 2 && !targetAllowed && (
+          {!targetAllowed && (
             <span className="tcb-hint">Pick an allowlisted target in the bar above.</span>
           )}
           {overCap && (
