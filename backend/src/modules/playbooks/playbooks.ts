@@ -1415,6 +1415,131 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
     ],
   },
+  {
+    id: 'full-review',
+    name: 'Full review — escalating (curated)',
+    category: 'Review',
+    summary:
+      'One curated pass over every bounded vector — a single baseline, escalating GET and POST, ' +
+      'endpoint mix, cache-buster, slow-hold, max-concurrency, real HTTP/2 and a synchronized ' +
+      'pulse — with no redundant repeats. The lean alternative to composing every template.',
+    when: 'A single comprehensive resilience review (~30 min) instead of a 60+ step template mix.',
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady reference load — one, reused for the whole review.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'vegeta',
+      },
+      {
+        name: 'GET capacity ramp',
+        summary: 'Rising GET to find the knee where absorption degrades.',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 180,
+        profile: 'ramp',
+        vector: 'http-get',
+        agent: 'vegeta',
+      },
+      {
+        name: 'GET endpoint-mix (recon surface)',
+        summary: 'GET spread over the real seeded paths, not just the root.',
+        maxRps: 500,
+        concurrency: 100,
+        maxDurationSec: 150,
+        profile: 'constant',
+        vector: 'http-get',
+        paths: ['/', '/search?q=test', '/api/products', '/login', '/account'],
+        agent: 'vegeta',
+      },
+      {
+        name: 'Cache-buster GET',
+        summary: 'A unique query per request so the origin cannot serve from cache.',
+        maxRps: 700,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-get',
+        paths: ['/?_=a', '/?_=b', '/?_=c', '/?_=d'],
+        agent: 'vegeta',
+      },
+      {
+        name: 'POST escalation (break point)',
+        summary: 'Rising POST — the dynamic path with no cache headroom (the usual break point).',
+        maxRps: 600,
+        concurrency: 150,
+        maxDurationSec: 180,
+        profile: 'ramp',
+        vector: 'http-post',
+        agent: 'vegeta',
+      },
+      {
+        name: 'Auth/login POST pressure',
+        summary: 'Bounded POST on auth-adjacent write endpoints.',
+        maxRps: 400,
+        concurrency: 100,
+        maxDurationSec: 150,
+        profile: 'constant',
+        vector: 'http-post',
+        paths: ['/login', '/password-reset', '/register'],
+        agent: 'vegeta',
+      },
+      {
+        name: 'Slow connection hold (bounded)',
+        summary: 'Hold many slow connections — does the origin shed incomplete requests?',
+        maxRps: 10,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-slowloris',
+        agent: 'builtin',
+      },
+      {
+        name: 'Sustained max-concurrency GET',
+        summary: 'High concurrency at a bounded rate — connection-pool pressure.',
+        maxRps: 400,
+        concurrency: 400,
+        maxDurationSec: 180,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'vegeta',
+      },
+      {
+        name: 'HTTP/2 request burst',
+        summary: 'Bounded high-rate load over real HTTP/2 (k6 negotiates h2 on HTTPS).',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-get',
+        agent: 'k6',
+      },
+      {
+        name: 'Synchronized pulse (THOR-shape)',
+        summary: 'On/off waves to test burst absorption and any auto-scaling.',
+        maxRps: 900,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-get',
+        agent: 'k6',
+      },
+      {
+        name: 'Multi-vector wave',
+        summary: 'A high-concurrency wave spread over the surface — the closing stress.',
+        maxRps: 700,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-get',
+        paths: ['/', '/api/products', '/cart', '/search?q=a', '/checkout'],
+        agent: 'vegeta',
+      },
+    ],
+  },
 ];
 
 // Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
@@ -1489,6 +1614,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'threat-ivan-ja4-sweep': '2026-09-11',
   'threat-ivan-ja4-random': '2026-09-11',
   'bankcz-connexes': '2026-09-12',
+  'full-review': '2026-09-13',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
@@ -1628,6 +1754,13 @@ export function buildSuiteCampaigns(
  * (the suite name is the composite's, not any single playbook's). Governance is
  * unchanged — every campaign still goes through approval + caps individually.
  */
+/** A "baseline" step: a low-rate single measurement a template runs to establish
+ *  the target's pre-load health. In a composite each template contributes one,
+ *  so a 26-template mix carries ~18 identical baselines. */
+export function isBaselineStep(step: { name: string }): boolean {
+  return /\bbaseline\b/i.test(step.name);
+}
+
 export function buildCompositeSuite(
   playbooks: Playbook[],
   suiteName: string,
@@ -1637,8 +1770,17 @@ export function buildCompositeSuite(
   const suiteId = randomUUID();
   const inputs: CampaignInput[] = [];
   let order = 0;
+  // Dedupe baselines across the composite: keep the FIRST, drop every subsequent
+  // per-template baseline. Each run already captures its own probe baseline and
+  // the recovery gate re-checks target health between steps, so the repeated
+  // baseline steps are pure redundancy (~35 min of wasted load on a big mix).
+  let seenBaseline = false;
   for (const pb of playbooks) {
     for (const step of pb.steps) {
+      if (isBaselineStep(step)) {
+        if (seenBaseline) continue;
+        seenBaseline = true;
+      }
       // Prefix with the source template name so a composed step reads e.g.
       // "GET flood readiness — Ramp" even though the suite name is the mix's.
       const name = pb.steps.length === 1 ? pb.name : `${pb.name} — ${step.name}`;
