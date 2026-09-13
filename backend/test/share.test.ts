@@ -8,11 +8,11 @@ import { hashPassword } from '../src/auth/passwords.js';
 /** Share links: a short-lived, read-only token that authorizes report links only. */
 describe('POST /api/share (read-only share links)', () => {
   let app: FastifyInstance;
-  let officerToken = '';
+  let cisoToken = '';
 
   beforeAll(async () => {
     const AUTH_USERS = JSON.stringify([
-      { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('pw-officer-123') },
+      { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-123') },
     ]);
     const auth = initAuth({ AUTH_JWT_SECRET: 'testsecret', AUTH_USERS } as NodeJS.ProcessEnv);
     const built = await buildApp({
@@ -23,11 +23,11 @@ describe('POST /api/share (read-only share links)', () => {
       serveStatic: false,
     });
     app = built.app;
-    officerToken = (
+    cisoToken = (
       await app.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { email: 'off@wedos', password: 'pw-officer-123' },
+        payload: { email: 'off@wedos', password: 'pw-ciso-123' },
       })
     ).json().token;
   });
@@ -36,7 +36,7 @@ describe('POST /api/share (read-only share links)', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/share',
-      headers: { authorization: `Bearer ${officerToken}` },
+      headers: { authorization: `Bearer ${cisoToken}` },
       payload: { ttlMinutes: 30 },
     });
     expect(res.statusCode).toBe(200);
@@ -57,7 +57,7 @@ describe('POST /api/share (read-only share links)', () => {
       await app.inject({
         method: 'POST',
         url: '/api/share',
-        headers: { authorization: `Bearer ${officerToken}` },
+        headers: { authorization: `Bearer ${cisoToken}` },
         payload: {},
       })
     ).json().token;
@@ -83,7 +83,7 @@ describe('POST /api/share (read-only share links)', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/share',
-      headers: { authorization: `Bearer ${officerToken}` },
+      headers: { authorization: `Bearer ${cisoToken}` },
       payload: { ttlMinutes: 999999 },
     });
     expect(res.json().ttlMinutes).toBe(7 * 24 * 60);

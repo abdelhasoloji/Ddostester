@@ -18,7 +18,7 @@ async function login(app: FastifyInstance, email: string, pw: string): Promise<s
 function buildAuth() {
   const AUTH_USERS = JSON.stringify([
     { email: 'ciso@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-1234') },
-    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('pw-officer-123') },
+    { email: 'admin@wedos', role: 'admin', passwordHash: hashPassword('pw-admin-1234') },
   ]);
   return initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
 }
@@ -42,7 +42,7 @@ const validVerdict = {
 describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', () => {
   let app: FastifyInstance;
   let ciso = '';
-  let officer = '';
+  let admin = '';
 
   beforeAll(async () => {
     app = (
@@ -57,7 +57,7 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
       })
     ).app;
     ciso = await login(app, 'ciso@wedos', 'pw-ciso-1234');
-    officer = await login(app, 'off@wedos', 'pw-officer-123');
+    admin = await login(app, 'admin@wedos', 'pw-admin-1234');
   });
 
   const asCiso = (method: 'GET' | 'POST', url: string, payload?: object) =>
@@ -65,7 +65,7 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
   const asRunner = (url: string, payload: object, token = RUNNER_TOKEN) =>
     app.inject({ method: 'POST', url, headers: { authorization: `Bearer ${token}` }, payload });
 
-  it('exposes the full zeroBS Volumetric matrix to the CISO, not the officer', async () => {
+  it('exposes the full zeroBS Volumetric matrix to the CISO, not the admin', async () => {
     const ok = await asCiso('GET', '/api/bench/scenarios');
     expect(ok.statusCode).toBe(200);
     const scenarios = ok.json().scenarios;
@@ -86,9 +86,9 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     const denied = await app.inject({
       method: 'GET',
       url: '/api/bench/scenarios',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
     });
-    expect(denied.statusCode).toBe(403); // officer has no bench:read
+    expect(denied.statusCode).toBe(403); // ciso has no bench:read
   });
 
   it('runs the full governed loop: request → claim → verdict → recorded', async () => {
@@ -216,11 +216,11 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     ).toBe(400); // missing summary
   });
 
-  it('coverage recording is CISO-only (officer 403)', async () => {
+  it('coverage recording is CISO-only (admin 403)', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/bench/coverage',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { vector: 'gre_packets', method: 'ATTESTED', summary: 'GRE dropped at edge.' },
     });
     expect(r.statusCode).toBe(403);
@@ -281,11 +281,11 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(400);
   });
 
-  it('dispatch is CISO-only (officer 403)', async () => {
+  it('dispatch is CISO-only (admin 403)', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/bench/runs',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { scenario: 'udp_dns_reflection' },
     });
     expect(r.statusCode).toBe(403);
@@ -360,11 +360,11 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(400);
   });
 
-  it('attestation is CISO-only (officer 403)', async () => {
+  it('attestation is CISO-only (admin 403)', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/bench/attestations',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { checklistId: 'bcp38-urpf', checkedItems: ['ingress_acl'] },
     });
     expect(r.statusCode).toBe(403);
@@ -436,11 +436,11 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     expect(r.statusCode).toBe(400);
   });
 
-  it('coverage import is CISO-only (officer 403)', async () => {
+  it('coverage import is CISO-only (admin 403)', async () => {
     const r = await app.inject({
       method: 'POST',
       url: '/api/bench/coverage/import',
-      headers: { authorization: `Bearer ${officer}` },
+      headers: { authorization: `Bearer ${admin}` },
       payload: { format: 'json', data: '[]' },
     });
     expect(r.statusCode).toBe(403);

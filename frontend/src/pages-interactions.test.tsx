@@ -21,14 +21,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   currentApp = makeApp({
     authRequired: true,
-    role: 'officer',
-    identity: { email: 'off@wedos', role: 'officer' },
+    role: 'admin',
+    identity: { email: 'off@wedos', role: 'admin' },
     allowed: ['staging.wedos'],
     notifications: ['slack'],
   });
   fakeApi.listUsers.mockResolvedValue([
     { email: 'eng@wedos', role: 'engineer', source: 'store' },
-    { email: 'root@wedos', role: 'officer', source: 'env' },
+    { email: 'root@wedos', role: 'ciso', source: 'env' },
   ]);
   fakeApi.notifyTest.mockResolvedValue({ delivered: true, sinks: ['slack'] });
   fakeApi.instantiatePlaybook.mockResolvedValue({ suiteId: 's', campaigns: [{}, {}] });
@@ -96,10 +96,8 @@ describe('UsersCard interactions', () => {
   it('changes a store user role through the dropdown', async () => {
     renderWithRouter(<SettingsPage />);
     await waitFor(() => expect(screen.getByText('eng@wedos')).toBeInTheDocument());
-    fireEvent.change(screen.getByTitle('Change role'), { target: { value: 'officer' } });
-    await waitFor(() =>
-      expect(fakeApi.updateUserRole).toHaveBeenCalledWith('eng@wedos', 'officer'),
-    );
+    fireEvent.change(screen.getByTitle('Change role'), { target: { value: 'ciso' } });
+    await waitFor(() => expect(fakeApi.updateUserRole).toHaveBeenCalledWith('eng@wedos', 'ciso'));
   });
 
   it('removes a store user', async () => {
@@ -232,6 +230,16 @@ describe('AuditPage integrity', () => {
 });
 
 describe('TemplatesPage', () => {
+  // Templates are created/launched by the engineer (create permission).
+  beforeEach(() => {
+    currentApp = makeApp({
+      authRequired: true,
+      role: 'engineer',
+      identity: { email: 'eng@wedos', role: 'engineer' },
+      allowed: ['staging.wedos'],
+    });
+  });
+
   it('launches an assessment for an allowlisted target', async () => {
     renderWithRouter(<TemplatesPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'staging.wedos' }));

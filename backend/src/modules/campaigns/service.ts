@@ -346,22 +346,22 @@ export function setArchived(campaign: Campaign, archived: boolean): Campaign {
 }
 
 /**
- * Mandatory CISO sign-off (dual control): a CISO co-signs a campaign the officer
- * has already approved. Separation of duties across all three roles — the CISO
- * signer must differ from both the author and the officer approver.
+ * Optional dual-control sign-off: a SECOND CISO co-signs a campaign that a CISO
+ * has already approved. Separation of duties — the co-signer must differ from
+ * both the author and the approver.
  */
 export function cisoApproveCampaign(campaign: Campaign, cisoBy: string): Campaign {
   if (campaign.status !== 'APPROVED') {
     throw new CampaignError(
-      `CISO sign-off requires an officer-approved campaign (status ${campaign.status}).`,
+      `CISO sign-off requires an approved campaign (status ${campaign.status}).`,
     );
   }
   if (!cisoBy?.trim()) throw new CampaignError('CISO approver is required.');
   if (cisoBy === campaign.createdBy) {
-    throw new CampaignError('Separation of duties: the CISO approver ≠ the author.');
+    throw new CampaignError('Separation of duties: the CISO co-signer ≠ the author.');
   }
   if (campaign.approvedBy && cisoBy === campaign.approvedBy) {
-    throw new CampaignError('Separation of duties: the CISO approver ≠ the officer approver.');
+    throw new CampaignError('Separation of duties: the CISO co-signer ≠ the approver.');
   }
   return { ...campaign, cisoApprovedBy: cisoBy, cisoApprovedAt: new Date().toISOString() };
 }

@@ -10,8 +10,9 @@ import { hashPassword } from '../../src/auth/passwords.js';
 export const ALLOWED = ['127.0.0.1', 'localhost'];
 
 export const CREDS = {
-  officer: { email: 'off@wedos', role: 'officer', pw: 'pw-officer-123' },
+  ciso: { email: 'off@wedos', role: 'ciso', pw: 'pw-ciso-123' },
   engineer: { email: 'eng@wedos', role: 'engineer', pw: 'pw-engineer-123' },
+  admin: { email: 'admin@wedos', role: 'admin', pw: 'pw-admin-1234' },
   viewer: { email: 'view@wedos', role: 'viewer', pw: 'pw-viewer-123' },
 } as const;
 export type RoleKey = keyof typeof CREDS;

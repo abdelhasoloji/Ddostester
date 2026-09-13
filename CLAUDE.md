@@ -83,7 +83,7 @@ emits amplification traffic.
 - `backend/src/modules/` — campaigns (CAM + scheduler), probe (+ kill switch), wrs (scoring + history), reports (campaign + compliance), metrics, audit.
 - **Observability**: `GET /metrics` (Prometheus — business + runtime: HTTP/route, runs in-flight/duration, `loadtest_hard_stopped_total`, event-loop lag, process) and structured `run.start`/`run.settled` pino logs. See `docs/monitoring.md`.
 - `backend/src/store/` — PostgreSQL persistence (+ best-effort TimescaleDB) or memory.
-- `backend/src/auth/` — JWT HS256 + RBAC (engineer/officer/viewer).
+- `backend/src/auth/` — JWT HS256 + RBAC (engineer/ciso/admin/viewer).
 - `frontend/src/` — React dashboard (login, campaigns, WRS, audit, live SSE progress).
 
 Full docs: `docs/` (index in `docs/README.md`).
@@ -117,7 +117,7 @@ production/public infrastructure under any circumstance.
   Define a new limit here — never a second copy.
 - Two-layer caps: `HARD_CAPS` is the **immutable, frozen ceiling** (never editable
   from any interface). The **operational limits** are the effective caps enforced
-  on campaigns/playbooks; only the **`ciso`** role can change them (`limits:manage`,
+  on campaigns/playbooks; only the **`admin`** role can change them (`limits:manage`,
   `PUT /api/limits`), always clamped ≤ the ceiling (`clampToCeiling`) and audited
   (`limits.update`). Enforcement reads the effective caps threaded from `app.ts`;
   the frontend reads them from `/health` (`hardCaps` = effective, `hardCapsCeiling`

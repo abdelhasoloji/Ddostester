@@ -147,9 +147,9 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
 
   it('hides the bench cockpit from non-CISO roles', async () => {
     currentApp = makeApp({
-      role: 'officer',
+      role: 'admin',
       authRequired: true,
-      identity: { email: 'off@wedos', role: 'officer' },
+      identity: { email: 'off@wedos', role: 'admin' },
     });
     renderWithRouter(<SettingsPage />);
     await screen.findByText(/Engine & security/);

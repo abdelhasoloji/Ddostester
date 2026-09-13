@@ -96,7 +96,7 @@ describe('SuiteRunBanner', () => {
   it('does not render for a pending-only suite (its group card carries the run action)', () => {
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
+      role: 'ciso',
       campaigns: [
         member(0, 'COMPLETED'),
         member(1, 'PENDING_APPROVAL'),
@@ -113,7 +113,7 @@ describe('SuiteRunBanner', () => {
   it('shows Pause + Cancel while a step is running, and surfaces the current step', () => {
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
+      role: 'ciso',
       campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);
@@ -127,7 +127,7 @@ describe('SuiteRunBanner', () => {
   it('pauses a running sequence via api.pauseSuite', async () => {
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
+      role: 'ciso',
       campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);
@@ -138,7 +138,7 @@ describe('SuiteRunBanner', () => {
   it('cancels a running sequence via api.cancelSuite', async () => {
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
+      role: 'ciso',
       campaigns: [member(0, 'COMPLETED'), member(1, 'RUNNING'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);
@@ -152,7 +152,7 @@ describe('SuiteRunBanner', () => {
       .mockResolvedValue({ sequences: { 'suite-1': { paused: true, started: 1, total: 3 } } });
     currentApp = makeApp({
       authRequired: true,
-      role: 'officer',
+      role: 'ciso',
       campaigns: [member(0, 'COMPLETED'), member(1, 'APPROVED'), member(2, 'APPROVED')],
     });
     renderWithRouter(<SuiteRunBanner />);

@@ -82,7 +82,7 @@ const ANALYSIS: GapAnalysis = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  fakeApp = { push: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined), role: 'officer' };
+  fakeApp = { push: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined), role: 'ciso' };
   gapAnalysis.mockResolvedValue(ANALYSIS);
   composeSuite.mockResolvedValue({ suiteId: 's', campaigns: [{}, {}] });
 });

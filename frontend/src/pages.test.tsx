@@ -41,9 +41,9 @@ const sampleCampaign = {
 
 beforeEach(() => {
   currentApp = makeApp({
-    role: 'officer',
+    role: 'ciso',
     authRequired: true,
-    identity: { email: 'off@wedos', role: 'officer' },
+    identity: { email: 'off@wedos', role: 'ciso' },
     campaigns: [sampleCampaign],
     auditRows: [
       { id: 'a1', at: new Date().toISOString(), actor: 'off@wedos', action: 'campaign.create' },
@@ -94,7 +94,12 @@ describe('pages render', () => {
     expect(screen.getByText('campaign.create')).toBeInTheDocument();
   });
 
-  it('SettingsPage (officer) shows engine/security + user management', () => {
+  it('SettingsPage (admin) shows engine/security + user management', () => {
+    currentApp = makeApp({
+      role: 'admin',
+      authRequired: true,
+      identity: { email: 'admin@wedos', role: 'admin' },
+    });
     renderWithRouter(<SettingsPage />);
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByText(/Users & access/)).toBeInTheDocument();
@@ -123,17 +128,18 @@ describe('pages render', () => {
     expect(screen.getByLabelText('Operator (dev mode)')).toBeInTheDocument();
   });
 
-  it('SettingsPage shows the CISO limits editor only for the CISO role', () => {
-    // Officer (default) does not see the operational-limits editor…
+  it('SettingsPage shows the operational-limits editor only for the admin role', () => {
+    // A CISO (default here) does not see the operational-limits editor — limits
+    // are administered by the admin.
     renderWithRouter(<SettingsPage />);
     expect(screen.queryByRole('heading', { name: /Operational limits/ })).not.toBeInTheDocument();
   });
 
-  it('SettingsPage (CISO) shows the operational-limits editor within the ceiling', () => {
+  it('SettingsPage (admin) shows the operational-limits editor within the ceiling', () => {
     currentApp = makeApp({
-      role: 'ciso',
+      role: 'admin',
       authRequired: true,
-      identity: { email: 'ciso@wedos', role: 'ciso' },
+      identity: { email: 'admin@wedos', role: 'admin' },
       hardCaps: { maxRps: 100, maxConcurrency: 50, maxDurationSec: 120 },
       hardCapsCeiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     });
@@ -142,8 +148,8 @@ describe('pages render', () => {
     // The RPS input is capped at the ceiling and pre-filled with the effective value.
     const rps = screen.getByDisplayValue('100') as HTMLInputElement;
     expect(rps.max).toBe('2000');
-    // The CISO is governance-only: no user-management card.
-    expect(screen.queryByText(/Users & access/)).not.toBeInTheDocument();
+    // The admin administers the platform: the user-management card is present too.
+    expect(screen.getByText(/Users & access/)).toBeInTheDocument();
   });
 
   it('GuidePage', () => {

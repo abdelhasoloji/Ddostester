@@ -10,7 +10,7 @@ const ALLOWED = ['127.0.0.1'];
 function buildAuth() {
   const AUTH_USERS = JSON.stringify([
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('pw-engineer-1') },
-    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('pw-officer-12') },
+    { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-12') },
   ]);
   return initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
 }
@@ -43,7 +43,7 @@ describe('Multi-step suite sequencer', () => {
       })
     ).app;
     eng = await login(app, 'eng@wedos', 'pw-engineer-1');
-    off = await login(app, 'off@wedos', 'pw-officer-12');
+    off = await login(app, 'off@wedos', 'pw-ciso-12');
   });
 
   const as = (token: string, method: 'GET' | 'POST', url: string, payload?: object) =>

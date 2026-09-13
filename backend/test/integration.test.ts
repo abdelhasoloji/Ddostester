@@ -186,7 +186,7 @@ describe('API — auth + RBAC enabled', () => {
   let app: FastifyInstance;
   const users = JSON.stringify([
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('engpw') },
-    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('offpw') },
+    { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('offpw') },
   ]);
   const token = async (email: string, password: string): Promise<string> => {
     const r = await app.inject({
@@ -242,7 +242,7 @@ describe('API — auth + RBAC enabled', () => {
     expect(c.json().createdBy).toBe('eng@wedos');
   });
 
-  it('RBAC: engineer cannot approve (403), officer can', async () => {
+  it('RBAC: engineer cannot approve (403), ciso can', async () => {
     const te = await token('eng@wedos', 'engpw');
     const to = await token('off@wedos', 'offpw');
     const c = await app.inject({
@@ -270,11 +270,11 @@ describe('API — auth + RBAC enabled', () => {
   });
 });
 
-describe('API — user management (officer only)', () => {
+describe('API — user management (admin only)', () => {
   let app: FastifyInstance;
   const users = JSON.stringify([
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('engpw') },
-    { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('offpw') },
+    { email: 'off@wedos', role: 'admin', passwordHash: hashPassword('offpw') },
   ]);
   const token = async (email: string, password: string): Promise<string> => {
     const r = await app.inject({
@@ -296,7 +296,7 @@ describe('API — user management (officer only)', () => {
     app = built.app;
   });
 
-  it('non-officer cannot list users (403)', async () => {
+  it('non-ciso cannot list users (403)', async () => {
     const te = await token('eng@wedos', 'engpw');
     const r = await app.inject({
       method: 'GET',
@@ -306,7 +306,7 @@ describe('API — user management (officer only)', () => {
     expect(r.statusCode).toBe(403);
   });
 
-  it('officer creates a store user who can then log in', async () => {
+  it('ciso creates a store user who can then log in', async () => {
     const to = await token('off@wedos', 'offpw');
     const created = await app.inject({
       method: 'POST',

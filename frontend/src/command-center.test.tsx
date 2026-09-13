@@ -134,14 +134,14 @@ describe('Command Center', () => {
     await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
   });
 
-  it('routes the Security Officer to pending approvals', () => {
+  it('routes the CISO to pending approvals', () => {
     currentApp = makeApp({
-      role: 'officer',
-      identity: { email: 'off@wedos', role: 'officer' },
+      role: 'ciso',
+      identity: { email: 'ciso@wedos', role: 'ciso' },
       campaigns: [{ ...scoredCampaign, id: 'p1', status: 'PENDING_APPROVAL', wrs: undefined }],
     });
     renderWithRouter(<CommandCenterPage />);
-    expect(screen.getByText('For the Security Officer')).toBeInTheDocument();
+    expect(screen.getByText('For the CISO')).toBeInTheDocument();
     expect(screen.getByText(/awaiting your approval/)).toBeInTheDocument();
   });
 
@@ -159,8 +159,8 @@ describe('Command Center', () => {
       sequences: { S1: { paused: false, started: 1, total: 3 } },
     });
     currentApp = makeApp({
-      role: 'officer',
-      identity: { email: 'off@wedos', role: 'officer' },
+      role: 'ciso',
+      identity: { email: 'off@wedos', role: 'ciso' },
       campaigns: [
         { ...scoredCampaign, id: 's-a', status: 'PENDING_APPROVAL', suiteId: 'S1', wrs: undefined },
         { ...scoredCampaign, id: 's-b', status: 'PENDING_APPROVAL', suiteId: 'S1', wrs: undefined },
@@ -177,8 +177,8 @@ describe('Command Center', () => {
   it('still counts a genuinely-pending non-suite campaign', async () => {
     fakeApi.suiteSequences.mockResolvedValue({ sequences: {} });
     currentApp = makeApp({
-      role: 'officer',
-      identity: { email: 'off@wedos', role: 'officer' },
+      role: 'ciso',
+      identity: { email: 'off@wedos', role: 'ciso' },
       campaigns: [{ ...scoredCampaign, id: 'p1', status: 'PENDING_APPROVAL', wrs: undefined }],
     });
     renderWithRouter(<CommandCenterPage />);

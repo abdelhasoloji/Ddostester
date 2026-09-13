@@ -174,8 +174,8 @@ describe('api surface (every endpoint maps to a URL and verb)', () => {
       'POST',
       { email: 'a@b', role: 'viewer', password: 'p' },
     );
-    await check(() => api.updateUserRole('a@b', 'officer'), '/api/users/a%40b', 'PATCH', {
-      role: 'officer',
+    await check(() => api.updateUserRole('a@b', 'ciso'), '/api/users/a%40b', 'PATCH', {
+      role: 'ciso',
     });
     await check(() => api.deleteUser('a@b'), '/api/users/a%40b', 'DELETE');
     await check(() => api.playbooks(), '/api/playbooks', 'GET');

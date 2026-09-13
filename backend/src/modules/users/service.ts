@@ -61,9 +61,10 @@ export function combineUsers(
   return [...byEmail.values()].sort((a, b) => a.email.localeCompare(b.email));
 }
 
-/** Officers who can actually act — a disabled officer is not a working approver. */
-function activeOfficerCount(users: ManagedUser[]): number {
-  return users.filter((u) => u.role === 'officer' && !isDisabled(u)).length;
+/** Active admins — the role that administers users. Never let the last one be
+ *  removed or demoted (self-lockout guard). */
+function activeAdminCount(users: ManagedUser[]): number {
+  return users.filter((u) => u.role === 'admin' && !isDisabled(u)).length;
 }
 
 function withUpsert(current: ManagedUser[], email: string, role: Role): ManagedUser[] {
@@ -98,8 +99,8 @@ export function assertUpsert(input: UpsertInput, ctx: GuardContext): { email: st
     throw new UserError('You cannot modify your own account.');
   }
   const after = withUpsert(ctx.current, email, input.role);
-  if (activeOfficerCount(after) < 1) {
-    throw new UserError('At least one active officer must remain.');
+  if (activeAdminCount(after) < 1) {
+    throw new UserError('At least one active administrator must remain.');
   }
   return { email, role: input.role };
 }
@@ -126,8 +127,8 @@ export function assertRoleChange(
   const existing = ctx.current.find((u) => normalizeEmail(u.email) === email);
   if (!existing || existing.source !== 'store') throw new UserError('User not found.');
   const after = withUpsert(ctx.current, email, rawRole);
-  if (activeOfficerCount(after) < 1) {
-    throw new UserError('At least one active officer must remain.');
+  if (activeAdminCount(after) < 1) {
+    throw new UserError('At least one active administrator must remain.');
   }
   return { email, role: rawRole };
 }
@@ -146,8 +147,8 @@ export function assertDelete(rawEmail: string, ctx: GuardContext): string {
     throw new UserError('User not found.');
   }
   const after = ctx.current.filter((u) => normalizeEmail(u.email) !== email);
-  if (activeOfficerCount(after) < 1) {
-    throw new UserError('At least one active officer must remain.');
+  if (activeAdminCount(after) < 1) {
+    throw new UserError('At least one active administrator must remain.');
   }
   return email;
 }
@@ -204,8 +205,8 @@ export function assertStatusChange(
   const existing = ctx.current.find((u) => normalizeEmail(u.email) === email);
   if (!existing || existing.source !== 'store') throw new UserError('User not found.');
   const after = ctx.current.map((u) => (normalizeEmail(u.email) === email ? { ...u, status } : u));
-  if (activeOfficerCount(after) < 1) {
-    throw new UserError('At least one active officer must remain.');
+  if (activeAdminCount(after) < 1) {
+    throw new UserError('At least one active administrator must remain.');
   }
   return { email, status };
 }

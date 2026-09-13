@@ -305,7 +305,7 @@ export interface MetricsRange {
   series: { label: string; points: [number, number][] }[];
 }
 
-export type Role = 'engineer' | 'officer' | 'viewer' | 'ciso';
+export type Role = 'engineer' | 'ciso' | 'admin' | 'viewer';
 
 export interface AuditEntry {
   id: string;

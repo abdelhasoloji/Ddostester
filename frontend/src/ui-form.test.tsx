@@ -78,7 +78,7 @@ describe('modals', () => {
     currentApp = makeApp({
       approveFor: campaign,
       authRequired: true,
-      identity: { email: 'off@wedos', role: 'officer' },
+      identity: { email: 'off@wedos', role: 'ciso' },
     });
     render(<ApproveModal />);
     expect(screen.getByText(/Approval/)).toBeInTheDocument();

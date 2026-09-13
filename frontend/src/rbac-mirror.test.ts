@@ -26,10 +26,10 @@ const ALL_PERMS: Perm[] = [
 //   execute↔campaign:execute · kill↔campaign:kill · manage↔user:manage
 //   limits↔limits:manage · bench↔bench:* · (read is implicit for every role)
 const EXPECTED: Record<Role, Perm[]> = {
-  officer: ['create', 'approve', 'execute', 'kill', 'manage'],
   engineer: ['create', 'execute', 'kill'],
-  viewer: ['kill'],
-  ciso: ['cisoApprove', 'kill', 'limits', 'bench'],
+  ciso: ['approve', 'cisoApprove', 'kill', 'bench'],
+  admin: ['kill', 'manage', 'limits'],
+  viewer: [],
 };
 
 describe('frontend RBAC mirror', () => {

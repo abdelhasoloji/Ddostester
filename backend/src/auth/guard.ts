@@ -4,6 +4,7 @@ import type { JwtPayload } from './jwt.js';
 import { verifyPassword } from './passwords.js';
 import { loadUsers } from './users.js';
 import type { User } from './users.js';
+import { canonicalRole } from './rbac.js';
 import type { Role } from './rbac.js';
 
 export interface AuthState {
@@ -45,5 +46,8 @@ export function payloadFromRequest(state: AuthState, req: FastifyRequest): JwtPa
 export function identityFromRequest(state: AuthState, req: FastifyRequest): Identity | null {
   const payload = payloadFromRequest(state, req);
   if (!payload) return null;
-  return { email: payload.sub, role: payload.role as Role };
+  // Canonicalise the legacy `officer` id (from a pre-overhaul token) to `admin`.
+  const role = canonicalRole(payload.role);
+  if (!role) return null;
+  return { email: payload.sub, role };
 }

@@ -9,11 +9,11 @@ import { KillSwitch } from '../src/modules/probe/probe.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 
 /**
- * Admin campaign purge: officer-only, deletes test campaigns + their runs, never
+ * Admin campaign purge: admin-only, deletes test campaigns + their runs, never
  * deletes a RUNNING campaign (its engine is live) and never touches the audit log.
  */
 const USERS = JSON.stringify([
-  { email: 'off@wedos', role: 'officer', passwordHash: hashPassword('offpw') },
+  { email: 'off@wedos', role: 'admin', passwordHash: hashPassword('offpw') },
   { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('engpw') },
 ]);
 
@@ -77,7 +77,7 @@ describe('admin campaign purge', () => {
     expect((await store.listCampaigns()).map((c) => c.status)).toEqual(['RUNNING']);
   });
 
-  it('is officer-gated (an engineer is forbidden)', async () => {
+  it('is admin-gated (an engineer is forbidden)', async () => {
     const r = await purge(await token('eng@wedos', 'engpw'), 'all');
     expect(r.statusCode).toBe(403);
     expect(await store.listCampaigns()).toHaveLength(5); // nothing deleted
