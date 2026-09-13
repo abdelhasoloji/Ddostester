@@ -76,6 +76,15 @@ const roleLabel: Record<Role, string> = {
   ciso: 'CISO',
 };
 
+/** What each role can do — shown on the account page so a user understands their
+ *  own access. Keyed by role id so it tracks the RBAC model. */
+const roleDescription: Record<Role, string> = {
+  officer: 'Approve campaigns, manage users and stop runs.',
+  engineer: 'Create campaigns and execute an approved one.',
+  viewer: 'Read-only access to campaigns, results and assurance.',
+  ciso: 'Set operational limits and co-sign campaigns under dual control.',
+};
+
 // ---------- sidebar + layout ----------
 // Campaign orchestration is the whole point of the tool, so it is the single
 // primary destination (the home page). Everything else — the assessment phases,
@@ -1340,6 +1349,7 @@ export function Layout() {
   const { toasts } = app;
   const sv = app.serverVersion;
   const mismatch = isBuildMismatch(sv);
+  const grafanaBase = getGrafanaBase();
   return (
     <>
       <div className="accent-line" />
@@ -1369,22 +1379,40 @@ export function Layout() {
             ))}
           </nav>
           <div className="sidebar-foot">
+            {grafanaBase && (
+              <a
+                className="nav-link nav-link-ext"
+                href={grafanaBase}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the ShieldTest Grafana dashboards"
+              >
+                <span className="nav-icon" aria-hidden="true">
+                  📈
+                </span>
+                Grafana ↗
+              </a>
+            )}
             <ThemeToggle />
             {app.authRequired && app.identity ? (
               <>
-                <span className="hint">
-                  {app.identity.email}
-                  <br />
-                  <b>{roleLabel[app.identity.role]}</b>
-                </span>
+                <NavLink to="/account" className="account-chip" title="My account">
+                  <span className="account-chip-avatar" aria-hidden="true">
+                    {(app.identity.email || '?').split(/[@.]/)[0].slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="account-chip-id">
+                    {app.identity.email}
+                    <b>{roleLabel[app.identity.role]}</b>
+                  </span>
+                </NavLink>
                 <button className="btn btn-sm btn-ghost" onClick={app.logout}>
                   Sign out
                 </button>
               </>
             ) : (
-              <span className="hint">
+              <NavLink to="/account" className="hint account-chip-dev" title="My account">
                 Dev mode · operator <b>{app.operator || '—'}</b>
-              </span>
+              </NavLink>
             )}
             <span
               className={`version-tag${mismatch ? ' version-tag-warn' : ''}`}
@@ -4133,48 +4161,108 @@ function ObservabilityCard() {
   );
 }
 
+/**
+ * The user's own space — profile, security and preferences. Distinct from
+ * Settings, which is platform administration. Reached from the identity chip in
+ * the sidebar.
+ */
+export function AccountPage() {
+  const app = useApp();
+  const id = app.identity;
+  const email = id?.email ?? app.operator;
+  const initials = (email || '?').split(/[@.]/)[0].slice(0, 2).toUpperCase();
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  const chooseTheme = (t: Theme) => {
+    setThemeState(t);
+    persistTheme(t);
+  };
+  return (
+    <>
+      <PageHead title="My account" sub="Your profile, security and preferences." />
+      <div className="account-grid">
+        <section className="card account-id">
+          <div className="account-avatar" aria-hidden="true">
+            {initials}
+          </div>
+          <div className="account-id-body">
+            <div className="account-email">{email || '—'}</div>
+            {app.authRequired && id ? (
+              <>
+                <span className={`role-chip role-${id.role}`}>{roleLabel[id.role]}</span>
+                <p className="hint account-role-desc">{roleDescription[id.role]}</p>
+              </>
+            ) : (
+              <p className="hint">Dev mode — authentication is disabled on this control plane.</p>
+            )}
+          </div>
+          {app.authRequired && id && (
+            <button className="btn btn-sm btn-ghost account-signout" onClick={app.logout}>
+              Sign out
+            </button>
+          )}
+        </section>
+
+        {app.authRequired && id ? (
+          <section className="card">
+            <h2>Security</h2>
+            <p className="hint" style={{ marginBottom: '.75rem' }}>
+              Change your password — this signs out your other active sessions.
+            </p>
+            <ChangePasswordForm />
+          </section>
+        ) : (
+          <section className="card">
+            <h2>Operator identity</h2>
+            <div className="field" style={{ maxWidth: 360 }}>
+              <label htmlFor="op">Operator (dev mode)</label>
+              <input
+                id="op"
+                placeholder="first.last@wedos"
+                value={app.operator}
+                onChange={(e) => app.setOperator(e.target.value)}
+              />
+              <span className="hint">
+                Used as author/approver while authentication is disabled.
+              </span>
+            </div>
+          </section>
+        )}
+
+        <section className="card">
+          <h2>Preferences</h2>
+          <div className="pref-row">
+            <div>
+              <div className="pref-k">Appearance</div>
+              <div className="hint">How ShieldTest looks on this device.</div>
+            </div>
+            <div className="theme-choice" role="group" aria-label="Theme">
+              {THEME_OPTS.map(([v, icon, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`theme-choice-btn${theme === v ? ' active' : ''}`}
+                  aria-pressed={theme === v}
+                  onClick={() => chooseTheme(v)}
+                >
+                  <span aria-hidden="true">{icon}</span> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
 export function SettingsPage() {
   const app = useApp();
   return (
     <>
-      <PageHead title="Settings" sub="Control plane configuration (read-only on the client)." />
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2>Session</h2>
-        {app.authRequired && app.identity ? (
-          <div className="kv">
-            <div>
-              <span className="k">User</span>
-              <span className="v">{app.identity.email}</span>
-            </div>
-            <div>
-              <span className="k">Role</span>
-              <span className="v">{roleLabel[app.identity.role]}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="field" style={{ maxWidth: 360 }}>
-            <label htmlFor="op">Operator (dev mode)</label>
-            <input
-              id="op"
-              placeholder="first.last@wedos"
-              value={app.operator}
-              onChange={(e) => app.setOperator(e.target.value)}
-            />
-            <span className="hint">Used as author/approver while authentication is disabled.</span>
-          </div>
-        )}
-      </div>
-
-      {app.authRequired && app.identity && (
-        <div className="card" style={{ marginBottom: '1rem', maxWidth: 460 }}>
-          <h2>Change my password</h2>
-          <p className="hint" style={{ marginBottom: '.75rem' }}>
-            Changing your password signs out your other sessions.
-          </p>
-          <ChangePasswordForm />
-        </div>
-      )}
-
+      <PageHead
+        title="Settings"
+        sub="Platform administration — engines, users, limits and observability."
+      />
       <div className="card">
         <h2>Engine &amp; security</h2>
         <div className="kv">

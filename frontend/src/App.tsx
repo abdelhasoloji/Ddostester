@@ -8,6 +8,7 @@ import {
   ReportsPage,
   RunTheaterPage,
   SettingsPage,
+  AccountPage,
 } from './pages.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { ZonesPage } from './zones-page.js';
@@ -53,6 +54,7 @@ function Gate() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="account" element={<AccountPage />} />
         {/* Bookmark-compat: old paths folded into the Campaigns workspace. */}
         <Route path="overview" element={<Navigate to="/" replace />} />
         <Route path="templates" element={<Navigate to="/campaigns?tab=templates" replace />} />

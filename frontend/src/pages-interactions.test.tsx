@@ -14,7 +14,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { SettingsPage, AuditPage } = await import('./pages.js');
+const { SettingsPage, AccountPage, AuditPage } = await import('./pages.js');
 const { TemplatesPage } = await import('./templates-page.js');
 
 beforeEach(() => {
@@ -168,7 +168,7 @@ describe('UsersCard interactions', () => {
 
 describe('ChangePasswordForm (self-service)', () => {
   it('blocks a mismatched confirmation', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<AccountPage />);
     fireEvent.change(screen.getByLabelText('Current password'), {
       target: { value: 'oldpass12345' },
     });
@@ -184,7 +184,7 @@ describe('ChangePasswordForm (self-service)', () => {
   });
 
   it('submits a matching change to the context', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<AccountPage />);
     fireEvent.change(screen.getByLabelText('Current password'), {
       target: { value: 'oldpass12345' },
     });

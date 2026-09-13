@@ -14,7 +14,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { ReportsPage, AuditPage, SettingsPage, GuidePage } = await import('./pages.js');
+const { ReportsPage, AuditPage, SettingsPage, AccountPage, GuidePage } = await import('./pages.js');
 const { CampaignsWorkspace } = await import('./campaigns-workspace.js');
 
 const sampleCampaign = {
@@ -99,6 +99,28 @@ describe('pages render', () => {
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByText(/Users & access/)).toBeInTheDocument();
     expect(fakeApi.listUsers).toHaveBeenCalled();
+    // The personal sections moved to My account — Settings is admin-only now.
+    expect(screen.queryByRole('heading', { name: 'Security' })).not.toBeInTheDocument();
+  });
+
+  it('AccountPage shows profile, role, security and appearance', () => {
+    currentApp = makeApp({
+      authRequired: true,
+      role: 'officer',
+      identity: { email: 'off@wedos', role: 'officer' },
+    });
+    renderWithRouter(<AccountPage />);
+    expect(screen.getByRole('heading', { name: 'My account' })).toBeInTheDocument();
+    expect(screen.getByText('off@wedos')).toBeInTheDocument();
+    expect(screen.getByText('Security Officer')).toBeInTheDocument(); // role chip
+    expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument(); // change-password
+    expect(screen.getByText('Preferences')).toBeInTheDocument();
+  });
+
+  it('AccountPage in dev mode shows the operator identity field', () => {
+    currentApp = makeApp({ authRequired: false, identity: null });
+    renderWithRouter(<AccountPage />);
+    expect(screen.getByLabelText('Operator (dev mode)')).toBeInTheDocument();
   });
 
   it('SettingsPage shows the CISO limits editor only for the CISO role', () => {
