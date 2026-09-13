@@ -10,7 +10,14 @@ import type { Campaign } from './model.js';
  * out-of-process vegeta steps hit their 400 rps exactly). To measure the real
  * load, a high-rate step should run on an out-of-process engine.
  *
- * This picks the out-of-process engine a high-rate campaign SHOULD use, or null
+ * A run is a candidate for routing when it exceeds EITHER the built-in engine's
+ * throughput ceiling (rate) OR its concurrency ceiling. The concurrency trigger
+ * matters independently of rate: a high-concurrency in-process fan-out saturates
+ * the Node event loop and starves the probe → a self-inflicted auto-kill with a
+ * corrupted WRS (observed live at conc 400). Out-of-process engines run their
+ * workers off our loop, so routing removes that failure mode.
+ *
+ * This picks the out-of-process engine a high-load campaign SHOULD use, or null
  * to keep the built-in engine. It is conservative — it only upgrades shapes the
  * candidate engine provably handles, so it never trades fidelity for a broken
  * run:
@@ -24,10 +31,16 @@ import type { Campaign } from './model.js';
  * it (falling back to built-in when the binary is absent).
  */
 export function highRateEngineUpgrade(
-  c: Pick<Campaign, 'maxRps' | 'flow' | 'endpoints' | 'dataset' | 'assertion' | 'userAgents'>,
+  c: Pick<
+    Campaign,
+    'maxRps' | 'concurrency' | 'flow' | 'endpoints' | 'dataset' | 'assertion' | 'userAgents'
+  >,
   ceilingRps: number,
+  ceilingConcurrency = Number.POSITIVE_INFINITY,
 ): 'vegeta' | 'k6' | null {
-  if (!(c.maxRps > ceilingRps)) return null;
+  const overRate = c.maxRps > ceilingRps;
+  const overConcurrency = c.concurrency > ceilingConcurrency;
+  if (!overRate && !overConcurrency) return null;
 
   const hasFlow = !!c.flow?.length;
   if (hasFlow) {

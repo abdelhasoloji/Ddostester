@@ -32,6 +32,7 @@ import {
   HARD_CAPS,
   MAX_COMPOSITE_STEPS,
   BUILTIN_RPS_CEILING,
+  BUILTIN_CONCURRENCY_CEILING,
   clampToCeiling,
   withinCeiling,
 } from './config/limits.js';
@@ -433,13 +434,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // that engine is installed; otherwise keep built-in (still bounded/safe,
     // just rate-limited). See modules/campaigns/engine-route.ts.
     if ((opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
-      const upgradeId = highRateEngineUpgrade(c, BUILTIN_RPS_CEILING);
+      const upgradeId = highRateEngineUpgrade(c, BUILTIN_RPS_CEILING, BUILTIN_CONCURRENCY_CEILING);
       if (upgradeId) {
         const upgraded = createAgent(upgradeId);
         if (upgraded && (await upgraded.available())) {
+          const why =
+            c.maxRps > BUILTIN_RPS_CEILING
+              ? `maxRps ${c.maxRps} > built-in ceiling ${BUILTIN_RPS_CEILING} rps`
+              : `concurrency ${c.concurrency} > built-in ceiling ${BUILTIN_CONCURRENCY_CEILING} (event-loop safety)`;
           app.log.info(
-            { evt: 'run.autoroute', campaignId: c.id, to: upgradeId, maxRps: c.maxRps },
-            `auto-routed to ${upgradeId} (maxRps ${c.maxRps} > built-in ceiling ${BUILTIN_RPS_CEILING} rps)`,
+            {
+              evt: 'run.autoroute',
+              campaignId: c.id,
+              to: upgradeId,
+              maxRps: c.maxRps,
+              concurrency: c.concurrency,
+            },
+            `auto-routed to ${upgradeId} (${why})`,
           );
           runAgent = upgraded;
         }
@@ -634,6 +645,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       run.confidence = computeConfidence({
         hardStopped: run.generator.hardStopped,
         peakEventLoopLagMs,
+        killedAuto: run.status === 'KILLED_AUTO',
+        generatorRequests: run.generator.totalRequests,
       });
       if (run.confidence.degraded) {
         metrics.inc(
