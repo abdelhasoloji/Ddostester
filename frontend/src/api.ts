@@ -931,6 +931,8 @@ export interface ReconReport {
   preflight: { items: PreflightItem[]; go: boolean };
   seededProfile: ProtectionProfile;
   suggestedPaths: string[];
+  /** The dynamic/expensive subset of suggestedPaths — the best stress targets. */
+  dynamicPaths?: string[];
   loginPath?: string;
 }
 

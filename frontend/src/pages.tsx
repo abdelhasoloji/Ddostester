@@ -598,6 +598,7 @@ function ReconStrip({
     { k: 'Load-balancer', on: p.loadBalancer },
   ];
   const seeded = recon.suggestedPaths?.length ?? 0;
+  const dynamic = recon.dynamicPaths?.length ?? 0;
   return (
     <button
       type="button"
@@ -614,6 +615,14 @@ function ReconStrip({
         </span>
       ))}
       {seeded > 0 && <span className="recon-chip paths">{seeded} seeded path(s)</span>}
+      {dynamic > 0 && (
+        <span
+          className="recon-chip paths"
+          title="Dynamic/expensive paths that pressure the origin (not cached static assets) — targeted first"
+        >
+          {dynamic} dynamic ⚡
+        </span>
+      )}
       {recon.loginPath && <span className="recon-chip login">login {recon.loginPath}</span>}
       <span className={`recon-chip ${recon.preflight.go ? 'go' : 'nogo'}`}>
         {recon.preflight.go ? 'preflight GO' : '⚠ preflight NO-GO'}
@@ -801,13 +810,28 @@ function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClose: () 
             )}
             {paths.length > 0 ? (
               <div className="recon-sub">
-                <span className="rk">Seeded paths ({paths.length})</span>
+                <span className="rk">
+                  Seeded paths ({paths.length}) — ranked by likely cost to the origin;{' '}
+                  <b>⚡ dynamic</b> ones are targeted first
+                </span>
                 <div className="recon-chip-row wrap">
-                  {paths.map((pt, i) => (
-                    <span key={i} className="recon-chip path mono">
-                      {pt}
-                    </span>
-                  ))}
+                  {paths.map((pt, i) => {
+                    const isDyn = (recon.dynamicPaths ?? []).includes(pt);
+                    return (
+                      <span
+                        key={i}
+                        className={`recon-chip path mono${isDyn ? ' dynamic' : ''}`}
+                        title={
+                          isDyn
+                            ? 'Dynamic/expensive — pressures the origin'
+                            : 'Likely static/cached — light origin cost'
+                        }
+                      >
+                        {isDyn ? '⚡ ' : ''}
+                        {pt}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ) : (

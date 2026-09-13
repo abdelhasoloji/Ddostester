@@ -9,6 +9,7 @@ import {
   parseSitemapUrls,
   extractPaths,
   pickLoginPath,
+  pathCost,
   buildSurface,
   computeBaseline,
   preflight,
@@ -91,6 +92,30 @@ describe('published-surface map (B)', () => {
     expect(surface.paths).toContain('/a');
     expect(surface.paths).not.toContain('/secret/x'); // disallowed
     expect(surface.loginPath).toBe('/login');
+  });
+
+  it('scores dynamic/expensive paths above static assets (pathCost, P1)', () => {
+    expect(pathCost('/api/search?q=1')).toBeGreaterThan(pathCost('/assets/app.js'));
+    expect(pathCost('/login')).toBeGreaterThan(pathCost('/style.css'));
+    expect(pathCost('/static/logo.png')).toBeLessThan(0);
+    expect(pathCost('/wp-login.php')).toBeGreaterThan(0);
+  });
+
+  it('ranks dynamic paths ahead of static assets in the surface (P1)', () => {
+    const surface = buildSurface({
+      homepageHtml:
+        '<a href="/assets/app.js">j</a><a href="/style.css">c</a>' +
+        '<a href="/api/search?q=1">s</a><a href="/login">l</a><a href="/about">a</a>',
+      host: 'bank.cz',
+    });
+    expect(surface.paths[0]).toBe('/'); // root anchor stays first
+    const iApi = surface.paths.indexOf('/api/search?q=1');
+    const iJs = surface.paths.indexOf('/assets/app.js');
+    expect(iApi).toBeGreaterThan(0);
+    expect(iApi).toBeLessThan(iJs); // dynamic ranked before static
+    expect(surface.dynamicPaths).toContain('/api/search?q=1');
+    expect(surface.dynamicPaths).toContain('/login');
+    expect(surface.dynamicPaths).not.toContain('/assets/app.js');
   });
 });
 

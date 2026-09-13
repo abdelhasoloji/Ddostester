@@ -3906,6 +3906,12 @@ table.remediations td {
   color: var(--brand);
   border-color: color-mix(in srgb, var(--brand) 35%, transparent);
 }
+.recon-chip.path.dynamic {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  font-weight: 640;
+}
 .recon-sub {
   margin-top: 0.7rem;
   display: flex;

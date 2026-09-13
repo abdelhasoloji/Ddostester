@@ -109,8 +109,12 @@ export function profileToProtectionProfile(profile: TargetProfile): ProtectionPr
 // ── Published-surface map (B) ─────────────────────────────────────────────────
 
 export interface Surface {
-  /** De-duplicated, capped set of real same-host paths worth exercising. */
+  /** De-duplicated, capped set of real same-host paths worth exercising,
+   *  ranked so the paths most likely to cost the origin come first (P1). */
   paths: string[];
+  /** The subset of `paths` that look dynamic/expensive (positive cost) — the
+   *  ones worth flooding to actually pressure the origin, not its cache. */
+  dynamicPaths: string[];
   /** Best-guess login/account path, if one surfaced. */
   loginPath?: string;
   /** Sitemap URLs advertised by robots.txt. */
@@ -190,6 +194,32 @@ export function pickLoginPath(paths: string[]): string | undefined {
   return paths.find((p) => LOGIN_RE.test(p));
 }
 
+// Static-asset extensions: these are cheap for the origin (usually cached/served
+// straight off disk or a CDN) so they make poor stress targets.
+const STATIC_EXT_RE = /\.(?:js|mjs|css|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|map|pdf)(?:$|\?)/i;
+const STATIC_PREFIX_RE = /^\/(?:static|assets|_next\/static|wp-content|wp-includes|cdn|dist)\//i;
+// Dynamic / server-work indicators: these hit application logic (DB, auth,
+// rendering) and are what actually pressures an origin.
+const DYNAMIC_HINT_RE =
+  /(?:\/api\/|\/graphql|\/search|\/login|\/signin|\/auth|\/account|\/cart|\/checkout|\/register|\/reset|\/wp-json|\/wp-admin|\/wp-login|\.php|\.aspx?|\.jsp|\.cgi|\/rest\/|\/v\d+\/)/i;
+
+/**
+ * Heuristic "cost to the origin" score for a discovered path — higher = more
+ * likely to make the origin do real work (DB/auth/render), so a better stress
+ * target than a cached static asset. Pure. Used to rank the recon surface so the
+ * expensive paths survive the cap and seed the load steps (P1).
+ */
+export function pathCost(path: string): number {
+  let score = 0;
+  if (STATIC_EXT_RE.test(path) || STATIC_PREFIX_RE.test(path)) score -= 10;
+  if (path.includes('?')) score += 3; // a query string = parameterised = dynamic
+  if (DYNAMIC_HINT_RE.test(path)) score += 5;
+  if (LOGIN_RE.test(path)) score += 2; // auth is expensive (hashing, sessions)
+  // A deeper path is usually more specific/dynamic than a top-level landing page.
+  score += Math.min(2, (path.replace(/\/+$/, '').match(/\//g)?.length ?? 1) - 1);
+  return score;
+}
+
 /** Does a path fall under any robots Disallow prefix? */
 function isDisallowed(path: string, disallow: string[]): boolean {
   return disallow.some((d) => d !== '/' && path.startsWith(d));
@@ -209,18 +239,24 @@ export function buildSurface(
     : [];
   const fromHtml = input.homepageHtml ? extractPaths(input.homepageHtml, input.host) : [];
 
-  // Always include the root; respect robots Disallow; de-dupe; cap.
-  const merged = ['/', ...fromSitemap, ...fromHtml];
-  const seen = new Set<string>();
-  const paths: string[] = [];
-  for (const p of merged) {
+  // De-dupe the discovered paths (excluding root + robots-Disallow), then RANK
+  // them by likely cost to the origin (P1) so the expensive/dynamic paths survive
+  // the cap and seed the load — a flood of cached static assets barely touches
+  // the origin. Root is always kept first as the baseline anchor. The sort is
+  // stable, so equal-cost paths keep their discovery order.
+  const seen = new Set<string>(['/']);
+  const discovered: string[] = [];
+  for (const p of [...fromSitemap, ...fromHtml]) {
     if (seen.has(p) || isDisallowed(p, robots.disallow)) continue;
     seen.add(p);
-    paths.push(p);
-    if (paths.length >= cap) break;
+    discovered.push(p);
   }
+  discovered.sort((a, b) => pathCost(b) - pathCost(a));
+  const paths = ['/', ...discovered].slice(0, cap);
+  const dynamicPaths = paths.filter((p) => p !== '/' && pathCost(p) > 0);
   return {
     paths,
+    dynamicPaths,
     loginPath: pickLoginPath(paths),
     sitemaps: robots.sitemaps,
     disallow: robots.disallow,
@@ -357,8 +393,10 @@ export interface ReconReport {
   preflight: Preflight;
   /** Gap-analyzer control profile seeded from the observed posture. */
   seededProfile: ProtectionProfile;
-  /** Real paths to feed the playbook steps. */
+  /** Real paths to feed the playbook steps, ranked by likely cost to the origin. */
   suggestedPaths: string[];
+  /** The dynamic/expensive subset of suggestedPaths — the best stress targets. */
+  dynamicPaths: string[];
   loginPath?: string;
 }
 
@@ -401,6 +439,7 @@ export function assembleReconReport(input: AssembleInput): ReconReport {
     preflight: pf,
     seededProfile: profileToProtectionProfile(profile),
     suggestedPaths: surface.paths,
+    dynamicPaths: surface.dynamicPaths,
     loginPath: surface.loginPath,
   };
 }
