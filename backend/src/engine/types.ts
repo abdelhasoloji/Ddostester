@@ -159,6 +159,15 @@ export interface LoadTestConfig {
    */
   noKeepAlive?: boolean;
   /**
+   * Parallel generation (P4, mono-box): split the load across N concurrent
+   * generator processes on the same host, each at rate/N, then aggregate — to
+   * push past a single process's throughput ceiling (a lone vegeta caps well
+   * below the box's capacity). Honoured by the vegeta engine. 1 = single process.
+   * Not a new vector: the TOTAL rate is unchanged and still HARD_CAPS-bounded;
+   * only the generation is spread over more workers.
+   */
+  parallelism?: number;
+  /**
    * Bounded slow-header ("SlowLoris") mode (built-in engine only). Instead of
    * completing requests, opens up to `concurrency` connections and trickles
    * partial headers to hold them open for `durationSec`, to test whether the

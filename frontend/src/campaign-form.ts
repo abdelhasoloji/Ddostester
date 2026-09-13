@@ -36,6 +36,7 @@ export const emptyForm = {
   dataset: '',
   cacheBust: false,
   noKeepAlive: false,
+  parallelism: 1,
 };
 
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */

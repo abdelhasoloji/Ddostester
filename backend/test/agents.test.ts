@@ -91,6 +91,15 @@ describe('vegeta', () => {
     const t = buildVegetaTarget(cfg);
     expect(t).not.toContain('_cb=');
   });
+  it('splitRate spreads a phase rate across workers so they sum exactly (P4)', async () => {
+    const { splitRate } = await import('../src/agents/vegeta.js');
+    expect(splitRate(800, 1)).toEqual([800]);
+    expect(splitRate(800, 3)).toEqual([267, 267, 266]);
+    expect(splitRate(800, 3).reduce((a, b) => a + b, 0)).toBe(800);
+    expect(splitRate(5, 8)).toEqual([1, 1, 1, 1, 1]); // zero-rate workers dropped
+    expect(splitRate(1000, 20).length).toBe(8); // capped at MAX_VEGETA_PARALLELISM
+  });
+
   it('passes -keepalive=false when keep-alive is disabled, true otherwise', async () => {
     const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
     const off = vegetaAttackArgs({ ...cfg, noKeepAlive: true }, 100, 30, '/t/f.txt');

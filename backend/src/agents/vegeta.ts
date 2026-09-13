@@ -26,6 +26,23 @@ import { emptyResult, type ResultMeta } from './results.js';
  *  cache keyed on the full URL is defeated for the whole run before any repeat. */
 const VEGETA_CACHE_BUST_POOL = 400;
 
+/** Max concurrent vegeta processes for parallel generation (P4). Bounded so a
+ *  campaign can't fork an unreasonable number of load processes on the host. */
+export const MAX_VEGETA_PARALLELISM = 8;
+
+/**
+ * Split a phase rate across N workers so the per-worker rates sum EXACTLY to the
+ * phase rate (the remainder is spread one-per-worker), and zero-rate workers are
+ * dropped. Pure. Used for parallel generation. E.g. splitRate(800, 3) → [267,
+ * 267, 266].
+ */
+export function splitRate(rate: number, workers: number): number[] {
+  const n = Math.max(1, Math.min(workers, MAX_VEGETA_PARALLELISM));
+  const base = Math.floor(rate / n);
+  const rem = rate - base * n;
+  return Array.from({ length: n }, (_v, k) => base + (k < rem ? 1 : 0)).filter((r) => r > 0);
+}
+
 function cacheBustUrl(url: string, n: number): string {
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}_cb=${n.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -363,29 +380,40 @@ export class VegetaAgent implements AttackAgent {
           ? config.phases
           : [{ maxRps: config.maxRps, durationSec: config.durationSec }];
 
+        // Parallel generation (P4, mono-box): spread each phase over N concurrent
+        // vegeta processes, each at rate/N, all feeding the one live meter, then
+        // aggregate. The TOTAL offered rate is unchanged — only split — so it
+        // breaks a single process's ceiling without exceeding the caps.
+        const workers = config.parallelism ?? 1;
+
         const parts: LoadTestResult[] = [];
         for (let i = 0; i < phases.length; i++) {
           if (killSignal?.aborted) break;
           const ph = phases[i];
-          const resultsBin = join(dir, `r${i}.bin`);
-          await streamVegetaPhase(
-            this.bin,
-            vegetaAttackArgs(config, ph.maxRps, ph.durationSec, targetsFile),
-            resultsBin,
-            killSignal,
-            meter,
-          );
-          const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], {
-            killSignal,
-          });
-          parts.push(
-            parseVegetaReport(JSON.parse(rep.stdout || '{}'), {
-              id: `p${i}`,
-              config,
-              startedAt,
-              finishedAt: new Date().toISOString(),
+          const rates = splitRate(ph.maxRps, workers);
+          const finishedAt = () => new Date().toISOString();
+          const phaseParts = await Promise.all(
+            rates.map(async (rate, k) => {
+              const resultsBin = join(dir, `r${i}_${k}.bin`);
+              await streamVegetaPhase(
+                this.bin,
+                vegetaAttackArgs(config, rate, ph.durationSec, targetsFile),
+                resultsBin,
+                killSignal,
+                meter,
+              );
+              const rep = await runProcess(this.bin, ['report', '-type', 'json', resultsBin], {
+                killSignal,
+              });
+              return parseVegetaReport(JSON.parse(rep.stdout || '{}'), {
+                id: `p${i}_${k}`,
+                config,
+                startedAt,
+                finishedAt: finishedAt(),
+              });
             }),
           );
+          parts.push(...phaseParts);
         }
         const meta: ResultMeta = {
           id: randomUUID(),

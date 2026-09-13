@@ -110,6 +110,12 @@ export interface CampaignInput {
    */
   noKeepAlive?: boolean;
   /**
+   * Parallel generation (P4, mono-box): spread the load over N concurrent
+   * generator processes on the host, each at rate/N, to break a single process's
+   * ceiling. Vegeta engine. Total rate unchanged and still HARD_CAPS-bounded.
+   */
+  parallelism?: number;
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

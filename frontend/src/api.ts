@@ -47,6 +47,8 @@ export interface Campaign {
   cacheBust?: boolean;
   /** No keep-alive: a fresh connection per request (connection-accept pressure). */
   noKeepAlive?: boolean;
+  /** Parallel generation (mono-box): N concurrent vegeta workers, each at rate/N. */
+  parallelism?: number;
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;

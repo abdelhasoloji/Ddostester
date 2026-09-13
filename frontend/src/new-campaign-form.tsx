@@ -145,6 +145,7 @@ export function NewCampaignForm({
         maxDurationSec: Number(form.maxDurationSec),
         cacheBust: form.cacheBust || undefined,
         noKeepAlive: form.noKeepAlive || undefined,
+        parallelism: Number(form.parallelism) > 1 ? Number(form.parallelism) : undefined,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
@@ -394,6 +395,23 @@ export function NewCampaignForm({
           No keep-alive — open a fresh connection for every request instead of reusing one.
           Pressures the origin’s connection-accept path (handshake / accept queue) that a keep-alive
           flood never touches. Works on built-in, k6 and vegeta.
+        </label>
+        <label className="cachebust-toggle" style={{ gridColumn: '1 / -1' }}>
+          Parallel generation (vegeta):{' '}
+          <input
+            type="number"
+            min={1}
+            max={8}
+            style={{ width: '4rem' }}
+            value={form.parallelism}
+            onChange={(e) => {
+              setForm({ ...form, parallelism: Math.max(1, Math.min(8, Number(e.target.value))) });
+              setAppliedPreset(null);
+            }}
+          />{' '}
+          concurrent workers, each at <code>rate ÷ N</code> — spreads the load over more processes
+          on the host to push past a single vegeta’s throughput ceiling. Total rate unchanged. 1 =
+          single process.
         </label>
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>

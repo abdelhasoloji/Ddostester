@@ -217,6 +217,7 @@ export async function executeCampaign(
     assertion: campaign.assertion,
     cacheBust: campaign.cacheBust,
     noKeepAlive: campaign.noKeepAlive,
+    parallelism: campaign.parallelism,
     slowloris: campaign.vector === 'http-slowloris',
     authorized: campaign.authorized,
   };
