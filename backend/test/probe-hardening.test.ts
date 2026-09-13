@@ -78,6 +78,34 @@ describe('Probe — consecutive auto-kill (level 1a, back-compat)', () => {
     await probe.run(Date.now() + 3000);
     expect(kill.reason).toBe('KILLED_AUTO');
   });
+
+  it('does NOT kill when the generator is provably serving the target (PF1)', async () => {
+    // Same "target unavailable to the probe" as above, but the generator is
+    // landing successful responses on it — so the probe is contended, not the
+    // target down. The kill must be suppressed.
+    behavior = () => ({ status: 503 });
+    const kill = new KillSwitch();
+    const probe = new Probe(url, kill, 20, 300, { autoKillUnavailableMs: 150 });
+    probe.watchGenerator(() => true); // generator is getting 2xx right now
+    await probe.run(Date.now() + 1500);
+    expect(kill.reason).toBeNull();
+  });
+
+  it('resumes killing once the generator stops succeeding (target really down)', async () => {
+    behavior = () => ({ status: 503 });
+    const kill = new KillSwitch();
+    const probe = new Probe(url, kill, 20, 300, {
+      autoKillUnavailableMs: 150,
+      windowKillAvailPct: 0,
+    });
+    let genOk = true;
+    probe.watchGenerator(() => genOk);
+    setTimeout(() => {
+      genOk = false;
+    }, 300); // generator stalls → real outage → kill allowed
+    await probe.run(Date.now() + 3000);
+    expect(kill.reason).toBe('KILLED_AUTO');
+  });
 });
 
 describe('Probe — latency-explosion auto-kill (level 1c, opt-in)', () => {

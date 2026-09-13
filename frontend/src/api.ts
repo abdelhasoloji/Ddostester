@@ -160,6 +160,10 @@ export interface CampaignRun {
   /** The engine that ACTUALLY ran (may differ from the configured agent when a
       high-rate step was auto-routed off the built-in engine). */
   engine?: string;
+  /** The probe lost the connection race to the flood (read the target as down
+      while the generator was serving it) — availability was taken from the
+      generator's success ratio, not the probe's, and no false auto-kill fired. */
+  probeContended?: boolean;
   generator: {
     totalRequests: number;
     successful: number;

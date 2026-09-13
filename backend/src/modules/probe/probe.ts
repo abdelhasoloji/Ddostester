@@ -94,6 +94,21 @@ export class Probe {
    */
   readonly dispatcher = new Agent({ connections: 4 });
 
+  /**
+   * Optional corroboration hook: returns true when the LOAD GENERATOR is
+   * currently getting successful responses from the SAME target. When it is, a
+   * probe reading of "unavailable" is not a target outage — it is the probe's
+   * handful of connections losing the race to the flood at the target (observed
+   * live: a target serving 6000+ 2xx while the 4-connection probe read 0/4, which
+   * auto-killed the run and scored it WRS 41 D). In that state we must NOT
+   * auto-kill on availability — the target is provably up. Set by the runner.
+   */
+  private generatorSucceeding?: () => boolean;
+  /** Wire the live generator-health signal (see `generatorSucceeding`). */
+  watchGenerator(fn: () => boolean): void {
+    this.generatorSucceeding = fn;
+  }
+
   constructor(
     private readonly url: string,
     private readonly kill: KillSwitch,
@@ -214,8 +229,16 @@ export class Probe {
   }
 
   private evaluateAutoKill(sample: ProbeSample): void {
+    // Corroboration (PF1): if the load generator is concurrently getting
+    // successful responses from the same target, the target is provably UP — a
+    // probe "unavailable" here is the probe losing the connection race to the
+    // flood, not an outage. In that state NO auto-kill fires (it would stop a run
+    // the target is coping with and score it as a failure) and the
+    // consecutive-unavailable timer is not allowed to accrue. Samples are still
+    // recorded for reporting; only the KILL is suppressed.
+    const genOk = this.generatorSucceeding?.() ?? false;
     // Level 1a — consecutive unavailability.
-    if (sample.ok) {
+    if (sample.ok || genOk) {
       this.unavailableSince = null;
     } else {
       this.unavailableSince ??= sample.at;
@@ -224,6 +247,7 @@ export class Probe {
         return;
       }
     }
+    if (genOk) return; // target provably serving — never kill on availability/latency
     // Levels 1b / 1c — windowed availability, and opt-in windowed latency. Only
     // once a full window of history exists and it holds enough samples.
     const w = this.windowStats(sample.at);

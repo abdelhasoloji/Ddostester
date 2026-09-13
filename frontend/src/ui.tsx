@@ -950,6 +950,13 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           {run.confidence.reasons.join(' ')}
         </p>
       )}
+      {run.probeContended && (
+        <p className="hint" style={{ marginTop: '.5rem' }}>
+          ℹ <b>Probe contended by the flood.</b> The legit probe lost the connection race to the
+          load, so availability here is taken from the generator’s own success rate (the target was
+          serving) — not the probe’s. No false auto-kill fired.
+        </p>
+      )}
       <div className="wrs-breakdown">
         <span>
           Detection{run.wrs.estimated ? ' (est.)' : ''} <b>{run.wrs.detection}</b>
