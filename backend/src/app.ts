@@ -847,7 +847,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     /** Paused by the sequencer itself because the target looked genuinely down
      *  (as opposed to a manual pause). Cleared on resume. */
     autoPaused?: boolean;
+    /** Epoch ms when the recovery gate started waiting for the target to come
+     *  back — set while the gate is blocking, cleared as soon as it settles. The
+     *  UI turns this into a live countdown. Undefined = no gate in flight. */
+    gateStartedAt?: number;
+    /** The gate's max wait (ms) before it gives up and skips — so the UI can show
+     *  "waited Xs / max Ys" and count down to the skip. */
+    gateMaxWaitMs?: number;
   }
+  const RECOVERY_MAX_WAIT_MS = 90_000;
   // Auto-pause the whole sequence after this many consecutive gate-skips for an
   // unreachable target — the origin looks genuinely DOWN, so stop grinding
   // through skips (and never risk relaunching load onto a downed host) and wait
@@ -912,10 +920,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         // if the target never recovers we skip the step rather than hammer a down
         // target. The wait time is recorded (a real recovery-time signal).
         if (opts.suiteRecovery !== false && ctrl.started > 0 && !ctrl.cancelled) {
-          const gate = await waitForTargetAvailable(c.probeUrl || c.target, {
-            isCancelled: () => ctrl.cancelled,
-            ...(typeof opts.suiteRecovery === 'object' ? opts.suiteRecovery : {}),
-          });
+          const recoveryOpts =
+            typeof opts.suiteRecovery === 'object' ? opts.suiteRecovery : undefined;
+          // Publish the gate's start + budget so the UI can show a live countdown.
+          ctrl.gateStartedAt = Date.now();
+          ctrl.gateMaxWaitMs = recoveryOpts?.maxWaitMs ?? RECOVERY_MAX_WAIT_MS;
+          let gate;
+          try {
+            gate = await waitForTargetAvailable(c.probeUrl || c.target, {
+              isCancelled: () => ctrl.cancelled,
+              ...(recoveryOpts ?? {}),
+            });
+          } finally {
+            ctrl.gateStartedAt = undefined; // gate settled — stop the countdown
+          }
           const secs = Math.round(gate.waitedMs / 1000);
           if (!gate.available) {
             ctrl.downSkips += 1;
@@ -2153,6 +2171,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         total: number;
         autoPaused?: boolean;
         downSkips: number;
+        gateStartedAt?: number;
+        gateMaxWaitMs?: number;
       }
     > = {};
     for (const [sid, ctrl] of suiteRuns) {
@@ -2163,6 +2183,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         total: ctrl.total,
         autoPaused: ctrl.autoPaused,
         downSkips: ctrl.downSkips,
+        gateStartedAt: ctrl.gateStartedAt,
+        gateMaxWaitMs: ctrl.gateMaxWaitMs,
       };
     }
     return { sequences };

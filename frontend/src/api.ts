@@ -1066,6 +1066,11 @@ export interface SuiteSequenceState {
   autoPaused?: boolean;
   /** Consecutive recovery-gate skips for an unreachable target. */
   downSkips?: number;
+  /** Epoch ms when the recovery gate started waiting (present only while it is
+   *  blocking); the UI counts up from here. */
+  gateStartedAt?: number;
+  /** The gate's max wait (ms) before it gives up and skips — for the countdown. */
+  gateMaxWaitMs?: number;
 }
 
 export interface SuiteSummary {
