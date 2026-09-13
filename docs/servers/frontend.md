@@ -40,4 +40,4 @@ l'UI reflète toujours l'application côté serveur.
 
 En Compose, un service `proxy` (Caddy) peut fronter l'ensemble en TLS/mTLS
 (`docker-compose.yml:95-100`, `deploy/proxy/Caddyfile`). Détails :
-`docs/deployment.md`, `docs/public-deployment.md`.
+`docs/operations.md`, `docs/operations.md`.

@@ -32,7 +32,7 @@ target to point at.
 
 The one-click playbook is **`pretest-cra-l7`** (12 bounded L7 steps, DRS 3→5).
 To iterate on the protection after a run, see the tune-and-replay loop
-(`docs/tune-and-replay.md`): replay this playbook after each WEDOS rule change
+(`docs/measurement.md`): replay this playbook after each WEDOS rule change
 and read the per-line WRS/verdict delta.
 
 ## What the teams need to provide

@@ -32,7 +32,7 @@ bounded, allowlisted HTTP and contains no amplification/spoofing/UDP code.
   production or public network, or removing its isolation, caps or no-spoofing
   properties.
 
-See [docs/network-lab.md](./docs/network-lab.md).
+See [docs/boundary-and-lab.md](./docs/boundary-and-lab.md).
 
 ## Reporting
 

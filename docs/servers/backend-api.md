@@ -71,7 +71,7 @@ Politique appliquée une fois au démarrage, avant toute connexion sortante
 - **Logs** : l'`Authorization` est masquée et `?token=` est expurgé de l'URL logée
   (`app.ts:167-178`).
 - **RBAC** : `guard(perm)` renvoie 401 sans identité, 403 sans la permission
-  (`app.ts:227-235`). Détails des rôles : `docs/auth.md`.
+  (`app.ts:227-235`). Détails des rôles : `docs/security-and-governance.md`.
 
 ## Plafonds durs (`HARD_CAPS`)
 

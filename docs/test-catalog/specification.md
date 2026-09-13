@@ -2,7 +2,7 @@
 
 Every expected result in the catalog is argued against a numbered rule here. Rules
 are drawn from the code and the project's stated safeguards (`SECURITY.md`,
-`docs/safeguards.md`, `docs/auth.md`, `backend/src/auth/rbac.ts`,
+`docs/security-and-governance.md`, `docs/security-and-governance.md`, `backend/src/auth/rbac.ts`,
 `backend/src/modules/campaigns/model.ts`). Where the observed behaviour diverges
 from a rule — or from the _principle_ a rule rests on — the case is tagged a
 **FINDING** in the results, not silently accepted.
@@ -72,7 +72,7 @@ maxDurationSec: 900 }`. Each cap is a whole number: a value that is
   runtime users. `POST` is **create-only**: re-creating an existing user is a
   `409` (no silent overwrite); role changes go through `PATCH`.
 - **SPEC-USER-2** — Env-defined (`AUTH_USERS`) users are the immutable root and
-  cannot be deleted via the API (`docs/auth.md`).
+  cannot be deleted via the API (`docs/security-and-governance.md`).
 - **SPEC-USER-3** — Passwords are validated (min length) and stored scrypt-hashed,
   never in clear.
 

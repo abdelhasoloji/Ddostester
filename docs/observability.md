@@ -1,129 +1,126 @@
-# Observability — the structured model
+# Observability & notifications
 
-Observability is a **first-class pillar** of ShieldTest, not an afterthought:
-the product _is_ measurement, so the trustworthiness and history of that
-measurement matter as much as the numbers themselves. This page defines the
-**logical structure** — what we observe, where it lives, and how the app, the
-dashboards and the alerts stay one coherent system.
+Observability is a first-class pillar: the product _is_ measurement, so the
+trustworthiness of that measurement matters as much as the numbers. The control
+plane exposes Prometheus metrics on **`GET /metrics`** and emits structured
+run-lifecycle logs (both hand-rolled, no `prom-client`, in
+`backend/src/modules/metrics/{prometheus,runtime}.ts`); a Prometheus/Grafana/Loki
+stack runs on VPS 2. Deploy topology is in [operations.md](./operations.md).
 
-See also [monitoring.md](./monitoring.md) for the raw `/metrics` surface and the
-host provisioning scripts.
+---
 
-## Where things run
+## 1. The three planes
 
-| Component                     | Host  | Bind             | Source of truth                                                         |
-| ----------------------------- | ----- | ---------------- | ----------------------------------------------------------------------- |
-| Control plane `/metrics`      | VPS 1 | loopback `:8080` | `modules/metrics/{prometheus,runtime}.ts`                               |
-| Prometheus (scrape + rules)   | VPS 2 | loopback `:9090` | `deploy/monitoring/prometheus/` + `deploy/provision/host-monitoring.sh` |
-| Grafana (dashboards + alerts) | VPS 2 | loopback `:3000` | `deploy/monitoring/grafana/` (provisioned)                              |
-| Loki + Promtail (logs)        | VPS 2 | loopback `:3100` | `deploy/provision/host-loki.sh`                                         |
-| Alertmanager                  | VPS 2 | loopback `:9093` | `deploy/provision/host-alerting.sh`                                     |
+Organised by **who is asking what**; each plane is one Grafana dashboard (folder
+`ShieldTest`) deep-linked from the matching app surface.
 
-Prometheus reaches the control plane through the **existing VPS 2 → VPS 1 SSH
-tunnel** (`127.0.0.1:8080`). Everything binds loopback (fail-closed); reach
-Grafana from a workstation with a tunnel, or expose it behind the mTLS edge (see
-[Exposure](#exposure)).
+| Plane                                           | Question                                     | Dashboard                                                                                                                           | Anchored in                  |
+| ----------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **1 · Run & Absorption** (tactical/live)        | "What's happening **now** on this run?"      | `shieldtest-run` — offered / reached-origin RPS, absorbed %, legit-probe uptime, updated every tick; live gauges retired at run end | **Run Theater**              |
+| **2 · Resilience** (product signal/historical)  | "Are we getting **more resilient**?"         | `shieldtest-resilience` — WRS over time by target/vector, absorption trend, leak-through, targets below threshold                   | **Results**                  |
+| **3 · Platform Health** (instrument health/SRE) | "Is the **measurement itself** trustworthy?" | `shieldtest-platform` — API rate/error/latency by route, event-loop lag, memory, uptime                                             | **Settings → Observability** |
 
-## The three planes
+A degraded control plane invalidates measurements, so Plane 3 guards the other
+two. Prometheus reaches the control plane through the existing VPS 2 → VPS 1 SSH
+tunnel; everything binds loopback (fail-closed).
 
-Observability is organised by **who is asking what**. Each plane is one Grafana
-dashboard (folder `ShieldTest`), and each is deep-linked from the matching place
-in the app (Settings → Observability, or the ↗ buttons).
+## 2. `/metrics` — the surface
 
-### Plane 1 · Run & Absorption — _tactical / live_
+**Business** (`prometheus.ts`): `shieldtest_campaigns{status}`,
+`shieldtest_runs_total`, `shieldtest_wrs_last{target}`.
 
-> "What is happening **right now** on this run?"
+**Runtime / operational** (`runtime.ts`) — the signals that make an incident
+diagnosable:
 
-`shieldtest-run` — offered / reached-origin RPS, absorbed % and legit-probe
-availability **updated every tick** from the in-flight run (the
-`shieldtest_run_live_*` gauges, mirroring the app's Run Theater), plus the
-settle-time absorption decomposition (absorbed / rejected / tarpit /
-offered-shortfall) and WRS. The live gauges are retired when the run ends, so a
-finished run leaves no stale line. Grafana samples them at the Prometheus scrape
-interval, so it is real-time at that resolution — the app's SSE Run Theater
-stays the per-second view. Anchored in **Run Theater**.
+| Metric                                                                  | Type    | Tells you                                                          |
+| ----------------------------------------------------------------------- | ------- | ------------------------------------------------------------------ |
+| `shieldtest_http_requests_total{method,route,status}`                   | counter | API throughput & error rates                                       |
+| `shieldtest_http_request_duration_ms{method,route}`                     | summary | API latency                                                        |
+| `shieldtest_runs_in_flight`                                             | gauge   | runs currently executing                                           |
+| `shieldtest_runs_completed_total{status,engine}`                        | counter | runs by terminal status                                            |
+| `shieldtest_run_{configured,achieved,origin}_rps_last{target,vector}`   | gauge   | asked-for / offered / reached-origin RPS                           |
+| `shieldtest_run_absorbed_ratio_last{target,vector}`                     | gauge   | fraction the edge absorbed (the test↔protection loop)              |
+| `shieldtest_run_{rejected,tarpit,offered_shortfall}_ratio_last`         | gauge   | edge rejected (fast no) / tarpitted (slow no) / backpressure       |
+| `shieldtest_loadtest_hard_stopped_total{target,engine}`                 | counter | runs force-settled by the hard backstop (tarpit / pool exhaustion) |
+| `shieldtest_eventloop_lag_ms` / `_p99_ms`                               | gauge   | event-loop delay (measurement confidence)                          |
+| `shieldtest_process_heap_used_bytes` / `_rss_bytes` / `_uptime_seconds` | gauge   | process health                                                     |
 
-### Plane 2 · Resilience — _product signal / historical_
+`/metrics` is open but loopback-only like `/health` (no auth — non-sensitive
+aggregates; protect via the proxy if exposed).
 
-> "Are we getting **more resilient**?"
+## 3. Structured logs
 
-`shieldtest-resilience` — WRS over time by target/vector, absorption trend,
-leak-through (reached-origin vs offered), targets below the alert threshold, and
-a latest-snapshot table. Anchored in **Results**.
+Each run emits pino JSON: `run.start` (`campaignId, campaign, target, engine,
+maxRps, maxDurationSec, phases`) and `run.settled` (`campaignId, runId, target,
+status, statusDetail, wrs, grade, durationSec, requests, successful, failed,
+actualRps, configuredRps`). A stuck run is obvious (start with no settled).
+`journalctl -u ddostester | grep run.settled` = a per-run trail. **Loki +
+Promtail** (VPS 2, `deploy/provision/host-loki.sh`) put logs next to metrics; drill
+a WRS drop straight to the run's log lines via the `runId` field.
 
-### Plane 3 · Platform Health — _instrument health / SRE_
+## 4. Alerts — one threshold set, two surfaces
 
-> "Is the **measurement itself** trustworthy?"
+The in-app **notification bell** (`backend/src/modules/alerts/derive.ts`) and the
+Prometheus/Alertmanager rules
+(`deploy/monitoring/prometheus/shieldtest.rules.yml`) mirror each other:
 
-`shieldtest-platform` — API request rate / error rate / latency by route,
-event-loop lag (measurement confidence), process memory, uptime, throughput. A
-degraded control plane invalidates measurements, so this plane guards the other
-two. Anchored in **Settings → Observability**.
+| Signal                      | Threshold                                             | In app                                     | Prometheus              |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------ | ----------------------- |
+| Low WRS                     | `< 70`                                                | `LOW_WRS_THRESHOLD`                        | `LowWRS`                |
+| Tarpitting                  | tarpit ratio `> 0.5`                                  | `tarpit`                                   | `TarpitDominant`        |
+| Degraded measurement        | event-loop p99 `> 200 ms`                             | `degraded`                                 | `MeasurementDegraded`   |
+| Target tarpitting runs      | `increase(loadtest_hard_stopped_total[15m]) > 0`      | —                                          | `TargetTarpittingRuns`  |
+| Protection not engaging     | absorbed `< 0.05`                                     | —                                          | `ProtectionNotEngaging` |
+| Control plane down          | `up == 0` for 2m                                      | —                                          | `ControlPlaneDown`      |
+| WRS / protection regression | ≥ 12 pts below baseline / absorbed < 50 % of baseline | `wrs-regression` / `protection-regression` | _app-only¹_             |
 
-## Alerts — one set of thresholds, two surfaces
+¹ The regression signals need a stateful per-target baseline, so they stay
+app-derived; everything expressible as a stateless threshold is mirrored in
+Prometheus. Alertmanager (`deploy/provision/host-alerting.sh`) can forward to
+Rocket.Chat.
 
-The in-app **notification bell** (`modules/alerts/derive.ts`) and the
-Prometheus/Alertmanager rules (`deploy/monitoring/prometheus/shieldtest.rules.yml`)
-deliberately mirror each other, so an operator sees the same story in the app and
-in Grafana:
+## 5. App-native charts
 
-| Signal                | Threshold                            | In app (`derive.ts`)    | Prometheus rule       |
-| --------------------- | ------------------------------------ | ----------------------- | --------------------- |
-| Low WRS               | `< 70`                               | `LOW_WRS_THRESHOLD`     | `LowWRS`              |
-| Tarpitting            | tarpit ratio `> 0.5`                 | `tarpit`                | `TarpitDominant`      |
-| Degraded measurement  | event-loop p99 `> 200 ms`            | `degraded`              | `MeasurementDegraded` |
-| WRS regression        | `≥ 12` pts below baseline (≥ 4 runs) | `wrs-regression`        | _app-only¹_           |
-| Protection regression | absorbed `< 50%` of baseline         | `protection-regression` | _app-only¹_           |
+Beyond deep-linking Grafana, the app renders **its own** charts from the same
+Prometheus via a bounded, read-only proxy
+`GET /api/metrics/range?series=<key>&target=<host>&minutes=&step=` — a **named
+series** from a reviewed catalogue (`series-catalog.ts`), never raw PromQL (no
+injection/SSRF). Rendered with **uPlot**. Fail-soft: without `PROMETHEUS_URL` (or
+Prometheus unreachable) the endpoint returns `source: "unavailable"` and the UI
+hides the chart. First use: the **Live RPS** chart in Run Theater.
 
-¹ The regression signals need a **per-target baseline** (a rolling mean of prior
-runs), which is stateful; they stay app-derived rather than being forced into a
-stateless PromQL threshold. Everything directly expressible as a threshold is
-mirrored in Prometheus.
-
-## Logs ↔ metrics
-
-Loki holds the structured `run.start` / `run.settled` pino logs (shipped by
-Promtail). With the Loki datasource wired into Grafana, a WRS drop on Plane 2 can
-be drilled straight through to the exact run's log lines. Promtail on VPS 2
-scrapes this host; shipping VPS 1's journal into the same Loki is a documented
-follow-up in `host-loki.sh`.
-
-## App-native charts (option B)
-
-Beyond deep-linking into Grafana, the app can render **its own** charts from the
-**same** Prometheus, so a graph in the app reads like a Grafana panel without
-embedding Grafana. The backend exposes a bounded, read-only proxy
-`GET /api/metrics/range?series=<key>&target=<host>&minutes=&step=` — the client
-asks for a **named series** from a reviewed catalogue (`series-catalog.ts`),
-never raw PromQL, so there is no query injection or SSRF surface. The frontend
-renders it with **uPlot** (the engine Grafana itself uses). It is fail-soft:
-without `PROMETHEUS_URL` (or when Prometheus is unreachable) the endpoint returns
-`source: "unavailable"` and the UI hides the native chart. Prometheus is loopback
-on VPS 2, so `PROMETHEUS_URL` points at a VPS 1 → VPS 2 tunnel in production.
-First use: the **Live RPS** chart in Run Theater.
-
-## Exposure
-
-Grafana binds loopback. Two ways to reach it:
-
-1. **Per-operator tunnel** (quick):
-   `ssh -L 3000:127.0.0.1:3000 root@31.31.74.187` → `http://localhost:3000`,
-   then set that URL in **Settings → Observability**.
-2. **mTLS edge route** (shared): a Caddy `/grafana` handler on VPS 1 reverse-
-   proxies to Grafana over a VPS 1 → VPS 2 tunnel, with Grafana's
-   `root_url` + `serve_from_sub_path` set — reachable like the console, behind
-   the same client certificate. This is the target state.
-
-## Provisioning (one command per host)
+## 6. Provisioning (one command per host, all loopback)
 
 ```bash
-# VPS 2 — Prometheus + Grafana + the 3 dashboards + datasources + alert rules
-bash deploy/provision/host-monitoring.sh
-# VPS 2 — Alertmanager (routes the Prometheus rules)
-bash deploy/provision/host-alerting.sh
-# VPS 2 — Loki + Promtail (logs next to metrics)
-GRAFANA_PASS=… bash deploy/provision/host-loki.sh
+bash deploy/provision/host-monitoring.sh    # Prometheus + Grafana + 3 dashboards + datasources + rules
+bash deploy/provision/host-alerting.sh      # Alertmanager
+GRAFANA_PASS=… bash deploy/provision/host-loki.sh   # Loki + Promtail
 ```
 
-Dashboards are file-provisioned and hot-reload (~10 s); datasource and alerting
-changes are applied on a Grafana/Prometheus restart.
+Reach Grafana over a tunnel (`ssh -L 3000:127.0.0.1:3000 …`) then set the URL in
+**Settings → Observability**, or behind the mTLS edge (a Caddy `/grafana` handler
+proxying to Grafana over the VPS 1 → VPS 2 tunnel). Without a stack: point any
+Prometheus at `http://<loopback-host>:8080/metrics` and import
+`deploy/monitoring/grafana/dashboards/shieldtest.json`.
+
+---
+
+## 7. Notifications (team push, opt-in)
+
+Opt-in — with no sink configured, nothing is sent (`backend/src/modules/notify/`).
+
+| Event                | When                                                                       | Severity           |
+| -------------------- | -------------------------------------------------------------------------- | ------------------ |
+| `campaign.completed` | a run finished normally                                                    | info               |
+| `campaign.killed`    | a run hit the kill switch                                                  | critical / warning |
+| `wrs.regression`     | WRS dropped > 10 pts vs the last run                                       | warning            |
+| `baseline.drift`     | nominal baseline degraded (availability −≥5 pts, or p95 +≥25 % and ≥20 ms) | warning            |
+
+Each carries campaign name, target, engine, WRS + level, request/failure counts,
+probe availability. **Sinks**: Slack incoming webhook (coloured by severity) and
+a generic JSON webhook (`{ product, kind, severity, title, text, at, campaignId,
+fields }`); `http`/`https` only, best-effort, 5 s timeout (a failing sink is
+logged, never propagated). Configure via `NOTIFY_SLACK_WEBHOOK_URL`,
+`NOTIFY_WEBHOOK_URL`, optional `NOTIFY_EVENTS` / `NOTIFY_TIMEOUT_MS`. `/health`
+returns sink **names** only (never URLs). Verify: **Settings → Notifications →
+Send test**, or `POST /api/notify/test`.

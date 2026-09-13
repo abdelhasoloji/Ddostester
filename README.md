@@ -89,7 +89,7 @@ Optional profiles: `--profile monitoring` (Prometheus + Grafana; set
 
 **Continuous deployment:** once the server runs a self-hosted GitHub Actions
 runner, every push to `main` that passes CI deploys itself — no manual commands.
-See [docs/ci-cd.md](./docs/ci-cd.md).
+See [docs/operations.md](./docs/operations.md).
 
 ## API
 
@@ -134,22 +134,21 @@ host ports — lives in a **separate repository**,
 [`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab),
 so the boundary is **structural**: this control plane contains no attack vector
 at all. See [“Isolated synthetic UDP network lab”](#isolated-synthetic-udp-network-lab)
-and [docs/safeguards.md](./docs/safeguards.md).
+and [docs/security-and-governance.md](./docs/security-and-governance.md).
 
 ## Documentation
 
-Full documentation in [`docs/`](./docs/):
+Full documentation — a grouped index — in [`docs/`](./docs/README.md). Topic hubs:
+[overview](./docs/overview.md) ·
 [architecture](./docs/architecture.md) ·
-[deployment](./docs/deployment.md) ·
+[security & governance](./docs/security-and-governance.md) ·
+[boundary & lab](./docs/boundary-and-lab.md) ·
+[measurement (WRS)](./docs/measurement.md) ·
+[operations (deploy/CI)](./docs/operations.md) ·
+[observability](./docs/observability.md) ·
 [usage](./docs/usage.md) ·
 [API](./docs/api.md) ·
-[WRS](./docs/wrs.md) ·
-[audit integrity](./docs/audit.md) ·
-[notifications](./docs/notifications.md) ·
-[operations](./docs/operations.md) ·
-[roadmap / status](./docs/roadmap.md) ·
-[security & scope](./docs/safeguards.md) ·
-[ethical boundary map](./docs/ethical-boundary-map.md).
+[roadmap / status](./docs/roadmap.md).
 
 ## License
 
@@ -166,5 +165,5 @@ amplifier** — lives in its **own repository**:
 It was extracted so the boundary is **structural, not conventional**: this
 control plane performs only bounded, allowlisted HTTP and contains no
 amplification/spoofing/UDP code at all. The two connect only through a read-only,
-governed verdict contract (see [`docs/drs-validation-policy.md`](docs/drs-validation-policy.md)).
-See [`docs/network-lab.md`](docs/network-lab.md) for the split and the pointer.
+governed verdict contract (see [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md)).
+See [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md) for the split and the pointer.
