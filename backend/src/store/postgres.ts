@@ -5,7 +5,7 @@ import type { AuditEntry } from '../modules/audit/model.js';
 import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
-import { isRole } from '../auth/rbac.js';
+import { withCanonicalRole } from '../auth/rbac.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type {
   BenchRun,
@@ -436,7 +436,11 @@ export class PostgresStore implements Store {
 
   async listUsers(): Promise<User[]> {
     const r = await this.pool.query<UserRow>(`${USER_SELECT} ORDER BY email`);
-    return r.rows.filter((x) => isRole(x.role)).map(rowToUser);
+    // Canonicalise each row's role (legacy `officer` → `admin`) and drop only
+    // rows whose role maps to no current Role — a legacy user stays visible.
+    return r.rows
+      .map((x) => withCanonicalRole(rowToUser(x)))
+      .filter((u): u is User => u !== undefined);
   }
 
   async getUser(email: string): Promise<User | undefined> {
@@ -444,8 +448,10 @@ export class PostgresStore implements Store {
       email.toLowerCase(),
     ]);
     const x = r.rows[0];
-    if (!x || !isRole(x.role)) return undefined;
-    return rowToUser(x);
+    if (!x) return undefined;
+    // Canonicalise on read so a legacy `officer` row resolves to `admin` instead
+    // of being dropped here (which locked the user out before login could map it).
+    return withCanonicalRole(rowToUser(x));
   }
 
   async saveUser(u: User): Promise<void> {

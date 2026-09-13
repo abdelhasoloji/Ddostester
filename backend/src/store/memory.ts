@@ -3,6 +3,7 @@ import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
+import { withCanonicalRole } from '../auth/rbac.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
@@ -78,10 +79,16 @@ export class MemoryStore implements Store {
     return [...this.audit];
   }
   async listUsers(): Promise<User[]> {
-    return [...this.users.values()].sort((a, b) => a.email.localeCompare(b.email));
+    // Canonicalise each role on read (legacy `officer` → `admin`), matching the
+    // postgres store so both behave identically.
+    return [...this.users.values()]
+      .map(withCanonicalRole)
+      .filter((u): u is User => u !== undefined)
+      .sort((a, b) => a.email.localeCompare(b.email));
   }
   async getUser(email: string): Promise<User | undefined> {
-    return this.users.get(email.toLowerCase());
+    const u = this.users.get(email.toLowerCase());
+    return u ? withCanonicalRole(u) : undefined;
   }
   async saveUser(u: User): Promise<void> {
     this.users.set(u.email.toLowerCase(), u);

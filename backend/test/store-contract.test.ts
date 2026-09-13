@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { MemoryStore } from '../src/store/memory.js';
 import { PostgresStore } from '../src/store/postgres.js';
 import type { Store } from '../src/store/types.js';
+import type { User } from '../src/auth/users.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 import type { CampaignRun } from '../src/modules/campaigns/runner.js';
 import { verifyChain } from '../src/modules/audit/integrity.js';
@@ -136,6 +137,23 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
       expect((await store.getUser(email))?.role).toBe('viewer');
       await store.deleteUser(email);
       expect(await store.getUser(email)).toBeUndefined();
+    });
+
+    it('canonicalises a legacy `officer` role to `admin` on read (never dropped)', async () => {
+      const email = `legacy-${randomUUID()}@wedos`;
+      // A user provisioned before the roles overhaul is stored as `officer`.
+      await store.saveUser({
+        email,
+        role: 'officer' as unknown as User['role'],
+        passwordHash: 'h',
+      });
+      // getUser must return them, canonicalised to `admin` — not undefined
+      // (the pre-fix `isRole` filter locked them out at the persistence layer).
+      expect((await store.getUser(email))?.role).toBe('admin');
+      // …and they stay visible in listUsers, also canonicalised.
+      const listed = (await store.listUsers()).find((u) => u.email === email);
+      expect(listed?.role).toBe('admin');
+      await store.deleteUser(email);
     });
 
     it('playbooks CRUD', async () => {
