@@ -18,6 +18,7 @@ export default class UplotStub {
   setData(data?: unknown): void {
     if (Array.isArray(data)) this.data = data;
   }
+  setScale(): void {}
   setSize(): void {}
   destroy(): void {}
 }

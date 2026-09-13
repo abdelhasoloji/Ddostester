@@ -276,7 +276,19 @@ export function UplotChart({
   useEffect(() => {
     const u = plot.current;
     if (!u) return;
-    u.setData(buildData(series));
+    const data = buildData(series);
+    u.setData(data);
+    // Force the x-scale to the data extent. uPlot's implicit reset on setData was
+    // observed NOT to re-range x on a live run (the axis stuck at 1–2s while the
+    // series grew to 38s — data[0] and the legend advanced, the scale did not),
+    // leaving the whole run squashed into the first two seconds. Setting the
+    // scale explicitly makes the axis always track the latest sample. For a
+    // time-axis chart uPlot's own ranging is fine, so only override the numeric
+    // (elapsed-seconds) charts.
+    const xs = data[0] as number[] | undefined;
+    if (!timeAxis && xs && xs.length > 1) {
+      u.setScale('x', { min: xs[0], max: xs[xs.length - 1] });
+    }
     updateLegendRef.current?.(u); // keep the idle legend on the latest sample
   }, [series]);
 
