@@ -140,10 +140,11 @@ describe('per-campaign report', () => {
         })),
       }),
     );
-    // The contradiction (high score, zero success) is explained, not left bare.
-    expect(blocked).toContain('protection absorbed the load');
-    expect(blocked).toContain('rejected by the edge'); // failure split surfaced
-    // Configured intent is shown, not only the throttled achieved rate.
+    // Faithful: only ~11/500 req/s was delivered — a generator-side shortfall, so
+    // the engine calls this INCONCLUSIVE (not "protection absorbed"), not left bare.
+    expect(blocked).toContain('Inconclusive — not a valid test at the target rate');
+    expect(blocked).toMatch(/Delivered only \d+% of the configured rate/);
+    // Configured intent is still shown in the absorption section.
     expect(blocked).toContain('Configured load');
     expect(blocked).toMatch(/500 req\/s/);
     expect(blocked).not.toMatch(/NaN|undefined/);

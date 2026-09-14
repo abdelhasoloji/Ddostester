@@ -3,9 +3,10 @@ import type { CampaignRun } from '../campaigns/runner.js';
 import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
-import { mitigationVerdict, riskLevel } from './compliance.js';
+import { riskLevel } from './compliance.js';
 import { computeAbsorption } from './absorption.js';
 import { computeConfidence } from './confidence.js';
+import { assessVector, type VectorVerdict } from './assessment.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, timelineSvg, scoreColor, REPORT_COLORS } from './charts.js';
@@ -35,12 +36,6 @@ export function remediationsHtml(items: Remediation[]): string {
  */
 
 const RISK_PILL = { 'r-low': 'good', 'r-med': 'warn', 'r-crit': 'crit' } as const;
-const MIT_PILL = {
-  'v-held': 'good',
-  'v-partial': 'warn',
-  'v-fail': 'crit',
-  'v-aborted': 'neutral',
-} as const;
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
   const w = run.wrs;
@@ -48,19 +43,12 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const tt = run.targetTelemetry?.length ? summarizeTargetTelemetry(run.targetTelemetry) : null;
   const avail = availabilityPct(run);
   const risk = riskLevel(run);
-  const mit = mitigationVerdict(run);
   const peakRps = tl.length
     ? Math.max(...tl.map((s) => s.rps), Math.round(g.actualRps))
     : Math.round(g.actualRps);
   const durSec = tl.length ? Math.max(...tl.map((s) => s.t)) : campaign.maxDurationSec;
   const grade = w.level;
 
-  // Load INTENT vs. what the target actually sustained. A flood the target
-  // rate-limits or tarpits shows a low ACHIEVED rate and a low success ratio —
-  // reporting only the achieved rate understates the test, and a high score next
-  // to "0 successful" reads as a contradiction unless it's explained. Surface
-  // both, and split failures into "rejected by the edge" (a response) vs. "no
-  // response" (connection held / timed out).
   const configuredRps = campaign.maxRps;
   const statusCounts = g.statusCounts ?? {};
   const errorsByName = g.errors ?? {};
@@ -68,9 +56,6 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     .filter(([b]) => b !== '2xx' && b !== '3xx')
     .reduce((s, [, n]) => s + n, 0); // 4xx/5xx — the target answered, refusing the request
   const noResponse = Object.values(errorsByName).reduce((s, n) => s + n, 0); // timeouts / conn errors
-  const successRatio = g.totalRequests ? g.successful / g.totalRequests : 1;
-  const heavilyThrottled = configuredRps > 0 && peakRps < configuredRps * 0.6;
-  const mostlyBlocked = g.totalRequests > 50 && successRatio < 0.5;
 
   // Protection absorption (configured → offered → origin, + % absorbed) and
   // measurement confidence (was OUR generator the bottleneck?), both shared with
@@ -87,42 +72,58 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     });
   const confidence = run.confidence ?? computeConfidence({ hardStopped: g.hardStopped });
 
-  // Management summary — plain-language verdict generated from the run.
+  // The faithful verdict — the SAME assessment engine the suite report and the
+  // detail page use, so all three tell one story. Prefer the stored assessment;
+  // recompute (with the absorption above) for older runs that predate it.
+  const assessment =
+    run.assessment ??
+    assessVector(
+      { ...run, absorption },
+      {
+        shape: campaign.name,
+        drs: /DRS\s*([0-9])/i.exec(campaign.name)?.[1] ?? '—',
+        status: run.status,
+        vector: campaign.vector,
+      },
+    );
+
+  // Management summary — led by the engine's verdict + faithful observation.
   const kill = run.status !== 'COMPLETED';
   const summary =
-    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> ` +
-    (heavilyThrottled ? `(the target sustained ~<b>${peakRps} req/s</b> effective) ` : '') +
-    `for <b>${durSec}s</b> against ` +
-    `<b>${esc(hostOf(campaign.target))}</b>, the target scored <b>WRS ${w.wrs} (${grade})</b> — ` +
-    `RiskLevel <b>${risk.label}</b>. Legitimate-traffic availability held at <b>${avail.toFixed(1)}%</b> ` +
-    `and mitigation is rated <b>${mit.label}</b>. ` +
-    (kill
-      ? `The run ended early: ${esc(run.statusDetail ?? run.status)}.`
-      : `The run completed cleanly with no auto-kill.`) +
+    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for <b>${durSec}s</b> against ` +
+    `<b>${esc(hostOf(campaign.target))}</b>, the run scored <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
+    `<b>${assessment.verdict}</b>, RiskLevel <b>${risk.label}</b>. ${esc(assessment.observation)}` +
     (run.baselineDelta
       ? ` Under load, p95 latency shifted by ${run.baselineDelta.latencyP95DeltaMs} ms vs the pre-load baseline.`
       : '');
 
-  // When the target rejected or throttled most of the flood while legitimate
-  // traffic stayed up, say so plainly — otherwise a high score beside a low
-  // success count looks contradictory. This is the protection working, not a
-  // test failure.
-  const absorbedCallout =
-    (mostlyBlocked || heavilyThrottled) && !kill
-      ? `<div class="callout info"><b>The target's protection absorbed the load.</b> ` +
-        `Of ${g.totalRequests.toLocaleString('en-US')} bounded requests, ` +
-        `<b>${g.successful.toLocaleString('en-US')}</b> succeeded — ` +
-        `${rejectedByEdge.toLocaleString('en-US')} were rejected by the edge (4xx/5xx) and ` +
-        `${noResponse.toLocaleString('en-US')} got no response (rate-limited / connection held). ` +
-        (heavilyThrottled
-          ? `The configured ${configuredRps} req/s was throttled to ~${peakRps} req/s effective. `
-          : '') +
-        `Legitimate probe traffic stayed available throughout, so the resiliency score reflects the ` +
-        `protection blocking this attack shape — not the target failing.</div>`
-      : '';
+  // A callout driven by the verdict: an under-delivered run is INCONCLUSIVE (a
+  // generator-side shortfall, NOT the target absorbing); an edge that rejected or
+  // held the load while legitimate traffic stayed up is the protection working.
+  const verdictCallout = kill
+    ? ''
+    : assessment.verdict === 'inconclusive'
+      ? `<div class="callout warn"><b>Inconclusive — not a valid test at the target rate.</b> ${esc(assessment.caveats.join(' '))}</div>`
+      : (assessment.mechanism === 'rejected' ||
+            assessment.mechanism === 'tarpitted' ||
+            assessment.mechanism === 'blocked') &&
+          avail >= 99
+        ? `<div class="callout info"><b>The target's edge handled the load.</b> ` +
+          `Of ${g.totalRequests.toLocaleString('en-US')} bounded requests, ` +
+          `<b>${g.successful.toLocaleString('en-US')}</b> succeeded — ` +
+          `${rejectedByEdge.toLocaleString('en-US')} were rejected by the edge (4xx/5xx) and ` +
+          `${noResponse.toLocaleString('en-US')} got no response (rate-limited / connection held). ` +
+          `Legitimate probe traffic stayed available throughout.</div>`
+        : '';
 
   const riskPill = pill(risk.label, RISK_PILL[risk.cls as keyof typeof RISK_PILL] ?? 'neutral');
-  const mitPill = pill(mit.label, MIT_PILL[mit.cls as keyof typeof MIT_PILL] ?? 'neutral');
+  const VERDICT_PILL: Record<VectorVerdict, 'good' | 'warn' | 'crit' | 'neutral'> = {
+    held: 'good',
+    partial: 'warn',
+    inconclusive: 'neutral',
+    breached: 'crit',
+  };
+  const verdictPill = pill(assessment.verdict, VERDICT_PILL[assessment.verdict]);
 
   // WRS components (0–1), coloured by band.
   const wrsBars = hbarsSvg(
@@ -176,13 +177,13 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     (confidence.degraded
       ? `<div class="callout warn">⚠ <b>Measurement degraded — this WRS may be understated.</b> ${esc(confidence.reasons.join(' '))}</div>`
       : '') +
-    absorbedCallout +
+    verdictCallout +
     `<h2>At a glance</h2>
 <div class="scorecard">
   <div>${gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: scoreColor(w.wrs) })}
     <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">WEDOS Resiliency Score</div></div>
   <div>
-    <div class="pills">${riskPill} ${mitPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
+    <div class="pills">${verdictPill} ${riskPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Availability', `${avail.toFixed(1)}%`)}
       ${statCard('Configured load', `${configuredRps} req/s`, false)}
