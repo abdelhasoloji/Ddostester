@@ -93,8 +93,8 @@ describe('compliance / resilience assessment report', () => {
     expect(html).toContain('>Medium<');
   });
 
-  it('derives Failed / Critical for an auto-killed run and shows its reason', () => {
-    expect(html).toContain('Failed (impact)');
+  it('derives breached / Critical for an auto-killed run and shows its reason', () => {
+    expect(html).toContain('>breached<'); // faithful verdict from the assessment engine
     expect(html).toContain('>Critical<');
     expect(html).toContain('found the target unavailable');
   });

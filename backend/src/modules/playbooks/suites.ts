@@ -241,7 +241,7 @@ export function renderSuiteReportHtml(
       (sa.breached
         ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} took the target unavailable — a business-impacting gap.`
         : sa.inconclusive
-          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so its resilience is unproven — re-run on a stronger generator to confirm.`
+          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so ${sa.inconclusive === 1 ? 'its' : 'their'} resilience is unproven — re-run on a stronger generator to confirm.`
           : `Legitimate traffic held throughout.`)
     : 'No scored attacks yet.';
 

@@ -8,6 +8,15 @@ import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { HARD_CAPS } from '../../config/limits.js';
+import { assessVector, type VectorVerdict } from './assessment.js';
+
+/** CSS class per faithful verdict, shared with the suite report's convention. */
+const VERDICT_CLASS: Record<VectorVerdict, string> = {
+  held: 'v-held',
+  partial: 'v-partial',
+  breached: 'r-crit',
+  inconclusive: 'v-aborted',
+};
 
 // Re-exported for the compare/report modules that historically imported these
 // run helpers from here.
@@ -152,14 +161,24 @@ export function renderComplianceHtml(
   const row = (k: string, v: string | number) => `<tr><th>${k}</th><td>${v}</td></tr>`;
   const period = `${opts.from ? esc(opts.from) : 'origin'} → ${opts.to ? esc(opts.to) : 'now'}`;
 
+  // Faithful per-run verdict — the SAME assessment engine as every other surface.
+  const assess = (r: CampaignRun) => {
+    const c = campById.get(r.campaignId);
+    return (
+      r.assessment ??
+      assessVector(r, {
+        shape: c?.name ?? r.campaignId,
+        drs: /DRS\s*([0-9])/i.exec(c?.name ?? '')?.[1] ?? '—',
+        status: r.status,
+        vector: c?.vector,
+      })
+    );
+  };
+
   // Risk distribution across the period.
   const riskCount = { Low: 0, Medium: 0, Critical: 0 };
   for (const r of inPeriod) riskCount[riskLevel(r).label as keyof typeof riskCount]++;
-  const meanAbsorbed = inPeriod.length
-    ? Math.round(
-        (inPeriod.reduce((s, r) => s + (r.absorption?.absorbedPct ?? 0), 0) / inPeriod.length) * 10,
-      ) / 10
-    : 0;
+  const inconclusiveCount = inPeriod.filter((r) => assess(r).verdict === 'inconclusive').length;
   const degradedCount = inPeriod.filter((r) => r.confidence?.degraded).length;
 
   // Management summary — plain-language, generated from the aggregates.
@@ -211,7 +230,7 @@ export function renderComplianceHtml(
   const scenarioRows = inPeriod
     .map((r, i) => {
       const c = campById.get(r.campaignId);
-      const mit = mitigationVerdict(r);
+      const a = assess(r);
       const risk = riskLevel(r);
       const g = r.generator;
       const rps = Math.round(g.actualRps);
@@ -219,9 +238,6 @@ export function renderComplianceHtml(
       // throttled isn't misread as a trivial test (achieved rate only).
       const cfgRps = c?.maxRps ?? 0;
       const loadCell = cfgRps ? `${cfgRps}→${rps}` : `${rps}`;
-      const succRatio = g.totalRequests ? g.successful / g.totalRequests : 1;
-      const absorbed =
-        cfgRps > 0 && (rps < cfgRps * 0.6 || (g.totalRequests > 50 && succRatio < 0.5));
       const ttdttm = r.protection
         ? `TTD ${r.protection.detectionTimeSec}s · TTM ${r.protection.mitigationTimeSec}s · `
         : '';
@@ -233,9 +249,11 @@ export function renderComplianceHtml(
           : `avail ${availabilityPct(r).toFixed(0)}%${
               r.baselineDelta ? ` · Δp95 ${r.baselineDelta.latencyP95DeltaMs} ms` : ''
             }`) +
-        (absorbed
-          ? ` · protection absorbed the flood (${g.successful.toLocaleString('en-US')}/${g.totalRequests.toLocaleString('en-US')} ok)`
-          : '') +
+        (a.verdict === 'inconclusive' && a.underDelivered
+          ? ` · <b>inconclusive</b> — delivered only ${Math.round(a.deliveryRatio * 100)}% of the configured rate`
+          : a.mechanism === 'rejected' || a.mechanism === 'tarpitted' || a.mechanism === 'blocked'
+            ? ` · edge ${a.mechanism} the load (${g.successful.toLocaleString('en-US')}/${g.totalRequests.toLocaleString('en-US')} ok)`
+            : '') +
         (degraded
           ? ` · <b>⚠ measurement degraded</b> (${esc(r.confidence?.reasons[0] ?? 'generator-side bottleneck')})`
           : '');
@@ -245,7 +263,7 @@ export function renderComplianceHtml(
  <td>${esc(hostOf(c?.target ?? '—'))}</td>
  <td>${loadCell}</td>
  <td><b style="color:${scoreColor(r.wrs.wrs)}">${r.wrs.wrs}</b> <span class="muted">${r.wrs.level}</span>${degraded ? ' <span title="measurement degraded — WRS may be understated">⚠</span>' : ''}</td>
- <td class="${mit.cls}">${mit.label}</td>
+ <td class="${VERDICT_CLASS[a.verdict]}">${a.verdict}</td>
  <td class="${risk.cls}">${risk.label}</td>
  <td class="note">${note}</td>
 </tr>`;
@@ -290,7 +308,7 @@ export function renderComplianceHtml(
       ${statCard('Runs assessed', String(total))}
       ${statCard('Minimum WRS', wrsMinStr)}
       ${statCard('Below WRS 70', String(worst.length))}
-      ${statCard('Mean absorbed', `${meanAbsorbed}%`, meanAbsorbed >= 20)}
+      ${statCard('Inconclusive (not valid)', String(inconclusiveCount), false)}
       ${statCard('Degraded measurements', String(degradedCount), false)}
       ${statCard('Targets', String(targets.size))}
     </div>
