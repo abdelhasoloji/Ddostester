@@ -10,12 +10,12 @@ test('serves the SPA, authenticates and reaches the campaigns view', async ({ pa
   // Auth is enabled → the login screen renders.
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
-  await page.locator('input[autocomplete="username"]').fill('off@wedos');
-  await page.locator('input[type="password"]').fill('officer-pass');
+  await page.locator('input[autocomplete="username"]').fill('eng@wedos');
+  await page.locator('input[type="password"]').fill('engineer-pass');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   // Authenticated shell: the nav is present; the Campaigns view offers creation
-  // (officer has campaign:create), proving the UI talked to /health + /api.
+  // (the engineer has campaign:create), proving the UI talked to /health + /api.
   await page.locator('nav.nav').getByRole('link', { name: 'Campaigns' }).click();
   await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
 });

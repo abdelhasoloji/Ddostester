@@ -24,6 +24,14 @@ const AUTH_USERS = JSON.stringify([
     passwordHash:
       'scrypt$4f22c62a55ba0d6c01e744e182164deb$83a20344ae7a7bd2bb1bb13266c6506b427dc1df996b40095951b3ee61c133d8',
   },
+  {
+    // The approver. `off@wedos`/officer canonicalises to ADMIN (which cannot
+    // approve), so a real CISO is needed to exercise the approval journeys.
+    email: 'ciso@wedos',
+    role: 'ciso',
+    passwordHash:
+      'scrypt$873e0cb49f5d4650e08acb93a227f20f$fa7646e7670cccaa7453f9c0529660a1b94816ab25c7f91c08c640dc0ad7d686',
+  },
 ]);
 
 export default defineConfig({
