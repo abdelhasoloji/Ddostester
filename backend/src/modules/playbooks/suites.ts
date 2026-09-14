@@ -130,32 +130,45 @@ const VERDICT_RISK: Record<VectorVerdict, string> = {
   breached: 'Critical',
 };
 
-/** Grafana deep-link (scoped to this run's window) or the inline availability trace. */
+/**
+ * Self-contained per-run "print": inline charts drawn from the run's own timeline
+ * (offered load + legitimate availability), so the report carries a pertinent
+ * graphic that works offline / in PDF. The Grafana dashboard is loopback-only, so
+ * its deep-link is demoted to a small secondary note (it only works with access).
+ */
 function runChart(
   run: CampaignRun | undefined,
   grafanaUrl: string | undefined,
   targetHost: string,
 ): string {
+  const tl = run?.timeline ?? [];
   const gl = grafanaLink(grafanaUrl, 'run', {
     target: targetHost,
     ...runWindowMs(run?.generator.startedAt, run?.generator.finishedAt),
   });
-  if (gl) {
-    return `<p class="muted" style="font-size:.82rem"><a href="${esc(gl)}" target="_blank" rel="noreferrer">📊 Open this run in Grafana ↗</a> — offered vs origin rps, edge-absorption and legitimate-probe availability across the run window.</p>`;
-  }
-  if (run?.timeline && run.timeline.length >= 2) {
-    return `<div class="figure"><div class="cap">Legitimate-probe availability across the attack (%).</div>${timelineSvg(
-      run.timeline.map((s) => ({ t: s.t, y: s.availPct })),
-      {
-        yMax: 100,
-        yUnit: '% avail',
-        color: REPORT_COLORS.good,
-        fill: REPORT_COLORS.goodFill,
-        height: 130,
-      },
-    )}</div>`;
-  }
-  return '';
+  const grafanaNote = gl
+    ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (offered vs origin rps, absorption, availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
+    : '';
+  if (tl.length < 2) return grafanaNote;
+  const rpsChart = timelineSvg(
+    tl.map((s) => ({ t: s.t, y: s.rps })),
+    { yUnit: ' rps', color: REPORT_COLORS.brand, fill: 'rgba(0, 52, 132, 0.10)', height: 120 },
+  );
+  const availChart = timelineSvg(
+    tl.map((s) => ({ t: s.t, y: s.availPct })),
+    {
+      yMax: 100,
+      yUnit: '% avail',
+      color: REPORT_COLORS.good,
+      fill: REPORT_COLORS.goodFill,
+      height: 120,
+    },
+  );
+  return (
+    `<div class="figure"><div class="cap">Offered load across the run (req/s).</div>${rpsChart}</div>` +
+    `<div class="figure"><div class="cap">Legitimate-probe availability across the run (%).</div>${availChart}</div>` +
+    grafanaNote
+  );
 }
 
 /** Per-attack detail block: faithful verdict, delivered rate, mechanism, caveats + chart. */
@@ -291,9 +304,9 @@ export function renderSuiteReportHtml(
     .join('');
 
   const grafanaBanner = opts.grafanaUrl
-    ? `<p class="muted" style="font-size:.82rem"><a href="${esc(
+    ? `<p class="muted" style="font-size:.78rem">📈 Historical resilience trends for ${esc(host)}: <a href="${esc(
         grafanaLink(opts.grafanaUrl, 'resilience', { target: host }) ?? '',
-      )}" target="_blank" rel="noreferrer">📈 Resilience trends for ${esc(host)} in Grafana ↗</a></p>`
+      )}" target="_blank" rel="noreferrer">open in Grafana ↗</a> — requires access to the Grafana instance; the per-attack charts below are self-contained.</p>`
     : '';
 
   return (

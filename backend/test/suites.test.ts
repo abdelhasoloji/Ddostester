@@ -107,10 +107,61 @@ describe('renderSuiteReportHtml', () => {
       }),
     ]);
     const html = renderSuiteReportHtml(s, [], { grafanaUrl: 'http://localhost:3000' });
-    expect(html).toContain('Open this run in Grafana');
+    // Grafana is demoted to a small secondary access-gated link (loopback-only).
     expect(html).toContain('/d/shieldtest-run?');
-    // no inline availability SVG figure when Grafana is the chart source
-    expect(html).not.toContain('Legitimate-probe availability across the attack');
+    expect(html).toContain('requires access to the Grafana instance');
+  });
+
+  it('draws pertinent inline charts (offered load + availability) from the run timeline', () => {
+    const [s] = buildSuites([
+      campaign({
+        id: 'cic1',
+        runId: 'r-ic',
+        suiteId: 'ic1',
+        suiteName: 'Cap',
+        suiteOrder: 0,
+        status: 'COMPLETED',
+        wrs: wrs(90, 'A'),
+      }),
+    ]);
+    const runs = [
+      {
+        runId: 'r-ic',
+        campaignId: 'cic1',
+        status: 'COMPLETED',
+        generator: {
+          actualRps: 100,
+          totalRequests: 1000,
+          successful: 1000,
+          failed: 0,
+          statusCounts: {},
+          latencyMs: { min: 0, max: 0, mean: 0, p50: 0, p95: 0, p99: 0 },
+          errors: {},
+          startedAt: '2026-09-14T10:00:00.000Z',
+          finishedAt: '2026-09-14T10:01:00.000Z',
+        },
+        probe: {
+          samples: 10,
+          available: 10,
+          errorRate5xx: 0,
+          latencyMs: { p50: 0, p95: 0, p99: 0 },
+          successful: 10,
+        },
+        wrs: { wrs: 90, level: 'A', detection: 0, mitigation: 0, availability: 0, collateral: 0 },
+        timeline: Array.from({ length: 6 }, (_, t) => ({
+          t,
+          rps: 100,
+          sent: t * 100,
+          failed: 0,
+          probe5xx: 0,
+          availPct: 100,
+        })),
+      },
+    ] as unknown as Parameters<typeof renderSuiteReportHtml>[1];
+    const html = renderSuiteReportHtml(s, runs);
+    expect(html).toContain('Offered load across the run (req/s)');
+    expect(html).toContain('Legitimate-probe availability across the run (%)');
+    expect(html).toContain('chart-timeline'); // an inline SVG, not just a link
   });
 });
 
