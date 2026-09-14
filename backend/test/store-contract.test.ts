@@ -102,6 +102,13 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
       expect((await store.listRuns(c.id)).map((x) => x.runId)).toContain(r.runId);
     });
 
+    it('a malformed (non-UUID) id is "not found", never an error', async () => {
+      // The postgres keys are `uuid`; a bogus path param must not surface as a 500.
+      expect(await store.getCampaign('not-a-uuid')).toBeUndefined();
+      expect(await store.getRun('nonexistent')).toBeUndefined();
+      expect(await store.listRuns('bogus')).toEqual([]);
+    });
+
     it('audit append + list', async () => {
       await store.saveAudit({
         id: randomUUID(),

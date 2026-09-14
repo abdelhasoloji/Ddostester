@@ -6,6 +6,15 @@ import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import { withCanonicalRole } from '../auth/rbac.js';
+
+/**
+ * The campaigns/runs primary keys are Postgres `uuid`. A lookup with a non-UUID
+ * id (a hand-typed or bogus path param) would make Postgres throw
+ * "invalid input syntax for type uuid" → an unhelpful 500. A malformed id simply
+ * cannot exist, so we treat it as "not found" and never hit the DB.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (id: string): boolean => typeof id === 'string' && UUID_RE.test(id);
 import type { OperationalLimits } from '../config/limits.js';
 import type {
   BenchRun,
@@ -304,6 +313,7 @@ export class PostgresStore implements Store {
   }
 
   async getCampaign(id: string): Promise<Campaign | undefined> {
+    if (!isUuid(id)) return undefined; // malformed id → not found (never a 500)
     const r = await this.pool.query<{ data: Campaign }>('SELECT data FROM campaigns WHERE id=$1', [
       id,
     ]);
@@ -364,6 +374,7 @@ export class PostgresStore implements Store {
   }
 
   async getRun(runId: string): Promise<CampaignRun | undefined> {
+    if (!isUuid(runId)) return undefined; // malformed id → not found (never a 500)
     const r = await this.pool.query<{ data: CampaignRun }>(
       'SELECT data FROM runs WHERE run_id=$1',
       [runId],
@@ -372,6 +383,7 @@ export class PostgresStore implements Store {
   }
 
   async listRuns(campaignId?: string): Promise<CampaignRun[]> {
+    if (campaignId && !isUuid(campaignId)) return []; // malformed filter → no rows (never a 500)
     const r = campaignId
       ? await this.pool.query<{ data: CampaignRun }>(
           'SELECT data FROM runs WHERE campaign_id=$1 ORDER BY created_at DESC',
