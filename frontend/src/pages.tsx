@@ -1745,6 +1745,22 @@ export function groupSuites(campaigns: Campaign[]): SuiteGroup[] {
   return groups.sort((a, b) => b.suiteId.localeCompare(a.suiteId));
 }
 
+/** Orders grouped suite cards to honour the list's sort selection (groupSuites
+ *  itself only orders by suiteId, which would ignore Name / WRS). Pure + tested. */
+export function sortSuiteGroups(groups: SuiteGroup[], sort: SortId): SuiteGroup[] {
+  if (sort === 'name') {
+    return [...groups].sort((a, b) => a.suiteName.localeCompare(b.suiteName));
+  }
+  if (sort === 'wrs') {
+    const worstWrs = (g: SuiteGroup): number => {
+      const scored = g.members.filter((m) => m.wrs);
+      return scored.length ? Math.min(...scored.map((m) => m.wrs!.wrs)) : -1;
+    };
+    return [...groups].sort((a, b) => worstWrs(b) - worstWrs(a));
+  }
+  return groups; // 'recent' — newest suite first (groupSuites default)
+}
+
 /** Strip the redundant "<suite> — " prefix from a member's name for chips. */
 export function stepLabel(c: Campaign, suiteName: string): string {
   const prefix = `${suiteName} — `;
@@ -2293,8 +2309,10 @@ export function CampaignList() {
     return list;
   }, [app.campaigns, status, q, sort, showArchived]);
 
-  // Suites (grouped) render above the standalone campaigns.
-  const suiteGroups = useMemo(() => groupSuites(filtered), [filtered]);
+  // Suites (grouped) render above the standalone campaigns — and must honour the
+  // SAME sort as the flat list (groupSuites re-orders by suiteId, which would
+  // otherwise ignore the Name / WRS selection).
+  const suiteGroups = useMemo(() => sortSuiteGroups(groupSuites(filtered), sort), [filtered, sort]);
   const standalone = useMemo(() => filtered.filter((c) => !c.suiteId), [filtered]);
 
   const hasCampaigns = app.campaigns.length > 0;

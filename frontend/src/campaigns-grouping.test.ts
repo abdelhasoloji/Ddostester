@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDur, groupSuites, suiteTiming, suiteWrs } from './pages.js';
+import { fmtDur, groupSuites, sortSuiteGroups, suiteTiming, suiteWrs } from './pages.js';
 import type { Campaign } from './api.js';
+import type { WrsBreakdown } from './api.js';
 
 function campaign(over: Partial<Campaign>): Campaign {
   return {
@@ -90,5 +91,32 @@ describe('groupSuites', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].total).toBe(2);
     expect(groups[0].members.map((m) => m.suiteOrder)).toEqual([0, 1]);
+  });
+});
+
+describe('sortSuiteGroups', () => {
+  const wrs = (v: number): WrsBreakdown =>
+    ({
+      wrs: v,
+      level: 'A',
+      detection: 0,
+      mitigation: 0,
+      availability: 0,
+      collateral: 0,
+    }) as WrsBreakdown;
+  // 'z-late' sorts after 'a-early', so groupSuites' default (suiteId desc) is [Bravo, Alpha].
+  const groups = groupSuites([
+    campaign({ suiteId: 'a-early', suiteName: 'Alpha', suiteOrder: 0, wrs: wrs(60) }),
+    campaign({ suiteId: 'z-late', suiteName: 'Bravo', suiteOrder: 0, wrs: wrs(90) }),
+  ]);
+
+  it('recent keeps groupSuites order (newest suiteId first)', () => {
+    expect(sortSuiteGroups(groups, 'recent').map((g) => g.suiteName)).toEqual(['Bravo', 'Alpha']);
+  });
+  it('name sorts A→Z (this is what the bug broke)', () => {
+    expect(sortSuiteGroups(groups, 'name').map((g) => g.suiteName)).toEqual(['Alpha', 'Bravo']);
+  });
+  it('wrs sorts worst-first, high→low', () => {
+    expect(sortSuiteGroups(groups, 'wrs').map((g) => g.suiteName)).toEqual(['Bravo', 'Alpha']);
   });
 });
