@@ -85,6 +85,7 @@ const { app, runCampaign } = await buildApp({
   // networked/public deployment). Off by default (single-officer approval).
   requireCisoApproval: process.env.REQUIRE_CISO_APPROVAL === '1',
   prometheusUrl: process.env.PROMETHEUS_URL?.trim() || undefined,
+  grafanaUrl: process.env.GRAFANA_URL?.trim() || undefined,
 });
 
 // --- Reconcile orphaned RUNNING campaigns -----------------------------------

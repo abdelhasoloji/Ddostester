@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setToken, getToken, DEFAULT_CAPS } from './api.js';
+import { api, setToken, getToken, DEFAULT_CAPS, getGrafanaBase, setGrafanaBase } from './api.js';
 import type {
   AgentInfo,
   Campaign,
@@ -211,6 +211,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setProtection(h.protection ?? false);
         setTlsInsecure(h.tlsInsecure ?? false);
         setAuthRequired(h.authRequired);
+        // Seed the Grafana deep-link base from the server config when the browser
+        // hasn't set one, so "Open in Grafana" works out of the box.
+        if (h.metrics?.grafanaUrl && !getGrafanaBase()) setGrafanaBase(h.metrics.grafanaUrl);
         if (h.authRequired && getToken()) {
           try {
             const me = await api.me();

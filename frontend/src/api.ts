@@ -767,6 +767,7 @@ export const api = {
         hardCaps?: HardCaps;
         hardCapsCeiling?: HardCaps;
         builtinCeilings?: { rps: number; concurrency: number };
+        metrics?: { prometheus?: boolean; grafanaUrl?: string | null; runDashboardUid?: string };
       }>(r),
     ),
   login: (email: string, password: string) =>

@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
-import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
-import { UplotChart, type ChartSeries } from './PromChart.js';
+import {
+  api,
+  reportUrl,
+  runTimelineCsvUrl,
+  streamUrl,
+  getGrafanaBase,
+  grafanaRunUrl,
+} from './api.js';
+import { UplotChart, PromChart, type ChartSeries } from './PromChart.js';
+import type { MetricsRange } from './api.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -13,7 +21,7 @@ import type {
   LiveProgressData,
 } from './api.js';
 import { useApp, canDo } from './context.js';
-import { formatInterval, fmtDateTime } from './campaign-form.js';
+import { formatInterval, fmtDateTime, hostOf } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
 export { NewCampaignWizard } from './new-campaign-wizard.js';
@@ -456,11 +464,9 @@ export function RunTheater({
             </div>
           )}
 
-          {p.timeline && p.timeline.length >= 2 && (
-            <div style={{ marginTop: '.8rem' }}>
-              <RunTimeline samples={p.timeline} />
-            </div>
-          )}
+          <div style={{ marginTop: '.8rem' }}>
+            <RunMetricsPanels target={target} fallbackTimeline={p.timeline ?? []} />
+          </div>
         </>
       )}
     </div>
@@ -793,6 +799,111 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
     <div className="metric">
       <div className="k">{label}</div>
       <div className="v">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Run Theater graphs — a small multi-panel dashboard fed by Prometheus (the same
+ * data Grafana uses), via the app's `/api/metrics/range` proxy. Several reliable
+ * time-axis panels (offered vs reached-origin RPS, edge-absorbed %, legitimate
+ * availability) plus an "Open in Grafana" deep-link scoped to this run's target.
+ * When Prometheus isn't configured (no data source), it falls back to the
+ * client-side live timeline so the Run Theater is never a blank box.
+ */
+const RUN_PANELS: { series: string; label: string }[] = [
+  { series: 'run_rps', label: 'Offered vs reached-origin RPS' },
+  { series: 'run_absorbed', label: 'Absorbed by edge (%)' },
+  { series: 'run_availability', label: 'Legitimate availability (%)' },
+];
+
+function RunMetricsPanels({
+  target,
+  fallbackTimeline,
+}: {
+  target: string;
+  fallbackTimeline: RunSample[];
+}) {
+  const host = hostOf(target) ?? target;
+  const [ranges, setRanges] = useState<Record<string, MetricsRange>>({});
+  const [promOk, setPromOk] = useState<boolean | null>(null); // null = unknown yet
+
+  useEffect(() => {
+    let live = true;
+    const pull = async () => {
+      const results = await Promise.all(
+        RUN_PANELS.map((p) =>
+          api.metricsRange(p.series, { target: host, minutes: 15, step: 5 }).catch(() => null),
+        ),
+      );
+      if (!live) return;
+      const next: Record<string, MetricsRange> = {};
+      let anyOk = false;
+      results.forEach((r, i) => {
+        if (r) {
+          next[RUN_PANELS[i].series] = r;
+          if (r.source === 'ok') anyOk = true;
+        }
+      });
+      setRanges(next);
+      setPromOk(anyOk);
+    };
+    void pull();
+    const t = setInterval(pull, 5000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [host]);
+
+  // No Prometheus data source → keep the client-side live timeline (never blank).
+  if (promOk === false) {
+    return (
+      <div className="posture">
+        <div className="posture-title">Run timeline</div>
+        <RunTimeline samples={fallbackTimeline} pending />
+        <div className="timeline-legend">
+          <span className="hint">
+            Live stream (Prometheus not configured — set PROMETHEUS_URL for the Grafana-backed
+            panels).
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const base = getGrafanaBase();
+  return (
+    <div className="run-metrics">
+      <div className="run-metrics-head">
+        <div className="posture-title">Run graphs · live (Prometheus)</div>
+        {base && (
+          <a
+            className="btn btn-sm btn-ghost"
+            href={grafanaRunUrl(base, { target: host })}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the live Run & Absorption dashboard in Grafana, scoped to this target"
+          >
+            Open in Grafana ↗
+          </a>
+        )}
+      </div>
+      <div className="run-metrics-grid">
+        {RUN_PANELS.map((p) => {
+          const r = ranges[p.series];
+          return (
+            <div key={p.series} className="run-metrics-panel">
+              <div className="rmp-title">{p.label}</div>
+              {r && r.series.some((s) => s.points.length > 1) ? (
+                <PromChart range={r} height={140} />
+              ) : (
+                <div className="timeline-pending hint">Collecting samples…</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -43,6 +43,12 @@ export const SERIES_CATALOG: Record<string, SeriesDef> = {
     needsTarget: true,
     lines: [{ label: 'absorbed %', expr: (t) => `shieldtest_run_live_absorbed_ratio${T(t)}*100` }],
   },
+  run_availability: {
+    title: 'Legitimate availability (%)',
+    unit: 'percent',
+    needsTarget: true,
+    lines: [{ label: 'probe avail %', expr: (t) => `shieldtest_run_live_probe_avail_pct${T(t)}` }],
+  },
   eventloop_lag: {
     title: 'Event-loop lag (measurement confidence)',
     unit: 'ms',

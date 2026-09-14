@@ -69,6 +69,16 @@ describe('executeCampaign — run time-series', () => {
       createdAt: new Date().toISOString(),
     }) as Campaign;
 
+  it('retires the live per-run Prometheus gauges when the run ends (no stale flat line)', async () => {
+    const { metrics } = await import('../src/modules/metrics/runtime.js');
+    await executeCampaign(makeCampaign(), ['127.0.0.1'], new KillSwitch());
+    // The live gauges were set during the run and cleared in the finally, so a
+    // finished run leaves no lingering series in the scrape.
+    const out = metrics.render();
+    expect(out).not.toContain('shieldtest_run_live_offered_rps');
+    expect(out).not.toContain('shieldtest_run_live_probe_avail_pct');
+  }, 15000);
+
   it('a clean completion carries no statusDetail', async () => {
     const run = await executeCampaign(makeCampaign(), ['127.0.0.1'], new KillSwitch());
     expect(run.status).toBe('COMPLETED');
