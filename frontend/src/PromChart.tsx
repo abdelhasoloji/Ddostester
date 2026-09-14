@@ -308,8 +308,26 @@ export function UplotChart({
   );
 }
 
+/**
+ * The y-scale a Prometheus panel should use, from its series unit — so panels are
+ * never mis-scaled:
+ *  - percent → fixed [0,100] (an availability/absorption line can't run to 200%);
+ *  - a rate/latency (reqps/ms) → anchored at 0 and fitted to its max (so a 349 rps
+ *    line isn't clipped by uPlot's default range picking ~[0,100]);
+ *  - anything else → uPlot auto-range.
+ * Pure, so it's unit-tested without a canvas.
+ */
+export function yConfigForUnit(unit: string): { yRange?: [number, number]; yFromZero: boolean } {
+  if (unit === 'percent') return { yRange: [0, 100], yFromZero: false };
+  if (unit === 'reqps' || unit === 'ms') return { yFromZero: true };
+  return { yFromZero: false };
+}
+
 /** Adapts a Prometheus range response (all left-axis lines) to UplotChart. */
 export function PromChart({ range, height = 200 }: { range: MetricsRange; height?: number }) {
   const series: ChartSeries[] = range.series.map((s) => ({ label: s.label, points: s.points }));
-  return <UplotChart series={series} height={height} timeAxis />;
+  const { yRange, yFromZero } = yConfigForUnit(range.unit);
+  return (
+    <UplotChart series={series} height={height} timeAxis yRange={yRange} yFromZero={yFromZero} />
+  );
 }
