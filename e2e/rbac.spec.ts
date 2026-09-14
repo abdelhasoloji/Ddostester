@@ -18,13 +18,31 @@ test('engineer can create but cannot approve (C1)', async ({ page }) => {
   await expect(card(page, name).getByRole('button', { name: /Approve/ })).toHaveCount(0);
 });
 
-test('officer cannot approve their OWN campaign — separation of duties (C3)', async ({ page }) => {
-  await login(page, 'officer');
-  const name = await createCampaign(page, { name: `rbac-off-${Date.now()}` });
-  // Officer has the approve action...
-  await card(page, name).getByRole('button', { name: 'Approve / Reject' }).click();
-  // ...but the modal blocks approving a campaign you authored.
-  const approve = page.getByRole('button', { name: 'Approve', exact: true });
-  await expect(approve).toBeDisabled();
-  await expect(page.getByText(/separation of duties/i)).toBeVisible();
+test('an admin (officer) has no create action — separation of administration (C2)', async ({
+  page,
+}) => {
+  await login(page, 'officer'); // officer → admin: manages users/limits, not campaigns
+  await goTo(page, 'Campaigns');
+  await expect(page.getByRole('button', { name: /New campaign/ })).toHaveCount(0);
+});
+
+test('a CISO approves an engineer-authored campaign — author ≠ approver (C3)', async ({
+  browser,
+}) => {
+  const engCtx = await browser.newContext();
+  const eng = await engCtx.newPage();
+  await login(eng, 'engineer');
+  const name = await createCampaign(eng, { name: `rbac-sod-${Date.now()}` });
+
+  const cisoCtx = await browser.newContext();
+  const ciso = await cisoCtx.newPage();
+  await login(ciso, 'ciso');
+  await goTo(ciso, 'Campaigns');
+  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  const approve = ciso.getByRole('button', { name: 'Approve', exact: true });
+  await expect(approve).toBeEnabled(); // different author → approval allowed
+  await approve.click();
+  await expect(card(ciso, name).getByText('Approved')).toBeVisible();
+  await engCtx.close();
+  await cisoCtx.close();
 });

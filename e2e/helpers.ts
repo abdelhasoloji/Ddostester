@@ -53,15 +53,11 @@ export async function createCampaign(
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
 
-  // The default "New campaign" path is the guided wizard (Objective → Target →
-  // Template → Review). Drive it to the "Advanced" step, which opens the full
-  // classic form (seeded) where the detailed fields below live. Playwright
-  // auto-waits for each Next/Advanced button to become enabled.
-  await page.getByRole('button', { name: /Readiness/ }).click();
-  await page.locator('.field:has(label:text-is("Target (URL)")) input').fill(target);
-  await page.getByRole('button', { name: 'Next' }).click(); // → Template (pre-selected)
-  await page.getByRole('button', { name: 'Next' }).click(); // → Review
-  await page.getByRole('button', { name: /Advanced/ }).click(); // → classic form
+  // The single recon-first creation flow: enter a target, run recon, then compose
+  // the seeded classic form from the findings. Playwright auto-waits for each step.
+  await page.locator('.recon-first input').first().fill(target); // Target URL
+  await page.getByRole('button', { name: /Run recon/ }).click();
+  await page.getByRole('button', { name: /Compose from these findings/ }).click(); // → classic form
 
   // Labels aren't for-associated in this form, so scope by the field's label text.
   await page.locator('.field:has(label:text-is("Name")) input').fill(name);

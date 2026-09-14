@@ -25,8 +25,9 @@ test('deep-link refresh on /campaigns is served by the SPA fallback (A7)', async
   await login(page, 'officer');
   await goTo(page, 'Campaigns');
   await page.reload();
-  // Still the app (not a 404): the Campaigns view renders after reload.
-  await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
+  // Still the app (not a 404): the Campaigns view renders after reload (role-
+  // agnostic — the page heading, since an admin has no "New campaign" button).
+  await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
 });
 
 test('session persists across reload, and logout returns to the login screen (A5/A6)', async ({
