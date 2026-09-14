@@ -15,6 +15,7 @@ import type {
   CampaignRun,
   CampaignStatus,
   Role,
+  RunAssessment,
   RunSample,
   WrsBreakdown,
   WrsPoint,
@@ -130,7 +131,9 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
     <div className="absorption">
       <div className="absorption-head">
         <span>Protection absorption</span>
-        <span className={`absorb-pct ${a.absorbedPct >= 20 ? 'good' : 'low'}`}>
+        {/* Neutral: a low absorbed% is not "bad" — the origin may simply have served
+            the load. The run verdict above sets the interpretation. */}
+        <span className="absorb-pct" title="Fraction the edge absorbed vs let through to origin">
           {a.absorbedPct}% absorbed by edge
         </span>
       </div>
@@ -957,10 +960,48 @@ function RunTimeline({
   );
 }
 
+/**
+ * The faithful verdict for a run — the SAME assessment the report shows, so the
+ * detail page and the report never tell different stories. Leads the detail view.
+ */
+export function RunVerdictLine({ a }: { a: RunAssessment }) {
+  const color =
+    a.verdict === 'held'
+      ? 'var(--success)'
+      : a.verdict === 'breached'
+        ? 'var(--danger)'
+        : 'var(--warning)';
+  const rate = a.configuredRps
+    ? ` · ${a.achievedRps}/${a.configuredRps} rps (${Math.round(a.deliveryRatio * 100)}%)`
+    : '';
+  return (
+    <div className="run-verdict" style={{ marginBottom: '.6rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+        <span className="badge" style={{ color, borderColor: color }}>
+          {a.verdict}
+        </span>
+        <span className="hint">
+          mechanism: <b>{a.mechanism}</b>
+          {rate}
+        </span>
+      </div>
+      <p className="hint" style={{ margin: '.35rem 0 0' }}>
+        {a.observation}
+      </p>
+      {a.verdict !== 'breached' && a.caveats.length > 0 && (
+        <p className="hint warn-hint" style={{ margin: '.35rem 0 0' }}>
+          ⚠ {a.caveats.join(' ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
   return (
     <div className="details">
+      {run.assessment && <RunVerdictLine a={run.assessment} />}
       <div className="metrics">
         <Metric label="Requests">{g.totalRequests}</Metric>
         <Metric label="Success / failures">

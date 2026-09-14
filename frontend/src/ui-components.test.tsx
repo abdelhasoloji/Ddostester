@@ -88,6 +88,28 @@ describe('RunDetails', () => {
     expect(screen.getByText('+4 ms')).toBeInTheDocument();
     expect(screen.getByText('-5 pts')).toBeInTheDocument();
   });
+
+  it('leads with the faithful verdict (same as the report) incl. caveats', () => {
+    const withAssessment: CampaignRun = {
+      ...run,
+      assessment: {
+        verdict: 'inconclusive',
+        mechanism: 'served',
+        observation: 'Delivered only 18% of the DRS 5 target rate — INCONCLUSIVE at full rate.',
+        caveats: ['Delivered only 18% of the configured rate (141/800 req/s).'],
+        underDelivered: true,
+        confident: false,
+        deliveryRatio: 0.18,
+        achievedRps: 141,
+        configuredRps: 800,
+      },
+    };
+    render(<RunDetails run={withAssessment} />);
+    expect(screen.getByText('inconclusive')).toBeInTheDocument();
+    expect(screen.getByText(/mechanism:/)).toBeInTheDocument();
+    expect(screen.getByText(/INCONCLUSIVE at full rate/)).toBeInTheDocument();
+    expect(screen.getByText(/141\/800 req\/s/)).toBeInTheDocument();
+  });
 });
 
 const baseCampaign: Campaign = {

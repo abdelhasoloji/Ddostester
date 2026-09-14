@@ -13,6 +13,7 @@ import { liveProgress } from './runtime/live.js';
 import { metrics } from './modules/metrics/runtime.js';
 import { computeAbsorption } from './modules/reports/absorption.js';
 import { computeConfidence, EVENT_LOOP_LAG_GUARD_MS } from './modules/reports/confidence.js';
+import { assessVector } from './modules/reports/assessment.js';
 import {
   createCampaign,
   approveCampaign,
@@ -675,6 +676,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           runLabels,
         );
       }
+      // Faithful assessment — the SAME engine the report uses, attached to the run
+      // so the campaign detail page and the report always agree on the verdict.
+      run.assessment = assessVector(run, {
+        shape: c.name,
+        drs: /DRS\s*([0-9])/i.exec(c.name)?.[1] ?? '—',
+        status: run.status,
+        vector: c.vector,
+      });
       // Bilateral corroboration (I1): if an edge source is configured, compare our
       // inferred absorption with the edge's own reported blocked/seen counts.
       if (edgeAbsorption.configured) {
