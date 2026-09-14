@@ -41,6 +41,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     wrsSeries: [],
     auditRows: [],
     busy: {},
+    killing: {},
     expanded: null,
     operator: 'op@wedos',
     confirmExec: null,

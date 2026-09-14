@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Agent, fetch as pooledFetch } from 'undici';
 import type { LoadTestConfig, LoadTestResult, WeightedEndpoint } from './types.js';
 import {
   HTTP_METHODS,
@@ -243,6 +244,15 @@ export async function runLoadTest(
   const id = randomUUID();
   const startedAt = new Date();
   const timeoutMs = config.timeoutMs ?? 10_000;
+  // A DEDICATED HTTP connection pool for the generator, isolated from Node's
+  // global `fetch` pool. Without it a high-concurrency flood saturates the global
+  // undici pool and starves every OTHER global-fetch consumer in the process
+  // (recon, external-agent adapters, notifications, other probes) — and the probe
+  // already carved out its own pool for exactly this reason. Sized to the run's
+  // concurrency so the flood still reaches its configured parallelism. TLS is
+  // unchanged: the Agent inherits the process-wide NODE_TLS_REJECT_UNAUTHORIZED
+  // (INSECURE_TLS), like global fetch.
+  const dispatcher = new Agent({ connections: config.concurrency });
   // Phases: by default a single phase (durationSec @ maxRps).
   const phases = config.phases?.length
     ? config.phases
@@ -341,7 +351,7 @@ export async function runLoadTest(
       sendHeaders = { ...sendHeaders, connection: 'close' };
     }
     try {
-      const res = await fetch(withCacheBust(url), {
+      const res = await pooledFetch(withCacheBust(url), {
         method,
         headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
@@ -350,6 +360,9 @@ export async function runLoadTest(
         // otherwise escape the allowlist (SSRF). A redirect is measured as the
         // 3xx it is, against the allowlisted host we were told to hit.
         redirect: 'manual',
+        // Dedicated pool (see `dispatcher` above) so the flood can never starve
+        // the global fetch pool the rest of the process shares.
+        dispatcher,
       });
       latencies.push(performance.now() - t0);
       sent++;
@@ -519,6 +532,10 @@ export async function runLoadTest(
     }
   } finally {
     if (progressTimer) clearInterval(progressTimer);
+    // Release the generator pool's sockets. `destroy()` (not `close()`) so any
+    // request stranded on a tarpitting target is aborted immediately rather than
+    // waited on — the run has already settled its metrics by here.
+    await dispatcher.destroy().catch(() => undefined);
   }
 
   const finishedAt = new Date();

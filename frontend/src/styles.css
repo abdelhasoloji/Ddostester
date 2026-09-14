@@ -703,7 +703,10 @@ input.invalid {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  z-index: 50;
+  /* Above the detail drawer (.drawer-overlay, z-index 55) so a modal opened from
+     inside the drawer — Approve/Reject, Run confirm — layers on top of it, not
+     behind it. Kept below toasts (z-index 60) so notifications stay visible. */
+  z-index: 58;
 }
 .modal {
   background: var(--surface);

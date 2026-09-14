@@ -2,8 +2,9 @@ import { test, expect, type Page, type Browser } from '@playwright/test';
 import { login, goTo, createCampaign, card, SELF } from './helpers.js';
 
 // Stateful campaign-card / drawer actions the other specs don't reach: the live
-// Kill switch on a RUNNING campaign, approving from inside the details drawer, the
-// list sort select, and the suite group expander.
+// Kill switch on a RUNNING campaign (now enabled during a run — the kill guard was
+// moved off `busy`), approving from inside the details drawer (the modal now layers
+// above the drawer — z-index fix), the list sort select, and suite compose.
 
 async function noError(page: Page): Promise<void> {
   await expect(page.locator('.toast.error, .toast-error')).toHaveCount(0);
@@ -23,19 +24,41 @@ async function seed(browser: Browser, over = {}) {
   return { name, ctx, page };
 }
 
-// NOTE (deliberate exclusion): a live "kill a RUNNING campaign" click is not
-// covered here. `execute()` blocks the launching page and holds `busy`, so its own
-// Kill switch is disabled by design; a second operator's Kill switch only appears
-// for the brief RUNNING window, which is shorter than the campaigns poll interval,
-// making the click inherently race-prone. A longer run to widen the window would
-// load the shared probe pool and destabilise neighbouring specs. The Kill switch's
-// RUNNING-gated rendering is exercised implicitly; the click is left out on purpose.
-
-test('drawer: CISO cancels a pending campaign from inside the details drawer', async ({
+test('kill switch: engineer kills their own RUNNING campaign from the live drawer', async ({
   browser,
 }) => {
-  // Approve-from-drawer opens a modal that layers behind the drawer; Cancel is the
-  // clean in-drawer action (terminal, no modal) — it exercises a drawer button.
+  // Regression guard for the kill-during-run fix: `execute()` blocks the page and
+  // holds `busy`, but the kill switch is now gated on a separate `killing` flag, so
+  // it stays ENABLED throughout the run. Running auto-opens the live drawer.
+  const { name, ctx, page } = await seed(browser, { maxRps: 2, durationSec: 10 });
+
+  const cctx = await browser.newContext();
+  const ciso = await cctx.newPage();
+  await login(ciso, 'ciso');
+  await goTo(ciso, 'Campaigns');
+  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
+  await expect(card(ciso, name).getByText('Approved')).toBeVisible();
+
+  await page.reload();
+  await goTo(page, 'Campaigns');
+  await card(page, name).getByRole('button', { name: 'Run', exact: true }).click();
+  await page.getByRole('button', { name: 'Launch campaign' }).click();
+  // The live drawer opens; its Kill switch is enabled (not disabled by `busy`).
+  const drawer = page.locator('aside.drawer');
+  const kill = drawer.getByRole('button', { name: 'Kill switch' });
+  await expect(kill).toBeEnabled({ timeout: 15_000 });
+  await kill.click();
+  await expect(drawer.locator('.kill-note')).toBeVisible({ timeout: 15_000 });
+  await ctx.close();
+  await cctx.close();
+});
+
+test('drawer: CISO approves from inside the drawer (modal layers above the drawer)', async ({
+  browser,
+}) => {
+  // Regression guard for the z-index fix: the approve modal opened from the drawer
+  // must sit ABOVE the drawer overlay so its Approve button is clickable.
   const { name, ctx } = await seed(browser);
   const cctx = await browser.newContext();
   const ciso = await cctx.newPage();
@@ -44,8 +67,9 @@ test('drawer: CISO cancels a pending campaign from inside the details drawer', a
   await card(ciso, name).getByRole('button', { name: 'Details' }).click();
   const drawer = ciso.locator('aside.drawer');
   await expect(drawer).toBeVisible();
-  await drawer.getByRole('button', { name: 'Cancel' }).click();
-  await expect(drawer.getByText('Cancelled')).toBeVisible();
+  await drawer.getByRole('button', { name: 'Approve / Reject' }).click();
+  await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
+  await expect(drawer.getByText('Approved')).toBeVisible();
   await ctx.close();
   await cctx.close();
 });

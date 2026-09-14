@@ -109,6 +109,7 @@ function appWith(
 ) {
   return {
     busy: {},
+    killing: {},
     role,
     authRequired: true,
     requireCisoApproval: false,
