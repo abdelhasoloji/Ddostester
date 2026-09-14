@@ -19,6 +19,7 @@ import { probeLimitsFromEnv, ESTIMATED_TIMINGS } from '../../config/limits.js';
 import { metrics } from '../metrics/runtime.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
+import type { VectorAssessment } from '../reports/assessment.js';
 import type { AbsorptionCorroboration } from '../edge-absorption/types.js';
 import { detectBreakingPoint, type BreakingPoint } from './breaking-point.js';
 import type { Campaign } from './model.js';
@@ -129,6 +130,12 @@ export interface CampaignRun {
    * report and the in-app absorption widget so all surfaces agree.
    */
   absorption?: Absorption;
+  /**
+   * Faithful assessment (verdict + mechanism + caveats) from the assessment
+   * engine — the SAME source of truth the report uses, attached at settle so the
+   * campaign detail page and the report can never tell different stories.
+   */
+  assessment?: VectorAssessment;
   /**
    * Bilateral corroboration (I1): our inferred absorption vs the edge's own
    * reported blocked/seen. Present only when an edge-absorption source answered.

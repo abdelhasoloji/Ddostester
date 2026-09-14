@@ -153,6 +153,24 @@ export interface AgentInfo {
   description: string;
 }
 
+/** Faithful per-run verdict from the backend assessment engine (mirrors VectorAssessment). */
+export type RunVerdict = 'held' | 'partial' | 'breached' | 'inconclusive';
+export type RunMechanism = 'served' | 'rejected' | 'tarpitted' | 'shed' | 'blocked' | 'unknown';
+export interface RunAssessment {
+  verdict: RunVerdict;
+  mechanism: RunMechanism;
+  /** One faithful sentence describing what happened. */
+  observation: string;
+  /** Under-delivery / degraded / probe-contended notes — why a verdict may be inconclusive. */
+  caveats: string[];
+  underDelivered: boolean;
+  /** Whether the measurement is trustworthy enough to state resilience at the target rate. */
+  confident: boolean;
+  deliveryRatio: number;
+  achievedRps: number;
+  configuredRps: number;
+}
+
 export interface CampaignRun {
   runId: string;
   campaignId: string;
@@ -232,6 +250,9 @@ export interface CampaignRun {
   };
   /** Protection absorption: configured → offered → origin RPS + % absorbed by the edge. */
   absorption?: Absorption;
+  /** Faithful assessment from the backend engine — the same verdict the report shows,
+   *  so the detail page and the report never disagree. */
+  assessment?: RunAssessment;
   /** Measurement confidence — whether the generator host itself was the bottleneck. */
   confidence?: RunConfidence;
   /** Bilateral corroboration: our inferred absorption vs the edge's own report. */
