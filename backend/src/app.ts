@@ -2252,7 +2252,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // start until resumed. No effect on a step already in flight.
   app.post(
     '/api/suites/:id/pause',
-    { preHandler: guard('campaign:approve') },
+    // Whoever can kill a run can control the sequence — the engineer who launched
+    // it (two-step flow), a CISO, or an admin. Not gated behind approve alone.
+    { preHandler: guard('campaign:kill') },
     async (req, reply) => {
       const suiteId = (req.params as { id: string }).id;
       const ctrl = suiteRuns.get(suiteId);
@@ -2264,64 +2266,56 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   );
 
   // Resume a paused sequence.
-  app.post(
-    '/api/suites/:id/resume',
-    { preHandler: guard('campaign:approve') },
-    async (req, reply) => {
-      const suiteId = (req.params as { id: string }).id;
-      const ctrl = suiteRuns.get(suiteId);
-      if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
-      ctrl.paused = false;
-      // Resume clears the auto-pause state and the down-skip counter, so the
-      // gate re-evaluates the target fresh rather than immediately re-pausing.
-      ctrl.autoPaused = false;
-      ctrl.downSkips = 0;
-      await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
-      return reply.send({ suiteId, paused: false });
-    },
-  );
+  app.post('/api/suites/:id/resume', { preHandler: guard('campaign:kill') }, async (req, reply) => {
+    const suiteId = (req.params as { id: string }).id;
+    const ctrl = suiteRuns.get(suiteId);
+    if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
+    ctrl.paused = false;
+    // Resume clears the auto-pause state and the down-skip counter, so the
+    // gate re-evaluates the target fresh rather than immediately re-pausing.
+    ctrl.autoPaused = false;
+    ctrl.downSkips = 0;
+    await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
+    return reply.send({ suiteId, paused: false });
+  });
 
   // Cancel a running sequence: stop before the next step and kill the step in
   // flight (its kill switch fires — a KILLED_MANUAL terminal state). Steps not
   // yet started are left as-is (approved but not run).
-  app.post(
-    '/api/suites/:id/cancel',
-    { preHandler: guard('campaign:approve') },
-    async (req, reply) => {
-      const suiteId = (req.params as { id: string }).id;
-      const ctrl = suiteRuns.get(suiteId);
-      if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
-      ctrl.cancelled = true;
-      ctrl.paused = false; // release the pause gate so the loop can break out
-      const current = ctrl.current;
-      if (current) kills.get(current)?.trigger('KILLED_MANUAL');
-      // Close the scenario cleanly: cancel the steps that will now never run
-      // (pending or approved), so no orphan steps linger after the cancel. The
-      // step in flight (current) is left to its kill switch above.
-      let cancelledSteps = 0;
-      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
-      for (const m of members) {
-        if (m.id === current) continue;
-        if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
-          await store.saveCampaign(cancelCampaign(m, `suite ${suiteId} cancelled`));
-          cancelledSteps += 1;
-        }
+  app.post('/api/suites/:id/cancel', { preHandler: guard('campaign:kill') }, async (req, reply) => {
+    const suiteId = (req.params as { id: string }).id;
+    const ctrl = suiteRuns.get(suiteId);
+    if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
+    ctrl.cancelled = true;
+    ctrl.paused = false; // release the pause gate so the loop can break out
+    const current = ctrl.current;
+    if (current) kills.get(current)?.trigger('KILLED_MANUAL');
+    // Close the scenario cleanly: cancel the steps that will now never run
+    // (pending or approved), so no orphan steps linger after the cancel. The
+    // step in flight (current) is left to its kill switch above.
+    let cancelledSteps = 0;
+    const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+    for (const m of members) {
+      if (m.id === current) continue;
+      if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
+        await store.saveCampaign(cancelCampaign(m, `suite ${suiteId} cancelled`));
+        cancelledSteps += 1;
       }
-      await audit(
-        req,
-        'suite.cancel',
-        current,
-        `sequence cancelled · ${suiteId}${current ? ` · killed step in flight` : ''}` +
-          ` · ${cancelledSteps} step(s) cancelled`,
-      );
-      return reply.send({
-        suiteId,
-        cancelled: true,
-        killedCurrent: Boolean(current),
-        cancelledSteps,
-      });
-    },
-  );
+    }
+    await audit(
+      req,
+      'suite.cancel',
+      current,
+      `sequence cancelled · ${suiteId}${current ? ` · killed step in flight` : ''}` +
+        ` · ${cancelledSteps} step(s) cancelled`,
+    );
+    return reply.send({
+      suiteId,
+      cancelled: true,
+      killedCurrent: Boolean(current),
+      cancelledSteps,
+    });
+  });
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
