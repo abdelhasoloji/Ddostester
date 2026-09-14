@@ -154,7 +154,9 @@ describe('Multi-step suite sequencer', () => {
     expect(live).toBe(true);
 
     // Cancel it — the step in flight is killed, the sequence stops.
-    const cancel = await as(off, 'POST', `/api/suites/${suiteId}/cancel`);
+    // The ENGINEER who launched the sequence can cancel it (campaign:kill), not
+    // just a CISO — otherwise the operator couldn't stop their own run.
+    const cancel = await as(eng, 'POST', `/api/suites/${suiteId}/cancel`);
     expect(cancel.statusCode).toBe(200);
     expect(cancel.json().cancelled).toBe(true);
 
