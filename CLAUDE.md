@@ -11,14 +11,26 @@ Full-stack: Fastify/TypeScript backend (ESM, Node ≥ 22), React/Vite frontend.
 ## Non-negotiable boundary (must be respected absolutely)
 
 The **control plane** (`backend/` + `frontend/` — the deployed product)
-**implements no attack vector**: no L3/L4 flood, no amplification
-(DNS/NTP/SSDP/CLDAP), no Smurf, no L7 exhaustion (Slowloris, RUDY, WebSocket
-flood, XML bomb, browser botnet). The **only** vector is a **bounded HTTP
-generator** (GET/POST, rate-capped, allowlisted target). External load
-generation goes through **adapters** (`backend/src/agents/`) that delegate to
-licensed tools (k6, Vegeta, Locust) operated by the team — never offensive code
-here. Any contribution adding a volumetric/exhaustion vector to the control
-plane is out of scope.
+**implements no amplification, spoofing, or unbounded-exhaustion attack vector**:
+no L3/L4 flood, no amplification (DNS/NTP/SSDP/CLDAP), no Smurf, and no
+malformed/oversized-payload L7 exhaustion (RUDY, WebSocket flood, XML bomb,
+browser botnet). Every vector it _does_ implement is **bounded, governed,
+single-source, and aimed at an allowlisted target**:
+
+1. a **bounded HTTP generator** (`engine/loadTest.ts`) — GET/POST, rate-capped; and
+2. a **bounded slow-header connection probe** (`engine/slowloris.ts`, vector
+   `http-slowloris`) that opens ≤ `concurrency` connections and holds them with an
+   incomplete-but-well-formed request to **measure whether the target sheds slow
+   requests** (a request/header timeout — good) or lets them accumulate (bad).
+   Real source, **no spoofing**, only well-formed HTTP, capped on connection count
+   (≤ `HARD_CAPS.maxConcurrency`) and lifetime (≤ `HARD_CAPS.maxDurationSec`), and
+   kill-switchable like every other run. It is a resilience **measurement**, not a
+   volumetric flood or an exploit.
+
+External load generation goes through **adapters** (`backend/src/agents/`) that
+delegate to licensed tools (k6, Vegeta, Locust) operated by the team — never
+offensive code here. Any contribution adding an **amplification, source-spoofing,
+or unbounded/volumetric** vector to the control plane is out of scope.
 
 A **closed synthetic network lab** that models UDP-amplification traffic shape
 for defensive measurement (no source-IP spoofing, no real reflector protocol,

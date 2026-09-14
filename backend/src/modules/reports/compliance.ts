@@ -7,6 +7,7 @@ import { aggregateRemediations, SEVERITY_PILL } from './remediations.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { availabilityPct } from '../../util/run-metrics.js';
+import { HARD_CAPS } from '../../config/limits.js';
 
 // Re-exported for the compare/report modules that historically imported these
 // run helpers from here.
@@ -301,7 +302,7 @@ export function renderComplianceHtml(
  ${row('Runs assessed', total)}
  ${row('Targets', [...targets].map(esc).join(', ') || '—')}
  ${row('Load engines', [...engines].map(esc).join(', ') || '—')}
- ${row('Method', 'Bounded HTTP (GET/POST), allowlisted, capped ≤ 2000 rps / 500 conc / 900 s')}
+ ${row('Method', `Bounded HTTP (GET/POST), allowlisted, capped ≤ ${HARD_CAPS.maxRps} rps / ${HARD_CAPS.maxConcurrency} conc / ${HARD_CAPS.maxDurationSec} s`)}
  ${row('DRS note', 'Customer-defined targets — assessment capped at DRS 4.5 by methodology')}
 </table>` +
     `<h2>Score &amp; risk distribution</h2>
