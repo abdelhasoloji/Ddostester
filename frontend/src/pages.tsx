@@ -1728,7 +1728,11 @@ export function stepLabel(c: Campaign, suiteName: string): string {
  */
 export function SuiteRunBanner() {
   const app = useApp();
-  const canRun = canDo(app.role, 'approve', app.authRequired);
+  // Two-step flow: a CISO approves, an engineer runs. Both can drive a live
+  // sequence's pause/cancel controls.
+  const canApprove = canDo(app.role, 'approve', app.authRequired);
+  const canExec = canDo(app.role, 'execute', app.authRequired);
+  const canRun = canApprove || canExec;
   const [busy, setBusy] = useState<string | null>(null);
   const [sequences, setSequences] = useState<Record<string, SuiteSequenceState>>({});
   const groups = useMemo(() => groupSuites(app.campaigns), [app.campaigns]);
@@ -1793,20 +1797,37 @@ export function SuiteRunBanner() {
               {canRun && (
                 <div className="suite-banner-actions">
                   {!sequencing ? (
-                    <button
-                      className="btn btn-sm btn-primary"
-                      disabled={isBusy}
-                      onClick={() =>
-                        act(
-                          g.suiteId,
-                          () => api.runSuite(g.suiteId),
-                          `Scenario approved — remaining steps will run in order.`,
-                        )
-                      }
-                      title="One approval for the whole scenario: approves + runs every remaining step in order"
-                    >
-                      {isBusy ? 'Starting…' : `▶ Approve & run whole scenario (${g.remaining})`}
-                    </button>
+                    canApprove && g.pending > 0 ? (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        disabled={isBusy}
+                        onClick={() =>
+                          act(
+                            g.suiteId,
+                            () => api.approveSuite(g.suiteId),
+                            'Scenario approved — an engineer can now run it.',
+                          )
+                        }
+                        title="Approve every pending step of the scenario (a CISO)"
+                      >
+                        {isBusy ? 'Approving…' : `✓ Approve scenario (${g.pending})`}
+                      </button>
+                    ) : canExec && g.pending === 0 ? (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        disabled={isBusy}
+                        onClick={() =>
+                          act(
+                            g.suiteId,
+                            () => api.runSuite(g.suiteId),
+                            'Scenario launched — approved steps will run in order.',
+                          )
+                        }
+                        title="Run the approved steps of the scenario in order"
+                      >
+                        {isBusy ? 'Starting…' : `▶ Run scenario (${g.remaining})`}
+                      </button>
+                    ) : null
                   ) : (
                     <>
                       {paused ? (
@@ -2019,10 +2040,13 @@ function SuiteStepRow({
 function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const app = useApp();
   const canArchive = canDo(app.role, 'create', app.authRequired);
-  const canRun = canDo(app.role, 'approve', app.authRequired);
+  // Two-step flow: a CISO approves the scenario, then an engineer runs it.
+  const canApprove = canDo(app.role, 'approve', app.authRequired);
+  const canExec = canDo(app.role, 'execute', app.authRequired);
   const t = useMemo(() => suiteTiming(g.members), [g.members]);
   const agg = useMemo(() => suiteWrs(g.members), [g.members]);
   const active = g.remaining > 0;
+  const approvedRemaining = Math.max(0, g.remaining - g.pending); // approved, not yet run
   const sequencing = g.running > 0; // a step is in flight → the live banner drives it
   const [open, setOpen] = useState(false);
   const allArchived = g.members.every((m) => m.archived);
@@ -2030,11 +2054,11 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const scored = agg ? `${agg.scored}/${g.total} scored` : 'not scored';
   const [localBusy, setLocalBusy] = useState(false);
 
-  const runScenario = async () => {
+  const act = async (fn: () => Promise<unknown>, ok: string) => {
     setLocalBusy(true);
     try {
-      await api.runSuite(g.suiteId);
-      app.push('success', `Scenario approved — remaining steps will run in order.`);
+      await fn();
+      app.push('success', ok);
       app.refresh();
     } catch (err) {
       app.push('error', (err as Error).message);
@@ -2042,6 +2066,10 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
       setLocalBusy(false);
     }
   };
+  const approveScenario = () =>
+    act(() => api.approveSuite(g.suiteId), 'Scenario approved — an engineer can now run it.');
+  const runScenario = () =>
+    act(() => api.runSuite(g.suiteId), 'Scenario launched — approved steps will run in order.');
 
   return (
     <div className={`suite-group${allArchived ? ' is-archived' : ''}`}>
@@ -2066,14 +2094,24 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           </span>
         )}
         <div className="suite-group-actions">
-          {canRun && active && !sequencing && (
+          {canApprove && g.pending > 0 && !sequencing && (
+            <button
+              className="btn btn-sm btn-primary"
+              disabled={localBusy}
+              onClick={approveScenario}
+              title="Approve every pending step of the scenario (a CISO). An engineer then runs it."
+            >
+              {localBusy ? <span className="spin" /> : null}✓ Approve scenario ({g.pending})
+            </button>
+          )}
+          {canExec && g.pending === 0 && approvedRemaining > 0 && !sequencing && (
             <button
               className="btn btn-sm btn-primary"
               disabled={localBusy}
               onClick={runScenario}
-              title="One approval for the whole scenario: approves + runs every remaining step in order"
+              title="Run the approved steps of the scenario in order"
             >
-              {localBusy ? <span className="spin" /> : null}▶ Approve &amp; run ({g.remaining})
+              {localBusy ? <span className="spin" /> : null}▶ Run scenario ({approvedRemaining})
             </button>
           )}
           {g.done > 0 && (
@@ -2321,7 +2359,9 @@ function SuitesSection() {
   const [suites, setSuites] = useState<SuiteSummary[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const app = useApp();
-  const canRun = canDo(app.role, 'approve', app.authRequired);
+  // Two-step flow: a CISO approves the scenario, then an engineer runs it.
+  const canApprove = canDo(app.role, 'approve', app.authRequired);
+  const canExec = canDo(app.role, 'execute', app.authRequired);
   useEffect(() => {
     api
       .suites()
@@ -2340,6 +2380,18 @@ function SuitesSection() {
 
   if (suites.length === 0) return null;
 
+  const approveSequence = async (s: SuiteSummary) => {
+    setBusy(s.suiteId);
+    try {
+      await api.approveSuite(s.suiteId);
+      app.push('success', 'Scenario approved — an engineer can now run it.');
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
   const runSequence = async (s: SuiteSummary) => {
     setBusy(s.suiteId);
     try {
@@ -2389,12 +2441,22 @@ function SuitesSection() {
                   {s.pending ? ` · ${s.pending} pending` : ''}
                   {s.running ? ` · ${s.running} running` : ''}
                 </span>
-                {canRun && remaining > 0 && (
+                {canApprove && s.pending > 0 && !sequencing && (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={busy === s.suiteId}
+                    onClick={() => approveSequence(s)}
+                    title="Approve every pending step of the scenario (a CISO). An engineer then runs it."
+                  >
+                    {busy === s.suiteId ? 'Approving…' : `✓ Approve scenario (${s.pending})`}
+                  </button>
+                )}
+                {canExec && s.pending === 0 && remaining > 0 && (
                   <button
                     className="btn btn-sm btn-primary"
                     disabled={busy === s.suiteId || sequencing}
                     onClick={() => runSequence(s)}
-                    title="Approve + run every remaining step in order, advancing through auto-kills"
+                    title="Run the approved steps of the scenario in order, advancing through auto-kills"
                   >
                     {busy === s.suiteId
                       ? 'Starting…'
