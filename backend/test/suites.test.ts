@@ -84,15 +84,33 @@ describe('renderSuiteReportHtml', () => {
       }),
     ]);
     const html = renderSuiteReportHtml(s);
-    expect(html).toContain('assessment Capacity'); // report title
+    expect(html).toContain('L7 resilience'); // report title (target-named, no "Pre-test")
     expect(html).toContain('DDoS resilience assessment'); // zeroBS-style cover
     expect(html).toContain('staging.example.com');
     expect(html).toContain('75'); // avg of 90 and 60
     expect(html).toContain('worst C'); // worst level
     expect(html).toContain('Management summary');
     expect(html).toContain('Layer 7 summary');
+    expect(html).toContain('Verdict'); // verdict-driven summary
     expect(html).toContain('Glossary');
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // steps + glossary rows
+  });
+
+  it('links to Grafana when a base URL is configured', () => {
+    const [s] = buildSuites([
+      campaign({
+        suiteId: 'g1',
+        suiteName: 'Cap',
+        suiteOrder: 0,
+        status: 'COMPLETED',
+        wrs: wrs(90, 'A'),
+      }),
+    ]);
+    const html = renderSuiteReportHtml(s, [], { grafanaUrl: 'http://localhost:3000' });
+    expect(html).toContain('Open this run in Grafana');
+    expect(html).toContain('/d/shieldtest-run?');
+    // no inline availability SVG figure when Grafana is the chart source
+    expect(html).not.toContain('Legitimate-probe availability across the attack');
   });
 });
 

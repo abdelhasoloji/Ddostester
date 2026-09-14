@@ -65,6 +65,9 @@ export interface ReadRoutesCtx {
    * native charts. See modules/metrics/prometheus-query.ts.
    */
   prometheusUrl?: string;
+  /** Grafana base URL — when set, HTML reports deep-link into the provisioned
+   *  dashboards (scoped per run/target) instead of embedding a static SVG. */
+  grafanaUrl?: string;
 }
 
 /**
@@ -73,7 +76,7 @@ export interface ReadRoutesCtx {
  * Extracted from app.ts to keep the route table legible.
  */
 export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): void {
-  const { store, guard, readTokenAllowed, prometheusUrl } = ctx;
+  const { store, guard, readTokenAllowed, prometheusUrl, grafanaUrl } = ctx;
 
   // App-native charts (option B): a bounded, read-only Prometheus range-query
   // proxy. The client asks for a NAMED series (never raw PromQL), scoped to an
@@ -134,7 +137,7 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
     const runs = await store.listRuns();
-    return sendReport(req, reply, renderSuiteReportHtml(suite, runs), 'assessment');
+    return sendReport(req, reply, renderSuiteReportHtml(suite, runs, { grafanaUrl }), 'assessment');
   });
 
   // Before / after comparison of two suites of the same playbook (the
