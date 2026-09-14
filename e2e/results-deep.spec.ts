@@ -13,7 +13,12 @@ async function noError(page: Page): Promise<void> {
 async function runOne(eng: Page, ciso: Page, name: string): Promise<void> {
   await createCampaign(eng, { name, target: SELF, probe: SELF, maxRps: 5, durationSec: 2 });
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  // Force a fresh fetch: the CISO logged in before this campaign existed, so a
+  // re-navigation alone may show a stale (empty) list under a slow environment.
+  await ciso.reload();
+  const cisoCard = card(ciso, name);
+  await expect(cisoCard).toBeVisible({ timeout: 15_000 });
+  await cisoCard.getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(card(ciso, name).getByText('Approved')).toBeVisible();
   await eng.reload();
