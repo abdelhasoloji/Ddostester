@@ -197,7 +197,25 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
         and a suggested configuration. One flow, always recon-first.
       </p>
       <div className="field" style={{ maxWidth: '32rem' }}>
-        <label>Target URL</label>
+        <label>Target</label>
+        {app.allowed.length > 0 && (
+          <select
+            aria-label="Choose an allowed target"
+            className="target-select"
+            value={host && app.allowed.includes(host) ? host : ''}
+            onChange={(e) => {
+              if (e.target.value) setTarget(`https://${e.target.value}/`);
+            }}
+            style={{ marginBottom: '.4rem' }}
+          >
+            <option value="">Choose an allowed target…</option>
+            {app.allowed.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           value={target}
           placeholder="https://bank.cz/"
@@ -207,7 +225,8 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           }}
         />
         <span className="hint">
-          Allowed hosts: {app.allowed.join(', ') || '—'}
+          Pick a target above, or type a full URL (protocol / port / path).{' '}
+          {app.allowed.length > 0 && <>Allowed hosts: {app.allowed.join(', ')}.</>}
           {target && !allowed && <b style={{ color: 'var(--danger)' }}> · not on the allowlist</b>}
         </span>
       </div>
