@@ -2356,12 +2356,11 @@ const SUITE_STEP_CLASS: Record<string, string> = {
 };
 
 function SuitesSection() {
+  // Read-only reporting view of assessment suites. The governance controls
+  // (approve scenario / run sequence) live on the Campaigns screen — on
+  // SuiteGroupCard and SuiteRunBanner — not here; Results only reports.
   const [suites, setSuites] = useState<SuiteSummary[]>([]);
-  const [busy, setBusy] = useState<string | null>(null);
   const app = useApp();
-  // Two-step flow: a CISO approves the scenario, then an engineer runs it.
-  const canApprove = canDo(app.role, 'approve', app.authRequired);
-  const canExec = canDo(app.role, 'execute', app.authRequired);
   useEffect(() => {
     api
       .suites()
@@ -2380,38 +2379,11 @@ function SuitesSection() {
 
   if (suites.length === 0) return null;
 
-  const approveSequence = async (s: SuiteSummary) => {
-    setBusy(s.suiteId);
-    try {
-      await api.approveSuite(s.suiteId);
-      app.push('success', 'Scenario approved — an engineer can now run it.');
-      await app.refresh();
-    } catch (err) {
-      app.push('error', (err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  };
-  const runSequence = async (s: SuiteSummary) => {
-    setBusy(s.suiteId);
-    try {
-      const r = await api.runSuite(s.suiteId);
-      app.push('success', `Sequence started — ${r.steps} steps will run in order.`);
-      await app.refresh();
-    } catch (err) {
-      app.push('error', (err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <>
       <h2 className="section-title">Assessment suites</h2>
       <div className="card" style={{ display: 'grid', gap: '.75rem', marginBottom: '1rem' }}>
         {suites.map((s, i) => {
-          const remaining = s.total - s.completed;
-          const sequencing = s.running > 0;
           // Suites are newest-first; the previous replay of the same playbook on
           // the same target (if any) is the next match further down the list.
           const prev = suites
@@ -2441,30 +2413,6 @@ function SuitesSection() {
                   {s.pending ? ` · ${s.pending} pending` : ''}
                   {s.running ? ` · ${s.running} running` : ''}
                 </span>
-                {canApprove && s.pending > 0 && !sequencing && (
-                  <button
-                    className="btn btn-sm btn-primary"
-                    disabled={busy === s.suiteId}
-                    onClick={() => approveSequence(s)}
-                    title="Approve every pending step of the scenario (a CISO). An engineer then runs it."
-                  >
-                    {busy === s.suiteId ? 'Approving…' : `✓ Approve scenario (${s.pending})`}
-                  </button>
-                )}
-                {canExec && s.pending === 0 && remaining > 0 && (
-                  <button
-                    className="btn btn-sm btn-primary"
-                    disabled={busy === s.suiteId || sequencing}
-                    onClick={() => runSequence(s)}
-                    title="Run the approved steps of the scenario in order, advancing through auto-kills"
-                  >
-                    {busy === s.suiteId
-                      ? 'Starting…'
-                      : sequencing
-                        ? 'Running…'
-                        : `▶ Run sequence (${remaining})`}
-                  </button>
-                )}
                 <a
                   className="btn btn-sm btn-ghost"
                   href={suiteReportUrl(s.suiteId)}
@@ -2972,7 +2920,8 @@ export function ReportsPage() {
                       marginBottom: '.5rem',
                     }}
                   >
-                    {c.wrs && <WrsPill wrs={c.wrs} />}
+                    {/* WRS already shows on the report-row above; only the
+                        measurement-confidence badge is unique to this detail. */}
                     {selRun && <ConfidenceBadge run={selRun} />}
                   </div>
                   {loadingRun && (

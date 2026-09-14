@@ -1,4 +1,5 @@
 import { assembleReconReport, type ReconReport, type PreflightInput } from './recon.js';
+import { hostOf } from '../../util/net.js';
 
 /**
  * Bounded, allowlisted network orchestration for the preparation phase. Kept
@@ -13,14 +14,6 @@ import { assembleReconReport, type ReconReport, type PreflightInput } from './re
 const BASELINE_SAMPLES = 5;
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_BODY_BYTES = 512 * 1024; // cap captured bodies (robots/sitemap/homepage)
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
 
 function snapshot(res: Response): Record<string, string> {
   const out: Record<string, string> = {};

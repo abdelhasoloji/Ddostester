@@ -7,6 +7,7 @@ import { coverBand, docHead, DOC_TAIL, pill, statCard } from '../reports/layout.
 import { gaugeSvg, scoreColor, REPORT_COLORS, timelineSvg } from '../reports/charts.js';
 import { riskLevel } from '../reports/compliance.js';
 import { availabilityPct } from '../../util/run-metrics.js';
+import { hostOf } from '../../util/net.js';
 
 /**
  * Consolidated view of an assessment suite (campaigns created from one
@@ -222,7 +223,7 @@ export function renderSuiteReportHtml(suite: SuiteSummary, runs: CampaignRun[] =
 
   const avg = suite.wrs?.avg ?? 0;
   const worstLevel = suite.wrs?.level ?? '—';
-  const host = hostOfUrl(suite.target);
+  const host = hostOf(suite.target);
   const date = esc(suite.createdAt).slice(0, 10);
 
   const narrative = scoredRuns.length
@@ -303,15 +304,6 @@ export function renderSuiteReportHtml(suite: SuiteSummary, runs: CampaignRun[] =
     `<p class="muted" style="margin-top:2rem">Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.</p>` +
     DOC_TAIL
   );
-}
-
-/** Best-effort hostname from a URL string (keeps the raw value if unparseable). */
-function hostOfUrl(t: string): string {
-  try {
-    return new URL(t).hostname;
-  } catch {
-    return t;
-  }
 }
 
 /** Strips the "<suiteName> — " prefix so a step reads as its own line label. */

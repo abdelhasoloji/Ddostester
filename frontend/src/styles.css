@@ -91,16 +91,6 @@ body {
 }
 
 /* Brand bar */
-.brandbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 1rem 0 0.75rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 0.75rem;
-}
 .brand-lockup {
   display: flex;
   align-items: center;
@@ -542,9 +532,6 @@ input.invalid {
   align-items: center;
   flex-wrap: wrap;
 }
-.spacer {
-  flex: 1;
-}
 
 /* Status badges */
 .badge {
@@ -889,10 +876,6 @@ input.invalid {
   flex-direction: column;
   gap: 0.15rem;
 }
-.spark {
-  background: var(--surface-2);
-  border-radius: 6px;
-}
 
 /* WRS trend chart (uPlot) — see PromChart/UplotChart */
 .wrs-trend {
@@ -1096,43 +1079,6 @@ input.invalid {
 }
 
 /* Collapsible "More" group — everything non-campaign, one click away. */
-.nav-more {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-top: 0.35rem;
-}
-.nav-more-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.7rem;
-  border: 0;
-  background: transparent;
-  border-radius: 8px;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  text-align: left;
-}
-.nav-more-toggle:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-.nav-more-caret {
-  margin-left: auto;
-  font-size: 0.7rem;
-}
-.nav-more-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding-left: 0.5rem;
-  border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-  margin-left: 0.55rem;
-}
 .sidebar-foot {
   margin-top: auto;
   display: flex;
@@ -2932,56 +2878,6 @@ table.remediations td {
 }
 .pf-grid > span {
   color: var(--muted);
-}
-
-/* Phase rail — five-phase engagement cycle */
-.phase-rail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
-.phase-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-  text-decoration: none;
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-.phase-step:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-.phase-step.active {
-  background: var(--brand);
-  color: var(--primary-contrast);
-}
-.phase-step .phase-n {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-.phase-step.active .phase-n {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-.phase-arrow {
-  margin-left: 0.4rem;
-  color: var(--border);
 }
 
 /* ── Observability in-app: absorption, confidence, alerts ─────────────────── */
