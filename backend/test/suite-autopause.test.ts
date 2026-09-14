@@ -71,7 +71,9 @@ describe('suite auto-pause on a down origin', () => {
     });
     const suiteId = inst.json().campaigns[0].suiteId as string;
 
-    expect((await as(off, 'POST', `/api/suites/${suiteId}/run`)).statusCode).toBe(202);
+    // Two-step: the CISO approves, then the engineer runs.
+    await as(off, 'POST', `/api/suites/${suiteId}/approve`);
+    expect((await as(eng, 'POST', `/api/suites/${suiteId}/run`)).statusCode).toBe(202);
 
     // Poll the live sequence state until it reports auto-paused.
     let autoPaused = false;

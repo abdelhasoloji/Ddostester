@@ -80,7 +80,9 @@ describe('suite recovery gate (between waves)', () => {
     const inst = await as(eng, 'POST', `/api/playbooks/${pbId}/instantiate`, { target });
     const suiteId = inst.json().campaigns[0].suiteId as string;
 
-    const run = await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    // Two-step: the CISO approves, then the engineer runs.
+    await as(off, 'POST', `/api/suites/${suiteId}/approve`);
+    const run = await as(eng, 'POST', `/api/suites/${suiteId}/run`);
     expect(run.statusCode).toBe(202);
 
     let members: { status: string }[] = [];

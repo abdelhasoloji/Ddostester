@@ -826,10 +826,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // This runs them one at a time in suiteOrder, awaiting each step's terminal
   // state before starting the next, and — crucially — advancing PAST a step that
   // auto-kills (an availability loss on one vector must not strand the rest of
-  // the assessment). Governed one-click: the runner approves each pending step
-  // (author≠approver still enforced by approveCampaign — a step the runner
-  // authored is skipped and audited), then executes it. Runs in the background;
-  // progress is read from the member campaigns' statuses. One sequence per suite.
+  // the assessment). Two-step governance (matches a single campaign): a CISO
+  // approves the scenario first (POST /suites/:id/approve), then an engineer runs
+  // the approved steps here — the sequencer only executes APPROVED steps and never
+  // approves. Runs in the background; progress is read from the member campaigns'
+  // statuses. One sequence per suite.
   //
   // A sequence is controllable while it runs: PAUSE holds it between steps
   // (the current step finishes, the next does not start) until RESUME; CANCEL
@@ -901,17 +902,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         while (ctrl.paused && !ctrl.cancelled) await sleepMs(400);
         if (ctrl.cancelled) break;
         // Re-fetch: earlier steps may have changed state (and to see manual kills).
-        let c = await store.getCampaign(m.id);
+        const c = await store.getCampaign(m.id);
         if (!c) continue;
+        // Two-step flow: a CISO approves the scenario (POST /suites/:id/approve)
+        // before an engineer runs it (POST /suites/:id/run, which refuses to start
+        // while any step is still pending). The sequencer therefore NEVER approves —
+        // it skips a still-pending step rather than self-approving it.
         if (c.status === 'PENDING_APPROVAL') {
-          try {
-            c = approveCampaign(c, actor, 'APPROVED');
-            await store.saveCampaign(c);
-            await auditAs(actor, 'campaign.approve', c.id, `suite ${suiteId} sequence`);
-          } catch (err) {
-            await auditAs(actor, 'suite.skip', c.id, `not approved: ${(err as Error).message}`);
-            continue;
-          }
+          await auditAs(
+            actor,
+            'suite.skip',
+            c.id,
+            'awaiting approval — approve the scenario first',
+          );
+          continue;
         }
         if (c.status !== 'APPROVED') continue; // terminal / rejected → leave as-is
         // Recovery gate BETWEEN waves: once at least one step has run, don't start
@@ -2137,13 +2141,52 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  // Run every step of a suite in order (governed one-click). Fire-and-forget:
-  // the sequence runs in the background and advances through auto-kills. Poll
-  // GET /api/suites/:id (or the campaign list) to watch step statuses advance.
-  app.post('/api/suites/:id/run', { preHandler: guard('campaign:approve') }, async (req, reply) => {
+  // Two-step flow — step 1: a CISO approves every still-pending step of a suite
+  // (no run). Mirrors approving a single campaign, applied to the whole scenario.
+  app.post(
+    '/api/suites/:id/approve',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+      if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+      const actor = req.authUser?.email ?? 'dev';
+      let approved = 0;
+      let skipped = 0;
+      for (const m of members) {
+        if (m.status !== 'PENDING_APPROVAL') continue;
+        try {
+          await store.saveCampaign(approveCampaign(m, actor, 'APPROVED'));
+          approved += 1;
+        } catch {
+          // A step the approver authored can't be self-approved (author≠approver);
+          // leave it pending and let a different CISO approve it.
+          skipped += 1;
+        }
+      }
+      await audit(
+        req,
+        'campaign.approve',
+        undefined,
+        `suite ${suiteId} — ${approved} step(s) approved`,
+      );
+      return reply.send({ suiteId, approved, skipped });
+    },
+  );
+
+  // Two-step flow — step 2: an engineer runs the APPROVED steps of a suite in
+  // order (fire-and-forget; advances through auto-kills). Refuses to start while
+  // any step is still pending — approve the scenario first.
+  app.post('/api/suites/:id/run', { preHandler: guard('campaign:execute') }, async (req, reply) => {
     const suiteId = (req.params as { id: string }).id;
     const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
     if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+    const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
+    if (pending > 0) {
+      return reply.code(409).send({
+        error: `approve the scenario first — ${pending} step(s) await CISO approval`,
+      });
+    }
     // Reserve the slot synchronously here — BEFORE the audit await below — so two
     // near-simultaneous submits can't both pass the guard and start two
     // sequences (which would run two steps at once).

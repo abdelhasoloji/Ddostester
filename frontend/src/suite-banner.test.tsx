@@ -104,10 +104,10 @@ describe('SuiteRunBanner', () => {
       ],
     });
     const { container } = renderWithRouter(<SuiteRunBanner />);
-    // Nothing is sequencing → the banner stays out of the way; Approve & run
-    // now lives on the suite group card.
+    // Nothing is sequencing → the banner stays out of the way; the approve/run
+    // actions now live on the suite group card.
     expect(container.querySelector('.suite-banner')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Approve & run/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Approve scenario|Run scenario/ })).toBeNull();
   });
 
   it('shows Pause + Cancel while a step is running, and surfaces the current step', () => {
@@ -120,7 +120,7 @@ describe('SuiteRunBanner', () => {
     // A running sequence is controllable, not just a disabled "run" button.
     expect(screen.getByRole('button', { name: /Pause/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cancel/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Approve & run/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Approve scenario|Run scenario/ })).toBeNull();
     expect(screen.getByText(/Running step 2\/3:/)).toBeInTheDocument();
   });
 

@@ -117,16 +117,31 @@ describe('CampaignList — suite grouping', () => {
     await waitFor(() => expect(screen.getByText('Archived one')).toBeInTheDocument());
   });
 
-  it('runs the whole scenario from the suite group header (pending suite)', async () => {
-    fakeApi.runSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', steps: 2, started: true });
+  it('a CISO approves a pending scenario from the suite group header (two-step)', async () => {
+    fakeApi.approveSuite = vi
+      .fn()
+      .mockResolvedValue({ suiteId: 'suite-1', approved: 2, skipped: 0 });
     currentApp = makeApp({
       role: 'ciso',
       authRequired: true,
       campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
     });
     renderWithRouter(<CampaignList />);
-    // The run action now lives on the group header, not a separate banner.
-    const btn = screen.getByRole('button', { name: /Approve & run/ });
+    // Two-step flow: a CISO sees "Approve scenario" (not a one-click run).
+    const btn = screen.getByRole('button', { name: /Approve scenario/ });
+    fireEvent.click(btn);
+    await waitFor(() => expect(fakeApi.approveSuite).toHaveBeenCalledWith('suite-1'));
+  });
+
+  it('an engineer runs an approved scenario from the suite group header (two-step)', async () => {
+    fakeApi.runSuite = vi.fn().mockResolvedValue({ suiteId: 'suite-1', steps: 2, started: true });
+    currentApp = makeApp({
+      role: 'engineer',
+      authRequired: true,
+      campaigns: [member(0, 'APPROVED'), member(1, 'APPROVED')],
+    });
+    renderWithRouter(<CampaignList />);
+    const btn = screen.getByRole('button', { name: /Run scenario/ });
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1'));
   });

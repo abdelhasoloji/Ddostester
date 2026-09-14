@@ -49,6 +49,13 @@ describe('Multi-step suite sequencer', () => {
   const as = (token: string, method: 'GET' | 'POST', url: string, payload?: object) =>
     app.inject({ method, url, headers: { authorization: `Bearer ${token}` }, payload });
 
+  // Two-step flow: the CISO (off) approves the scenario, then the engineer (eng)
+  // runs it. This helper does both and returns the run response.
+  const approveAndRun = async (suiteId: string) => {
+    await as(off, 'POST', `/api/suites/${suiteId}/approve`);
+    return as(eng, 'POST', `/api/suites/${suiteId}/run`);
+  };
+
   it('runs every step of a suite in order, advancing to the next steps', async () => {
     // Engineer defines a tiny two-step playbook (1 s steps) and instantiates it.
     const pb = await as(eng, 'POST', '/api/playbooks', {
@@ -75,12 +82,12 @@ describe('Multi-step suite sequencer', () => {
       inst.json().campaigns.every((c: { status: string }) => c.status === 'PENDING_APPROVAL'),
     ).toBe(true);
 
-    // Officer (≠ author) runs the whole suite in one click.
-    const run = await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    // CISO (≠ author) approves the scenario, then the engineer runs it.
+    const run = await approveAndRun(suiteId);
     expect(run.statusCode).toBe(202);
     expect(run.json().steps).toBe(2);
 
-    // Poll until both steps reach a terminal state (the sequencer approved + ran them).
+    // Poll until both steps reach a terminal state (approved by the CISO, run by the engineer).
     let members: { status: string }[] = [];
     for (let i = 0; i < 60; i++) {
       const list = (await as(off, 'GET', '/api/campaigns')).json() as {
@@ -132,7 +139,7 @@ describe('Multi-step suite sequencer', () => {
     });
     const suiteId = inst.json().campaigns[0].suiteId as string;
 
-    const run = await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    const run = await approveAndRun(suiteId);
     expect(run.statusCode).toBe(202);
 
     // Wait until the sequence is live (its control state is exposed).
@@ -179,11 +186,31 @@ describe('Multi-step suite sequencer', () => {
     expect(audit).toContain('suite.cancel');
   }, 40000);
 
-  it('rejects a run for an unknown suite and requires approve permission', async () => {
-    expect((await as(off, 'POST', '/api/suites/nope/run')).statusCode).toBe(404);
-    // Engineer lacks campaign:approve.
-    const denied = await as(eng, 'POST', '/api/suites/whatever/run');
-    expect(denied.statusCode).toBe(403);
+  it('enforces the two-step roles: CISO approves, engineer runs', async () => {
+    // Unknown suite → 404 (before any permission-independent body checks).
+    expect((await as(eng, 'POST', '/api/suites/nope/run')).statusCode).toBe(404);
+    // The engineer lacks campaign:approve → cannot approve a scenario.
+    expect((await as(eng, 'POST', '/api/suites/whatever/approve')).statusCode).toBe(403);
+    // The CISO lacks campaign:execute → cannot run a scenario.
+    expect((await as(off, 'POST', '/api/suites/whatever/run')).statusCode).toBe(403);
+  });
+
+  it('refuses to run a suite whose steps are not yet approved', async () => {
+    const pb = await as(eng, 'POST', '/api/playbooks', {
+      name: 'Unapproved run',
+      category: 'Custom',
+      summary: 'one step',
+      when: 'test',
+      steps: [{ name: 's1', maxRps: 5, concurrency: 2, maxDurationSec: 1, profile: 'constant' }],
+    });
+    const inst = await as(eng, 'POST', `/api/playbooks/${pb.json().id}/instantiate`, {
+      target: 'http://127.0.0.1/',
+    });
+    const suiteId = inst.json().campaigns[0].suiteId as string;
+    // Run before approve → 409, "approve the scenario first".
+    const early = await as(eng, 'POST', `/api/suites/${suiteId}/run`);
+    expect(early.statusCode).toBe(409);
+    expect((early.json() as { error: string }).error).toMatch(/approve the scenario first/);
   });
 
   it('starts only ONE sequence when the run is submitted twice at once', async () => {
@@ -205,11 +232,12 @@ describe('Multi-step suite sequencer', () => {
     });
     const suiteId = inst.json().campaigns[0].suiteId as string;
 
-    // Fire two run requests concurrently — the atomic reservation must let
-    // exactly one through (202) and reject the other (409).
+    // Approve first, then fire two run requests concurrently — the atomic
+    // reservation must let exactly one through (202) and reject the other (409).
+    await as(off, 'POST', `/api/suites/${suiteId}/approve`);
     const [a, b] = await Promise.all([
-      as(off, 'POST', `/api/suites/${suiteId}/run`),
-      as(off, 'POST', `/api/suites/${suiteId}/run`),
+      as(eng, 'POST', `/api/suites/${suiteId}/run`),
+      as(eng, 'POST', `/api/suites/${suiteId}/run`),
     ]);
     const codes = [a.statusCode, b.statusCode].sort();
     expect(codes).toEqual([202, 409]);
@@ -253,7 +281,7 @@ describe('Multi-step suite sequencer', () => {
         (x: { suiteOrder: number }, y: { suiteOrder: number }) => y.suiteOrder - x.suiteOrder,
       )[0].id as string;
 
-    await as(off, 'POST', `/api/suites/${suiteId}/run`);
+    await approveAndRun(suiteId);
     // While the sequence is live, a manual execute of a later step is refused.
     let refused = false;
     for (let i = 0; i < 20; i++) {
