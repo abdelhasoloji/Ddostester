@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, goTo, SELF } from './helpers.js';
+import { login, goTo, card, SELF } from './helpers.js';
 
 // Exhaustive coverage of the New-campaign classic form (NewCampaignForm), reached
 // through the one recon-first entry point. The other specs only ever fill the six
@@ -74,6 +74,11 @@ test('form: toggles (cache-bust, no-keep-alive, parallelism, concurrency) then s
   await fillMandatory(page, name);
   await page.getByRole('button', { name: 'Submit for approval' }).click();
   await expect(page.getByText(name, { exact: true })).toBeVisible();
+
+  // Verify the config actually persisted (not just that submit worked): the
+  // Details drawer's Load line reflects the concurrency we set.
+  await card(page, name).getByRole('button', { name: 'Details' }).click();
+  await expect(page.locator('aside.drawer')).toContainText('10 conc');
   await noError(page);
 });
 
@@ -81,15 +86,18 @@ test('form: load-shape selects (profile / engine / schedule / repeat)', async ({
   await login(page, 'engineer');
   await openComposeForm(page);
   const shape = page.locator('details.form-section', { hasText: 'Load shape & scheduling' });
-  await shape.locator('.field:has(label:text-is("Load profile")) select').selectOption('ramp');
-  // Load engine: server default is always present as the first option value "".
-  await shape.locator('.field:has(label:text-is("Load engine")) select').selectOption('');
-  await shape
-    .locator('.field:has(label:text-is("Repeat every (optional)")) select')
-    .selectOption('60');
-  await shape
-    .locator('.field:has(label:text-is("Schedule (optional)")) input[type="datetime-local"]')
-    .fill('2030-01-01T10:00');
+  const profile = shape.locator('.field:has(label:text-is("Load profile")) select');
+  const repeat = shape.locator('.field:has(label:text-is("Repeat every (optional)")) select');
+  const schedule = shape.locator(
+    '.field:has(label:text-is("Schedule (optional)")) input[type="datetime-local"]',
+  );
+  await profile.selectOption('ramp');
+  await repeat.selectOption('60');
+  await schedule.fill('2030-01-01T10:00');
+  // The selects actually hold what we set (the control took the value).
+  await expect(profile).toHaveValue('ramp');
+  await expect(repeat).toHaveValue('60');
+  await expect(schedule).toHaveValue('2030-01-01T10:00');
   await noError(page);
 });
 
@@ -123,6 +131,14 @@ test('form: advanced realism & acceptance — SLO, assertion, endpoint mix, UA, 
   await page
     .locator('.field:has(label:text-is("Data feeder — parameterized traffic (optional)")) textarea')
     .fill('q,id\napple,101');
+  // The inputs actually hold what we typed (the acceptance/realism controls work).
+  await expect(adv.getByPlaceholder('max p95 ms')).toHaveValue('800');
+  await expect(adv.getByPlaceholder('min WRS')).toHaveValue('70');
+  await expect(
+    page.locator(
+      '.field:has(label:text-is("Endpoint mix — spread load over several URLs (optional)")) textarea',
+    ),
+  ).toHaveValue(new RegExp(SELF.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   await fillMandatory(page, name);
   await page.getByRole('button', { name: 'Submit for approval' }).click();
   await expect(page.getByText(name, { exact: true })).toBeVisible();

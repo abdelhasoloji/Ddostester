@@ -10,21 +10,27 @@ async function noError(page: Page): Promise<void> {
   await expect(page.locator('.toast.error, .toast-error')).toHaveCount(0);
 }
 
-test('settings: operational limits — set max duration to the ceiling and save', async ({
+test('settings: operational limits change actually persists (survives a reload)', async ({
   page,
 }) => {
   await login(page, 'officer');
   await goTo(page, 'Settings');
-  const card = page.locator('.card', { hasText: 'Operational limits' });
-  // Set Max duration to its own ceiling (safe: never below what other specs use).
-  const durField = card.locator('.field:has(label:has-text("Max duration")) input');
-  const hint = await card
-    .locator('.field:has(label:has-text("Max duration")) .hint', { hasText: /ceiling/ })
-    .innerText();
-  const ceiling = hint.replace(/\D+/g, '');
-  await durField.fill(ceiling);
-  await card.getByRole('button', { name: 'Save limits' }).click();
+  const durSel =
+    '.card:has-text("Operational limits") .field:has(label:has-text("Max duration")) input';
+  // 800s: distinct from the 900 ceiling (so it proves a real write) and ≥ every
+  // duration other specs use (2s), so it can't break them.
+  await page.locator(durSel).fill('800');
+  await page
+    .locator('.card', { hasText: 'Operational limits' })
+    .getByRole('button', { name: 'Save limits' })
+    .click();
   await expect(page.getByText(/Operational limits updated/)).toBeVisible();
+
+  // Reload: the form re-initialises from /health's effective caps, so the value
+  // only survives if the write actually took effect server-side.
+  await page.reload();
+  await goTo(page, 'Settings');
+  await expect(page.locator(durSel)).toHaveValue('800');
   await noError(page);
 });
 

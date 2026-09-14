@@ -20,8 +20,10 @@ test('account: the identity chip opens My account; theme choice switches', async
     await btn.click();
     await noError(page);
   }
-  // The last-clicked option is pressed.
+  // The last-clicked option is pressed AND the theme actually applied to the document.
   await expect(group.locator('button[aria-pressed="true"]')).toHaveCount(1);
+  // THEME_OPTS order is light → system → dark, so the loop ends on Dark.
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
 test('account: Sign out from My account returns to the login screen', async ({ page }) => {
@@ -73,6 +75,8 @@ test('plan: fill target, Infer from evidence and Analyze gaps', async ({ page })
   await page.getByRole('button', { name: /Infer from evidence/ }).click();
   await noError(page);
   await page.getByRole('button', { name: /Analyze gaps/ }).click();
+  // The analysis must actually produce output — a priority breakdown row.
+  await expect(page.getByText(/priority to replay/)).toBeVisible({ timeout: 10_000 });
   await noError(page);
 });
 

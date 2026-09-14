@@ -17,21 +17,29 @@ async function clickIf(page: Page, name: RegExp | string): Promise<boolean> {
   return true;
 }
 
-test('sidebar: theme buttons (light/system/dark) and notifications bell', async ({ page }) => {
+test('sidebar: theme buttons apply the theme; notifications bell opens then closes', async ({
+  page,
+}) => {
   await login(page, 'engineer');
-  for (const t of ['☀', '🖥', '☾']) {
-    const b = page.getByRole('button', { name: t, exact: true });
-    if (await b.count()) {
-      await b.first().click();
-      await noError(page);
-    }
-  }
-  const bell = page.getByRole('button', { name: '🔔' });
-  if (await bell.count()) {
-    await bell.first().click();
-    await noError(page);
-    await page.keyboard.press('Escape');
-  }
+  // The sidebar theme toggle is light / system / dark (in that order). Choosing
+  // one applies it to the document (behaviour, not just a click).
+  const themeBtns = page.locator('.theme-toggle button');
+  await expect(themeBtns).toHaveCount(3);
+  await themeBtns.nth(0).click(); // light
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await themeBtns.nth(2).click(); // dark
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await themeBtns.nth(1).click(); // system → attribute removed
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
+
+  // The bell opens the notifications dialog, and Escape closes it.
+  await page
+    .getByRole('button', { name: /Notifications/ })
+    .first()
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Notifications' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Notifications' })).toHaveCount(0);
 });
 
 test('Assurance (audit): Refresh, Verify integrity and the Export (JSON) link', async ({
@@ -46,7 +54,9 @@ test('Assurance (audit): Refresh, Verify integrity and the Export (JSON) link', 
     .first()
     .click();
   await noError(page);
-  await clickIf(page, /Verify integrity/);
+  // Verify integrity must produce a verdict, not just "no error".
+  await page.getByRole('button', { name: /Verify integrity/ }).click();
+  await expect(page.getByText(/Chain intact|tampered|broken/i)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('link', { name: /Export \(JSON\)/ }).first()).toHaveAttribute(
     'href',
     /audit/,
@@ -74,30 +84,44 @@ test('Protected zones: renders and its recon/retry control works', async ({ page
   await noError(page);
 });
 
-test('Templates: category filters + sort toggles + New template form opens', async ({ page }) => {
+test('Templates: a category chip actually filters to that category’s count', async ({ page }) => {
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('tab', { name: 'Templates' }).click();
-  for (const cat of [/^All \(/, /Readiness/, /Threat-informed/, /Review/, /Stress/, /zeroBS/]) {
-    await clickIf(page, cat);
-  }
-  await clickIf(page, /By category/);
-  await clickIf(page, /Recent first/);
+
+  const cats = page.locator('.tpl-cats .chip-xs');
+  await cats.first().click(); // "All (N)"
+  const allCount = await page.locator('details.tpl-row').count();
+  expect(allCount).toBeGreaterThan(0);
+
+  // The first real category chip carries its own count "(K)"; clicking it must
+  // reduce the rendered rows to exactly K (a real filter, not just a click).
+  const catBtn = cats.nth(1);
+  const k = Number((await catBtn.innerText()).match(/\((\d+)\)/)?.[1]);
+  expect(k).toBeGreaterThan(0);
+  await catBtn.click();
+  await expect(page.locator('details.tpl-row')).toHaveCount(k);
+  expect(k).toBeLessThan(allCount); // it's a subset
+
+  // Back to All restores the full set.
+  await cats.first().click();
+  await expect(page.locator('details.tpl-row')).toHaveCount(allCount);
+
   // The custom-template creation form opens.
-  if (await clickIf(page, /New template/)) {
-    await expect(
-      page.getByRole('button', { name: /Create|Save|Add template/ }).first(),
-    ).toBeVisible();
-  }
+  await page.getByRole('button', { name: /New template/ }).click();
+  await expect(page.getByRole('button', { name: 'Save template' })).toBeVisible();
 });
 
-test('Plan tab: Infer from evidence + Analyze gaps', async ({ page }) => {
+test('Plan tab: Analyze gaps produces a prioritised plan', async ({ page }) => {
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('tab', { name: 'Plan' }).click();
+  const target = page.locator('input').first();
+  if (await target.count()) await target.fill(SELF);
   await clickIf(page, /Infer from evidence/);
-  await clickIf(page, /Analyze gaps/);
-  await noError(page);
+  await page.getByRole('button', { name: /Analyze gaps/ }).click();
+  // The analysis must render a real priority breakdown, not just avoid an error.
+  await expect(page.getByText(/priority to replay/)).toBeVisible({ timeout: 10_000 });
 });
 
 // NOTE: bench governance lives on Settings (CISO), not Assurance — it is driven
@@ -129,7 +153,7 @@ test('recon-first create: run recon then "Start from scratch" reaches the seeded
   await noError(page);
 });
 
-test('Settings admin: change role, deactivate/reactivate, reset password on a seeded user', async ({
+test('Settings admin: role change, deactivate/reactivate, reset, remove all take effect', async ({
   page,
 }) => {
   await login(page, 'officer');
@@ -138,40 +162,31 @@ test('Settings admin: change role, deactivate/reactivate, reset password on a se
   await page.locator('.field:has(label:text-is("Email")) input').fill(email);
   await page
     .locator('.field:has(label:text-is("Temporary password")) input')
-    .fill('e2e-temp-pass-123');
+    .fill('e2e-temp-pass-1234');
   await page.getByRole('button', { name: 'Add user' }).click();
   await expect(page.getByText(email, { exact: true }).first()).toBeVisible();
+  const row = page.locator('.engine-row', { hasText: email });
 
-  // Change the new user's role via its row select (the only editable, non-env user).
-  const roleSelects = page.locator('select');
-  // Deactivate → Reactivate.
-  await clickIf(page, /Deactivate/);
-  await clickIf(page, /Reactivate/);
-  // Reset password flow: open, fill, submit.
-  if (await clickIf(page, /Reset password/)) {
-    const pw = page.locator('input[type="password"]').last();
-    if (await pw.count()) await pw.fill('e2e-new-temp-9999');
-    await clickIf(page, /Set|Confirm|Save|Reset/);
-  }
-  void roleSelects;
-  // Cleanup.
-  await clickIf(page, /Remove/);
-  await noError(page);
-});
+  // Role change actually applies (confirmation toast names the new role).
+  await page.locator(`select[aria-label="Role for ${email}"]`).selectOption('engineer');
+  await expect(page.getByText(new RegExp(`${email} is now`))).toBeVisible();
 
-test('Settings admin: notifications Save + Grafana base + purge scope (no destructive confirm)', async ({
-  page,
-}) => {
-  await login(page, 'officer');
-  await goTo(page, 'Settings');
-  // Notifications save (env-driven values shown read-only; Save is a no-op-safe click).
-  await clickIf(page, /^Save$/);
-  // Purge campaigns card: choose a scope but do NOT confirm a destructive purge.
-  const scope = page.locator('[aria-label="Purge scope"]');
-  if (await scope.count()) {
-    // Just interacting with the control; the actual Purge button requires a
-    // deliberate confirm we intentionally skip.
-    await noError(page);
-  }
-  await noError(page);
+  // Deactivate → Reactivate each report their effect.
+  await row.getByRole('button', { name: 'Deactivate' }).click();
+  await expect(page.getByText(new RegExp(`${email} deactivated`))).toBeVisible();
+  await row.getByRole('button', { name: 'Reactivate' }).click();
+  await expect(page.getByText(new RegExp(`${email} reactivated`))).toBeVisible();
+
+  // Reset password sets a temporary one.
+  await row.getByRole('button', { name: 'Reset password' }).click();
+  await row.locator('input[type="password"]').fill('e2e-new-temp-99999');
+  await row.getByRole('button', { name: 'Set temporary password' }).click();
+  await expect(page.getByText(/Temporary password set/)).toBeVisible();
+
+  // Remove deletes the user.
+  await row.getByRole('button', { name: 'Remove' }).click();
+  await expect(page.getByText(email, { exact: true })).toHaveCount(0);
 });
+// (Removed a weak duplicate that only clicked Save/scope with noError — the purge
+// scope + confirm/cancel, Grafana save + deep-links, and notifications are asserted
+// for real in settings-admin.spec.ts.)
