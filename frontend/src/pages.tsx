@@ -1,4 +1,12 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
@@ -68,7 +76,7 @@ import {
 import { ReconFirstCreate } from './recon-first-create.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
-import { getTheme, setTheme as persistTheme } from './theme.js';
+import { getTheme, setTheme as persistTheme, subscribeTheme } from './theme.js';
 import type { Theme } from './theme.js';
 
 const roleLabel: Record<Role, string> = {
@@ -117,12 +125,13 @@ const THEME_OPTS: [Theme, string, string][] = [
   ['dark', '☾', 'Dark'],
 ];
 
+/** Shared, reactive theme value — every toggle on screen re-renders together. */
+function useTheme(): Theme {
+  return useSyncExternalStore(subscribeTheme, getTheme, getTheme);
+}
+
 function ThemeToggle() {
-  const [theme, setThemeState] = useState<Theme>(getTheme);
-  const choose = (t: Theme) => {
-    setThemeState(t);
-    persistTheme(t);
-  };
+  const theme = useTheme();
   return (
     <div className="theme-toggle" role="group" aria-label="Theme">
       {THEME_OPTS.map(([v, icon, label]) => (
@@ -132,10 +141,33 @@ function ThemeToggle() {
           className={`theme-btn${theme === v ? ' active' : ''}`}
           title={`Theme: ${label}`}
           aria-pressed={theme === v}
-          onClick={() => choose(v)}
+          onClick={() => persistTheme(v)}
         >
           <span aria-hidden="true">{icon}</span>
         </button>
+      ))}
+    </div>
+  );
+}
+
+/** The installed/available load-engine rows — shared by Settings and the Guide. */
+function EnginesList() {
+  const app = useApp();
+  if (app.agents.length === 0) {
+    return <span className="hint">No engine information available.</span>;
+  }
+  return (
+    <div className="engines">
+      {app.agents.map((a) => (
+        <div key={a.id} className="engine-row">
+          <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
+          <span className="engine-name">{a.name}</span>
+          <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
+            {a.available ? 'Installed' : 'Not installed'}
+          </span>
+          {!a.multiPhase && <span className="engine-cap">constant only</span>}
+          <span className="engine-desc">{a.description}</span>
+        </div>
       ))}
     </div>
   );
@@ -1898,18 +1930,15 @@ export function SuiteRunBanner() {
                 </span>
               ) : null}
             </div>
-            <div className="suite-steps">
-              {g.members.map((m) => (
-                <span
-                  key={m.id}
-                  className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
-                  title={m.status}
-                >
-                  {(m.suiteOrder ?? 0) + 1}. {stepLabel(m, g.suiteName)}
-                  {m.wrs ? ` · ${m.wrs.wrs} ${m.wrs.level}` : ''}
-                </span>
-              ))}
-            </div>
+            <SuiteStepChips
+              steps={g.members.map((m) => ({
+                key: m.id,
+                order: m.suiteOrder ?? 0,
+                label: stepLabel(m, g.suiteName),
+                wrs: m.wrs ? `${m.wrs.wrs} ${m.wrs.level}` : undefined,
+                status: m.status,
+              }))}
+            />
           </div>
         );
       })}
@@ -2174,18 +2203,15 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           <span className="hint">▲ Live step-by-step progress is shown in the banner above.</span>
         </div>
       ) : (
-        <div className="suite-steps">
-          {g.members.map((m) => (
-            <span
-              key={m.id}
-              className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
-              title={m.status}
-            >
-              {(m.suiteOrder ?? 0) + 1}. {stepLabel(m, g.suiteName)}
-              {m.wrs ? ` · ${m.wrs.wrs} ${m.wrs.level}` : ''}
-            </span>
-          ))}
-        </div>
+        <SuiteStepChips
+          steps={g.members.map((m) => ({
+            key: m.id,
+            order: m.suiteOrder ?? 0,
+            label: stepLabel(m, g.suiteName),
+            wrs: m.wrs ? `${m.wrs.wrs} ${m.wrs.level}` : undefined,
+            status: m.status,
+          }))}
+        />
       )}
     </div>
   );
@@ -2355,6 +2381,29 @@ const SUITE_STEP_CLASS: Record<string, string> = {
   PENDING_APPROVAL: 'step-pending',
 };
 
+/** The step chips of an assessment suite (order · label · WRS), coloured by status.
+ *  Shared by SuiteRunBanner, SuiteGroupCard and the Results SuitesSection. */
+function SuiteStepChips({
+  steps,
+}: {
+  steps: { key: string; order: number; label: string; wrs?: string; status: string }[];
+}) {
+  return (
+    <div className="suite-steps">
+      {steps.map((s) => (
+        <span
+          key={s.key}
+          className={`chip-xs ${SUITE_STEP_CLASS[s.status] ?? ''}`}
+          title={s.status}
+        >
+          {s.order + 1}. {s.label}
+          {s.wrs ? ` · ${s.wrs}` : ''}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function SuitesSection() {
   // Read-only reporting view of assessment suites. The governance controls
   // (approve scenario / run sequence) live on the Campaigns screen — on
@@ -2433,21 +2482,17 @@ function SuitesSection() {
                   </a>
                 )}
               </div>
-              <div className="suite-steps">
-                {s.members.map((m) => (
-                  <span
-                    key={m.id}
-                    className={`chip-xs ${SUITE_STEP_CLASS[m.status] ?? ''}`}
-                    title={m.status}
-                  >
-                    {m.order + 1}.{' '}
-                    {m.name.startsWith(`${s.suiteName} — `)
-                      ? m.name.slice(s.suiteName.length + 3)
-                      : m.name}
-                    {m.wrs != null ? ` · ${m.wrs} ${m.level}` : ''}
-                  </span>
-                ))}
-              </div>
+              <SuiteStepChips
+                steps={s.members.map((m) => ({
+                  key: m.id,
+                  order: m.order,
+                  label: m.name.startsWith(`${s.suiteName} — `)
+                    ? m.name.slice(s.suiteName.length + 3)
+                    : m.name,
+                  wrs: m.wrs != null ? `${m.wrs} ${m.level}` : undefined,
+                  status: m.status,
+                }))}
+              />
             </div>
           );
         })}
@@ -4397,11 +4442,9 @@ export function AccountPage() {
   const id = app.identity;
   const email = id?.email ?? app.operator;
   const initials = (email || '?').split(/[@.]/)[0].slice(0, 2).toUpperCase();
-  const [theme, setThemeState] = useState<Theme>(getTheme);
-  const chooseTheme = (t: Theme) => {
-    setThemeState(t);
-    persistTheme(t);
-  };
+  // Shared reactive theme — stays in sync with the sidebar toggle.
+  const theme = useTheme();
+  const chooseTheme = (t: Theme) => persistTheme(t);
   return (
     <>
       <PageHead title="My account" sub="Your profile, security and preferences." />
@@ -4564,23 +4607,7 @@ export function SettingsPage() {
           produce bounded HTTP load only. A campaign can pick any installed engine; unavailable ones
           must be installed on the server.
         </p>
-        {app.agents.length === 0 ? (
-          <span className="hint">No engine information available.</span>
-        ) : (
-          <div className="engines">
-            {app.agents.map((a) => (
-              <div key={a.id} className="engine-row">
-                <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
-                <span className="engine-name">{a.name}</span>
-                <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
-                  {a.available ? 'Installed' : 'Not installed'}
-                </span>
-                {!a.multiPhase && <span className="engine-cap">constant only</span>}
-                <span className="engine-desc">{a.description}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <EnginesList />
       </div>
     </>
   );
@@ -4790,23 +4817,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
             Not-installed engines are greyed out, and constant-only engines can't run ramp/wave
             profiles.
           </p>
-          {app.agents.length === 0 ? (
-            <span className="hint">No engine information available.</span>
-          ) : (
-            <div className="engines">
-              {app.agents.map((a) => (
-                <div key={a.id} className="engine-row">
-                  <span className={`engine-dot ${a.available ? 'on' : 'off'}`} />
-                  <span className="engine-name">{a.name}</span>
-                  <span className={`engine-badge ${a.available ? 'ok' : 'no'}`}>
-                    {a.available ? 'Installed' : 'Not installed'}
-                  </span>
-                  {!a.multiPhase && <span className="engine-cap">constant only</span>}
-                  <span className="engine-desc">{a.description}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <EnginesList />
           <p className="hint" style={{ marginTop: '.75rem' }}>
             Installed status is also in <b>Settings → Load engines</b>. Install an engine's binary
             on the server and it becomes selectable here.
