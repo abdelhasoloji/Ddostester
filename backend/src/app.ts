@@ -147,6 +147,13 @@ export interface BuildOptions {
    */
   prometheusUrl?: string;
   /**
+   * Grafana base URL for the "Open in Grafana" deep-links (the run dashboard
+   * `shieldtest-run`). Absent = the UI hides the Grafana links and shows only the
+   * app-native panels. Grafana is loopback on the monitoring host, so in
+   * production this points at a tunnel/proxy the operator's browser can reach.
+   */
+  grafanaUrl?: string;
+  /**
    * Between-wave availability gate for suite sequences: after one step's load
    * settles, hold the next step until the target is reachable again (bounded).
    * Defaults to production values; pass a partial to tune, or `false` to disable
@@ -1007,6 +1014,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // these to predict, at config time, whether a configured rate/concurrency
     // will actually be delivered by the built-in engine or routed away.
     builtinCeilings: { rps: BUILTIN_RPS_CEILING, concurrency: BUILTIN_CONCURRENCY_CEILING },
+    // Observability: whether the app-native Prometheus charts have a data source,
+    // and the Grafana base URL (+ run dashboard uid) for the "Open in Grafana"
+    // deep-links. Null when unconfigured — the UI then hides the Grafana links.
+    metrics: {
+      prometheus: !!opts.prometheusUrl,
+      grafanaUrl: opts.grafanaUrl ?? null,
+      runDashboardUid: 'shieldtest-run',
+    },
   }));
 
   // Operational limits (the effective caps) and the immutable ceiling. Any

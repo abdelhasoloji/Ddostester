@@ -24,6 +24,14 @@ describe('series-catalog', () => {
     expect(resolveSeries('eventloop_lag')).not.toBeNull();
   });
 
+  it('resolves the run_availability panel to the live probe-availability gauge', () => {
+    const r = resolveSeries('run_availability', 'bank.cz');
+    expect(r).not.toBeNull();
+    expect(r!.def.unit).toBe('percent');
+    expect(r!.lines[0].promql).toContain('shieldtest_run_live_probe_avail_pct{target="bank.cz"}');
+    expect(resolveSeries('run_availability')).toBeNull(); // needs a target
+  });
+
   it('strips PromQL-breaking characters from the target', () => {
     expect(sanitizeTarget('bank.cz"} or up{')).toBe('bank.czorup');
   });

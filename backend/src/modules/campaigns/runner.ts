@@ -16,6 +16,7 @@ import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline
 import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
 import { probeLimitsFromEnv, ESTIMATED_TIMINGS } from '../../config/limits.js';
+import { metrics } from '../metrics/runtime.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
 import type { AbsorptionCorroboration } from '../edge-absorption/types.js';
@@ -234,6 +235,16 @@ export async function executeCampaign(
   const targetSeries: TargetSample[] = [];
   let telemetryInFlight = false;
   const startedMs = Date.now();
+  // Live per-run Prometheus gauges (labelled by target host) so Prometheus/Grafana
+  // and the app's Prometheus-backed panels show the run as it happens. Set each
+  // tick, retired in the `finally` so a finished run leaves no stale flat line.
+  let liveHost = campaign.target;
+  try {
+    liveHost = new URL(campaign.target).hostname;
+  } catch {
+    /* keep the raw value */
+  }
+  const liveLabels = { target: liveHost };
   const ticker = setInterval(() => {
     if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
       telemetryInFlight = true;
@@ -256,6 +267,34 @@ export async function executeCampaign(
     genRecentlyOk = okNow - lastGenOk >= 5;
     lastGenOk = okNow;
     const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
+    // Live per-run gauges → Prometheus (scraped) → Grafana + the app's native
+    // panels. Same values the live progress carries: offered rps, reached-origin
+    // rps (successful / elapsed), and the edge-absorbed ratio (failed / sent).
+    const sent = gen?.sent ?? 0;
+    metrics.setGauge(
+      'shieldtest_run_live_offered_rps',
+      'Live offered request rate of the in-flight run',
+      gen?.actualRps ?? 0,
+      liveLabels,
+    );
+    metrics.setGauge(
+      'shieldtest_run_live_origin_rps',
+      'Live rate of requests that reached the origin (successful/elapsed)',
+      elapsedSec > 0 ? (gen?.successful ?? 0) / elapsedSec : 0,
+      liveLabels,
+    );
+    metrics.setGauge(
+      'shieldtest_run_live_absorbed_ratio',
+      'Live share of offered requests absorbed by the edge (failed/sent)',
+      sent > 0 ? (gen?.failed ?? 0) / sent : 0,
+      liveLabels,
+    );
+    metrics.setGauge(
+      'shieldtest_run_live_probe_avail_pct',
+      'Live availability seen by the legitimate probe (%)',
+      pm.samples ? (pm.available / pm.samples) * 100 : 100,
+      liveLabels,
+    );
     // Capture the per-second series (persisted with the run) for EVERY engine,
     // independently of whether a live consumer is attached.
     if (timeline.length < MAX_RUN_SAMPLES) {
@@ -316,6 +355,12 @@ export async function executeCampaign(
   } finally {
     clearTimeout(timeoutTimer);
     clearInterval(ticker);
+    // Retire the live per-run gauges so a finished run never lingers as a stale
+    // flat line in Prometheus/Grafana or the app's native panels.
+    metrics.clearGauge('shieldtest_run_live_offered_rps', liveLabels);
+    metrics.clearGauge('shieldtest_run_live_origin_rps', liveLabels);
+    metrics.clearGauge('shieldtest_run_live_absorbed_ratio', liveLabels);
+    metrics.clearGauge('shieldtest_run_live_probe_avail_pct', liveLabels);
   }
 
   const probeMetrics = probe.metrics();
