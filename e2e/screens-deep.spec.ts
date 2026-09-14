@@ -28,9 +28,9 @@ test('campaign card: Details opens the drawer and closes', async ({ browser }) =
   const { name, ctx, page } = await seed(browser);
   await goTo(page, 'Campaigns');
   await card(page, name).getByRole('button', { name: 'Details' }).click();
-  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
+  await expect(page.locator('aside.drawer')).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
-  await noError(page);
+  await expect(page.locator('aside.drawer')).toHaveCount(0); // it actually closed
   await ctx.close();
 });
 
@@ -88,11 +88,13 @@ test('campaign card: archive then restore a campaign', async ({ browser }) => {
   const { name, ctx, page } = await seed(browser);
   await goTo(page, 'Campaigns');
   await card(page, name).getByRole('button', { name: 'Archive' }).click();
-  // Archived cards hide until the "show archived" toggle is on.
+  // Archive actually hid it from the default (non-archived) list.
+  await expect(card(page, name)).toHaveCount(0);
+  // Reveal archived, restore → it's no longer archived (Restore gone, Archive back).
   await page.locator('label.archived-toggle input[type="checkbox"]').check();
-  await expect(card(page, name).getByRole('button', { name: 'Restore' })).toBeVisible();
   await card(page, name).getByRole('button', { name: 'Restore' }).click();
-  await noError(page);
+  await expect(card(page, name).getByRole('button', { name: 'Restore' })).toHaveCount(0);
+  await expect(card(page, name).getByRole('button', { name: 'Archive' })).toBeVisible();
   await ctx.close();
 });
 
@@ -116,9 +118,9 @@ test('templates: sort controls, allowed-host chip, compose two, then clear', asy
   const boxes = page.locator('input[aria-label^="Select "]');
   await boxes.nth(0).check();
   await boxes.nth(1).check();
-  await expect(page.getByRole('button', { name: /Compose into one campaign \(/ })).toBeVisible();
+  await expect(page.locator('.tcb-chip')).toHaveCount(2); // two in the basket
   await page.getByRole('button', { name: 'Clear' }).click();
-  await noError(page);
+  await expect(page.locator('.tcb-chip')).toHaveCount(0); // Clear actually emptied it
 });
 
 test('settings: admin adds a user then deletes it', async ({ page }) => {
@@ -173,18 +175,12 @@ test('command center: renders the resilience summary and opens Run Theater', asy
   }
 });
 
-test('assurance: renders and its controls do not error', async ({ page }) => {
-  await login(page, 'ciso'); // CISO governs the class-C bench
+test('assurance: Verify integrity produces a chain verdict', async ({ page }) => {
+  await login(page, 'officer'); // admin sees the audit + verify control
   await goTo(page, 'Assurance');
-  await noError(page);
-  // Any verify/export control present should be clickable without error.
-  for (const nm of [/Verify/, /Export/]) {
-    const b = page.getByRole('button', { name: nm });
-    if (await b.count()) {
-      await b.first().click();
-      await noError(page);
-    }
-  }
+  await page.getByRole('button', { name: /Verify integrity/ }).click();
+  // The verify produces a real verdict, not just no error.
+  await expect(page.getByText(/Chain intact|tampered|broken/i)).toBeVisible({ timeout: 10_000 });
 });
 
 test('protected zones and prepare screens render and expose their actions', async ({ page }) => {

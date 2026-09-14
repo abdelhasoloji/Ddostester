@@ -40,53 +40,65 @@ test('Campaigns tabs switch surfaces (Launch/Templates/Plan/How it works)', asyn
   await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
 });
 
-test('campaign list: status filters, search and sort are clickable', async ({ page }) => {
+test('campaign list: status filter + search actually change the visible set', async ({ page }) => {
+  const name = `filt-${Date.now()}`;
   await login(page, 'engineer');
-  await createCampaign(page, { name: `filt-${Date.now()}`, target: SELF, probe: SELF });
+  await createCampaign(page, { name, target: SELF, probe: SELF }); // pending
   await goTo(page, 'Campaigns');
-  // Status filter chips.
-  for (const f of ['Pending', 'Approved', 'Running', 'Done', 'Rejected', 'All']) {
-    await page
+  const filter = (f: string) =>
+    page
       .getByRole('button', { name: new RegExp(`^${f}\\b`) })
       .first()
       .click();
-    await noError(page);
-  }
-  // Search + sort.
+
+  // Pending shows it; Done (it isn't) hides it; All shows it again — real filtering.
+  await filter('Pending');
+  await expect(card(page, name)).toBeVisible();
+  await filter('Done');
+  await expect(card(page, name)).toHaveCount(0);
+  await filter('All');
+  await expect(card(page, name)).toBeVisible();
+
+  // Search narrows to the match and hides it on a non-match.
   const search = page.getByPlaceholder(/Search name/i);
-  if (await search.count()) {
-    await search.fill('filt');
-    await noError(page);
-    await search.fill('');
-  }
+  await search.fill(name);
+  await expect(card(page, name)).toBeVisible();
+  await search.fill(`no-such-${Date.now()}`);
+  await expect(card(page, name)).toHaveCount(0);
 });
 
-test('Templates: search, select a template, compose bar appears', async ({ page }) => {
+test('Templates: search narrows the list, then compose bar appears on select', async ({ page }) => {
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('tab', { name: 'Templates' }).click();
-  await page.getByPlaceholder('Search templates…').fill('bank');
-  await noError(page);
-  await page.getByPlaceholder('Search templates…').fill('');
+  const search = page.getByPlaceholder('Search templates…');
+  await expect(search).toBeVisible();
+  // Wait for the catalogue to load before counting (it fetches async).
+  await expect(page.locator('details.tpl-row').nth(3)).toBeVisible({ timeout: 10_000 });
+  const all = await page.locator('details.tpl-row').count();
+  await search.fill('bank');
+  const filtered = await page.locator('details.tpl-row').count();
+  expect(filtered).toBeGreaterThan(0);
+  expect(filtered).toBeLessThan(all); // search actually narrowed the list
+  await search.fill('');
+  await expect(page.locator('details.tpl-row')).toHaveCount(all); // and restored it
+
   // Select the first template's compose checkbox → the compose bar shows.
-  const firstSelect = page.locator('input[aria-label^="Select "]').first();
-  await firstSelect.check();
+  await page.locator('input[aria-label^="Select "]').first().check();
   await expect(page.getByRole('button', { name: /Compose into one campaign/ })).toBeVisible();
 });
 
-test('Settings: theme toggle switches without error (officer=admin)', async ({ page }) => {
+test('Settings/theme: choosing dark or light applies data-theme to the document', async ({
+  page,
+}) => {
   await login(page, 'officer');
   await goTo(page, 'Settings');
-  // The theme control (light / system / dark) lives in the sidebar footer.
-  const buttons = page.locator('button[aria-label*="theme" i], .theme-toggle button');
-  if (await buttons.count()) {
-    const n = Math.min(await buttons.count(), 3);
-    for (let i = 0; i < n; i++) {
-      await buttons.nth(i).click();
-      await noError(page);
-    }
-  }
-  await noError(page);
+  const buttons = page.locator('.theme-toggle button');
+  await expect(buttons).toHaveCount(3); // light / system / dark
+  await buttons.nth(2).click(); // dark
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await buttons.nth(0).click(); // light
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
 test('approve modal opens and cancels (CISO) without side effects', async ({ browser }) => {
