@@ -147,17 +147,19 @@ test('settings: notifications Test button', async ({ page }) => {
   }
 });
 
-test('settings: operational limits Edit → Save', async ({ page }) => {
+test('settings: operational limits form saves (always-editable, no Edit step)', async ({
+  page,
+}) => {
+  // LimitsCard is an always-editable form with a "Save limits" button — there is
+  // no separate Edit step (the earlier test looked for a non-existent "Edit").
   await login(page, 'officer');
   await goTo(page, 'Settings');
-  const edit = page.getByRole('button', { name: 'Edit' });
-  if (await edit.count()) {
-    await edit.first().click();
-    const save = page.getByRole('button', { name: 'Save' });
-    await expect(save.first()).toBeVisible();
-    await save.first().click();
-    await noError(page);
-  }
+  const card = page.locator('.card', { hasText: 'Operational limits' });
+  const save = card.getByRole('button', { name: 'Save limits' });
+  await expect(save).toBeVisible();
+  await save.click();
+  await expect(page.getByText(/Operational limits updated/)).toBeVisible();
+  await noError(page);
 });
 
 test('command center: renders the resilience summary and opens Run Theater', async ({ page }) => {

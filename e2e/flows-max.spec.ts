@@ -34,13 +34,23 @@ test('sidebar: theme buttons (light/system/dark) and notifications bell', async 
   }
 });
 
-test('Command Center: Refresh + Verify integrity + Export link', async ({ page }) => {
+test('Assurance (audit): Refresh, Verify integrity and the Export (JSON) link', async ({
+  page,
+}) => {
+  // These live on the Assurance/audit route (not Command Center — the earlier
+  // version drove guarded clicks there and silently asserted nothing).
   await login(page, 'officer');
-  await goTo(page, 'Command Center');
-  await clickIf(page, /Refresh/);
+  await goTo(page, 'Assurance');
+  await page
+    .getByRole('button', { name: /Refresh/ })
+    .first()
+    .click();
+  await noError(page);
   await clickIf(page, /Verify integrity/);
-  const exp = page.getByRole('link', { name: /Export \(JSON\)/ });
-  if (await exp.count()) await expect(exp.first()).toHaveAttribute('href', /audit/);
+  await expect(page.getByRole('link', { name: /Export \(JSON\)/ }).first()).toHaveAttribute(
+    'href',
+    /audit/,
+  );
   await noError(page);
 });
 
@@ -90,25 +100,11 @@ test('Plan tab: Infer from evidence + Analyze gaps', async ({ page }) => {
   await noError(page);
 });
 
-test('Assurance (CISO): bench governance controls open without error', async ({ page }) => {
-  await login(page, 'ciso');
-  await goTo(page, 'Assurance');
-  for (const nm of [
-    /Record coverage evidence/,
-    /Attestation checklist/,
-    /Import external verdicts/,
-  ]) {
-    await clickIf(page, nm);
-    // dismiss any panel/modal it opened
-    if (await page.locator('.overlay').count()) await page.keyboard.press('Escape');
-  }
-  // Report / export links are present and point somewhere sane.
-  const comp = page.getByRole('link', { name: /compliance report/i });
-  if (await comp.count()) await expect(comp.first()).toHaveAttribute('href', /report|compliance/);
-  const csv = page.getByRole('link', { name: /Export runs CSV/i });
-  if (await csv.count()) await expect(csv.first()).toHaveAttribute('href', /runs\.csv/);
-  await noError(page);
-});
+// NOTE: bench governance lives on Settings (CISO), not Assurance — it is driven
+// for real in bench-governance.spec.ts. The compliance/CSV links live on Results
+// and are asserted in results-deep.spec.ts. The earlier test here pointed guarded
+// clicks at the Assurance route where none of those controls exist, so it silently
+// asserted nothing; it has been removed in favour of those dedicated specs.
 
 test('recon-first create: target-phase Cancel returns to the launch view', async ({ page }) => {
   await login(page, 'engineer');
