@@ -686,7 +686,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
           {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
             <button
               className="btn btn-sm btn-danger"
-              disabled={app.busy[c.id]}
+              disabled={app.killing[c.id]}
               onClick={() => app.kill(c)}
             >
               Kill switch
@@ -1229,7 +1229,7 @@ export function CampaignDrawer() {
           {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
             <button
               className="btn btn-sm btn-danger"
-              disabled={app.busy[c.id]}
+              disabled={app.killing[c.id]}
               onClick={() => app.kill(c)}
             >
               Kill switch

@@ -82,6 +82,9 @@ interface Ctx {
   /** In-app alerts derived from run history (tarpit / low-WRS / degraded / auto-killed). */
   alerts: Alert[];
   busy: Record<string, boolean>;
+  /** Per-campaign "a kill request is in flight" — separate from `busy` so the kill
+   *  switch stays clickable during a run (whose blocking execute holds `busy`). */
+  killing: Record<string, boolean>;
   expanded: string | null;
   operator: string;
   confirmExec: Campaign | null;
@@ -152,6 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [operator, setOperator] = useState(() => localStorage.getItem('operator') ?? '');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [killing, setKilling] = useState<Record<string, boolean>>({});
   const [runs, setRuns] = useState<Record<string, CampaignRun>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirmExec, setConfirmExec] = useState<Campaign | null>(null);
@@ -264,6 +268,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem('operator', operator), [operator]);
 
   const setBusyFor = (id: string, v: boolean) => setBusy((b) => ({ ...b, [id]: v }));
+  const setKillingFor = (id: string, v: boolean) => setKilling((k) => ({ ...k, [id]: v }));
 
   const applyPreset = useCallback((p: Preset) => setDraftPreset(p), []);
   const clearDraftPreset = useCallback(() => setDraftPreset(null), []);
@@ -344,12 +349,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const kill = async (c: Campaign) => {
+    // Guard on a kill-specific flag, never on `busy`: a running campaign's blocking
+    // execute holds `busy`, and the kill switch must stay live throughout the run.
+    setKillingFor(c.id, true);
     try {
       await api.kill(c.id);
       push('info', 'Kill switch triggered.');
       refresh();
     } catch (err) {
       push('error', (err as Error).message);
+    } finally {
+      setKillingFor(c.id, false);
     }
   };
 
@@ -464,6 +474,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     auditRows,
     alerts,
     busy,
+    killing,
     expanded,
     operator,
     confirmExec,
