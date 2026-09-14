@@ -2411,7 +2411,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  registerReadRoutes(app, { store, guard, readTokenAllowed, prometheusUrl: opts.prometheusUrl });
+  registerReadRoutes(app, {
+    store,
+    guard,
+    readTokenAllowed,
+    prometheusUrl: opts.prometheusUrl,
+    grafanaUrl: opts.grafanaUrl,
+  });
 
   return { app, runCampaign };
 }
