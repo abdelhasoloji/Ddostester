@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDur, groupSuites, sortSuiteGroups, suiteTiming, suiteWrs } from './pages.js';
+import {
+  fmtDur,
+  groupSuites,
+  sortSuiteGroups,
+  suiteTiming,
+  suiteWrs,
+  toCampaignRows,
+  sortCampaignRows,
+} from './pages.js';
 import type { Campaign } from './api.js';
 import type { WrsBreakdown } from './api.js';
 
@@ -118,5 +126,83 @@ describe('sortSuiteGroups', () => {
   });
   it('wrs sorts worst-first, high→low', () => {
     expect(sortSuiteGroups(groups, 'wrs').map((g) => g.suiteName)).toEqual(['Bravo', 'Alpha']);
+  });
+});
+
+describe('toCampaignRows + sortCampaignRows (compact table model)', () => {
+  const wrs = (n: number, level: WrsBreakdown['level']) =>
+    ({
+      wrs: n,
+      level,
+      detection: 0,
+      mitigation: 0,
+      availability: 0,
+      collateral: 0,
+    }) as WrsBreakdown;
+
+  it('flattens suites and standalone campaigns into unified rows', () => {
+    const suites = groupSuites([
+      campaign({ suiteId: 's1', suiteName: 'Suite One', suiteOrder: 0, wrs: wrs(70, 'B') }),
+      campaign({ suiteId: 's1', suiteName: 'Suite One', suiteOrder: 1, wrs: wrs(95, 'A+') }),
+    ]);
+    const standalone = [campaign({ id: 'x', name: 'solo', wrs: wrs(88, 'A') })];
+    const rows = toCampaignRows(suites, standalone);
+    expect(rows).toHaveLength(2);
+    const suiteRow = rows.find((r) => r.kind === 'suite')!;
+    expect(suiteRow.name).toBe('Suite One');
+    expect(suiteRow.wrs).toBe(70); // the suite's WORST step, not the best
+    expect(rows.find((r) => r.kind === 'campaign')!.wrs).toBe(88);
+  });
+
+  it('sorts by name A→Z and Z→A', () => {
+    const rows = toCampaignRows(
+      [],
+      [campaign({ id: '1', name: 'Bravo' }), campaign({ id: '2', name: 'Alpha' })],
+    );
+    expect(sortCampaignRows(rows, 'name', 'asc').map((r) => r.name)).toEqual(['Alpha', 'Bravo']);
+    expect(sortCampaignRows(rows, 'name', 'desc').map((r) => r.name)).toEqual(['Bravo', 'Alpha']);
+  });
+
+  it('sorts by WRS (desc = high first) with missing WRS last', () => {
+    const rows = toCampaignRows(
+      [],
+      [
+        campaign({ id: '1', name: 'low', wrs: wrs(40, 'D') }),
+        campaign({ id: '2', name: 'high', wrs: wrs(97, 'A+') }),
+        campaign({ id: '3', name: 'none' }),
+      ],
+    );
+    expect(sortCampaignRows(rows, 'wrs', 'desc').map((r) => r.name)).toEqual([
+      'high',
+      'low',
+      'none',
+    ]);
+  });
+
+  it('sorts by created (desc = newest first)', () => {
+    const rows = toCampaignRows(
+      [],
+      [
+        campaign({ id: '1', name: 'old', createdAt: '2026-09-14T10:00:00Z' }),
+        campaign({ id: '2', name: 'new', createdAt: '2026-09-15T10:00:00Z' }),
+      ],
+    );
+    expect(sortCampaignRows(rows, 'created', 'desc').map((r) => r.name)).toEqual(['new', 'old']);
+  });
+
+  it('sorts by status rank (running first)', () => {
+    const rows = toCampaignRows(
+      [],
+      [
+        campaign({ id: '1', name: 'done', status: 'COMPLETED' }),
+        campaign({ id: '2', name: 'live', status: 'RUNNING' }),
+        campaign({ id: '3', name: 'wait', status: 'PENDING_APPROVAL' }),
+      ],
+    );
+    expect(sortCampaignRows(rows, 'status', 'asc').map((r) => r.name)).toEqual([
+      'live',
+      'wait',
+      'done',
+    ]);
   });
 });

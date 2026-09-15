@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // BEHAVIOURAL coverage of the campaign list — it asserts the controls actually DO
 // their job (the list changes), not merely that they're clickable. This is the
@@ -28,17 +28,17 @@ test('status filter actually filters the list (pending / rejected / done are sep
 
   await goTo(ciso, 'Campaigns');
   await ciso.reload();
-  await card(ciso, rej).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, rej)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('textbox').last().fill('e2e reject');
   await ciso.getByRole('button', { name: 'Reject', exact: true }).click();
   await expect(card(ciso, rej).getByText('Rejected')).toBeVisible();
 
-  await card(ciso, done).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, done)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(card(ciso, done).getByText('Approved')).toBeVisible();
   await eng.reload();
   await goTo(eng, 'Campaigns');
-  await card(eng, done).getByRole('button', { name: 'Run', exact: true }).click();
+  await (await openCard(eng, done)).getByRole('button', { name: 'Run', exact: true }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
   await expect(eng.getByText(/Run COMPLETED/i)).toBeVisible({ timeout: 20_000 });
   await eng.keyboard.press('Escape');
@@ -109,18 +109,21 @@ test('sort actually reorders the list (Name A–Z vs Most recent flips the order
   await createCampaign(page, { name: zzz, target: SELF, probe: SELF }); // created second (newer)
   await goTo(page, 'Campaigns');
 
-  const sort = page.locator('select:has(option[value="wrs"])').first();
   const yOf = async (name: string): Promise<number> => {
     const box = await card(page, name).boundingBox();
     return box ? box.y : Number.NaN;
   };
 
-  // Most recent → the newer campaign (zzz) is above the older (aaa).
-  await sort.selectOption('recent');
+  // Default sort is Created (newest first) → the newer campaign (zzz) is above aaa.
   await expect(card(page, zzz)).toBeVisible();
   expect(await yOf(zzz)).toBeLessThan(await yOf(aaa));
 
-  // Name (A–Z) → aaa must now be above zzz — the order actually flips.
-  await sort.selectOption('name');
+  // Clicking the "Name" column header sorts A→Z → aaa must now be above zzz — the
+  // rendered order actually flips, not just a clickable header.
+  await page.getByRole('button', { name: /Name/ }).click();
   expect(await yOf(aaa)).toBeLessThan(await yOf(zzz));
+
+  // Clicking "Name" again toggles to Z→A → the order flips back.
+  await page.getByRole('button', { name: /Name/ }).click();
+  expect(await yOf(zzz)).toBeLessThan(await yOf(aaa));
 });

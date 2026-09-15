@@ -2279,6 +2279,218 @@ export function CampaignLaunch() {
 
 /** The persistent campaign list (suites grouped above standalone) with filters —
  *  always shown at the foot of the Campaigns workspace, under the active tab. */
+// ---------- Compact, sortable campaign table (rows expand to the full card) ----------
+export type CampaignSortKey = 'created' | 'name' | 'wrs' | 'status';
+
+export interface CampaignRow {
+  key: string;
+  kind: 'suite' | 'campaign';
+  name: string;
+  statusLabel: string;
+  statusRank: number;
+  wrs: number | null;
+  wrsLevel: WrsBreakdown['level'] | null;
+  target: string;
+  createdMs: number;
+  suite?: SuiteGroup;
+  campaign?: Campaign;
+}
+
+const CAMPAIGN_STATUS_RANK: Record<string, number> = {
+  RUNNING: 0,
+  PENDING_APPROVAL: 1,
+  APPROVED: 2,
+  COMPLETED: 3,
+  KILLED_AUTO: 4,
+  KILLED_MANUAL: 4,
+  REJECTED: 5,
+  CANCELLED: 6,
+};
+
+function suiteRowStatus(g: SuiteGroup): { label: string; rank: number } {
+  if (g.running > 0) return { label: `Running ${g.done}/${g.total}`, rank: 0 };
+  if (g.pending > 0) return { label: `Pending ${g.done}/${g.total}`, rank: 1 };
+  return { label: `Done ${g.done}/${g.total}`, rank: 3 };
+}
+
+/** Flatten suites + standalone campaigns into one unified row model. Pure. */
+export function toCampaignRows(suites: SuiteGroup[], standalone: Campaign[]): CampaignRow[] {
+  const rows: CampaignRow[] = [];
+  for (const g of suites) {
+    const sw = suiteWrs(g.members);
+    const st = suiteRowStatus(g);
+    const createdMs = g.members.reduce(
+      (mx, m) => Math.max(mx, m.createdAt ? Date.parse(m.createdAt) || 0 : 0),
+      0,
+    );
+    rows.push({
+      key: `s:${g.suiteId}`,
+      kind: 'suite',
+      name: g.suiteName,
+      statusLabel: st.label,
+      statusRank: st.rank,
+      wrs: sw ? sw.min : null, // the suite's WORST step (the honest headline)
+      wrsLevel: sw ? sw.level : null,
+      target: g.target,
+      createdMs,
+      suite: g,
+    });
+  }
+  for (const c of standalone) {
+    rows.push({
+      key: `c:${c.id}`,
+      kind: 'campaign',
+      name: c.name,
+      statusLabel: c.status,
+      statusRank: CAMPAIGN_STATUS_RANK[c.status] ?? 9,
+      wrs: c.wrs ? c.wrs.wrs : null,
+      wrsLevel: c.wrs ? c.wrs.level : null,
+      target: c.target,
+      createdMs: c.createdAt ? Date.parse(c.createdAt) || 0 : 0,
+      campaign: c,
+    });
+  }
+  return rows;
+}
+
+/** Order rows by a column, honouring the direction. Pure, so it is unit-tested. */
+export function sortCampaignRows(
+  rows: CampaignRow[],
+  key: CampaignSortKey,
+  dir: 'asc' | 'desc',
+): CampaignRow[] {
+  const cmp = (a: CampaignRow, b: CampaignRow): number => {
+    switch (key) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'wrs':
+        return (a.wrs ?? -1) - (b.wrs ?? -1);
+      case 'status':
+        return a.statusRank - b.statusRank || b.createdMs - a.createdMs;
+      case 'created':
+      default:
+        return a.createdMs - b.createdMs;
+    }
+  };
+  return [...rows].sort((a, b) => (dir === 'asc' ? cmp(a, b) : -cmp(a, b)));
+}
+
+function fmtRowDate(ms: number): string {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function CampaignTable({ rows }: { rows: CampaignRow[] }) {
+  const [sortKey, setSortKey] = useState<CampaignSortKey>('created');
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  const sorted = useMemo(() => sortCampaignRows(rows, sortKey, dir), [rows, sortKey, dir]);
+  const toggleSort = (k: CampaignSortKey) => {
+    if (k === sortKey) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(k);
+      setDir(k === 'name' || k === 'status' ? 'asc' : 'desc'); // names/status asc, wrs/date desc
+    }
+  };
+  const toggleOpen = (key: string) =>
+    setOpen((o) => {
+      const n = new Set(o);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  const ariaSort = (k: CampaignSortKey): 'ascending' | 'descending' | 'none' =>
+    sortKey === k ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const arrow = (k: CampaignSortKey) => (sortKey === k ? (dir === 'asc' ? ' ▲' : ' ▼') : '');
+  const SortTh = ({ k, label, cls }: { k: CampaignSortKey; label: string; cls?: string }) => (
+    <th className={`ct-th${cls ? ' ' + cls : ''}`} aria-sort={ariaSort(k)}>
+      <button type="button" className="ct-sort" onClick={() => toggleSort(k)}>
+        {label}
+        {arrow(k)}
+      </button>
+    </th>
+  );
+
+  return (
+    <div className="ct-wrap">
+      <table className="campaign-table">
+        <thead>
+          <tr>
+            <th className="ct-th-exp" aria-hidden="true"></th>
+            <SortTh k="name" label="Name" />
+            <SortTh k="status" label="Status" />
+            <SortTh k="wrs" label="WRS" cls="ct-num" />
+            <th className="ct-th">Target</th>
+            <SortTh k="created" label="Created" cls="ct-created" />
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((r) => {
+            const isOpen = open.has(r.key);
+            return (
+              <Fragment key={r.key}>
+                <tr
+                  className={`ct-row${isOpen ? ' ct-open' : ''}`}
+                  onClick={() => toggleOpen(r.key)}
+                  aria-expanded={isOpen}
+                >
+                  <td className="ct-exp" aria-hidden="true">
+                    {isOpen ? '▾' : '▸'}
+                  </td>
+                  <td className="ct-name">
+                    <span className="ct-kind" aria-hidden="true">
+                      {r.kind === 'suite' ? '📁' : '⚡'}
+                    </span>
+                    <span className="ct-name-txt">{r.name}</span>
+                    {r.suite && <span className="ct-steps"> · {r.suite.total} steps</span>}
+                  </td>
+                  <td>
+                    {r.kind === 'campaign' && r.campaign ? (
+                      <StatusBadge status={r.campaign.status} />
+                    ) : (
+                      <span className="ct-suite-status">{r.statusLabel}</span>
+                    )}
+                  </td>
+                  <td className="ct-num">
+                    {r.wrs != null && r.wrsLevel ? (
+                      <span className={`wrs-pill ${wrsClass(r.wrsLevel)}`}>
+                        {r.wrs} {r.wrsLevel}
+                      </span>
+                    ) : (
+                      <span className="hint">—</span>
+                    )}
+                  </td>
+                  <td className="ct-target" title={r.target}>
+                    {hostOf(r.target) ?? r.target}
+                  </td>
+                  <td className="ct-created">{fmtRowDate(r.createdMs)}</td>
+                </tr>
+                {isOpen && (
+                  <tr className="ct-detail">
+                    <td colSpan={6}>
+                      {r.kind === 'suite' && r.suite ? (
+                        <SuiteGroupCard g={r.suite} />
+                      ) : r.campaign ? (
+                        <CampaignCard c={r.campaign} />
+                      ) : null}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function CampaignList() {
   const app = useApp();
   // Pre-fill the search from ?q= so a "Protected zones" card deep-links straight
@@ -2286,7 +2498,6 @@ export function CampaignList() {
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState<StatusFilterId>('all');
-  const [sort, setSort] = useState<SortId>('recent');
   const [showArchived, setShowArchived] = useState(false);
 
   const archivedCount = useMemo(
@@ -2303,17 +2514,14 @@ export function CampaignList() {
         (c) => c.name.toLowerCase().includes(term) || c.target.toLowerCase().includes(term),
       );
     }
-    if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    else if (sort === 'wrs')
-      list = [...list].sort((a, b) => (b.wrs?.wrs ?? -1) - (a.wrs?.wrs ?? -1));
     return list;
-  }, [app.campaigns, status, q, sort, showArchived]);
+  }, [app.campaigns, status, q, showArchived]);
 
-  // Suites (grouped) render above the standalone campaigns — and must honour the
-  // SAME sort as the flat list (groupSuites re-orders by suiteId, which would
-  // otherwise ignore the Name / WRS selection).
-  const suiteGroups = useMemo(() => sortSuiteGroups(groupSuites(filtered), sort), [filtered, sort]);
+  // Suites keep their natural grouped cards; the many standalone campaigns become
+  // a compact, column-sortable table (rows expand to the full card on demand).
+  const suiteGroups = useMemo(() => groupSuites(filtered), [filtered]);
   const standalone = useMemo(() => filtered.filter((c) => !c.suiteId), [filtered]);
+  const rows = useMemo(() => toCampaignRows([], standalone), [standalone]);
 
   const hasCampaigns = app.campaigns.length > 0;
 
@@ -2352,11 +2560,6 @@ export function CampaignList() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortId)}>
-              <option value="recent">Most recent</option>
-              <option value="name">Name (A–Z)</option>
-              <option value="wrs">WRS (high→low)</option>
-            </select>
             {archivedCount > 0 && (
               <label className="archived-toggle" title="Include archived campaigns">
                 <input
@@ -2379,9 +2582,7 @@ export function CampaignList() {
         {suiteGroups.map((g) => (
           <SuiteGroupCard key={g.suiteId} g={g} />
         ))}
-        {standalone.map((c) => (
-          <CampaignCard key={c.id} c={c} />
-        ))}
+        {rows.length > 0 && <CampaignTable rows={rows} />}
       </div>
     </>
   );

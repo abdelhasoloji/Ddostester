@@ -146,6 +146,44 @@ describe('CampaignList — suite grouping', () => {
     await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1'));
   });
 
+  it('standalone campaigns render as a compact table; a row expands to the full card', () => {
+    currentApp = makeApp({
+      role: 'ciso',
+      campaigns: [
+        { ...member(0, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Alpha run' },
+        { ...member(1, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Bravo run' },
+      ],
+    });
+    renderWithRouter(<CampaignList />);
+    // Compact table with a sortable header and one row per campaign.
+    expect(document.querySelector('.campaign-table')).not.toBeNull();
+    expect(document.querySelectorAll('.ct-row').length).toBe(2);
+    // Collapsed: no full campaign card is mounted yet.
+    expect(document.querySelector('.ct-detail .campaign')).toBeNull();
+    // Clicking a row expands it into the full CampaignCard (detail on demand).
+    fireEvent.click(screen.getByText('Alpha run'));
+    expect(document.querySelector('.ct-detail .campaign')).not.toBeNull();
+  });
+
+  it('the table header sorts the rows by name', () => {
+    currentApp = makeApp({
+      role: 'ciso',
+      campaigns: [
+        { ...member(0, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Zulu' },
+        { ...member(1, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Alpha' },
+      ],
+    });
+    renderWithRouter(<CampaignList />);
+    const names = () =>
+      Array.from(document.querySelectorAll('.ct-row .ct-name-txt')).map((n) => n.textContent);
+    // Click the Name header → ascending A→Z.
+    fireEvent.click(screen.getByRole('button', { name: /Name/ }));
+    expect(names()).toEqual(['Alpha', 'Zulu']);
+    // Click again → descending Z→A (the sort direction toggles).
+    fireEvent.click(screen.getByRole('button', { name: /Name/ }));
+    expect(names()).toEqual(['Zulu', 'Alpha']);
+  });
+
   it('expands a suite into compact step rows (stripped labels, no card wall)', () => {
     currentApp = makeApp({
       role: 'ciso',

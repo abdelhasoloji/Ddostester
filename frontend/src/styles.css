@@ -330,6 +330,113 @@ input.invalid {
   flex-direction: column;
   gap: 0.85rem;
 }
+/* Compact, sortable campaign table — a row expands to the full card on demand. */
+.ct-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.campaign-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+.campaign-table thead th {
+  text-align: left;
+  font-weight: 680;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.6rem;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.campaign-table th.ct-num {
+  text-align: right;
+}
+.ct-th-exp {
+  width: 1.6rem;
+}
+.ct-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 680;
+}
+.ct-sort:hover {
+  color: var(--ink);
+}
+.campaign-table tbody .ct-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.campaign-table tbody .ct-row:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.campaign-table tbody .ct-row.ct-open {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.campaign-table td {
+  padding: 0.5rem 0.6rem;
+  vertical-align: middle;
+}
+.ct-exp {
+  width: 1.6rem;
+  color: var(--muted);
+  text-align: center;
+}
+.ct-name {
+  font-weight: 620;
+  max-width: 26rem;
+}
+.ct-kind {
+  margin-right: 0.35rem;
+}
+.ct-name-txt {
+  word-break: break-word;
+}
+.ct-steps {
+  color: var(--muted);
+  font-weight: 500;
+}
+.ct-suite-status {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.campaign-table td.ct-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ct-target {
+  color: var(--muted);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ct-created {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* The expanded detail row hosts the existing full card — strip its own outer
+   frame so it reads as an inline detail, not a card-in-a-cell. */
+.campaign-table .ct-detail > td {
+  padding: 0.4rem 0.6rem 0.9rem;
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+.campaign-table .ct-detail .campaign,
+.campaign-table .ct-detail .suite-group {
+  margin: 0;
+}
 .campaign {
   background: var(--surface);
   border: 1px solid var(--border);

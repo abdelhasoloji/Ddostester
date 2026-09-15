@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Browser } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // Deep coverage of the stateful / per-item clickable actions on each screen,
 // beyond render + tabs: campaign card actions (approve/reject/run/cancel/archive/
@@ -27,7 +27,7 @@ async function seed(browser: Browser, over = {}) {
 test('campaign card: Details opens the drawer and closes', async ({ browser }) => {
   const { name, ctx, page } = await seed(browser);
   await goTo(page, 'Campaigns');
-  await card(page, name).getByRole('button', { name: 'Details' }).click();
+  await (await openCard(page, name)).getByRole('button', { name: 'Details' }).click();
   await expect(page.locator('aside.drawer')).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.locator('aside.drawer')).toHaveCount(0); // it actually closed
@@ -40,7 +40,7 @@ test('campaign card: a CISO cancels a pending campaign (approve-gated)', async (
   const ciso = await cctx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Cancel' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Cancel' }).click();
   await expect(card(ciso, name).getByText('Cancelled', { exact: true })).toBeVisible();
   await ctx.close();
   await cctx.close();
@@ -52,7 +52,7 @@ test('campaign card: CISO rejects a campaign with a reason', async ({ browser })
   const ciso = await cctx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('textbox').last().fill('e2e reject reason');
   await ciso.getByRole('button', { name: 'Reject', exact: true }).click();
   await expect(card(ciso, name).getByText('Rejected')).toBeVisible();
@@ -68,13 +68,13 @@ test('campaign card: Run opens the Execute modal, which cancels without launchin
   const ciso = await cctx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(card(ciso, name).getByText('Approved')).toBeVisible();
 
   await page.reload();
   await goTo(page, 'Campaigns');
-  await card(page, name).getByRole('button', { name: 'Run', exact: true }).click();
+  await (await openCard(page, name)).getByRole('button', { name: 'Run', exact: true }).click();
   // The Execute modal: h3 "Confirm run", primary "Launch campaign".
   await expect(page.getByRole('heading', { name: 'Confirm run' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Launch campaign' })).toBeVisible();
@@ -87,14 +87,16 @@ test('campaign card: Run opens the Execute modal, which cancels without launchin
 test('campaign card: archive then restore a campaign', async ({ browser }) => {
   const { name, ctx, page } = await seed(browser);
   await goTo(page, 'Campaigns');
-  await card(page, name).getByRole('button', { name: 'Archive' }).click();
+  await (await openCard(page, name)).getByRole('button', { name: 'Archive' }).click();
   // Archive actually hid it from the default (non-archived) list.
   await expect(card(page, name)).toHaveCount(0);
   // Reveal archived, restore → it's no longer archived (Restore gone, Archive back).
   await page.locator('label.archived-toggle input[type="checkbox"]').check();
-  await card(page, name).getByRole('button', { name: 'Restore' }).click();
-  await expect(card(page, name).getByRole('button', { name: 'Restore' })).toHaveCount(0);
-  await expect(card(page, name).getByRole('button', { name: 'Archive' })).toBeVisible();
+  await (await openCard(page, name)).getByRole('button', { name: 'Restore' }).click();
+  await expect((await openCard(page, name)).getByRole('button', { name: 'Restore' })).toHaveCount(
+    0,
+  );
+  await expect((await openCard(page, name)).getByRole('button', { name: 'Archive' })).toBeVisible();
   await ctx.close();
 });
 
