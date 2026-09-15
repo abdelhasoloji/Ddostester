@@ -33,7 +33,32 @@ const WAF_CDN_HEADERS = [
   'via',
   'x-waf',
   'x-wedos-shield',
+  // WEDOS Global Protection / CDN advertise themselves by dedicated headers
+  // (an edge fronting a bare origin — the exact before/after this tool proves).
+  'x-cdn-cache-status',
+  'x-cdn-provider',
+  'x-cdn-by',
+  'x-protected-by',
+  'x-waf-protected-by',
 ];
+/** Header keys whose PRESENCE alone signals a WAF/protection layer (not just a CDN). */
+const WAF_HEADERS = new Set([
+  'cf-ray',
+  'x-sucuri-id',
+  'x-waf',
+  'x-wedos-shield',
+  'x-protected-by',
+  'x-waf-protected-by',
+]);
+/**
+ * WEDOS Protection describes ITSELF by product name across several `x-*` headers
+ * (x-protected-by, x-waf-protected-by, x-provider, x-cdn-provider, x-filter-info…),
+ * so we also match by VALUE — otherwise a WEDOS-fronted origin whose header keys we
+ * don't enumerate reads as a bare origin, which is exactly the false-negative this
+ * proving ground must never produce about its own product.
+ */
+const WEDOS_WAF_VALUE = /wedos[\s.]*(global\s+)?protection/i;
+const WEDOS_CDN_VALUE = /wedos[\s.]*(global\s+)?cdn|wedos\.delivery/i;
 const RATE_LIMIT_HEADERS = ['retry-after', 'x-ratelimit-limit', 'ratelimit-limit', 'x-rate-limit'];
 const LB_COOKIE_NAMES = ['awsalb', 'awsalbcors', 'serverid', 'lb', 'route', 'x-served-by'];
 const SECURITY_HEADERS = [
@@ -72,14 +97,20 @@ export function analyzePosture(
     for (const key of WAF_CDN_HEADERS) {
       if (h[key] != null) {
         cdn = true;
-        if (
-          key === 'cf-ray' ||
-          key === 'x-sucuri-id' ||
-          key === 'x-waf' ||
-          key === 'x-wedos-shield'
-        )
-          waf = true;
+        if (WAF_HEADERS.has(key)) waf = true;
         signals.add(`header ${key}`);
+      }
+    }
+    // Value-based product fingerprint (WEDOS advertises itself by name across
+    // several x-* headers), so a WEDOS-fronted origin is never mis-read as bare.
+    for (const [key, val] of Object.entries(h)) {
+      if (WEDOS_WAF_VALUE.test(val)) {
+        waf = true;
+        cdn = true; // WEDOS Protection is an anycast edge in front of the origin
+        signals.add(`WEDOS Protection (${key})`);
+      } else if (WEDOS_CDN_VALUE.test(val)) {
+        cdn = true;
+        signals.add(`WEDOS CDN (${key})`);
       }
     }
     const serverVal = h['server'];
