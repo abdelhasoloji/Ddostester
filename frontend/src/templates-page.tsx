@@ -129,6 +129,15 @@ function PlaybookRow({
             </div>
           </div>
         )}
+        {pb.companionBench && (
+          <div className="xlayer-box" title={pb.companionBench.note}>
+            <span className="xlayer-badge">⇄ Cross-layer</span>
+            <span className="xlayer-text">
+              Class-C network companion (<code>{pb.companionBench.ladder}</code>) — synthetic,
+              no-spoof, run on the isolated bench; its verdicts fuse into the WRS read-only.
+            </span>
+          </div>
+        )}
         {canCreate && (
           <div className="btn-row">
             <button

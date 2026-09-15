@@ -112,6 +112,10 @@ export interface Playbook {
   threat?: ThreatInfo;
   drsLevel?: number;
   createdAt?: string;
+  /** Class-C network-bench companion (synthetic, no-spoof) paired with this L7
+   *  template for a cross-layer assessment — run on the isolated bench, fused
+   *  read-only into the WRS. */
+  companionBench?: { ladder: string; note: string };
   steps: {
     name: string;
     summary: string;

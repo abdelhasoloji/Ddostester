@@ -42,6 +42,7 @@ import { highRateEngineUpgrade } from './modules/campaigns/engine-route.js';
 import type { HardCaps } from './config/limits.js';
 import {
   BENCH_SCENARIOS,
+  CLASS_C_LADDERS,
   isKnownBenchScenario,
   parseBenchVerdict,
   parseCoverageInput,
@@ -1409,6 +1410,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/bench/scenarios', { preHandler: guard('bench:read') }, async () => ({
     scenarios: BENCH_SCENARIOS,
+    ladders: CLASS_C_LADDERS,
     dispatchEnabled: benchDispatchEnabled(),
     labTargets,
   }));
