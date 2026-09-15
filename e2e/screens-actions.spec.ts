@@ -6,8 +6,9 @@ import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js'
 // templates select+compose, settings controls, modals open+close, and the full
 // two-step SUITE controls (approve → run → cancel) driven from the UI.
 
-const SECTIONS = ['Command Center', 'Campaigns', 'Run Theater', 'Results', 'Assurance', 'Settings'];
-const MORE = ['Protected zones', 'Prepare'];
+// Prepare + Results retired from the nav; the audit log moved into Settings.
+const SECTIONS = ['Command Center', 'Campaigns', 'Run Theater', 'Settings'];
+const MORE = ['Protected zones'];
 
 /** No error toast is showing (a clicked action didn't blow up). */
 async function noError(page: Page): Promise<void> {

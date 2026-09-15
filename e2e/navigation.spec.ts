@@ -6,12 +6,12 @@ import { login, goTo } from './helpers.js';
 // v2 nav: the resilience spine (Command Center / Campaigns / Run Theater /
 // Results / Assurance) plus the secondary "More" group. `link` is the nav label
 // and `title` the page's own <h1> — kept in step so the two never diverge.
+// Prepare + Results were retired from the spine and the audit log moved into
+// Settings, so the nav is now the four working surfaces plus Settings.
 const SECTIONS: { link: string; title: string }[] = [
   { link: 'Command Center', title: 'Command Center' },
   { link: 'Campaigns', title: 'Campaigns' },
   { link: 'Run Theater', title: 'Run Theater' },
-  { link: 'Results', title: 'Results' },
-  { link: 'Assurance', title: 'Assurance' },
   { link: 'Settings', title: 'Settings' },
 ];
 
@@ -39,7 +39,8 @@ test('the Campaigns workspace exposes its tabs and switches surfaces', async ({ 
 
 test('Reports shows the cross-campaign compliance surface (E1)', async ({ page }) => {
   await login(page, 'viewer');
-  await goTo(page, 'Results');
+  // Results was retired from the nav but the route stays reachable by URL.
+  await page.goto('/reports');
   await expect(page.getByRole('heading', { name: 'Results' })).toBeVisible();
   // The aggregated-compliance rollup is always present (it fills in as runs land);
   // per-run detail now lives on the Campaigns list, not here.

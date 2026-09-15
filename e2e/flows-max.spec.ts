@@ -42,18 +42,12 @@ test('sidebar: theme buttons apply the theme; notifications bell opens then clos
   await expect(page.getByRole('dialog', { name: 'Notifications' })).toHaveCount(0);
 });
 
-test('Assurance (audit): Refresh, Verify integrity and the Export (JSON) link', async ({
-  page,
-}) => {
-  // These live on the Assurance/audit route (not Command Center — the earlier
-  // version drove guarded clicks there and silently asserted nothing).
+test('Audit log (in Settings): Verify integrity and the Export (JSON) link', async ({ page }) => {
+  // The tamper-evident audit log now lives inside Settings (the Assurance nav item
+  // was retired).
   await login(page, 'officer');
-  await goTo(page, 'Assurance');
-  await page
-    .getByRole('button', { name: /Refresh/ })
-    .first()
-    .click();
-  await noError(page);
+  await goTo(page, 'Settings');
+  await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
   // Verify integrity must produce a verdict, not just "no error".
   await page.getByRole('button', { name: /Verify integrity/ }).click();
   await expect(page.getByText(/Chain intact|tampered|broken/i)).toBeVisible({ timeout: 10_000 });
@@ -66,7 +60,8 @@ test('Assurance (audit): Refresh, Verify integrity and the Export (JSON) link', 
 
 test('Prepare: run recon against an allowlisted target', async ({ page }) => {
   await login(page, 'engineer');
-  await goTo(page, 'Prepare');
+  // Prepare was retired from the nav but the route stays reachable by URL.
+  await page.goto('/prepare');
   const input = page.locator('input').first();
   if (await input.count()) await input.fill(SELF);
   if (await clickIf(page, /Run recon/)) {

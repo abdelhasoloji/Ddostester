@@ -177,9 +177,10 @@ test('command center: renders the resilience summary and opens Run Theater', asy
   }
 });
 
-test('assurance: Verify integrity produces a chain verdict', async ({ page }) => {
-  await login(page, 'officer'); // admin sees the audit + verify control
-  await goTo(page, 'Assurance');
+test('audit log (in Settings): Verify integrity produces a chain verdict', async ({ page }) => {
+  await login(page, 'officer'); // the audit log now lives inside Settings
+  await goTo(page, 'Settings');
+  await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
   await page.getByRole('button', { name: /Verify integrity/ }).click();
   // The verify produces a real verdict, not just no error.
   await expect(page.getByText(/Chain intact|tampered|broken/i)).toBeVisible({ timeout: 10_000 });
@@ -189,6 +190,6 @@ test('protected zones and prepare screens render and expose their actions', asyn
   await login(page, 'officer');
   await goTo(page, 'Protected zones');
   await noError(page);
-  await goTo(page, 'Prepare');
+  await page.goto('/prepare'); // retired from the nav, still reachable by URL
   await noError(page);
 });
