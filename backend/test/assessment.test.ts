@@ -11,15 +11,19 @@ function abs(o: {
   absorbed?: number;
   rej?: number;
   tar?: number;
+  /** Intended mean offered rate (delivery denominator); defaults to cfg (constant). */
+  expected?: number;
 }): Absorption {
+  const expectedRps = o.expected ?? o.cfg;
   return {
     configuredRps: o.cfg,
+    expectedRps,
     achievedRps: o.ach,
     originRps: o.origin ?? o.ach,
     absorbedRatio: o.absorbed ?? 0,
     absorbedPct: Math.round((o.absorbed ?? 0) * 1000) / 10,
     totalRequests: 1000,
-    offeredShortfall: Math.max(0, 1 - o.ach / o.cfg),
+    offeredShortfall: Math.max(0, 1 - o.ach / expectedRps),
     rejectedRatio: o.rej ?? 0,
     tarpitRatio: o.tar ?? 0,
   };
@@ -144,6 +148,53 @@ describe('assessVector — under-delivery is inconclusive, not a pass', () => {
     expect(va.underDelivered).toBe(false);
     expect(va.mechanism).toBe('shed');
     expect(va.verdict).toBe('held');
+  });
+});
+
+describe('assessVector — delivery is measured against the intended mean, not the peak', () => {
+  it('a faithfully-delivered WAVE (mean ~73% of peak) is held, not inconclusive', () => {
+    // Peak 800, wave mean 586; delivered 570 — a perfect wave, NOT under-delivery.
+    // Measured against the peak (570/800 = 71%) it would clear only barely; against
+    // the intended mean (570/586 = 97%) it is comfortably valid.
+    const va = assessVector(
+      mkRun({
+        availCount: 100,
+        absorption: abs({ cfg: 800, expected: 586, ach: 570, absorbed: 0 }),
+      }),
+      ctx({ shape: 'L7 MultiVector (DRS5)', drs: '5' }),
+    );
+    expect(va.expectedRps).toBe(586);
+    expect(va.deliveryRatio).toBeCloseTo(570 / 586, 3);
+    expect(va.underDelivered).toBe(false);
+    expect(va.verdict).toBe('held');
+  });
+
+  it('a faithfully-delivered RAMP (mean ~58% of peak) is held — no longer a false inconclusive', () => {
+    // The latent bug this fixes: at the peak, 583/1000 = 58% < 0.7 → inconclusive.
+    // Against the intended mean (583/583 = 100%) it is a valid held.
+    const va = assessVector(
+      mkRun({
+        availCount: 100,
+        absorption: abs({ cfg: 1000, expected: 583, ach: 583, absorbed: 0 }),
+      }),
+      ctx({ shape: 'Ramp-plateau (DRS4)', drs: '4' }),
+    );
+    expect(va.underDelivered).toBe(false);
+    expect(va.verdict).toBe('held');
+  });
+
+  it('a genuine shortfall below the intended mean is still inconclusive', () => {
+    // Wave mean 586 but only 300 delivered (51% of the mean) → real shortfall.
+    const va = assessVector(
+      mkRun({
+        availCount: 100,
+        absorption: abs({ cfg: 800, expected: 586, ach: 300, absorbed: 0 }),
+      }),
+      ctx({ shape: 'L7 MultiVector (DRS5)', drs: '5' }),
+    );
+    expect(va.underDelivered).toBe(true);
+    expect(va.verdict).toBe('inconclusive');
+    expect(va.caveats.join(' ')).toMatch(/intended offered rate/);
   });
 });
 

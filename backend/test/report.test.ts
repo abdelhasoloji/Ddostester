@@ -143,7 +143,7 @@ describe('per-campaign report', () => {
     // Faithful: only ~11/500 req/s was delivered — a generator-side shortfall, so
     // the engine calls this INCONCLUSIVE (not "protection absorbed"), not left bare.
     expect(blocked).toContain('Inconclusive — not a valid test at the target rate');
-    expect(blocked).toMatch(/Delivered only \d+% of the configured rate/);
+    expect(blocked).toMatch(/Delivered only \d+% of the intended offered rate/);
     // Configured intent is still shown in the absorption section.
     expect(blocked).toContain('Configured load');
     expect(blocked).toMatch(/500 req\/s/);

@@ -63,9 +63,11 @@ export interface VectorAssessment {
   vector?: string;
   isSlowConnection: boolean;
   configuredRps: number;
+  /** The scenario's intended mean offered rate (delivery denominator). */
+  expectedRps: number;
   achievedRps: number;
   originRps: number;
-  /** achieved / configured, in [0,1]; 1 when no configured rate is known. */
+  /** achieved / expected offered rate, in [0,1]; 1 when no rate is known. */
   deliveryRatio: number;
   underDelivered: boolean;
   availabilityPct: number;
@@ -94,15 +96,21 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const a = run?.absorption;
   const avail = run ? availabilityPct(run) : 0;
   const configuredRps = a?.configuredRps ?? 0;
+  // The rate the scenario meant to offer (its mean) — the honest denominator for
+  // delivery. Equals the peak for a constant profile; lower for a wave/ramp. A
+  // faithfully-delivered wave's mean is ~73% of its peak, a ramp's ~58%, so
+  // measuring delivery against the peak would falsely flag them under-delivered.
+  const expectedRps = a?.expectedRps ?? configuredRps;
   const achievedRps = a?.achievedRps ?? (run ? run.generator.actualRps : 0);
   const originRps = a?.originRps ?? 0;
   const absorbedRatio = a?.absorbedRatio ?? 0;
   const rejectedRatio = a?.rejectedRatio ?? 0;
   const tarpitRatio = a?.tarpitRatio ?? 0;
-  // Delivery: a rate-based vector must actually reach its configured rate for the
-  // result to mean anything. Slow-connection vectors trickle by design — exempt.
-  const deliveryRatio = configuredRps > 0 ? Math.min(1, achievedRps / configuredRps) : 1;
-  const underDelivered = !isSlow && configuredRps > 0 && deliveryRatio < DELIVERY_MIN;
+  // Delivery: a rate-based vector must actually reach the rate its scenario meant
+  // to offer for the result to mean anything. Slow-connection vectors trickle by
+  // design — exempt.
+  const deliveryRatio = expectedRps > 0 ? Math.min(1, achievedRps / expectedRps) : 1;
+  const underDelivered = !isSlow && expectedRps > 0 && deliveryRatio < DELIVERY_MIN;
 
   const wrs = run?.wrs?.wrs ?? ctx.wrs ?? null;
   const level = run?.wrs?.level ?? ctx.level ?? (wrs != null ? wrsLevel(wrs) : null);
@@ -110,8 +118,8 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const caveats: string[] = [];
   if (underDelivered) {
     caveats.push(
-      `Delivered only ${Math.round(deliveryRatio * 100)}% of the configured rate ` +
-        `(${Math.round(achievedRps)}/${configuredRps} req/s) — a generator-side shortfall, ` +
+      `Delivered only ${Math.round(deliveryRatio * 100)}% of the intended offered rate ` +
+        `(${Math.round(achievedRps)}/${Math.round(expectedRps)} req/s) — a generator-side shortfall, ` +
         `so resilience at the full DRS ${ctx.drs} rate is unproven.`,
     );
   }
@@ -170,6 +178,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     originRps: Math.round(originRps),
     achievedRps: Math.round(achievedRps),
     configuredRps,
+    expectedRps: Math.round(expectedRps),
     absorbedPct: a?.absorbedPct ?? 0,
     wrs,
     level,
@@ -194,6 +203,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     vector: ctx.vector,
     isSlowConnection: isSlow,
     configuredRps,
+    expectedRps: Math.round(expectedRps),
     achievedRps: Math.round(achievedRps),
     originRps: Math.round(originRps),
     deliveryRatio,
@@ -221,6 +231,7 @@ function buildObservation(x: {
   originRps: number;
   achievedRps: number;
   configuredRps: number;
+  expectedRps: number;
   absorbedPct: number;
   wrs: number | null;
   level: WrsLevel | null;
@@ -239,9 +250,9 @@ function buildObservation(x: {
   const wrsTail = x.wrs != null ? ` WRS ${x.wrs} (${x.level}).` : '';
   if (x.underDelivered) {
     return (
-      `Delivered only ${Math.round(x.deliveryRatio * 100)}% of the DRS ${x.drs} target rate ` +
-      `(${x.achievedRps}/${x.configuredRps} req/s) — a generator-side shortfall, so this is ` +
-      `INCONCLUSIVE at full rate. At the delivered rate the origin served the load and ` +
+      `Delivered only ${Math.round(x.deliveryRatio * 100)}% of the intended offered rate ` +
+      `(${x.achievedRps}/${x.expectedRps} req/s) — a generator-side shortfall, so this is ` +
+      `INCONCLUSIVE at the DRS ${x.drs} rate. At the delivered rate the origin served the load and ` +
       `legitimate availability held at ${x.availPct}%.${wrsTail}`
     );
   }

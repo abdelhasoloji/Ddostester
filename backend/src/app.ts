@@ -12,6 +12,7 @@ import { kills } from './runtime/kills.js';
 import { liveProgress } from './runtime/live.js';
 import { metrics } from './modules/metrics/runtime.js';
 import { computeAbsorption } from './modules/reports/absorption.js';
+import { scenarioMeanRps } from './modules/campaigns/calibration.js';
 import { computeConfidence, EVENT_LOOP_LAG_GUARD_MS } from './modules/reports/confidence.js';
 import { assessVector } from './modules/reports/assessment.js';
 import {
@@ -601,12 +602,19 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         .filter(([b]) => b !== '2xx' && b !== '3xx')
         .reduce((s, [, n]) => s + n, 0);
       const tarpitted = Object.values(run.generator.errors ?? {}).reduce((s, n) => s + n, 0);
+      // The PEAK offered rate (for display) — the calibrated deliverable ceiling
+      // when the run was rate-calibrated (GEN-1), else the campaign's requested
+      // peak. And the EXPECTED mean offered rate (the delivery denominator): a
+      // wave/ramp offers its peak only at the crest, so its mean throughput is
+      // below peak; measuring delivery against the peak would falsely flag a
+      // faithfully-delivered wave/ramp as under-delivered. The scenario's mean/peak
+      // ratio is shape-only (unchanged by calibration, which scales all phases),
+      // so scale it by the effective peak.
+      const effectivePeakRps = run.calibration?.appliedRps ?? c.maxRps;
+      const shapeMeanRatio = c.maxRps > 0 ? scenarioMeanRps(c.maxRps, c.scenario) / c.maxRps : 1;
       const absorption = computeAbsorption({
-        // When the run was rate-calibrated (GEN-1), the offered rate WAS the
-        // calibrated deliverable ceiling — so delivery is measured against that,
-        // not the aspirational requested rate, and a calibrated line reads as a
-        // valid test (delivered ~100%) instead of a false under-delivery.
-        configuredRps: run.calibration?.appliedRps ?? c.maxRps,
+        configuredRps: effectivePeakRps,
+        expectedRps: Math.round(effectivePeakRps * shapeMeanRatio),
         achievedRps: run.generator.actualRps,
         totalRequests: run.generator.totalRequests,
         successful: run.generator.successful,

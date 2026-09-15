@@ -16,8 +16,16 @@
  * rejecting traffic and must not be mistaken for it.
  */
 export interface Absorption {
-  /** Requested ceiling (campaign.maxRps). */
+  /** Requested ceiling (campaign.maxRps) — the PEAK offered rate, for display. */
   configuredRps: number;
+  /**
+   * The rate the scenario INTENDED to offer, averaged over its whole duration —
+   * the honest denominator for delivery. Equals `configuredRps` for a constant
+   * profile; lower for a wave/ramp (whose mean throughput is below their peak).
+   * Delivery/shortfall are measured against THIS, not the peak, so a faithfully
+   * delivered wave/ramp doesn't read as under-delivered.
+   */
+  expectedRps: number;
   /** Load we actually sent (generator actualRps). */
   achievedRps: number;
   /** Load that reached origin — successful (2xx/3xx) responses per second. */
@@ -39,6 +47,9 @@ export interface Absorption {
 
 export interface AbsorptionInput {
   configuredRps: number;
+  /** The scenario's intended mean offered rate; defaults to `configuredRps`
+   *  (constant profile) when omitted. Delivery/shortfall are measured against it. */
+  expectedRps?: number;
   achievedRps: number;
   totalRequests: number;
   successful: number;
@@ -54,13 +65,17 @@ const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export function computeAbsorption(i: AbsorptionInput): Absorption {
   const total = Math.max(0, i.totalRequests);
+  // Delivery is measured against the rate the scenario meant to offer (its mean),
+  // not the peak — a wave/ramp's mean throughput is naturally below its peak.
+  const expectedRps = i.expectedRps ?? i.configuredRps;
   const originRps = i.durationSec > 0 ? i.successful / i.durationSec : 0;
   const absorbedRatio = total > 0 ? i.failed / total : 0;
-  const offeredShortfall = i.configuredRps > 0 ? clamp01(1 - i.achievedRps / i.configuredRps) : 0;
+  const offeredShortfall = expectedRps > 0 ? clamp01(1 - i.achievedRps / expectedRps) : 0;
   const rejectedRatio = total > 0 ? clamp01((i.rejected ?? 0) / total) : 0;
   const tarpitRatio = total > 0 ? clamp01((i.tarpitted ?? 0) / total) : 0;
   return {
     configuredRps: i.configuredRps,
+    expectedRps,
     achievedRps: i.achievedRps,
     originRps,
     absorbedRatio,
