@@ -11,7 +11,7 @@ import type { AuthState } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
 import { liveProgress } from './runtime/live.js';
 import { metrics } from './modules/metrics/runtime.js';
-import { computeAbsorption } from './modules/reports/absorption.js';
+import { computeAbsorption, splitFailures } from './modules/reports/absorption.js';
 import { scenarioMeanRps } from './modules/campaigns/calibration.js';
 import { computeConfidence, EVENT_LOOP_LAG_GUARD_MS } from './modules/reports/confidence.js';
 import { assessVector } from './modules/reports/assessment.js';
@@ -595,13 +595,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // Protection-absorption metrics: how much of the offered load the target's
       // edge absorbed (rate-limited/tarpitted/4xx) vs let through to origin.
       // Single source of truth (computeAbsorption) shared with the report + UI.
-      // Break absorption down by mechanism: rejected = 4xx/5xx (edge answered a
-      // refusal), tarpitted = transport errors (edge held the connection).
-      const gStatus = run.generator.statusCounts ?? {};
-      const rejected = Object.entries(gStatus)
-        .filter(([b]) => b !== '2xx' && b !== '3xx')
-        .reduce((s, [, n]) => s + n, 0);
-      const tarpitted = Object.values(run.generator.errors ?? {}).reduce((s, n) => s + n, 0);
+      // Break absorption down by mechanism. rejected = the edge ANSWERED refusing
+      // (a 4xx/5xx HTTP response). tarpitted = the edge HELD the connection until it
+      // failed with NO HTTP response — a transport failure (timeout/reset/abort),
+      // which external engines report as a `0xx`/`err` status bucket (vegeta maps
+      // code 0 → "0xx"). Counting those `0xx` transport failures as "rejected" was
+      // a mislabel: a 800-rps cache-busted GET that tarpits the origin to 10s
+      // timeouts (statusCounts {0xx:77309, 2xx:18660}, p50 10s) read as
+      // "edge rejected 4xx/5xx" when it was really a tarpit. So: `0xx`/`err` → tarpit.
+      const { rejected, tarpitted } = splitFailures(
+        run.generator.statusCounts ?? {},
+        run.generator.errors ?? {},
+      );
       // The PEAK offered rate (for display) — the calibrated deliverable ceiling
       // when the run was rate-calibrated (GEN-1), else the campaign's requested
       // peak. And the EXPECTED mean offered rate (the delivery denominator): a
