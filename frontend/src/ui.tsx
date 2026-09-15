@@ -993,11 +993,43 @@ export function RunVerdictLine({ a }: { a: RunAssessment }) {
   );
 }
 
+/** Compact callout for edge-served error pages captured under load — the edge's
+ *  own first-party evidence of the mechanism that engaged. */
+function EdgeErrorNote({ errors }: { errors: NonNullable<CampaignRun['edgeErrors']> }) {
+  return (
+    <div className="edge-errors" role="note">
+      <div className="edge-errors-head">⚑ Edge served its own error page under load</div>
+      <ul>
+        {errors.map((e, i) => (
+          <li key={i}>
+            <b>HTTP {e.status}</b>
+            {e.vendor ? ` · ${e.vendor}` : ''} ·{' '}
+            {e.layer === 'origin'
+              ? 'origin buckled behind a healthy edge'
+              : e.layer === 'rate-limit'
+                ? 'rate-limited'
+                : e.layer === 'challenge'
+                  ? 'challenge / block page'
+                  : 'edge error'}
+            {e.originIpLeaked && (
+              <span className="edge-leak" title="Information disclosure — never targeted">
+                {' '}
+                · leaked origin IP {e.originIpLeaked}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
   return (
     <div className="details">
       {run.assessment && <RunVerdictLine a={run.assessment} />}
+      {run.edgeErrors && run.edgeErrors.length > 0 && <EdgeErrorNote errors={run.edgeErrors} />}
       <div className="metrics">
         <Metric label="Requests">{g.totalRequests}</Metric>
         <Metric label="Success / failures">

@@ -15,6 +15,8 @@
 import { fetch as pooledFetch, Agent } from 'undici';
 import { analyzePosture } from '../posture/analyze.js';
 import type { PostureReport } from '../posture/analyze.js';
+import { detectEdgeError } from '../posture/edge-error.js';
+import type { EdgeErrorSignal } from '../posture/edge-error.js';
 import { percentile } from '../../engine/stats.js';
 import { PROBE_LIMITS } from '../../config/limits.js';
 import type { ProbeLimits } from '../../config/limits.js';
@@ -63,6 +65,10 @@ export class KillSwitch {
 }
 
 const MAX_HEADER_SNAPSHOTS = 8;
+// Cap the edge-error pages we keep (one per distinct status/layer is enough
+// evidence); decode at most this many bytes of an error body to classify it.
+const MAX_EDGE_ERRORS = 6;
+const MAX_EDGE_BODY_BYTES = 20000;
 
 /** HTTP status → coarse class, used to capture headers on a class transition. */
 function statusClass(status: number): string {
@@ -79,6 +85,7 @@ export class Probe {
   private unavailableSince: number | null = null;
   /** A bounded set of response-header snapshots for posture inference. */
   private headerSnapshots: Record<string, string>[] = [];
+  private edgeErrorSignals: EdgeErrorSignal[] = [];
   /** Last observed status class, so we snapshot headers on a *transition*. */
   private lastStatusClass: string | null = null;
   private readonly limits: ProbeLimits;
@@ -180,8 +187,11 @@ export class Probe {
       status = res.status;
       ok = res.ok;
       this.captureHeadersOnChange(status, res.headers as unknown as Headers);
-      // Drain (and discard) the body to release the socket; not timed.
-      await res.arrayBuffer().catch(() => undefined);
+      // Drain the body to release the socket (not timed). On an ERROR status we
+      // also decode a bounded slice to detect an edge-served error page (the
+      // origin buckling behind a healthy edge, a rate-limit or a challenge).
+      const buf = await res.arrayBuffer().catch(() => undefined);
+      if (status >= 400 && buf) this.captureEdgeError(status, buf);
     } catch {
       ok = false;
       latencyMs = performance.now() - t0; // time to failure (timeout / network)
@@ -207,6 +217,33 @@ export class Probe {
       snap[k] = v;
     });
     this.headerSnapshots.push(snap);
+  }
+
+  /** Decode a bounded slice of an error response body and, if it is an
+   *  edge-served error page, keep the signal (deduped by status+layer, capped). */
+  private captureEdgeError(status: number, buf: ArrayBuffer): void {
+    if (this.edgeErrorSignals.length >= MAX_EDGE_ERRORS) return;
+    let body: string;
+    try {
+      body = new TextDecoder('utf-8', { fatal: false }).decode(
+        buf.byteLength > MAX_EDGE_BODY_BYTES ? buf.slice(0, MAX_EDGE_BODY_BYTES) : buf,
+      );
+    } catch {
+      return;
+    }
+    const signal = detectEdgeError(status, body);
+    if (!signal) return;
+    // One entry per distinct (status, layer) — enough evidence, no flooding.
+    if (this.edgeErrorSignals.some((e) => e.status === signal.status && e.layer === signal.layer)) {
+      return;
+    }
+    this.edgeErrorSignals.push(signal);
+  }
+
+  /** Edge-served error pages captured during the run (origin buckle / rate-limit
+   *  / challenge). Read by the runner onto the run for the report and replay. */
+  edgeErrors(): EdgeErrorSignal[] {
+    return this.edgeErrorSignals;
   }
 
   /** Availability / latency over the most recent sliding window. `full` is true

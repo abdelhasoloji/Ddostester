@@ -131,6 +131,39 @@ describe('suggestFromRun (post-run → adaptive follow-up)', () => {
     expect(rationale.join(' ')).toMatch(/under-delivered/i);
   });
 
+  it('an edge origin-error (502) drives a "confirm the breaking point" hold', () => {
+    const r = run({
+      assessment: {
+        verdict: 'breached',
+        mechanism: 'tarpitted',
+        observation: '',
+        caveats: [],
+        underDelivered: false,
+        confident: true,
+        deliveryRatio: 1,
+        achievedRps: 800,
+        configuredRps: 800,
+      },
+      edgeErrors: [{ status: 502, layer: 'origin', vendor: 'WEDOS' }],
+    } as unknown as Partial<CampaignRun>);
+    const { seed, headline, rationale } = suggestFromRun(campaign(), r);
+    expect(headline).toMatch(/breaking point/i);
+    expect(seed.profile).toBe('constant'); // hold at this rate to confirm
+    expect(rationale.join(' ')).toMatch(/origin buckled|origin-error/i);
+    expect(rationale.join(' ')).toContain('WEDOS');
+  });
+
+  it('an edge rate-limit / challenge page reinforces the matching lever', () => {
+    const r = run({
+      edgeErrors: [
+        { status: 429, layer: 'rate-limit' },
+        { status: 403, layer: 'challenge' },
+      ],
+    } as unknown as Partial<CampaignRun>);
+    const { levers } = suggestFromRun(campaign(), r);
+    expect(levers).toEqual(expect.arrayContaining(['calibrate', 'rotateUa']));
+  });
+
   it('is safe with no assessment and no posture (falls back to a plain replay)', () => {
     const { seed, headline, rationale } = suggestFromRun(campaign(), run());
     expect(seed.target).toBe('https://bank.cz/');

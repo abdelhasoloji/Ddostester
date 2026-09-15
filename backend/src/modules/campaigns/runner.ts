@@ -3,6 +3,7 @@ import type { LoadProgress } from '../../engine/loadTest.js';
 import { KillSwitch, Probe } from '../probe/probe.js';
 import type { ProbeMetrics } from '../probe/probe.js';
 import type { PostureReport } from '../posture/analyze.js';
+import type { EdgeErrorSignal } from '../posture/edge-error.js';
 import { computeWrs } from '../wrs/scoring.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import { BuiltinHttpAgent } from '../../agents/builtin.js';
@@ -76,6 +77,9 @@ export interface CampaignRun {
   wrs: WrsBreakdown;
   /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
   posture?: PostureReport;
+  /** Edge-served error pages captured under load — the origin buckling behind a
+   *  healthy edge, a rate-limit, or a challenge. First-party impact evidence. */
+  edgeErrors?: EdgeErrorSignal[];
   /** SLO verdict against the campaign's acceptance criteria, when set. */
   acceptance?: AcceptanceResult;
   /** Per-second time-series captured during the run (rps, errors, availability). */
@@ -573,6 +577,7 @@ export async function executeCampaign(
     breakingPoint: detectBreakingPoint(timeline),
     wrs,
     posture: probe.posture(),
+    edgeErrors: probe.edgeErrors().length ? probe.edgeErrors() : undefined,
     acceptance,
     timeline,
     protectionSource: measured?.source,

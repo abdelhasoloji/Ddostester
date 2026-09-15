@@ -120,6 +120,33 @@ export function suggestFromRun(campaign: Campaign, run: CampaignRun): ReplaySugg
       );
   }
 
+  // First-party edge evidence captured under load — the strongest signal for the
+  // next step. An origin buckle (5xx origin page behind a healthy edge) means we
+  // found the breaking point: the follow-up holds at this rate to confirm it is
+  // reproducible. A rate-limit/challenge page reinforces the matching lever.
+  const origin = run.edgeErrors?.find((e) => e.layer === 'origin');
+  const rateLimited = run.edgeErrors?.find((e) => e.layer === 'rate-limit');
+  const challenged = run.edgeErrors?.find((e) => e.layer === 'challenge');
+  if (origin) {
+    base.profile = 'constant';
+    headline = 'Confirm the origin breaking point';
+    rationale.push(
+      `The edge served its origin-error page (HTTP ${origin.status}${origin.vendor ? `, ${origin.vendor}` : ''}) — the origin buckled behind a healthy edge. Hold at this rate to confirm the breaking point is reproducible.`,
+    );
+  }
+  if (rateLimited) {
+    leverSet.add('calibrate');
+    rationale.push(
+      `The edge returned a rate-limit page (HTTP ${rateLimited.status}) — calibrate to grade at the deliverable rate.`,
+    );
+  }
+  if (challenged) {
+    leverSet.add('rotateUa');
+    rationale.push(
+      `The edge served a challenge/block page (HTTP ${challenged.status}) — rotate User-Agents to vary the fingerprint.`,
+    );
+  }
+
   // Under-delivery is independent of mechanism: if we couldn't even offer the
   // configured rate, calibrate so the next verdict is graded at what lands.
   if (a?.underDelivered) {

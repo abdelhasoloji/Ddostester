@@ -759,6 +759,30 @@ input.invalid {
   border-top: 1px solid var(--border);
   padding-top: 0.85rem;
 }
+.edge-errors {
+  margin: 0.6rem 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  font-size: 0.82rem;
+}
+.edge-errors-head {
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.edge-errors ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.edge-leak {
+  color: var(--danger);
+  font-weight: 600;
+}
 .replay-cta {
   margin: 0.85rem 0;
 }
