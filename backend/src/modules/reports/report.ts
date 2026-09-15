@@ -5,6 +5,7 @@ import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { riskLevel } from './compliance.js';
 import { computeAbsorption, normalizeErrorMap } from './absorption.js';
+import { describeEdgeError } from '../posture/edge-error.js';
 import { scenarioMeanRps } from '../campaigns/calibration.js';
 import { computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
@@ -307,6 +308,28 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>Load balancer</th><td>${run.posture.loadBalancer ? 'detected' : 'not detected'}</td></tr>
  <tr><th>HSTS / headers</th><td>${run.posture.hsts ? 'enabled' : 'not set'} · ${run.posture.securityHeaders.join(', ') || '—'}</td></tr>
 </table><p class="muted">Inferred passively from the legitimate probe's own responses (no scanning).</p>`
+      : '') +
+    (run.edgeErrors && run.edgeErrors.length
+      ? `<h3>Edge-served errors under load</h3>` +
+        `<p class="muted">The edge served its OWN error page under load — first-party evidence of the mechanism that engaged (and, for a 5xx origin page, that the origin buckled behind a healthy edge).</p>` +
+        `<table class="kvs">` +
+        run.edgeErrors
+          .map(
+            (e) =>
+              `<tr><th>${esc(describeEdgeError(e))}</th><td>${[
+                e.node ? `node ${esc(e.node)}` : '',
+                e.protocol ? esc(e.protocol) : '',
+                e.reqId ? `req ${esc(e.reqId)}` : '',
+                e.server ? `upstream ${esc(e.server)}` : '',
+                e.originIpLeaked
+                  ? `<b>origin IP disclosed: ${esc(e.originIpLeaked)}</b> — information-disclosure finding; never targeted (that would bypass the edge)`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}</td></tr>`,
+          )
+          .join('') +
+        `</table>`
       : '') +
     `<p class="muted" style="margin-top:2rem">Traceable report — WEDOS internal use only. Bounded application HTTP generator (GET/POST, rate-capped, allowlisted); no volumetric, amplification or spoofing vector is implemented by this control plane. See <em>docs/assessment-methodology.md</em>.</p>` +
     DOC_TAIL

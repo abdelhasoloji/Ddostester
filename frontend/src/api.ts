@@ -158,6 +158,19 @@ export interface AgentInfo {
 /** Faithful per-run verdict from the backend assessment engine (mirrors VectorAssessment). */
 export type RunVerdict = 'held' | 'partial' | 'breached' | 'inconclusive';
 export type RunMechanism = 'served' | 'rejected' | 'tarpitted' | 'shed' | 'blocked' | 'unknown';
+
+/** An edge-served error page captured under load (mirrors backend EdgeErrorSignal). */
+export interface EdgeErrorSignal {
+  status: number;
+  layer: 'origin' | 'rate-limit' | 'challenge' | 'edge';
+  vendor?: string;
+  node?: string;
+  reqId?: string;
+  server?: string;
+  protocol?: string;
+  /** Origin IP leaked by the page — an information-disclosure FINDING, never a target. */
+  originIpLeaked?: string;
+}
 export interface RunAssessment {
   verdict: RunVerdict;
   mechanism: RunMechanism;
@@ -250,6 +263,9 @@ export interface CampaignRun {
     server?: string;
     signals: string[];
   };
+  /** Edge-served error pages captured under load — first-party impact evidence
+   *  (the origin buckling behind a healthy edge, a rate-limit, or a challenge). */
+  edgeErrors?: EdgeErrorSignal[];
   /** Protection absorption: configured → offered → origin RPS + % absorbed by the edge. */
   absorption?: Absorption;
   /** Faithful assessment from the backend engine — the same verdict the report shows,
