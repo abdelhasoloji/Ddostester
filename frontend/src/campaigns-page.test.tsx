@@ -39,6 +39,15 @@ function member(order: number, status: CampaignStatus, extra: Partial<Campaign> 
 const wrs = (v: number) =>
   ({ detection: v, mitigation: v, availability: v, collateral: v, wrs: v, level: 'B' }) as never;
 
+/** Everything (suites included) is a compact table row now — click the row whose
+ *  text contains `name` to expand it into its detail (the suite/campaign card). */
+function expandRow(name: string) {
+  const row = Array.from(document.querySelectorAll('tr.ct-row')).find((r) =>
+    r.textContent?.includes(name),
+  );
+  fireEvent.click(row!);
+}
+
 describe('CampaignList — suite grouping', () => {
   it('renders a suite as one group with progress, aggregate WRS and timing', () => {
     currentApp = makeApp({
@@ -59,8 +68,12 @@ describe('CampaignList — suite grouping', () => {
       ],
     });
     renderWithRouter(<CampaignList />);
+    // The compact suite ROW: name, step count and done-progress.
     expect(screen.getByText(/Suite X/)).toBeInTheDocument();
-    expect(screen.getByText(/2\/2 steps/)).toBeInTheDocument();
+    expect(screen.getByText(/2 steps/)).toBeInTheDocument();
+    expect(screen.getByText(/Done 2\/2/)).toBeInTheDocument();
+    // Expanding the row reveals the suite card with the aggregate WRS + timing.
+    expandRow('Suite X');
     expect(screen.getByText(/avg 75 · worst 60/)).toBeInTheDocument();
     expect(screen.getByText(/on target/)).toBeInTheDocument(); // Σ 4m on target
   });
@@ -74,8 +87,12 @@ describe('CampaignList — suite grouping', () => {
       ],
     });
     renderWithRouter(<CampaignList />);
-    // Collapsed: no per-step campaign card (.campaign) yet.
+    // Collapsed row: the suite card isn't mounted at all yet.
+    expect(document.querySelector('.suite-group')).toBeNull();
+    expandRow('Suite X'); // expand the table row → the suite card appears (collapsed)
+    expect(document.querySelector('.suite-group')).not.toBeNull();
     expect(document.querySelector('.suite-group-members')).toBeNull();
+    // Its own toggle then reveals the per-step cards.
     fireEvent.click(screen.getByRole('button', { name: /Suite X/ }));
     expect(document.querySelector('.suite-group-members')).not.toBeNull();
   });
@@ -89,6 +106,7 @@ describe('CampaignList — suite grouping', () => {
       ],
     });
     renderWithRouter(<CampaignList />);
+    expandRow('Suite X'); // the whole-suite Archive lives in the expanded suite card
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
     await waitFor(() =>
       expect(currentApp.archiveSuite).toHaveBeenCalledWith('suite-1', 'Suite X', true),
@@ -127,6 +145,7 @@ describe('CampaignList — suite grouping', () => {
       campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
     });
     renderWithRouter(<CampaignList />);
+    expandRow('Suite X');
     // Two-step flow: a CISO sees "Approve scenario" (not a one-click run).
     const btn = screen.getByRole('button', { name: /Approve scenario/ });
     fireEvent.click(btn);
@@ -141,6 +160,7 @@ describe('CampaignList — suite grouping', () => {
       campaigns: [member(0, 'APPROVED'), member(1, 'APPROVED')],
     });
     renderWithRouter(<CampaignList />);
+    expandRow('Suite X');
     const btn = screen.getByRole('button', { name: /Run scenario/ });
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1'));
@@ -193,7 +213,8 @@ describe('CampaignList — suite grouping', () => {
       ],
     });
     renderWithRouter(<CampaignList />);
-    fireEvent.click(screen.getByRole('button', { name: /Suite X/ }));
+    expandRow('Suite X'); // expand the table row → the suite card
+    fireEvent.click(screen.getByRole('button', { name: /Suite X/ })); // then its own toggle
     // Compact rows, not full CampaignCards; the suite prefix is stripped.
     expect(document.querySelectorAll('.suite-step-row').length).toBe(2);
     expect(screen.getByText('SlowLoris')).toBeInTheDocument();
