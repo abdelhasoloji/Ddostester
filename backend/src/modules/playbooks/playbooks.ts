@@ -121,6 +121,14 @@ export interface Playbook {
    * volume. Undefined for pure readiness/capacity/endurance templates.
    */
   drsLevel?: number;
+  /**
+   * Class-C network-bench companion: the synthetic, no-spoof lab ladder that
+   * pairs with this L7 template for a CROSS-LAYER assessment (L7 here + L3/4 on
+   * the isolated bench). The control plane never executes it — a CISO records
+   * the bench-run requests and the isolated lab returns read-only verdicts that
+   * fuse into the WRS (see crossLayerAssurance). `ladder` is a CLASS_C_LADDERS id.
+   */
+  companionBench?: { ladder: string; note: string };
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
   /**
@@ -1189,6 +1197,13 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         'No RST_STREAM / stream-cancel abuse, no HPACK decompression bomb, no slow-header ' +
         '(SlowLoris), no credential brute-force — every step is complete, rate-capped requests.',
     },
+    companionBench: {
+      ladder: 'network-drs345',
+      note:
+        'The L3/4 half of P26-20371 (Line 1 TCP handshake + the network amplification lines) runs ' +
+        'on the isolated class-C bench, not here. Request this synthetic, no-spoof ladder alongside ' +
+        'the L7 dry-run for a full-stack DRS 3→5 rehearsal; its verdicts fuse into the WRS read-only.',
+    },
     steps: [
       {
         name: 'SlowLoris (DRS3)',
@@ -1318,6 +1333,75 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         paths: ['/', '/account', '/portal', '/api/catalog', '/assets/app.js', '/search?q=x'],
         rotateUa: true,
         // Composite 800 rps may exceed a single box's throughput — calibrate.
+        calibrate: true,
+      },
+    ],
+  },
+  {
+    id: 'xlayer-full-assurance',
+    name: 'Cross-layer full assurance (L7 + class-C DRS 3→5)',
+    category: 'Threat-informed',
+    drsLevel: 5,
+    summary:
+      'One template pairing a compact bounded-L7 DRS 3→5 line-set (run here) with the synthetic, ' +
+      'no-spoof class-C network ladder (run on the isolated bench). The two fuse into a single ' +
+      'full-stack WRS: class A/B (application) + class C (network), read-only. Point the L7 side ' +
+      'at an AUTHORIZED, allowlisted replica; the class-C side never runs in the control plane.',
+    when: 'For a full-stack (L7 + L3/4) resilience rehearsal in one pass.',
+    threat: {
+      technique: 'Cross-layer bounded L7 + synthetic class-C network shapes',
+      reference: 'Composed from P26-20371 (L7) + the class-C network bench ladder',
+      measures:
+        'Whether protection holds across BOTH the application request path (L7, tested here) and ' +
+        'the network edge (L3/4 amplification + connection pressure, on the isolated bench), fused ' +
+        'into one DRS 3→5 view.',
+      notReproduced:
+        'No spoofing, no raw packet crafting, no real reflector — the class-C side is synthetic and ' +
+        'runs only on the isolated bench.',
+    },
+    companionBench: {
+      ladder: 'network-drs345',
+      note: 'The class-C half — request it alongside the L7 steps for the fused full-stack verdict.',
+    },
+    steps: [
+      {
+        name: 'GET-Flood (DRS3)',
+        summary: 'Steady HTTP GET flood on the main path.',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'vegeta',
+      },
+      {
+        name: 'POST-Flood (DRS4)',
+        summary: 'Bounded HTTP POST load — dynamic/compute pressure.',
+        maxRps: 400,
+        concurrency: 80,
+        maxDurationSec: 120,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'vegeta',
+      },
+      {
+        name: 'HTTP/2 GET-Flood (DRS4)',
+        summary: 'High steady rate over h2 (HTTPS target).',
+        maxRps: 800,
+        concurrency: 150,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'k6',
+      },
+      {
+        name: 'L7 MultiVector (DRS5)',
+        summary: 'Mixed paths and rates in one bounded wave.',
+        maxRps: 800,
+        concurrency: 200,
+        maxDurationSec: 180,
+        profile: 'wave',
+        agent: 'builtin',
+        paths: ['/', '/account', '/api/catalog', '/search?q=test', '/login'],
+        rotateUa: true,
         calibrate: true,
       },
     ],
@@ -1766,6 +1850,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'bankcz-connexes': '2026-09-12',
   'bankcz-breaker': '2026-09-13',
   'full-review': '2026-09-13',
+  'xlayer-full-assurance': '2026-09-15',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';

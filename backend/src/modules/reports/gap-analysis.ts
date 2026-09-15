@@ -1,7 +1,12 @@
 import { htmlEscape as esc } from '../../util/text.js';
 import type { PostureReport } from '../posture/analyze.js';
 import type { AbsorptionSummaryRow } from '../observability/summary.js';
-import { BENCH_SCENARIOS, type BenchCoverage } from '../bench/model.js';
+import {
+  BENCH_SCENARIOS,
+  CLASS_C_LADDERS,
+  benchLadderScenarios,
+  type BenchCoverage,
+} from '../bench/model.js';
 import { getPlaybook, zeroBsLineTemplateId, type LoadProfile } from '../playbooks/playbooks.js';
 
 /**
@@ -545,6 +550,67 @@ export function buildNetworkLadder(coverage: BenchCoverage[]): NetworkLadder {
   const known = new Set(BENCH_SCENARIOS.map((s) => s.id));
   const covered = [...latest.keys()].filter((id) => known.has(id)).length;
   return { tiers, weakest, covered, total: BENCH_SCENARIOS.length };
+}
+
+/**
+ * The class-C companion evidence for an L7 playbook: fuse a bench LADDER (the
+ * synthetic, no-spoof network scenarios paired with the L7 template) with the
+ * lab's recorded coverage, into one cross-layer assurance view. The control
+ * plane never executes the ladder — this reads back the isolated lab's read-only
+ * verdicts and reports which network vectors are absorbed / gapped / not yet run.
+ * Pure.
+ */
+export interface CrossLayerAssurance {
+  ladderId: string;
+  ladderTitle: string;
+  vectors: NetworkVector[];
+  covered: number;
+  gaps: number;
+  uncovered: number;
+  total: number;
+  /** Lowest-DRS network gap — the class-C weakest link to run/mitigate first. */
+  weakest?: { drs: number; id: string; title: string };
+}
+
+export function crossLayerAssurance(
+  ladderId: string,
+  coverage: BenchCoverage[],
+): CrossLayerAssurance {
+  const scenarios = benchLadderScenarios(ladderId); // throws on an invalid ladder
+  // Latest coverage per vector (most recent `at` wins).
+  const latest = new Map<string, BenchCoverage>();
+  for (const c of coverage) {
+    const prev = latest.get(c.vector);
+    if (!prev || Date.parse(c.at) > Date.parse(prev.at)) latest.set(c.vector, c);
+  }
+  const vectors: NetworkVector[] = scenarios.map((s) => {
+    const c = latest.get(s.id);
+    return {
+      id: s.id,
+      title: s.title,
+      proto: s.proto,
+      drs: s.drs,
+      status: labStatusOf(c),
+      outcome: c?.outcome,
+      source: c?.source,
+      at: c?.at,
+    };
+  });
+  const covered = vectors.filter((v) => v.status === 'absorbed').length;
+  const gaps = vectors.filter((v) => v.status === 'gap').length;
+  const uncovered = vectors.filter((v) => v.status === 'uncovered').length;
+  const firstGap = [...vectors].filter((v) => v.status === 'gap').sort((a, b) => a.drs - b.drs)[0];
+  const ladder = CLASS_C_LADDERS.find((l) => l.id === ladderId)!;
+  return {
+    ladderId,
+    ladderTitle: ladder.title,
+    vectors,
+    covered,
+    gaps,
+    uncovered,
+    total: vectors.length,
+    weakest: firstGap ? { drs: firstGap.drs, id: firstGap.id, title: firstGap.title } : undefined,
+  };
 }
 
 /**

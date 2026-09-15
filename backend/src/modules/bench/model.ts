@@ -173,9 +173,124 @@ export const BENCH_SCENARIOS: BenchScenario[] = [
     reproducible: false,
     note: 'GRE protocol packets — not a UDP amplification shape.',
   },
+  // ── Additional SYNTHETIC, NO-SPOOF, bounded shapes (reproducible on the lab) ──
+  // Each models the traffic SHAPE of a reflector/flood family — never a real
+  // resolver/reflector, never source-IP spoofing, never raw packet crafting.
+  {
+    id: 'udp_ntp_reflection',
+    title: 'UDP NTP Reflection',
+    proto: 'UDP',
+    drs: 3,
+    reproducible: true,
+    note: 'Synthetic NTP monlist-shape amplification (no real NTP server, no spoofing).',
+  },
+  {
+    id: 'udp_ssdp_reflection',
+    title: 'UDP SSDP Reflection',
+    proto: 'UDP',
+    drs: 3,
+    reproducible: true,
+    note: 'Synthetic SSDP/UPnP-shape amplification (no real device, no spoofing).',
+  },
+  {
+    id: 'udp_cldap_reflection',
+    title: 'UDP CLDAP Reflection',
+    proto: 'UDP',
+    drs: 4,
+    reproducible: true,
+    note: 'Synthetic CLDAP-shape amplification profile (no real directory, no spoofing).',
+  },
+  {
+    id: 'udp_memcached_reflection',
+    title: 'UDP Memcached Reflection',
+    proto: 'UDP',
+    drs: 4,
+    reproducible: true,
+    note: 'Synthetic memcached-shape amplification (very high factor, modelled — no real server, no spoofing).',
+  },
+  {
+    id: 'quic_init_pressure',
+    title: 'QUIC Init-Handshake Pressure',
+    proto: 'UDP',
+    drs: 4,
+    reproducible: true,
+    note: 'Bounded QUIC/UDP initial-handshake flood shape (real source, capped, no spoofing).',
+  },
+  {
+    id: 'tcp_conn_drain',
+    title: 'TCP Slow Connection Drain',
+    proto: 'TCP',
+    drs: 4,
+    reproducible: true,
+    note: 'No-spoof slow connection drain — holds bounded REAL connections to pressure the state table.',
+  },
+  {
+    id: 'pulsewave_l34',
+    title: 'PulseWave (L3/4 synchronized bursts)',
+    proto: 'UDP',
+    drs: 5,
+    reproducible: true,
+    note: 'Synthetic pulsed packet-rate bursts (PulseWave shape) — bounded, real source, no spoofing.',
+  },
 ];
 
 const DISPATCHABLE = new Set(BENCH_SCENARIOS.filter((s) => s.reproducible).map((s) => s.id));
+
+/**
+ * Ordered class-C (network-bench) ladders — the synthetic, no-spoof companion to
+ * an L7 playbook. The control plane NEVER executes these; a CISO records the
+ * bench-run requests, the isolated lab fulfils them, and the read-only verdicts
+ * fuse into the WRS as class-C evidence. Every scenario in a ladder is
+ * `reproducible` (asserted by `benchLadderScenarios`).
+ */
+export interface BenchLadder {
+  id: string;
+  title: string;
+  summary: string;
+  /** Ordered `BENCH_SCENARIOS` ids, DRS 3 → 5. All must be reproducible. */
+  scenarios: string[];
+}
+
+export const CLASS_C_LADDERS: BenchLadder[] = [
+  {
+    id: 'network-drs345',
+    title: 'Network resilience — class-C DRS 3→5',
+    summary:
+      'A synthetic, no-spoof network-bench ladder (UDP amplification shapes + TCP connection ' +
+      'pressure), escalating DRS 3→5. The class-C companion to an L7 playbook: run on the ' +
+      'isolated bench, its verdicts feed the WRS read-only. No real reflector, no spoofing.',
+    scenarios: [
+      'udp_dns_reflection', // DRS3 — reflection shape
+      'udp_ntp_reflection', // DRS3
+      'tcp_synflood', // DRS3 — no-spoof state-table pressure
+      'udp_maxpackets', // DRS3 — PPS path
+      'udp_ssdp_reflection', // DRS3
+      'tcp_maxpackets', // DRS3 — connection-table churn
+      'udp_cldap_reflection', // DRS4
+      'quic_init_pressure', // DRS4
+      'tcp_conn_drain', // DRS4 — slow drain
+      'udp_memcached_reflection', // DRS4 — high factor
+      'udp_multivector', // DRS4 — combined UDP profiles
+      'pulsewave_l34', // DRS5 — synchronized bursts
+    ],
+  },
+];
+
+/** Resolve a ladder id to its ordered scenarios; throws if any is not a known
+ *  reproducible scenario (a curated ladder must never reference an out-of-model
+ *  or non-dispatchable vector). Pure. */
+export function benchLadderScenarios(ladderId: string): BenchScenario[] {
+  const ladder = CLASS_C_LADDERS.find((l) => l.id === ladderId);
+  if (!ladder) throw new Error(`unknown bench ladder: ${ladderId}`);
+  return ladder.scenarios.map((id) => {
+    const sc = BENCH_SCENARIOS.find((s) => s.id === id);
+    if (!sc) throw new Error(`ladder ${ladderId} references unknown scenario ${id}`);
+    if (!sc.reproducible) {
+      throw new Error(`ladder ${ladderId} references non-reproducible scenario ${id}`);
+    }
+    return sc;
+  });
+}
 
 /** A scenario id the control plane will accept for dispatch (reproducible only). */
 export function isKnownBenchScenario(name: unknown): name is string {

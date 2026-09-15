@@ -69,7 +69,11 @@ describe('Network bench — governed record-and-dispatch (zeroBS Volumetric)', (
     const ok = await asCiso('GET', '/api/bench/scenarios');
     expect(ok.statusCode).toBe(200);
     const scenarios = ok.json().scenarios;
-    expect(scenarios.length).toBe(11); // the report's 11 volumetric vectors
+    // The original 11 report vectors + the synthetic no-spoof shapes added for
+    // the class-C ladders (NTP/SSDP/CLDAP/memcached/QUIC/conn-drain/pulsewave).
+    expect(scenarios.length).toBe(18);
+    // The cross-layer ladders are exposed alongside the scenarios.
+    expect(ok.json().ladders.length).toBeGreaterThanOrEqual(1);
     // Reproducible vectors (UDP amplification + no-spoof TCP pressure) and
     // out-of-model vectors (spoofing / GRE / fragmentation) both present.
     const dns = scenarios.find((s: { id: string }) => s.id === 'udp_dns_reflection');
