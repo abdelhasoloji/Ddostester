@@ -48,4 +48,49 @@ describe('analyzePosture', () => {
     expect(r.loadBalancer).toBe(false);
     expect(r.securityHeaders).toEqual([]);
   });
+
+  // The proving ground must recognise its OWN product. WEDOS Global Protection
+  // advertises itself by dedicated headers AND by product name in their values;
+  // both must be detected so a WEDOS-fronted origin is never mis-read as bare.
+  it('detects WEDOS Global Protection (WAF + CDN + rate-limit) from real bank.cz headers', () => {
+    const r = analyzePosture(
+      [
+        {
+          server: 'LiteSpeed', // the origin is still a bare LiteSpeed underneath
+          'x-waf-protected-by': 'WEDOS Protection (WEDOS.protection)',
+          'x-protected-by': 'WEDOS Global Protection (WEDOS.protection)',
+          'x-cdn-provider': 'WEDOS Global CDN (WEDOS.delivery)',
+          'x-cdn-cache-status': 'HIT',
+          'x-rate-limit': '67/0/0',
+          'x-location': 'ac30-HnV-dc2',
+        },
+      ],
+      [200],
+    );
+    expect(r.waf).toBe(true);
+    expect(r.cdn).toBe(true);
+    expect(r.rateLimiting).toBe(true); // x-rate-limit
+    expect(r.server).toBe('LiteSpeed'); // origin still surfaced, not masked
+    expect(r.signals.join(' ')).toMatch(/WEDOS Protection/);
+  });
+
+  it('detects WEDOS by header VALUE even when the key is not enumerated', () => {
+    // A bare x-provider whose key we don't list, but whose value names the product.
+    const r = analyzePosture(
+      [{ 'x-provider': 'WEDOS - WE DO Security (WEDOS.com)', 'x-cdn-by': 'WEDOS.delivery' }],
+      [200],
+    );
+    expect(r.cdn).toBe(true);
+  });
+
+  it('a bare LiteSpeed origin (the 2026-09-12 baseline) still reports no protection', () => {
+    // Before WEDOS was seated in front: LiteSpeed + WP headers only, no edge.
+    const r = analyzePosture(
+      [{ server: 'LiteSpeed', 'x-turbo-charged-by': 'LiteSpeed', 'content-type': 'text/html' }],
+      [200],
+    );
+    expect(r.waf).toBe(false);
+    expect(r.cdn).toBe(false);
+    expect(r.rateLimiting).toBe(false);
+  });
 });
