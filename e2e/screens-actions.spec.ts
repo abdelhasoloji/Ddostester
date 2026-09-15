@@ -146,6 +146,12 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
   const ciso = await cisoCtx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
+  // Suites are compact table rows now; expand the suite (a row with a step count)
+  // to reach its "Approve scenario" control.
+  await ciso
+    .locator('tr.ct-row', { has: ciso.locator('.ct-steps') })
+    .first()
+    .click();
   const approveScenario = ciso.getByRole('button', { name: /Approve scenario/ }).first();
   await expect(approveScenario).toBeVisible({ timeout: 10_000 });
   await approveScenario.click();
@@ -155,6 +161,10 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
   // executor can control their own sequence).
   await eng.reload();
   await goTo(eng, 'Campaigns');
+  await eng
+    .locator('tr.ct-row', { has: eng.locator('.ct-steps') })
+    .first()
+    .click();
   const runScenario = eng.getByRole('button', { name: /Run scenario/ }).first();
   await expect(runScenario).toBeVisible({ timeout: 10_000 });
   await runScenario.click();

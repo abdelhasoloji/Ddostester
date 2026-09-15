@@ -2515,11 +2515,12 @@ export function CampaignList() {
     return list;
   }, [app.campaigns, status, q, showArchived]);
 
-  // Suites keep their natural grouped cards; the many standalone campaigns become
-  // a compact, column-sortable table (rows expand to the full card on demand).
+  // Everything — suites AND standalone campaigns — is one compact, column-sortable
+  // table; a row expands to its detail (a suite's step card, a campaign's card) on
+  // demand. Suites are NOT big always-open cards.
   const suiteGroups = useMemo(() => groupSuites(filtered), [filtered]);
   const standalone = useMemo(() => filtered.filter((c) => !c.suiteId), [filtered]);
-  const rows = useMemo(() => toCampaignRows([], standalone), [standalone]);
+  const rows = useMemo(() => toCampaignRows(suiteGroups, standalone), [suiteGroups, standalone]);
 
   const hasCampaigns = app.campaigns.length > 0;
 
@@ -2577,9 +2578,6 @@ export function CampaignList() {
         {hasCampaigns && filtered.length === 0 && (
           <div className="empty">No campaigns match your filters.</div>
         )}
-        {suiteGroups.map((g) => (
-          <SuiteGroupCard key={g.suiteId} g={g} />
-        ))}
         {rows.length > 0 && <CampaignTable rows={rows} />}
       </div>
     </>
