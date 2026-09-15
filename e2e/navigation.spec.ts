@@ -37,13 +37,11 @@ test('the Campaigns workspace exposes its tabs and switches surfaces', async ({ 
   await expect(page.getByRole('heading', { name: 'Reading the score (WRS)' })).toBeVisible();
 });
 
-test('Reports shows an empty state before any run (E1)', async ({ page }) => {
+test('Reports shows the cross-campaign compliance surface (E1)', async ({ page }) => {
   await login(page, 'viewer');
   await goTo(page, 'Results');
-  // Either the empty state or (if a prior spec ran a campaign) real report rows.
-  const empty = page.getByText(/no campaign has run yet/i);
-  const heading = page.getByRole('heading', { name: 'Measured runs' });
-  await expect(heading).toBeVisible();
-  // Empty state is acceptable; if not empty, at least the section is coherent.
-  await expect(empty.or(page.locator('.report-row').first())).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Results' })).toBeVisible();
+  // The aggregated-compliance rollup is always present (it fills in as runs land);
+  // per-run detail now lives on the Campaigns list, not here.
+  await expect(page.getByRole('heading', { name: 'Aggregated compliance' })).toBeVisible();
 });

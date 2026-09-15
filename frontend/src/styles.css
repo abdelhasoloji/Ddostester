@@ -1539,29 +1539,6 @@ input.invalid {
 }
 
 /* Lignes de rapport */
-.report-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.report-row:last-child {
-  border-bottom: 0;
-}
-.report-name {
-  font-weight: 600;
-}
-.report-target {
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-.report-row .btn {
-  margin-left: auto;
-}
-
 /* Load engines list (Settings) */
 .engines {
   display: grid;

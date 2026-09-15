@@ -42,9 +42,10 @@ test('full lifecycle: engineer creates → CISO approves → engineer runs → s
   // Close the detail drawer (auto-opened at run end) before navigating away.
   await eng.getByRole('button', { name: 'Close' }).click();
 
-  // Coherence J1: the completed run now surfaces in Results.
-  await goTo(eng, 'Results');
-  await expect(eng.locator('.report-row', { hasText: name })).toBeVisible();
+  // Coherence J1: the completed run's report is reachable from the Campaigns list
+  // (per-run detail now lives here, not on Results).
+  await goTo(eng, 'Campaigns');
+  await expect((await openCard(eng, name)).getByRole('link', { name: /Report/ })).toBeVisible();
 
   await engCtx.close();
   await offCtx.close();

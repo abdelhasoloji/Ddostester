@@ -68,9 +68,7 @@ import {
   WrsTrend,
   wrsClass,
   AbsorptionWidget,
-  ConfidenceBadge,
   RunTheater,
-  RunDetails,
   hostOf,
 } from './ui.js';
 import { ReconFirstCreate } from './recon-first-create.js';
@@ -3097,31 +3095,11 @@ export function GapPlannerSection() {
 export function ReportsPage() {
   const app = useApp();
   const withRun = app.campaigns.filter((c) => c.runId);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [selRun, setSelRun] = useState<CampaignRun | null>(null);
-  const [loadingRun, setLoadingRun] = useState(false);
-  const openResult = (c: Campaign) => {
-    if (selected === c.id) {
-      setSelected(null);
-      setSelRun(null);
-      return;
-    }
-    setSelected(c.id);
-    setSelRun(null);
-    setLoadingRun(true);
-    api
-      .getRun(c.runId!)
-      .then((r) => {
-        setSelRun(r);
-        setLoadingRun(false);
-      })
-      .catch(() => setLoadingRun(false));
-  };
   return (
     <>
       <PageHead
         title="Results"
-        sub="Every measured run — its WRS, protection absorption and measurement confidence — plus assessment suites and aggregated DORA / NIS2 compliance."
+        sub="The cross-campaign view: assessment-suite verdicts, before/after comparisons (tune & replay) and aggregated DORA / NIS2 compliance. Per-run detail lives on the Campaigns list — filter Done and expand a row."
       />
       <GrafanaLink plane="resilience" label="Resilience trends in Grafana" />
       <SuitesSection />
@@ -3141,65 +3119,12 @@ export function ReportsPage() {
           </a>
           <ShareLinkButton />
         </div>
+        {withRun.length === 0 && (
+          <p className="hint" style={{ marginTop: '.6rem' }}>
+            No campaign has run yet — the compliance rollup fills in as runs complete.
+          </p>
+        )}
       </div>
-
-      <h2 className="section-title">Measured runs</h2>
-      {withRun.length === 0 ? (
-        <div className="empty">No campaign has run yet — no result available.</div>
-      ) : (
-        <div className="card" style={{ display: 'grid', gap: '.5rem' }}>
-          {withRun.map((c) => (
-            <Fragment key={c.id}>
-              <div className="report-row">
-                <span className="report-name">{c.name}</span>
-                {c.wrs && <WrsPill wrs={c.wrs} />}
-                <code className="report-target">{c.target}</code>
-                <button
-                  className={`btn btn-sm ${selected === c.id ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => openResult(c)}
-                >
-                  {selected === c.id ? 'Hide' : 'View'}
-                </button>
-                <a
-                  className="btn btn-sm btn-ghost"
-                  href={reportUrl(c.runId!)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Report ↗
-                </a>
-              </div>
-              {selected === c.id && (
-                <div
-                  style={{
-                    padding: '.4rem .2rem .8rem',
-                    borderBottom: '1px solid var(--border)',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '.6rem',
-                      marginBottom: '.5rem',
-                    }}
-                  >
-                    {/* WRS already shows on the report-row above; only the
-                        measurement-confidence badge is unique to this detail. */}
-                    {selRun && <ConfidenceBadge run={selRun} />}
-                  </div>
-                  {loadingRun && (
-                    <span className="hint">
-                      <span className="spin" /> Loading result…
-                    </span>
-                  )}
-                  {selRun && <RunDetails run={selRun} />}
-                </div>
-              )}
-            </Fragment>
-          ))}
-        </div>
-      )}
     </>
   );
 }
