@@ -91,6 +91,40 @@ describe('vegeta', () => {
     const t = buildVegetaTarget(cfg);
     expect(t).not.toContain('_cb=');
   });
+  it('rotates the User-Agent set across target blocks (so vegeta can run UA-rotation lines)', () => {
+    // Regression for the DRS5 composites: UA rotation used to pin the line to the
+    // ~150-rps built-in engine. Vegeta cycles the targets file, so one block per
+    // UA rotates the fingerprint request-by-request.
+    const uas = ['UA-alpha', 'UA-beta', 'UA-gamma'];
+    const t = buildVegetaTarget({ ...cfg, userAgents: uas });
+    const blocks = t.trim().split('\n\n');
+    // At least one block per UA, and every UA actually appears.
+    expect(blocks.length).toBeGreaterThanOrEqual(uas.length);
+    for (const ua of uas) expect(t).toContain(`User-Agent: ${ua}`);
+  });
+  it('lets a rotated per-block User-Agent override a global User-Agent header', () => {
+    const t = buildVegetaTarget({
+      ...cfg,
+      headers: { 'User-Agent': 'GLOBAL-UA', 'X-WEDOS-TEST': 'abc' },
+      userAgents: ['UA-alpha', 'UA-beta'],
+    });
+    expect(t).not.toContain('User-Agent: GLOBAL-UA'); // global UA dropped when rotating
+    expect(t).toContain('User-Agent: UA-alpha');
+    expect(t).toContain('X-WEDOS-TEST: abc'); // other global headers kept
+  });
+  it('spreads the UA set across an endpoint mix (the DRS5 composite shape)', () => {
+    const t = buildVegetaTarget({
+      ...cfg,
+      endpoints: [{ url: 'http://127.0.0.1/a' }, { url: 'http://127.0.0.1/b' }],
+      userAgents: ['UA-alpha', 'UA-beta', 'UA-gamma'],
+    });
+    const blocks = t.trim().split('\n\n');
+    // max(endpoints=2, uas=3) = 3 blocks, and both endpoints are still exercised.
+    expect(blocks.length).toBe(3);
+    expect(t).toContain('http://127.0.0.1/a');
+    expect(t).toContain('http://127.0.0.1/b');
+    for (const ua of ['UA-alpha', 'UA-beta', 'UA-gamma']) expect(t).toContain(`User-Agent: ${ua}`);
+  });
   it('splitRate spreads a phase rate across workers so they sum exactly (P4)', async () => {
     const { splitRate } = await import('../src/agents/vegeta.js');
     expect(splitRate(800, 1)).toEqual([800]);

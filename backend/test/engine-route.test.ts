@@ -53,12 +53,27 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
     ).toBe('vegeta');
   });
 
-  it('keeps built-in for data-feeder / assertion / UA rotation (built-in-only features)', () => {
+  it('keeps built-in for data-feeder / assertion (the only remaining built-in-only features)', () => {
     expect(highRateEngineUpgrade(base({ dataset: [{ k: 'v' }] }), CEIL)).toBeNull();
     expect(
       highRateEngineUpgrade(base({ assertion: { status: 200 } } as Partial<Campaign>), CEIL),
     ).toBeNull();
-    expect(highRateEngineUpgrade(base({ userAgents: ['x', 'y'] }), CEIL)).toBeNull();
+  });
+
+  it('routes a UA-rotation flood to vegeta (vegeta now spreads UAs across its targets file)', () => {
+    // Regression for the DRS5 composite lines: UA rotation used to pin them to
+    // the ~150-rps built-in engine → 17% delivery of an 800-rps configured rate.
+    expect(highRateEngineUpgrade(base({ userAgents: ['x', 'y'] }), CEIL)).toBe('vegeta');
+    // Combined with an endpoint mix (exactly the composite shape) → still vegeta.
+    expect(
+      highRateEngineUpgrade(
+        base({
+          userAgents: ['x', 'y'],
+          endpoints: [{ url: 'https://t/a' }, { url: 'https://t/b' }],
+        }),
+        CEIL,
+      ),
+    ).toBe('vegeta');
   });
 
   it('routes a LOW-rate but HIGH-concurrency flood off the loop (event-loop safety)', () => {
@@ -76,9 +91,13 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
   });
 
   it('still respects built-in-only features even when concurrency is high', () => {
-    // A high-concurrency UA-rotation flood can't route (only built-in rotates UAs).
+    // A high-concurrency data-feeder flood can't route (only built-in feeds data).
     expect(
-      highRateEngineUpgrade(base({ maxRps: 100, concurrency: 400, userAgents: ['x'] }), CEIL, CONC),
+      highRateEngineUpgrade(
+        base({ maxRps: 100, concurrency: 400, dataset: [{ k: 'v' }] }),
+        CEIL,
+        CONC,
+      ),
     ).toBeNull();
   });
 });
