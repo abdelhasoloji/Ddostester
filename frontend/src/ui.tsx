@@ -289,8 +289,15 @@ export function RunTheater({
   const [p, setP] = useState<LiveProgressData | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [errored, setErrored] = useState(false);
+  // Accumulate the chart series CLIENT-SIDE from the same live scalars the tiles
+  // use — one point per elapsed second, `t` strictly monotonic. This is the
+  // source of truth for the graphs: the server's `p.timeline` is unreliable for
+  // external engines (sparse samples, an early availability default of 100 while
+  // the probe has no data yet) which made the curves disagree with the tiles.
+  const [series, setSeries] = useState<RunSample[]>([]);
   useEffect(() => {
     setErrored(false);
+    setSeries([]); // a fresh run → fresh series
     const es = new EventSource(streamUrl(campaignId));
     es.onmessage = (e) => {
       try {
@@ -299,6 +306,22 @@ export function RunTheater({
           setP(d);
           setWaiting(false);
           setErrored(false);
+          const prb = d.probe;
+          const sample: RunSample = {
+            t: d.elapsedSec,
+            rps: d.actualRps ?? 0,
+            sent: d.sent ?? 0,
+            failed: d.failed ?? 0,
+            probe5xx: prb?.errorRate5xx ?? 0,
+            availPct: prb?.samples ? Math.round((prb.available / prb.samples) * 1000) / 10 : 100,
+          };
+          // Keep one point per elapsed second (SSE may push several per second):
+          // replace the last when the second repeats, else append.
+          setSeries((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.t === sample.t) return [...prev.slice(0, -1), sample];
+            return [...prev, sample];
+          });
         } else if (d.status === 'waiting') {
           setWaiting(true);
         } else if (d.status === 'done') {
@@ -461,7 +484,7 @@ export function RunTheater({
           )}
 
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels target={target} timeline={p.timeline ?? []} />
+            <RunMetricsPanels target={target} timeline={series} />
           </div>
         </>
       )}

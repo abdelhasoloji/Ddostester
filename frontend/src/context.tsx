@@ -129,6 +129,8 @@ interface Ctx {
   cisoApprove: (c: Campaign) => Promise<void>;
   toggleDetails: (c: Campaign) => Promise<void>;
   openDetail: (c: Campaign) => Promise<void>;
+  /** Fetch a campaign's detailed run into `runs` (no drawer side effect). */
+  fetchRun: (c: Campaign) => Promise<void>;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -516,6 +518,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     cisoApprove,
     toggleDetails,
     openDetail,
+    fetchRun,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

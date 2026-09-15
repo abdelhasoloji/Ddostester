@@ -783,6 +783,24 @@ input.invalid {
   color: var(--danger);
   font-weight: 600;
 }
+.run-complete-card {
+  border-left: 3px solid var(--success);
+}
+.run-complete-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.run-complete-head h3 {
+  margin: 0;
+}
+.run-complete-cta-label {
+  margin: 0.9rem 0 0.2rem;
+  font-weight: 600;
+}
 .replay-cta {
   margin: 0.85rem 0;
 }

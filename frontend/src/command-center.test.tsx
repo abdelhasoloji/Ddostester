@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 // --- fixtures (defined before fakeApi so the mock factory can close over it) ---
@@ -192,6 +193,42 @@ describe('Run Theater', () => {
     renderWithRouter(<RunTheaterPage />);
     expect(screen.getByRole('heading', { name: 'Run Theater' })).toBeInTheDocument();
     expect(screen.getByText(/No run in flight/)).toBeInTheDocument();
+  });
+
+  it('shows a completion card with the replay follow-up when the focused run has finished', () => {
+    const finished = { ...scoredCampaign, id: 'm0', name: 'Capacity ceiling', runId: 'r0' };
+    const finishedRun = {
+      ...runFixture,
+      runId: 'r0',
+      assessment: {
+        verdict: 'breached',
+        mechanism: 'tarpitted',
+        observation: 'origin buckled',
+        caveats: [],
+        underDelivered: false,
+        confident: true,
+        deliveryRatio: 1,
+        achievedRps: 80,
+        configuredRps: 100,
+      },
+    };
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [finished],
+      runs: { m0: finishedRun },
+    });
+    render(
+      <MemoryRouter initialEntries={['/theater?run=m0']}>
+        <RunTheaterPage />
+      </MemoryRouter>,
+    );
+    // Instead of "no run in flight", the finished run stays on stage with a
+    // follow-up prompt built from its conclusions.
+    expect(screen.getByText(/Run complete — Capacity ceiling/)).toBeInTheDocument();
+    expect(screen.queryByText(/No run in flight/)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /Replay accounting for countermeasures/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders live offered/origin/absorbed from the stream for a running campaign', () => {

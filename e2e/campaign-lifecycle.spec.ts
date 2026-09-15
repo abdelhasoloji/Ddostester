@@ -40,6 +40,13 @@ test('full lifecycle: engineer creates → CISO approves → engineer runs → s
   // Launching now sends the operator to Run Theater's live view, not the drawer.
   await expect(eng).toHaveURL(/\/theater/);
 
+  // When the run finishes, the theater keeps it on stage as a completion card
+  // with a follow-up prompt (not just "no run in flight").
+  await expect(eng.getByText(/Run complete/)).toBeVisible({ timeout: 25_000 });
+  await expect(
+    eng.getByRole('button', { name: /Replay accounting for countermeasures/i }),
+  ).toBeVisible();
+
   // Coherence J1: the run completes server-side and its report is reachable from
   // the Campaigns list (per-run detail lives here, not on Results).
   await goTo(eng, 'Campaigns');
