@@ -53,6 +53,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     draftCampaign: null,
     queueReplay: vi.fn(),
     clearDraftCampaign: vi.fn(),
+    fetchRun: vi.fn(),
     setOperator: vi.fn(),
     setExpanded: vi.fn(),
     setConfirmExec: vi.fn(),

@@ -69,8 +69,10 @@ import {
   wrsClass,
   AbsorptionWidget,
   RunTheater,
+  RunVerdictLine,
   hostOf,
 } from './ui.js';
+import { ReplayFromRun } from './replay-from-run.js';
 import { ReconFirstCreate } from './recon-first-create.js';
 // Recon dossier + attack-vector derivation live in their own module (no import
 // cycle with recon-first-create, which pulls the modal directly).
@@ -953,6 +955,14 @@ export function RunTheaterPage() {
       ? app.campaigns.find((c) => c.id === focusRun && !TERMINAL_STATUSES.has(c.status))
       : undefined;
   const standalone = focusCampaign ? [focusCampaign, ...runningStandalone] : runningStandalone;
+  // When the focused run has just FINISHED, keep it on stage as a completion card
+  // with its verdict and a "replay accounting for this run" follow-up — so the
+  // theater doesn't just empty to "no run in flight" the moment a run settles.
+  const finishedCampaign =
+    focusRun && !standalone.some((c) => c.id === focusRun)
+      ? app.campaigns.find((c) => c.id === focusRun && TERMINAL_STATUSES.has(c.status))
+      : undefined;
+  const finishedRun = finishedCampaign ? app.runs[finishedCampaign.id] : undefined;
   const [active, setActive] = useState<string | null>(null);
   const current =
     standalone.find((c) => c.id === active) ??
@@ -970,6 +980,13 @@ export function RunTheaterPage() {
     return () => clearInterval(t);
   }, [watching, refresh]);
 
+  // Pull the finished run's detail (verdict/absorption) if we don't already have
+  // it — so the completion card can show the follow-up prompt after a navigate-back.
+  const fetchRunFn = app.fetchRun;
+  useEffect(() => {
+    if (finishedCampaign && !finishedRun) void fetchRunFn(finishedCampaign);
+  }, [finishedCampaign, finishedRun, fetchRunFn]);
+
   const grafanaTarget = suiteMembers[0]?.target ?? current?.target;
 
   return (
@@ -985,7 +1002,34 @@ export function RunTheaterPage() {
           target={hostOf(grafanaTarget) ?? grafanaTarget}
         />
       )}
-      {!hasSuite && standalone.length === 0 ? (
+      {!hasSuite && standalone.length === 0 && finishedCampaign ? (
+        <div className="card run-complete-card">
+          <div className="run-complete-head">
+            <h3>Run complete — {finishedCampaign.name}</h3>
+            {finishedCampaign.wrs && <WrsPill wrs={finishedCampaign.wrs} />}
+          </div>
+          {finishedRun ? (
+            <>
+              {finishedRun.assessment && <RunVerdictLine a={finishedRun.assessment} />}
+              {finishedRun.edgeErrors && finishedRun.edgeErrors.length > 0 && (
+                <p className="hint">
+                  ⚑ The edge served its own error page under load — captured in the report.
+                </p>
+              )}
+              <AbsorptionWidget run={finishedRun} />
+              <p className="run-complete-cta-label">
+                Push further — build the next campaign from what this run found:
+              </p>
+              <ReplayFromRun campaign={finishedCampaign} run={finishedRun} />
+            </>
+          ) : (
+            <p className="muted">Loading the run’s conclusions…</p>
+          )}
+          <p className="hint">
+            Full detail on <Link to="/campaigns">Campaigns</Link> · launch another from there.
+          </p>
+        </div>
+      ) : !hasSuite && standalone.length === 0 ? (
         <div className="card">
           <p className="muted">
             No run in flight. Launch one from <Link to="/campaigns">Campaigns</Link> and it appears
