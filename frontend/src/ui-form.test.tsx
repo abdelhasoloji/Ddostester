@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
 import { makeApp } from './test-utils.js';
+
+// ExecuteModal now uses useNavigate to jump to Run Theater on launch, so renders
+// need a Router in context.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 let currentApp: ReturnType<typeof makeApp>;
 vi.mock('./context.js', async (orig) => {
@@ -39,6 +45,27 @@ describe('NewCampaignForm', () => {
     render(<NewCampaignForm />);
     fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'x' } });
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+  });
+
+  it('switching preset updates the Name field when it is still preset-owned', () => {
+    render(<NewCampaignForm />);
+    const nameInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    // Pick a preset → its name lands in the field.
+    fireEvent.click(screen.getByRole('button', { name: /Smoke test/ }));
+    expect(nameInput.value).toBe('Smoke test');
+    // Switch to another preset → the name follows, it does not stay stuck.
+    fireEvent.click(screen.getByRole('button', { name: /Capacity ceiling/ }));
+    expect(nameInput.value).toBe('Capacity ceiling');
+  });
+
+  it('a preset switch preserves a name the operator typed themselves', () => {
+    render(<NewCampaignForm />);
+    const nameInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    fireEvent.click(screen.getByRole('button', { name: /Smoke test/ }));
+    // Operator types a custom name over the preset one.
+    fireEvent.change(nameInput, { target: { value: 'My bespoke run' } });
+    fireEvent.click(screen.getByRole('button', { name: /Capacity ceiling/ }));
+    expect(nameInput.value).toBe('My bespoke run');
   });
 
   it('the Auto-calibrate toggle flows calibrate:true into the submitted payload (GEN-1)', async () => {

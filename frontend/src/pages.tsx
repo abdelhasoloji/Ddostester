@@ -72,6 +72,9 @@ import {
   hostOf,
 } from './ui.js';
 import { ReconFirstCreate } from './recon-first-create.js';
+// Recon dossier + attack-vector derivation live in their own module (no import
+// cycle with recon-first-create, which pulls the modal directly).
+import { attackVectorsFromRecon, ReconDetailModal } from './recon-detail.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
 import { getTheme, setTheme as persistTheme, subscribeTheme } from './theme.js';
@@ -718,258 +721,9 @@ function ReconStrip({
 }
 
 /** Humanised labels for the inferred defense controls (seededProfile). */
-const CONTROL_LABELS: Record<string, string> = {
-  synFloodProtection: 'SYN-flood protection',
-  slowRequestTimeout: 'Slow-request timeout',
-  rateLimiting: 'Rate limiting',
-  originShielding: 'Origin shielding',
-  cacheKeyPolicy: 'Cache-key policy',
-  urlAllowlist: 'URL allowlist',
-  methodPolicy: 'Method policy',
-  http2Guard: 'HTTP/2 guard',
-  challenge: 'Challenge / JS / CAPTCHA',
-  wafSignatures: 'WAF signatures',
-  bruteForceProtection: 'Brute-force protection',
-};
-
-/** The full target-intelligence dossier — every field recon returns, laid out
- *  as a scannable dossier. Opened from the recon strip. */
-function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const p = recon.profile;
-  const post = p.posture;
-  const b = recon.baseline;
-  const host = hostOf(recon.target) ?? recon.target;
-  const yn = (v: boolean) => (v ? 'yes' : 'no');
-  const fingerprint: { k: string; v: string; on?: boolean }[] = [
-    { k: 'Server', v: post.server || p.server || '—' },
-    { k: 'Vendor', v: p.vendor || '—' },
-    { k: 'TLS', v: p.tls || '—' },
-    { k: 'HTTP/2', v: yn(p.protocols?.http2), on: p.protocols?.http2 },
-    { k: 'HTTP/3', v: yn(p.protocols?.http3), on: p.protocols?.http3 },
-    { k: 'Cache', v: p.cache ?? 'unknown' },
-  ];
-  const edge: { k: string; on: boolean }[] = [
-    { k: 'WAF', on: post.waf },
-    { k: 'CDN', on: post.cdn },
-    { k: 'Rate limiting', on: post.rateLimiting },
-    { k: 'Load balancer', on: post.loadBalancer },
-    { k: 'HSTS', on: post.hsts },
-  ];
-  const controls = Object.entries(recon.seededProfile ?? {});
-  const paths = recon.suggestedPaths ?? recon.surface?.paths ?? [];
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div
-        className="modal recon-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Target intelligence for ${host}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="recon-modal-head">
-          <div>
-            <h3>Target intelligence</h3>
-            <span className="hint">
-              <code>{host}</code>
-              {recon.generatedAt ? ` · profiled ${relTime(recon.generatedAt)}` : ''}
-            </span>
-          </div>
-          <span className={`recon-verdict ${recon.preflight.go ? 'go' : 'nogo'}`}>
-            {recon.preflight.go ? '✓ preflight GO' : '⚠ preflight NO-GO'}
-          </span>
-          <button className="recon-close" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-
-        <div className="recon-modal-body">
-          <section className="recon-sec">
-            <h4>Fingerprint</h4>
-            <div className="recon-kv-grid">
-              {fingerprint.map((f) => (
-                <div key={f.k} className="recon-kv">
-                  <span className="rk">{f.k}</span>
-                  <span className={`rv ${f.on === true ? 'good' : ''}`}>{f.v}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="recon-sec">
-            <h4>Edge posture</h4>
-            <div className="recon-chip-row">
-              {edge.map((c) => (
-                <span key={c.k} className={`recon-chip lg ${c.on ? 'on' : 'off'}`}>
-                  {c.on ? '✓' : '✗'} {c.k}
-                </span>
-              ))}
-            </div>
-            {post.signals?.length > 0 && (
-              <div className="recon-sub">
-                <span className="rk">Signals</span>
-                <div className="recon-chip-row">
-                  {post.signals.map((s, i) => (
-                    <span key={i} className="recon-chip sig">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {post.securityHeaders?.length > 0 && (
-              <div className="recon-sub">
-                <span className="rk">Security headers</span>
-                <div className="recon-chip-row">
-                  {post.securityHeaders.map((h) => (
-                    <span key={h} className="recon-chip on mono">
-                      {h}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="recon-sec">
-            <h4>Baseline (pre-load)</h4>
-            <div className="recon-stat-row">
-              <div className="recon-stat">
-                <div className="rs-v good">{b?.availabilityPct ?? 100}%</div>
-                <div className="rs-k">availability</div>
-              </div>
-              <div className="recon-stat">
-                <div className="rs-v">
-                  {b?.latencyP50 != null ? `${Math.round(b.latencyP50)}ms` : '—'}
-                </div>
-                <div className="rs-k">p50 latency</div>
-              </div>
-              <div className="recon-stat">
-                <div className="rs-v">
-                  {b?.latencyP95 != null ? `${Math.round(b.latencyP95)}ms` : '—'}
-                </div>
-                <div className="rs-k">p95 latency</div>
-              </div>
-              <div className="recon-stat">
-                <div className="rs-v">
-                  {b?.latencyMean != null ? `${Math.round(b.latencyMean)}ms` : '—'}
-                </div>
-                <div className="rs-k">mean</div>
-              </div>
-              <div className="recon-stat">
-                <div className="rs-v">{b?.samples ?? 0}</div>
-                <div className="rs-k">samples</div>
-              </div>
-            </div>
-          </section>
-
-          {controls.length > 0 && (
-            <section className="recon-sec">
-              <h4>Inferred defense controls</h4>
-              <div className="recon-ctrl-grid">
-                {controls.map(([key, status]) => (
-                  <div key={key} className="recon-ctrl">
-                    <span className="rc-name">{CONTROL_LABELS[key] ?? key}</span>
-                    <span className={`rc-status rc-${status}`}>{status}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="recon-sec">
-            <h4>Attack surface</h4>
-            {recon.loginPath && (
-              <div className="recon-sub">
-                <span className="rk">Login</span>
-                <span className="recon-chip login mono">{recon.loginPath}</span>
-              </div>
-            )}
-            {paths.length > 0 ? (
-              <div className="recon-sub">
-                <span className="rk">
-                  Seeded paths ({paths.length}) — ranked by likely cost to the origin;{' '}
-                  <b>⚡ dynamic</b> ones are targeted first
-                </span>
-                <div className="recon-chip-row wrap">
-                  {paths.map((pt, i) => {
-                    const isDyn = (recon.dynamicPaths ?? []).includes(pt);
-                    return (
-                      <span
-                        key={i}
-                        className={`recon-chip path mono${isDyn ? ' dynamic' : ''}`}
-                        title={
-                          isDyn
-                            ? 'Dynamic/expensive — pressures the origin'
-                            : 'Likely static/cached — light origin cost'
-                        }
-                      >
-                        {isDyn ? '⚡ ' : ''}
-                        {pt}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <p className="hint">No real paths discovered — templates in use.</p>
-            )}
-            {recon.surface?.sitemaps?.length > 0 && (
-              <div className="recon-sub">
-                <span className="rk">Sitemaps</span>
-                <div className="recon-chip-row wrap">
-                  {recon.surface.sitemaps.map((s, i) => (
-                    <span key={i} className="recon-chip mono">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {recon.surface?.disallow?.length > 0 && (
-              <div className="recon-sub">
-                <span className="rk">robots.txt disallow</span>
-                <div className="recon-chip-row wrap">
-                  {recon.surface.disallow.map((s, i) => (
-                    <span key={i} className="recon-chip off mono">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-
-          {recon.preflight.items?.length > 0 && (
-            <section className="recon-sec">
-              <h4>Preflight checklist</h4>
-              <ul className="recon-preflight">
-                {recon.preflight.items.map((it) => (
-                  <li key={it.key} className={it.ok ? 'ok' : it.required ? 'fail' : 'warn'}>
-                    <span className="pf-icon">{it.ok ? '✓' : it.required ? '✕' : '▲'}</span>
-                    <span className="pf-body">
-                      <b>{it.label}</b>
-                      {!it.required && !it.ok && <span className="pf-opt"> (optional)</span>}
-                      {it.detail && <span className="pf-detail">{it.detail}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// Re-exported for existing consumers (imported at the top for internal use).
+export { attackVectorsFromRecon, ReconDetailModal };
+export type { AttackVectorHint } from './recon-detail.js';
 
 /** The multi-step assessment as one live surface: a recon strip, a stepper that
  *  animates the wave in flight (and the recovery gate between waves), and the
@@ -979,12 +733,14 @@ function SuiteTheater({
   seq,
   members,
   onKill,
-  busy,
+  killing,
 }: {
   seq?: SuiteSequenceState;
   members: Campaign[];
   onKill: (c: Campaign) => void;
-  busy: Record<string, boolean>;
+  /** Kill-specific in-flight flags — NOT `busy` (which the blocking run holds the
+   *  whole time, which would keep the kill switch disabled throughout the run). */
+  killing: Record<string, boolean>;
 }) {
   const ordered = useMemo(
     () => [...members].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0)),
@@ -1107,7 +863,7 @@ function SuiteTheater({
           engine={runningStep.agent}
           vector={runningStep.vector}
           onKill={() => onKill(runningStep)}
-          killing={busy[runningStep.id]}
+          killing={killing[runningStep.id]}
         />
       ) : inGate ? (
         <div className="gate-card">
@@ -1163,6 +919,10 @@ function SuiteTheater({
  * recovery gate between waves) so it never collapses to "no run" mid-suite;
  * standalone campaigns still get the single live panel.
  */
+/** Statuses a run can no longer be live in — used to decide whether the focused
+ *  (just-launched) run should still be surfaced in the theater. */
+const TERMINAL_STATUSES = new Set<CampaignStatus>(SUITE_TERMINAL);
+
 export function RunTheaterPage() {
   const app = useApp();
   // Refresh campaigns on each sequence poll while a suite is in flight, so the
@@ -1179,9 +939,36 @@ export function RunTheaterPage() {
 
   // Standalone runs (not part of the active suite) keep the single-run tabs.
   // When no suite is active, every running campaign is standalone.
-  const standalone = running.filter((c) => !(hasSuite && c.suiteId === activeSuiteId));
+  const runningStandalone = running.filter((c) => !(hasSuite && c.suiteId === activeSuiteId));
+  // A `?run=<id>` param (set when launching or "Watch live →" from Campaigns)
+  // focuses that run; otherwise the operator's manual pick wins, then the first.
+  const [params] = useSearchParams();
+  const focusRun = params.get('run');
+  // Right after a launch the run spends a few seconds in baseline capture, still
+  // APPROVED server-side, so it wouldn't appear in `running` yet. Surface the
+  // focused run as long as it isn't terminal, so the launch→theater redirect
+  // never lands on an empty stage (RunTheater streams live progress by id).
+  const focusCampaign =
+    focusRun && !runningStandalone.some((c) => c.id === focusRun)
+      ? app.campaigns.find((c) => c.id === focusRun && !TERMINAL_STATUSES.has(c.status))
+      : undefined;
+  const standalone = focusCampaign ? [focusCampaign, ...runningStandalone] : runningStandalone;
   const [active, setActive] = useState<string | null>(null);
-  const current = standalone.find((c) => c.id === active) ?? standalone[0];
+  const current =
+    standalone.find((c) => c.id === active) ??
+    standalone.find((c) => c.id === focusRun) ??
+    standalone[0];
+
+  // Keep the theater self-refreshing while there's a live/launching run to watch,
+  // even if the global "any running" poll has paused (it stops the instant no
+  // campaign reads RUNNING — which happens in the launch→baseline gap).
+  const watching = standalone.length > 0 || hasSuite;
+  const refresh = app.refresh;
+  useEffect(() => {
+    if (!watching) return;
+    const t = setInterval(refresh, 2000);
+    return () => clearInterval(t);
+  }, [watching, refresh]);
 
   const grafanaTarget = suiteMembers[0]?.target ?? current?.target;
 
@@ -1213,7 +1000,7 @@ export function RunTheaterPage() {
                 seq={activeSuiteId ? seqs[activeSuiteId] : undefined}
                 members={suiteMembers}
                 onKill={app.kill}
-                busy={app.busy}
+                killing={app.killing}
               />
             </div>
           )}
@@ -1238,7 +1025,11 @@ export function RunTheaterPage() {
                 target={current.target}
                 vector={current.vector}
                 onKill={() => app.kill(current)}
-                killing={app.busy[current.id]}
+                // Gate on the kill-specific flag, never `busy`: the blocking
+                // execute() holds `busy` for the whole run, which would keep the
+                // kill switch disabled ("Killing…") throughout — the same bug the
+                // card's kill button fixed.
+                killing={app.killing[current.id]}
               />
             </div>
           )}

@@ -37,15 +37,15 @@ test('full lifecycle: engineer creates → CISO approves → engineer runs → s
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, name)).getByRole('button', { name: 'Run' }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
-  await expect(eng.getByText('Completed').first()).toBeVisible({ timeout: 20_000 });
+  // Launching now sends the operator to Run Theater's live view, not the drawer.
+  await expect(eng).toHaveURL(/\/theater/);
 
-  // Close the detail drawer (auto-opened at run end) before navigating away.
-  await eng.getByRole('button', { name: 'Close' }).click();
-
-  // Coherence J1: the completed run's report is reachable from the Campaigns list
-  // (per-run detail now lives here, not on Results).
+  // Coherence J1: the run completes server-side and its report is reachable from
+  // the Campaigns list (per-run detail lives here, not on Results).
   await goTo(eng, 'Campaigns');
-  await expect((await openCard(eng, name)).getByRole('link', { name: /Report/ })).toBeVisible();
+  await expect((await openCard(eng, name)).getByRole('link', { name: /Report/ })).toBeVisible({
+    timeout: 20_000,
+  });
 
   await engCtx.close();
   await offCtx.close();

@@ -37,15 +37,23 @@ export function NewCampaignForm({
   // operator already typed for name/target/probe.
   const applyPreset = (p: Preset) => {
     const recAvailable = app.agents.some((a) => a.id === p.recommendedAgent && a.available);
-    setForm((f) => ({
-      ...f,
-      name: f.name.trim() || p.name,
-      maxRps: p.maxRps,
-      concurrency: p.concurrency,
-      maxDurationSec: p.maxDurationSec,
-      profile: p.profile,
-      agent: recAvailable ? p.recommendedAgent : f.agent,
-    }));
+    setForm((f) => {
+      // Update the name to the new preset's UNLESS the operator typed their own.
+      // The name is "preset-owned" (and so replaceable) when it is blank or still
+      // equals the previously applied preset's name — otherwise switching presets
+      // used to leave the first preset's name stuck in the field.
+      const prevPreset = PRESETS.find((x) => x.id === appliedPreset);
+      const nameIsPresetOwned = !f.name.trim() || f.name.trim() === prevPreset?.name;
+      return {
+        ...f,
+        name: nameIsPresetOwned ? p.name : f.name,
+        maxRps: p.maxRps,
+        concurrency: p.concurrency,
+        maxDurationSec: p.maxDurationSec,
+        profile: p.profile,
+        agent: recAvailable ? p.recommendedAgent : f.agent,
+      };
+    });
     setAppliedPreset(p.id);
   };
 

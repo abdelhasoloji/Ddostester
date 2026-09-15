@@ -326,14 +326,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConfirmExec(null);
     setBusyFor(c.id, true);
     setCampaigns((list) => list.map((x) => (x.id === c.id ? { ...x, status: 'RUNNING' } : x)));
-    // Open the drawer immediately so the live progress bar (elapsed time + probe
-    // health) is front-and-centre for the whole run, not just a thin bar on the
-    // card. The run request below blocks until the campaign finishes.
-    setExpanded(c.id);
+    // The launcher (ExecuteModal) sends the operator to Run Theater for the live
+    // view, so we no longer auto-open the card drawer here. The run request below
+    // blocks until the campaign finishes.
     try {
       const run = await api.execute(c.id);
       setRuns((r) => ({ ...r, [c.id]: run }));
-      setExpanded(c.id);
       push(
         run.status === 'COMPLETED' ? 'success' : 'info',
         `Run ${run.status} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,

@@ -4226,6 +4226,60 @@ table.remediations td {
   color: var(--muted);
   background: var(--surface-2);
 }
+.recon-vec-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+.recon-vec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.rvec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rvec-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.rvec-drs {
+  flex: none;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+}
+.rvec-signal {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.rvec-signal b {
+  color: var(--text);
+}
+.rvec-why {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.recon-first-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .recon-preflight {
   list-style: none;
   margin: 0;

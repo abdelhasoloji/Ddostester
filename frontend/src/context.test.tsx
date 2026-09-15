@@ -182,23 +182,25 @@ describe('campaign actions', () => {
     expect('createdBy' in payload).toBe(true);
   });
 
-  it('execute records the run, expands it and toasts', async () => {
+  it('execute records the run and toasts', async () => {
     await mountReady();
     fireEvent.click(screen.getByText('execute'));
-    await waitFor(() => expect(screen.getByTestId('expanded').textContent).toBe('c1'));
-    expect(fakeApi.execute).toHaveBeenCalledWith('c1');
+    await waitFor(() => expect(fakeApi.execute).toHaveBeenCalledWith('c1'));
   });
 
-  it('opens the drawer as soon as the run starts, before it completes', async () => {
-    // The run request blocks until the campaign finishes; the drawer (with the
-    // live progress bar) must open immediately, not only once it resolves.
+  it('does NOT open the card drawer on launch (the launcher routes to Run Theater instead)', async () => {
+    // The live view now lives in Run Theater; ExecuteModal navigates there, so
+    // context.execute must not steal focus by expanding the card drawer.
     let finish!: (v: unknown) => void;
     fakeApi.execute.mockReturnValue(new Promise((r) => (finish = r)));
     await mountReady();
     fireEvent.click(screen.getByText('execute'));
-    // Drawer is expanded while the run is still in flight.
-    await waitFor(() => expect(screen.getByTestId('expanded').textContent).toBe('c1'));
+    await waitFor(() => expect(fakeApi.execute).toHaveBeenCalledWith('c1'));
+    // Drawer stays closed while the run is in flight.
+    expect(screen.getByTestId('expanded').textContent).toBe('');
     finish({ status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } });
+    // And still closed after it settles.
+    await waitFor(() => expect(screen.getByTestId('expanded').textContent).toBe(''));
   });
 
   it('execute surfaces an error as a toast', async () => {

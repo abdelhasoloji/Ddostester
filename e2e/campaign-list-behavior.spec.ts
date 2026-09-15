@@ -40,8 +40,11 @@ test('status filter actually filters the list (pending / rejected / done are sep
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, done)).getByRole('button', { name: 'Run', exact: true }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  // Launching lands on Run Theater; wait for completion, then return to Campaigns
+  // where the status filters live.
+  await expect(eng).toHaveURL(/\/theater/);
   await expect(eng.getByText(/Run COMPLETED/i)).toBeVisible({ timeout: 20_000 });
-  await eng.keyboard.press('Escape');
+  await goTo(eng, 'Campaigns');
 
   const clickFilter = async (label: string) =>
     eng

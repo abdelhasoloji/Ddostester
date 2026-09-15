@@ -4,7 +4,7 @@ import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { riskLevel } from './compliance.js';
-import { computeAbsorption } from './absorption.js';
+import { computeAbsorption, normalizeErrorMap } from './absorption.js';
 import { scenarioMeanRps } from '../campaigns/calibration.js';
 import { computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
@@ -53,6 +53,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const configuredRps = campaign.maxRps;
   const statusCounts = g.statusCounts ?? {};
   const errorsByName = g.errors ?? {};
+  // Collapse the per-request error keys (cache-busted URLs make each unique) into
+  // their underlying error classes, so the breakdown reads "context deadline
+  // exceeded ×63,133" instead of thousands of ×1 lines.
+  const errorBreakdown = normalizeErrorMap(errorsByName);
   const rejectedByEdge = Object.entries(statusCounts)
     .filter(([b]) => b !== '2xx' && b !== '3xx')
     .reduce((s, [, n]) => s + n, 0); // 4xx/5xx — the target answered, refusing the request
@@ -281,9 +285,9 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  ${
    g.failed > 0
      ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} rejected by the edge (4xx/5xx) · ${noResponse.toLocaleString('en-US')} no response (rate-limited / timed out)${
-         Object.keys(errorsByName).length
-           ? ` <span class="muted">[${Object.entries(errorsByName)
-               .map(([k, n]) => `${esc(k)}×${n}`)
+         errorBreakdown.length
+           ? ` <span class="muted">[${errorBreakdown
+               .map((e) => `${esc(e.label)}×${e.count.toLocaleString('en-US')}`)
                .join(', ')}]</span>`
            : ''
        }</td></tr>`
