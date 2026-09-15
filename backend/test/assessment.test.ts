@@ -34,6 +34,7 @@ function mkRun(o: {
   probeContended?: boolean;
   statusDetail?: string;
   wrs?: number;
+  calibration?: CampaignRun['calibration'];
 }): CampaignRun {
   const avail = o.availCount ?? 100;
   return {
@@ -71,6 +72,7 @@ function mkRun(o: {
     },
     absorption: o.absorption,
     confidence: o.confidence,
+    calibration: o.calibration,
   } as unknown as CampaignRun;
 }
 
@@ -142,6 +144,42 @@ describe('assessVector — under-delivery is inconclusive, not a pass', () => {
     expect(va.underDelivered).toBe(false);
     expect(va.mechanism).toBe('shed');
     expect(va.verdict).toBe('held');
+  });
+});
+
+describe('assessVector — rate-calibrated runs are valid AND disclosed (GEN-1)', () => {
+  it('a calibrated run grades a VALID verdict at the applied rate, not inconclusive', () => {
+    // THOR: requested 1000, calibrated to 650; absorption.configuredRps is the
+    // APPLIED rate (app.ts), so delivery reads ~100% and the verdict is valid.
+    const va = assessVector(
+      mkRun({
+        availCount: 100,
+        absorption: abs({ cfg: 650, ach: 650, absorbed: 0 }),
+        calibration: { requestedRps: 1000, deliveredRps: 650, appliedRps: 650, calibrated: true },
+      }),
+      ctx({ shape: 'THOR / PulseWave (DRS5)', drs: '5' }),
+    );
+    expect(va.underDelivered).toBe(false);
+    expect(va.verdict).toBe('held'); // valid, not inconclusive
+    // But it is disclosed: a caveat + an observation note name the calibrated rate.
+    expect(va.caveats.join(' ')).toMatch(/Rate-calibrated/);
+    expect(va.caveats.join(' ')).toMatch(/1000 req\/s/); // requested
+    expect(va.caveats.join(' ')).toMatch(/650 req\/s/); // applied
+    expect(va.observation).toMatch(/graded at 650 req\/s/);
+    expect(va.observation).toMatch(/not the requested 1000/);
+  });
+
+  it('a run where the burst confirmed the rate (calibrated:false) adds no calibration caveat', () => {
+    const va = assessVector(
+      mkRun({
+        availCount: 100,
+        absorption: abs({ cfg: 800, ach: 790, absorbed: 0 }),
+        calibration: { requestedRps: 800, deliveredRps: 790, appliedRps: 800, calibrated: false },
+      }),
+      ctx({ drs: '4' }),
+    );
+    expect(va.caveats.join(' ')).not.toMatch(/Rate-calibrated/);
+    expect(va.observation).not.toMatch(/graded at/);
   });
 });
 

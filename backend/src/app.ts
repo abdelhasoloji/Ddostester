@@ -602,7 +602,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         .reduce((s, [, n]) => s + n, 0);
       const tarpitted = Object.values(run.generator.errors ?? {}).reduce((s, n) => s + n, 0);
       const absorption = computeAbsorption({
-        configuredRps: c.maxRps,
+        // When the run was rate-calibrated (GEN-1), the offered rate WAS the
+        // calibrated deliverable ceiling — so delivery is measured against that,
+        // not the aspirational requested rate, and a calibrated line reads as a
+        // valid test (delivered ~100%) instead of a false under-delivery.
+        configuredRps: run.calibration?.appliedRps ?? c.maxRps,
         achievedRps: run.generator.actualRps,
         totalRequests: run.generator.totalRequests,
         successful: run.generator.successful,

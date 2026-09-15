@@ -41,6 +41,28 @@ describe('NewCampaignForm', () => {
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
   });
 
+  it('the Auto-calibrate toggle flows calibrate:true into the submitted payload (GEN-1)', async () => {
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'calib run' } });
+    // Toggle the auto-calibrate delivery lever, then attest and submit.
+    fireEvent.click(screen.getByRole('checkbox', { name: /Auto-calibrate rate/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload.calibrate).toBe(true);
+  });
+
+  it('omits calibrate from the payload when the toggle is left off', async () => {
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'no calib' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload.calibrate).toBeUndefined();
+  });
+
   // E13 — config-time delivery hint. builtinCeilings default = { rps 150, conc 300 }.
   it('shows no delivery hint when the rate is within the built-in ceiling', () => {
     render(<NewCampaignForm />); // default maxRps 20

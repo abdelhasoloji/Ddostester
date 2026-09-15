@@ -116,6 +116,16 @@ export interface CampaignInput {
    */
   parallelism?: number;
   /**
+   * Closed-loop rate calibration (GEN-1): when true, the run first fires a short
+   * pre-flight burst on its real engine + target to measure the rate it can
+   * actually deliver, then grades at that rate instead of an aspirational one it
+   * would silently under-deliver (which the assessment marks INCONCLUSIVE).
+   * Calibration only ever LOWERS the offered rate, never raises it above the
+   * requested one, and stays bounded/allowlisted/capped like any run. The applied
+   * vs requested rate is recorded on the run so the report is honest about it.
+   */
+  calibrate?: boolean;
+  /**
    * Optional SLO acceptance criteria. When set, each run gets a PASS/FAIL
    * verdict against these thresholds (latency, error rate, availability, WRS).
    */

@@ -146,6 +146,7 @@ export function NewCampaignForm({
         cacheBust: form.cacheBust || undefined,
         noKeepAlive: form.noKeepAlive || undefined,
         parallelism: Number(form.parallelism) > 1 ? Number(form.parallelism) : undefined,
+        calibrate: form.calibrate || undefined,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
@@ -412,6 +413,21 @@ export function NewCampaignForm({
           concurrent workers, each at <code>rate ÷ N</code> — spreads the load over more processes
           on the host to push past a single vegeta’s throughput ceiling. Total rate unchanged. 1 =
           single process.
+        </label>
+        <label className="cachebust-toggle" style={{ gridColumn: '1 / -1' }}>
+          <input
+            type="checkbox"
+            checked={form.calibrate}
+            onChange={(e) => {
+              setForm({ ...form, calibrate: e.target.checked });
+              setAppliedPreset(null);
+            }}
+          />{' '}
+          Auto-calibrate rate — fire a short pre-flight burst to measure the rate this box can
+          actually deliver against the target, then grade at that rate instead of an aspirational
+          one the box can’t sustain (which the report then marks inconclusive). Only ever lowers the
+          offered rate; the applied vs requested rate is shown on the run. Best for high-rate
+          composite / pulse lines.
         </label>
         <details className="form-section" open style={{ gridColumn: '1 / -1' }}>
           <summary>Load shape &amp; scheduling</summary>

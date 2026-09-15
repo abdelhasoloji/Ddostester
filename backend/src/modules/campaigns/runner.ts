@@ -15,7 +15,8 @@ import { captureBaseline, computeBaselineDelta } from './baseline.js';
 import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
 import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
-import { probeLimitsFromEnv, ESTIMATED_TIMINGS } from '../../config/limits.js';
+import { probeLimitsFromEnv, ESTIMATED_TIMINGS, CALIBRATION_SEC } from '../../config/limits.js';
+import { calibratedRate, scaleScenario, peakRps, type CalibrationResult } from './calibration.js';
 import { metrics } from '../metrics/runtime.js';
 import type { RunConfidence } from '../reports/confidence.js';
 import type { Absorption } from '../reports/absorption.js';
@@ -141,6 +142,55 @@ export interface CampaignRun {
    * reported blocked/seen. Present only when an edge-absorption source answered.
    */
   edgeCorroboration?: AbsorptionCorroboration;
+  /**
+   * Closed-loop rate calibration (GEN-1): present when the campaign set
+   * `calibrate`. Records the requested (DRS target) rate, the rate a short
+   * pre-flight burst delivered against the target, and the rate the graded run
+   * was actually offered at — so the report can state honestly that the line was
+   * graded at its calibrated deliverable ceiling rather than its aspirational
+   * rate. When `calibrated` is false the burst confirmed the requested rate was
+   * deliverable and the graded run ran at it unchanged.
+   */
+  calibration?: CalibrationResult;
+}
+
+/**
+ * Fires a short calibration burst (GEN-1) on the run's real engine + target and
+ * returns the rate it actually delivered. The burst runs at the scenario's PEAK
+ * rate for `CALIBRATION_SEC`, on its OWN kill switch (with a wall-clock backstop)
+ * so a slow/tarpitting target can't hang it and a calibration hiccup can never
+ * mark the graded run killed. A trip of the parent kill switch (a SOC/NOC manual
+ * stop) still aborts the burst, so a kill halts ALL load promptly. Any failure
+ * returns 0 (→ keep the requested rate).
+ */
+async function measureDeliverableRate(
+  agent: AttackAgent,
+  genConfig: LoadTestConfig,
+  allowedHosts: string[],
+  parentSignal: AbortSignal,
+): Promise<number> {
+  const peak = peakRps(genConfig.maxRps, genConfig.phases);
+  const calibConfig: LoadTestConfig = {
+    ...genConfig,
+    phases: undefined, // a flat burst at the peak — we only need the deliverable ceiling
+    durationSec: CALIBRATION_SEC,
+    maxRps: peak,
+  };
+  const calibKill = new KillSwitch();
+  const backstop = setTimeout(() => calibKill.trigger('TIMEOUT'), (CALIBRATION_SEC + 15) * 1000);
+  if (typeof backstop.unref === 'function') backstop.unref();
+  // A manual/auto stop of the run's own kill switch aborts the pre-flight too.
+  const onParentAbort = () => calibKill.trigger('KILLED_MANUAL');
+  parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  try {
+    const result = await agent.run(calibConfig, allowedHosts, calibKill.signal);
+    return result.actualRps ?? 0;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(backstop);
+    parentSignal.removeEventListener('abort', onParentAbort);
+  }
 }
 
 /**
@@ -168,7 +218,57 @@ export async function executeCampaign(
     () => undefined,
   );
 
-  // Kill switch level 3: absolute time-based timeout.
+  const genConfig: LoadTestConfig = {
+    url: campaign.target,
+    method: campaign.vector === 'http-post' ? 'POST' : 'GET',
+    headers: {
+      // Mandatory traffic tagging (TSD §5.2): every request is traceable.
+      'X-WEDOS-TEST': `${campaign.id}:${Date.now()}`,
+      ...campaign.headers,
+    },
+    body: campaign.vector === 'http-post' ? campaign.body : undefined,
+    concurrency: campaign.concurrency,
+    durationSec: campaign.maxDurationSec,
+    maxRps: campaign.maxRps,
+    phases: campaign.scenario,
+    flow: campaign.flow,
+    endpoints: campaign.endpoints,
+    userAgents: campaign.userAgents,
+    dataset: campaign.dataset,
+    assertion: campaign.assertion,
+    cacheBust: campaign.cacheBust,
+    noKeepAlive: campaign.noKeepAlive,
+    parallelism: campaign.parallelism,
+    slowloris: campaign.vector === 'http-slowloris',
+    authorized: campaign.authorized,
+  };
+
+  // Closed-loop rate calibration (GEN-1): before the graded run, fire a short
+  // burst on the SAME engine + target to measure the rate the generator can
+  // actually deliver here, then grade at that rate instead of an aspirational one
+  // it would silently under-deliver (which the assessment marks INCONCLUSIVE).
+  // Slow-connection vectors trickle by design, so they are never calibrated.
+  // Calibration only ever LOWERS the offered rate — the graded run's shape is
+  // preserved, just scaled to a deliverable amplitude.
+  let calibration: CalibrationResult | undefined;
+  if (campaign.calibrate && !genConfig.slowloris && !killSwitch.signal.aborted) {
+    const requestedPeak = peakRps(genConfig.maxRps, genConfig.phases);
+    const delivered = await measureDeliverableRate(
+      agent,
+      genConfig,
+      allowedHosts,
+      killSwitch.signal,
+    );
+    calibration = calibratedRate(requestedPeak, delivered);
+    if (calibration.calibrated) {
+      const factor = calibration.appliedRps / calibration.requestedRps;
+      genConfig.maxRps = Math.max(1, Math.round(genConfig.maxRps * factor));
+      if (genConfig.phases?.length) genConfig.phases = scaleScenario(genConfig.phases, factor);
+    }
+  }
+
+  // Kill switch level 3: absolute time-based timeout. Armed AFTER calibration so
+  // the pre-flight burst never eats into the graded run's duration budget.
   const timeoutTimer = setTimeout(
     () => killSwitch.trigger('TIMEOUT'),
     campaign.maxDurationSec * 1000,
@@ -204,31 +304,6 @@ export async function executeCampaign(
         probeLimits,
       )
     : undefined;
-
-  const genConfig: LoadTestConfig = {
-    url: campaign.target,
-    method: campaign.vector === 'http-post' ? 'POST' : 'GET',
-    headers: {
-      // Mandatory traffic tagging (TSD §5.2): every request is traceable.
-      'X-WEDOS-TEST': `${campaign.id}:${Date.now()}`,
-      ...campaign.headers,
-    },
-    body: campaign.vector === 'http-post' ? campaign.body : undefined,
-    concurrency: campaign.concurrency,
-    durationSec: campaign.maxDurationSec,
-    maxRps: campaign.maxRps,
-    phases: campaign.scenario,
-    flow: campaign.flow,
-    endpoints: campaign.endpoints,
-    userAgents: campaign.userAgents,
-    dataset: campaign.dataset,
-    assertion: campaign.assertion,
-    cacheBust: campaign.cacheBust,
-    noKeepAlive: campaign.noKeepAlive,
-    parallelism: campaign.parallelism,
-    slowloris: campaign.vector === 'http-slowloris',
-    authorized: campaign.authorized,
-  };
 
   // Emit live progress once a second for EVERY engine: elapsed time plus a live
   // probe snapshot. The generator's own counters (only reported by the built-in
@@ -512,5 +587,6 @@ export async function executeCampaign(
     baselineDelta,
     targetTelemetry: targetSeries.length ? targetSeries : undefined,
     reference,
+    calibration,
   };
 }

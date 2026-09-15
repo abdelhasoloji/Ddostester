@@ -219,3 +219,16 @@ export const BUILTIN_RPS_CEILING = 150;
  * loop. See modules/campaigns/engine-route.ts. Steps at ≤300 ran cleanly.
  */
 export const BUILTIN_CONCURRENCY_CEILING = 300;
+
+/**
+ * Closed-loop rate calibration (GEN-1): duration, in seconds, of the short
+ * pre-flight burst a `calibrate` campaign runs on its real engine + target
+ * before the graded run. It measures the rate the generator can actually deliver
+ * against THIS target on THIS box (throughput capped by both the generator's
+ * capacity and the target's response latency), so the graded run offers a rate
+ * it can truly sustain instead of an aspirational one it silently under-delivers.
+ * Long enough for vegeta/k6 to reach steady-state throughput; short enough not to
+ * meaningfully add to the run. The burst is bounded, allowlisted and capped like
+ * any run, and calibration only ever LOWERS the offered rate, never raises it.
+ */
+export const CALIBRATION_SEC = 12;
