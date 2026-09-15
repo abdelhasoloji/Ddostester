@@ -914,6 +914,10 @@ export const api = {
   suites: () => get<SuiteSummary[]>('/api/suites'),
   approveSuite: (id: string) =>
     post<{ suiteId: string; approved: number; skipped: number }>(`/api/suites/${id}/approve`),
+  rejectSuite: (id: string, reason: string) =>
+    post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
+      reason,
+    }),
   runSuite: (id: string) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),

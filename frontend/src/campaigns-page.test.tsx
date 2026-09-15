@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 import type { Campaign, CampaignStatus } from './api.js';
 
@@ -135,7 +135,7 @@ describe('CampaignList — suite grouping', () => {
     await waitFor(() => expect(screen.getByText('Archived one')).toBeInTheDocument());
   });
 
-  it('a CISO approves a pending scenario from the suite group header (two-step)', async () => {
+  it('a CISO approves a pending scenario via the Approve/Reject modal (aligned with a basic campaign)', async () => {
     fakeApi.approveSuite = vi
       .fn()
       .mockResolvedValue({ suiteId: 'suite-1', approved: 2, skipped: 0 });
@@ -146,10 +146,36 @@ describe('CampaignList — suite grouping', () => {
     });
     renderWithRouter(<CampaignList />);
     expandRow('Suite X');
-    // Two-step flow: a CISO sees "Approve scenario" (not a one-click run).
-    const btn = screen.getByRole('button', { name: /Approve scenario/ });
-    fireEvent.click(btn);
+    // The suite offers the SAME "Approve / Reject" action a basic campaign does.
+    fireEvent.click(screen.getByRole('button', { name: /Approve \/ Reject/ }));
+    // The modal opens; Approve batches over the pending steps.
+    fireEvent.click(screen.getByRole('button', { name: /^Approve \(/ }));
     await waitFor(() => expect(fakeApi.approveSuite).toHaveBeenCalledWith('suite-1'));
+  });
+
+  it('a CISO rejects a pending scenario with a reason via the same modal', async () => {
+    fakeApi.rejectSuite = vi
+      .fn()
+      .mockResolvedValue({ suiteId: 'suite-1', rejected: 2, skipped: 0 });
+    currentApp = makeApp({
+      role: 'ciso',
+      authRequired: true,
+      campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
+    });
+    renderWithRouter(<CampaignList />);
+    expandRow('Suite X');
+    fireEvent.click(screen.getByRole('button', { name: /Approve \/ Reject/ }));
+    // Reject is disabled until a reason is given (mirrors a single campaign).
+    const dialog = screen.getByRole('dialog', { name: /Approve or reject scenario/i });
+    const reject = within(dialog).getByRole('button', { name: /^Reject \(/ });
+    expect(reject).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'out of window' },
+    });
+    fireEvent.click(reject);
+    await waitFor(() =>
+      expect(fakeApi.rejectSuite).toHaveBeenCalledWith('suite-1', 'out of window'),
+    );
   });
 
   it('an engineer runs an approved scenario from the suite group header (two-step)', async () => {

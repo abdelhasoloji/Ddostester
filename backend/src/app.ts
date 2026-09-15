@@ -2215,6 +2215,42 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
+  // Reject a whole scenario at once — the suite-level counterpart to a single
+  // campaign's Reject, so a template campaign offers the same governance actions
+  // as a basic one. Rejects every PENDING_APPROVAL step (a reason is mandatory,
+  // exactly as for a single rejection); already-decided steps are left as-is.
+  app.post(
+    '/api/suites/:id/reject',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      const suiteId = (req.params as { id: string }).id;
+      const reason = (req.body as { reason?: string })?.reason?.trim();
+      if (!reason) return reply.code(400).send({ error: 'A rejection must include a reason.' });
+      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+      if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+      const actor = req.authUser?.email ?? 'dev';
+      let rejected = 0;
+      let skipped = 0;
+      for (const m of members) {
+        if (m.status !== 'PENDING_APPROVAL') continue;
+        try {
+          await store.saveCampaign(approveCampaign(m, actor, 'REJECTED', reason));
+          rejected += 1;
+        } catch {
+          // A step the actor authored can't be self-rejected either — leave it.
+          skipped += 1;
+        }
+      }
+      await audit(
+        req,
+        'campaign.reject',
+        undefined,
+        `suite ${suiteId} — ${rejected} step(s) rejected: ${reason}`,
+      );
+      return reply.send({ suiteId, rejected, skipped });
+    },
+  );
+
   // Two-step flow — step 2: an engineer runs the APPROVED steps of a suite in
   // order (fire-and-forget; advances through auto-kills). Refuses to start while
   // any step is still pending — approve the scenario first.
