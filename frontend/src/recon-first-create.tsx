@@ -359,8 +359,15 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
                       setSelectedPaths(next);
                     }}
                   />
-                  <code>{d.path}</code>
-                  {d.dynamic && <span className="recon-path-dyn">⚡ dynamic</span>}
+                  <code title={d.path}>{d.path}</code>
+                  {d.dynamic && (
+                    <span
+                      className="recon-path-dyn"
+                      title="A dynamic ⚡ path — a stronger stress target"
+                    >
+                      ⚡ dyn
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
