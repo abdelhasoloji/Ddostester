@@ -143,6 +143,47 @@ export function deriveLevers(recon: ReconReport): LeverChoice[] {
   ];
 }
 
+/** A path recon found on the target's surface, flagged if it's a dynamic ⚡ one. */
+export interface DiscoveredPath {
+  path: string;
+  dynamic: boolean;
+}
+
+/** The distinct surface recon found, dynamic (best stress targets) listed first. */
+export function discoveredPaths(recon: ReconReport): DiscoveredPath[] {
+  const dyn = new Set(recon.dynamicPaths ?? []);
+  const all = [...(recon.suggestedPaths ?? []), ...(recon.dynamicPaths ?? [])].filter(
+    (p) => p && p !== '/',
+  );
+  const seen = new Set<string>();
+  const list: DiscoveredPath[] = [];
+  for (const p of all) {
+    if (!seen.has(p)) {
+      seen.add(p);
+      list.push({ path: p, dynamic: dyn.has(p) });
+    }
+  }
+  return list.sort((a, b) => Number(b.dynamic) - Number(a.dynamic));
+}
+
+/** The paths pre-selected on arrival — the same set the tool used to auto-seed:
+ *  the dynamic ⚡ ones when present, else the non-root suggested paths (max 10). */
+export function defaultSelectedPaths(recon: ReconReport): string[] {
+  const dyn = recon.dynamicPaths ?? [];
+  return (dyn.length ? dyn : (recon.suggestedPaths ?? []).filter((p) => p !== '/')).slice(0, 10);
+}
+
+/** Build the endpoint-mix textarea value from the operator's selected paths. */
+export function endpointsFromPaths(recon: ReconReport, selected: Iterable<string>): string {
+  let origin = recon.target;
+  try {
+    origin = new URL(recon.target).origin;
+  } catch {
+    /* keep raw */
+  }
+  return [...selected].map((p) => `${origin}${p}`).join('\n');
+}
+
 /** Merge the toggled levers into the form seed (base config + lever booleans). */
 export function applyLevers(
   base: Partial<typeof emptyForm>,
@@ -169,6 +210,8 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
     rotateUa: false,
     noKeepAlive: false,
   });
+  // Which recon-discovered paths the operator has chosen to hit.
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -190,6 +233,8 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           boolean
         >,
       );
+      // Pre-select the discovered paths the tool would have auto-seeded.
+      setSelectedPaths(new Set(defaultSelectedPaths(r)));
       setPhase('recon');
     } catch (e) {
       setError((e as Error).message);
@@ -209,7 +254,15 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             Composing against <code>{host}</code> — fields pre-filled from recon; adjust anything.
           </span>
         </div>
-        <NewCampaignForm initial={applyLevers(suggestion.initial, leverOn)} onDone={onDone} />
+        <NewCampaignForm
+          initial={applyLevers(
+            recon
+              ? { ...suggestion.initial, endpoints: endpointsFromPaths(recon, selectedPaths) }
+              : suggestion.initial,
+            leverOn,
+          )}
+          onDone={onDone}
+        />
       </div>
     );
   }
@@ -248,6 +301,75 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           )}
           {recon.loginPath && <span className="recon-chip login">login {recon.loginPath}</span>}
         </div>
+
+        {discoveredPaths(recon).length > 0 && (
+          <div className="recon-paths">
+            <div className="recon-paths-head">
+              <span className="rk">
+                Discovered surface — pick what to hit ({selectedPaths.size}/
+                {discoveredPaths(recon).length})
+              </span>
+              <span className="recon-paths-tools">
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost"
+                  onClick={() =>
+                    setSelectedPaths(new Set(discoveredPaths(recon).map((d) => d.path)))
+                  }
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost"
+                  onClick={() =>
+                    setSelectedPaths(
+                      new Set(
+                        discoveredPaths(recon)
+                          .filter((d) => d.dynamic)
+                          .map((d) => d.path),
+                      ),
+                    )
+                  }
+                >
+                  Dynamic only ⚡
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost"
+                  onClick={() => setSelectedPaths(new Set())}
+                >
+                  None
+                </button>
+              </span>
+            </div>
+            <div className="recon-paths-list">
+              {discoveredPaths(recon).map((d) => (
+                <label
+                  key={d.path}
+                  className={`recon-path${selectedPaths.has(d.path) ? ' on' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPaths.has(d.path)}
+                    onChange={(e) => {
+                      const next = new Set(selectedPaths);
+                      if (e.target.checked) next.add(d.path);
+                      else next.delete(d.path);
+                      setSelectedPaths(next);
+                    }}
+                  />
+                  <code>{d.path}</code>
+                  {d.dynamic && <span className="recon-path-dyn">⚡ dynamic</span>}
+                </label>
+              ))}
+            </div>
+            <span className="hint">
+              Only the selected paths become the endpoint mix — the flood hits exactly what you
+              pick.
+            </span>
+          </div>
+        )}
 
         <div className="recon-first-suggest">
           <div className="rk">Suggested campaign — from what recon found</div>
