@@ -243,9 +243,15 @@ describe('user-agent rotation validation', () => {
     );
   });
 
-  it('rejects UA rotation on a non-builtin engine', () => {
+  it('accepts UA rotation on vegeta (it spreads the set across its targets file)', () => {
+    const c = createCampaign({ ...base, agent: 'vegeta', userAgents: ['UA/1', 'UA/2'] }, allowed);
+    expect(c.agent).toBe('vegeta');
+    expect(c.userAgents).toHaveLength(2);
+  });
+
+  it('rejects UA rotation on k6 (k6 does not rotate UAs yet)', () => {
     expect(() => createCampaign({ ...base, agent: 'k6', userAgents: ['UA/1'] }, allowed)).toThrow(
-      /built-in engine/,
+      /built-in or vegeta engine/,
     );
   });
 });

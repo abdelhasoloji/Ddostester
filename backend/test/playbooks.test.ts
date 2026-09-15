@@ -169,6 +169,48 @@ describe('threat-informed playbooks', () => {
     expect(wave.userAgents?.length).toBeGreaterThan(1);
   });
 
+  it('attaches the UA rotation set to a vegeta-resolved step (vegeta rotates UAs now)', () => {
+    // The DRS5 composite fix: UA rotation is no longer built-in-only. A step that
+    // resolves to vegeta must still carry its userAgents so vegeta can spread them
+    // across its targets file — otherwise the line silently loses UA rotation.
+    const pb = validatePlaybookInput({
+      name: 'ua-on-vegeta',
+      steps: [
+        {
+          name: 'rotate on vegeta',
+          maxRps: 400,
+          concurrency: 50,
+          maxDurationSec: 60,
+          profile: 'constant',
+          agent: 'vegeta',
+          rotateUa: true,
+        },
+      ],
+    });
+    const withVegeta = [{ id: 'vegeta', available: true }];
+    const [input] = buildSuiteCampaigns(pb, target, withVegeta);
+    expect(input.agent).toBe('vegeta');
+    expect(input.userAgents?.length).toBeGreaterThan(1);
+    // A k6-resolved step, by contrast, drops UA rotation (k6 doesn't rotate yet).
+    const pbK6 = validatePlaybookInput({
+      name: 'ua-on-k6',
+      steps: [
+        {
+          name: 'rotate on k6',
+          maxRps: 400,
+          concurrency: 50,
+          maxDurationSec: 60,
+          profile: 'constant',
+          agent: 'k6',
+          rotateUa: true,
+        },
+      ],
+    });
+    const [k6Input] = buildSuiteCampaigns(pbK6, target, [{ id: 'k6', available: true }]);
+    expect(k6Input.agent).toBe('k6');
+    expect(k6Input.userAgents).toBeUndefined();
+  });
+
   it('every threat-informed campaign passes createCampaign validation', () => {
     for (const pb of PLAYBOOKS.filter((p) => p.threat)) {
       for (const input of buildSuiteCampaigns(pb, target, engines)) {

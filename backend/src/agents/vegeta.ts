@@ -50,7 +50,6 @@ function cacheBustUrl(url: string, n: number): string {
 
 export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): string {
   const defaultMethod = (config.method ?? 'GET').toUpperCase();
-  const headerLines = Object.entries(config.headers ?? {}).map(([k, v]) => `${k}: ${v}`);
   const base = config.endpoints?.length
     ? config.endpoints.map((e) => ({
         method: (e.method ?? defaultMethod).toUpperCase(),
@@ -67,8 +66,26 @@ export function buildVegetaTarget(config: LoadTestConfig, bodyFile?: string): st
         })),
       )
     : base;
-  const blocks = targets.map(({ method, url }) => {
+  // User-Agent rotation: vegeta cannot template a header per request, but it
+  // cycles the targets file sequentially — so spreading the UA set across the
+  // target blocks rotates the client fingerprint request-by-request, the same
+  // realism the built-in engine gets by picking a random UA per request. Emit at
+  // least one block per UA so every fingerprint is exercised, and let the
+  // per-block `User-Agent` override any global one (dropped from the base lines).
+  const uas = config.userAgents?.length ? config.userAgents : null;
+  const headerEntries = Object.entries(config.headers ?? {});
+  const headerLines = (
+    uas ? headerEntries.filter(([k]) => k.toLowerCase() !== 'user-agent') : headerEntries
+  ).map(([k, v]) => `${k}: ${v}`);
+  const rotated = uas
+    ? Array.from({ length: Math.max(targets.length, uas.length) }, (_v, i) => ({
+        ...targets[i % targets.length],
+        ua: uas[i % uas.length] as string | undefined,
+      }))
+    : targets.map((t) => ({ ...t, ua: undefined as string | undefined }));
+  const blocks = rotated.map(({ method, url, ua }) => {
     const lines = [`${method} ${url}`, ...headerLines];
+    if (ua) lines.push(`User-Agent: ${ua}`);
     if (method === 'POST' && bodyFile) lines.push(`@${bodyFile}`);
     return lines.join('\n');
   });

@@ -212,8 +212,11 @@ export function createCampaign(
     if (input.userAgents.some((ua) => !ua.trim())) {
       throw new CampaignError('User-Agent rotation: entries must be non-empty.');
     }
-    if (input.agent && input.agent !== 'builtin') {
-      throw new CampaignError('User-Agent rotation requires the built-in engine.');
+    // UA rotation is honoured by the built-in engine AND by vegeta (which spreads
+    // the set across its targets file). Only k6 does not rotate UAs yet — reject
+    // it explicitly so a k6-pinned step can't silently lose its rotation.
+    if (input.agent === 'k6') {
+      throw new CampaignError('User-Agent rotation requires the built-in or vegeta engine.');
     }
   }
 

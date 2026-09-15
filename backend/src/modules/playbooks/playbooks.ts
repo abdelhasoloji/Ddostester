@@ -1948,8 +1948,8 @@ function campaignInputFromStep(
     /* keep raw; createCampaign will reject an invalid target */
   }
   const agent = isAvailable(step.agent) ? step.agent : undefined;
-  // Endpoint mix and UA rotation are built-in-engine features: only attach
-  // them when the resolved engine is the built-in one (explicit or default).
+  // Custom per-step headers are attached only for the built-in engine (explicit
+  // or default). UA rotation is handled separately below — vegeta rotates it too.
   const builtin = agent === 'builtin' || agent === undefined;
   // Seed the step's templated paths against the target's real surface (when a
   // recon was supplied) so path-based lines hit real endpoints, not 404s. The
@@ -1960,7 +1960,15 @@ function campaignInputFromStep(
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
     : undefined;
-  const userAgents = builtin && step.rotateUa ? DEFAULT_UA_SET : undefined;
+  // UA rotation is honoured by the built-in engine AND by vegeta (which spreads
+  // the set across its targets file), so attach it for either — and for the
+  // default/unspecified engine, which auto-routes to vegeta at high rate. A
+  // built-in-pinned high-rate line auto-routes to vegeta at run time now that
+  // UA rotation no longer forces built-in (engine-route.ts), so the DRS5
+  // composite lines finally deliver their configured rate instead of ~150 rps.
+  // (k6 does not yet rotate UAs; a k6-pinned step would silently drop them.)
+  const uaRotationCapable = agent === 'builtin' || agent === 'vegeta' || agent === undefined;
+  const userAgents = uaRotationCapable && step.rotateUa ? DEFAULT_UA_SET : undefined;
   const headers = builtin && step.headers ? step.headers : undefined;
   // Delivery levers travel with the step regardless of engine: cache-busting and
   // no-keep-alive are honoured by the built-in generator and by vegeta/k6, and

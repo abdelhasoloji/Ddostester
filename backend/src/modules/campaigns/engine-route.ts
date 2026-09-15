@@ -24,8 +24,9 @@ import type { Campaign } from './model.js';
  *   - request flows (with or without correlation) → k6 (flow + correlation capable).
  *   - request flows (no correlation) → k6 (flow-capable).
  *   - simple floods (single URL ± phases, incl. POST) → vegeta (proven).
- *   - endpoint-mix / dataset / assertion / UA-rotation → keep built-in (the
- *     external adapters' support for these is not guaranteed; don't risk it).
+ *   - endpoint-mix / UA-rotation → vegeta (it honours a multi-target set and
+ *     spreads a User-Agent set across its targets file).
+ *   - dataset / response assertion → keep built-in (only it implements these).
  *
  * The caller still checks the chosen engine is actually available before using
  * it (falling back to built-in when the binary is absent).
@@ -49,12 +50,15 @@ export function highRateEngineUpgrade(
   if (c.flow?.length) return 'k6';
 
   // Features only the built-in engine implements — never route these away, or a
-  // step would silently lose its data-feeder / assertion / UA-rotation.
-  const builtinOnly = !!c.dataset?.length || !!c.assertion || !!c.userAgents?.length;
+  // step would silently lose its data-feeder / response assertion.
+  const builtinOnly = !!c.dataset?.length || !!c.assertion;
   if (builtinOnly) return null;
 
-  // A rate-capped flood (± phases) OR a recon-seeded endpoint mix: vegeta now
-  // honours a multi-target endpoint set (see agents/vegeta.ts), so it delivers
-  // the real rate for these too — where the built-in engine would cap ~150 rps.
+  // A rate-capped flood (± phases), a recon-seeded endpoint mix, OR UA rotation:
+  // vegeta now honours a multi-target endpoint set AND spreads a User-Agent set
+  // across its targets file (see agents/vegeta.ts), so it delivers the real rate
+  // for all of these — where the built-in engine caps ~150 rps. This is what let
+  // the DRS5 composite lines (multi-path + UA rotation at 800 rps) escape the
+  // built-in ceiling that pinned them to ~17% delivery.
   return 'vegeta';
 }
