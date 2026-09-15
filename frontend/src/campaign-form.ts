@@ -40,6 +40,10 @@ export const emptyForm = {
   calibrate: false,
 };
 
+/** The new-campaign form's field shape — the seed type shared by the recon-first
+ *  flow, presets, and the post-run replay suggestion. */
+export type CampaignFormSeed = typeof emptyForm;
+
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */
 export function parseDataset(raw: string): Record<string, string>[] | undefined {
   const lines = raw

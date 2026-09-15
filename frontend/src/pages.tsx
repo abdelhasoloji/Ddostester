@@ -2028,10 +2028,15 @@ export function CampaignLaunch() {
   const app = useApp();
   const canCreate = canDo(app.role, 'create', app.authRequired);
   const [showForm, setShowForm] = useState(false);
-  // Open the form automatically when a preset is queued from the guide.
+  // Open the form automatically when a preset is queued from the guide, or a
+  // replay seed is queued from a completed run's conclusions.
   useEffect(() => {
-    if (app.draftPreset) setShowForm(true);
-  }, [app.draftPreset]);
+    if (app.draftPreset || app.draftCampaign) setShowForm(true);
+  }, [app.draftPreset, app.draftCampaign]);
+  const closeForm = () => {
+    app.clearDraftCampaign();
+    setShowForm(false);
+  };
 
   if (!canCreate) {
     return (
@@ -2055,12 +2060,15 @@ export function CampaignLaunch() {
         </div>
       )}
       {showForm &&
-        (app.draftPreset ? (
+        (app.draftCampaign ? (
+          // A follow-up seeded from a completed run's countermeasures.
+          <NewCampaignForm initial={app.draftCampaign} onDone={closeForm} />
+        ) : app.draftPreset ? (
           // A preset queued from the Guide jumps straight to the seeded form.
-          <NewCampaignForm onDone={() => setShowForm(false)} />
+          <NewCampaignForm onDone={closeForm} />
         ) : (
           // The single recon-first creation flow.
-          <ReconFirstCreate onDone={() => setShowForm(false)} />
+          <ReconFirstCreate onDone={closeForm} />
         ))}
     </>
   );
