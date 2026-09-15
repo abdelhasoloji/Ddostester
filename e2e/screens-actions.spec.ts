@@ -147,14 +147,17 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
   // Suites are compact table rows now; expand the suite (a row with a step count)
-  // to reach its "Approve scenario" control.
+  // to reach its "Approve / Reject" control — aligned with a basic campaign.
   await ciso
     .locator('tr.ct-row', { has: ciso.locator('.ct-steps') })
     .first()
     .click();
-  const approveScenario = ciso.getByRole('button', { name: /Approve scenario/ }).first();
-  await expect(approveScenario).toBeVisible({ timeout: 10_000 });
-  await approveScenario.click();
+  const decide = ciso.getByRole('button', { name: /Approve \/ Reject/ }).first();
+  await expect(decide).toBeVisible({ timeout: 10_000 });
+  await decide.click();
+  // The Approve/Reject modal opens; Approve batches over the pending steps.
+  const dialog = ciso.getByRole('dialog', { name: /Approve or reject scenario/i });
+  await dialog.getByRole('button', { name: /^Approve \(/ }).click();
   await noError(ciso);
 
   // Engineer runs the approved scenario, then cancels it (the #108 fix: the

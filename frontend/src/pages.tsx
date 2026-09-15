@@ -1887,6 +1887,15 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const busy = app.busy[g.suiteId];
   const scored = agg ? `${agg.scored}/${g.total} scored` : 'not scored';
   const [localBusy, setLocalBusy] = useState(false);
+  // Approve / Reject modal (batches over the pending steps) — the suite-level
+  // counterpart to a single campaign's Approve/Reject, so both offer the same
+  // governance actions.
+  const [decideOpen, setDecideOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const closeDecide = () => {
+    setDecideOpen(false);
+    setReason('');
+  };
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setLocalBusy(true);
@@ -1900,8 +1909,14 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
       setLocalBusy(false);
     }
   };
-  const approveScenario = () =>
-    act(() => api.approveSuite(g.suiteId), 'Scenario approved — an engineer can now run it.');
+  const approveScenario = async () => {
+    await act(() => api.approveSuite(g.suiteId), 'Scenario approved — an engineer can now run it.');
+    closeDecide();
+  };
+  const rejectScenario = async () => {
+    await act(() => api.rejectSuite(g.suiteId, reason.trim()), 'Scenario rejected.');
+    closeDecide();
+  };
   const runScenario = () =>
     act(() => api.runSuite(g.suiteId), 'Scenario launched — approved steps will run in order.');
 
@@ -1932,10 +1947,10 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
             <button
               className="btn btn-sm btn-primary"
               disabled={localBusy}
-              onClick={approveScenario}
-              title="Approve every pending step of the scenario (a CISO). An engineer then runs it."
+              onClick={() => setDecideOpen(true)}
+              title="Approve or reject every pending step of the scenario. An engineer then runs it."
             >
-              {localBusy ? <span className="spin" /> : null}✓ Approve scenario ({g.pending})
+              {localBusy ? <span className="spin" /> : null}Approve / Reject ({g.pending})
             </button>
           )}
           {canExec && g.pending === 0 && approvedRemaining > 0 && !sequencing && (
@@ -2017,6 +2032,42 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
             status: m.status,
           }))}
         />
+      )}
+      {decideOpen && (
+        <div className="overlay" onClick={closeDecide}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Approve or reject scenario"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Approve or reject — {g.suiteName}</h3>
+            <p className="hint">
+              This applies to all {g.pending} pending step(s) of the scenario. A step you authored
+              is left for a different approver (separation of duties).
+            </p>
+            <div className="field">
+              <label>Reason (required for rejection)</label>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+            <div className="btn-row">
+              <button className="btn" onClick={closeDecide}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                disabled={localBusy || !reason.trim()}
+                onClick={rejectScenario}
+              >
+                Reject ({g.pending})
+              </button>
+              <button className="btn btn-primary" disabled={localBusy} onClick={approveScenario}>
+                Approve ({g.pending})
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
