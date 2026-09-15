@@ -114,11 +114,9 @@ const roleDescription: Record<Role, string> = {
 const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
-  { to: '/prepare', label: 'Prepare', icon: '🔍' },
   { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
   { to: '/theater', label: 'Run Theater', icon: '🎬' },
-  { to: '/reports', label: 'Results', icon: '📊' },
-  { to: '/audit', label: 'Assurance', icon: '⚖' },
+  // Prepare + Results retired from the spine; the audit log now lives in Settings.
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
 
@@ -231,8 +229,8 @@ function RoleFocus() {
       </>
     ) : (
       <>
-        No approvals waiting. Governance &amp; tamper-evident evidence in{' '}
-        <Link to="/audit">Assurance →</Link>
+        No approvals waiting. Governance &amp; the tamper-evident audit log in{' '}
+        <Link to="/settings">Settings →</Link>
       </>
     );
   } else if (role === 'admin') {
@@ -3188,7 +3186,9 @@ function CompareSection({ campaigns }: { campaigns: Campaign[] }) {
 }
 
 // ---------- Audit log ----------
-export function AuditPage() {
+/** The tamper-evident audit log body (actions + hash-chained entries), reused by
+ *  the standalone page and the Settings "Audit log" section. */
+export function AuditLog() {
   const app = useApp();
   const { loadAudit } = app;
   const [verdict, setVerdict] = useState<AuditVerdict | null>(null);
@@ -3209,10 +3209,6 @@ export function AuditPage() {
   const rows = app.auditRows;
   return (
     <>
-      <PageHead
-        title="Assurance"
-        sub="Tamper-evident audit log — every governed action (creation, approval, run, kill switch), hash-chained."
-      />
       <div className="page-actions">
         <button className="btn btn-sm" onClick={app.loadAudit}>
           Refresh
@@ -3250,6 +3246,18 @@ export function AuditPage() {
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+export function AuditPage() {
+  return (
+    <>
+      <PageHead
+        title="Assurance"
+        sub="Tamper-evident audit log — every governed action (creation, approval, run, kill switch), hash-chained."
+      />
+      <AuditLog />
     </>
   );
 }
@@ -4645,6 +4653,13 @@ export function SettingsPage() {
         </p>
         <EnginesList />
       </div>
+
+      <h2 className="settings-section-title">Audit log</h2>
+      <p className="hint" style={{ margin: '0 0 .5rem' }}>
+        Tamper-evident record — every governed action (creation, approval, run, kill switch),
+        hash-chained. Verify the chain or export it below.
+      </p>
+      <AuditLog />
     </>
   );
 }

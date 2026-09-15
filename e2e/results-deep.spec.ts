@@ -48,8 +48,9 @@ test('results: the cross-campaign surface — compliance exports, share, before/
   await runOne(eng, ciso, a);
   await runOne(eng, ciso, b);
 
-  // Results is now the CROSS-campaign surface (per-run detail lives on Campaigns).
-  await goTo(eng, 'Results');
+  // Results is the CROSS-campaign surface (per-run detail lives on Campaigns);
+  // retired from the nav but reachable by URL.
+  await eng.goto('/reports');
 
   // Aggregated compliance exports.
   await expect(eng.getByRole('link', { name: /Open compliance report/ })).toHaveAttribute(

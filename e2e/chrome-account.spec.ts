@@ -48,7 +48,7 @@ test('notifications: bell opens the panel and the Close control dismisses it', a
 test('prepare: run recon, then Copy paths and Send to Plan', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await login(page, 'engineer');
-  await goTo(page, 'Prepare');
+  await page.goto('/prepare'); // retired from the nav, still reachable by URL
   // Default target is off-allowlist; use the allowlisted self target + a probe.
   // Prepare wraps each field as <label class="field"><span>Label</span><input/>.
   await page.locator('label.field:has(span:text-is("Target")) input').fill(SELF);
