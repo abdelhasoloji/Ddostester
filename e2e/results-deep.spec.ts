@@ -25,12 +25,10 @@ async function runOne(eng: Page, ciso: Page, name: string): Promise<void> {
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, name)).getByRole('button', { name: 'Run', exact: true }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
-  // execute() blocks until the run finishes and auto-opens the live drawer. Wait
-  // for the completion toast, then close the drawer so the next navigation isn't
-  // intercepted by its overlay.
+  // Launching lands on Run Theater; execute() runs to completion server-side and
+  // the global completion toast fires (no card drawer to dismiss anymore).
+  await expect(eng).toHaveURL(/\/theater/);
   await expect(eng.getByText(/Run COMPLETED/i)).toBeVisible({ timeout: 20_000 });
-  await eng.keyboard.press('Escape');
-  await expect(eng.locator('aside.drawer')).toHaveCount(0);
 }
 
 test('results: the cross-campaign surface — compliance exports, share, before/after compare', async ({

@@ -111,3 +111,50 @@ export function computeAbsorption(i: AbsorptionInput): Absorption {
     tarpitRatio,
   };
 }
+
+/**
+ * Collapse a raw generator error map into a small, human-readable breakdown.
+ *
+ * Vegeta keys each error by the exact request it failed on, e.g.
+ *   `Post "https://bank.cz/?_cb=0o4hx0v": context deadline exceeded`
+ * A cache-busted flood makes every URL unique, so the raw map has one ×1 entry
+ * per request — thousands of near-identical lines that are all the same failure
+ * ("context deadline exceeded"). This normalizes each key to its underlying
+ * error CLASS (stripping the `Method "URL":` prefix and any embedded host/IP/
+ * port/duration) and sums the counts, so the report shows
+ *   `context deadline exceeded ×63,133`
+ * instead of a wall of noise. Returns entries sorted by count, descending.
+ */
+export function normalizeErrorMap(
+  errors: Record<string, number> | undefined | null,
+  limit = 6,
+): { label: string; count: number }[] {
+  if (!errors) return [];
+  const byClass = new Map<string, number>();
+  for (const [rawKey, n] of Object.entries(errors)) {
+    byClass.set(normalizeErrorKey(rawKey), (byClass.get(normalizeErrorKey(rawKey)) ?? 0) + n);
+  }
+  const sorted = [...byClass.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+  if (sorted.length <= limit) return sorted;
+  const head = sorted.slice(0, limit);
+  const otherCount = sorted.slice(limit).reduce((s, e) => s + e.count, 0);
+  const otherKinds = sorted.length - limit;
+  head.push({ label: `+${otherKinds} other error kinds`, count: otherCount });
+  return head;
+}
+
+/** Reduce one vegeta error string to its stable error class. Pure. */
+export function normalizeErrorKey(raw: string): string {
+  // Drop the `Method "URL":` prefix vegeta prepends (the URL carries the unique
+  // cache-buster that explodes the map).
+  let msg = raw.replace(/^\s*\w+\s+"[^"]*":\s*/, '').trim();
+  // Some transports embed the address instead of quoting a URL, e.g.
+  //   `dial tcp 1.2.3.4:443: connect: connection refused`. Strip host:port runs.
+  msg = msg.replace(/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?/g, '<addr>');
+  msg = msg.replace(/https?:\/\/[^\s"]+/g, '<url>');
+  // Collapse trailing durations ("... (Client.Timeout exceeded ... 10s)").
+  msg = msg.replace(/\b\d+(?:\.\d+)?(?:ms|s|m)\b/g, '<dur>');
+  return msg || raw.trim();
+}

@@ -1,14 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  api,
-  reportUrl,
-  runTimelineCsvUrl,
-  streamUrl,
-  getGrafanaBase,
-  grafanaRunUrl,
-} from './api.js';
-import { UplotChart, PromChart, type ChartSeries } from './PromChart.js';
-import type { MetricsRange } from './api.js';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { reportUrl, runTimelineCsvUrl, streamUrl, getGrafanaBase, grafanaRunUrl } from './api.js';
+import { UplotChart, type ChartSeries } from './PromChart.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -467,11 +460,7 @@ export function RunTheater({
           )}
 
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels
-              target={target}
-              fallbackTimeline={p.timeline ?? []}
-              elapsedSec={p.elapsedSec}
-            />
+            <RunMetricsPanels target={target} timeline={p.timeline ?? []} />
           </div>
         </>
       )}
@@ -646,6 +635,7 @@ export function CisoBadge({ c }: { c: Campaign }) {
 
 export function CampaignCard({ c }: { c: Campaign }) {
   const app = useApp();
+  const navigate = useNavigate();
   const isBusy = app.busy[c.id];
   const role = app.role;
   const ar = app.authRequired;
@@ -733,9 +723,19 @@ export function CampaignCard({ c }: { c: Campaign }) {
               {c.archived ? 'Restore' : 'Archive'}
             </button>
           )}
-          <button className="btn btn-sm btn-ghost" onClick={() => app.openDetail(c)}>
-            Details
-          </button>
+          {c.status === 'RUNNING' ? (
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => navigate(`/theater?run=${c.id}`)}
+              title="Watch this run live in Run Theater"
+            >
+              Watch live →
+            </button>
+          ) : (
+            <button className="btn btn-sm btn-ghost" onClick={() => app.openDetail(c)}>
+              Details
+            </button>
+          )}
         </div>
       </div>
       <div className="campaign-meta">
@@ -810,94 +810,67 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
 }
 
 /**
- * Run Theater graphs — a small multi-panel dashboard fed by Prometheus (the same
- * data Grafana uses), via the app's `/api/metrics/range` proxy. Several reliable
- * time-axis panels (offered vs reached-origin RPS, edge-absorbed %, legitimate
- * availability) plus an "Open in Grafana" deep-link scoped to this run's target.
- * When Prometheus isn't configured (no data source), it falls back to the
- * client-side live timeline so the Run Theater is never a blank box.
+ * Run Theater graphs — offered vs reached-origin RPS, edge-absorbed % and
+ * legitimate availability, plotted from the LIVE CLIENT TIMELINE (`p.timeline`),
+ * the same per-tick source as the tiles above. Deliberately NOT fed from
+ * Prometheus: the gauge scrape cadence + query window made those panels
+ * mis-scale and lag the run (flat lines while the tiles read correctly). The
+ * "Open in Grafana" deep-link still offers the full Prometheus dashboard.
  */
-const RUN_PANELS: { series: string; label: string }[] = [
-  { series: 'run_rps', label: 'Offered vs reached-origin RPS' },
-  { series: 'run_absorbed', label: 'Absorbed by edge (%)' },
-  { series: 'run_availability', label: 'Legitimate availability (%)' },
-];
+export interface TheaterPanel {
+  label: string;
+  series: ChartSeries[];
+  yRange?: [number, number];
+  yFromZero?: boolean;
+}
 
-function RunMetricsPanels({
-  target,
-  fallbackTimeline,
-  elapsedSec,
-}: {
-  target: string;
-  fallbackTimeline: RunSample[];
-  /** The live run's elapsed time — scopes the Prometheus window to THIS run, so
-   *  stale gauge samples from earlier runs against the same target never bleed in
-   *  (which froze the chart and started its x-axis at an unrelated old run). */
-  elapsedSec?: number;
-}) {
-  const host = hostOf(target) ?? target;
-  const [ranges, setRanges] = useState<Record<string, MetricsRange>>({});
-  const [promOk, setPromOk] = useState<boolean | null>(null); // null = unknown yet
-  // The elapsed time grows each tick but the poll effect only re-subscribes on a
-  // host change — so read it through a ref, and the window grows WITH the run.
-  const elapsedRef = useRef(elapsedSec);
-  elapsedRef.current = elapsedSec;
-
-  useEffect(() => {
-    let live = true;
-    const pull = async () => {
-      // A small pad past the elapsed time keeps the run's very first sample in
-      // view; a 30s floor gives an early run a sensible window.
-      const el = elapsedRef.current;
-      const sinceSec = el != null ? Math.max(30, Math.ceil(el) + 8) : undefined;
-      const results = await Promise.all(
-        RUN_PANELS.map((p) =>
-          api
-            .metricsRange(p.series, { target: host, minutes: 15, step: 5, sinceSec })
-            .catch(() => null),
-        ),
-      );
-      if (!live) return;
-      const next: Record<string, MetricsRange> = {};
-      let anyOk = false;
-      results.forEach((r, i) => {
-        if (r) {
-          next[RUN_PANELS[i].series] = r;
-          if (r.source === 'ok') anyOk = true;
-        }
-      });
-      setRanges(next);
-      setPromOk(anyOk);
-    };
-    void pull();
-    const t = setInterval(pull, 5000);
-    return () => {
-      live = false;
-      clearInterval(t);
-    };
-  }, [host]);
-
-  // No Prometheus data source → keep the client-side live timeline (never blank).
-  if (promOk === false) {
-    return (
-      <div className="posture">
-        <div className="posture-title">Run timeline</div>
-        <RunTimeline samples={fallbackTimeline} pending />
-        <div className="timeline-legend">
-          <span className="hint">
-            Live stream (Prometheus not configured — set PROMETHEUS_URL for the Grafana-backed
-            panels).
-          </span>
-        </div>
-      </div>
-    );
+/** Build the three Run-Theater panels from the per-tick run samples. Pure, so it
+ *  is unit-tested. `sent`/`failed` are cumulative, so absorbed% and the origin
+ *  rate are the same ratios the tiles show. */
+export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
+  const offered: [number, number][] = [];
+  const origin: [number, number][] = [];
+  const absorbed: [number, number][] = [];
+  const avail: [number, number][] = [];
+  for (const s of samples) {
+    const success = s.sent > 0 ? Math.max(0, (s.sent - s.failed) / s.sent) : 1;
+    offered.push([s.t, s.rps]);
+    origin.push([s.t, s.rps * success]); // instantaneous rps reaching origin
+    absorbed.push([s.t, s.sent > 0 ? (s.failed / s.sent) * 100 : 0]);
+    avail.push([s.t, s.availPct]);
   }
+  return [
+    {
+      label: 'Offered vs reached-origin RPS',
+      yFromZero: true,
+      series: [
+        { label: 'offered', points: offered, color: '#3b82f6' },
+        { label: 'reached origin', points: origin, color: '#10b981' },
+      ],
+    },
+    {
+      label: 'Absorbed by edge (%)',
+      yRange: [0, 100],
+      series: [{ label: 'absorbed %', points: absorbed, color: '#f59e0b' }],
+    },
+    {
+      label: 'Legitimate availability (%)',
+      yRange: [0, 100],
+      series: [{ label: 'probe avail %', points: avail, color: '#10b981' }],
+    },
+  ];
+}
 
+function RunMetricsPanels({ target, timeline }: { target: string; timeline: RunSample[] }) {
+  const host = hostOf(target) ?? target;
   const base = getGrafanaBase();
+  const panels = theaterPanels(timeline);
+  const enough = timeline.length >= 2;
+  const tMax = enough ? Math.round(Math.max(...timeline.map((s) => s.t), 1)) : 0;
   return (
     <div className="run-metrics">
       <div className="run-metrics-head">
-        <div className="posture-title">Run graphs · live (Prometheus)</div>
+        <div className="posture-title">Run graphs · live{enough ? ` · over ${tMax}s` : ''}</div>
         {base && (
           <a
             className="btn btn-sm btn-ghost"
@@ -911,19 +884,22 @@ function RunMetricsPanels({
         )}
       </div>
       <div className="run-metrics-grid">
-        {RUN_PANELS.map((p) => {
-          const r = ranges[p.series];
-          return (
-            <div key={p.series} className="run-metrics-panel">
-              <div className="rmp-title">{p.label}</div>
-              {r && r.series.some((s) => s.points.length > 1) ? (
-                <PromChart range={r} height={140} />
-              ) : (
-                <div className="timeline-pending hint">Collecting samples…</div>
-              )}
-            </div>
-          );
-        })}
+        {panels.map((p) => (
+          <div key={p.label} className="run-metrics-panel">
+            <div className="rmp-title">{p.label}</div>
+            {enough ? (
+              <UplotChart
+                series={p.series}
+                height={140}
+                timeAxis={false}
+                yRange={p.yRange}
+                yFromZero={p.yFromZero}
+              />
+            ) : (
+              <div className="timeline-pending hint">Collecting samples…</div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1430,6 +1406,7 @@ export function CampaignDrawer() {
 
 export function ExecuteModal() {
   const app = useApp();
+  const navigate = useNavigate();
   const c = app.confirmExec;
   useEscape(!!c, () => app.setConfirmExec(null));
   if (!c) return null;
@@ -1452,7 +1429,15 @@ export function ExecuteModal() {
           <button className="btn" onClick={() => app.setConfirmExec(null)}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={() => app.execute(c)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              // Kick off the run (blocks until it settles) and take the operator
+              // straight to Run Theater's live view instead of the card drawer.
+              void app.execute(c);
+              navigate(`/theater?run=${c.id}`);
+            }}
+          >
             Launch campaign
           </button>
         </div>

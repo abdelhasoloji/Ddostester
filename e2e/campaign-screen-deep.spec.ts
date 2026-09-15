@@ -76,8 +76,11 @@ test('Campaigns screen: filters, search, column sort, expand and archive — all
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, done)).getByRole('button', { name: 'Run', exact: true }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  // Launching lands on Run Theater; wait for completion, then return to Campaigns
+  // where the status chips/filters live.
+  await expect(eng).toHaveURL(/\/theater/);
   await expect(eng.getByText(/Run COMPLETED/i)).toBeVisible({ timeout: 20_000 });
-  await eng.keyboard.press('Escape');
+  await goTo(eng, 'Campaigns');
 
   const page = eng;
 

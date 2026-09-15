@@ -4,6 +4,7 @@ import { api } from './api.js';
 import type { ReconReport } from './api.js';
 import { hostOf, emptyForm } from './campaign-form.js';
 import { NewCampaignForm } from './new-campaign-form.js';
+import { ReconDetailModal } from './recon-detail.js';
 
 /**
  * E15 — the ONE recon-first way to create a campaign. The operator gives a
@@ -212,6 +213,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
   });
   // Which recon-discovered paths the operator has chosen to hit.
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [showIntel, setShowIntel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -283,10 +285,21 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
               {recon.preflight.go ? '✓ preflight GO' : '⚠ preflight NO-GO'}
             </span>
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={() => setPhase('target')}>
-            ← Change target
-          </button>
+          <div className="recon-first-head-actions">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => setShowIntel(true)}
+            >
+              full intel →
+            </button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPhase('target')}>
+              ← Change target
+            </button>
+          </div>
         </div>
+
+        {showIntel && <ReconDetailModal recon={recon} onClose={() => setShowIntel(false)} />}
 
         <div className="recon-first-grid">
           {p?.server && <span className="recon-chip srv">{p.server}</span>}

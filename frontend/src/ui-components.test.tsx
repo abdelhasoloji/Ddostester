@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
 import type { CampaignRun, Campaign } from './api.js';
+
+// CampaignCard now uses useNavigate ("Watch live →"), so every render needs a
+// Router in context.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 // CampaignCard reads the app context; keep canDo real, stub useApp per test.
 let fakeApp: Record<string, unknown>;

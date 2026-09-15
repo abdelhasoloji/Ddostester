@@ -24,13 +24,16 @@ async function seed(browser: Browser, over = {}) {
   return { name, ctx, page };
 }
 
-test('kill switch: engineer kills their own RUNNING campaign from the live drawer', async ({
+test('kill switch: engineer kills their own RUNNING campaign from Run Theater', async ({
   browser,
 }) => {
   // Regression guard for the kill-during-run fix: `execute()` blocks the page and
   // holds `busy`, but the kill switch is now gated on a separate `killing` flag, so
-  // it stays ENABLED throughout the run. Running auto-opens the live drawer.
-  const { name, ctx, page } = await seed(browser, { maxRps: 2, durationSec: 10 });
+  // it stays ENABLED throughout the run. Launching now sends the operator straight
+  // to Run Theater's live view (the card drawer no longer auto-opens).
+  // A longer run so the live Kill button stays present through the assertion
+  // window (a 10s run finished and emptied the theater before we could kill it).
+  const { name, ctx, page } = await seed(browser, { maxRps: 2, durationSec: 40 });
 
   const cctx = await browser.newContext();
   const ciso = await cctx.newPage();
@@ -44,12 +47,15 @@ test('kill switch: engineer kills their own RUNNING campaign from the live drawe
   await goTo(page, 'Campaigns');
   await (await openCard(page, name)).getByRole('button', { name: 'Run', exact: true }).click();
   await page.getByRole('button', { name: 'Launch campaign' }).click();
-  // The live drawer opens; its Kill switch is enabled (not disabled by `busy`).
-  const drawer = page.locator('aside.drawer');
-  const kill = drawer.getByRole('button', { name: 'Kill switch' });
+  // Landed in Run Theater; the run's Kill button is enabled (not disabled by `busy`).
+  await expect(page).toHaveURL(/\/theater/);
+  const kill = page.getByRole('button', { name: /Kill run/ });
   await expect(kill).toBeEnabled({ timeout: 15_000 });
   await kill.click();
-  await expect(drawer.locator('.kill-note')).toBeVisible({ timeout: 15_000 });
+  // The kill lands: back on Campaigns the row flips to a killed status (row-level,
+  // so it's robust against other runs sharing the in-memory store).
+  await goTo(page, 'Campaigns');
+  await expect(card(page, name).getByText(/killed/i)).toBeVisible({ timeout: 20_000 });
   await ctx.close();
   await cctx.close();
 });

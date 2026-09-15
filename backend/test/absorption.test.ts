@@ -1,5 +1,63 @@
 import { describe, it, expect } from 'vitest';
-import { computeAbsorption, splitFailures } from '../src/modules/reports/absorption.js';
+import {
+  computeAbsorption,
+  splitFailures,
+  normalizeErrorMap,
+  normalizeErrorKey,
+} from '../src/modules/reports/absorption.js';
+
+describe('normalizeErrorKey / normalizeErrorMap (collapse per-URL error noise)', () => {
+  it('strips the Method "URL": prefix so cache-busted timeouts collapse to one class', () => {
+    expect(
+      normalizeErrorKey('Post "https://bank.cz/?_cb=0o4hx0v": context deadline exceeded'),
+    ).toBe('context deadline exceeded');
+    expect(normalizeErrorKey('Get "https://bank.cz/?_cb=zzz": context deadline exceeded')).toBe(
+      'context deadline exceeded',
+    );
+  });
+
+  it('collapses a thousand unique cache-busted URLs into one counted class', () => {
+    const errors: Record<string, number> = {};
+    for (let i = 0; i < 1000; i++) {
+      errors[`Post "https://bank.cz/?_cb=${i.toString(36)}": context deadline exceeded`] = 1;
+    }
+    const out = normalizeErrorMap(errors);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toEqual({ label: 'context deadline exceeded', count: 1000 });
+  });
+
+  it('normalizes embedded host:port and durations to stable classes', () => {
+    expect(normalizeErrorKey('dial tcp 1.2.3.4:443: connect: connection refused')).toBe(
+      'dial tcp <addr>: connect: connection refused',
+    );
+    expect(
+      normalizeErrorKey('Get "https://x/": net/http: request canceled (Client.Timeout 10s)'),
+    ).toBe('net/http: request canceled (Client.Timeout <dur>)');
+  });
+
+  it('sorts by count desc and caps the list, folding the rest into an "other" bucket', () => {
+    const errors: Record<string, number> = {
+      'Post "https://x/?a": timeout': 50,
+      'Post "https://x/?b": connection reset': 30,
+      'Post "https://x/?c": e3': 5,
+      'Post "https://x/?d": e4': 4,
+      'Post "https://x/?e": e5': 3,
+      'Post "https://x/?f": e6': 2,
+      'Post "https://x/?g": e7': 1,
+      'Post "https://x/?h": e8': 1,
+    };
+    const out = normalizeErrorMap(errors, 3);
+    expect(out.slice(0, 3).map((e) => e.label)).toEqual(['timeout', 'connection reset', 'e3']);
+    expect(out).toHaveLength(4);
+    expect(out[3].label).toContain('other error kinds');
+    expect(out[3].count).toBe(4 + 3 + 2 + 1 + 1); // folded remainder
+  });
+
+  it('is empty-safe', () => {
+    expect(normalizeErrorMap(undefined)).toEqual([]);
+    expect(normalizeErrorMap({})).toEqual([]);
+  });
+});
 
 describe('splitFailures (edge mechanism: reject vs tarpit)', () => {
   it('classifies 0xx transport failures as TARPIT, not rejected (the Capacity-ceiling bug)', () => {
