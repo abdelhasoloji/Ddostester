@@ -82,12 +82,93 @@ export function suggestFromRecon(recon: ReconReport): Suggestion {
   };
 }
 
+/** A small, realistic client-diversity set used when UA rotation is enabled. */
+export const DEFAULT_UAS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+];
+
+export type LeverId = 'cacheBust' | 'calibrate' | 'rotateUa' | 'noKeepAlive';
+
+export interface LeverChoice {
+  id: LeverId;
+  label: string;
+  /** The recon signal that recommends this lever, or null when it is optional. */
+  signal: string | null;
+  /** Pre-checked when recon recommends it. */
+  recommended: boolean;
+  /** Plain-language reason, shown under the toggle. */
+  why: string;
+}
+
+/**
+ * Turns each recon signal into a delivery lever the operator can accept or drop
+ * with one click BEFORE launching — so the recon actually drives the run instead
+ * of being read-only advice. A lever with a `signal` is pre-checked (recon
+ * recommends it); optional levers start off. Pure, so it is unit-tested.
+ */
+export function deriveLevers(recon: ReconReport): LeverChoice[] {
+  const p = recon.profile?.posture ?? {};
+  const cached = recon.profile?.cache === 'hit';
+  return [
+    {
+      id: 'cacheBust',
+      label: 'Cache-busting',
+      signal: cached ? 'CDN cache · HIT' : p.cdn ? 'CDN detected' : null,
+      recommended: !!(cached || p.cdn),
+      why: 'Adds a unique token per request so the edge/CDN cache can’t serve a stored copy — every request reaches the origin, not the cache.',
+    },
+    {
+      id: 'calibrate',
+      label: 'Auto-calibrate rate',
+      signal: p.rateLimiting ? 'rate-limiter seen' : null,
+      recommended: !!p.rateLimiting,
+      why: 'A rate-limiter fronts the target — measure the deliverable rate first and grade at it, so the verdict is valid instead of a false inconclusive.',
+    },
+    {
+      id: 'rotateUa',
+      label: 'User-Agent rotation',
+      signal: p.waf ? 'WAF detected' : null,
+      recommended: !!p.waf,
+      why: 'The WAF inspects client fingerprints — rotating User-Agents exercises signature-based filtering.',
+    },
+    {
+      id: 'noKeepAlive',
+      label: 'No keep-alive',
+      signal: null,
+      recommended: false,
+      why: 'Optional: a fresh connection per request pressures the connection-accept / handshake path a keep-alive flood never touches.',
+    },
+  ];
+}
+
+/** Merge the toggled levers into the form seed (base config + lever booleans). */
+export function applyLevers(
+  base: Partial<typeof emptyForm>,
+  on: Record<LeverId, boolean>,
+): Partial<typeof emptyForm> {
+  return {
+    ...base,
+    cacheBust: on.cacheBust,
+    calibrate: on.calibrate,
+    noKeepAlive: on.noKeepAlive,
+    userAgents: on.rotateUa ? DEFAULT_UAS.join('\n') : '',
+  };
+}
+
 export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
   const app = useApp();
   const [target, setTarget] = useState('');
   const [phase, setPhase] = useState<'target' | 'recon' | 'compose'>('target');
   const [recon, setRecon] = useState<ReconReport | null>(null);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [leverOn, setLeverOn] = useState<Record<LeverId, boolean>>({
+    cacheBust: false,
+    calibrate: false,
+    rotateUa: false,
+    noKeepAlive: false,
+  });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -102,6 +183,13 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
       const r = await api.recon(target);
       setRecon(r);
       setSuggestion(suggestFromRecon(r));
+      // Pre-check the levers recon recommends; the operator adjusts before launch.
+      setLeverOn(
+        Object.fromEntries(deriveLevers(r).map((l) => [l.id, l.recommended])) as Record<
+          LeverId,
+          boolean
+        >,
+      );
       setPhase('recon');
     } catch (e) {
       setError((e as Error).message);
@@ -121,7 +209,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             Composing against <code>{host}</code> — fields pre-filled from recon; adjust anything.
           </span>
         </div>
-        <NewCampaignForm initial={suggestion.initial} onDone={onDone} />
+        <NewCampaignForm initial={applyLevers(suggestion.initial, leverOn)} onDone={onDone} />
       </div>
     );
   }
@@ -168,6 +256,32 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
               <li key={i}>{r}</li>
             ))}
           </ul>
+        </div>
+
+        <div className="recon-levers">
+          <div className="rk">
+            Delivery levers — recommended from recon, adjust before you launch
+          </div>
+          {deriveLevers(recon).map((lv) => (
+            <label key={lv.id} className={`lever${leverOn[lv.id] ? ' on' : ''}`}>
+              <input
+                type="checkbox"
+                checked={!!leverOn[lv.id]}
+                onChange={(e) => setLeverOn({ ...leverOn, [lv.id]: e.target.checked })}
+              />
+              <span className="lever-main">
+                <span className="lever-label">
+                  {lv.label}
+                  {lv.signal ? (
+                    <span className="lever-badge rec">recon: {lv.signal}</span>
+                  ) : (
+                    <span className="lever-badge opt">optional</span>
+                  )}
+                </span>
+                <span className="lever-why">{lv.why}</span>
+              </span>
+            </label>
+          ))}
         </div>
 
         <div className="page-actions">

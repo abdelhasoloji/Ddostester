@@ -14,7 +14,8 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: { ...actual.api, recon: (...a: unknown[]) => reconMock(...a) } };
 });
 
-const { suggestFromRecon, ReconFirstCreate } = await import('./recon-first-create.js');
+const { suggestFromRecon, deriveLevers, applyLevers, DEFAULT_UAS, ReconFirstCreate } =
+  await import('./recon-first-create.js');
 
 const base = (over: Partial<ReconReport>): ReconReport =>
   ({
@@ -63,6 +64,58 @@ describe('suggestFromRecon (E15)', () => {
   });
 });
 
+describe('deriveLevers (recon signal → recommended delivery lever)', () => {
+  const on = (levers: ReturnType<typeof deriveLevers>, id: string) =>
+    levers.find((l) => l.id === id)!;
+
+  it('recommends the WEDOS stack levers from a fronted origin (WAF+CDN+rate-limit)', () => {
+    const levers = deriveLevers(
+      base({
+        profile: {
+          posture: { server: 'LiteSpeed', waf: true, cdn: true, rateLimiting: true },
+          cache: 'hit',
+        } as never,
+      }),
+    );
+    expect(on(levers, 'cacheBust').recommended).toBe(true); // CDN cache HIT
+    expect(on(levers, 'cacheBust').signal).toMatch(/CDN cache/);
+    expect(on(levers, 'calibrate').recommended).toBe(true); // rate-limiter
+    expect(on(levers, 'calibrate').signal).toMatch(/rate-limiter/);
+    expect(on(levers, 'rotateUa').recommended).toBe(true); // WAF
+    expect(on(levers, 'rotateUa').signal).toMatch(/WAF/);
+    // no-keep-alive is always optional (no recon signal), off by default.
+    expect(on(levers, 'noKeepAlive').recommended).toBe(false);
+    expect(on(levers, 'noKeepAlive').signal).toBeNull();
+  });
+
+  it('recommends nothing for a bare origin (all posture false, no cache)', () => {
+    const levers = deriveLevers(base({ profile: { posture: {}, cache: 'dynamic' } as never }));
+    expect(levers.every((l) => l.recommended === false)).toBe(true);
+    // Every lever still carries a plain-language "why".
+    expect(levers.every((l) => l.why.length > 10)).toBe(true);
+  });
+});
+
+describe('applyLevers (toggles → form seed)', () => {
+  const off = { cacheBust: false, calibrate: false, rotateUa: false, noKeepAlive: false };
+
+  it('threads the boolean levers into the form config', () => {
+    const seed = applyLevers(
+      { target: 'https://bank.cz/' },
+      { ...off, cacheBust: true, calibrate: true, noKeepAlive: true },
+    );
+    expect(seed.cacheBust).toBe(true);
+    expect(seed.calibrate).toBe(true);
+    expect(seed.noKeepAlive).toBe(true);
+    expect(seed.target).toBe('https://bank.cz/'); // base preserved
+  });
+
+  it('seeds the User-Agent list only when UA rotation is on', () => {
+    expect(applyLevers({}, { ...off, rotateUa: true }).userAgents).toBe(DEFAULT_UAS.join('\n'));
+    expect(applyLevers({}, off).userAgents).toBe('');
+  });
+});
+
 describe('ReconFirstCreate (recon-first flow)', () => {
   beforeEach(() => {
     currentApp = makeApp({ allowed: ['bank.cz'] });
@@ -98,6 +151,46 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     expect(
       screen.getByRole('button', { name: /Compose from these findings/i }),
     ).toBeInTheDocument();
+  });
+
+  it('renders recon-recommended levers pre-checked and lets the operator toggle them', async () => {
+    reconMock.mockResolvedValue(
+      base({
+        profile: {
+          posture: { server: 'LiteSpeed', waf: true, cdn: true, rateLimiting: true },
+          cache: 'hit',
+        } as never,
+      }),
+    );
+    render(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    await waitFor(() => expect(screen.getByText(/Delivery levers/)).toBeInTheDocument());
+
+    // The three WEDOS-signalled levers are pre-checked; no-keep-alive is optional/off.
+    const cacheBust = screen.getByRole('checkbox', { name: /Cache-busting/i });
+    const calibrate = screen.getByRole('checkbox', { name: /Auto-calibrate rate/i });
+    const rotateUa = screen.getByRole('checkbox', { name: /User-Agent rotation/i });
+    const noKa = screen.getByRole('checkbox', { name: /No keep-alive/i });
+    expect(cacheBust).toBeChecked();
+    expect(calibrate).toBeChecked();
+    expect(rotateUa).toBeChecked();
+    expect(noKa).not.toBeChecked();
+    // The recon rationale is shown on the recommended levers.
+    expect(screen.getByText(/recon: rate-limiter seen/)).toBeInTheDocument();
+    expect(screen.getByText(/recon: WAF detected/)).toBeInTheDocument();
+
+    // The operator can drop a lever and add an optional one.
+    fireEvent.click(calibrate);
+    fireEvent.click(noKa);
+    expect(calibrate).not.toBeChecked();
+    expect(noKa).toBeChecked();
+
+    // Composing carries the choices into the launch form.
+    fireEvent.click(screen.getByRole('button', { name: /Compose from these findings/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
+    );
   });
 
   it('surfaces a recon error and stays on the target step', async () => {
