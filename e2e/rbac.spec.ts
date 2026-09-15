@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, goTo, createCampaign, card } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard } from './helpers.js';
 
 // RBAC coherence: what the UI offers must match what the role is allowed to do
 // (catalog section K). No visible control should lead to a 403.
@@ -15,7 +15,9 @@ test('engineer can create but cannot approve (C1)', async ({ page }) => {
   const name = await createCampaign(page, { name: `rbac-eng-${Date.now()}` });
   // The campaign is PENDING_APPROVAL, but the engineer role has no approve action.
   await expect(card(page, name)).toBeVisible();
-  await expect(card(page, name).getByRole('button', { name: /Approve/ })).toHaveCount(0);
+  await expect((await openCard(page, name)).getByRole('button', { name: /Approve/ })).toHaveCount(
+    0,
+  );
 });
 
 test('an admin (officer) has no create action — separation of administration (C2)', async ({
@@ -38,7 +40,7 @@ test('a CISO approves an engineer-authored campaign — author ≠ approver (C3)
   const ciso = await cisoCtx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   const approve = ciso.getByRole('button', { name: 'Approve', exact: true });
   await expect(approve).toBeEnabled(); // different author → approval allowed
   await approve.click();

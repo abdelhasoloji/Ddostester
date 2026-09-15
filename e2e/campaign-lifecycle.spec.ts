@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // The core end-to-end journey and its coherence across pages (catalog B/C/D/E/J).
 
@@ -23,19 +23,19 @@ test('full lifecycle: engineer creates → CISO approves → engineer runs → s
   await expect(card(off, name)).toBeVisible();
 
   // Approve (author is the engineer → allowed).
-  await card(off, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(off, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   const approve = off.getByRole('button', { name: 'Approve', exact: true });
   await expect(approve).toBeEnabled();
   await approve.click();
   await expect(card(off, name).getByText('Approved')).toBeVisible();
 
   // The CISO may NOT execute what they approved: no Run action for them.
-  await expect(card(off, name).getByRole('button', { name: 'Run' })).toHaveCount(0);
+  await expect((await openCard(off, name)).getByRole('button', { name: 'Run' })).toHaveCount(0);
 
   // The engineer (≠ approver) runs it. Refresh to pick up the APPROVED status.
   await eng.reload();
   await goTo(eng, 'Campaigns');
-  await card(eng, name).getByRole('button', { name: 'Run' }).click();
+  await (await openCard(eng, name)).getByRole('button', { name: 'Run' }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
   await expect(eng.getByText('Completed').first()).toBeVisible({ timeout: 20_000 });
 

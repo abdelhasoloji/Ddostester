@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Browser } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // Stateful campaign-card / drawer actions the other specs don't reach: the live
 // Kill switch on a RUNNING campaign (now enabled during a run — the kill guard was
@@ -36,13 +36,13 @@ test('kill switch: engineer kills their own RUNNING campaign from the live drawe
   const ciso = await cctx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(card(ciso, name).getByText('Approved')).toBeVisible();
 
   await page.reload();
   await goTo(page, 'Campaigns');
-  await card(page, name).getByRole('button', { name: 'Run', exact: true }).click();
+  await (await openCard(page, name)).getByRole('button', { name: 'Run', exact: true }).click();
   await page.getByRole('button', { name: 'Launch campaign' }).click();
   // The live drawer opens; its Kill switch is enabled (not disabled by `busy`).
   const drawer = page.locator('aside.drawer');
@@ -64,7 +64,7 @@ test('drawer: CISO approves from inside the drawer (modal layers above the drawe
   const ciso = await cctx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Details' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Details' }).click();
   const drawer = ciso.locator('aside.drawer');
   await expect(drawer).toBeVisible();
   await drawer.getByRole('button', { name: 'Approve / Reject' }).click();
@@ -74,16 +74,23 @@ test('drawer: CISO approves from inside the drawer (modal layers above the drawe
   await cctx.close();
 });
 
-test('campaign list: the sort select cycles recent / name / wrs', async ({ page }) => {
+test('campaign list: column headers drive the sort and toggle direction', async ({ page }) => {
   await login(page, 'engineer');
   await createCampaign(page, { name: `sort-${Date.now()}`, target: SELF, probe: SELF });
   await goTo(page, 'Campaigns');
-  const sort = page.locator('select:has(option[value="wrs"])').first();
-  await sort.selectOption('wrs');
-  await expect(sort).toHaveValue('wrs');
-  await sort.selectOption('name');
-  await expect(sort).toHaveValue('name');
-  await sort.selectOption('recent');
+  // The compact table's headers are the sort control: clicking one sets the sort
+  // (reflected in aria-sort on its <th>), clicking again reverses the direction.
+  const nameHeader = page.getByRole('columnheader', { name: /Name/ });
+  const nameBtn = nameHeader.getByRole('button', { name: /Name/ });
+  await nameBtn.click();
+  await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+  await nameBtn.click();
+  await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+  // Switching to another column moves the sort there (Name is no longer sorted).
+  const wrsHeader = page.getByRole('columnheader', { name: /WRS/ });
+  await wrsHeader.getByRole('button', { name: /WRS/ }).click();
+  await expect(wrsHeader).toHaveAttribute('aria-sort', 'descending');
+  await expect(nameHeader).toHaveAttribute('aria-sort', 'none');
   await noError(page);
 });
 

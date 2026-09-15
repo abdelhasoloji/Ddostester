@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, goTo, card, SELF } from './helpers.js';
+import { login, goTo, openCard, SELF } from './helpers.js';
 
 // Exhaustive coverage of the New-campaign classic form (NewCampaignForm), reached
 // through the one recon-first entry point. The other specs only ever fill the six
@@ -77,7 +77,7 @@ test('form: toggles (cache-bust, no-keep-alive, parallelism, concurrency) then s
 
   // Verify the config actually persisted (not just that submit worked): the
   // Details drawer's Load line reflects the concurrency we set.
-  await card(page, name).getByRole('button', { name: 'Details' }).click();
+  await (await openCard(page, name)).getByRole('button', { name: 'Details' }).click();
   await expect(page.locator('aside.drawer')).toContainText('10 conc');
   await noError(page);
 });

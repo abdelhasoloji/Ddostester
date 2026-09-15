@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // Results screen actions that require real completed runs: per-run View/Hide and
 // Report link, the aggregated compliance report + CSV export links, the share
@@ -18,12 +18,12 @@ async function runOne(eng: Page, ciso: Page, name: string): Promise<void> {
   await ciso.reload();
   const cisoCard = card(ciso, name);
   await expect(cisoCard).toBeVisible({ timeout: 15_000 });
-  await cisoCard.getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   await ciso.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(card(ciso, name).getByText('Approved')).toBeVisible();
   await eng.reload();
   await goTo(eng, 'Campaigns');
-  await card(eng, name).getByRole('button', { name: 'Run', exact: true }).click();
+  await (await openCard(eng, name)).getByRole('button', { name: 'Run', exact: true }).click();
   await eng.getByRole('button', { name: 'Launch campaign' }).click();
   // execute() blocks until the run finishes and auto-opens the live drawer. Wait
   // for the completion toast, then close the drawer so the next navigation isn't

@@ -77,7 +77,24 @@ export async function createCampaign(
   return name;
 }
 
-/** The campaign card element for a given name (scopes further queries). */
+/**
+ * The compact campaign table ROW for a given name — carries the name, status
+ * badge and WRS, so it answers visibility / status-text / count assertions
+ * directly. Action buttons live in the expandable detail: use `openCard` for
+ * those.
+ */
 export function card(page: Page, name: string) {
-  return page.locator('.campaign', { hasText: name });
+  return page.locator('tr.ct-row', { hasText: name });
+}
+
+/**
+ * Expand a campaign's table row and return its full CampaignCard (`.campaign`)
+ * for the per-campaign action buttons (Approve / Run / Archive / Details / …).
+ * Idempotent-ish: only clicks to open when the detail isn't already showing.
+ */
+export async function openCard(page: Page, name: string) {
+  const detail = page.locator('tr.ct-detail .campaign', { hasText: name });
+  if ((await detail.count()) === 0) await card(page, name).click();
+  await detail.first().waitFor({ state: 'visible' });
+  return detail.first();
 }

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, goTo, createCampaign, card, SELF } from './helpers.js';
+import { login, goTo, createCampaign, card, openCard, SELF } from './helpers.js';
 
 // Exhaustive-ish coverage of the CLICKABLE actions on every screen (not just the
 // API): every nav section renders, tabs switch, list filters/search/sort work,
@@ -115,7 +115,7 @@ test('approve modal opens and cancels (CISO) without side effects', async ({ bro
   const ciso = await cisoCtx.newPage();
   await login(ciso, 'ciso');
   await goTo(ciso, 'Campaigns');
-  await card(ciso, name).getByRole('button', { name: 'Approve / Reject' }).click();
+  await (await openCard(ciso, name)).getByRole('button', { name: 'Approve / Reject' }).click();
   await expect(ciso.getByRole('button', { name: 'Approve', exact: true })).toBeVisible();
   // Cancel the modal (scoped to the overlay) → the campaign stays Pending.
   await ciso.locator('.overlay').getByRole('button', { name: 'Cancel', exact: true }).click();
