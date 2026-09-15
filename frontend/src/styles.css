@@ -1694,6 +1694,12 @@ input.invalid {
   padding: 2px 7px;
   border-radius: 999px;
 }
+.xlayer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
 .xlayer-text {
   color: var(--muted);
   line-height: 1.4;

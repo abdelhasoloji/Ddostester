@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from './api.js';
-import type { Playbook } from './api.js';
+import type { Playbook, BenchCatalogue } from './api.js';
 import { useApp, canDo } from './context.js';
 import { hostOf } from './ui.js';
 import { PageHead } from './pages.js';
@@ -48,6 +48,10 @@ function PlaybookRow({
   onToggleSelect,
   onLaunch,
   onDelete,
+  canBench,
+  benchDispatch,
+  ladderBusy,
+  onRequestLadder,
 }: {
   pb: Playbook;
   canCreate: boolean;
@@ -58,6 +62,10 @@ function PlaybookRow({
   onToggleSelect: () => void;
   onLaunch: () => void;
   onDelete: () => void;
+  canBench: boolean;
+  benchDispatch: boolean;
+  ladderBusy: string | null;
+  onRequestLadder: (ladderId: string) => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
@@ -132,10 +140,29 @@ function PlaybookRow({
         {pb.companionBench && (
           <div className="xlayer-box" title={pb.companionBench.note}>
             <span className="xlayer-badge">⇄ Cross-layer</span>
-            <span className="xlayer-text">
-              Class-C network companion (<code>{pb.companionBench.ladder}</code>) — synthetic,
-              no-spoof, run on the isolated bench; its verdicts fuse into the WRS read-only.
-            </span>
+            <div className="xlayer-body">
+              <span className="xlayer-text">
+                Class-C network companion (<code>{pb.companionBench.ladder}</code>) — synthetic,
+                no-spoof, run on the isolated bench; its verdicts fuse into the WRS read-only.
+              </span>
+              {canBench &&
+                (benchDispatch ? (
+                  <button
+                    className="btn btn-sm"
+                    disabled={ladderBusy === pb.companionBench.ladder}
+                    onClick={() => onRequestLadder(pb.companionBench!.ladder)}
+                    title="Queue the class-C ladder's bench runs — the isolated lab runner executes them and posts read-only verdicts"
+                  >
+                    {ladderBusy === pb.companionBench.ladder ? <span className="spin" /> : null}⇄
+                    Request class-C ladder
+                  </button>
+                ) : (
+                  <span className="hint">
+                    Enable the lab runner (LAB_TARGETS + BENCH_RUNNER_TOKEN) to launch the class-C
+                    ladder from here.
+                  </span>
+                ))}
+            </div>
           </div>
         )}
         {canCreate && (
@@ -208,6 +235,46 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       .catch(() => setLoadState('error'));
   };
   useEffect(load, []);
+
+  // Class-C bench catalogue (for launching a template's companion ladder). Only a
+  // CISO with the lab runner configured can dispatch — others just see the note.
+  const canBench = canDo(app.role, 'bench', app.authRequired);
+  const [benchCat, setBenchCat] = useState<BenchCatalogue | null>(null);
+  const [ladderBusy, setLadderBusy] = useState<string | null>(null);
+  useEffect(() => {
+    if (!canBench) return;
+    api
+      .benchScenarios()
+      .then(setBenchCat)
+      .catch(() => undefined);
+  }, [canBench]);
+
+  const requestLadder = async (ladderId: string) => {
+    const ladder = benchCat?.ladders?.find((l) => l.id === ladderId);
+    if (!ladder) return;
+    setLadderBusy(ladderId);
+    try {
+      const dispatchable = new Set(
+        (benchCat?.scenarios ?? []).filter((s) => s.reproducible).map((s) => s.id),
+      );
+      let queued = 0;
+      for (const scenario of ladder.scenarios) {
+        if (!dispatchable.has(scenario)) continue;
+        try {
+          await api.createBenchRun(scenario);
+          queued++;
+        } catch {
+          /* skip a scenario the backend refuses; keep queuing the rest */
+        }
+      }
+      app.push(
+        'success',
+        `Queued ${queued} class-C bench run(s) — track them in Settings › Network bench.`,
+      );
+    } finally {
+      setLadderBusy(null);
+    }
+  };
 
   const canCreate = canDo(app.role, 'create', app.authRequired);
   const targetHost = hostOf(target);
@@ -494,6 +561,10 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                 onToggleSelect={() => toggleSelect(pb.id)}
                 onLaunch={() => launch(pb)}
                 onDelete={() => removePlaybook(pb)}
+                canBench={canBench}
+                benchDispatch={benchCat?.dispatchEnabled ?? false}
+                ladderBusy={ladderBusy}
+                onRequestLadder={requestLadder}
               />
             ))}
           </div>
@@ -517,6 +588,10 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                   onToggleSelect={() => toggleSelect(pb.id)}
                   onLaunch={() => launch(pb)}
                   onDelete={() => removePlaybook(pb)}
+                  canBench={canBench}
+                  benchDispatch={benchCat?.dispatchEnabled ?? false}
+                  ladderBusy={ladderBusy}
+                  onRequestLadder={requestLadder}
                 />
               ))}
             </div>
