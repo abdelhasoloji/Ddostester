@@ -83,3 +83,22 @@ export function scaleScenario(phases: ScenarioPhase[], factor: number): Scenario
 export function peakRps(maxRps: number, phases?: ScenarioPhase[]): number {
   return phases?.length ? Math.max(...phases.map((p) => p.maxRps)) : maxRps;
 }
+
+/**
+ * The time-weighted MEAN offered rate of a scenario — the rate the run intends to
+ * offer averaged over its whole duration. For a constant profile this equals
+ * `maxRps`; for a wave (100/20/100 %) it is ~73% of the peak, for a ramp
+ * (25/50/100 %) ~58%. Pure.
+ *
+ * This is the honest denominator for a DELIVERY check: a faithfully-delivered
+ * wave's mean throughput is naturally below its peak, so measuring delivery
+ * against the peak makes a perfect wave look under-delivered (and a ramp look
+ * INCONCLUSIVE at ~58%). Delivery is "did we offer the load the scenario meant to
+ * offer", which is the mean — not the peak.
+ */
+export function scenarioMeanRps(maxRps: number, phases?: ScenarioPhase[]): number {
+  if (!phases?.length) return maxRps;
+  const totalDur = phases.reduce((s, p) => s + p.durationSec, 0);
+  if (totalDur <= 0) return maxRps;
+  return phases.reduce((s, p) => s + p.maxRps * p.durationSec, 0) / totalDur;
+}

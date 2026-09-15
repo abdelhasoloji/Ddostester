@@ -3,6 +3,7 @@ import {
   calibratedRate,
   scaleScenario,
   peakRps,
+  scenarioMeanRps,
   CALIBRATION_KEEP_THRESHOLD,
   CALIBRATION_SAFETY,
 } from '../src/modules/campaigns/calibration.js';
@@ -102,5 +103,41 @@ describe('peakRps', () => {
       ]),
     ).toBe(800);
     expect(peakRps(400, [])).toBe(400);
+  });
+});
+
+describe('scenarioMeanRps (delivery denominator: the intended mean, not the peak)', () => {
+  it('equals maxRps for a constant profile (no phases)', () => {
+    expect(scenarioMeanRps(500)).toBe(500);
+    expect(scenarioMeanRps(500, [])).toBe(500);
+  });
+
+  it('is ~73% of the peak for the wave shape (100/20/100 %)', () => {
+    // buildScenario('wave', 800, T) → phases at 800, 160, 800 of equal duration.
+    const wave = [
+      { maxRps: 800, durationSec: 60 },
+      { maxRps: 160, durationSec: 60 },
+      { maxRps: 800, durationSec: 60 },
+    ];
+    expect(scenarioMeanRps(800, wave)).toBeCloseTo((800 + 160 + 800) / 3, 5);
+    expect(scenarioMeanRps(800, wave) / 800).toBeCloseTo(0.7333, 3);
+  });
+
+  it('is ~58% of the peak for the ramp shape (25/50/100 %) — which would falsely fail at the peak', () => {
+    const ramp = [
+      { maxRps: 250, durationSec: 40 },
+      { maxRps: 500, durationSec: 40 },
+      { maxRps: 1000, durationSec: 40 },
+    ];
+    expect(scenarioMeanRps(1000, ramp) / 1000).toBeCloseTo(0.5833, 3);
+  });
+
+  it('time-weights phases of unequal duration', () => {
+    const phases = [
+      { maxRps: 1000, durationSec: 90 },
+      { maxRps: 100, durationSec: 10 },
+    ];
+    // (1000×90 + 100×10) / 100 = 910
+    expect(scenarioMeanRps(1000, phases)).toBe(910);
   });
 });

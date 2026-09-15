@@ -63,6 +63,38 @@ describe('computeAbsorption', () => {
     expect(a.offeredShortfall).toBeCloseTo(0.6, 5); // 1 - 120/300
   });
 
+  it('measures shortfall against the EXPECTED mean rate, not the peak (wave/ramp)', () => {
+    // A faithfully-delivered wave: peak 800, its scenario mean is ~586 (73% of
+    // peak), and it delivered 570 — that is NOT a shortfall, it's the wave shape.
+    const a = computeAbsorption({
+      configuredRps: 800, // peak (for display)
+      expectedRps: 586, // intended mean over the wave
+      achievedRps: 570,
+      totalRequests: 100000,
+      successful: 100000,
+      failed: 0,
+      durationSec: 180,
+    });
+    expect(a.configuredRps).toBe(800); // peak still reported for display
+    expect(a.expectedRps).toBe(586);
+    // 1 - 570/586 ≈ 0.027 — essentially delivered, not the false 1-570/800 = 0.29.
+    expect(a.offeredShortfall).toBeCloseTo(1 - 570 / 586, 5);
+    expect(a.offeredShortfall).toBeLessThan(0.05);
+  });
+
+  it('defaults expectedRps to configuredRps for a constant profile', () => {
+    const a = computeAbsorption({
+      configuredRps: 400,
+      achievedRps: 400,
+      totalRequests: 1000,
+      successful: 1000,
+      failed: 0,
+      durationSec: 10,
+    });
+    expect(a.expectedRps).toBe(400);
+    expect(a.offeredShortfall).toBe(0);
+  });
+
   it('clamps offered shortfall to [0,1] when achieved exceeds configured', () => {
     const a = computeAbsorption({
       configuredRps: 100,

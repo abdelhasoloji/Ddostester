@@ -5,6 +5,7 @@ import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { riskLevel } from './compliance.js';
 import { computeAbsorption } from './absorption.js';
+import { scenarioMeanRps } from '../campaigns/calibration.js';
 import { computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
 import { availabilityPct } from '../../util/run-metrics.js';
@@ -64,6 +65,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     run.absorption ??
     computeAbsorption({
       configuredRps,
+      // Delivery is measured against the scenario's intended mean, not its peak
+      // (a wave/ramp's mean is below its peak). Live runs carry this in
+      // run.absorption; recompute it here for older runs that predate it.
+      expectedRps: Math.round(scenarioMeanRps(campaign.maxRps, campaign.scenario)),
       achievedRps: g.actualRps,
       totalRequests: g.totalRequests,
       successful: g.successful,
