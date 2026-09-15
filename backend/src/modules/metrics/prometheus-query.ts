@@ -28,6 +28,30 @@ export interface PromRange {
   stepS: number;
 }
 
+/**
+ * Computes the query window from request options. Pure, so it is unit-tested.
+ *
+ * `sinceSec` scopes the window to a specific span — the live run's elapsed time —
+ * so a Run-Theater chart shows ONLY the current run, not stale gauge samples from
+ * earlier runs against the same target that a fixed `minutes` lookback would pick
+ * up (which started the x-axis at an unrelated old run and made the line look
+ * frozen). It wins over `minutes`; both are clamped.
+ */
+export function rangeWindow(
+  nowMs: number,
+  opts: { minutes?: number | string; sinceSec?: number | string; step?: number | string },
+): PromRange {
+  const endS = Math.floor(nowMs / 1000);
+  const mins = Math.min(Math.max(Number(opts.minutes) || 15, 1), 1440);
+  const stepS = Math.min(Math.max(Number(opts.step) || 15, 5), 3600);
+  const since = Number(opts.sinceSec);
+  const startS =
+    Number.isFinite(since) && since > 0
+      ? endS - Math.min(Math.max(Math.floor(since), 5), 86400)
+      : endS - mins * 60;
+  return { startS, endS, stepS };
+}
+
 /** The slice of `fetch` we use — injectable so the query path is unit-testable. */
 export type FetchLike = (
   url: string,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   api,
   reportUrl,
@@ -467,7 +467,11 @@ export function RunTheater({
           )}
 
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels target={target} fallbackTimeline={p.timeline ?? []} />
+            <RunMetricsPanels
+              target={target}
+              fallbackTimeline={p.timeline ?? []}
+              elapsedSec={p.elapsedSec}
+            />
           </div>
         </>
       )}
@@ -822,20 +826,35 @@ const RUN_PANELS: { series: string; label: string }[] = [
 function RunMetricsPanels({
   target,
   fallbackTimeline,
+  elapsedSec,
 }: {
   target: string;
   fallbackTimeline: RunSample[];
+  /** The live run's elapsed time — scopes the Prometheus window to THIS run, so
+   *  stale gauge samples from earlier runs against the same target never bleed in
+   *  (which froze the chart and started its x-axis at an unrelated old run). */
+  elapsedSec?: number;
 }) {
   const host = hostOf(target) ?? target;
   const [ranges, setRanges] = useState<Record<string, MetricsRange>>({});
   const [promOk, setPromOk] = useState<boolean | null>(null); // null = unknown yet
+  // The elapsed time grows each tick but the poll effect only re-subscribes on a
+  // host change — so read it through a ref, and the window grows WITH the run.
+  const elapsedRef = useRef(elapsedSec);
+  elapsedRef.current = elapsedSec;
 
   useEffect(() => {
     let live = true;
     const pull = async () => {
+      // A small pad past the elapsed time keeps the run's very first sample in
+      // view; a 30s floor gives an early run a sensible window.
+      const el = elapsedRef.current;
+      const sinceSec = el != null ? Math.max(30, Math.ceil(el) + 8) : undefined;
       const results = await Promise.all(
         RUN_PANELS.map((p) =>
-          api.metricsRange(p.series, { target: host, minutes: 15, step: 5 }).catch(() => null),
+          api
+            .metricsRange(p.series, { target: host, minutes: 15, step: 5, sinceSec })
+            .catch(() => null),
         ),
       );
       if (!live) return;
