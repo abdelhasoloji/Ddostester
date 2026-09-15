@@ -389,14 +389,8 @@ describe('Run Theater', () => {
 });
 
 describe('Results page', () => {
-  it('expands a run inline with its full detail', async () => {
-    currentApp = makeApp({ role: 'engineer', campaigns: [scoredCampaign] });
-    renderWithRouter(<ReportsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
-    await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
-    await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
-  });
-
+  // Per-run detail now lives on the Campaigns list (filter Done, expand a row);
+  // Results is the cross-campaign surface — suite verdicts, compare, compliance.
   it('renders an inline mitigation-proof verdict when two runs are compared', async () => {
     currentApp = makeApp({
       role: 'engineer',

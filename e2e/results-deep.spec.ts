@@ -33,7 +33,7 @@ async function runOne(eng: Page, ciso: Page, name: string): Promise<void> {
   await expect(eng.locator('aside.drawer')).toHaveCount(0);
 }
 
-test('results: two completed runs — per-run View/Report, exports, share, compare', async ({
+test('results: the cross-campaign surface — compliance exports, share, before/after compare', async ({
   browser,
 }) => {
   test.slow(); // two real runs + settle time
@@ -50,18 +50,8 @@ test('results: two completed runs — per-run View/Report, exports, share, compa
   await runOne(eng, ciso, a);
   await runOne(eng, ciso, b);
 
-  // Both runs land in Results under "Measured runs".
+  // Results is now the CROSS-campaign surface (per-run detail lives on Campaigns).
   await goTo(eng, 'Results');
-  await expect(eng.locator('.report-row', { hasText: a })).toBeVisible({ timeout: 20_000 });
-  await expect(eng.locator('.report-row', { hasText: b })).toBeVisible({ timeout: 20_000 });
-
-  // Per-run: View expands the detail, then Hide collapses it.
-  const rowA = eng.locator('.report-row', { hasText: a });
-  await rowA.getByRole('button', { name: 'View' }).click();
-  await expect(rowA.getByRole('button', { name: 'Hide' })).toBeVisible();
-  await rowA.getByRole('button', { name: 'Hide' }).click();
-  // Report ↗ points at the run report.
-  await expect(rowA.getByRole('link', { name: /Report/ })).toHaveAttribute('href', /.+/);
 
   // Aggregated compliance exports.
   await expect(eng.getByRole('link', { name: /Open compliance report/ })).toHaveAttribute(
