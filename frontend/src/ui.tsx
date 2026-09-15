@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { reportUrl, runTimelineCsvUrl, streamUrl, getGrafanaBase, grafanaRunUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
+import { ReplayFromRun } from './replay-from-run.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -1390,6 +1391,7 @@ export function CampaignDrawer() {
         </dl>
 
         {c.status === 'RUNNING' && <LiveProgress campaignId={c.id} agent={c.agent} />}
+        {run && c.status !== 'RUNNING' && <ReplayFromRun campaign={c} run={run} />}
         {run ? (
           <RunDetails run={run} />
         ) : (

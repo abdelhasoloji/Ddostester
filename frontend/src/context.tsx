@@ -12,6 +12,7 @@ import type {
   Alert,
 } from './api.js';
 import type { Preset } from './presets.js';
+import type { CampaignFormSeed } from './campaign-form.js';
 
 export interface Identity {
   email: string;
@@ -94,6 +95,11 @@ interface Ctx {
   draftPreset: Preset | null;
   applyPreset: (p: Preset) => void;
   clearDraftPreset: () => void;
+  /** A full form seed queued from a completed run's "replay accounting for
+   *  countermeasures" — pre-fills the new-campaign form. */
+  draftCampaign: Partial<CampaignFormSeed> | null;
+  queueReplay: (seed: Partial<CampaignFormSeed>) => void;
+  clearDraftCampaign: () => void;
   /** Update the effective caps in-app after the CISO saves new operational limits. */
   applyEffectiveCaps: (caps: HardCaps) => void;
   setOperator: (v: string) => void;
@@ -165,6 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [wrsSeries, setWrsSeries] = useState<WrsSeries[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [draftPreset, setDraftPreset] = useState<Preset | null>(null);
+  const [draftCampaign, setDraftCampaign] = useState<Partial<CampaignFormSeed> | null>(null);
 
   const role = identity?.role ?? null;
 
@@ -272,6 +279,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const applyPreset = useCallback((p: Preset) => setDraftPreset(p), []);
   const clearDraftPreset = useCallback(() => setDraftPreset(null), []);
+  const queueReplay = useCallback((seed: Partial<CampaignFormSeed>) => setDraftCampaign(seed), []);
+  const clearDraftCampaign = useCallback(() => setDraftCampaign(null), []);
   const applyEffectiveCaps = useCallback((caps: HardCaps) => setHardCaps(caps), []);
 
   const login = async (email: string, password: string) => {
@@ -481,6 +490,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     draftPreset,
     applyPreset,
     clearDraftPreset,
+    draftCampaign,
+    queueReplay,
+    clearDraftCampaign,
     applyEffectiveCaps,
     setOperator,
     setExpanded,
