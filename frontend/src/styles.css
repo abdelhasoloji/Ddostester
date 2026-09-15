@@ -243,6 +243,18 @@ textarea {
   color: var(--text);
   width: 100%;
 }
+/* Checkboxes and radios must NOT inherit the text-input full-width/padding/border
+   above — otherwise a `flex:none` checkbox becomes 100%-wide and eats its row
+   (which broke the recon levers/paths layout). Reset them to their native box. */
+input[type='checkbox'],
+input[type='radio'] {
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--brand);
+}
 input:focus,
 select:focus,
 textarea:focus {
