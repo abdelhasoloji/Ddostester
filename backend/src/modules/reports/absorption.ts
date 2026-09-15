@@ -63,6 +63,31 @@ export interface AbsorptionInput {
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
+/**
+ * Split generator failures into the two edge mechanisms. Pure.
+ *  - rejected  : the edge ANSWERED refusing — a 4xx/5xx HTTP status.
+ *  - tarpitted : the edge HELD the connection until it failed with NO HTTP response
+ *    (timeout/reset/abort). External engines report these as a `0xx`/`err` status
+ *    bucket (vegeta maps code 0 → "0xx"). Counting those as "rejected" mislabels a
+ *    tarpit — a cache-busted GET that holds the origin to 10s timeouts reads as
+ *    {0xx: 77309, 2xx: 18660}, which is a tarpit, not a 4xx/5xx rejection.
+ * Falls back to the `errors` map count when the engine buckets no transport status.
+ */
+export function splitFailures(
+  statusCounts: Record<string, number>,
+  errors: Record<string, number> = {},
+): { rejected: number; tarpitted: number } {
+  const isTransport = (b: string) => b === '0xx' || b === 'err';
+  const rejected = Object.entries(statusCounts)
+    .filter(([b]) => b !== '2xx' && b !== '3xx' && !isTransport(b))
+    .reduce((s, [, n]) => s + n, 0);
+  const transportFailures = Object.entries(statusCounts)
+    .filter(([b]) => isTransport(b))
+    .reduce((s, [, n]) => s + n, 0);
+  const tarpitted = transportFailures || Object.values(errors).reduce((s, n) => s + n, 0);
+  return { rejected, tarpitted };
+}
+
 export function computeAbsorption(i: AbsorptionInput): Absorption {
   const total = Math.max(0, i.totalRequests);
   // Delivery is measured against the rate the scenario meant to offer (its mean),

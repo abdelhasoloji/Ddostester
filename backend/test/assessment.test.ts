@@ -252,6 +252,37 @@ describe('assessVector — breach vs probe contention', () => {
     expect(va.verdict).toBe('inconclusive');
   });
 
+  it('a completed run that collapsed legit availability below 50% is breached, not just partial', () => {
+    // The Capacity-ceiling run: tarpitted the origin, legit availability 40%, but it
+    // completed (no auto-kill). 40% available = unavailable the majority of the run.
+    const va = assessVector(
+      mkRun({
+        availCount: 40,
+        absorption: abs({ cfg: 800, ach: 800, absorbed: 0.806, tar: 0.806 }),
+      }),
+      ctx({ shape: 'Capacity ceiling', drs: '4' }),
+    );
+    expect(va.verdict).toBe('breached');
+    expect(va.mechanism).toBe('tarpitted');
+    expect(va.observation).toMatch(/collapsed to 40%/);
+  });
+
+  it('a mild availability dip (≥50%) stays partial, not breached', () => {
+    const va = assessVector(
+      mkRun({ availCount: 60, absorption: abs({ cfg: 800, ach: 790, absorbed: 0 }) }),
+      ctx(),
+    );
+    expect(va.verdict).toBe('partial');
+  });
+
+  it('a low-availability run under probe contention is NOT breached (false negative guarded)', () => {
+    const va = assessVector(
+      mkRun({ availCount: 40, probeContended: true, absorption: abs({ cfg: 800, ach: 800 }) }),
+      ctx(),
+    );
+    expect(va.verdict).not.toBe('breached');
+  });
+
   it('a generator-degraded run is inconclusive even at 100% availability', () => {
     const va = assessVector(
       mkRun({

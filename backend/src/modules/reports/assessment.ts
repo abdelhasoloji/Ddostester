@@ -44,6 +44,14 @@ export type VectorVerdict =
 export const DELIVERY_MIN = 0.7;
 /** At/below this absorbed fraction the origin effectively served the load itself. */
 const SERVED_ABSORB_MAX = 0.05;
+/**
+ * Below this legitimate availability the target was unavailable for the MAJORITY of
+ * the run — a real outage, not a dip. Such a run is `breached` even when it wasn't
+ * auto-killed (it may have recovered enough by the end to complete): grading it
+ * `partial` on the final/average availability alone understated an 800-rps flood
+ * that held legit traffic at ~0% for ~80s and recovered to 40%.
+ */
+const AVAIL_BREACH = 50;
 
 export interface VectorContext {
   shape: string;
@@ -162,6 +170,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   else if (!run) verdict = 'inconclusive';
   else if (underDelivered || run.confidence?.degraded) verdict = 'inconclusive';
   else if (avail >= 99) verdict = 'held';
+  else if (avail < AVAIL_BREACH && !run.probeContended) verdict = 'breached';
   else verdict = 'partial';
 
   const confident =
@@ -243,6 +252,16 @@ function buildObservation(x: {
 }): string {
   if (x.status === 'KILLED_AUTO' && x.verdict === 'breached') {
     return `Not mitigated — the target went unavailable (${x.availPct}% legitimate availability). ${x.statusDetail ?? 'The safety kill-switch stopped the run.'}`;
+  }
+  if (x.verdict === 'breached') {
+    // A completed run that nonetheless drove legitimate availability below the
+    // breach floor — the target was unavailable for the majority of the run.
+    const mech = describeMechanism(x.mechanism, x.originRps, x.absorbedPct, x.isSlow);
+    const tail = x.wrs != null ? ` WRS ${x.wrs} (${x.level}).` : '';
+    return (
+      `Not held — legitimate availability collapsed to ${x.availPct}% (the target was unavailable for ` +
+      `the majority of the run). ${mech}.${tail}`
+    );
   }
   if (x.status === 'KILLED_MANUAL') {
     return `Run aborted manually — ${x.statusDetail ?? 'stopped by an operator'}; no resilience verdict.`;

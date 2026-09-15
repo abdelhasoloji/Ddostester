@@ -1,5 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { computeAbsorption } from '../src/modules/reports/absorption.js';
+import { computeAbsorption, splitFailures } from '../src/modules/reports/absorption.js';
+
+describe('splitFailures (edge mechanism: reject vs tarpit)', () => {
+  it('classifies 0xx transport failures as TARPIT, not rejected (the Capacity-ceiling bug)', () => {
+    // A cache-busted GET that tarpits the origin to 10s timeouts.
+    const s = splitFailures({ '0xx': 77309, '2xx': 18660 });
+    expect(s.tarpitted).toBe(77309); // held to timeout — a tarpit
+    expect(s.rejected).toBe(0); // NOT a 4xx/5xx rejection
+  });
+
+  it('classifies 4xx/5xx as rejected (the edge answered a refusal)', () => {
+    const s = splitFailures({ '2xx': 100, '4xx': 300, '5xx': 50 });
+    expect(s.rejected).toBe(350);
+    expect(s.tarpitted).toBe(0);
+  });
+
+  it('treats an "err" bucket as tarpit too, and falls back to the errors map', () => {
+    expect(splitFailures({ err: 40, '2xx': 10 }).tarpitted).toBe(40);
+    // No transport status bucket → fall back to the errors map count.
+    expect(splitFailures({ '2xx': 10 }, { timeout: 12, reset: 3 }).tarpitted).toBe(15);
+  });
+
+  it('mixes both mechanisms correctly', () => {
+    const s = splitFailures({ '2xx': 200, '4xx': 100, '0xx': 500 });
+    expect(s.rejected).toBe(100); // 4xx
+    expect(s.tarpitted).toBe(500); // 0xx
+  });
+});
 
 describe('computeAbsorption', () => {
   it('computes origin RPS and absorbed ratio from generator stats', () => {
