@@ -115,6 +115,15 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
         `so resilience at the full DRS ${ctx.drs} rate is unproven.`,
     );
   }
+  const cal = run?.calibration;
+  if (cal?.calibrated) {
+    caveats.push(
+      `Rate-calibrated: the requested ${cal.requestedRps} req/s exceeded what the generator ` +
+        `could deliver against this target on one box (measured ${cal.deliveredRps} req/s), so ` +
+        `the graded run was offered at ${cal.appliedRps} req/s. The verdict is valid AT ${cal.appliedRps} req/s; ` +
+        `proving resilience at the full ${cal.requestedRps} req/s needs multi-box generation.`,
+    );
+  }
   if (run?.confidence?.degraded) caveats.push(...(run.confidence.reasons ?? []));
   if (run?.probeContended) {
     caveats.push(
@@ -153,6 +162,31 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     !run?.confidence?.degraded &&
     !run?.probeContended;
 
+  let observation = buildObservation({
+    mechanism,
+    verdict,
+    isSlow,
+    availPct: Math.round(avail),
+    originRps: Math.round(originRps),
+    achievedRps: Math.round(achievedRps),
+    configuredRps,
+    absorbedPct: a?.absorbedPct ?? 0,
+    wrs,
+    level,
+    underDelivered,
+    deliveryRatio,
+    drs: ctx.drs,
+    statusDetail: run?.statusDetail,
+    status: ctx.status,
+  });
+  // Be explicit when the graded rate was the calibrated deliverable ceiling, so
+  // the verdict is never mistaken for one proven at the full requested rate.
+  if (cal?.calibrated) {
+    observation +=
+      ` (Rate-calibrated: graded at ${cal.appliedRps} req/s — the deliverable ceiling here — ` +
+      `not the requested ${cal.requestedRps} req/s.)`;
+  }
+
   return {
     shape: ctx.shape,
     drs: ctx.drs,
@@ -174,23 +208,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     verdict,
     confident,
     caveats,
-    observation: buildObservation({
-      mechanism,
-      verdict,
-      isSlow,
-      availPct: Math.round(avail),
-      originRps: Math.round(originRps),
-      achievedRps: Math.round(achievedRps),
-      configuredRps,
-      absorbedPct: a?.absorbedPct ?? 0,
-      wrs,
-      level,
-      underDelivered,
-      deliveryRatio,
-      drs: ctx.drs,
-      statusDetail: run?.statusDetail,
-      status: ctx.status,
-    }),
+    observation,
     label: verdict,
   };
 }

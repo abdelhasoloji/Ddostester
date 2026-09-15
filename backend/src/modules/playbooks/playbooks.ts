@@ -78,6 +78,14 @@ export interface PlaybookStep {
    * Clamped to [1, MAX_VEGETA_PARALLELISM] downstream.
    */
   parallelism?: number;
+  /**
+   * Closed-loop rate calibration (GEN-1): fire a short pre-flight burst to
+   * measure the deliverable rate, then grade at it instead of an aspirational
+   * rate the box can't sustain. Recommended on high-rate composite/pulse lines
+   * whose configured rate may exceed a single box's throughput, so their verdict
+   * is a valid measurement rather than an under-delivered INCONCLUSIVE.
+   */
+  calibrate?: boolean;
 }
 
 /**
@@ -217,6 +225,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
       paths,
       rotateUa: s.rotateUa === true,
+      calibrate: s.calibrate === true,
       headers,
       cacheBust: s.cacheBust === true || undefined,
       noKeepAlive: s.noKeepAlive === true || undefined,
@@ -1280,6 +1289,9 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'builtin',
         paths: ['/', '/account', '/api/catalog', '/search?q=test', '/login'],
         rotateUa: true,
+        // Composite 800 rps may exceed a single box's throughput — calibrate so
+        // the verdict is a valid measurement, not an under-delivered inconclusive.
+        calibrate: true,
       },
       {
         name: 'THOR / PulseWave — synchronized (DRS5)',
@@ -1289,6 +1301,9 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         maxDurationSec: 180,
         profile: 'wave',
         agent: 'k6',
+        // A 1000 rps pulse tops a single k6 process's ceiling (~650 rps observed);
+        // calibrate to grade the pulse at its real deliverable amplitude.
+        calibrate: true,
       },
       {
         name: 'MultiTarget / carpet-bombing (DRS5)',
@@ -1302,6 +1317,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'builtin',
         paths: ['/', '/account', '/portal', '/api/catalog', '/assets/app.js', '/search?q=x'],
         rotateUa: true,
+        // Composite 800 rps may exceed a single box's throughput — calibrate.
+        calibrate: true,
       },
     ],
   },
@@ -1993,6 +2010,7 @@ function campaignInputFromStep(
     cacheBust: step.cacheBust,
     noKeepAlive: step.noKeepAlive,
     parallelism: step.parallelism,
+    calibrate: step.calibrate,
     recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,
     suiteId: o.suiteId,
     suiteName: o.suiteName,

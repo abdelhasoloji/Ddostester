@@ -169,6 +169,38 @@ describe('threat-informed playbooks', () => {
     expect(wave.userAgents?.length).toBeGreaterThan(1);
   });
 
+  it('marks the DRS5 composite lines for closed-loop rate calibration (GEN-1)', () => {
+    const inputs = buildSuiteCampaigns(getPlaybook('pretest-cra-l7')!, target, engines);
+    const byName = (frag: string) => inputs.find((i) => i.name.includes(frag))!;
+    // The three high-rate composites/pulse whose configured rate may exceed a
+    // single box's throughput are calibrated so their verdict is valid, not an
+    // under-delivered inconclusive.
+    expect(byName('MultiVector').calibrate).toBe(true);
+    expect(byName('THOR').calibrate).toBe(true);
+    expect(byName('MultiTarget').calibrate).toBe(true);
+    // A plain single-vector line is NOT calibrated (it already delivers its rate).
+    expect(byName('GET-Flood').calibrate).toBeFalsy();
+  });
+
+  it('flows a step-level calibrate flag through instantiation to the campaign input', () => {
+    const pb = validatePlaybookInput({
+      name: 'calib-step',
+      steps: [
+        {
+          name: 'calibrated line',
+          maxRps: 800,
+          concurrency: 100,
+          maxDurationSec: 60,
+          profile: 'constant',
+          calibrate: true,
+        },
+      ],
+    });
+    expect(pb.steps[0].calibrate).toBe(true);
+    const [input] = buildSuiteCampaigns(pb, target, engines);
+    expect(input.calibrate).toBe(true);
+  });
+
   it('attaches the UA rotation set to a vegeta-resolved step (vegeta rotates UAs now)', () => {
     // The DRS5 composite fix: UA rotation is no longer built-in-only. A step that
     // resolves to vegeta must still carry its userAgents so vegeta can spread them

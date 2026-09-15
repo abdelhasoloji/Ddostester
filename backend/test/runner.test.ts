@@ -151,4 +151,108 @@ describe('executeCampaign — run time-series', () => {
     expect(html).toContain('4s'); // TTD
     expect(html).toContain('11s'); // TTM
   }, 15000);
+
+  // ── Closed-loop rate calibration (GEN-1) ──────────────────────────────────────
+  // A fake agent lets us force under-delivery on the calibration burst and assert
+  // the graded run is then offered at the calibrated (lowered) rate.
+  const fakeResult = (maxRps: number, actualRps: number) => ({
+    id: `res-${Math.random().toString(36).slice(2)}`,
+    config: {} as never,
+    startedAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString(),
+    totalRequests: actualRps * 2,
+    successful: actualRps * 2,
+    failed: 0,
+    statusCounts: {},
+    latencyMs: { min: 1, max: 5, mean: 2, p50: 2, p95: 4, p99: 5 },
+    actualRps,
+    errors: {},
+    _requestedMaxRps: maxRps,
+  });
+
+  /** A recording agent: burst (durationSec 12) under-delivers; graded run echoes its offered rate. */
+  function recordingAgent(burstRps: number) {
+    const calls: number[] = [];
+    const agent = {
+      name: 'fake',
+      multiPhase: true,
+      flowCapable: false,
+      endpointCapable: true,
+      correlationCapable: false,
+      description: 'fake',
+      available: async () => true,
+      run: async (config: { maxRps: number; durationSec?: number }) => {
+        calls.push(config.maxRps);
+        // The calibration burst runs at CALIBRATION_SEC (12s); it under-delivers.
+        const isBurst = config.durationSec === 12;
+        return fakeResult(config.maxRps, isBurst ? burstRps : config.maxRps);
+      },
+    };
+    return { agent, calls };
+  }
+
+  it('calibrates the graded rate down to the deliverable ceiling when the burst under-delivers', async () => {
+    const { agent, calls } = recordingAgent(120); // burst delivers only 120 of 800
+    const campaign = {
+      ...makeCampaign(),
+      id: 'calib-down',
+      maxRps: 800,
+      maxDurationSec: 2,
+      calibrate: true,
+    } as Campaign;
+    const run = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      undefined,
+      agent as never,
+    );
+    // Two agent.run calls: the calibration burst (at the requested peak 800) then
+    // the graded run (at the calibrated rate).
+    expect(calls.length).toBe(2);
+    expect(calls[0]).toBe(800); // burst measured at the requested peak
+    expect(run.calibration).toBeDefined();
+    expect(run.calibration!.calibrated).toBe(true);
+    expect(run.calibration!.requestedRps).toBe(800);
+    expect(run.calibration!.deliveredRps).toBe(120);
+    // The graded run was offered at the calibrated rate (floor(120 × 0.95) = 114).
+    expect(run.calibration!.appliedRps).toBe(114);
+    expect(calls[1]).toBe(114);
+    expect(calls[1]).toBeLessThan(800);
+  }, 20000);
+
+  it('keeps the requested rate (single run, no calibration record) when calibrate is off', async () => {
+    const { agent, calls } = recordingAgent(120);
+    const campaign = { ...makeCampaign(), id: 'calib-off', maxRps: 800 } as Campaign;
+    const run = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      undefined,
+      agent as never,
+    );
+    expect(calls.length).toBe(1); // no pre-flight burst
+    expect(calls[0]).toBe(800); // graded at the requested rate
+    expect(run.calibration).toBeUndefined();
+  }, 15000);
+
+  it('keeps the requested rate when the burst confirms it is deliverable', async () => {
+    const { agent, calls } = recordingAgent(780); // 780/800 = 97.5% ≥ 90% → keep
+    const campaign = {
+      ...makeCampaign(),
+      id: 'calib-keep',
+      maxRps: 800,
+      calibrate: true,
+    } as Campaign;
+    const run = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      undefined,
+      agent as never,
+    );
+    expect(calls.length).toBe(2); // burst still runs
+    expect(run.calibration!.calibrated).toBe(false);
+    expect(calls[1]).toBe(800); // graded unchanged at the requested rate
+  }, 20000);
 });

@@ -49,6 +49,8 @@ export interface Campaign {
   noKeepAlive?: boolean;
   /** Parallel generation (mono-box): N concurrent vegeta workers, each at rate/N. */
   parallelism?: number;
+  /** Closed-loop rate calibration (GEN-1): grade at the measured deliverable rate. */
+  calibrate?: boolean;
   acceptance?: AcceptanceCriteria;
   assertion?: ResponseAssertion;
   acceptanceResult?: AcceptanceResult;
