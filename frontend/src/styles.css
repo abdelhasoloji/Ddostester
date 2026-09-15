@@ -3899,6 +3899,56 @@ table.remediations td {
   line-height: 1.5;
   font-size: 0.85rem;
 }
+.recon-paths {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.recon-paths-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+.recon-paths-head .rk {
+  font-weight: 680;
+}
+.recon-paths-tools {
+  display: flex;
+  gap: 0.3rem;
+}
+.recon-paths-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+.recon-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.recon-path.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.recon-path code {
+  font-family: var(--mono);
+}
+.recon-path-dyn {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--warning, #b7791f);
+  white-space: nowrap;
+}
 .recon-levers {
   display: flex;
   flex-direction: column;

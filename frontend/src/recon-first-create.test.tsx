@@ -14,8 +14,16 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: { ...actual.api, recon: (...a: unknown[]) => reconMock(...a) } };
 });
 
-const { suggestFromRecon, deriveLevers, applyLevers, DEFAULT_UAS, ReconFirstCreate } =
-  await import('./recon-first-create.js');
+const {
+  suggestFromRecon,
+  deriveLevers,
+  applyLevers,
+  discoveredPaths,
+  defaultSelectedPaths,
+  endpointsFromPaths,
+  DEFAULT_UAS,
+  ReconFirstCreate,
+} = await import('./recon-first-create.js');
 
 const base = (over: Partial<ReconReport>): ReconReport =>
   ({
@@ -93,6 +101,34 @@ describe('deriveLevers (recon signal → recommended delivery lever)', () => {
     expect(levers.every((l) => l.recommended === false)).toBe(true);
     // Every lever still carries a plain-language "why".
     expect(levers.every((l) => l.why.length > 10)).toBe(true);
+  });
+});
+
+describe('recon-discovered path selection', () => {
+  it('lists the discovered surface, dynamic paths first, de-duplicated, root dropped', () => {
+    const paths = discoveredPaths(
+      base({
+        suggestedPaths: ['/', '/about', '/api/search', '/login'],
+        dynamicPaths: ['/api/search', '/login'],
+      }),
+    );
+    // Root dropped; dynamic (/api/search, /login) sorted before static (/about).
+    expect(paths.map((p) => p.path)).toEqual(['/api/search', '/login', '/about']);
+    expect(paths.filter((p) => p.dynamic).map((p) => p.path)).toEqual(['/api/search', '/login']);
+  });
+
+  it('pre-selects the dynamic paths when present (else non-root suggested, max 10)', () => {
+    expect(
+      defaultSelectedPaths(
+        base({ dynamicPaths: ['/a', '/b'], suggestedPaths: ['/', '/a', '/b', '/c'] }),
+      ),
+    ).toEqual(['/a', '/b']);
+    expect(defaultSelectedPaths(base({ suggestedPaths: ['/', '/x', '/y'] }))).toEqual(['/x', '/y']);
+  });
+
+  it('builds the endpoint mix from the selected paths against the target origin', () => {
+    const eps = endpointsFromPaths(base({ target: 'https://bank.cz/' }), ['/api/search', '/login']);
+    expect(eps).toBe('https://bank.cz/api/search\nhttps://bank.cz/login');
   });
 });
 
@@ -191,6 +227,36 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
     );
+  });
+
+  it('lets the operator deselect a discovered path so it leaves the endpoint mix', async () => {
+    reconMock.mockResolvedValue(
+      base({
+        target: 'https://bank.cz/',
+        suggestedPaths: ['/', '/api/search', '/login'],
+        dynamicPaths: ['/api/search', '/login'],
+      }),
+    );
+    render(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    await waitFor(() => expect(screen.getByText(/Discovered surface/)).toBeInTheDocument());
+
+    // Both dynamic paths are pre-selected.
+    const login = screen.getByRole('checkbox', { name: /\/login/ });
+    const search = screen.getByRole('checkbox', { name: /\/api\/search/ });
+    expect(login).toBeChecked();
+    expect(search).toBeChecked();
+
+    // Deselect /login → compose → the endpoint mix keeps /api/search but drops /login.
+    fireEvent.click(login);
+    expect(login).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Compose from these findings/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByDisplayValue('https://bank.cz/api/search')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/\/login/)).toBeNull();
   });
 
   it('surfaces a recon error and stays on the target step', async () => {
