@@ -176,3 +176,45 @@ test('form: "← Back to recon" from the compose step returns to the recon summa
   await page.getByRole('button', { name: /Change target/ }).click();
   await expect(page.getByRole('button', { name: /Run recon/ })).toBeVisible();
 });
+
+test('recon levers: the recon step surfaces delivery levers, and a checked lever CARRIES into the form', async ({
+  page,
+}) => {
+  // The recon-driven ergonomics: recon turns its signals into delivery levers the
+  // operator toggles BEFORE launching. This asserts the outcome (the lever changes
+  // the composed campaign's config), not just that the checkbox is clickable.
+  await login(page, 'engineer');
+  await goTo(page, 'Campaigns');
+  await page.getByRole('button', { name: /New campaign/ }).click();
+  await page.locator('.recon-first input').first().fill(SELF);
+  await page.getByRole('button', { name: /Run recon/ }).click();
+
+  // The levers checklist renders with the recon-derived levers.
+  await expect(page.getByText('Delivery levers')).toBeVisible();
+  const lever = (name: string) =>
+    page.locator('.recon-levers .lever', { hasText: name }).locator('input[type="checkbox"]');
+  await expect(lever('Cache-busting')).toBeVisible();
+  await expect(lever('Auto-calibrate rate')).toBeVisible();
+  await expect(lever('User-Agent rotation')).toBeVisible();
+  // SELF is a bare target (no WAF/CDN/rate-limiter) → nothing recommended, all off.
+  await expect(lever('Cache-busting')).not.toBeChecked();
+  await expect(lever('Auto-calibrate rate')).not.toBeChecked();
+
+  // The operator opts two levers in, then composes.
+  await lever('Cache-busting').check();
+  await lever('Auto-calibrate rate').check();
+  await page.getByRole('button', { name: /Compose from these findings/ }).click();
+  await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
+
+  // The chosen levers are reflected in the launch form's actual config.
+  await expect(
+    page.locator('.cachebust-toggle', { hasText: 'Cache-busting' }).locator('input'),
+  ).toBeChecked();
+  await expect(
+    page.locator('.cachebust-toggle', { hasText: 'Auto-calibrate rate' }).locator('input'),
+  ).toBeChecked();
+  // A lever left OFF stays off in the form (no accidental enablement).
+  await expect(
+    page.locator('.cachebust-toggle', { hasText: 'No keep-alive' }).locator('input'),
+  ).not.toBeChecked();
+});
