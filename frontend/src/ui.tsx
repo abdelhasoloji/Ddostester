@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { reportUrl, runTimelineCsvUrl, streamUrl, getGrafanaBase, grafanaRunUrl } from './api.js';
+import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
@@ -16,7 +16,7 @@ import type {
   LiveProgressData,
 } from './api.js';
 import { useApp, canDo } from './context.js';
-import { formatInterval, fmtDateTime, hostOf } from './campaign-form.js';
+import { formatInterval, fmtDateTime } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
 export {
@@ -484,7 +484,7 @@ export function RunTheater({
           )}
 
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels target={target} timeline={series} />
+            <RunMetricsPanels timeline={series} />
           </div>
         </>
       )}
@@ -885,27 +885,16 @@ export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
   ];
 }
 
-function RunMetricsPanels({ target, timeline }: { target: string; timeline: RunSample[] }) {
-  const host = hostOf(target) ?? target;
-  const base = getGrafanaBase();
+function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
   const panels = theaterPanels(timeline);
   const enough = timeline.length >= 2;
   const tMax = enough ? Math.round(Math.max(...timeline.map((s) => s.t), 1)) : 0;
   return (
     <div className="run-metrics">
       <div className="run-metrics-head">
+        {/* The Grafana deep-link lives once at the top of the page ("Open this run
+            in Grafana"); no second link here. */}
         <div className="posture-title">Run graphs · live{enough ? ` · over ${tMax}s` : ''}</div>
-        {base && (
-          <a
-            className="btn btn-sm btn-ghost"
-            href={grafanaRunUrl(base, { target: host })}
-            target="_blank"
-            rel="noreferrer"
-            title="Open the live Run & Absorption dashboard in Grafana, scoped to this target"
-          >
-            Open in Grafana ↗
-          </a>
-        )}
       </div>
       <div className="run-metrics-grid">
         {panels.map((p) => (
