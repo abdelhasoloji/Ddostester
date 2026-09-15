@@ -531,8 +531,16 @@ export interface BenchRun {
   verdict?: BenchVerdict;
   error?: string;
 }
+export interface BenchLadder {
+  id: string;
+  title: string;
+  summary: string;
+  /** Ordered BenchScenario ids, DRS 3→5. */
+  scenarios: string[];
+}
 export interface BenchCatalogue {
   scenarios: BenchScenario[];
+  ladders?: BenchLadder[];
   dispatchEnabled: boolean;
   labTargets: string[];
 }
