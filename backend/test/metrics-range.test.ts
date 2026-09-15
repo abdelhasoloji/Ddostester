@@ -3,7 +3,11 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { MemoryStore } from '../src/store/memory.js';
 import { initAuth } from '../src/auth/guard.js';
-import { queryRange, type FetchLike } from '../src/modules/metrics/prometheus-query.js';
+import {
+  queryRange,
+  rangeWindow,
+  type FetchLike,
+} from '../src/modules/metrics/prometheus-query.js';
 import { resolveSeries, sanitizeTarget } from '../src/modules/metrics/series-catalog.js';
 
 describe('series-catalog', () => {
@@ -83,6 +87,47 @@ describe('queryRange', () => {
     const r = await queryRange('http://prom', 'q', range, { fetchImpl: boom });
     expect(r.status).toBe('error');
     expect(r.error).toBe('down');
+  });
+});
+
+describe('rangeWindow (query window scoping)', () => {
+  const NOW = 1_000_000 * 1000; // a round unix-ms so endS = 1_000_000
+
+  it('defaults to a 15-minute lookback', () => {
+    const w = rangeWindow(NOW, {});
+    expect(w.endS).toBe(1_000_000);
+    expect(w.endS - w.startS).toBe(15 * 60);
+    expect(w.stepS).toBe(15);
+  });
+
+  it('honours a `minutes` lookback, clamped to [1, 1440]', () => {
+    expect(rangeWindow(NOW, { minutes: 5 }).endS - rangeWindow(NOW, { minutes: 5 }).startS).toBe(
+      5 * 60,
+    );
+    expect(rangeWindow(NOW, { minutes: 99999 }).startS).toBe(1_000_000 - 1440 * 60); // clamped
+  });
+
+  it('sinceSec scopes the window to that span and WINS over minutes (the Run-Theater fix)', () => {
+    // A 98s-elapsed run must query a ~98s window, not a 15-min one that would pick
+    // up an earlier run against the same target.
+    const w = rangeWindow(NOW, { minutes: 15, sinceSec: 98 });
+    expect(w.endS - w.startS).toBe(98);
+  });
+
+  it('clamps sinceSec to [5s, 24h] and ignores non-positive/NaN values', () => {
+    expect(rangeWindow(NOW, { sinceSec: 1 }).endS - rangeWindow(NOW, { sinceSec: 1 }).startS).toBe(
+      5,
+    );
+    expect(
+      rangeWindow(NOW, { sinceSec: 999999 }).endS - rangeWindow(NOW, { sinceSec: 999999 }).startS,
+    ).toBe(86400);
+    // 0 / NaN → fall back to the minutes lookback (default 15m).
+    expect(rangeWindow(NOW, { sinceSec: 0 }).endS - rangeWindow(NOW, { sinceSec: 0 }).startS).toBe(
+      15 * 60,
+    );
+    expect(
+      rangeWindow(NOW, { sinceSec: 'x' }).endS - rangeWindow(NOW, { sinceSec: 'x' }).startS,
+    ).toBe(15 * 60);
   });
 });
 

@@ -840,12 +840,15 @@ export const api = {
     ),
   metricsRange: (
     series: string,
-    opts: { target?: string; minutes?: number; step?: number } = {},
+    opts: { target?: string; minutes?: number; step?: number; sinceSec?: number } = {},
   ) => {
     const p = new URLSearchParams({ series });
     if (opts.target) p.set('target', opts.target);
     if (opts.minutes) p.set('minutes', String(opts.minutes));
     if (opts.step) p.set('step', String(opts.step));
+    // Scope the window to a run's elapsed span (Run Theater) so stale samples from
+    // earlier runs against the same target don't bleed into the live chart.
+    if (opts.sinceSec) p.set('sinceSec', String(Math.ceil(opts.sinceSec)));
     return get<MetricsRange>(`/api/metrics/range?${p.toString()}`);
   },
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),

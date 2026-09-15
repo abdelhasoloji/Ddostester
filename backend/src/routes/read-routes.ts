@@ -7,7 +7,7 @@ import { deriveAlerts } from '../modules/alerts/derive.js';
 import { deriveImpact } from '../modules/alerts/impact.js';
 import { buildAbsorptionSummary } from '../modules/observability/summary.js';
 import { buildZones } from '../modules/zones/zones.js';
-import { queryRange, type PromResult } from '../modules/metrics/prometheus-query.js';
+import { queryRange, rangeWindow, type PromResult } from '../modules/metrics/prometheus-query.js';
 import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
@@ -84,11 +84,12 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   // the graph shows the same data as Grafana without embedding Grafana. Fail-
   // soft: no PROMETHEUS_URL → `source: "unavailable"` and the UI hides the chart.
   app.get('/api/metrics/range', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const { series, target, minutes, step } = req.query as {
+    const { series, target, minutes, step, sinceSec } = req.query as {
       series?: string;
       target?: string;
       minutes?: string;
       step?: string;
+      sinceSec?: string;
     };
     const resolved = series ? resolveSeries(series, target) : null;
     if (!resolved) {
@@ -96,10 +97,10 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
         .code(400)
         .send({ error: 'unknown series, or a per-run series is missing target' });
     }
-    const mins = Math.min(Math.max(Number(minutes) || 15, 1), 1440);
-    const stepS = Math.min(Math.max(Number(step) || 15, 5), 3600);
-    const endS = Math.floor(Date.now() / 1000);
-    const startS = endS - mins * 60;
+    // `sinceSec` scopes the window to the live run's elapsed span so the chart
+    // shows ONLY the current run (see rangeWindow); falls back to the `minutes`
+    // lookback. Pure window math lives in prometheus-query for testability.
+    const { startS, endS, stepS } = rangeWindow(Date.now(), { minutes, step, sinceSec });
 
     let source: PromResult['status'] = 'ok';
     const out: { label: string; points: [number, number][] }[] = [];
