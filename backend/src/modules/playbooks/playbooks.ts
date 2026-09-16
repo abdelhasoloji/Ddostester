@@ -150,6 +150,9 @@ export interface Playbook {
 
 const PROFILES = ['constant', 'ramp', 'wave'];
 const VECTORS = ['http-get', 'http-post'];
+/** Rate at/above which a GET/POST line counts as a "flood" for the purpose of
+ *  the connection-pressure default (well above a baseline / fingerprint sweep). */
+const FLOOD_RPS = 250;
 /**
  * Upper bound on a step's parallel-generation fan-out. Mirrors the vegeta
  * adapter's `MAX_VEGETA_PARALLELISM` (the engine clamps to it anyway); kept as a
@@ -2234,11 +2237,18 @@ function campaignInputFromStep(
   // dynamic paths that dilutes the pressure below the worker-pool capacity.
   // recon.dynamicPaths is ordered most-expensive-first (pathCost desc). Falls
   // back to the step's own seeded paths, then root, when recon found none.
-  const dynamicFocus =
-    step.focusDynamic && o.t.recon?.dynamicPaths?.length
-      ? o.t.recon.dynamicPaths.slice(0, 1)
-      : undefined;
-  const seededPaths = dynamicFocus ?? seedPaths(step.paths, o.t.recon);
+  // RELEVANCE: a load line whose resolved paths are only the static root — which
+  // a bare origin serves for free — harmlessly floods nothing. When the target
+  // exposes a dynamic (origin-served) path, concentrate the fire on the costliest
+  // one: explicitly (focusDynamic), or as a fallback when the step's own paths
+  // didn't resolve to anything but root (e.g. a rich-target path mix hitting a
+  // sparse origin). Templates whose paths DO map to a real (non-root) surface
+  // keep their mix, so a target-tuned line is unchanged where it applies.
+  const dyn = o.t.recon?.dynamicPaths;
+  const resolved = seedPaths(step.paths, o.t.recon);
+  const resolvedMeaningful = !!resolved && resolved.some((p) => p !== '/');
+  const concentrateDynamic = (step.focusDynamic || !resolvedMeaningful) && !!dyn && dyn.length > 0;
+  const seededPaths = concentrateDynamic ? dyn!.slice(0, 1) : resolved;
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
     : undefined;
@@ -2252,6 +2262,20 @@ function campaignInputFromStep(
   const uaRotationCapable = agent === 'builtin' || agent === 'vegeta' || agent === undefined;
   const userAgents = uaRotationCapable && step.rotateUa ? DEFAULT_UA_SET : undefined;
   const headers = builtin && step.headers ? step.headers : undefined;
+  // A volumetric flood exhausts an origin only under CONNECTION PRESSURE: a
+  // keep-alive flood is served at the app tier's capacity (in-flight ≤ concurrency
+  // < accept backlog), while fresh connections in bulk overflow the backlog into
+  // 5xx. So when a flood is concentrated on a target's dynamic app tier, deliver
+  // it with fresh connections too — otherwise it just runs a bare origin at
+  // capacity and reads as "held". Slowloris (already a connection hold), HTTP/2
+  // lines (which need a persistent multiplexed connection), low-rate baselines
+  // and fingerprint sweeps are left keep-alive. A step that set noKeepAlive keeps
+  // its choice. This only shapes HOW the same bounded, capped requests arrive.
+  const isH2Line = /http\/?2|header-pressure|rapid.?reset|continuation|multiplex/i.test(step.name);
+  const isFlood =
+    (step.vector ?? 'http-get') !== 'http-slowloris' && step.maxRps >= FLOOD_RPS && !isH2Line;
+  const effectiveNoKeepAlive =
+    step.noKeepAlive === true || (concentrateDynamic && isFlood) ? true : undefined;
   // Delivery levers travel with the step regardless of engine: cache-busting and
   // no-keep-alive are honoured by the built-in generator and by vegeta/k6, and
   // parallelism is a vegeta fan-out (clamped downstream). They only shape HOW the
@@ -2273,7 +2297,7 @@ function campaignInputFromStep(
     userAgents,
     headers,
     cacheBust: step.cacheBust,
-    noKeepAlive: step.noKeepAlive,
+    noKeepAlive: effectiveNoKeepAlive,
     parallelism: step.parallelism,
     calibrate: step.calibrate,
     recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,

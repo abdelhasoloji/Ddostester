@@ -85,15 +85,84 @@ describe('curated templates instantiate into valid campaigns for bank.cz', () =>
     // ALL fire concentrates on the single costliest dynamic path — the cheap
     // echo.php is NOT included (it would dilute the pressure), and no static.
     expect(urls).toEqual(['https://bank.cz/api/work.php?ms=50']);
+    // A flood concentrated on the app tier is delivered with fresh connections
+    // (connection pressure is what actually collapses an origin).
+    expect(input.noKeepAlive).toBe(true);
 
-    // Without focusDynamic (and no explicit paths) the step hits the root only —
-    // proving the flag is what concentrates the load.
+    // RELEVANCE FALLBACK: even WITHOUT focusDynamic, a pathless (root-only) flood
+    // is redirected to the costliest dynamic path — otherwise it would harmlessly
+    // hit a bare origin's free static surface.
     const [plain] = buildSuiteCampaigns(
       { ...pb, steps: [{ ...pb.steps[0], focusDynamic: false }] },
       { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
       ENGINES,
     );
-    expect(plain.endpoints).toBeUndefined();
+    expect((plain.endpoints ?? []).map((e) => e.url)).toEqual([
+      'https://bank.cz/api/work.php?ms=50',
+    ]);
+
+    // But a step with a REAL (non-root) path that maps to the surface keeps its
+    // own mix — a target-tuned line is not overridden where it applies.
+    const [mix] = buildSuiteCampaigns(
+      { ...pb, steps: [{ ...pb.steps[0], focusDynamic: false, paths: ['/api/echo.php'] }] },
+      { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
+      ENGINES,
+    );
+    expect((mix.endpoints ?? []).map((e) => e.url)).toEqual(['https://bank.cz/api/echo.php']);
+  });
+
+  it('a low-rate baseline / fingerprint sweep is left keep-alive (not a flood)', () => {
+    const recon = { paths: ['/', '/api/x.php'], dynamicPaths: ['/api/x.php'] };
+    const [base] = buildSuiteCampaigns(
+      {
+        id: 'b',
+        name: 'B',
+        category: 'Readiness',
+        summary: '',
+        when: '',
+        steps: [
+          {
+            name: 'Baseline',
+            summary: '',
+            maxRps: 100,
+            concurrency: 20,
+            maxDurationSec: 60,
+            profile: 'constant' as const,
+            vector: 'http-get' as const,
+          },
+        ],
+      },
+      { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
+      ENGINES,
+    );
+    expect(base.noKeepAlive).toBeUndefined();
+  });
+
+  it('an HTTP/2 flood line is left keep-alive (needs a persistent multiplexed connection)', () => {
+    const recon = { paths: ['/', '/api/x.php'], dynamicPaths: ['/api/x.php'] };
+    const [h2] = buildSuiteCampaigns(
+      {
+        id: 'h',
+        name: 'H',
+        category: 'Threat-informed',
+        summary: '',
+        when: '',
+        steps: [
+          {
+            name: 'HTTP/2 burst',
+            summary: '',
+            maxRps: 800,
+            concurrency: 150,
+            maxDurationSec: 60,
+            profile: 'constant' as const,
+            vector: 'http-get' as const,
+          },
+        ],
+      },
+      { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
+      ENGINES,
+    );
+    expect(h2.noKeepAlive).toBeUndefined();
   });
 
   it('the curated origin-exhaustion template opts into dynamic focus on every step', () => {
