@@ -86,6 +86,15 @@ export interface PlaybookStep {
    * is a valid measurement rather than an under-delivered INCONCLUSIVE.
    */
   calibrate?: boolean;
+  /**
+   * Origin-exhaustion focus: concentrate the flood on the target's DYNAMIC
+   * (uncacheable / origin-served) paths from recon, instead of the whole surface
+   * or the static root. Without this a generic origin-exhaustion line spreads
+   * across static assets that nginx serves for free and never loads the app tier.
+   * Falls back to the step's own paths (then root) when recon found no dynamic
+   * paths.
+   */
+  focusDynamic?: boolean;
 }
 
 /**
@@ -237,6 +246,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       headers,
       cacheBust: s.cacheBust === true || undefined,
       noKeepAlive: s.noKeepAlive === true || undefined,
+      focusDynamic: s.focusDynamic === true || undefined,
       parallelism,
     };
   });
@@ -1815,6 +1825,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         vector: 'http-get',
         cacheBust: true,
         noKeepAlive: true,
+        focusDynamic: true,
       },
       {
         name: 'GET — full collapse',
@@ -1826,6 +1837,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         vector: 'http-get',
         cacheBust: true,
         noKeepAlive: true,
+        focusDynamic: true,
       },
       {
         name: 'POST — full collapse',
@@ -1837,6 +1849,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         vector: 'http-post',
         cacheBust: true,
         noKeepAlive: true,
+        focusDynamic: true,
       },
     ],
   },
@@ -1981,6 +1994,9 @@ export interface SuiteTarget {
 export interface ReconSurface {
   /** Real paths found on the target's published surface. */
   paths: string[];
+  /** The subset that is dynamic / uncacheable (origin-served compute) — the
+   *  paths an origin-exhaustion line should concentrate on, not static assets. */
+  dynamicPaths?: string[];
   /** Best-guess login / account path, if one surfaced. */
   loginPath?: string;
 }
@@ -2125,7 +2141,13 @@ function campaignInputFromStep(
   // seeded endpoints attach for EVERY engine — the out-of-process engines
   // (vegeta/k6) honour a multi-target endpoint set too, so a recon-seeded step
   // hits the real surface whatever engine runs it (not just the built-in one).
-  const seededPaths = seedPaths(step.paths, o.t.recon);
+  // Origin-exhaustion lines concentrate on the recon's dynamic (uncacheable)
+  // paths — the app tier that actually collapses — instead of the whole surface
+  // (mostly static assets nginx serves for free). Falls back to the step's own
+  // seeded paths when recon found no dynamic paths.
+  const dynamicFocus =
+    step.focusDynamic && o.t.recon?.dynamicPaths?.length ? o.t.recon.dynamicPaths : undefined;
+  const seededPaths = dynamicFocus ?? seedPaths(step.paths, o.t.recon);
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
     : undefined;

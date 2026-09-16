@@ -51,6 +51,57 @@ describe('curated templates instantiate into valid campaigns for bank.cz', () =>
     expect(new Set(PLAYBOOKS.map((p) => p.id)).size).toBe(PLAYBOOKS.length);
   });
 
+  it('focusDynamic concentrates the flood on recon dynamic paths, not the static surface', () => {
+    const pb = {
+      id: 'x',
+      name: 'X',
+      category: 'Stress',
+      summary: '',
+      when: '',
+      steps: [
+        {
+          name: 'exhaust',
+          summary: '',
+          maxRps: 400,
+          concurrency: 500,
+          maxDurationSec: 60,
+          profile: 'constant' as const,
+          vector: 'http-get' as const,
+          focusDynamic: true,
+        },
+      ],
+    };
+    const recon = {
+      paths: ['/', '/style.css', '/about.html', '/api/echo.php', '/api/work.php'],
+      dynamicPaths: ['/api/echo.php', '/api/work.php'],
+    };
+    const [input] = buildSuiteCampaigns(
+      pb,
+      { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
+      ENGINES,
+    );
+    const urls = (input.endpoints ?? []).map((e) => e.url);
+    // Only the dynamic (uncacheable) endpoints are targeted — no static assets.
+    expect(urls).toEqual(['https://bank.cz/api/echo.php', 'https://bank.cz/api/work.php']);
+
+    // Without focusDynamic (and no explicit paths) the step hits the root only —
+    // proving the flag is what concentrates the load.
+    const [plain] = buildSuiteCampaigns(
+      { ...pb, steps: [{ ...pb.steps[0], focusDynamic: false }] },
+      { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
+      ENGINES,
+    );
+    expect(plain.endpoints).toBeUndefined();
+  });
+
+  it('the curated origin-exhaustion template opts into dynamic focus on every step', () => {
+    const pb = PLAYBOOKS.find((p) => p.id === 'origin-l7-exhaustion');
+    expect(pb).toBeTruthy();
+    expect(pb!.steps.every((s) => (s as { focusDynamic?: boolean }).focusDynamic === true)).toBe(
+      true,
+    );
+  });
+
   for (const pb of PLAYBOOKS) {
     it(`instantiates "${pb.id}" (${pb.steps.length} step(s)) within caps`, () => {
       const inputs = buildSuiteCampaigns(
