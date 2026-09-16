@@ -14,7 +14,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { SettingsPage, AccountPage, AuditPage } = await import('./pages.js');
+const { SettingsPage, AccountPage, AuditLog } = await import('./pages.js');
 const { TemplatesPage } = await import('./templates-page.js');
 
 beforeEach(() => {
@@ -208,9 +208,9 @@ describe('NotificationsCard', () => {
   });
 });
 
-describe('AuditPage integrity', () => {
+describe('AuditLog integrity (hosted in Settings)', () => {
   it('verifies the chain and shows the intact badge', async () => {
-    renderWithRouter(<AuditPage />);
+    renderWithRouter(<AuditLog />);
     fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
     await waitFor(() => expect(fakeApi.verifyAudit).toHaveBeenCalled());
     expect(await screen.findByText(/Chain intact/)).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe('AuditPage integrity', () => {
       headHash: 'x',
       brokenAt: { index: 1, id: 'e2', reason: 'content' },
     });
-    renderWithRouter(<AuditPage />);
+    renderWithRouter(<AuditLog />);
     fireEvent.click(screen.getByRole('button', { name: 'Verify integrity' }));
     expect(await screen.findByText(/Tampering detected/)).toBeInTheDocument();
   });

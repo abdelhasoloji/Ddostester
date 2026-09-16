@@ -14,8 +14,23 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { ReportsPage, AuditPage, SettingsPage, AccountPage, GuidePage } = await import('./pages.js');
+const { ReportsPage, AuditLog, SettingsPage, AccountPage, GuidePage, CampaignLaunch } =
+  await import('./pages.js');
 const { CampaignsWorkspace } = await import('./campaigns-workspace.js');
+
+const stressPreset = {
+  id: 'stress',
+  name: 'Stress test',
+  icon: '🔥',
+  category: 'Stress' as const,
+  summary: '',
+  when: '',
+  maxRps: 800,
+  concurrency: 150,
+  maxDurationSec: 300,
+  profile: 'ramp' as const,
+  recommendedAgent: 'builtin',
+};
 
 const sampleCampaign = {
   id: 'c1',
@@ -88,9 +103,8 @@ describe('pages render', () => {
     expect(screen.getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   });
 
-  it('AuditPage shows an entry', () => {
-    renderWithRouter(<AuditPage />);
-    expect(screen.getByRole('heading', { name: 'Assurance' })).toBeInTheDocument();
+  it('AuditLog (now hosted in Settings) shows an entry', () => {
+    renderWithRouter(<AuditLog />);
     expect(screen.getByText('campaign.create')).toBeInTheDocument();
   });
 
@@ -155,5 +169,29 @@ describe('pages render', () => {
   it('GuidePage', () => {
     renderWithRouter(<GuidePage />);
     expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument();
+  });
+});
+
+describe('CampaignLaunch — queued-seed hand-off', () => {
+  it('a preset queued from the Guide opens a persistent seeded form (not the recon picker)', () => {
+    // Regression: the preset used to be consumed by an in-form effect that
+    // self-cleared draftPreset, unmounting the just-seeded form on the same tick
+    // and dropping the operator onto the recon target-picker. It now seeds the
+    // form through `initial`, cleared only by closeForm.
+    currentApp = makeApp({ role: 'engineer', draftPreset: stressPreset });
+    renderWithRouter(<CampaignLaunch />);
+    // The seeded form is shown, with the preset's name and load shape pre-filled.
+    expect(screen.getByRole('heading', { name: 'New campaign' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Stress test')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('800')).toBeInTheDocument();
+    // The form persists: draftPreset is NOT cleared during render (only on close).
+    expect(currentApp.clearDraftPreset).not.toHaveBeenCalled();
+  });
+
+  it('read-only roles get the browse-only notice instead of a create surface', () => {
+    currentApp = makeApp({ role: 'viewer', authRequired: true, draftPreset: stressPreset });
+    renderWithRouter(<CampaignLaunch />);
+    expect(screen.getByText(/Read-only access/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'New campaign' })).toBeNull();
   });
 });

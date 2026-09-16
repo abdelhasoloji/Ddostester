@@ -1,3 +1,5 @@
+import { lsGet, lsSet, lsRemove } from './storage.js';
+
 export type CampaignStatus =
   | 'PENDING_APPROVAL'
   | 'APPROVED'
@@ -418,11 +420,11 @@ export interface WrsSeries {
   drop: number;
 }
 
-let token: string | null = localStorage.getItem('token');
+let token: string | null = lsGet('token');
 export function setToken(t: string | null): void {
   token = t;
-  if (t) localStorage.setItem('token', t);
-  else localStorage.removeItem('token');
+  if (t) lsSet('token', t);
+  else lsRemove('token');
 }
 export function getToken(): string | null {
   return token;
@@ -709,22 +711,14 @@ export type GrafanaPlane = keyof typeof GRAFANA_DASHBOARDS;
 
 /** The configured Grafana base URL (no trailing slash), or '' when unset. */
 export function getGrafanaBase(): string {
-  try {
-    return localStorage.getItem(GRAFANA_BASE_KEY) ?? '';
-  } catch {
-    return '';
-  }
+  return lsGet(GRAFANA_BASE_KEY) ?? '';
 }
 
 /** Persist (or clear, when empty) the Grafana base URL for this browser. */
 export function setGrafanaBase(url: string): void {
-  try {
-    const v = url.trim().replace(/\/+$/, '');
-    if (v) localStorage.setItem(GRAFANA_BASE_KEY, v);
-    else localStorage.removeItem(GRAFANA_BASE_KEY);
-  } catch {
-    /* storage disabled — best-effort */
-  }
+  const v = url.trim().replace(/\/+$/, '');
+  if (v) lsSet(GRAFANA_BASE_KEY, v);
+  else lsRemove(GRAFANA_BASE_KEY);
 }
 
 /**

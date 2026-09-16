@@ -1454,7 +1454,10 @@ export function ExecuteModal() {
   const app = useApp();
   const navigate = useNavigate();
   const c = app.confirmExec;
+  const [launching, setLaunching] = useState(false);
   useEscape(!!c, () => app.setConfirmExec(null));
+  // Reset the one-shot guard whenever a different campaign is queued for confirm.
+  useEffect(() => setLaunching(false), [c?.id]);
   if (!c) return null;
   return (
     <div className="overlay" onClick={() => app.setConfirmExec(null)}>
@@ -1472,15 +1475,21 @@ export function ExecuteModal() {
           <span className="modal-target">{c.target}</span>. The kill switch stays available.
         </p>
         <div className="btn-row">
-          <button className="btn" onClick={() => app.setConfirmExec(null)}>
+          <button className="btn" onClick={() => app.setConfirmExec(null)} disabled={launching}>
             Cancel
           </button>
           <button
             className="btn btn-primary"
+            disabled={launching}
             onClick={() => {
+              // One-shot: a fast double-click must not dispatch the run twice
+              // (execute() optimistically flips the campaign to RUNNING).
+              if (launching) return;
+              setLaunching(true);
               // Kick off the run (blocks until it settles) and take the operator
               // straight to Run Theater's live view instead of the card drawer.
               void app.execute(c);
+              app.setConfirmExec(null);
               navigate(`/theater?run=${c.id}`);
             }}
           >

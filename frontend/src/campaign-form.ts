@@ -1,4 +1,5 @@
 import type { RequestStep, WeightedEndpoint } from './api.js';
+import type { Preset } from './presets.js';
 
 /**
  * Pure parsers/builders for the new-campaign form editors (feeder, endpoint mix,
@@ -43,6 +44,28 @@ export const emptyForm = {
 /** The new-campaign form's field shape — the seed type shared by the recon-first
  *  flow, presets, and the post-run replay suggestion. */
 export type CampaignFormSeed = typeof emptyForm;
+
+/**
+ * Turns a preset into a form seed (shape + recommended engine, never a target),
+ * so a preset queued from the Guide seeds the form through the same `initial`
+ * prop as the recon-first and replay flows — one hand-off mechanism, not three.
+ * The engine is applied only when it is installed and available, otherwise the
+ * form keeps its default (mirrors the in-form "apply preset" behaviour).
+ */
+export function presetSeed(
+  p: Preset,
+  agents: { id: string; available: boolean }[],
+): Partial<CampaignFormSeed> {
+  const recAvailable = agents.some((a) => a.id === p.recommendedAgent && a.available);
+  return {
+    name: p.name,
+    maxRps: p.maxRps,
+    concurrency: p.concurrency,
+    maxDurationSec: p.maxDurationSec,
+    profile: p.profile,
+    ...(recAvailable ? { agent: p.recommendedAgent } : {}),
+  };
+}
 
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */
 export function parseDataset(raw: string): Record<string, string>[] | undefined {

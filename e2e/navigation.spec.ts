@@ -3,11 +3,12 @@ import { login, goTo } from './helpers.js';
 
 // Every top-level section is reachable and renders its own page title (J-nav /
 // catalog navigation coverage). Officer sees all sections.
-// v2 nav: the resilience spine (Command Center / Campaigns / Run Theater /
-// Results / Assurance) plus the secondary "More" group. `link` is the nav label
-// and `title` the page's own <h1> — kept in step so the two never diverge.
-// Prepare + Results were retired from the spine and the audit log moved into
-// Settings, so the nav is now the four working surfaces plus Settings.
+// v2 nav: the resilience spine (Command Center / Protected zones / Campaigns /
+// Run Theater) plus Settings. `link` is the nav label and `title` the page's own
+// <h1> — kept in step so the two never diverge. Prepare + Results were retired
+// from the spine (Prepare's recon folded into the Campaigns launch flow; the
+// audit log moved into Settings), so the nav is the working surfaces plus
+// Settings; /reports and the retired URLs stay reachable by direct link.
 const SECTIONS: { link: string; title: string }[] = [
   { link: 'Command Center', title: 'Command Center' },
   { link: 'Campaigns', title: 'Campaigns' },

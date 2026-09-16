@@ -58,17 +58,20 @@ test('Audit log (in Settings): Verify integrity and the Export (JSON) link', asy
   await noError(page);
 });
 
-test('Prepare: run recon against an allowlisted target', async ({ page }) => {
+test('Recon-first create: run recon against an allowlisted target', async ({ page }) => {
   await login(page, 'engineer');
-  // Prepare was retired from the nav but the route stays reachable by URL.
+  // Prepare was retired; recon now runs inside the Campaigns launch flow. The old
+  // /prepare bookmark redirects to Campaigns.
   await page.goto('/prepare');
-  const input = page.locator('input').first();
-  if (await input.count()) await input.fill(SELF);
+  await expect(page).toHaveURL(/\/campaigns/);
+  await page.getByRole('button', { name: /New campaign/ }).click();
+  const input = page.locator('.recon-first input').first();
+  await input.fill(SELF);
   if (await clickIf(page, /Run recon/)) {
     // A recon result renders (posture / readiness) or a graceful message.
-    await expect(page.getByText(/readiness|posture|surface|profile|recon/i).first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(
+      page.getByText(/readiness|posture|surface|profile|recon|suggested/i).first(),
+    ).toBeVisible({ timeout: 15_000 });
   }
 });
 

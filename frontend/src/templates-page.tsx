@@ -257,20 +257,28 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       const dispatchable = new Set(
         (benchCat?.scenarios ?? []).filter((s) => s.reproducible).map((s) => s.id),
       );
+      const eligible = ladder.scenarios.filter((s) => dispatchable.has(s));
       let queued = 0;
-      for (const scenario of ladder.scenarios) {
-        if (!dispatchable.has(scenario)) continue;
+      let failed = 0;
+      for (const scenario of eligible) {
         try {
           await api.createBenchRun(scenario);
           queued++;
         } catch {
-          /* skip a scenario the backend refuses; keep queuing the rest */
+          failed++;
         }
       }
-      app.push(
-        'success',
-        `Queued ${queued} class-C bench run(s) — track them in Settings › Network bench.`,
-      );
+      if (eligible.length === 0) {
+        app.push('error', 'No reproducible vector in this ladder is dispatchable to the lab.');
+      } else if (queued === 0) {
+        app.push('error', `The lab refused all ${failed} class-C bench run(s) — none were queued.`);
+      } else {
+        const tail = failed > 0 ? ` (${failed} refused)` : '';
+        app.push(
+          'success',
+          `Queued ${queued} class-C bench run(s)${tail} — track them in Settings › Network bench.`,
+        );
+      }
     } finally {
       setLadderBusy(null);
     }

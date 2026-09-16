@@ -150,6 +150,26 @@ describe('modals', () => {
     expect(screen.getByText(/50 rps/)).toBeInTheDocument();
   });
 
+  it('ExecuteModal launch is one-shot — a double-click dispatches the run only once', () => {
+    currentApp = makeApp({
+      confirmExec: {
+        id: 'c1',
+        name: 'run',
+        target: 'https://h/',
+        maxRps: 50,
+        concurrency: 10,
+        maxDurationSec: 30,
+      },
+    });
+    render(<ExecuteModal />);
+    const launch = screen.getByRole('button', { name: /Launch campaign/ });
+    fireEvent.click(launch);
+    fireEvent.click(launch); // impatient second click before navigation
+    expect(currentApp.execute).toHaveBeenCalledTimes(1);
+    // The modal is dismissed once launched.
+    expect(currentApp.setConfirmExec).toHaveBeenCalledWith(null);
+  });
+
   it('closes the ExecuteModal on Escape', () => {
     currentApp = makeApp({
       confirmExec: {

@@ -79,6 +79,7 @@ import { ReconFirstCreate } from './recon-first-create.js';
 import { attackVectorsFromRecon, ReconDetailModal } from './recon-detail.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
+import { presetSeed } from './campaign-form.js';
 import { getTheme, setTheme as persistTheme, subscribeTheme } from './theme.js';
 import type { Theme } from './theme.js';
 
@@ -2128,6 +2129,7 @@ export function CampaignLaunch() {
   }, [app.draftPreset, app.draftCampaign]);
   const closeForm = () => {
     app.clearDraftCampaign();
+    app.clearDraftPreset();
     setShowForm(false);
   };
 
@@ -2139,6 +2141,11 @@ export function CampaignLaunch() {
       </p>
     );
   }
+  // A single queued seed, whatever queued it: a completed run's countermeasures
+  // (replay), or a preset from the Guide (turned into a seed here). Both feed the
+  // form through the same `initial` prop — no in-form effect, no self-clearing.
+  const seed =
+    app.draftCampaign ?? (app.draftPreset ? presetSeed(app.draftPreset, app.agents) : null);
   return (
     <>
       {!showForm && (
@@ -2153,12 +2160,8 @@ export function CampaignLaunch() {
         </div>
       )}
       {showForm &&
-        (app.draftCampaign ? (
-          // A follow-up seeded from a completed run's countermeasures.
-          <NewCampaignForm initial={app.draftCampaign} onDone={closeForm} />
-        ) : app.draftPreset ? (
-          // A preset queued from the Guide jumps straight to the seeded form.
-          <NewCampaignForm onDone={closeForm} />
+        (seed ? (
+          <NewCampaignForm initial={seed} onDone={closeForm} />
         ) : (
           // The single recon-first creation flow.
           <ReconFirstCreate onDone={closeForm} />
@@ -2710,23 +2713,6 @@ export function GapPlannerSection() {
   const [analysis, setAnalysis] = useState<GapAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [seeded, setSeeded] = useState(false);
-
-  // Recon → Plan handoff: if the Preparation page sent observed controls, seed
-  // the target + profile from them (once), then clear the handoff.
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem('shieldtest.reconHandoff');
-      if (!raw) return;
-      sessionStorage.removeItem('shieldtest.reconHandoff');
-      const h = JSON.parse(raw) as { target?: string; seededProfile?: ProtectionProfile };
-      if (h.target) setTarget(h.target);
-      if (h.seededProfile) setProfile(h.seededProfile);
-      setSeeded(true);
-    } catch {
-      /* no usable handoff */
-    }
-  }, []);
 
   const [inferring, setInferring] = useState(false);
   const [provenance, setProvenance] = useState<InferredProfile['provenance']>({});
@@ -2823,11 +2809,6 @@ export function GapPlannerSection() {
           lines. It only orders existing bounded tests against the authorized target — it never
           synthesises attacks or relaxes a cap.
         </p>
-        {seeded && (
-          <p className="gap-break gap-break-ok" style={{ marginTop: 0 }}>
-            Seeded from recon — target and observed controls pre-filled. Adjust and analyze.
-          </p>
-        )}
         <label className="field" style={{ maxWidth: '22rem' }}>
           <span>Target</span>
           <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="bank.cz" />
@@ -3246,18 +3227,6 @@ export function AuditLog() {
           </div>
         ))}
       </div>
-    </>
-  );
-}
-
-export function AuditPage() {
-  return (
-    <>
-      <PageHead
-        title="Assurance"
-        sub="Tamper-evident audit log — every governed action (creation, approval, run, kill switch), hash-chained."
-      />
-      <AuditLog />
     </>
   );
 }
