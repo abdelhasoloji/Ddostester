@@ -96,6 +96,41 @@ describe('renderSuiteReportHtml', () => {
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // steps + glossary rows
   });
 
+  it('flags an applicability caveat for a step whose target lacks a required feature', () => {
+    const [s] = buildSuites([
+      campaign({
+        suiteId: 'na1',
+        suiteName: 'Threat',
+        name: 'Threat — HTTP/2 burst',
+        suiteOrder: 0,
+        status: 'COMPLETED',
+        wrs: wrs(95, 'A'),
+        requires: ['h2'],
+        reconPosture: { h2: false, waf: false, cache: false, dynamic: true },
+      }),
+    ]);
+    const html = renderSuiteReportHtml(s);
+    expect(html).toContain('Applicability caveats');
+    expect(html).toContain('HTTP/2');
+    expect(html).toContain('not evidence the target resisted');
+  });
+
+  it('renders no applicability caveat when every requirement is satisfied', () => {
+    const [s] = buildSuites([
+      campaign({
+        suiteId: 'na2',
+        suiteName: 'Threat',
+        name: 'Threat — cache stress',
+        suiteOrder: 0,
+        status: 'COMPLETED',
+        wrs: wrs(80, 'B'),
+        requires: ['cache'],
+        reconPosture: { h2: false, waf: false, cache: true, dynamic: false },
+      }),
+    ]);
+    expect(renderSuiteReportHtml(s)).not.toContain('Applicability caveats');
+  });
+
   it('links to Grafana when a base URL is configured', () => {
     const [s] = buildSuites([
       campaign({

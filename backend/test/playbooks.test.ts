@@ -9,6 +9,7 @@ import {
   validatePlaybookInput,
 } from '../src/modules/playbooks/playbooks.js';
 import { createCampaign } from '../src/modules/campaigns/service.js';
+import { missingRequirements } from '../src/modules/campaigns/model.js';
 import { HARD_CAPS } from '../src/config/limits.js';
 
 const allowed = ['staging.example.com'];
@@ -62,6 +63,28 @@ describe('playbooks', () => {
     expect(inputs.every((c) => c.suiteId === suiteId)).toBe(true);
     expect(inputs.map((c) => c.suiteOrder)).toEqual([0, 1, 2]);
     expect(inputs.every((c) => c.target === target.target)).toBe(true);
+  });
+
+  it('propagates the template requires + recon posture snapshot to every campaign', () => {
+    const pb = getPlaybook('threat-http2-burst')!;
+    expect(pb.requires).toContain('h2');
+    const posture = { h2: false, waf: false, cache: false, dynamic: true } as const;
+    const inputs = buildSuiteCampaigns(pb, { ...target, reconPosture: posture }, engines);
+    expect(inputs.length).toBeGreaterThan(0);
+    expect(inputs.every((c) => c.requires?.includes('h2'))).toBe(true);
+    expect(inputs.every((c) => c.reconPosture === posture)).toBe(true);
+    // A template with no requires leaves the field undefined.
+    const cap = buildSuiteCampaigns(getPlaybook('capacity-assessment')!, target, engines);
+    expect(cap.every((c) => c.requires === undefined)).toBe(true);
+  });
+
+  it('missingRequirements returns the features a target lacks (N/A), else empty', () => {
+    const posture = { h2: false, waf: true, cache: false, dynamic: true };
+    expect(missingRequirements(['h2', 'waf'], posture)).toEqual(['h2']);
+    expect(missingRequirements(['waf', 'dynamic'], posture)).toEqual([]);
+    // No requires or no posture → nothing is N/A.
+    expect(missingRequirements(undefined, posture)).toEqual([]);
+    expect(missingRequirements(['h2'], undefined)).toEqual([]);
   });
 
   it('applies an optional recurrence to every campaign of the suite', () => {

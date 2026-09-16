@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { CampaignInput, LoadVector, ScenarioPhase } from '../campaigns/model.js';
+import type {
+  CampaignInput,
+  LoadVector,
+  ScenarioPhase,
+  TargetRequirement,
+  ReconPostureSnapshot,
+} from '../campaigns/model.js';
 import {
   HARD_CAPS,
   MAX_ENDPOINTS,
@@ -147,7 +153,7 @@ export interface Playbook {
    * origin-served (uncacheable) endpoint to exhaust. Undefined = applies to any
    * HTTP target.
    */
-  requires?: ('h2' | 'waf' | 'cache' | 'dynamic')[];
+  requires?: TargetRequirement[];
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
   /**
@@ -2101,6 +2107,12 @@ export interface SuiteTarget {
    * suite hits real endpoints instead of flooding non-existent ones (404).
    */
   recon?: ReconSurface;
+  /**
+   * Optional recon posture snapshot ({h2,waf,cache,dynamic}) of the target,
+   * copied onto every campaign so a run report can mark which template
+   * `requires` were N/A without re-running recon.
+   */
+  reconPosture?: ReconPostureSnapshot;
 }
 
 /** The recon-derived surface used to seed playbook paths. */
@@ -2172,6 +2184,7 @@ export function buildSuiteCampaigns(
       suiteId,
       suiteName: playbook.name,
       suiteOrder: i,
+      requires: playbook.requires,
       t,
       engines,
     }),
@@ -2217,7 +2230,15 @@ export function buildCompositeSuite(
       // "GET flood readiness — Ramp" even though the suite name is the mix's.
       const name = pb.steps.length === 1 ? pb.name : `${pb.name} — ${step.name}`;
       inputs.push(
-        campaignInputFromStep(step, { name, suiteId, suiteName, suiteOrder: order, t, engines }),
+        campaignInputFromStep(step, {
+          name,
+          suiteId,
+          suiteName,
+          suiteOrder: order,
+          requires: pb.requires,
+          t,
+          engines,
+        }),
       );
       order += 1;
     }
@@ -2233,6 +2254,7 @@ function campaignInputFromStep(
     suiteId: string;
     suiteName: string;
     suiteOrder: number;
+    requires?: TargetRequirement[];
     t: SuiteTarget;
     engines: EngineAvailability[];
   },
@@ -2327,5 +2349,7 @@ function campaignInputFromStep(
     suiteId: o.suiteId,
     suiteName: o.suiteName,
     suiteOrder: o.suiteOrder,
+    requires: o.requires,
+    reconPosture: o.t.reconPosture,
   };
 }

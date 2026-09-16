@@ -1,4 +1,5 @@
-import type { Campaign } from '../campaigns/model.js';
+import type { Campaign, TargetRequirement, ReconPostureSnapshot } from '../campaigns/model.js';
+import { missingRequirements } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { wrsLevel } from '../wrs/scoring.js';
 import type { WrsLevel } from '../wrs/scoring.js';
@@ -29,6 +30,10 @@ export interface SuiteMember {
   level?: WrsLevel;
   verdict?: 'PASS' | 'FAIL';
   runId?: string;
+  /** Source-template target requirements + the recon posture snapshot, so the
+   *  suite report can flag members whose result is N/A for this target. */
+  requires?: TargetRequirement[];
+  reconPosture?: ReconPostureSnapshot;
 }
 
 export interface SuiteSummary {
@@ -93,6 +98,8 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
         level: c.wrs?.level,
         verdict: c.acceptanceResult?.verdict,
         runId: c.runId,
+        requires: c.requires,
+        reconPosture: c.reconPosture,
       })),
       wrs,
       verdict: (() => {
@@ -303,6 +310,35 @@ export function renderSuiteReportHtml(
     .map((s) => attackDetail(s.m.order + 1, s.va, s.run, opts.grafanaUrl, host))
     .join('');
 
+  // Applicability caveats: steps whose source template needs a target feature
+  // this target lacks (from the recon snapshot). Their result is N/A — a benign
+  // outcome there is not proof the target resisted. Purely informational; it
+  // never changes a verdict.
+  const REQ_LABEL: Record<TargetRequirement, string> = {
+    h2: 'HTTP/2',
+    waf: 'WAF',
+    cache: 'edge cache',
+    dynamic: 'dynamic endpoint',
+  };
+  const naSteps = steps
+    .map((s) => ({
+      label: stepLabel(suite.suiteName, s.m.name),
+      missing: missingRequirements(s.m.requires, s.m.reconPosture),
+    }))
+    .filter((x) => x.missing.length > 0);
+  const applicabilityCaveats = naSteps.length
+    ? `<h2>Applicability caveats</h2>
+<p class="muted" style="font-size:.82rem">These steps' templates need a target feature this target does not have (from recon) — so their result is <b>N/A</b>, not evidence the target resisted.</p>
+<table class="kvs"><thead><tr><th>Step</th><th>N/A — target has no…</th></tr></thead><tbody>${naSteps
+        .map(
+          (x) =>
+            `<tr><td>${esc(x.label)}</td><td>${x.missing
+              .map((r) => pill(REQ_LABEL[r] ?? r, 'neutral'))
+              .join(' ')}</td></tr>`,
+        )
+        .join('')}</tbody></table>`
+    : '';
+
   const grafanaBanner = opts.grafanaUrl
     ? `<p class="muted" style="font-size:.78rem">📈 Historical resilience trends for ${esc(host)}: <a href="${esc(
         grafanaLink(opts.grafanaUrl, 'resilience', { target: host }) ?? '',
@@ -334,6 +370,7 @@ export function renderSuiteReportHtml(
     `<h2>Layer 7 summary</h2>
 <table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (cfg→eff)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
 <p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = target went unavailable; <b>inconclusive</b> = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism is keyed on the measured absorption/origin traffic — not on status codes, which out-of-process engines don't report.</p>` +
+    applicabilityCaveats +
     `<h2>Details — per attack</h2>${details}` +
     glossary() +
     `<p class="muted" style="margin-top:2rem">Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST/slow-header, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.</p>` +
