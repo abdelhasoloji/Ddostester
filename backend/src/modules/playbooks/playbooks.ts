@@ -1853,6 +1853,91 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
     ],
   },
+  {
+    id: 'l7-pulse-burst',
+    name: 'L7 pulse-wave burst',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A pulsing wave (peak / lull / peak) of fresh-connection GET requests on the origin’s ' +
+      'costliest dynamic path — the bursty shape a bare origin’s small worker pool and accept ' +
+      'backlog can’t absorb, but a protected edge smooths. Validated: collapses the bare benchmark ' +
+      'origin (WRS C, ~8% availability, thousands of origin 5xx) while a protected edge absorbs it ' +
+      '(WRS A+, 0 origin 5xx).',
+    when:
+      'Test burst absorption — does the target ride out a pulsing flood, or does its origin backlog ' +
+      'overflow on each spike? A clean discriminator between an unprotected origin and a protected ' +
+      'edge.',
+    threat: {
+      technique:
+        'Pulse-wave L7 flood — repeated short high-rate bursts with connection churn (no keep-alive) ' +
+        'timed to overflow the origin accept / worker backlog on each spike.',
+      reference: 'Pulse-wave DDoS pattern; connection-table / backlog exhaustion.',
+      measures:
+        'Whether an edge smooths the bursts (protection working) or each spike reaches and overflows ' +
+        'the origin (availability collapse).',
+      notReproduced:
+        'Bounded peak, single source, allowlisted, capped by HARD_CAPS — no amplification or spoofing.',
+    },
+    steps: [
+      {
+        name: 'Pulse-wave burst',
+        summary:
+          'Peak/lull/peak GET wave, fresh connection per request, concentrated on the costliest ' +
+          'dynamic path.',
+        maxRps: 600,
+        concurrency: 400,
+        maxDurationSec: 90,
+        profile: 'wave',
+        vector: 'http-get',
+        cacheBust: true,
+        noKeepAlive: true,
+        focusDynamic: true,
+      },
+    ],
+  },
+  {
+    id: 'l7-post-storm',
+    name: 'L7 POST storm',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A sustained POST flood with fresh connections on the origin’s costliest dynamic path — ' +
+      'uncacheable dynamic-write requests an edge cache can never serve, hammering the app tier ' +
+      'directly. Validated: collapses the bare benchmark origin (WRS C, ~12% availability, ' +
+      'thousands of origin 5xx) while a protected edge absorbs it (WRS A+, 0 origin 5xx).',
+    when:
+      'Test uncacheable dynamic-write load — does the target throttle/absorb it at the edge, or does ' +
+      'it reach and exhaust the origin worker pool?',
+    threat: {
+      technique:
+        'HTTP POST flood on origin-served (uncacheable) endpoints with connection churn — a ' +
+        'dynamic-request "API storm" the edge cache cannot serve.',
+      reference: 'API POST flood / origin resource exhaustion.',
+      measures:
+        'Whether the edge throttles/absorbs the write flood or it reaches and exhausts the origin ' +
+        'app tier.',
+      notReproduced:
+        'Bounded, single source, allowlisted, capped by HARD_CAPS — no amplification, no ' +
+        'unbounded-body exhaustion.',
+    },
+    steps: [
+      {
+        name: 'POST storm',
+        summary:
+          'Sustained POST flood, fresh connection per request, concentrated on the costliest ' +
+          'dynamic path.',
+        maxRps: 400,
+        concurrency: 500,
+        maxDurationSec: 60,
+        profile: 'constant',
+        vector: 'http-post',
+        cacheBust: true,
+        noKeepAlive: true,
+        focusDynamic: true,
+      },
+    ],
+  },
 ];
 
 // Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
@@ -1931,6 +2016,8 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'full-review': '2026-09-13',
   'xlayer-full-assurance': '2026-09-15',
   'origin-l7-exhaustion': '2026-09-16',
+  'l7-pulse-burst': '2026-09-16',
+  'l7-post-storm': '2026-09-16',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
