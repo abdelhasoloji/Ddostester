@@ -100,4 +100,29 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
       ),
     ).toBeNull();
   });
+
+  it('NEVER routes a slowloris off the built-in engine (it is the only one that holds slow connections)', () => {
+    // High concurrency would otherwise trigger a route to vegeta — but vegeta can't
+    // do slowloris, so routing would silently turn it into an ordinary flood.
+    expect(
+      highRateEngineUpgrade(
+        base({ vector: 'http-slowloris', maxRps: 100, concurrency: 500 }),
+        CEIL,
+        CONC,
+      ),
+    ).toBeNull();
+    // High rate must not route it either.
+    expect(
+      highRateEngineUpgrade(base({ vector: 'http-slowloris', maxRps: 800, concurrency: 50 }), CEIL),
+    ).toBeNull();
+    // Sanity: the same shape WITHOUT the slowloris vector still routes (proves the
+    // guard is what keeps it built-in, not some other condition).
+    expect(
+      highRateEngineUpgrade(
+        base({ vector: 'http-get', maxRps: 100, concurrency: 500 }),
+        CEIL,
+        CONC,
+      ),
+    ).toBe('vegeta');
+  });
 });
