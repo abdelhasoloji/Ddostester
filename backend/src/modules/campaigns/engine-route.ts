@@ -27,6 +27,8 @@ import type { Campaign } from './model.js';
  *   - endpoint-mix / UA-rotation → vegeta (it honours a multi-target set and
  *     spreads a User-Agent set across its targets file).
  *   - dataset / response assertion → keep built-in (only it implements these).
+ *   - slowloris → keep built-in (only it holds slow connections; an external
+ *     engine would silently turn it into an ordinary flood — a non-slowloris).
  *
  * The caller still checks the chosen engine is actually available before using
  * it (falling back to built-in when the binary is absent).
@@ -34,7 +36,14 @@ import type { Campaign } from './model.js';
 export function highRateEngineUpgrade(
   c: Pick<
     Campaign,
-    'maxRps' | 'concurrency' | 'flow' | 'endpoints' | 'dataset' | 'assertion' | 'userAgents'
+    | 'vector'
+    | 'maxRps'
+    | 'concurrency'
+    | 'flow'
+    | 'endpoints'
+    | 'dataset'
+    | 'assertion'
+    | 'userAgents'
   >,
   ceilingRps: number,
   ceilingConcurrency = Number.POSITIVE_INFINITY,
@@ -42,6 +51,15 @@ export function highRateEngineUpgrade(
   const overRate = c.maxRps > ceilingRps;
   const overConcurrency = c.concurrency > ceilingConcurrency;
   if (!overRate && !overConcurrency) return null;
+
+  // Slowloris is a BUILT-IN-ONLY vector: it holds connections open with an
+  // incomplete-but-well-formed request to measure whether the target sheds slow
+  // requests. vegeta/k6 cannot do this — routing a high-concurrency slowloris to
+  // them silently turns it into an ordinary completed-request flood, producing a
+  // "held" verdict that never actually tested slow-request shedding. It stays on
+  // the built-in engine (holding connections is low-CPU, so it is safe above the
+  // rate/concurrency ceilings that exist to protect the event loop from floods).
+  if (c.vector === 'http-slowloris') return null;
 
   // Any request flow (with or without correlation) routes to k6: it is
   // flow-capable AND now correlation-capable (extracts a token from one response
