@@ -14,8 +14,9 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { ReportsPage, AuditLog, SettingsPage, AccountPage, GuidePage, CampaignLaunch } =
-  await import('./pages.js');
+const { AuditLog, SettingsPage, AccountPage, CampaignLaunch } = await import('./pages.js');
+const { ReportsPage } = await import('./reports-page.js');
+const { GuidePage } = await import('./guide-page.js');
 const { CampaignsWorkspace } = await import('./campaigns-workspace.js');
 
 const stressPreset = {

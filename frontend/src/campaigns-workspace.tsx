@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PageHead, SuiteRunBanner, CampaignLaunch, CampaignList, GuidePage } from './pages.js';
+import { PageHead, SuiteRunBanner, CampaignLaunch, CampaignList } from './pages.js';
+import { GuidePage } from './guide-page.js';
 import { TemplatesPage } from './templates-page.js';
 import { PlanPage } from './plan-page.js';
 
