@@ -84,6 +84,35 @@ describe('TemplatesPage — class-C ladder launch', () => {
     expect(fakeApi.createBenchRun).not.toHaveBeenCalledWith('ip_spoofing');
   });
 
+  it('reports an error (not a false success) when the lab refuses every vector', async () => {
+    fakeApi.benchScenarios = vi.fn().mockResolvedValue({
+      dispatchEnabled: true,
+      labTargets: ['lab.internal'],
+      scenarios: [
+        {
+          id: 'udp_ntp_reflection',
+          title: 'NTP',
+          proto: 'UDP',
+          drs: 3,
+          reproducible: true,
+          note: '',
+        },
+      ],
+      ladders: [
+        { id: 'network-drs345', title: 'net', summary: '', scenarios: ['udp_ntp_reflection'] },
+      ],
+    });
+    fakeApi.createBenchRun = vi.fn().mockRejectedValue(new Error('runner offline'));
+    currentApp = makeApp({ role: 'ciso', authRequired: true });
+    renderWithRouter(<TemplatesPage />);
+    fireEvent.click(await screen.findByText('Cross-layer full assurance'));
+    fireEvent.click(await screen.findByRole('button', { name: /Request class-C ladder/i }));
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith('error', expect.stringMatching(/refused all/i)),
+    );
+    expect(currentApp.push).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
   it('shows the "enable the lab runner" note instead of the button when dispatch is disabled', async () => {
     fakeApi.benchScenarios = vi
       .fn()

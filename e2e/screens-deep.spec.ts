@@ -186,10 +186,16 @@ test('audit log (in Settings): Verify integrity produces a chain verdict', async
   await expect(page.getByText(/Chain intact|tampered|broken/i)).toBeVisible({ timeout: 10_000 });
 });
 
-test('protected zones and prepare screens render and expose their actions', async ({ page }) => {
+test('protected zones render, and the retired /prepare URL redirects to Campaigns', async ({
+  page,
+}) => {
   await login(page, 'officer');
   await goTo(page, 'Protected zones');
   await noError(page);
-  await page.goto('/prepare'); // retired from the nav, still reachable by URL
+  // Prepare was retired (its recon folded into the Campaigns launch flow); the
+  // bookmarked URL now redirects there instead of 404-ing.
+  await page.goto('/prepare');
+  await expect(page).toHaveURL(/\/campaigns/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
   await noError(page);
 });

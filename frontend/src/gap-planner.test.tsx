@@ -149,20 +149,6 @@ describe('GapPlannerSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
     await waitFor(() => expect(fakeApp.push).toHaveBeenCalledWith('error', 'boom'));
   });
-
-  it('seeds target + profile from a recon handoff and clears it', async () => {
-    sessionStorage.setItem(
-      'shieldtest.reconHandoff',
-      JSON.stringify({ target: 'bank.cz', seededProfile: { rateLimiting: 'present' } }),
-    );
-    render(
-      <MemoryRouter>
-        <GapPlannerSection />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText(/Seeded from recon/)).toBeInTheDocument();
-    expect(sessionStorage.getItem('shieldtest.reconHandoff')).toBeNull(); // consumed once
-  });
 });
 
 describe('PlanPage', () => {

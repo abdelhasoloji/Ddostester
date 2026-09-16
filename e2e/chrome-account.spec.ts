@@ -45,24 +45,21 @@ test('notifications: bell opens the panel and the Close control dismisses it', a
   await expect(panel).toHaveCount(0);
 });
 
-test('prepare: run recon, then Copy paths and Send to Plan', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+test('recon-first create: profiling a target proposes a seeded campaign', async ({ page }) => {
+  // The standalone Prepare page was retired; recon now runs inside the Campaigns
+  // launch flow (recon-first create). This exercises that path end-to-end.
   await login(page, 'engineer');
-  await page.goto('/prepare'); // retired from the nav, still reachable by URL
-  // Default target is off-allowlist; use the allowlisted self target + a probe.
-  // Prepare wraps each field as <label class="field"><span>Label</span><input/>.
-  await page.locator('label.field:has(span:text-is("Target")) input').fill(SELF);
-  await page.locator('label.field:has(span:text-is("Probe URL (optional)")) input').fill(SELF);
-  await page.getByRole('button', { name: 'Run recon' }).click();
-  // A report renders (preflight readiness / target profile).
-  await expect(page.getByRole('heading', { name: 'Target profile' })).toBeVisible({
+  await goTo(page, 'Campaigns');
+  await page.getByRole('button', { name: /New campaign/ }).click();
+  await expect(page.getByRole('heading', { name: 'New campaign — recon first' })).toBeVisible();
+  // Default target is off-allowlist; profile the allowlisted self target.
+  await page.locator('.recon-first input').first().fill(SELF);
+  await page.getByRole('button', { name: /Run recon/ }).click();
+  // Recon settles into a suggested config derived from what it observed.
+  await expect(page.getByText(/Suggested campaign — from what recon found/)).toBeVisible({
     timeout: 15_000,
   });
-  await page.getByRole('button', { name: 'Copy paths' }).click();
-  await expect(page.getByText(/copied to the clipboard/)).toBeVisible();
-  // Send to Plan navigates to the Plan tab.
-  await page.getByRole('button', { name: /Send to Plan/ }).click();
-  await expect(page.getByRole('tab', { name: 'Plan', selected: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Compose from these findings/ })).toBeVisible();
   await noError(page);
 });
 
@@ -87,10 +84,15 @@ test('guide: "Use this configuration" queues a preset into the launch form', asy
   const use = page.getByRole('button', { name: /Use this configuration/ }).first();
   if (!(await use.count())) return; // guide has no preset buttons in this build
   await use.click();
-  // The launch form opens seeded (its Submit is visible).
+  // The launch form opens seeded and STAYS: the seeded NewCampaignForm must
+  // persist, not flash and fall through to the recon target-picker. (Regression:
+  // the preset used to self-clear in an in-form effect, unmounting the form.)
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible({
     timeout: 10_000,
   });
+  await page.waitForTimeout(500); // let any effect-driven unmount settle
+  await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New campaign — recon first' })).toHaveCount(0);
   await noError(page);
 });
 

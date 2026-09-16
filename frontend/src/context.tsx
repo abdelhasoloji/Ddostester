@@ -13,6 +13,7 @@ import type {
 } from './api.js';
 import type { Preset } from './presets.js';
 import type { CampaignFormSeed } from './campaign-form.js';
+import { lsGet, lsSet } from './storage.js';
 
 export interface Identity {
   email: string;
@@ -161,7 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [operator, setOperator] = useState(() => localStorage.getItem('operator') ?? '');
+  const [operator, setOperator] = useState(() => lsGet('operator') ?? '');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [killing, setKilling] = useState<Record<string, boolean>>({});
   const [runs, setRuns] = useState<Record<string, CampaignRun>>({});
@@ -274,7 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (ready && !anyRunning) loadAlerts();
   }, [ready, anyRunning, loadAlerts]);
 
-  useEffect(() => localStorage.setItem('operator', operator), [operator]);
+  useEffect(() => lsSet('operator', operator), [operator]);
 
   const setBusyFor = (id: string, v: boolean) => setBusy((b) => ({ ...b, [id]: v }));
   const setKillingFor = (id: string, v: boolean) => setKilling((k) => ({ ...k, [id]: v }));

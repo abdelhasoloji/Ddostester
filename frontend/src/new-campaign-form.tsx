@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useApp, canDo } from './context.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
@@ -69,14 +69,9 @@ export function NewCampaignForm({
     }
   };
 
-  // Consume a preset queued from another page (e.g. the Guide).
-  const { draftPreset, clearDraftPreset } = app;
-  useEffect(() => {
-    if (draftPreset) {
-      applyPreset(draftPreset);
-      clearDraftPreset();
-    }
-  }, [draftPreset]);
+  // A preset queued from the Guide is turned into an `initial` seed by
+  // CampaignLaunch and arrives through the same prop as recon/replay seeds — so
+  // there is no in-form draftPreset effect to consume (and self-clear) here.
 
   // Selected load engine (empty = server default) and its multi-phase support.
   const selectedAgent = app.agents.find((a) => a.id === form.agent);
