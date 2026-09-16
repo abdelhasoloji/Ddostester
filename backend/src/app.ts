@@ -1137,7 +1137,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // published surface (systematic recon). Never throws: on failure the caller
   // falls back to the template paths and the summary says so.
   interface ReconSeedResult {
-    surface?: { paths: string[]; loginPath?: string };
+    surface?: { paths: string[]; dynamicPaths?: string[]; loginPath?: string };
     summary: {
       seeded: boolean;
       go?: boolean;
@@ -1166,7 +1166,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         }),
       ]);
       return {
-        surface: { paths: recon.suggestedPaths, loginPath: recon.loginPath },
+        surface: {
+          paths: recon.suggestedPaths,
+          dynamicPaths: recon.dynamicPaths,
+          loginPath: recon.loginPath,
+        },
         summary: {
           seeded: true,
           go: recon.preflight.go,
