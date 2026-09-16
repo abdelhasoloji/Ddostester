@@ -80,6 +80,8 @@ import { attackVectorsFromRecon, ReconDetailModal } from './recon-detail.js';
 import { PRESETS, PRESET_CATEGORIES, estimatedRequests, formatCount } from './presets.js';
 import type { Preset } from './presets.js';
 import { presetSeed } from './campaign-form.js';
+import { gradeFromScore, wrsRange } from './wrs.js';
+import { Modal } from './modal.js';
 import { getTheme, setTheme as persistTheme, subscribeTheme } from './theme.js';
 import type { Theme } from './theme.js';
 
@@ -190,10 +192,9 @@ export function isBuildMismatch(
   return s !== frontendCommit;
 }
 
-// Must match the WRS bands documented in the guide (WRS_LEVELS): C 55–69,
-// D 40–54, F 0–39 — so the Command Center pill never disagrees with the legend.
-const gradeFromScore = (n: number): WrsBreakdown['level'] =>
-  n >= 90 ? 'A+' : n >= 80 ? 'A' : n >= 70 ? 'B' : n >= 55 ? 'C' : n >= 40 ? 'D' : 'F';
+// gradeFromScore + the WRS_LEVELS legend ranges both derive from WRS_BANDS in
+// wrs.ts (the single source of truth), so the Command Center pill can never
+// disagree with the guide legend.
 
 /** Role-shaped call-to-action on the Command Center: each role opens on what its
  *  job is (Officer → approvals, CISO → governance, Engineer → run, Viewer → watch). */
@@ -2077,40 +2078,32 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
         />
       )}
       {decideOpen && (
-        <div className="overlay" onClick={closeDecide}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Approve or reject scenario"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3>Approve or reject — {g.suiteName}</h3>
-            <p className="hint">
-              This applies to all {g.pending} pending step(s) of the scenario. A step you authored
-              is left for a different approver (separation of duties).
-            </p>
-            <div className="field">
-              <label>Reason (required for rejection)</label>
-              <input value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-            <div className="btn-row">
-              <button className="btn" onClick={closeDecide}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
-                disabled={localBusy || !reason.trim()}
-                onClick={rejectScenario}
-              >
-                Reject ({g.pending})
-              </button>
-              <button className="btn btn-primary" disabled={localBusy} onClick={approveScenario}>
-                Approve ({g.pending})
-              </button>
-            </div>
+        <Modal label="Approve or reject scenario" onClose={closeDecide}>
+          <h3>Approve or reject — {g.suiteName}</h3>
+          <p className="hint">
+            This applies to all {g.pending} pending step(s) of the scenario. A step you authored is
+            left for a different approver (separation of duties).
+          </p>
+          <div className="field">
+            <label>Reason (required for rejection)</label>
+            <input value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
-        </div>
+          <div className="btn-row">
+            <button className="btn" onClick={closeDecide}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-danger"
+              disabled={localBusy || !reason.trim()}
+              onClick={rejectScenario}
+            >
+              Reject ({g.pending})
+            </button>
+            <button className="btn btn-primary" disabled={localBusy} onClick={approveScenario}>
+              Approve ({g.pending})
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -4661,46 +4654,40 @@ const STEPS = [
   },
 ];
 
-// How to read a WRS grade, and what to do about it.
+// How to read a WRS grade, and what to do about it. The numeric range for each
+// band is derived from WRS_BANDS (wrs.ts) via wrsRange(), not repeated here.
 const WRS_LEVELS: {
   level: WrsBreakdown['level'];
-  range: string;
   meaning: string;
   action: string;
 }[] = [
   {
     level: 'A+',
-    range: '90–100',
     meaning: 'Excellent — the service absorbed the load with negligible impact.',
     action: 'Keep a recurring baseline check to catch regressions early.',
   },
   {
     level: 'A',
-    range: '80–89',
     meaning: 'Strong resilience; minor degradation under load.',
     action: 'Good state. Re-test after significant infra or config changes.',
   },
   {
     level: 'B',
-    range: '70–79',
     meaning: 'Acceptable, but detection/mitigation or availability has room to improve.',
     action: 'Review the breakdown; tune autoscaling/caching, then re-test.',
   },
   {
     level: 'C',
-    range: '55–69',
     meaning: 'Noticeable impact on legitimate traffic during the run.',
     action: 'Investigate the weakest WRS component; plan a mitigation and re-test.',
   },
   {
     level: 'D',
-    range: '40–54',
     meaning: 'Poor — availability dropped materially under a bounded, lawful load.',
     action: 'Prioritise remediation; verify protection/kill-switch timings.',
   },
   {
     level: 'F',
-    range: '0–39',
     meaning: 'Failing — the service could not sustain the test.',
     action: 'Escalate; treat as a resilience defect before any production exposure.',
   },
@@ -4757,7 +4744,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
           {WRS_LEVELS.map((l) => (
             <div key={l.level} className="wrs-legend-row">
               <span className={`wrs ${wrsClass(l.level)}`}>
-                <span className="wrs-score">{l.range}</span> {l.level}
+                <span className="wrs-score">{wrsRange(l.level)}</span> {l.level}
               </span>
               <div className="wrs-legend-text">
                 <div>{l.meaning}</div>
