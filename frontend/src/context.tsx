@@ -44,6 +44,14 @@ export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boo
   return role ? PERMS[role].includes(perm) : false;
 }
 
+/** Human-readable role names, shared across the settings, account and identity UI. */
+export const roleLabel: Record<Role, string> = {
+  engineer: 'Security Engineer',
+  ciso: 'CISO',
+  admin: 'Administrator',
+  viewer: 'SOC / NOC',
+};
+
 export interface Toast {
   id: number;
   kind: 'error' | 'success' | 'info';
