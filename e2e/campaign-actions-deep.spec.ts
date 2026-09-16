@@ -46,10 +46,10 @@ test('kill switch: engineer kills their own RUNNING campaign from Run Theater', 
   await page.reload();
   await goTo(page, 'Campaigns');
   await (await openCard(page, name)).getByRole('button', { name: 'Run', exact: true }).click();
-  await page.getByRole('button', { name: 'Launch campaign' }).click();
+  await page.getByRole('button', { name: 'Run now' }).click();
   // Landed in Run Theater; the run's Kill button is enabled (not disabled by `busy`).
   await expect(page).toHaveURL(/\/theater/);
-  const kill = page.getByRole('button', { name: /Kill run/ });
+  const kill = page.getByRole('button', { name: /Kill/ });
   await expect(kill).toBeEnabled({ timeout: 15_000 });
   await kill.click();
   // The kill lands: back on Campaigns the row flips to a killed status (row-level,
@@ -106,10 +106,10 @@ test('suite: an engineer composes a one-template suite (pending approval)', asyn
   await page.getByRole('tab', { name: 'Templates' }).click();
   await page.locator('.field:has(label:text-is("Target for the assessment")) input').fill(SELF);
   await page.locator('input[aria-label^="Select "]').first().check();
-  await page.getByRole('button', { name: /Compose into one campaign/ }).click();
+  await page.getByRole('button', { name: /Create assessment/ }).click();
   // Compose succeeds and lands the engineer back on Campaigns (the CISO, not the
-  // engineer, sees "Approve scenario"; the engineer only gets the success toast).
-  await expect(page.getByText(/Composed campaign created/)).toBeVisible({ timeout: 10_000 });
+  // engineer, sees "Approve / Reject"; the engineer only gets the success toast).
+  await expect(page.getByText(/Assessment created/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
   await noError(page);
 });

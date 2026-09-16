@@ -86,7 +86,7 @@ test('Templates: search narrows the list, then compose bar appears on select', a
 
   // Select the first template's compose checkbox → the compose bar shows.
   await page.locator('input[aria-label^="Select "]').first().check();
-  await expect(page.getByRole('button', { name: /Compose into one campaign/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Create assessment/ })).toBeVisible();
 });
 
 test('Settings/theme: choosing dark or light applies data-theme to the document', async ({
@@ -137,7 +137,7 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
   // The compose needs an allowlisted target selected first.
   await eng.locator('.field:has(label:text-is("Target for the assessment")) input').fill(SELF);
   await eng.locator('input[aria-label^="Select "]').first().check();
-  const composeBtn = eng.getByRole('button', { name: /Compose into one campaign/ });
+  const composeBtn = eng.getByRole('button', { name: /Create assessment/ });
   await expect(composeBtn).toBeEnabled();
   await composeBtn.click();
   await noError(eng);
@@ -157,7 +157,7 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
   await expect(decide).toBeVisible({ timeout: 10_000 });
   await decide.click();
   // The Approve/Reject modal opens; Approve batches over the pending steps.
-  const dialog = ciso.getByRole('dialog', { name: /Approve or reject scenario/i });
+  const dialog = ciso.getByRole('dialog', { name: /Approve or reject assessment/i });
   await dialog.getByRole('button', { name: /^Approve \(/ }).click();
   await noError(ciso);
 
@@ -169,7 +169,7 @@ test('SUITE two-step UI: CISO approves scenario, engineer runs then cancels (#10
     .locator('tr.ct-row', { has: eng.locator('.ct-steps') })
     .first()
     .click();
-  const runScenario = eng.getByRole('button', { name: /Run scenario/ }).first();
+  const runScenario = eng.getByRole('button', { name: /Run assessment/ }).first();
   await expect(runScenario).toBeVisible({ timeout: 10_000 });
   await runScenario.click();
   // A live banner appears with Cancel; the engineer can cancel their own run.

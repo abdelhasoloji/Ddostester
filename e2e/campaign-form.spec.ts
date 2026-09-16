@@ -11,13 +11,13 @@ async function noError(page: Page): Promise<void> {
   await expect(page.locator('.toast.error, .toast-error')).toHaveCount(0);
 }
 
-/** New campaign → target → Run recon → Compose → the seeded classic form. */
+/** New campaign → target → Profile target → Compose → the seeded classic form. */
 async function openComposeForm(page: Page): Promise<void> {
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
   await page.locator('.recon-first input').first().fill(SELF);
-  await page.getByRole('button', { name: /Run recon/ }).click();
-  await page.getByRole('button', { name: /Compose from these findings/ }).click();
+  await page.getByRole('button', { name: /Profile target/ }).click();
+  await page.getByRole('button', { name: /Use these findings/ }).click();
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
 }
 
@@ -171,10 +171,10 @@ test('form: "← Back to recon" from the compose step returns to the recon summa
   await login(page, 'engineer');
   await openComposeForm(page);
   await page.getByRole('button', { name: /Back to recon/ }).click();
-  await expect(page.getByRole('button', { name: /Compose from these findings/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Use these findings/ })).toBeVisible();
   // And "← Change target" from there returns to the target input.
   await page.getByRole('button', { name: /Change target/ }).click();
-  await expect(page.getByRole('button', { name: /Run recon/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Profile target/ })).toBeVisible();
 });
 
 test('recon levers: the recon step surfaces delivery levers, and a checked lever CARRIES into the form', async ({
@@ -187,7 +187,7 @@ test('recon levers: the recon step surfaces delivery levers, and a checked lever
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
   await page.locator('.recon-first input').first().fill(SELF);
-  await page.getByRole('button', { name: /Run recon/ }).click();
+  await page.getByRole('button', { name: /Profile target/ }).click();
 
   // The levers checklist renders with the recon-derived levers.
   await expect(page.getByText('Delivery levers')).toBeVisible();
@@ -203,7 +203,7 @@ test('recon levers: the recon step surfaces delivery levers, and a checked lever
   // The operator opts two levers in, then composes.
   await lever('Cache-busting').check();
   await lever('Auto-calibrate rate').check();
-  await page.getByRole('button', { name: /Compose from these findings/ }).click();
+  await page.getByRole('button', { name: /Use these findings/ }).click();
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
 
   // The chosen levers are reflected in the launch form's actual config.

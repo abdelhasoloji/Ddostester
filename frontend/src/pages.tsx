@@ -1396,12 +1396,12 @@ export function SuiteRunBanner() {
                           act(
                             g.suiteId,
                             () => api.approveSuite(g.suiteId),
-                            'Scenario approved — an engineer can now run it.',
+                            'Assessment approved — an engineer can now run it.',
                           )
                         }
-                        title="Approve every pending step of the scenario (a CISO)"
+                        title="Approve every pending step of the assessment (a CISO)"
                       >
-                        {isBusy ? 'Approving…' : `✓ Approve scenario (${g.pending})`}
+                        {isBusy ? 'Approving…' : `✓ Approve (${g.pending})`}
                       </button>
                     ) : canExec && g.pending === 0 ? (
                       <button
@@ -1411,12 +1411,12 @@ export function SuiteRunBanner() {
                           act(
                             g.suiteId,
                             () => api.runSuite(g.suiteId),
-                            'Scenario launched — approved steps will run in order.',
+                            'Assessment started — approved steps run in order.',
                           )
                         }
-                        title="Run the approved steps of the scenario in order"
+                        title="Run the approved steps of the assessment in order"
                       >
-                        {isBusy ? 'Starting…' : `▶ Run scenario (${g.remaining})`}
+                        {isBusy ? 'Starting…' : `▶ Run assessment (${g.remaining})`}
                       </button>
                     ) : null
                   ) : (
@@ -1426,7 +1426,7 @@ export function SuiteRunBanner() {
                           className="btn btn-sm btn-primary"
                           disabled={isBusy}
                           onClick={() =>
-                            act(g.suiteId, () => api.resumeSuite(g.suiteId), 'Scenario resumed.')
+                            act(g.suiteId, () => api.resumeSuite(g.suiteId), 'Assessment resumed.')
                           }
                           title="Resume the sequence"
                         >
@@ -1440,7 +1440,7 @@ export function SuiteRunBanner() {
                             act(
                               g.suiteId,
                               () => api.pauseSuite(g.suiteId),
-                              'Scenario will pause after the current step.',
+                              'Assessment will pause after the current step.',
                             )
                           }
                           title="Pause: the current step finishes, the next won't start until you resume"
@@ -1455,7 +1455,7 @@ export function SuiteRunBanner() {
                           act(
                             g.suiteId,
                             () => api.cancelSuite(g.suiteId),
-                            'Scenario cancelled — step in flight stopped.',
+                            'Assessment cancelled — step in flight stopped.',
                           )
                         }
                         title="Cancel the sequence and kill the step in flight (remaining steps stay approved, not run)"
@@ -1467,7 +1467,7 @@ export function SuiteRunBanner() {
                 </div>
               )}
             </div>
-            <div className="live-bar" aria-label="Scenario progress">
+            <div className="live-bar" aria-label="Assessment progress">
               <div className="live-fill" style={{ width: `${pct}%` }} />
             </div>
             <div className="suite-banner-status">
@@ -1664,15 +1664,18 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
     }
   };
   const approveScenario = async () => {
-    await act(() => api.approveSuite(g.suiteId), 'Scenario approved — an engineer can now run it.');
+    await act(
+      () => api.approveSuite(g.suiteId),
+      'Assessment approved — an engineer can now run it.',
+    );
     closeDecide();
   };
   const rejectScenario = async () => {
-    await act(() => api.rejectSuite(g.suiteId, reason.trim()), 'Scenario rejected.');
+    await act(() => api.rejectSuite(g.suiteId, reason.trim()), 'Assessment rejected.');
     closeDecide();
   };
   const runScenario = () =>
-    act(() => api.runSuite(g.suiteId), 'Scenario launched — approved steps will run in order.');
+    act(() => api.runSuite(g.suiteId), 'Assessment started — approved steps run in order.');
 
   return (
     <div className={`suite-group${allArchived ? ' is-archived' : ''}`}>
@@ -1702,7 +1705,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               className="btn btn-sm btn-primary"
               disabled={localBusy}
               onClick={() => setDecideOpen(true)}
-              title="Approve or reject every pending step of the scenario. An engineer then runs it."
+              title="Approve or reject every pending step of the assessment. An engineer then runs it."
             >
               {localBusy ? <span className="spin" /> : null}Approve / Reject ({g.pending})
             </button>
@@ -1712,9 +1715,9 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               className="btn btn-sm btn-primary"
               disabled={localBusy}
               onClick={runScenario}
-              title="Run the approved steps of the scenario in order"
+              title="Run the approved steps of the assessment in order"
             >
-              {localBusy ? <span className="spin" /> : null}▶ Run scenario ({approvedRemaining})
+              {localBusy ? <span className="spin" /> : null}▶ Run assessment ({approvedRemaining})
             </button>
           )}
           {g.done > 0 && (
@@ -1724,7 +1727,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               target="_blank"
               rel="noreferrer"
             >
-              Assessment ↗
+              Report ↗
             </a>
           )}
           {canArchive && (
@@ -1788,11 +1791,11 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
         />
       )}
       {decideOpen && (
-        <Modal label="Approve or reject scenario" onClose={closeDecide}>
+        <Modal label="Approve or reject assessment" onClose={closeDecide}>
           <h3>Approve or reject — {g.suiteName}</h3>
           <p className="hint">
-            This applies to all {g.pending} pending step(s) of the scenario. A step you authored is
-            left for a different approver (separation of duties).
+            This applies to all {g.pending} pending step(s) of the assessment. A step you authored
+            is left for a different approver (separation of duties).
           </p>
           <div className="field">
             <label>Reason (required for rejection)</label>
@@ -2281,7 +2284,7 @@ function SuitesSection() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Assessment report ↗
+                  Report ↗
                 </a>
                 {prev && (
                   <a
@@ -2481,7 +2484,7 @@ export function GapPlannerSection() {
           : await api.instantiatePlaybook(planPicks[0], { target: targetUrl });
       app.push(
         'success',
-        `Campaign created — ${r.campaigns.length} line${r.campaigns.length === 1 ? '' : 's'} from the plan (pending approval).`,
+        `${planPicks.length >= 2 ? 'Assessment' : 'Campaign'} created — ${r.campaigns.length} step${r.campaigns.length === 1 ? '' : 's'} from the plan (pending approval).`,
       );
       await app.refresh();
       navigate('/campaigns?tab=launch');
@@ -2560,9 +2563,9 @@ export function GapPlannerSection() {
             {planPicks.length > 0 && (
               <div className="plan-cta">
                 <div>
-                  <b>Recommended campaign</b> — {planPicks.length} prioritised bounded line
+                  <b>Recommended assessment</b> — {planPicks.length} prioritised bounded step
                   {planPicks.length === 1 ? '' : 's'}, in ladder order, composed into one governed
-                  campaign against <code>{target.trim()}</code>. It still goes through approval.
+                  assessment against <code>{target.trim()}</code>. It still goes through approval.
                 </div>
                 <button
                   className="btn btn-primary"
@@ -2571,7 +2574,7 @@ export function GapPlannerSection() {
                 >
                   {creating
                     ? 'Creating…'
-                    : `▶ Create campaign from this plan (${planPicks.length})`}
+                    : `▶ Create assessment from this plan (${planPicks.length})`}
                 </button>
               </div>
             )}
@@ -3299,7 +3302,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
                       {eng && !eng.available ? ' (not installed → default)' : ''}
                     </div>
                     <button className="btn btn-primary btn-sm" onClick={() => use(p)}>
-                      Use this configuration →
+                      Use this preset →
                     </button>
                   </div>
                 );

@@ -24,7 +24,7 @@ async function runOne(eng: Page, ciso: Page, name: string): Promise<void> {
   await eng.reload();
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, name)).getByRole('button', { name: 'Run', exact: true }).click();
-  await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  await eng.getByRole('button', { name: 'Run now' }).click();
   // Launching lands on Run Theater; execute() runs to completion server-side and
   // the global completion toast fires (no card drawer to dismiss anymore).
   await expect(eng).toHaveURL(/\/theater/);

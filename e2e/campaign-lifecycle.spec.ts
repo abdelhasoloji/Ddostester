@@ -36,7 +36,7 @@ test('full lifecycle: engineer creates → CISO approves → engineer runs → s
   await eng.reload();
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, name)).getByRole('button', { name: 'Run' }).click();
-  await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  await eng.getByRole('button', { name: 'Run now' }).click();
   // Launching now sends the operator to Run Theater's live view, not the drawer.
   await expect(eng).toHaveURL(/\/theater/);
 
@@ -66,5 +66,5 @@ test('off-allowlist target is flagged before recon (B3)', async ({ page }) => {
   await page.locator('.recon-first input').first().fill('http://evil.example.com/');
   await expect(page.getByText(/not on the allowlist/i).first()).toBeVisible();
   // Recon cannot run against a non-allowlisted target.
-  await expect(page.getByRole('button', { name: /Run recon/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Profile target/ })).toBeDisabled();
 });

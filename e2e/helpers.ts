@@ -56,8 +56,8 @@ export async function createCampaign(
   // The single recon-first creation flow: enter a target, run recon, then compose
   // the seeded classic form from the findings. Playwright auto-waits for each step.
   await page.locator('.recon-first input').first().fill(target); // Target URL
-  await page.getByRole('button', { name: /Run recon/ }).click();
-  await page.getByRole('button', { name: /Compose from these findings/ }).click(); // → classic form
+  await page.getByRole('button', { name: /Profile target/ }).click();
+  await page.getByRole('button', { name: /Use these findings/ }).click(); // → classic form
 
   // Labels aren't for-associated in this form, so scope by the field's label text.
   await page.locator('.field:has(label:text-is("Name")) input').fill(name);

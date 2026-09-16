@@ -181,7 +181,7 @@ describe('ReplayFromRun (CTA on a completed run)', () => {
     fireEvent.click(toggle);
     expect(screen.getByText(/Ramp to the rejection knee/i)).toBeInTheDocument();
     // Compose queues the replay seed and clears the drawer.
-    fireEvent.click(screen.getByRole('button', { name: /Compose this follow-up/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Use this suggestion/i }));
     expect(currentApp.queueReplay).toHaveBeenCalledTimes(1);
     const seed = (currentApp.queueReplay as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(seed).toMatchObject({ target: 'https://bank.cz/', profile: 'ramp', calibrate: true });

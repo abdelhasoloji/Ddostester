@@ -75,7 +75,7 @@ test('Campaigns screen: filters, search, column sort, expand and archive — all
   await eng.reload();
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, done)).getByRole('button', { name: 'Run', exact: true }).click();
-  await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  await eng.getByRole('button', { name: 'Run now' }).click();
   // Launching lands on Run Theater; wait for completion, then return to Campaigns
   // where the status chips/filters live.
   await expect(eng).toHaveURL(/\/theater/);

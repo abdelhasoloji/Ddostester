@@ -3,7 +3,7 @@ import { login, goTo } from './helpers.js';
 
 // Deep coverage of the Templates tab controls the other specs don't drive: the
 // custom-template create → save → expand → delete lifecycle, the single-template
-// "Launch assessment" path, the compose-basket chip removal + name, the row
+// "Create assessment/campaign" path, the compose-basket chip removal + name, the row
 // expander, and the launch-bar repeat select.
 
 async function noError(page: Page): Promise<void> {
@@ -71,7 +71,7 @@ test('templates: launch a single template against an allowlisted target', async 
   // Expand the first template row and launch it.
   const row = page.locator('details.tpl-row').first();
   await row.locator('summary').click();
-  await row.getByRole('button', { name: /Launch assessment \(/ }).click();
+  await row.getByRole('button', { name: /Create (assessment|campaign)/ }).click();
   // Instantiating navigates to Campaigns; a success toast confirms creation.
   await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
   await expect(page.locator('.toast, .toast-success').first()).toBeVisible();

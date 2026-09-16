@@ -245,7 +245,9 @@ describe('TemplatesPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'staging.wedos' }));
     // Expand the (collapsed) template row, then launch.
     fireEvent.click(await screen.findByText('Ramp'));
-    fireEvent.click(await screen.findByRole('button', { name: /Launch assessment/, hidden: true }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Create (assessment|campaign)/, hidden: true }),
+    );
     await waitFor(() =>
       expect(fakeApi.instantiatePlaybook).toHaveBeenCalledWith(
         'pb1',
@@ -262,7 +264,7 @@ describe('TemplatesPage', () => {
     fireEvent.click(await screen.findByLabelText('Select "Ramp" to compose'));
     fireEvent.click(await screen.findByLabelText('Select "Soak" to compose'));
     // The compose basket appears; launch the composition.
-    fireEvent.click(await screen.findByRole('button', { name: /Compose into one campaign/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Create assessment/ }));
     await waitFor(() =>
       expect(fakeApi.composeSuite).toHaveBeenCalledWith(
         expect.objectContaining({

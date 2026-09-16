@@ -182,7 +182,7 @@ describe('CampaignCard RBAC gating', () => {
   it('offers Cancel to an officer on an unrun campaign and calls app.cancel', () => {
     fakeApp = appWith('ciso');
     render(<CampaignCard c={{ ...baseCampaign, status: 'APPROVED' }} />);
-    const btn = screen.getByRole('button', { name: /^Cancel$/ });
+    const btn = screen.getByRole('button', { name: /^Cancel campaign$/ });
     fireEvent.click(btn);
     expect(fakeApp.cancel as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
   });
@@ -190,7 +190,7 @@ describe('CampaignCard RBAC gating', () => {
   it('does not offer Cancel once the campaign is terminal', () => {
     fakeApp = appWith('ciso');
     render(<CampaignCard c={{ ...baseCampaign, status: 'CANCELLED', statusDetail: 'done' }} />);
-    expect(screen.queryByRole('button', { name: /^Cancel$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Cancel campaign$/ })).toBeNull();
     expect(screen.getByText('Cancelled')).toBeInTheDocument(); // the badge
   });
 });

@@ -67,7 +67,7 @@ test('Recon-first create: run recon against an allowlisted target', async ({ pag
   await page.getByRole('button', { name: /New campaign/ }).click();
   const input = page.locator('.recon-first input').first();
   await input.fill(SELF);
-  if (await clickIf(page, /Run recon/)) {
+  if (await clickIf(page, /Profile target/)) {
     // A recon result renders (posture / readiness) or a graceful message.
     await expect(
       page.getByText(/readiness|posture|surface|profile|recon|suggested/i).first(),
@@ -78,7 +78,7 @@ test('Recon-first create: run recon against an allowlisted target', async ({ pag
 test('Protected zones: renders and its recon/retry control works', async ({ page }) => {
   await login(page, 'officer');
   await goTo(page, 'Protected zones');
-  await clickIf(page, /Run recon|Retry/);
+  await clickIf(page, /Profile target|Retry/);
   await noError(page);
 });
 
@@ -132,7 +132,7 @@ test('recon-first create: target-phase Cancel returns to the launch view', async
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
-  await expect(page.getByRole('button', { name: /Run recon/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Profile target/ })).toBeVisible();
   await page.getByRole('button', { name: /^Cancel$/ }).click();
   await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
 });
@@ -144,7 +144,7 @@ test('recon-first create: run recon then "Start from scratch" reaches the seeded
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
   await page.locator('.recon-first input').first().fill(SELF);
-  await page.getByRole('button', { name: /Run recon/ }).click();
+  await page.getByRole('button', { name: /Profile target/ }).click();
   await page.getByRole('button', { name: /Start from scratch/ }).click();
   // The classic form (with the mandatory attestation + submit) is now shown.
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();

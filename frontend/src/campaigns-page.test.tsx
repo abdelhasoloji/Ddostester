@@ -166,7 +166,7 @@ describe('CampaignList — suite grouping', () => {
     expandRow('Suite X');
     fireEvent.click(screen.getByRole('button', { name: /Approve \/ Reject/ }));
     // Reject is disabled until a reason is given (mirrors a single campaign).
-    const dialog = screen.getByRole('dialog', { name: /Approve or reject scenario/i });
+    const dialog = screen.getByRole('dialog', { name: /Approve or reject assessment/i });
     const reject = within(dialog).getByRole('button', { name: /^Reject \(/ });
     expect(reject).toBeDisabled();
     fireEvent.change(within(dialog).getByRole('textbox'), {
@@ -187,7 +187,7 @@ describe('CampaignList — suite grouping', () => {
     });
     renderWithRouter(<CampaignList />);
     expandRow('Suite X');
-    const btn = screen.getByRole('button', { name: /Run scenario/ });
+    const btn = screen.getByRole('button', { name: /Run assessment/ });
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.runSuite).toHaveBeenCalledWith('suite-1'));
   });

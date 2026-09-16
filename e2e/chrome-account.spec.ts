@@ -54,12 +54,12 @@ test('recon-first create: profiling a target proposes a seeded campaign', async 
   await expect(page.getByRole('heading', { name: 'New campaign — recon first' })).toBeVisible();
   // Default target is off-allowlist; profile the allowlisted self target.
   await page.locator('.recon-first input').first().fill(SELF);
-  await page.getByRole('button', { name: /Run recon/ }).click();
+  await page.getByRole('button', { name: /Profile target/ }).click();
   // Recon settles into a suggested config derived from what it observed.
   await expect(page.getByText(/Suggested campaign — from what recon found/)).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByRole('button', { name: /Compose from these findings/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Use these findings/ })).toBeVisible();
   await noError(page);
 });
 
