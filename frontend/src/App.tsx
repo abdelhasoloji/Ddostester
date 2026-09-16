@@ -1,14 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from './context.js';
 import { Login, ForcedPasswordChange } from './ui.js';
-import {
-  CommandCenterPage,
-  Layout,
-  ReportsPage,
-  RunTheaterPage,
-  SettingsPage,
-  AccountPage,
-} from './pages.js';
+import { CommandCenterPage, Layout, SettingsPage, AccountPage } from './pages.js';
+import { ReportsPage } from './reports-page.js';
+import { RunTheaterPage } from './run-theater.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { ZonesPage } from './zones-page.js';
 

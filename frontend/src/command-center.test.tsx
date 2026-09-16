@@ -102,7 +102,9 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
-const { CommandCenterPage, RunTheaterPage, ReportsPage } = await import('./pages.js');
+const { CommandCenterPage } = await import('./pages.js');
+const { ReportsPage } = await import('./reports-page.js');
+const { RunTheaterPage } = await import('./run-theater.js');
 
 // --- EventSource mock so Run Theater can subscribe in jsdom ---
 const esInstances: MockES[] = [];
