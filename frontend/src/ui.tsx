@@ -199,6 +199,28 @@ export function WrsTrend({ points, regression }: { points: WrsPoint[]; regressio
   );
 }
 
+/**
+ * The run's protection state, from the LIVE signals. The legitimate probe is the
+ * truth-teller: if real users can't reach the target it is being taken DOWN
+ * ('overwhelmed'), whatever share of the flood is failing. A high failed/sent
+ * ratio ONLY means "protection engaging" when the probe stays up — an
+ * unprotected origin that 5xx's every request also shows ~100% "absorbed", but
+ * that is the origin collapsing, not an edge defending it. Pure, so it's tested.
+ */
+export function protectionBadgeState(
+  waiting: boolean,
+  absorbedPct: number,
+  p: LiveProgressData | null,
+): 'baseline' | 'overwhelmed' | 'protecting' | 'running' {
+  if (waiting) return 'baseline';
+  const samples = p?.probe?.samples ?? 0;
+  const probeUp = samples ? (p!.probe!.available / samples) * 100 : 100;
+  // Only trust the probe once it has taken at least one sample.
+  if (samples > 0 && (p?.probe?.health === 'critical' || probeUp < 50)) return 'overwhelmed';
+  if (absorbedPct >= 20) return 'protecting';
+  return 'running';
+}
+
 /** Plain-language explanation of the run's protection state, shown on hover of
  *  the status badge so "protection engaging" isn't an unexplained label. */
 export function protectionBadgeTitle(
@@ -212,6 +234,19 @@ export function protectionBadgeTitle(
   }
   const probeUp =
     p?.probe && p.probe.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 100;
+  // Target being taken DOWN — the honest read whatever the absorbed% says.
+  if (protectionBadgeState(waiting, absorbedPct, p) === 'overwhelmed') {
+    const cc = p?.statusCounts ?? {};
+    const r4 = cc['4xx'] ?? 0;
+    const e5 = cc['5xx'] ?? 0;
+    return (
+      `Target overwhelmed — the legitimate probe is only ${probeUp}% up: real users can't reach ` +
+      `it. ${p?.failed ?? 0} of ${p?.sent ?? 0} requests failed` +
+      `${e5 ? ` (${e5} origin 5xx)` : ''}${r4 ? `, ${r4} × 4xx` : ''}.\n` +
+      `This is the origin failing under load — NOT a protection absorbing the attack. There is no ` +
+      `healthy edge in front of it shielding real users.`
+    );
+  }
   // Slow-header (Slowloris) has NO request stream to absorb — the vector holds
   // connections open, and "protection" means the target SHEDS the slow ones. So
   // the mechanism is connections shed, not requests rejected. (E12)
@@ -351,6 +386,10 @@ export function RunTheater({
   // note, rather than a fake zero — the live target health below is still real.
   const genLive = !!p && (p.sent > 0 || (p.actualRps ?? 0) > 0);
   const genPending = !!p && !isSlowloris && !genLive && p.elapsedSec >= 4;
+  // Protection state from the live signals — the legit probe decides whether a
+  // high absorbed% is "protection engaging" (probe up) or the target being taken
+  // down (probe down). Keeps the headline badge honest on an unprotected origin.
+  const badgeState = protectionBadgeState(waiting, absorbedPct, p);
 
   return (
     <div className="theater">
@@ -363,15 +402,17 @@ export function RunTheater({
           </span>
         </div>
         <span
-          className={`badge ${absorbedPct >= 20 ? 'warn' : ''}`}
+          className={`badge ${badgeState === 'overwhelmed' ? 'crit' : badgeState === 'protecting' ? 'warn' : ''}`}
           style={{ cursor: 'help' }}
           title={protectionBadgeTitle(waiting, absorbedPct, p, vector)}
         >
-          {waiting
+          {badgeState === 'baseline'
             ? '● capturing baseline'
-            : absorbedPct >= 20
-              ? '● protection engaging'
-              : '● running'}
+            : badgeState === 'overwhelmed'
+              ? '● target overwhelmed'
+              : badgeState === 'protecting'
+                ? '● protection engaging'
+                : '● running'}
         </span>
         {onKill && (
           <button className="btn btn-danger theater-kill" onClick={onKill} disabled={killing}>
@@ -452,7 +493,12 @@ export function RunTheater({
                   </div>
                 </div>
                 <div className="theater-metric absorb">
-                  <div className="tm-k">Absorbed by edge</div>
+                  {/* When the target is overwhelmed the failures are the ORIGIN
+                      erroring, not an edge absorbing the attack — label it
+                      honestly so a bare-origin collapse can't read as protection. */}
+                  <div className="tm-k">
+                    {badgeState === 'overwhelmed' ? 'Failed at origin' : 'Absorbed by edge'}
+                  </div>
                   {genPending ? (
                     <div className="tm-v">
                       <span className="tm-na" title="Computed when the engine settles">
@@ -461,13 +507,13 @@ export function RunTheater({
                     </div>
                   ) : (
                     <>
-                      <div className="tm-v warnv">
+                      <div className={`tm-v ${badgeState === 'overwhelmed' ? 'bad' : 'warnv'}`}>
                         {absorbedPct}
                         <small>%</small>
                       </div>
                       <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
                         <div
-                          className="absorb-fill"
+                          className={`absorb-fill${badgeState === 'overwhelmed' ? ' crit' : ''}`}
                           style={{ width: `${Math.min(100, absorbedPct)}%` }}
                         />
                       </div>

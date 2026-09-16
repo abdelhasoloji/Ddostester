@@ -3092,6 +3092,12 @@ table.remediations td {
   color: var(--warning);
   border-color: var(--warning);
 }
+/* Target being taken down (legit probe critical) — not a defense. */
+.badge.crit {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
 .warn-hint {
   color: var(--warning);
 }
@@ -3173,6 +3179,9 @@ table.remediations td {
   height: 100%;
   background: var(--warning);
   transition: width 0.4s ease;
+}
+.absorb-fill.crit {
+  background: var(--danger);
 }
 
 /* In-app alerts banner (top of main). */
