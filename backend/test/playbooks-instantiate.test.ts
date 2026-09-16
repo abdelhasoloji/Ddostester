@@ -72,8 +72,9 @@ describe('curated templates instantiate into valid campaigns for bank.cz', () =>
       ],
     };
     const recon = {
-      paths: ['/', '/style.css', '/about.html', '/api/echo.php', '/api/work.php'],
-      dynamicPaths: ['/api/echo.php', '/api/work.php'],
+      paths: ['/', '/style.css', '/about.html', '/api/work.php?ms=50', '/api/echo.php'],
+      // recon orders dynamicPaths most-expensive-first; the costliest is work.php.
+      dynamicPaths: ['/api/work.php?ms=50', '/api/echo.php'],
     };
     const [input] = buildSuiteCampaigns(
       pb,
@@ -81,8 +82,9 @@ describe('curated templates instantiate into valid campaigns for bank.cz', () =>
       ENGINES,
     );
     const urls = (input.endpoints ?? []).map((e) => e.url);
-    // Only the dynamic (uncacheable) endpoints are targeted — no static assets.
-    expect(urls).toEqual(['https://bank.cz/api/echo.php', 'https://bank.cz/api/work.php']);
+    // ALL fire concentrates on the single costliest dynamic path — the cheap
+    // echo.php is NOT included (it would dilute the pressure), and no static.
+    expect(urls).toEqual(['https://bank.cz/api/work.php?ms=50']);
 
     // Without focusDynamic (and no explicit paths) the step hits the root only —
     // proving the flag is what concentrates the load.

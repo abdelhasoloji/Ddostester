@@ -87,12 +87,12 @@ export interface PlaybookStep {
    */
   calibrate?: boolean;
   /**
-   * Origin-exhaustion focus: concentrate the flood on the target's DYNAMIC
-   * (uncacheable / origin-served) paths from recon, instead of the whole surface
-   * or the static root. Without this a generic origin-exhaustion line spreads
-   * across static assets that nginx serves for free and never loads the app tier.
-   * Falls back to the step's own paths (then root) when recon found no dynamic
-   * paths.
+   * Origin-exhaustion focus: concentrate the whole flood on the target's single
+   * COSTLIEST dynamic (uncacheable / origin-served) path from recon — the app
+   * tier's weakest link. Without it a generic origin-exhaustion line spreads
+   * across static assets nginx serves for free (never loading the app tier) or
+   * dilutes across cheap dynamic paths below the worker-pool capacity. Falls back
+   * to the step's own paths (then root) when recon found no dynamic path.
    */
   focusDynamic?: boolean;
 }
@@ -2141,12 +2141,16 @@ function campaignInputFromStep(
   // seeded endpoints attach for EVERY engine — the out-of-process engines
   // (vegeta/k6) honour a multi-target endpoint set too, so a recon-seeded step
   // hits the real surface whatever engine runs it (not just the built-in one).
-  // Origin-exhaustion lines concentrate on the recon's dynamic (uncacheable)
-  // paths — the app tier that actually collapses — instead of the whole surface
-  // (mostly static assets nginx serves for free). Falls back to the step's own
-  // seeded paths when recon found no dynamic paths.
+  // Origin-exhaustion lines concentrate ALL fire on the single COSTLIEST dynamic
+  // (uncacheable) path from recon — the app tier's weakest link — instead of the
+  // whole surface (static assets nginx serves for free) or a spread across cheap
+  // dynamic paths that dilutes the pressure below the worker-pool capacity.
+  // recon.dynamicPaths is ordered most-expensive-first (pathCost desc). Falls
+  // back to the step's own seeded paths, then root, when recon found none.
   const dynamicFocus =
-    step.focusDynamic && o.t.recon?.dynamicPaths?.length ? o.t.recon.dynamicPaths : undefined;
+    step.focusDynamic && o.t.recon?.dynamicPaths?.length
+      ? o.t.recon.dynamicPaths.slice(0, 1)
+      : undefined;
   const seededPaths = dynamicFocus ?? seedPaths(step.paths, o.t.recon);
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
