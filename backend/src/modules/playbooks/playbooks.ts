@@ -1774,6 +1774,72 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
     ],
   },
+  {
+    id: 'origin-l7-exhaustion',
+    name: 'Bare-origin L7 exhaustion',
+    category: 'Threat-informed',
+    drsLevel: 3,
+    summary:
+      'An escalating GET then POST flood on the target’s dynamic (uncacheable) surface with a ' +
+      'fresh connection per request — the bounded profile that overflows an unprotected origin’s ' +
+      'worker / accept backlog until it sheds legitimate traffic. A protected edge absorbs it; a ' +
+      'bare origin collapses.',
+    when:
+      'Find an unprotected origin’s breaking point, or run before/after placing a protection ' +
+      '(CDN / WAF / rate-limit) in front of it to quantify the gain. Meaningful against a target ' +
+      'with an uncacheable dynamic endpoint — recon seeds the paths at launch.',
+    threat: {
+      technique:
+        'Volumetric L7 request flood on origin-served (uncacheable) endpoints with connection ' +
+        'churn (no keep-alive) — commodity “origin exhaustion”.',
+      reference:
+        'Generic HTTP flood / origin resource exhaustion; validated on the WEDOS bare-origin ' +
+        'benchmark (2026-09-16).',
+      measures:
+        'Whether the edge absorbs / throttles the flood (protection working) or it reaches and ' +
+        'exhausts the origin’s worker pool (availability collapse). On the bare benchmark, ' +
+        'availability fell 100% → ~10% once the offered rate crossed ~1.5× the origin service rate.',
+      notReproduced:
+        'No amplification, no source spoofing, no unbounded exhaustion — every step is rate / ' +
+        'concurrency / duration capped by HARD_CAPS.',
+    },
+    steps: [
+      {
+        name: 'GET — breaking point (minimal)',
+        summary:
+          'Just above the origin service rate; fresh connections overflow the backlog into 5xx.',
+        maxRps: 150,
+        concurrency: 500,
+        maxDurationSec: 60,
+        profile: 'constant',
+        vector: 'http-get',
+        cacheBust: true,
+        noKeepAlive: true,
+      },
+      {
+        name: 'GET — full collapse',
+        summary: 'Several times the service rate — sustained 5xx, availability floors out.',
+        maxRps: 400,
+        concurrency: 500,
+        maxDurationSec: 60,
+        profile: 'constant',
+        vector: 'http-get',
+        cacheBust: true,
+        noKeepAlive: true,
+      },
+      {
+        name: 'POST — full collapse',
+        summary: 'POST variant against the same dynamic surface — same origin bottleneck.',
+        maxRps: 400,
+        concurrency: 500,
+        maxDurationSec: 60,
+        profile: 'constant',
+        vector: 'http-post',
+        cacheBust: true,
+        noKeepAlive: true,
+      },
+    ],
+  },
 ];
 
 // Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
@@ -1851,6 +1917,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'bankcz-breaker': '2026-09-13',
   'full-review': '2026-09-13',
   'xlayer-full-assurance': '2026-09-15',
+  'origin-l7-exhaustion': '2026-09-16',
 };
 /** Date the zeroBS L7 lines were split into their own single-step templates. */
 const ZEROBS_LINES_CREATED_AT = '2026-09-11';
