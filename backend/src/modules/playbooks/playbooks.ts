@@ -1830,7 +1830,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'GET — full collapse',
         summary: 'Several times the service rate — sustained 5xx, availability floors out.',
-        maxRps: 400,
+        maxRps: 800,
         concurrency: 500,
         maxDurationSec: 60,
         profile: 'constant',
@@ -1842,7 +1842,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'POST — full collapse',
         summary: 'POST variant against the same dynamic surface — same origin bottleneck.',
-        maxRps: 400,
+        maxRps: 800,
         concurrency: 500,
         maxDurationSec: 60,
         profile: 'constant',
