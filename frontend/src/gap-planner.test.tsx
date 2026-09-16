@@ -115,7 +115,9 @@ describe('GapPlannerSection', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /Analyze gaps/ }));
     // The actionable CTA appears with the count of prioritised replayable lines.
-    const cta = await screen.findByRole('button', { name: /Create campaign from this plan \(2\)/ });
+    const cta = await screen.findByRole('button', {
+      name: /Create assessment from this plan \(2\)/,
+    });
     fireEvent.click(cta);
     await waitFor(() =>
       expect(composeSuite).toHaveBeenCalledWith(

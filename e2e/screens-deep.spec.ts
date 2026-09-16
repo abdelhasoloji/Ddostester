@@ -75,9 +75,9 @@ test('campaign card: Run opens the Execute modal, which cancels without launchin
   await page.reload();
   await goTo(page, 'Campaigns');
   await (await openCard(page, name)).getByRole('button', { name: 'Run', exact: true }).click();
-  // The Execute modal: h3 "Confirm run", primary "Launch campaign".
+  // The Execute modal: h3 "Confirm run", primary "Run now".
   await expect(page.getByRole('heading', { name: 'Confirm run' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Launch campaign' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run now' })).toBeVisible();
   await page.keyboard.press('Escape'); // cancel the modal → still Approved, not run
   await expect(card(page, name).getByText('Approved')).toBeVisible();
   await ctx.close();

@@ -416,7 +416,7 @@ export function RunTheater({
         </span>
         {onKill && (
           <button className="btn btn-danger theater-kill" onClick={onKill} disabled={killing}>
-            ◼ {killing ? 'Killing…' : 'Kill run'}
+            ◼ {killing ? 'Killing…' : 'Kill'}
           </button>
         )}
       </div>
@@ -788,7 +788,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
               disabled={app.killing[c.id]}
               onClick={() => app.kill(c)}
             >
-              Kill switch
+              Kill
             </button>
           )}
           {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
@@ -799,7 +799,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
                 onClick={() => app.cancel(c)}
                 title="Cancel this unrun campaign (terminal)"
               >
-                Cancel
+                Cancel campaign
               </button>
             )}
           {c.runId && (
@@ -1425,7 +1425,7 @@ export function CampaignDrawer() {
               disabled={app.killing[c.id]}
               onClick={() => app.kill(c)}
             >
-              Kill switch
+              Kill
             </button>
           )}
           {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
@@ -1435,7 +1435,7 @@ export function CampaignDrawer() {
                 onClick={() => app.cancel(c)}
                 title="Cancel this unrun campaign (terminal)"
               >
-                Cancel
+                Cancel campaign
               </button>
             )}
           {c.runId && (
@@ -1598,7 +1598,7 @@ export function ExecuteModal() {
             navigate(`/theater?run=${c.id}`);
           }}
         >
-          Launch campaign
+          Run now
         </button>
       </div>
     </Modal>

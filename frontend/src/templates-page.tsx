@@ -191,7 +191,11 @@ function PlaybookRow({
               disabled={!launchable || busy}
               onClick={onLaunch}
             >
-              {busy ? 'Launching…' : `Launch assessment (${pb.steps.length}) →`}
+              {busy
+                ? 'Creating…'
+                : pb.steps.length === 1
+                  ? 'Create campaign →'
+                  : `Create assessment (${pb.steps.length}) →`}
             </button>
             {pb.custom &&
               (confirmingDelete ? (
@@ -388,7 +392,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       });
       app.push(
         'success',
-        `Assessment "${pb.name}" created — ${r.campaigns.length} campaigns (pending approval).`,
+        `${r.campaigns.length === 1 ? 'Campaign' : 'Assessment'} "${pb.name}" created — ${r.campaigns.length} step${r.campaigns.length === 1 ? '' : 's'} (pending approval).`,
       );
       // Recon-seeding is systematic: tell the operator what it found (or warn).
       if (r.recon?.seeded) {
@@ -444,7 +448,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       });
       app.push(
         'success',
-        `Composed campaign created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} template${selectedPlaybooks.length === 1 ? '' : 's'} (pending approval).`,
+        `Assessment created — ${r.campaigns.length} steps from ${selectedPlaybooks.length} template${selectedPlaybooks.length === 1 ? '' : 's'} (pending approval).`,
       );
       if (r.recon?.seeded) {
         app.push(
@@ -734,10 +738,10 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                   ? 'Pick an allowlisted target above first'
                   : overCap
                     ? `Too many steps (${selectedSteps} > ${MAX_COMPOSITE_STEPS})`
-                    : 'Create one campaign from the selected template(s), in order'
+                    : 'Create one governed assessment from the selected template(s), in order'
               }
             >
-              {composing ? 'Composing…' : `Compose into one campaign (${selectedSteps}) →`}
+              {composing ? 'Creating…' : `Create assessment (${selectedSteps}) →`}
             </button>
           </div>
           {!targetAllowed && (

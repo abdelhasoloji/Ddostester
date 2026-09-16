@@ -212,7 +212,7 @@ export function ReplayFromRun({ campaign, run }: { campaign: Campaign; run: Camp
             </div>
           )}
           <button className="btn btn-sm btn-primary" onClick={launch}>
-            Compose this follow-up →
+            Use this suggestion →
           </button>
         </div>
       )}

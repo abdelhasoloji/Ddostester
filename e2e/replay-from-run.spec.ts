@@ -28,7 +28,7 @@ test('replay: a completed run seeds a follow-up campaign from its conclusions', 
   await eng.reload();
   await goTo(eng, 'Campaigns');
   await (await openCard(eng, name)).getByRole('button', { name: 'Run', exact: true }).click();
-  await eng.getByRole('button', { name: 'Launch campaign' }).click();
+  await eng.getByRole('button', { name: 'Run now' }).click();
   await expect(eng).toHaveURL(/\/theater/);
 
   // Back on Campaigns, wait for the run to settle (its report becomes reachable),
@@ -45,7 +45,7 @@ test('replay: a completed run seeds a follow-up campaign from its conclusions', 
   await expect(cta).toBeVisible();
   await cta.click();
   await expect(drawer.getByText(/replay|escalate|ramp|tarpit|posture/i).first()).toBeVisible();
-  await drawer.getByRole('button', { name: /Compose this follow-up/i }).click();
+  await drawer.getByRole('button', { name: /Use this suggestion/i }).click();
 
   // The follow-up form opens on the Launch surface, pre-filled from the prior run:
   // the name carries "· replay" and the target is the same host.

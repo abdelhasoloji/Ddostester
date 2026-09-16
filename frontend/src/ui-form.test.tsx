@@ -162,7 +162,7 @@ describe('modals', () => {
       },
     });
     render(<ExecuteModal />);
-    const launch = screen.getByRole('button', { name: /Launch campaign/ });
+    const launch = screen.getByRole('button', { name: /Run now/ });
     fireEvent.click(launch);
     fireEvent.click(launch); // impatient second click before navigation
     expect(currentApp.execute).toHaveBeenCalledTimes(1);

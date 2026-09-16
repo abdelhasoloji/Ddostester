@@ -160,12 +160,12 @@ describe('ReconFirstCreate (recon-first flow)', () => {
 
   it('gates "Run recon" until the target is on the allowlist', () => {
     render(<ReconFirstCreate />);
-    const btn = screen.getByRole('button', { name: /Run recon/i });
+    const btn = screen.getByRole('button', { name: /Profile target/i });
     expect(btn).toBeDisabled();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://evil.example/' } });
-    expect(screen.getByRole('button', { name: /Run recon/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Profile target/i })).toBeDisabled();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    expect(screen.getByRole('button', { name: /Run recon/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Profile target/i })).toBeEnabled();
   });
 
   it('runs recon and shows the suggestion derived from the findings', async () => {
@@ -179,14 +179,12 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     );
     render(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
     await waitFor(() => expect(screen.getByText(/Suggested campaign/)).toBeInTheDocument());
     expect(screen.getByText(/cache-busting ON/)).toBeInTheDocument();
     expect(screen.getAllByText(/LiteSpeed/).length).toBeGreaterThan(0);
     expect(screen.getByText(/preflight GO/)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Compose from these findings/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Use these findings/i })).toBeInTheDocument();
   });
 
   it('renders recon-recommended levers pre-checked and lets the operator toggle them', async () => {
@@ -200,7 +198,7 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     );
     render(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
     await waitFor(() => expect(screen.getByText(/Delivery levers/)).toBeInTheDocument());
 
     // The three WEDOS-signalled levers are pre-checked; no-keep-alive is optional/off.
@@ -223,7 +221,7 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     expect(noKa).toBeChecked();
 
     // Composing carries the choices into the launch form.
-    fireEvent.click(screen.getByRole('button', { name: /Compose from these findings/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Use these findings/i }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
     );
@@ -239,7 +237,7 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     );
     render(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
     await waitFor(() => expect(screen.getByText(/Discovered surface/)).toBeInTheDocument());
 
     // Both dynamic paths are pre-selected.
@@ -251,7 +249,7 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     // Deselect /login → compose → the endpoint mix keeps /api/search but drops /login.
     fireEvent.click(login);
     expect(login).not.toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: /Compose from these findings/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Use these findings/i }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
     );
@@ -263,7 +261,7 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     reconMock.mockRejectedValue(new Error('recon boom'));
     render(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    fireEvent.click(screen.getByRole('button', { name: /Run recon/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
     await waitFor(() => expect(screen.getByText('recon boom')).toBeInTheDocument());
   });
 });

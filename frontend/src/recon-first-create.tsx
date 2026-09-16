@@ -428,7 +428,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
 
         <div className="page-actions">
           <button className="btn btn-primary" onClick={() => setPhase('compose')}>
-            Compose from these findings →
+            Use these findings →
           </button>
           <button
             className="btn btn-ghost"
@@ -493,7 +493,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
       )}
       <div className="page-actions">
         <button className="btn btn-primary" disabled={!allowed || busy} onClick={runRecon}>
-          {busy ? 'Profiling…' : '🔎 Run recon'}
+          {busy ? 'Profiling…' : '🔎 Profile target'}
         </button>
         {onDone && (
           <button className="btn btn-ghost" onClick={onDone}>

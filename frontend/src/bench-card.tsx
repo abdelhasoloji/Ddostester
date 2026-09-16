@@ -9,6 +9,13 @@ import type {
   CoverageMethod,
 } from './api.js';
 
+/** SCREAMING_SNAKE_CASE → "Sentence case", so bench pills read like the rest of
+ *  the UI (Completed / Not mitigated) instead of shouting raw enum values. */
+function humanizeEnum(v: string): string {
+  const s = v.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function benchStatusPill(status: BenchRun['status']) {
   const color =
     status === 'COMPLETED'
@@ -20,7 +27,7 @@ function benchStatusPill(status: BenchRun['status']) {
           : 'var(--warning)';
   return (
     <span className="badge" style={{ background: 'var(--surface-2)', color, borderColor: color }}>
-      {status}
+      {humanizeEnum(status)}
     </span>
   );
 }
@@ -37,7 +44,7 @@ function outcomePill(outcome?: string) {
           : 'var(--muted)';
   return (
     <span className="badge" style={{ background: 'var(--surface-2)', color, borderColor: color }}>
-      {outcome}
+      {humanizeEnum(outcome)}
     </span>
   );
 }
@@ -54,7 +61,7 @@ function methodPill(m?: CoverageMethod) {
   const c = METHOD_COLOR[m];
   return (
     <span className="badge" style={{ background: 'var(--surface-2)', color: c, borderColor: c }}>
-      {m.replace('_', ' ')}
+      {humanizeEnum(m)}
     </span>
   );
 }

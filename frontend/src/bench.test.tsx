@@ -111,7 +111,7 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
     expect(screen.getByText('ip_spoofing')).toBeTruthy();
     expect(screen.getAllByText('out of model').length).toBeGreaterThanOrEqual(2);
     // A completed verdict is displayed read-only.
-    expect(screen.getByText('UNMITIGATED_BASELINE')).toBeTruthy();
+    expect(screen.getByText('Unmitigated baseline')).toBeTruthy();
     expect(screen.getByText('40×')).toBeTruthy();
   });
 
@@ -135,7 +135,7 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
   it('shows the coverage method for an out-of-model vector and records new evidence', async () => {
     renderWithRouter(<SettingsPage />);
     // ip_spoofing is covered by ATTESTED evidence (not a run).
-    expect(await screen.findByText('ATTESTED')).toBeTruthy();
+    expect(await screen.findByText('Attested')).toBeTruthy();
     // Open the record-coverage form and submit.
     fireEvent.click(await screen.findByText(/Record coverage evidence/));
     fireEvent.change(await screen.findByPlaceholderText(/BCP38/), {
