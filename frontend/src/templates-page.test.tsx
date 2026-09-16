@@ -42,6 +42,21 @@ beforeEach(() => {
   fakeApi.playbooks = vi.fn().mockResolvedValue([xlayerPb]);
 });
 
+describe('TemplatesPage — requires badge', () => {
+  it('shows a "needs <feature>" badge for a template with target requirements', async () => {
+    const wafPb = {
+      ...xlayerPb,
+      id: 'sig-evasion',
+      name: 'L7 signature evasion',
+      requires: ['waf'],
+    } as unknown as Playbook;
+    fakeApi.playbooks = vi.fn().mockResolvedValue([wafPb]);
+    currentApp = makeApp({ role: 'engineer', authRequired: true });
+    renderWithRouter(<TemplatesPage />);
+    expect(await screen.findByText('needs WAF')).toBeInTheDocument();
+  });
+});
+
 describe('TemplatesPage — class-C ladder launch', () => {
   it('a CISO with the lab configured can request the ladder → one bench run per reproducible vector', async () => {
     fakeApi.benchScenarios = vi.fn().mockResolvedValue({

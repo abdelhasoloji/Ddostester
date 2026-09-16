@@ -24,6 +24,16 @@ function categoryRank(cat: string): number {
   return i === -1 ? CATEGORY_ORDER.length : i;
 }
 
+/** Human labels for a template's target requirements (Playbook.requires). A
+ *  template shows these so a benign result on a target that lacks the feature
+ *  reads as "not applicable here", not "the target resisted". */
+const REQ_LABEL: Record<string, string> = {
+  h2: 'HTTP/2',
+  waf: 'WAF',
+  cache: 'edge cache',
+  dynamic: 'dynamic endpoint',
+};
+
 /** Local date (day only) for display, or '' when absent/unparseable. */
 function fmtDate(iso?: string): string {
   if (!iso) return '';
@@ -94,6 +104,15 @@ function PlaybookRow({
           </span>
         )}
         {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
+        {pb.requires?.map((r) => (
+          <span
+            key={r}
+            className="engine-badge req"
+            title={`Needs a target with ${REQ_LABEL[r] ?? r} — against a target without it this line is not applicable (a benign result is N/A, not resistance).`}
+          >
+            needs {REQ_LABEL[r] ?? r}
+          </span>
+        ))}
         {pb.custom && <span className="engine-badge ok">custom</span>}
         <span className="tpl-steps-count">
           {pb.steps.length} step{pb.steps.length === 1 ? '' : 's'}
