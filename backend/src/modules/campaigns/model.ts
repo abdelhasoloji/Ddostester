@@ -18,6 +18,41 @@ export type { AcceptanceCriteria, AcceptanceResult };
  */
 export type LoadVector = 'http-get' | 'http-post' | 'http-slowloris';
 
+/**
+ * A target feature a template's attack line needs to be meaningful:
+ *   h2      – an HTTP/2 endpoint (multiplexing / header-pressure lines)
+ *   waf     – a WAF / bot-management layer to evade
+ *   cache   – an edge cache to bypass
+ *   dynamic – an uncacheable origin endpoint to exhaust
+ * When the target lacks the feature, a benign result is **N/A**, not resistance.
+ */
+export type TargetRequirement = 'h2' | 'waf' | 'cache' | 'dynamic';
+
+/**
+ * Compact snapshot of the target's recon posture captured at instantiation, so a
+ * run report can mark which `requires` were N/A without re-running recon. Booleans
+ * mirror `scripts/template-matrix.mjs`'s `missingRequirements` mapping exactly.
+ */
+export interface ReconPostureSnapshot {
+  h2: boolean;
+  waf: boolean;
+  cache: boolean;
+  dynamic: boolean;
+}
+
+/**
+ * The required features a target lacks, given its recon posture — i.e. the
+ * requirements that are N/A for it. Empty when nothing is required, no posture
+ * was captured, or the target satisfies everything.
+ */
+export function missingRequirements(
+  requires: TargetRequirement[] | undefined,
+  posture: ReconPostureSnapshot | undefined,
+): TargetRequirement[] {
+  if (!requires?.length || !posture) return [];
+  return requires.filter((r) => !posture[r]);
+}
+
 export type CampaignStatus =
   | 'PENDING_APPROVAL'
   | 'APPROVED'
@@ -136,6 +171,19 @@ export interface CampaignInput {
   suiteId?: string;
   suiteName?: string;
   suiteOrder?: number;
+  /**
+   * Target features the source template needs to be meaningful (copied from
+   * `Playbook.requires` at instantiation). Surfaced in the run report so a
+   * benign result against a target lacking the feature reads as N/A.
+   */
+  requires?: TargetRequirement[];
+  /**
+   * The target's recon posture captured at instantiation, so the report can
+   * decide which `requires` were N/A without re-running recon. Absent for
+   * campaigns created before this field existed (report falls back to
+   * `run.posture`).
+   */
+  reconPosture?: ReconPostureSnapshot;
   /**
    * Optional recurrence: once APPROVED, re-run the campaign every
    * `intervalMin` minutes. Recurrence only fires while the approval is valid

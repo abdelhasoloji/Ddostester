@@ -150,3 +150,44 @@ describe('per-campaign report', () => {
     expect(blocked).not.toMatch(/NaN|undefined/);
   });
 });
+
+describe('renderCampaignReportHtml — template applicability (requires → N/A)', () => {
+  it('marks a required feature N/A when the recon snapshot shows the target lacks it', () => {
+    const html = renderCampaignReportHtml(
+      campaign({
+        requires: ['waf'],
+        reconPosture: { h2: false, waf: false, cache: false, dynamic: true },
+      }),
+      run(),
+    );
+    expect(html).toContain('Template applicability');
+    expect(html).toContain('WAF / bot-management');
+    expect(html).toContain('N/A');
+    expect(html).toContain('not resistance');
+  });
+
+  it('marks a required feature as applying when the target exhibits it', () => {
+    const html = renderCampaignReportHtml(
+      campaign({
+        requires: ['cache'],
+        reconPosture: { h2: false, waf: false, cache: true, dynamic: false },
+      }),
+      run(),
+    );
+    expect(html).toContain('Template applicability');
+    expect(html).toContain('applies');
+    // A satisfied requirement is not flagged N/A.
+    expect(html).not.toContain('a benign result here is not resistance');
+  });
+
+  it('renders no applicability block for a template with no requirements', () => {
+    const html = renderCampaignReportHtml(campaign(), run());
+    expect(html).not.toContain('Template applicability');
+  });
+
+  it('falls back to "not recorded" for h2 when no recon posture was captured', () => {
+    const html = renderCampaignReportHtml(campaign({ requires: ['h2'] }), run());
+    expect(html).toContain('Template applicability');
+    expect(html).toContain('not recorded');
+  });
+});

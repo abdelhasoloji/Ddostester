@@ -29,7 +29,12 @@ import { executeCampaign } from './modules/campaigns/runner.js';
 import { waitForTargetAvailable, type RecoveryOptions } from './modules/campaigns/recovery.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
-import type { Campaign, CampaignInput, CampaignStatus } from './modules/campaigns/model.js';
+import type {
+  Campaign,
+  CampaignInput,
+  CampaignStatus,
+  ReconPostureSnapshot,
+} from './modules/campaigns/model.js';
 import {
   HARD_CAPS,
   MAX_COMPOSITE_STEPS,
@@ -1138,6 +1143,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // falls back to the template paths and the summary says so.
   interface ReconSeedResult {
     surface?: { paths: string[]; dynamicPaths?: string[]; loginPath?: string };
+    /** Compact {h2,waf,cache,dynamic} posture for the report's requires→N/A check. */
+    posture?: ReconPostureSnapshot;
     summary: {
       seeded: boolean;
       go?: boolean;
@@ -1165,12 +1172,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           t.unref?.();
         }),
       ]);
+      // Same mapping as scripts/template-matrix.mjs missingRequirements(): a
+      // requirement is satisfied when the target exhibits the feature.
+      const post = recon.profile?.posture ?? {};
+      const posture: ReconPostureSnapshot = {
+        h2: !!recon.profile?.protocols?.http2,
+        waf: !!post.waf,
+        cache: recon.profile?.cache === 'hit' || !!post.cdn,
+        dynamic: (recon.dynamicPaths?.length ?? 0) > 0,
+      };
       return {
         surface: {
           paths: recon.suggestedPaths,
           dynamicPaths: recon.dynamicPaths,
           loginPath: recon.loginPath,
         },
+        posture,
         summary: {
           seeded: true,
           go: recon.preflight.go,
@@ -1906,6 +1923,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             createdBy: req.authUser?.email ?? 'dev',
             recurrenceMin: body.recurrenceMin,
             recon: seed.surface,
+            reconPosture: seed.posture,
           },
           engines,
         );
@@ -1976,6 +1994,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           createdBy: req.authUser?.email ?? 'dev',
           recurrenceMin: body.recurrenceMin,
           recon: seed.surface,
+          reconPosture: seed.posture,
         },
         engines,
       );

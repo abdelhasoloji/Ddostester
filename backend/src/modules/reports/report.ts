@@ -1,4 +1,4 @@
-import type { Campaign } from '../campaigns/model.js';
+import type { Campaign, TargetRequirement } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
@@ -38,6 +38,60 @@ export function remediationsHtml(items: Remediation[]): string {
  */
 
 const RISK_PILL = { 'r-low': 'good', 'r-med': 'warn', 'r-crit': 'crit' } as const;
+
+const REQUIREMENT_LABEL: Record<TargetRequirement, string> = {
+  h2: 'HTTP/2 endpoint',
+  waf: 'WAF / bot-management',
+  cache: 'edge cache',
+  dynamic: 'dynamic (uncacheable) endpoint',
+};
+
+/**
+ * "Template applicability" block: a line's source template declares the target
+ * features it needs (`requires`). When the target lacks one — established from
+ * the recon posture captured at instantiation — a benign result is **N/A**, not
+ * evidence the target resisted. Surfacing this keeps a report honest: a WAF-
+ * evasion line reading "held" against a target with no WAF proves nothing. Empty
+ * (no `requires`) → no block. Same mapping as scripts/template-matrix.mjs.
+ */
+export function requiresApplicabilityHtml(campaign: Campaign, run: CampaignRun): string {
+  const requires = campaign.requires;
+  if (!requires?.length) return '';
+  const rp = campaign.reconPosture;
+  // null = "not recorded" (a campaign created before posture capture, for which
+  // run.posture only knows waf/cdn and a seeded surface hints at dynamic).
+  const has: Record<TargetRequirement, boolean | null> = rp
+    ? { h2: rp.h2, waf: rp.waf, cache: rp.cache, dynamic: rp.dynamic }
+    : {
+        h2: null,
+        waf: run.posture ? !!run.posture.waf : null,
+        cache: run.posture ? !!run.posture.cdn : null,
+        dynamic: (campaign.endpoints?.length ?? 0) > 0 ? true : null,
+      };
+  const rows = requires
+    .map((r) => {
+      const label = REQUIREMENT_LABEL[r] ?? r;
+      const state = has[r];
+      const cell =
+        state === true
+          ? `${pill('applies', 'good')} target exhibits ${esc(label)}`
+          : state === false
+            ? `${pill('N/A', 'warn')} target has no ${esc(label)} — a benign result here is not resistance`
+            : `${pill('not recorded', 'neutral')} target posture for ${esc(label)} was not captured for this run`;
+      return `<tr><th>${esc(label)}</th><td>${cell}</td></tr>`;
+    })
+    .join('');
+  const anyNa = requires.some((r) => has[r] === false);
+  return (
+    `<h3>Template applicability</h3><table class="kvs">${rows}</table>` +
+    `<p class="muted">This line's template needs the feature(s) above to produce a meaningful verdict.${
+      anyNa
+        ? ' Where the target lacks one, the corresponding result is <b>N/A</b> — not proof the target resisted.'
+        : ''
+    }</p>`
+  );
+}
+
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
   const w = run.wrs;
@@ -309,6 +363,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>HSTS / headers</th><td>${run.posture.hsts ? 'enabled' : 'not set'} · ${run.posture.securityHeaders.join(', ') || '—'}</td></tr>
 </table><p class="muted">Inferred passively from the legitimate probe's own responses (no scanning).</p>`
       : '') +
+    requiresApplicabilityHtml(campaign, run) +
     (run.edgeErrors && run.edgeErrors.length
       ? `<h3>Edge-served errors under load</h3>` +
         `<p class="muted">The edge served its OWN error page under load — first-party evidence of the mechanism that engaged (and, for a 5xx origin page, that the origin buckled behind a healthy edge).</p>` +
