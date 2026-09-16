@@ -10,7 +10,7 @@ vi.mock('./context.js', async (orig) => {
   return { ...actual, useApp: () => currentApp };
 });
 
-const { NotificationsBell } = await import('./pages.js');
+const { NotificationsBell } = await import('./notifications.js');
 
 function alert(over: Partial<Alert> = {}): Alert {
   return {
