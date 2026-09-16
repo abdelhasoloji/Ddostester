@@ -194,3 +194,12 @@ security headers, the bind guard.
 - **Known limits** — single process: live progress + kill switches are in-memory,
   so no active/active; a restart during a run ends that run (reconciled to
   APPROVED at startup). List endpoints are unpaginated (fine at current scale).
+
+- **Template matrix sweep** — `scripts/template-matrix.mjs` runs one
+  representative line of every curated template against one or more targets and
+  prints a comparison matrix (WRS / availability / mechanism / origin-5xx). It
+  recons each target and uses each template's `requires` (h2 / waf / cache /
+  dynamic) to mark a line **N/A** where the target lacks the feature, instead of a
+  misleading pass. Runs on the control-plane host (needs `AUTH_JWT_SECRET`) via
+  the governed flow, bounded by `HARD_CAPS`:
+  `set -a; . /etc/ddostester.env; set +a; node scripts/template-matrix.mjs --dur 30 http://<bare-origin>/ https://<protected>/`
