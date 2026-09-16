@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RunSample } from './api.js';
-import { theaterPanels } from './ui.js';
+import { theaterPanels, hasLiveGenerator } from './ui.js';
 
 const sample = (over: Partial<RunSample>): RunSample => ({
   t: 0,
@@ -12,7 +12,21 @@ const sample = (over: Partial<RunSample>): RunSample => ({
   ...over,
 });
 
-describe('theaterPanels (Run Theater charts from the live timeline)', () => {
+describe('hasLiveGenerator (does the engine stream live generator counts?)', () => {
+  it('true once any sample has offered/sent > 0 (built-in engine)', () => {
+    expect(hasLiveGenerator([sample({ t: 1, rps: 50, sent: 50 })])).toBe(true);
+  });
+  it('false when every sample is zero (external engine: k6/vegeta/locust)', () => {
+    expect(
+      hasLiveGenerator([
+        sample({ t: 1, rps: 0, sent: 0, availPct: 100, probeP95: 40 }),
+        sample({ t: 2, rps: 0, sent: 0, availPct: 100, probeP95: 42 }),
+      ]),
+    ).toBe(false);
+  });
+});
+
+describe('theaterPanels — built-in engine (live generator counts)', () => {
   it('builds three panels with the right labels, units and series', () => {
     const panels = theaterPanels([
       sample({ t: 1, rps: 100, sent: 100, failed: 0, availPct: 100 }),
@@ -55,10 +69,40 @@ describe('theaterPanels (Run Theater charts from the live timeline)', () => {
     expect(avail[0]).toEqual([1, 40]);
   });
 
-  it('is zero-safe before any request has been sent', () => {
-    const panels = theaterPanels([sample({ t: 0, rps: 0, sent: 0, failed: 0, availPct: 100 })]);
-    expect(panels[0].series[1].points[0]).toEqual([0, 0]); // origin rps = 0
-    expect(panels[1].series[0].points[0]).toEqual([0, 0]); // absorbed % = 0, not NaN
-    expect(panels[2].series[0].points[0]).toEqual([0, 100]);
+  it('is zero-safe on a live-gen run before failures land (no NaN)', () => {
+    // A built-in run (rps>0) whose first tick has nothing absorbed yet.
+    const panels = theaterPanels([sample({ t: 1, rps: 100, sent: 100, failed: 0, availPct: 100 })]);
+    expect(panels[0].series[1].points[0]).toEqual([1, 100]); // origin rps = offered
+    expect(panels[1].series[0].points[0]).toEqual([1, 0]); // absorbed % = 0, not NaN
+    expect(panels[2].series[0].points[0]).toEqual([1, 100]);
+  });
+});
+
+describe('theaterPanels — external engine (no live generator counts)', () => {
+  it('falls back to the two signals the probe measures live: availability + p95 latency', () => {
+    const panels = theaterPanels([
+      sample({ t: 1, rps: 0, sent: 0, availPct: 100, probeP95: 40 }),
+      sample({ t: 2, rps: 0, sent: 0, availPct: 98, probeP95: 55 }),
+    ]);
+    // No misleading flat-zero offered/absorbed panels.
+    expect(panels.map((p) => p.label)).toEqual([
+      'Legitimate availability (%)',
+      'Legitimate latency p95 (ms)',
+    ]);
+    expect(panels[0].series[0].points).toEqual([
+      [1, 100],
+      [2, 98],
+    ]);
+    expect(panels[1].series[0].points).toEqual([
+      [1, 40],
+      [2, 55],
+    ]);
+    expect(panels[1].yFromZero).toBe(true);
+  });
+
+  it('omits latency points for ticks with no probe p95 yet (no NaN/undefined leak)', () => {
+    const panels = theaterPanels([sample({ t: 1, rps: 0, sent: 0, availPct: 100 })]);
+    expect(panels[1].label).toBe('Legitimate latency p95 (ms)');
+    expect(panels[1].series[0].points).toEqual([]); // nothing plotted, not [1, undefined]
   });
 });

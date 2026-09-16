@@ -150,6 +150,10 @@ export interface RunSample {
   failed: number;
   probe5xx: number;
   availPct: number;
+  /** Legitimate-probe p95 latency (ms) at this tick — a real LIVE signal for
+   *  every engine (external engines don't stream generator counts, but the probe
+   *  always runs), so the theater can show target health while a run is live. */
+  probeP95?: number;
 }
 
 export interface AgentInfo {

@@ -3570,6 +3570,14 @@ table.remediations td {
 .tm-v.bad {
   color: var(--danger);
 }
+/* Placeholder for a live figure an external engine only produces at settle. */
+.tm-na {
+  color: var(--muted);
+  font-weight: 600;
+}
+.theater-gen-note {
+  color: var(--muted);
+}
 
 /* ── Suite theater: the whole multi-step assessment as one live surface ── */
 .suite-theater-card {
