@@ -138,6 +138,16 @@ export interface Playbook {
    * fuse into the WRS (see crossLayerAssurance). `ladder` is a CLASS_C_LADDERS id.
    */
   companionBench?: { ladder: string; note: string };
+  /**
+   * Target features this template needs to produce a meaningful verdict. When a
+   * target lacks them (from recon), a benign result means "not applicable here",
+   * not "the target resisted" — so a sweep can label it N/A instead of a
+   * misleading pass. 'h2' = HTTP/2 request path; 'waf' = a WAF / bot-management
+   * layer to evade; 'cache' = an edge cache to bypass; 'dynamic' = an
+   * origin-served (uncacheable) endpoint to exhaust. Undefined = applies to any
+   * HTTP target.
+   */
+  requires?: ('h2' | 'waf' | 'cache' | 'dynamic')[];
   /** true for user-defined playbooks (curated ones are read-only). */
   custom?: boolean;
   /**
@@ -368,6 +378,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-l7-signature-evasion',
+    requires: ['waf'],
     name: 'L7 wave — signature evasion',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -407,6 +418,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-http2-burst',
+    requires: ['h2'],
     name: 'HTTP/2 multiplexed burst',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -444,6 +456,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-cache-key-stress',
+    requires: ['cache'],
     name: 'Cache-key stress (bounded)',
     category: 'Threat-informed',
     drsLevel: 3,
@@ -473,6 +486,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-url-allowlist',
+    requires: ['waf'],
     name: 'L7 — URL-allowlist probe',
     category: 'Threat-informed',
     drsLevel: 3,
@@ -517,6 +531,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-method-policy',
+    requires: ['waf'],
     name: 'L7 — method policy (POST)',
     category: 'Threat-informed',
     drsLevel: 3,
@@ -764,6 +779,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-header-fingerprint',
+    requires: ['waf'],
     name: 'Header fingerprint',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -807,6 +823,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-http2-continuation',
+    requires: ['h2'],
     name: 'HTTP/2 Continuation — header pressure',
     category: 'Threat-informed',
     drsLevel: 5,
@@ -857,6 +874,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-madeyoureset',
+    requires: ['h2'],
     name: 'MadeYouReset — h2 request burst',
     category: 'Threat-informed',
     drsLevel: 5,
@@ -1086,6 +1104,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-ivan-ja4-sweep',
+    requires: ['waf'],
     name: 'Ivan — JA4 fingerprint sweep',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -1133,6 +1152,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'threat-ivan-ja4-random',
+    requires: ['waf'],
     name: 'Ivan — JA4 classification (randomized)',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -1789,6 +1809,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'origin-l7-exhaustion',
+    requires: ['dynamic'],
     name: 'Bare-origin L7 exhaustion',
     category: 'Threat-informed',
     drsLevel: 3,
@@ -1858,6 +1879,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'l7-pulse-burst',
+    requires: ['dynamic'],
     name: 'L7 pulse-wave burst',
     category: 'Threat-informed',
     drsLevel: 4,
@@ -1901,6 +1923,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'l7-post-storm',
+    requires: ['dynamic'],
     name: 'L7 POST storm',
     category: 'Threat-informed',
     drsLevel: 4,
