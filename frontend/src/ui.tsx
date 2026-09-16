@@ -16,6 +16,8 @@ import type {
   LiveProgressData,
 } from './api.js';
 import { useApp, canDo } from './context.js';
+import { Modal } from './modal.js';
+import { wrsClass } from './wrs.js';
 import { formatInterval, fmtDateTime } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
@@ -36,17 +38,6 @@ export {
  * Close a modal/overlay on the Escape key while it is open. Attaches the
  * listener only when `active`, so a closed modal costs nothing.
  */
-function useEscape(active: boolean, onClose: () => void): void {
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [active, onClose]);
-}
-
 const badgeLabel: Record<CampaignStatus, string> = {
   PENDING_APPROVAL: 'Pending',
   APPROVED: 'Approved',
@@ -67,9 +58,9 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
   );
 }
 
-export function wrsClass(level: WrsBreakdown['level']): string {
-  return 'wrs-' + level.replace('+', 'p');
-}
+// wrsClass now lives in wrs.ts (the single source of truth for WRS bands);
+// re-exported here so existing `from './ui.js'` imports keep resolving.
+export { wrsClass };
 
 export function VerdictBadge({ verdict }: { verdict: 'PASS' | 'FAIL' }) {
   return (
@@ -1455,49 +1446,40 @@ export function ExecuteModal() {
   const navigate = useNavigate();
   const c = app.confirmExec;
   const [launching, setLaunching] = useState(false);
-  useEscape(!!c, () => app.setConfirmExec(null));
   // Reset the one-shot guard whenever a different campaign is queued for confirm.
   useEffect(() => setLaunching(false), [c?.id]);
   if (!c) return null;
   return (
-    <div className="overlay" onClick={() => app.setConfirmExec(null)}>
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Confirm run"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3>Confirm run</h3>
-        <p>
-          You are about to generate a bounded HTTP load of <b>{c.maxRps} rps</b> ({c.concurrency} in
-          parallel) for <b>{c.maxDurationSec}s</b> against{' '}
-          <span className="modal-target">{c.target}</span>. The kill switch stays available.
-        </p>
-        <div className="btn-row">
-          <button className="btn" onClick={() => app.setConfirmExec(null)} disabled={launching}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-primary"
-            disabled={launching}
-            onClick={() => {
-              // One-shot: a fast double-click must not dispatch the run twice
-              // (execute() optimistically flips the campaign to RUNNING).
-              if (launching) return;
-              setLaunching(true);
-              // Kick off the run (blocks until it settles) and take the operator
-              // straight to Run Theater's live view instead of the card drawer.
-              void app.execute(c);
-              app.setConfirmExec(null);
-              navigate(`/theater?run=${c.id}`);
-            }}
-          >
-            Launch campaign
-          </button>
-        </div>
+    <Modal label="Confirm run" onClose={() => app.setConfirmExec(null)}>
+      <h3>Confirm run</h3>
+      <p>
+        You are about to generate a bounded HTTP load of <b>{c.maxRps} rps</b> ({c.concurrency} in
+        parallel) for <b>{c.maxDurationSec}s</b> against{' '}
+        <span className="modal-target">{c.target}</span>. The kill switch stays available.
+      </p>
+      <div className="btn-row">
+        <button className="btn" onClick={() => app.setConfirmExec(null)} disabled={launching}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary"
+          disabled={launching}
+          onClick={() => {
+            // One-shot: a fast double-click must not dispatch the run twice
+            // (execute() optimistically flips the campaign to RUNNING).
+            if (launching) return;
+            setLaunching(true);
+            // Kick off the run (blocks until it settles) and take the operator
+            // straight to Run Theater's live view instead of the card drawer.
+            void app.execute(c);
+            app.setConfirmExec(null);
+            navigate(`/theater?run=${c.id}`);
+          }}
+        >
+          Launch campaign
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -1510,65 +1492,56 @@ export function ApproveModal() {
     () => setApprover(app.identity?.email ?? app.operator),
     [app.identity, app.operator, c],
   );
-  useEscape(!!c, () => app.setApproveFor(null));
   if (!c) return null;
   const effective = app.authRequired ? (app.identity?.email ?? '') : approver;
   const sameAsAuthor = effective.trim() !== '' && effective.trim() === c.createdBy;
   return (
-    <div className="overlay" onClick={() => app.setApproveFor(null)}>
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Approval — ${c.name}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3>Approval — {c.name}</h3>
-        <p>Separation of duties: the approver must differ from the author ({c.createdBy}).</p>
-        {app.authRequired ? (
-          <p className="hint">
-            Approver: <b>{app.identity?.email}</b>
-          </p>
-        ) : (
-          <div className="field" style={{ marginBottom: '.75rem' }}>
-            <label>Approver (Security Officer)</label>
-            <input
-              className={sameAsAuthor ? 'invalid' : ''}
-              value={approver}
-              onChange={(e) => setApprover(e.target.value)}
-            />
-            {sameAsAuthor && (
-              <span className="hint" style={{ color: 'var(--danger)' }}>
-                Must differ from the author.
-              </span>
-            )}
-          </div>
-        )}
-        <div className="field">
-          <label>Reason (required for rejection)</label>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} />
+    <Modal label={`Approval — ${c.name}`} onClose={() => app.setApproveFor(null)}>
+      <h3>Approval — {c.name}</h3>
+      <p>Separation of duties: the approver must differ from the author ({c.createdBy}).</p>
+      {app.authRequired ? (
+        <p className="hint">
+          Approver: <b>{app.identity?.email}</b>
+        </p>
+      ) : (
+        <div className="field" style={{ marginBottom: '.75rem' }}>
+          <label>Approver (Security Officer)</label>
+          <input
+            className={sameAsAuthor ? 'invalid' : ''}
+            value={approver}
+            onChange={(e) => setApprover(e.target.value)}
+          />
+          {sameAsAuthor && (
+            <span className="hint" style={{ color: 'var(--danger)' }}>
+              Must differ from the author.
+            </span>
+          )}
         </div>
-        <div className="btn-row">
-          <button className="btn" onClick={() => app.setApproveFor(null)}>
-            Cancel
-          </button>
-          <button
-            className="btn btn-danger"
-            disabled={sameAsAuthor || !reason.trim()}
-            onClick={() => app.approve(c, effective.trim(), 'REJECTED', reason)}
-          >
-            Reject
-          </button>
-          <button
-            className="btn btn-primary"
-            disabled={sameAsAuthor || (!app.authRequired && !approver.trim())}
-            onClick={() => app.approve(c, effective.trim(), 'APPROVED', reason)}
-          >
-            Approve
-          </button>
-        </div>
+      )}
+      <div className="field">
+        <label>Reason (required for rejection)</label>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
-    </div>
+      <div className="btn-row">
+        <button className="btn" onClick={() => app.setApproveFor(null)}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-danger"
+          disabled={sameAsAuthor || !reason.trim()}
+          onClick={() => app.approve(c, effective.trim(), 'REJECTED', reason)}
+        >
+          Reject
+        </button>
+        <button
+          className="btn btn-primary"
+          disabled={sameAsAuthor || (!app.authRequired && !approver.trim())}
+          onClick={() => app.approve(c, effective.trim(), 'APPROVED', reason)}
+        >
+          Approve
+        </button>
+      </div>
+    </Modal>
   );
 }
 
