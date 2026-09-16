@@ -58,6 +58,7 @@ export function UplotChart({
   series,
   height = 190,
   timeAxis = true,
+  xFromZero = false,
   yRange,
   yFromZero = false,
   thresholds,
@@ -66,6 +67,13 @@ export function UplotChart({
   series: ChartSeries[];
   height?: number;
   timeAxis?: boolean;
+  /**
+   * For a NUMERIC (non-time) x-axis, pin the scale to [0, max-x] via a range
+   * function recomputed on every redraw (so it still tracks the newest sample).
+   * uPlot's default auto x-range can collapse a live elapsed-seconds axis to
+   * [0,1] in some redraw orders; this makes the time span deterministic.
+   */
+  xFromZero?: boolean;
   /** Fixed left y-scale (e.g. [0, 100] for a score); omit to auto-range. */
   yRange?: [number, number];
   /**
@@ -91,9 +99,9 @@ export function UplotChart({
   clickRef.current = onPointClick;
   const shapeKey =
     series.map((s) => `${s.label}:${s.axis ?? 'left'}:${s.color ?? ''}`).join('|') +
-    `@${height}@${timeAxis}@${yRange?.join('-') ?? ''}@${yFromZero ? 'z' : ''}@${(thresholds ?? [])
-      .map((t) => t.value)
-      .join(',')}@${onPointClick ? 'clk' : ''}`;
+    `@${height}@${timeAxis}@${xFromZero ? 'x0' : ''}@${yRange?.join('-') ?? ''}@${
+      yFromZero ? 'z' : ''
+    }@${(thresholds ?? []).map((t) => t.value).join(',')}@${onPointClick ? 'clk' : ''}`;
 
   // Build (or rebuild when the series set / axes / height change).
   useEffect(() => {
@@ -149,7 +157,21 @@ export function UplotChart({
         // scale OUT of auto mode, pinning it at that moment's extent (e.g. [1,2]
         // from the first two samples) so it never advanced. No manual setScale and
         // no range function here — auto mode is what keeps it moving.
-        x: { time: timeAxis },
+        x:
+          !timeAxis && xFromZero
+            ? {
+                time: false,
+                // Span [0, max elapsed] from the x-column each redraw — stays
+                // live (recomputed on every setData) without the auto-mode
+                // collapse-to-[0,1] the theater panels hit.
+                range: (u: uPlot): [number, number] => {
+                  const xs = (u.data[0] as number[]) ?? [];
+                  let mx = 0;
+                  for (const x of xs) if (x != null && x > mx) mx = x;
+                  return [0, mx > 0 ? mx : 1];
+                },
+              }
+            : { time: timeAxis },
         y: yRange
           ? { range: () => yRange }
           : yFromZero

@@ -305,6 +305,7 @@ export function RunTheater({
             failed: d.failed ?? 0,
             probe5xx: prb?.errorRate5xx ?? 0,
             availPct: prb?.samples ? Math.round((prb.available / prb.samples) * 1000) / 10 : 100,
+            probeP95: prb?.latencyMs?.p95,
           };
           // Keep one point per elapsed second (SSE may push several per second):
           // replace the last when the second repeats, else append.
@@ -343,6 +344,13 @@ export function RunTheater({
   // connection-hold story instead: opened / currently held / shed by the target.
   const isSlowloris = vector === 'http-slowloris';
   const shedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0;
+  // The generator only streams live counts on the built-in engine; external
+  // engines (k6/vegeta/locust) run out-of-process and report nothing until they
+  // settle. So offered/reached/absorbed would read a misleading 0 for the whole
+  // run. Detect that (a few seconds in, still nothing sent) and show "—" plus a
+  // note, rather than a fake zero — the live target health below is still real.
+  const genLive = !!p && (p.sent > 0 || (p.actualRps ?? 0) > 0);
+  const genPending = !!p && !isSlowloris && !genLive && p.elapsedSec >= 4;
 
   return (
     <div className="theater">
@@ -416,29 +424,55 @@ export function RunTheater({
                 <div className="theater-metric">
                   <div className="tm-k">Offered</div>
                   <div className="tm-v">
-                    {offered.toFixed(0)}
-                    <small>req/s</small>
+                    {genPending ? (
+                      <span className="tm-na" title="Computed when the engine settles">
+                        —
+                      </span>
+                    ) : (
+                      <>
+                        {offered.toFixed(0)}
+                        <small>req/s</small>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="theater-metric">
                   <div className="tm-k">Reached origin</div>
                   <div className="tm-v good">
-                    {originRps.toFixed(0)}
-                    <small>req/s</small>
+                    {genPending ? (
+                      <span className="tm-na" title="Computed when the engine settles">
+                        —
+                      </span>
+                    ) : (
+                      <>
+                        {originRps.toFixed(0)}
+                        <small>req/s</small>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="theater-metric absorb">
                   <div className="tm-k">Absorbed by edge</div>
-                  <div className="tm-v warnv">
-                    {absorbedPct}
-                    <small>%</small>
-                  </div>
-                  <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
-                    <div
-                      className="absorb-fill"
-                      style={{ width: `${Math.min(100, absorbedPct)}%` }}
-                    />
-                  </div>
+                  {genPending ? (
+                    <div className="tm-v">
+                      <span className="tm-na" title="Computed when the engine settles">
+                        —
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="tm-v warnv">
+                        {absorbedPct}
+                        <small>%</small>
+                      </div>
+                      <div className="absorption-bar" style={{ marginTop: '.4rem' }}>
+                        <div
+                          className="absorb-fill"
+                          style={{ width: `${Math.min(100, absorbedPct)}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -461,6 +495,14 @@ export function RunTheater({
               </div>
             </div>
           </div>
+
+          {genPending && (
+            <p className="hint theater-gen-note" style={{ marginTop: '.6rem' }}>
+              ⧗ {eng ? <b>{eng}</b> : 'This engine'} runs out-of-process — offered &amp; absorbed
+              rates are computed when it settles. The live signals below (legitimate availability
+              and latency) are measured throughout.
+            </p>
+          )}
 
           {p.statusCounts && Object.keys(p.statusCounts).length > 0 && (
             <div className="status-dist" style={{ marginTop: '.8rem' }}>
@@ -839,20 +881,57 @@ export interface TheaterPanel {
   yFromZero?: boolean;
 }
 
-/** Build the three Run-Theater panels from the per-tick run samples. Pure, so it
- *  is unit-tested. `sent`/`failed` are cumulative, so absorbed% and the origin
- *  rate are the same ratios the tiles show. */
+/** Whether the generator streamed live counts in this run's samples. External
+ *  engines (k6/vegeta/locust) run out-of-process and report nothing until settle,
+ *  so `sent`/`rps` stay 0 for every tick — only the built-in engine streams them.
+ *  Exported so the tiles and the panels agree on what is measurable live. */
+export function hasLiveGenerator(samples: RunSample[]): boolean {
+  return samples.some((s) => s.sent > 0 || s.rps > 0);
+}
+
+/**
+ * Build the Run-Theater panels from the per-tick run samples. Pure, so it is
+ * unit-tested. When the generator streams live counts (built-in engine) the
+ * panels are offered-vs-origin RPS, edge-absorbed %, and availability — the
+ * `sent`/`failed` cumulatives give the same ratios the tiles show. When it does
+ * NOT (an external engine, out-of-process), those three would be flat-zero and
+ * misleading, so the panels fall back to the two signals the probe measures live
+ * for EVERY engine: legitimate availability and probe p95 latency. The offered/
+ * absorbed figures are then computed at settle from the engine's own result.
+ */
 export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
+  const avail: [number, number][] = [];
+  const p95: [number, number][] = [];
+  for (const s of samples) {
+    avail.push([s.t, s.availPct]);
+    if (s.probeP95 != null) p95.push([s.t, s.probeP95]);
+  }
+  const availabilityPanel: TheaterPanel = {
+    label: 'Legitimate availability (%)',
+    yRange: [0, 100],
+    series: [{ label: 'probe avail %', points: avail, color: '#10b981' }],
+  };
+
+  if (!hasLiveGenerator(samples)) {
+    // External engine: no live generator stream. Show what IS measured live.
+    return [
+      availabilityPanel,
+      {
+        label: 'Legitimate latency p95 (ms)',
+        yFromZero: true,
+        series: [{ label: 'probe p95', points: p95, color: '#3b82f6' }],
+      },
+    ];
+  }
+
   const offered: [number, number][] = [];
   const origin: [number, number][] = [];
   const absorbed: [number, number][] = [];
-  const avail: [number, number][] = [];
   for (const s of samples) {
     const success = s.sent > 0 ? Math.max(0, (s.sent - s.failed) / s.sent) : 1;
     offered.push([s.t, s.rps]);
     origin.push([s.t, s.rps * success]); // instantaneous rps reaching origin
     absorbed.push([s.t, s.sent > 0 ? (s.failed / s.sent) * 100 : 0]);
-    avail.push([s.t, s.availPct]);
   }
   return [
     {
@@ -868,11 +947,7 @@ export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
       yRange: [0, 100],
       series: [{ label: 'absorbed %', points: absorbed, color: '#f59e0b' }],
     },
-    {
-      label: 'Legitimate availability (%)',
-      yRange: [0, 100],
-      series: [{ label: 'probe avail %', points: avail, color: '#10b981' }],
-    },
+    availabilityPanel,
   ];
 }
 
@@ -896,6 +971,7 @@ function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
                 series={p.series}
                 height={140}
                 timeAxis={false}
+                xFromZero
                 yRange={p.yRange}
                 yFromZero={p.yFromZero}
               />
