@@ -1792,6 +1792,12 @@ input.invalid {
   color: var(--muted);
   border-color: var(--border);
 }
+/* Target-feature requirement (needs WAF / HTTP/2 / cache / dynamic endpoint). */
+.engine-badge.req {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: var(--warning);
+}
 .engine-cap {
   font-size: 0.7rem;
   color: var(--warning);

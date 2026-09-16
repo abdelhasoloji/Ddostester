@@ -113,6 +113,10 @@ export interface Playbook {
   custom?: boolean;
   threat?: ThreatInfo;
   drsLevel?: number;
+  /** Target features this template needs to produce a meaningful verdict — a
+   *  benign result on a target that lacks one means "not applicable", not "the
+   *  target resisted". */
+  requires?: ('h2' | 'waf' | 'cache' | 'dynamic')[];
   createdAt?: string;
   /** Class-C network-bench companion (synthetic, no-spoof) paired with this L7
    *  template for a cross-layer assessment — run on the isolated bench, fused

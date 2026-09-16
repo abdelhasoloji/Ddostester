@@ -2083,12 +2083,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   ] as const;
   app.post('/api/campaigns/purge', { preHandler: guard('user:manage') }, async (req, reply) => {
     try {
-      const scope = ((req.body ?? {}) as { scope?: string }).scope === 'all' ? 'all' : 'settled';
+      const body = (req.body ?? {}) as { scope?: string; namePrefix?: unknown };
+      const scope = body.scope === 'all' ? 'all' : 'settled';
+      // Optional selective purge: only delete campaigns whose name starts with one
+      // of these prefixes (e.g. clearing test-harness runs while keeping real
+      // assessments). Bounded to keep the filter simple and safe.
+      const prefixes = Array.isArray(body.namePrefix)
+        ? body.namePrefix
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .slice(0, 50)
+        : null;
       const campaigns = await store.listCampaigns();
+      const nameMatch = (c: { name: string }) =>
+        !prefixes || prefixes.some((p) => c.name.startsWith(p));
       let killed = 0;
       if (scope === 'all') {
         for (const c of campaigns) {
-          if (c.status === 'RUNNING') {
+          if (c.status === 'RUNNING' && nameMatch(c)) {
             kills.get(c.id)?.trigger('KILLED_MANUAL');
             killed++;
           }
@@ -2098,13 +2109,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         scope === 'all'
           ? [...TERMINAL_STATUSES, 'PENDING_APPROVAL', 'APPROVED']
           : [...TERMINAL_STATUSES];
-      const ids = campaigns.filter((c) => deletable.includes(c.status)).map((c) => c.id);
+      const ids = campaigns
+        .filter((c) => deletable.includes(c.status) && nameMatch(c))
+        .map((c) => c.id);
       const deleted = await store.deleteCampaigns(ids);
       await audit(
         req,
         'campaign.purge',
         undefined,
-        `scope=${scope} deleted=${deleted} killed=${killed}`,
+        `scope=${scope} deleted=${deleted} killed=${killed}${prefixes ? ` prefixes=${prefixes.join(',')}` : ''}`,
       );
       return { deleted, killedRunning: killed, scope };
     } catch (err) {
