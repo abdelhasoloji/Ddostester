@@ -10,6 +10,7 @@ import {
   parseEndpoints,
   parseFlow,
   parseFlowJson,
+  protectionBadgeState,
   protectionBadgeTitle,
   wrsClass,
 } from './ui.js';
@@ -39,6 +40,68 @@ describe('protectionBadgeTitle (E12 — vector-aware)', () => {
   it('slowloris low-shed message talks about held connections', () => {
     const t = protectionBadgeTitle(false, 5, { ...eng, failed: 5 } as never, 'http-slowloris');
     expect(t).toMatch(/holding 95 of 100 slow connections/);
+  });
+});
+
+describe('protectionBadgeState (the legit probe decides down vs protected)', () => {
+  const up = { samples: 10, available: 10, health: 'ok' as const };
+  const down = { samples: 10, available: 0, health: 'critical' as const };
+
+  it('high absorbed% with the probe UP = protection engaging', () => {
+    expect(protectionBadgeState(false, 100, { sent: 100, failed: 100, probe: up } as never)).toBe(
+      'protecting',
+    );
+  });
+
+  it('high absorbed% with the probe DOWN = target overwhelmed (NOT protection)', () => {
+    // The exact bug: a bare origin 5xx-ing every request shows ~100% "absorbed"
+    // but the legit probe is 0% up — it is being taken down, not defended.
+    expect(protectionBadgeState(false, 100, { sent: 100, failed: 100, probe: down } as never)).toBe(
+      'overwhelmed',
+    );
+  });
+
+  it('a probe below 50% up is overwhelmed even without a critical health flag', () => {
+    const half = { samples: 10, available: 4, health: 'degraded' as const };
+    expect(protectionBadgeState(false, 80, { sent: 100, failed: 80, probe: half } as never)).toBe(
+      'overwhelmed',
+    );
+  });
+
+  it('waiting → baseline; low absorbed + probe up → running', () => {
+    expect(protectionBadgeState(true, 0, null)).toBe('baseline');
+    expect(protectionBadgeState(false, 5, { sent: 100, failed: 5, probe: up } as never)).toBe(
+      'running',
+    );
+  });
+
+  it('no probe samples yet is not prematurely called overwhelmed', () => {
+    expect(
+      protectionBadgeState(false, 100, {
+        sent: 100,
+        failed: 100,
+        probe: { samples: 0, available: 0 },
+      } as never),
+    ).toBe('protecting');
+  });
+});
+
+describe('protectionBadgeTitle — target overwhelmed', () => {
+  it('tells the honest story when the legit probe is down (no "protection working")', () => {
+    const t = protectionBadgeTitle(
+      false,
+      100,
+      {
+        sent: 100,
+        failed: 100,
+        statusCounts: { '5xx': 100 },
+        probe: { samples: 10, available: 0, health: 'critical' },
+      } as never,
+      'http-get',
+    );
+    expect(t).toMatch(/Target overwhelmed/);
+    expect(t).toMatch(/origin failing under load/);
+    expect(t).not.toMatch(/protection working/);
   });
 });
 
