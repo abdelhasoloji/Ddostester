@@ -2260,9 +2260,123 @@ input.invalid {
   border-color: var(--brand);
 }
 .chip-active {
-  background: rgba(0, 52, 132, 0.1);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
   border-color: var(--brand);
   color: var(--brand);
+}
+
+/* ---------- Campaign editor: a more polished treatment of the .card form,
+   consistent with the recon-first hero (eyebrow, accent, grouped presets,
+   softer focus ring, mono host chips). All scoped so no other card changes. --- */
+.campaign-form {
+  position: relative;
+  overflow: hidden;
+  padding: 1.4rem 1.5rem 1.5rem;
+  border-radius: 14px;
+}
+.campaign-form::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--brand),
+    color-mix(in srgb, var(--brand) 45%, var(--accent))
+  );
+}
+.campaign-form .card-head {
+  align-items: flex-start;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.card-head-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.form-eyebrow {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, transparent);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+.campaign-form .card-head h2 {
+  font-size: 1.2rem;
+}
+.campaign-form .presets-row {
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 1.3rem;
+  background: color-mix(in srgb, var(--brand) 3%, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.campaign-form .presets-label {
+  width: 100%;
+  margin-bottom: 0.15rem;
+  font-size: 0.72rem;
+}
+.campaign-form .presets-row .chip {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    box-shadow 0.12s,
+    transform 0.12s;
+}
+.campaign-form .presets-row .chip:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+  transform: translateY(-1px);
+}
+.campaign-form .presets-row .chip.chip-active {
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.campaign-form .field > label {
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+.campaign-form input:not([type='checkbox']):not([type='radio']),
+.campaign-form select,
+.campaign-form textarea {
+  border-radius: 9px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.campaign-form input:not([type='checkbox']):not([type='radio']):focus,
+.campaign-form select:focus,
+.campaign-form textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+}
+.campaign-form .chip-xs {
+  font-family: var(--mono);
+  padding: 0.2rem 0.6rem;
+}
+.campaign-form .chip-xs::before {
+  content: '◎ ';
+  opacity: 0.5;
+}
+.campaign-form .form-section {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand) 2.5%, var(--surface-2));
+}
+.campaign-form .form-section > summary {
+  font-size: 0.9rem;
 }
 
 /* Estimated volume line */
