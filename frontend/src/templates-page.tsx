@@ -493,18 +493,30 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       <div className="card tpl-launchbar">
         <div className="field">
           <label>Target for the assessment</label>
-          <input
-            placeholder="https://staging.example.com/"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          />
+          <div className={`recon-target-bar${target && !targetAllowed ? ' invalid' : ''}`}>
+            <span className="recon-target-icon" aria-hidden="true">
+              🎯
+            </span>
+            <input
+              className="recon-target-url"
+              placeholder="https://staging.example.com/"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            />
+            {targetAllowed && (
+              <span className="recon-target-ok" title="On the allowlist" aria-label="allowed">
+                ✓
+              </span>
+            )}
+          </div>
           {app.allowed.length > 0 && (
-            <div className="allowed-chips">
+            <div className="recon-allowed">
+              <span className="recon-allowed-label">Allowed</span>
               {app.allowed.map((h) => (
                 <button
                   key={h}
                   type="button"
-                  className="chip-xs"
+                  className={`recon-host-chip${targetHost === h ? ' on' : ''}`}
                   onClick={() => setTarget(defaultTargetUrl(h))}
                 >
                   {h}
