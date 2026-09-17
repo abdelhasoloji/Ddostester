@@ -2030,6 +2030,58 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
+  // P7: compose a governed suite (or a single campaign) from TUNED action seeds —
+  // the operator's edited CampaignInput lines, not template ids. Each still goes
+  // through createCampaign (allowlist + caps + `authorized`), so governance is
+  // identical to every other create path; only the composition source differs.
+  app.post(
+    '/api/suites/from-actions',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      const body = req.body as { name?: string; campaigns?: CampaignInput[] };
+      const inputs = Array.isArray(body.campaigns) ? body.campaigns : [];
+      if (inputs.length < 1) {
+        return reply.code(400).send({ error: 'campaigns must list at least one action' });
+      }
+      if (inputs.length > MAX_COMPOSITE_STEPS) {
+        return reply.code(400).send({
+          error: `composed suite has ${inputs.length} actions; the maximum is ${MAX_COMPOSITE_STEPS}`,
+        });
+      }
+      const asSuite = inputs.length > 1;
+      const suiteId = asSuite ? randomUUID() : undefined;
+      const suiteName = asSuite
+        ? (body.name?.trim() || `Composite — ${inputs.length} actions`).slice(0, 120)
+        : undefined;
+      try {
+        const created: Campaign[] = [];
+        let order = 0;
+        for (const raw of inputs) {
+          const input: CampaignInput = {
+            ...raw,
+            createdBy: req.authUser?.email ?? raw.createdBy ?? 'dev',
+            suiteId,
+            suiteName,
+            suiteOrder: asSuite ? order : undefined,
+          };
+          const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+          await store.saveCampaign(campaign);
+          created.push(campaign);
+          order++;
+        }
+        await audit(
+          req,
+          'campaign.create',
+          undefined,
+          `actions → ${created.length} campaigns${suiteId ? ` (suite ${suiteId})` : ''}`,
+        );
+        return reply.code(201).send({ suiteId, campaigns: created });
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
+
   app.post(
     '/api/campaigns/:id/approval',
     { preHandler: guard('campaign:approve') },

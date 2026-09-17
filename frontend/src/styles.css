@@ -1804,6 +1804,92 @@ input.invalid {
   color: var(--warning);
   border-color: var(--warning);
 }
+.engine-badge.na {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+/* P7 — recon-suggested Actions surface */
+.recon-actions {
+  margin-top: 0.75rem;
+}
+.recon-actions > .rk {
+  margin-bottom: 0.5rem;
+}
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.action-card {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+.action-card.on {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand) inset;
+}
+.action-card.na {
+  opacity: 0.62;
+}
+.action-pick {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.15rem;
+}
+.action-body {
+  flex: 1;
+  min-width: 0;
+}
+.action-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.action-title {
+  font-weight: 600;
+}
+.action-params {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.action-why {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+}
+.action-why li {
+  margin: 0.1rem 0;
+}
+.action-foot {
+  margin-top: 0.35rem;
+}
+.action-na {
+  margin-top: 0.6rem;
+}
+.action-na > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.action-compose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
 .engine-cap {
   font-size: 0.7rem;
   color: var(--warning);

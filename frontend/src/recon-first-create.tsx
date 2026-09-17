@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useApp } from './context.js';
+import { useNavigate } from 'react-router-dom';
+import { useApp, canDo } from './context.js';
 import { defaultTargetUrl } from './target-url.js';
 import { api } from './api.js';
-import type { ReconReport } from './api.js';
+import type { ReconReport, SuggestedAction, ActionSeed, TargetRequirement } from './api.js';
 import { hostOf, emptyForm } from './campaign-form.js';
+import type { CampaignFormSeed } from './campaign-form.js';
 import { NewCampaignForm } from './new-campaign-form.js';
 import { ReconDetailModal } from './recon-detail.js';
 
@@ -205,15 +207,9 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
   const [target, setTarget] = useState('');
   const [phase, setPhase] = useState<'target' | 'recon' | 'compose'>('target');
   const [recon, setRecon] = useState<ReconReport | null>(null);
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
-  const [leverOn, setLeverOn] = useState<Record<LeverId, boolean>>({
-    cacheBust: false,
-    calibrate: false,
-    rotateUa: false,
-    noKeepAlive: false,
-  });
-  // Which recon-discovered paths the operator has chosen to hit.
-  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [actions, setActions] = useState<SuggestedAction[]>([]);
+  // Seed handed to the full editor (one tuned action, or a bare "from scratch").
+  const [editorSeed, setEditorSeed] = useState<Partial<CampaignFormSeed> | null>(null);
   const [showIntel, setShowIntel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -226,18 +222,9 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const r = await api.recon(target);
+      const r = await api.reconActions(target);
       setRecon(r);
-      setSuggestion(suggestFromRecon(r));
-      // Pre-check the levers recon recommends; the operator adjusts before launch.
-      setLeverOn(
-        Object.fromEntries(deriveLevers(r).map((l) => [l.id, l.recommended])) as Record<
-          LeverId,
-          boolean
-        >,
-      );
-      // Pre-select the discovered paths the tool would have auto-seeded.
-      setSelectedPaths(new Set(defaultSelectedPaths(r)));
+      setActions(r.actions ?? []);
       setPhase('recon');
     } catch (e) {
       setError((e as Error).message);
@@ -246,7 +233,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
     }
   };
 
-  if (phase === 'compose' && suggestion) {
+  if (phase === 'compose' && editorSeed) {
     return (
       <div>
         <div className="recon-first-back">
@@ -254,23 +241,15 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             ← Back to recon
           </button>
           <span className="hint">
-            Composing against <code>{host}</code> — fields pre-filled from recon; adjust anything.
+            Editing an action against <code>{host}</code> — fields pre-filled; adjust anything.
           </span>
         </div>
-        <NewCampaignForm
-          initial={applyLevers(
-            recon
-              ? { ...suggestion.initial, endpoints: endpointsFromPaths(recon, selectedPaths) }
-              : suggestion.initial,
-            leverOn,
-          )}
-          onDone={onDone}
-        />
+        <NewCampaignForm initial={editorSeed} onDone={onDone} />
       </div>
     );
   }
 
-  if (phase === 'recon' && recon && suggestion) {
+  if (phase === 'recon' && recon) {
     const p = recon.profile?.posture;
     const edge = [
       ['WAF', p?.waf],
@@ -316,131 +295,19 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           {recon.loginPath && <span className="recon-chip login">login {recon.loginPath}</span>}
         </div>
 
-        {discoveredPaths(recon).length > 0 && (
-          <div className="recon-paths">
-            <div className="recon-paths-head">
-              <span className="rk">
-                Discovered surface — pick what to hit ({selectedPaths.size}/
-                {discoveredPaths(recon).length})
-              </span>
-              <span className="recon-paths-tools">
-                <button
-                  type="button"
-                  className="btn btn-xs btn-ghost"
-                  onClick={() =>
-                    setSelectedPaths(new Set(discoveredPaths(recon).map((d) => d.path)))
-                  }
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-ghost"
-                  onClick={() =>
-                    setSelectedPaths(
-                      new Set(
-                        discoveredPaths(recon)
-                          .filter((d) => d.dynamic)
-                          .map((d) => d.path),
-                      ),
-                    )
-                  }
-                >
-                  Dynamic only ⚡
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-ghost"
-                  onClick={() => setSelectedPaths(new Set())}
-                >
-                  None
-                </button>
-              </span>
-            </div>
-            <div className="recon-paths-list">
-              {discoveredPaths(recon).map((d) => (
-                <label
-                  key={d.path}
-                  className={`recon-path${selectedPaths.has(d.path) ? ' on' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedPaths.has(d.path)}
-                    onChange={(e) => {
-                      const next = new Set(selectedPaths);
-                      if (e.target.checked) next.add(d.path);
-                      else next.delete(d.path);
-                      setSelectedPaths(next);
-                    }}
-                  />
-                  <code title={d.path}>{d.path}</code>
-                  {d.dynamic && (
-                    <span
-                      className="recon-path-dyn"
-                      title="A dynamic ⚡ path — a stronger stress target"
-                    >
-                      ⚡ dyn
-                    </span>
-                  )}
-                </label>
-              ))}
-            </div>
-            <span className="hint">
-              Only the selected paths become the endpoint mix — the flood hits exactly what you
-              pick.
-            </span>
-          </div>
-        )}
-
-        <div className="recon-first-suggest">
-          <div className="rk">Suggested campaign — from what recon found</div>
-          <ul>
-            {suggestion.rationale.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="recon-levers">
-          <div className="rk">
-            Delivery levers — recommended from recon, adjust before you launch
-          </div>
-          {deriveLevers(recon).map((lv) => (
-            <label key={lv.id} className={`lever${leverOn[lv.id] ? ' on' : ''}`}>
-              <input
-                type="checkbox"
-                checked={!!leverOn[lv.id]}
-                onChange={(e) => setLeverOn({ ...leverOn, [lv.id]: e.target.checked })}
-              />
-              <span className="lever-main">
-                <span className="lever-label">
-                  {lv.label}
-                  {lv.signal ? (
-                    <span className="lever-badge rec">recon: {lv.signal}</span>
-                  ) : (
-                    <span className="lever-badge opt">optional</span>
-                  )}
-                </span>
-                <span className="lever-why">{lv.why}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        <div className="page-actions">
-          <button className="btn btn-primary" onClick={() => setPhase('compose')}>
-            Use these findings →
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              setSuggestion({ initial: { target, probeUrl: target }, rationale: [] });
-              setPhase('compose');
-            }}
-          >
-            Start from scratch (keep the target)
-          </button>
-        </div>
+        <ReconActionsSurface
+          recon={recon}
+          actions={actions}
+          onOpenEditor={(seed) => {
+            setEditorSeed(seed);
+            setPhase('compose');
+          }}
+          onScratch={() => {
+            setEditorSeed({ target, probeUrl: target });
+            setPhase('compose');
+          }}
+          onDone={onDone}
+        />
       </div>
     );
   }
@@ -502,6 +369,188 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+const REQ_LABEL: Record<TargetRequirement, string> = {
+  h2: 'HTTP/2',
+  waf: 'WAF',
+  cache: 'edge cache',
+  dynamic: 'dynamic endpoint',
+};
+
+/** Map a recon action seed → the classic form's seed shape (for deep editing).
+ *  Lossy on scenario (profile resets to constant); the compose path is lossless. */
+function actionSeedToForm(seed: ActionSeed): Partial<CampaignFormSeed> {
+  return {
+    name: seed.name,
+    target: seed.target,
+    probeUrl: seed.probeUrl,
+    vector: seed.vector === 'http-post' ? 'http-post' : 'http-get',
+    maxRps: seed.maxRps,
+    concurrency: seed.concurrency,
+    maxDurationSec: seed.maxDurationSec,
+    endpoints: (seed.endpoints ?? []).map((e) => e.url).join('\n'),
+    userAgents: (seed.userAgents ?? []).join('\n'),
+    cacheBust: !!seed.cacheBust,
+    noKeepAlive: !!seed.noKeepAlive,
+    parallelism: seed.parallelism ?? 1,
+    calibrate: !!seed.calibrate,
+    agent: seed.agent ?? '',
+    body: typeof seed.body === 'string' ? seed.body : '',
+  };
+}
+
+/**
+ * P7 — the recon-suggested Actions surface. Recon ranks the catalogue for THIS
+ * target's posture into unitary, tunable actions; the operator picks one or more
+ * and composes them into a governed campaign (1) or suite (N), or opens one in
+ * the full editor. N/A actions (a required feature the target lacks) are shown
+ * for reference but can't be selected.
+ */
+function ReconActionsSurface({
+  recon: _recon,
+  actions,
+  onOpenEditor,
+  onScratch,
+  onDone,
+}: {
+  recon: ReconReport;
+  actions: SuggestedAction[];
+  onOpenEditor: (seed: Partial<CampaignFormSeed>) => void;
+  onScratch: () => void;
+  onDone?: () => void;
+}) {
+  const app = useApp();
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+
+  const applicable = actions.filter((a) => a.applicable);
+  const na = actions.filter((a) => !a.applicable);
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const selectedActions = actions.filter((a) => selected.has(a.id));
+
+  const compose = async () => {
+    if (selectedActions.length === 0) return;
+    setBusy(true);
+    try {
+      const r = await api.composeActions({
+        name: name.trim() || undefined,
+        campaigns: selectedActions.map((a) => a.seed),
+      });
+      app.push(
+        'success',
+        r.suiteId
+          ? `Assessment created — ${r.campaigns.length} steps (pending approval).`
+          : `Campaign created — pending approval.`,
+      );
+      await app.refresh();
+      onDone?.();
+      navigate('/campaigns');
+    } catch (e) {
+      app.push('error', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const card = (a: SuggestedAction) => (
+    <div
+      key={a.id}
+      className={`action-card${a.applicable ? '' : ' na'}${selected.has(a.id) ? ' on' : ''}`}
+    >
+      <label className="action-pick">
+        <input
+          type="checkbox"
+          aria-label={`Select ${a.title}`}
+          disabled={!a.applicable || !canCreate}
+          checked={selected.has(a.id)}
+          onChange={() => toggle(a.id)}
+        />
+      </label>
+      <div className="action-body">
+        <div className="action-head">
+          <span className="action-title">{a.title}</span>
+          {a.drs != null && <span className="engine-badge">DRS {a.drs}</span>}
+          {(a.requires ?? []).map((r) => (
+            <span key={r} className="engine-badge req">
+              needs {REQ_LABEL[r] ?? r}
+            </span>
+          ))}
+          {!a.applicable && <span className="engine-badge na">N/A here</span>}
+        </div>
+        <div className="action-params">
+          {a.seed.vector.replace('http-', '').toUpperCase()} · {a.seed.maxRps} rps ·{' '}
+          {a.seed.concurrency} conc · {a.seed.maxDurationSec}s
+          {(a.seed.endpoints?.length ?? 0) > 0 ? ` · ${a.seed.endpoints!.length} endpoint(s)` : ''}
+          {a.seed.cacheBust ? ' · cache-bust' : ''}
+          {a.seed.noKeepAlive ? ' · no-keep-alive' : ''}
+        </div>
+        <ul className="action-why">
+          {a.rationale.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+        <div className="action-foot">
+          <button
+            type="button"
+            className="btn btn-xs btn-ghost"
+            onClick={() => onOpenEditor(actionSeedToForm(a.seed))}
+          >
+            Open in editor →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="recon-actions">
+      <div className="rk">
+        Recommended actions — ranked for this target’s posture. Pick one or more, then create a
+        governed campaign (or a suite). Each is fully editable.
+      </div>
+      <div className="action-list">{applicable.map(card)}</div>
+      {na.length > 0 && (
+        <details className="action-na">
+          <summary>{na.length} not applicable to this target (kept for reference)</summary>
+          <div className="action-list">{na.map(card)}</div>
+        </details>
+      )}
+      {canCreate && (
+        <div className="action-compose">
+          <input
+            className="tcb-name"
+            placeholder="Assessment name (optional)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            className="btn btn-primary"
+            disabled={selectedActions.length === 0 || busy}
+            onClick={compose}
+          >
+            {busy ? <span className="spin" /> : null}
+            {selectedActions.length <= 1
+              ? 'Create campaign'
+              : `Create assessment (${selectedActions.length})`}{' '}
+            →
+          </button>
+          <button className="btn btn-ghost" onClick={onScratch}>
+            Start from scratch
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -971,6 +971,15 @@ export const api = {
     if (probeUrl) q.set('probeUrl', probeUrl);
     return get<ReconReport>(`/api/recon?${q.toString()}`);
   },
+  /** Recon + the ranked set of recon-suggested unitary actions (P7). */
+  reconActions: (target: string, probeUrl?: string) => {
+    const q = new URLSearchParams({ target, actions: '1' });
+    if (probeUrl) q.set('probeUrl', probeUrl);
+    return get<ReconWithActions>(`/api/recon?${q.toString()}`);
+  },
+  /** Compose tuned action seeds into a governed campaign (1) or suite (N). */
+  composeActions: (body: { name?: string; campaigns: ActionSeed[] }) =>
+    post<{ suiteId?: string; campaigns: Campaign[] }>('/api/suites/from-actions', body),
 };
 
 // ── Preparation-phase reconnaissance (recon) ────────────────────────────────
@@ -1031,6 +1040,54 @@ export interface ReconReport {
   /** The dynamic/expensive subset of suggestedPaths — the best stress targets. */
   dynamicPaths?: string[];
   loginPath?: string;
+}
+
+export type TargetRequirement = 'h2' | 'waf' | 'cache' | 'dynamic';
+
+/** A recon-seeded, tunable campaign seed (the backend CampaignInput shape). */
+export interface ActionSeed {
+  name: string;
+  description?: string;
+  target: string;
+  probeUrl: string;
+  vector: 'http-get' | 'http-post' | 'http-slowloris';
+  maxRps: number;
+  concurrency: number;
+  maxDurationSec: number;
+  createdBy?: string;
+  authorized?: boolean;
+  endpoints?: { url: string; weight?: number }[];
+  userAgents?: string[];
+  headers?: Record<string, string>;
+  cacheBust?: boolean;
+  noKeepAlive?: boolean;
+  parallelism?: number;
+  calibrate?: boolean;
+  scenario?: unknown;
+  agent?: string;
+  requires?: TargetRequirement[];
+  reconPosture?: { h2: boolean; waf: boolean; cache: boolean; dynamic: boolean };
+  [k: string]: unknown;
+}
+
+/** P7 — a recon-suggested, unitary, tunable candidate action. */
+export interface SuggestedAction {
+  id: string;
+  title: string;
+  summary: string;
+  rationale: string[];
+  category?: string;
+  drs?: number;
+  requires?: TargetRequirement[];
+  applicable: boolean;
+  naReasons?: TargetRequirement[];
+  relevance: number;
+  sourceTemplateId?: string;
+  seed: ActionSeed;
+}
+
+export interface ReconWithActions extends ReconReport {
+  actions: SuggestedAction[];
 }
 
 // ── Protection-gap analyzer (RPT-05) ────────────────────────────────────────
