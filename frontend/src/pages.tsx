@@ -1501,6 +1501,32 @@ function fmtRowDate(ms: number): string {
   });
 }
 
+/** A composite (suite) row's status, rendered in the SAME badge language as a
+ *  single campaign's StatusBadge (so the two row kinds read as one family),
+ *  plus a slim progress bar since a suite is multi-step. */
+function SuiteStatusCell({
+  label,
+  rank,
+  done,
+  total,
+}: {
+  label: string;
+  rank: number;
+  done: number;
+  total: number;
+}) {
+  const phase = rank === 0 ? 'RUNNING' : rank === 1 ? 'PENDING_APPROVAL' : 'COMPLETED';
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className={`ct-suite-status phase-${phase}`}>
+      <span className={`badge badge-${phase}`}>{label}</span>
+      <span className="ct-progress" aria-hidden="true">
+        <span className="ct-progress-fill" style={{ width: `${pct}%` }} />
+      </span>
+    </div>
+  );
+}
+
 function CampaignTable({ rows }: { rows: CampaignRow[] }) {
   const [sortKey, setSortKey] = useState<CampaignSortKey>('created');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
@@ -1560,7 +1586,7 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
                     {isOpen ? '▾' : '▸'}
                   </td>
                   <td className="ct-name">
-                    <span className="ct-kind" aria-hidden="true">
+                    <span className={`ct-kind ct-kind-${r.kind}`} aria-hidden="true">
                       {r.kind === 'suite' ? '📁' : '⚡'}
                     </span>
                     <span className="ct-name-txt">{r.name}</span>
@@ -1569,6 +1595,13 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
                   <td>
                     {r.kind === 'campaign' && r.campaign ? (
                       <StatusBadge status={r.campaign.status} />
+                    ) : r.suite ? (
+                      <SuiteStatusCell
+                        label={r.statusLabel}
+                        rank={r.statusRank}
+                        done={r.suite.done}
+                        total={r.suite.total}
+                      />
                     ) : (
                       <span className="ct-suite-status">{r.statusLabel}</span>
                     )}
