@@ -14,7 +14,9 @@ import {
   computeBaseline,
   preflight,
   assembleReconReport,
+  reconPostureSnapshot,
   type PreflightInput,
+  type ReconReport,
 } from '../src/modules/recon/recon.js';
 
 describe('target profile (A)', () => {
@@ -183,5 +185,49 @@ describe('assembleReconReport (E)', () => {
     expect(report.loginPath).toBe('/login');
     expect(report.preflight.go).toBe(true); // probeReachable derived from baseline
     expect(report.baseline.samples).toBe(1);
+  });
+});
+
+describe('reconPostureSnapshot (single source of the posture→requirement mapping)', () => {
+  const mk = (over: Record<string, unknown>): ReconReport =>
+    ({
+      profile: {
+        posture: { waf: false, cdn: false },
+        protocols: { http2: false, http3: false },
+        cache: 'unknown',
+        ...(over.profile as object),
+      },
+      dynamicPaths: (over.dynamicPaths as string[]) ?? [],
+    }) as unknown as ReconReport;
+
+  it('maps h2/waf/cache/dynamic exactly as the old inline formula did', () => {
+    // Bare origin
+    expect(reconPostureSnapshot(mk({}))).toEqual({
+      h2: false,
+      waf: false,
+      cache: false,
+      dynamic: false,
+    });
+    // WAF only
+    expect(reconPostureSnapshot(mk({ profile: { posture: { waf: true, cdn: false } } })).waf).toBe(
+      true,
+    );
+    // cache via cache==='hit' OR cdn
+    expect(
+      reconPostureSnapshot(mk({ profile: { cache: 'hit', posture: { cdn: false } } })).cache,
+    ).toBe(true);
+    expect(
+      reconPostureSnapshot(mk({ profile: { cache: 'miss', posture: { cdn: true } } })).cache,
+    ).toBe(true);
+    expect(
+      reconPostureSnapshot(mk({ profile: { cache: 'miss', posture: { cdn: false } } })).cache,
+    ).toBe(false);
+    // h2 from protocols.http2
+    expect(
+      reconPostureSnapshot(mk({ profile: { protocols: { http2: true, http3: false } } })).h2,
+    ).toBe(true);
+    // dynamic from any dynamic path
+    expect(reconPostureSnapshot(mk({ dynamicPaths: ['/api'] })).dynamic).toBe(true);
+    expect(reconPostureSnapshot(mk({ dynamicPaths: [] })).dynamic).toBe(false);
   });
 });

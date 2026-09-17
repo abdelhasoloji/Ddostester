@@ -2,6 +2,8 @@ import { analyzePosture } from '../posture/analyze.js';
 import type { PostureReport } from '../posture/analyze.js';
 import { postureToProfile } from '../reports/gap-analysis.js';
 import type { ProtectionProfile } from '../reports/gap-analysis.js';
+// Type-only import — model.ts never imports recon, so no cycle.
+import type { ReconPostureSnapshot } from '../campaigns/model.js';
 
 /**
  * Preparation-phase reconnaissance (defensive, passive + published-surface only).
@@ -398,6 +400,23 @@ export interface ReconReport {
   /** The dynamic/expensive subset of suggestedPaths — the best stress targets. */
   dynamicPaths: string[];
   loginPath?: string;
+}
+
+/**
+ * THE single source of the recon-posture → target-requirement mapping: which of
+ * {h2, waf, cache, dynamic} the target exhibits. A template's `requires` is then
+ * N/A wherever the corresponding feature is false (a benign result against a
+ * missing feature is not resistance). Was duplicated inline in `app.ts` reconSeed,
+ * `scripts/template-matrix.mjs`, and the `model.ts` doc-comment — keep those
+ * pointing here so the mapping can never drift.
+ */
+export function reconPostureSnapshot(recon: ReconReport): ReconPostureSnapshot {
+  return {
+    h2: !!recon.profile.protocols.http2,
+    waf: !!recon.profile.posture.waf,
+    cache: recon.profile.cache === 'hit' || !!recon.profile.posture.cdn,
+    dynamic: (recon.dynamicPaths?.length ?? 0) > 0,
+  };
 }
 
 export interface AssembleInput {

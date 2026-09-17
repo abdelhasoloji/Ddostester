@@ -80,6 +80,8 @@ import {
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices } from './agents/index.js';
 import { runRecon } from './modules/recon/fetch.js';
+import { reconPostureSnapshot } from './modules/recon/recon.js';
+import { recommendActions } from './modules/recon/actions.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
 import { buildRunNotifications } from './modules/notify/events.js';
 import { noopNotifier } from './modules/notify/notifier.js';
@@ -1123,16 +1125,32 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // baseline, preflight go/no-go, and the seeded gap-analyzer profile. Bounded
   // and non-intrusive (no scan / fuzz / enumeration). See modules/recon.
   app.get('/api/recon', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const { target, probeUrl } = req.query as { target?: string; probeUrl?: string };
+    const { target, probeUrl, actions } = req.query as {
+      target?: string;
+      probeUrl?: string;
+      // Opt-in (P7): also return the ranked recon-suggested action set. Absent →
+      // the response is byte-identical to the recon report alone.
+      actions?: string;
+    };
     if (!target) return reply.code(400).send({ error: 'target is required' });
-    const engines = (await describeAgents()).filter((a) => a.available).length;
+    const agents = await describeAgents();
     try {
-      return await runRecon(target, probeUrl ?? target, allowedTargets, {
-        enginesAvailable: engines,
+      const report = await runRecon(target, probeUrl ?? target, allowedTargets, {
+        enginesAvailable: agents.filter((a) => a.available).length,
         capsConfigured: true,
         protectionConfigured: protection.configured,
         labRunnerConfigured: labTargets.length > 0,
       });
+      if (!actions) return report;
+      const suggested = recommendActions(report, {
+        catalogue: PLAYBOOKS,
+        engines: agents.map((a) => ({ id: a.id, available: a.available })),
+        caps: effectiveCaps,
+        target,
+        probeUrl: probeUrl ?? target,
+        createdBy: req.authUser?.email ?? 'recommender',
+      });
+      return { ...report, actions: suggested };
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
@@ -1172,15 +1190,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           t.unref?.();
         }),
       ]);
-      // Same mapping as scripts/template-matrix.mjs missingRequirements(): a
-      // requirement is satisfied when the target exhibits the feature.
-      const post = recon.profile?.posture ?? {};
-      const posture: ReconPostureSnapshot = {
-        h2: !!recon.profile?.protocols?.http2,
-        waf: !!post.waf,
-        cache: recon.profile?.cache === 'hit' || !!post.cdn,
-        dynamic: (recon.dynamicPaths?.length ?? 0) > 0,
-      };
+      // Single source of the posture→requirement mapping (see reconPostureSnapshot).
+      const posture: ReconPostureSnapshot = reconPostureSnapshot(recon);
       return {
         surface: {
           paths: recon.suggestedPaths,
