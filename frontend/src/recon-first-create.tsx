@@ -314,53 +314,65 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
 
   // phase === 'target'
   return (
-    <div className="recon-first">
-      <h3>New campaign — recon first</h3>
-      <p className="hint">
-        Give a target and we profile it before you build: its edge posture, the paths worth hitting,
-        and a suggested configuration. One flow, always recon-first.
+    <div className="recon-first recon-hero">
+      <span className="recon-eyebrow">◎ Recon-first</span>
+      <h3>Profile a target to begin</h3>
+      <p className="hint recon-hero-sub">
+        Give a target and we profile it before you build — its edge posture, the paths worth
+        hitting, and a suggested configuration. One flow, always recon-first.
       </p>
-      <div className="field" style={{ maxWidth: '32rem' }}>
+      <div className="field recon-target-field">
         <label>Target</label>
-        {app.allowed.length > 0 && (
-          <select
-            aria-label="Choose an allowed target"
-            className="target-select"
-            value={host && app.allowed.includes(host) ? host : ''}
-            onChange={(e) => {
-              if (e.target.value) setTarget(defaultTargetUrl(e.target.value));
+        <div className={`recon-target-bar${target && !allowed ? ' invalid' : ''}`}>
+          <span className="recon-target-icon" aria-hidden="true">
+            🎯
+          </span>
+          <input
+            className="recon-target-url"
+            value={target}
+            placeholder="https://bank.cz/"
+            onChange={(e) => setTarget(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && allowed && !busy) runRecon();
             }}
-            style={{ marginBottom: '.4rem' }}
-          >
-            <option value="">Choose an allowed target…</option>
+          />
+          {allowed && (
+            <span className="recon-target-ok" title="On the allowlist" aria-label="allowed">
+              ✓
+            </span>
+          )}
+        </div>
+        {app.allowed.length > 0 && (
+          <div className="recon-allowed">
+            <span className="recon-allowed-label">Allowed</span>
             {app.allowed.map((h) => (
-              <option key={h} value={h}>
+              <button
+                key={h}
+                type="button"
+                className={`recon-host-chip${host === h ? ' on' : ''}`}
+                onClick={() => setTarget(defaultTargetUrl(h))}
+              >
                 {h}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         )}
-        <input
-          value={target}
-          placeholder="https://bank.cz/"
-          onChange={(e) => setTarget(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && allowed && !busy) runRecon();
-          }}
-        />
         <span className="hint">
-          Pick a target above, or type a full URL (protocol / port / path).{' '}
-          {app.allowed.length > 0 && <>Allowed hosts: {app.allowed.join(', ')}.</>}
+          Pick a host above, or type a full URL (protocol / port / path).
           {target && !allowed && <b style={{ color: 'var(--danger)' }}> · not on the allowlist</b>}
         </span>
       </div>
       {error && (
-        <p className="hint" style={{ color: 'var(--danger)' }}>
+        <p className="hint recon-error" style={{ color: 'var(--danger)' }}>
           {error}
         </p>
       )}
-      <div className="page-actions">
-        <button className="btn btn-primary" disabled={!allowed || busy} onClick={runRecon}>
+      <div className="page-actions recon-cta">
+        <button
+          className={`btn btn-primary btn-scan${busy ? ' scanning' : ''}`}
+          disabled={!allowed || busy}
+          onClick={runRecon}
+        >
           {busy ? 'Profiling…' : '🔎 Profile target'}
         </button>
         {onDone && (
