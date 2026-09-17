@@ -4,6 +4,7 @@ import {
   PlaybookError,
   buildScenario,
   buildSuiteCampaigns,
+  stepToCampaignSeed,
   seedPaths,
   getPlaybook,
   validatePlaybookInput,
@@ -76,6 +77,42 @@ describe('playbooks', () => {
     // A template with no requires leaves the field undefined.
     const cap = buildSuiteCampaigns(getPlaybook('capacity-assessment')!, target, engines);
     expect(cap.every((c) => c.requires === undefined)).toBe(true);
+  });
+
+  it('stepToCampaignSeed (no caps) equals a suite member minus its suite fields', () => {
+    const pb = getPlaybook('capacity-assessment')!;
+    const [member] = buildSuiteCampaigns(pb, target, engines);
+    const seed = stepToCampaignSeed(pb.steps[0], {
+      name: member.name,
+      target: target.target,
+      probeUrl: target.probeUrl,
+      createdBy: target.createdBy,
+      engines,
+    });
+    // The wrapper only re-adds suiteId/suiteName/suiteOrder.
+    const { suiteId: _s, suiteName: _n, suiteOrder: _o, ...memberCore } = member;
+    void [_s, _n, _o];
+    expect(seed).toEqual(memberCore);
+    expect(seed).not.toHaveProperty('suiteId');
+  });
+
+  it('stepToCampaignSeed clamps to caps when given (recommender path)', () => {
+    const pb = getPlaybook('capacity-assessment')!;
+    const peak = pb.steps.reduce((a, b) => (b.maxRps > a.maxRps ? b : a));
+    const caps = { maxRps: 25, maxConcurrency: 10, maxDurationSec: 20 };
+    const seed = stepToCampaignSeed(peak, {
+      name: 'clamped',
+      target: target.target,
+      probeUrl: target.probeUrl,
+      createdBy: target.createdBy,
+      engines,
+      caps,
+    });
+    expect(seed.maxRps).toBeLessThanOrEqual(caps.maxRps);
+    expect(seed.concurrency).toBeLessThanOrEqual(caps.maxConcurrency);
+    expect(seed.maxDurationSec).toBeLessThanOrEqual(caps.maxDurationSec);
+    const total = (seed.scenario ?? []).reduce((n, p) => n + p.durationSec, 0);
+    expect(total).toBeLessThanOrEqual(caps.maxDurationSec);
   });
 
   it('missingRequirements returns the features a target lacks (N/A), else empty', () => {

@@ -76,6 +76,11 @@ const isH2Line = (name) =>
   /http\/?2|header-pressure|rapid.?reset|continuation|multiplex/i.test(name);
 
 // Which required features a target lacks, from its recon report.
+// NOTE: `has` MIRRORS reconPostureSnapshot() in
+// backend/src/modules/recon/recon.ts (the single source) — this standalone ops
+// script fetches recon via the API rather than importing the backend, so keep
+// the two in sync by hand. The backend's GET /api/recon?actions=1 applies the
+// same mapping server-side.
 function missingRequirements(requires, recon) {
   if (!requires?.length || !recon) return [];
   const post = recon.profile?.posture ?? {};

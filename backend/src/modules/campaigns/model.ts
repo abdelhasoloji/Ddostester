@@ -30,8 +30,8 @@ export type TargetRequirement = 'h2' | 'waf' | 'cache' | 'dynamic';
 
 /**
  * Compact snapshot of the target's recon posture captured at instantiation, so a
- * run report can mark which `requires` were N/A without re-running recon. Booleans
- * mirror `scripts/template-matrix.mjs`'s `missingRequirements` mapping exactly.
+ * run report can mark which `requires` were N/A without re-running recon. Derived
+ * by the single-source `reconPostureSnapshot()` in `modules/recon/recon.ts`.
  */
 export interface ReconPostureSnapshot {
   h2: boolean;

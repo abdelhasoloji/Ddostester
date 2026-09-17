@@ -2246,24 +2246,38 @@ export function buildCompositeSuite(
   return inputs;
 }
 
-/** Maps one playbook step to a CampaignInput bound into a suite. */
-function campaignInputFromStep(
-  step: PlaybookStep,
-  o: {
-    name: string;
-    suiteId: string;
-    suiteName: string;
-    suiteOrder: number;
-    requires?: TargetRequirement[];
-    t: SuiteTarget;
-    engines: EngineAvailability[];
-  },
-): CampaignInput {
+/** Context for turning one playbook step into a standalone campaign seed. */
+export interface StepSeedContext {
+  name: string;
+  target: string;
+  probeUrl: string;
+  createdBy: string;
+  recon?: ReconSurface;
+  reconPosture?: ReconPostureSnapshot;
+  recurrenceMin?: number;
+  engines: EngineAvailability[];
+  requires?: TargetRequirement[];
+  /**
+   * When set, clamp the step's rate/concurrency/duration to these caps BEFORE
+   * the scenario is derived. Omit (the suite path) to keep the step's values
+   * verbatim — curated steps are already within the ceiling.
+   */
+  caps?: HardCaps;
+}
+
+/**
+ * Pure: one playbook step → one standalone `CampaignInput` (no suite linkage).
+ * The shared seed core behind `campaignInputFromStep` (suite path) and the P7
+ * action recommender (`modules/recon/actions.ts`). All the delivery shaping —
+ * recon path seeding, costliest-dynamic concentration, connection-pressure
+ * no-keep-alive, UA/header engine gating, scenario derivation — lives here.
+ */
+export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): CampaignInput {
   const isAvailable = (id?: string): boolean =>
-    id != null && o.engines.some((e) => e.id === id && e.available);
-  let origin = o.t.target;
+    id != null && ctx.engines.some((e) => e.id === id && e.available);
+  let origin = ctx.target;
   try {
-    origin = new URL(o.t.target).origin;
+    origin = new URL(ctx.target).origin;
   } catch {
     /* keep raw; createCampaign will reject an invalid target */
   }
@@ -2289,8 +2303,8 @@ function campaignInputFromStep(
   // didn't resolve to anything but root (e.g. a rich-target path mix hitting a
   // sparse origin). Templates whose paths DO map to a real (non-root) surface
   // keep their mix, so a target-tuned line is unchanged where it applies.
-  const dyn = o.t.recon?.dynamicPaths;
-  const resolved = seedPaths(step.paths, o.t.recon);
+  const dyn = ctx.recon?.dynamicPaths;
+  const resolved = seedPaths(step.paths, ctx.recon);
   const resolvedMeaningful = !!resolved && resolved.some((p) => p !== '/');
   const concentrateDynamic = (step.focusDynamic || !resolvedMeaningful) && !!dyn && dyn.length > 0;
   const seededPaths = concentrateDynamic ? dyn!.slice(0, 1) : resolved;
@@ -2316,9 +2330,18 @@ function campaignInputFromStep(
   // lines (which need a persistent multiplexed connection), low-rate baselines
   // and fingerprint sweeps are left keep-alive. A step that set noKeepAlive keeps
   // its choice. This only shapes HOW the same bounded, capped requests arrive.
+  // Clamp to caps (recommender path) before deriving the scenario; the suite
+  // path passes no caps, so the curated step values are unchanged.
+  const maxRps = ctx.caps ? Math.min(step.maxRps, ctx.caps.maxRps) : step.maxRps;
+  const concurrency = ctx.caps
+    ? Math.min(step.concurrency, ctx.caps.maxConcurrency)
+    : step.concurrency;
+  const maxDurationSec = ctx.caps
+    ? Math.min(step.maxDurationSec, ctx.caps.maxDurationSec)
+    : step.maxDurationSec;
   const isH2Line = /http\/?2|header-pressure|rapid.?reset|continuation|multiplex/i.test(step.name);
   const isFlood =
-    (step.vector ?? 'http-get') !== 'http-slowloris' && step.maxRps >= FLOOD_RPS && !isH2Line;
+    (step.vector ?? 'http-get') !== 'http-slowloris' && maxRps >= FLOOD_RPS && !isH2Line;
   const effectiveNoKeepAlive =
     step.noKeepAlive === true || (concentrateDynamic && isFlood) ? true : undefined;
   // Delivery levers travel with the step regardless of engine: cache-busting and
@@ -2326,17 +2349,17 @@ function campaignInputFromStep(
   // parallelism is a vegeta fan-out (clamped downstream). They only shape HOW the
   // same bounded, allowlisted, capped requests are delivered — never the volume.
   return {
-    name: o.name,
+    name: ctx.name,
     description: step.summary,
-    target: o.t.target,
+    target: ctx.target,
     vector: step.vector ?? 'http-get',
-    maxRps: step.maxRps,
-    concurrency: step.concurrency,
-    maxDurationSec: step.maxDurationSec,
-    probeUrl: o.t.probeUrl,
-    createdBy: o.t.createdBy,
+    maxRps,
+    concurrency,
+    maxDurationSec,
+    probeUrl: ctx.probeUrl,
+    createdBy: ctx.createdBy,
     authorized: true,
-    scenario: buildScenario(step.profile, step.maxRps, step.maxDurationSec),
+    scenario: buildScenario(step.profile, maxRps, maxDurationSec),
     agent,
     endpoints,
     userAgents,
@@ -2345,11 +2368,36 @@ function campaignInputFromStep(
     noKeepAlive: effectiveNoKeepAlive,
     parallelism: step.parallelism,
     calibrate: step.calibrate,
-    recurrence: o.t.recurrenceMin ? { intervalMin: o.t.recurrenceMin } : undefined,
-    suiteId: o.suiteId,
-    suiteName: o.suiteName,
-    suiteOrder: o.suiteOrder,
-    requires: o.requires,
-    reconPosture: o.t.reconPosture,
+    recurrence: ctx.recurrenceMin ? { intervalMin: ctx.recurrenceMin } : undefined,
+    requires: ctx.requires,
+    reconPosture: ctx.reconPosture,
   };
+}
+
+/** Maps one playbook step to a CampaignInput bound into a suite (thin wrapper
+ *  over {@link stepToCampaignSeed} — suite path, no caps clamp). */
+function campaignInputFromStep(
+  step: PlaybookStep,
+  o: {
+    name: string;
+    suiteId: string;
+    suiteName: string;
+    suiteOrder: number;
+    requires?: TargetRequirement[];
+    t: SuiteTarget;
+    engines: EngineAvailability[];
+  },
+): CampaignInput {
+  const seed = stepToCampaignSeed(step, {
+    name: o.name,
+    target: o.t.target,
+    probeUrl: o.t.probeUrl,
+    createdBy: o.t.createdBy,
+    recon: o.t.recon,
+    reconPosture: o.t.reconPosture,
+    recurrenceMin: o.t.recurrenceMin,
+    engines: o.engines,
+    requires: o.requires,
+  });
+  return { ...seed, suiteId: o.suiteId, suiteName: o.suiteName, suiteOrder: o.suiteOrder };
 }
