@@ -1132,6 +1132,67 @@ input.invalid {
      panel, even if a scale is momentarily mis-ranged. */
   overflow: hidden;
 }
+
+/* Pure-SVG live run chart (live-chart.tsx). Theme-tokened; re-renders on every
+   data tick, so the frame always matches the latest samples. */
+.lc-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+.lc-svg {
+  display: block;
+  max-width: 100%;
+}
+.lc-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.lc-axis {
+  stroke: color-mix(in srgb, var(--muted) 55%, var(--border));
+  stroke-width: 1;
+}
+.lc-tick {
+  fill: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.lc-area {
+  opacity: 0.1;
+}
+.lc-line {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.lc-dot {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.lc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem 1.1rem;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.lc-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.lc-leg-item b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.lc-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
 .promchart {
   max-width: 100%;
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
+import { LiveLineChart } from './live-chart.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
@@ -1042,15 +1043,7 @@ function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
           <div key={p.label} className="run-metrics-panel">
             <div className="rmp-title">{p.label}</div>
             {enough ? (
-              <UplotChart
-                series={p.series}
-                height={140}
-                timeAxis={false}
-                xFromZero
-                xRange={[0, xMax]}
-                yRange={p.yRange}
-                yFromZero={p.yFromZero}
-              />
+              <LiveLineChart series={p.series} height={140} xDomain={[0, xMax]} yRange={p.yRange} />
             ) : (
               <div className="timeline-pending hint">Collecting samples…</div>
             )}
@@ -1085,7 +1078,8 @@ function RunTimeline({
       </div>
     );
   }
-  const tMax = Math.round(Math.max(...samples.map((s) => s.t), 1));
+  const xMax = Math.max(...samples.map((s) => s.t), 1);
+  const tMax = Math.round(xMax);
   const series: ChartSeries[] = [
     { label: 'requests/s', points: samples.map((s) => [s.t, s.rps]), color: '#3b82f6' },
     {
@@ -1098,7 +1092,7 @@ function RunTimeline({
   return (
     <div className="posture">
       <div className="posture-title">Run timeline</div>
-      <UplotChart series={series} height={150} timeAxis={false} yFromZero />
+      <LiveLineChart series={series} height={150} xDomain={[0, xMax]} />
       <div className="timeline-legend">
         <span className="hint">over {tMax}s</span>
         {csvHref && (
