@@ -8,6 +8,7 @@ import {
   parseRobots,
   parseSitemapUrls,
   extractPaths,
+  decodeHtmlEntities,
   pickLoginPath,
   pathCost,
   buildSurface,
@@ -82,6 +83,27 @@ describe('published-surface map (B)', () => {
     expect(paths).toContain('/login');
     expect(paths).not.toContain('/x'); // off-host dropped
     expect(pickLoginPath(paths)).toBe('/account'); // first login-like wins
+  });
+
+  it('HTML-decodes discovered paths so a multi-param link is the real URL', () => {
+    // A multi-parameter link is authored with &amp; (a bare & is invalid HTML);
+    // the discovered path must be the URL the browser would request, not the
+    // escaped source — otherwise the generator floods a wrong query string.
+    const html =
+      '<a href="/api/products.php?category=all&amp;page=2">p</a>' +
+      '<a href="https://bank.cz/search?q=a&amp;sort=price">s</a>';
+    const paths = extractPaths(html, 'bank.cz');
+    expect(paths).toContain('/api/products.php?category=all&page=2');
+    expect(paths).toContain('/search?q=a&sort=price');
+    expect(paths.some((p) => p.includes('&amp;'))).toBe(false);
+  });
+
+  it('decodeHtmlEntities handles named + numeric refs and leaves unknowns intact', () => {
+    expect(decodeHtmlEntities('a=1&amp;b=2')).toBe('a=1&b=2');
+    expect(decodeHtmlEntities('x&#38;y&#x26;z')).toBe('x&y&z');
+    expect(decodeHtmlEntities('&lt;t&gt;&quot;&apos;')).toBe('<t>"\'');
+    expect(decodeHtmlEntities('keep&bogus;raw')).toBe('keep&bogus;raw');
+    expect(decodeHtmlEntities('no entities here')).toBe('no entities here');
   });
 
   it('builds a capped surface, respects Disallow, always includes root', () => {
