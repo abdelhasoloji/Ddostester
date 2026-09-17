@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme Store — bare-origin benchmark</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { max-width: 46em; margin: 2rem auto; padding: 0 1rem;
+         font-family: system-ui, Tahoma, Verdana, Arial, sans-serif; line-height: 1.5; }
+  h1 { margin-bottom: .2rem; }
+  .muted { color: #888; }
+  nav a { display: inline-block; margin: .2rem .6rem .2rem 0; }
+  form { margin-top: 1rem; }
+  code { background: rgba(128,128,128,.15); padding: 0 .25rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>Acme Store</h1>
+  <p class="muted">WEDOS ShieldTest — bare-origin benchmark. Intentionally unprotected: no
+  WAF, no edge cache, no rate limiting. Every link below is served by the origin (PHP-FPM),
+  so a load test can measure how a plain origin degrades under load.</p>
+
+  <h2>Catalogue &amp; account</h2>
+  <nav>
+    <!-- Dynamic, origin-compute endpoints (recon discovers these as stress targets). -->
+    <a href="/api/search.php?q=shieldtest">Product search</a>
+    <a href="/api/db.php?id=42">Product detail (db)</a>
+    <a href="/api/products.php?page=2">Browse products</a>
+    <a href="/api/report.php">Sales report (heavy)</a>
+    <a href="/api/work.php?ms=250">Compute endpoint</a>
+    <a href="/api/echo.php">Echo (POST)</a>
+    <a href="/login.php">Sign in</a>
+    <a href="/account.php">My account</a>
+    <a href="/api/cached.php">Cacheable banner</a>
+  </nav>
+
+  <h2>Sign in</h2>
+  <form action="/login.php" method="post">
+    <label>Email <input type="email" name="username" value="user@acme.test"></label>
+    <label>Password <input type="password" name="password"></label>
+    <button type="submit">Sign in</button>
+  </form>
+
+  <p class="muted">API base: <code>/api/</code> · origin: bare nginx + PHP-FPM · no CDN.</p>
+</body>
+</html>
