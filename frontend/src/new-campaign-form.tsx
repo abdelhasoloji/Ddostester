@@ -184,9 +184,12 @@ export function NewCampaignForm({
 
   if (!canCreate) return null;
   return (
-    <section className="card">
+    <section className="card campaign-form">
       <div className="card-head">
-        <h2>New campaign</h2>
+        <div className="card-head-title">
+          <span className="form-eyebrow">◎ Campaign editor</span>
+          <h2>New campaign</h2>
+        </div>
         {onDone && (
           <button type="button" className="btn btn-sm btn-ghost" onClick={onDone}>
             Cancel
