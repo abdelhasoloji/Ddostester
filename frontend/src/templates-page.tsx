@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from './api.js';
+import { defaultTargetUrl } from './target-url.js';
 import type { Playbook, BenchCatalogue } from './api.js';
 import { useApp, canDo } from './context.js';
 import { hostOf } from './ui.js';
@@ -493,7 +494,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                   key={h}
                   type="button"
                   className="chip-xs"
-                  onClick={() => setTarget(`https://${h}/`)}
+                  onClick={() => setTarget(defaultTargetUrl(h))}
                 >
                   {h}
                 </button>

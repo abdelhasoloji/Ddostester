@@ -30,6 +30,7 @@ import type {
   Priority,
 } from './api.js';
 import { GAP_CONTROLS } from './api.js';
+import { defaultTargetUrl } from './target-url.js';
 import { useApp, canDo, roleLabel } from './context.js';
 import { APP_VERSION_LABEL, APP_BUILT, APP_COMMIT } from './version.js';
 import {
@@ -1990,7 +1991,7 @@ export function GapPlannerSection() {
   const createFromPlan = async () => {
     if (planPicks.length === 0) return;
     const host = target.trim();
-    const targetUrl = /^https?:\/\//.test(host) ? host : `https://${host}/`;
+    const targetUrl = defaultTargetUrl(host);
     setCreating(true);
     try {
       const name = `Plan — ${host.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
