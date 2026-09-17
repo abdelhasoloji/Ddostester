@@ -997,10 +997,19 @@ export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
   ];
 }
 
+/** The shared x-domain max for the Run-Theater panels: the largest elapsed
+ *  second across the samples (never below 1). Every panel is drawn on [0, this]
+ *  so they stay aligned and no line is ever plotted past the frame. NOT rounded
+ *  — a rounded-down max would clip the last point. Pure, so it is unit-tested. */
+export function panelsXMax(samples: RunSample[]): number {
+  return Math.max(1, ...samples.map((s) => s.t));
+}
+
 function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
   const panels = theaterPanels(timeline);
   const enough = timeline.length >= 2;
-  const tMax = enough ? Math.round(Math.max(...timeline.map((s) => s.t), 1)) : 0;
+  const xMax = panelsXMax(timeline);
+  const tMax = enough ? Math.round(xMax) : 0;
   return (
     <div className="run-metrics">
       <div className="run-metrics-head">
@@ -1018,6 +1027,7 @@ function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
                 height={140}
                 timeAxis={false}
                 xFromZero
+                xRange={[0, xMax]}
                 yRange={p.yRange}
                 yFromZero={p.yFromZero}
               />

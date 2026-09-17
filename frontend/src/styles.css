@@ -1082,6 +1082,12 @@ input.invalid {
 /* Always-on legend for UplotChart (replaces uPlot's hover-only native one). */
 .promchart-wrap {
   width: 100%;
+  /* Belt-and-suspenders: never let a chart's canvas/line paint outside its
+     panel, even if a scale is momentarily mis-ranged. */
+  overflow: hidden;
+}
+.promchart {
+  max-width: 100%;
 }
 .uchart-legend {
   display: flex;
