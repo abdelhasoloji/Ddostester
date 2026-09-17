@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from './api.js';
-import { defaultTargetUrl } from './target-url.js';
+import { TargetBar } from './target-bar.js';
 import type { Playbook, BenchCatalogue } from './api.js';
 import { useApp, canDo } from './context.js';
 import { hostOf } from './ui.js';
@@ -493,37 +493,12 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       <div className="card tpl-launchbar">
         <div className="field">
           <label>Target for the assessment</label>
-          <div className={`recon-target-bar${target && !targetAllowed ? ' invalid' : ''}`}>
-            <span className="recon-target-icon" aria-hidden="true">
-              🎯
-            </span>
-            <input
-              className="recon-target-url"
-              placeholder="https://staging.example.com/"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-            />
-            {targetAllowed && (
-              <span className="recon-target-ok" title="On the allowlist" aria-label="allowed">
-                ✓
-              </span>
-            )}
-          </div>
-          {app.allowed.length > 0 && (
-            <div className="recon-allowed">
-              <span className="recon-allowed-label">Allowed</span>
-              {app.allowed.map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  className={`recon-host-chip${targetHost === h ? ' on' : ''}`}
-                  onClick={() => setTarget(defaultTargetUrl(h))}
-                >
-                  {h}
-                </button>
-              ))}
-            </div>
-          )}
+          <TargetBar
+            target={target}
+            onChange={setTarget}
+            allowed={app.allowed}
+            placeholder="https://staging.example.com/"
+          />
           {target && !targetAllowed && (
             <span className="hint">Host is not in the allowlist — pick one above.</span>
           )}
