@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, canDo } from './context.js';
-import { defaultTargetUrl } from './target-url.js';
+import { TargetBar } from './target-bar.js';
 import { api } from './api.js';
 import type { ReconReport, SuggestedAction, ActionSeed, TargetRequirement } from './api.js';
 import { hostOf, emptyForm } from './campaign-form.js';
@@ -323,40 +323,15 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
       </p>
       <div className="field recon-target-field">
         <label>Target</label>
-        <div className={`recon-target-bar${target && !allowed ? ' invalid' : ''}`}>
-          <span className="recon-target-icon" aria-hidden="true">
-            🎯
-          </span>
-          <input
-            className="recon-target-url"
-            value={target}
-            placeholder="https://bank.cz/"
-            onChange={(e) => setTarget(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && allowed && !busy) runRecon();
-            }}
-          />
-          {allowed && (
-            <span className="recon-target-ok" title="On the allowlist" aria-label="allowed">
-              ✓
-            </span>
-          )}
-        </div>
-        {app.allowed.length > 0 && (
-          <div className="recon-allowed">
-            <span className="recon-allowed-label">Allowed</span>
-            {app.allowed.map((h) => (
-              <button
-                key={h}
-                type="button"
-                className={`recon-host-chip${host === h ? ' on' : ''}`}
-                onClick={() => setTarget(defaultTargetUrl(h))}
-              >
-                {h}
-              </button>
-            ))}
-          </div>
-        )}
+        <TargetBar
+          target={target}
+          onChange={setTarget}
+          allowed={app.allowed}
+          placeholder="https://bank.cz/"
+          onEnter={() => {
+            if (allowed && !busy) runRecon();
+          }}
+        />
         <span className="hint">
           Pick a host above, or type a full URL (protocol / port / path).
           {target && !allowed && <b style={{ color: 'var(--danger)' }}> · not on the allowlist</b>}
