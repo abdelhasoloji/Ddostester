@@ -217,6 +217,14 @@ export function protectionBadgeState(
   const probeUp = samples ? (p!.probe!.available / samples) * 100 : 100;
   // Only trust the probe once it has taken at least one sample.
   if (samples > 0 && (p?.probe?.health === 'critical' || probeUp < 50)) return 'overwhelmed';
+  // A protective EDGE absorbs by REJECTING (4xx / challenge) or DROPPING (no
+  // response) — never by 5xx. So when the absorbed load is dominated by ORIGIN
+  // 5xx, the target is FAILING at the origin, not an edge defending it — even if
+  // a cheap/static probe path still answers (probeUp stays high while the dynamic
+  // tier dies). That's "overwhelmed", never "protection engaging". Without this,
+  // a bare origin 5xx-ing every request reads as an edge absorbing 100%.
+  const cc = p?.statusCounts ?? {};
+  if (absorbedPct >= 20 && (cc['5xx'] ?? 0) > (cc['4xx'] ?? 0)) return 'overwhelmed';
   if (absorbedPct >= 20) return 'protecting';
   return 'running';
 }
@@ -239,12 +247,24 @@ export function protectionBadgeTitle(
     const cc = p?.statusCounts ?? {};
     const r4 = cc['4xx'] ?? 0;
     const e5 = cc['5xx'] ?? 0;
+    const errs = `${e5 ? ` (${e5} origin 5xx)` : ''}${r4 ? `, ${r4} × 4xx` : ''}`;
+    // Two ways a target reads as overwhelmed: the legitimate probe itself is down
+    // (real users can't reach it), OR the origin is 5xx-erroring the flood while a
+    // cheap/static probe path still answers (the dynamic tier is failing).
+    if (probeUp < 50) {
+      return (
+        `Target overwhelmed — the legitimate probe is only ${probeUp}% up: real users can't reach ` +
+        `it. ${p?.failed ?? 0} of ${p?.sent ?? 0} requests failed${errs}.\n` +
+        `This is the origin failing under load — NOT a protection absorbing the attack. There is no ` +
+        `healthy edge in front of it shielding real users.`
+      );
+    }
     return (
-      `Target overwhelmed — the legitimate probe is only ${probeUp}% up: real users can't reach ` +
-      `it. ${p?.failed ?? 0} of ${p?.sent ?? 0} requests failed` +
-      `${e5 ? ` (${e5} origin 5xx)` : ''}${r4 ? `, ${r4} × 4xx` : ''}.\n` +
-      `This is the origin failing under load — NOT a protection absorbing the attack. There is no ` +
-      `healthy edge in front of it shielding real users.`
+      `Origin overwhelmed — the origin is erroring ${absorbedPct}% of the offered load with ` +
+      `5xx${errs}. A protective edge absorbs by rejecting (4xx) or dropping requests, never by ` +
+      `5xx — so this is the ORIGIN failing under load, not an edge defending it.\n` +
+      `A light/static probe path still answers (${probeUp}% up), but the dynamic tier under attack ` +
+      `is failing. There is no healthy edge shielding it.`
     );
   }
   // Slow-header (Slowloris) has NO request stream to absorb — the vector holds
