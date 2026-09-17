@@ -1,18 +1,56 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { makeApp } from './test-utils.js';
-import type { ReconReport } from './api.js';
+import { makeApp, renderWithRouter } from './test-utils.js';
+import type { ReconReport, SuggestedAction, ReconWithActions, ActionSeed } from './api.js';
 
 let currentApp: ReturnType<typeof makeApp>;
 vi.mock('./context.js', async (orig) => {
   const actual = await orig<typeof import('./context.js')>();
   return { ...actual, useApp: () => currentApp };
 });
-const reconMock = vi.fn();
+const reconActionsMock = vi.fn();
+const composeActionsMock = vi.fn();
 vi.mock('./api.js', async (orig) => {
   const actual = await orig<typeof import('./api.js')>();
-  return { ...actual, api: { ...actual.api, recon: (...a: unknown[]) => reconMock(...a) } };
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      reconActions: (...a: unknown[]) => reconActionsMock(...a),
+      composeActions: (...a: unknown[]) => composeActionsMock(...a),
+    },
+  };
 });
+
+/** Build a ReconWithActions payload from a base report + a list of actions. */
+const withActions = (report: ReconReport, actions: SuggestedAction[]): ReconWithActions =>
+  ({ ...report, actions }) as ReconWithActions;
+
+const action = (
+  id: string,
+  title: string,
+  over: Omit<Partial<SuggestedAction>, 'seed'> & { seed?: Partial<ActionSeed> } = {},
+): SuggestedAction =>
+  ({
+    id,
+    title,
+    summary: `${title} summary`,
+    rationale: ['recon says so'],
+    applicable: true,
+    relevance: 1000,
+    ...over,
+    seed: {
+      name: title,
+      target: 'https://bank.cz/',
+      probeUrl: 'https://bank.cz/',
+      vector: 'http-get',
+      maxRps: 100,
+      concurrency: 50,
+      maxDurationSec: 60,
+      authorized: true,
+      ...(over.seed ?? {}),
+    },
+  }) as unknown as SuggestedAction;
 
 const {
   suggestFromRecon,
@@ -155,10 +193,11 @@ describe('applyLevers (toggles → form seed)', () => {
 describe('ReconFirstCreate (recon-first flow)', () => {
   beforeEach(() => {
     currentApp = makeApp({ allowed: ['bank.cz'] });
-    reconMock.mockReset();
+    reconActionsMock.mockReset();
+    composeActionsMock.mockReset();
   });
 
-  it('gates "Run recon" until the target is on the allowlist', () => {
+  it('gates "Profile target" until the target is on the allowlist', () => {
     render(<ReconFirstCreate />);
     const btn = screen.getByRole('button', { name: /Profile target/i });
     expect(btn).toBeDisabled();
@@ -168,97 +207,81 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     expect(screen.getByRole('button', { name: /Profile target/i })).toBeEnabled();
   });
 
-  it('runs recon and shows the suggestion derived from the findings', async () => {
-    reconMock.mockResolvedValue(
-      base({
-        profile: { posture: { server: 'LiteSpeed', rateLimiting: true }, cache: 'hit' } as never,
-        dynamicPaths: ['/login'],
-        suggestedPaths: ['/', '/login'],
-        loginPath: '/login',
-      }),
+  it('runs recon and shows the ranked recommended actions', async () => {
+    reconActionsMock.mockResolvedValue(
+      withActions(base({ profile: { posture: { server: 'LiteSpeed' }, cache: 'hit' } as never }), [
+        action('dyn', 'Bare-origin L7 exhaustion', { requires: ['dynamic'], drs: 3 }),
+        action('baseline', 'Baseline — pre-load health'),
+      ]),
     );
-    render(<ReconFirstCreate />);
+    renderWithRouter(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
     fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
-    await waitFor(() => expect(screen.getByText(/Suggested campaign/)).toBeInTheDocument());
-    expect(screen.getByText(/cache-busting ON/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Recommended actions/)).toBeInTheDocument());
+    expect(screen.getByText('Bare-origin L7 exhaustion')).toBeInTheDocument();
+    expect(screen.getByText('needs dynamic endpoint')).toBeInTheDocument();
     expect(screen.getAllByText(/LiteSpeed/).length).toBeGreaterThan(0);
     expect(screen.getByText(/preflight GO/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Use these findings/i })).toBeInTheDocument();
   });
 
-  it('renders recon-recommended levers pre-checked and lets the operator toggle them', async () => {
-    reconMock.mockResolvedValue(
-      base({
-        profile: {
-          posture: { server: 'LiteSpeed', waf: true, cdn: true, rateLimiting: true },
-          cache: 'hit',
-        } as never,
-      }),
+  it('selects actions and composes them into a governed campaign', async () => {
+    reconActionsMock.mockResolvedValue(
+      withActions(base({}), [
+        action('dyn', 'GET flood', { requires: ['dynamic'], seed: { maxRps: 300 } }),
+        action('baseline', 'Baseline — pre-load health'),
+      ]),
     );
-    render(<ReconFirstCreate />);
+    composeActionsMock.mockResolvedValue({ campaigns: [{}] });
+    renderWithRouter(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
     fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
-    await waitFor(() => expect(screen.getByText(/Delivery levers/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('GET flood')).toBeInTheDocument());
 
-    // The three WEDOS-signalled levers are pre-checked; no-keep-alive is optional/off.
-    const cacheBust = screen.getByRole('checkbox', { name: /Cache-busting/i });
-    const calibrate = screen.getByRole('checkbox', { name: /Auto-calibrate rate/i });
-    const rotateUa = screen.getByRole('checkbox', { name: /User-Agent rotation/i });
-    const noKa = screen.getByRole('checkbox', { name: /No keep-alive/i });
-    expect(cacheBust).toBeChecked();
-    expect(calibrate).toBeChecked();
-    expect(rotateUa).toBeChecked();
-    expect(noKa).not.toBeChecked();
-    // The recon rationale is shown on the recommended levers.
-    expect(screen.getByText(/recon: rate-limiter seen/)).toBeInTheDocument();
-    expect(screen.getByText(/recon: WAF detected/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Select GET flood/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Create campaign/i }));
+    await waitFor(() => expect(composeActionsMock).toHaveBeenCalledTimes(1));
+    const arg = composeActionsMock.mock.calls[0][0] as { campaigns: { name: string }[] };
+    expect(arg.campaigns).toHaveLength(1);
+    expect(arg.campaigns[0].name).toBe('GET flood');
+    expect(currentApp.push).toHaveBeenCalledWith('success', expect.stringMatching(/created/i));
+  });
 
-    // The operator can drop a lever and add an optional one.
-    fireEvent.click(calibrate);
-    fireEvent.click(noKa);
-    expect(calibrate).not.toBeChecked();
-    expect(noKa).toBeChecked();
+  it('shows N/A actions separately and blocks selecting them', async () => {
+    reconActionsMock.mockResolvedValue(
+      withActions(base({}), [
+        action('base', 'Baseline — pre-load health'),
+        action('waf', 'L7 signature evasion', {
+          applicable: false,
+          requires: ['waf'],
+          naReasons: ['waf'],
+        }),
+      ]),
+    );
+    renderWithRouter(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
+    await waitFor(() => expect(screen.getByText(/Recommended actions/)).toBeInTheDocument());
+    // The N/A action is listed under the reference disclosure and can't be picked.
+    expect(screen.getByText(/not applicable to this target/)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Select L7 signature evasion/i })).toBeDisabled();
+  });
 
-    // Composing carries the choices into the launch form.
-    fireEvent.click(screen.getByRole('button', { name: /Use these findings/i }));
+  it('opens one action in the full editor', async () => {
+    reconActionsMock.mockResolvedValue(
+      withActions(base({}), [action('dyn', 'GET flood', { requires: ['dynamic'] })]),
+    );
+    renderWithRouter(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
+    await waitFor(() => expect(screen.getByText('GET flood')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Open in editor/i }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
     );
-  });
-
-  it('lets the operator deselect a discovered path so it leaves the endpoint mix', async () => {
-    reconMock.mockResolvedValue(
-      base({
-        target: 'https://bank.cz/',
-        suggestedPaths: ['/', '/api/search', '/login'],
-        dynamicPaths: ['/api/search', '/login'],
-      }),
-    );
-    render(<ReconFirstCreate />);
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
-    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
-    await waitFor(() => expect(screen.getByText(/Discovered surface/)).toBeInTheDocument());
-
-    // Both dynamic paths are pre-selected.
-    const login = screen.getByRole('checkbox', { name: /\/login/ });
-    const search = screen.getByRole('checkbox', { name: /\/api\/search/ });
-    expect(login).toBeChecked();
-    expect(search).toBeChecked();
-
-    // Deselect /login → compose → the endpoint mix keeps /api/search but drops /login.
-    fireEvent.click(login);
-    expect(login).not.toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: /Use these findings/i }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Submit for approval/i })).toBeInTheDocument(),
-    );
-    expect(screen.getByDisplayValue('https://bank.cz/api/search')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue(/\/login/)).toBeNull();
   });
 
   it('surfaces a recon error and stays on the target step', async () => {
-    reconMock.mockRejectedValue(new Error('recon boom'));
+    reconActionsMock.mockRejectedValue(new Error('recon boom'));
     render(<ReconFirstCreate />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
     fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));

@@ -231,24 +231,10 @@ export function recommendActions(recon: ReconReport, opts: RecommendOptions): Su
     b.relevance - a.relevance || a.title.localeCompare(b.title);
   const ranked = [...bySig.values()].sort(byRelevance);
 
-  // Top-N with category diversity (round-robin across category buckets, each in
-  // relevance order), then force-include the baseline.
+  // Relevance-first: take the top-N strictly by score so an applicable,
+  // posture-boosted line is never buried under a lower-relevance generic one.
+  // (Dedupe above already prevents near-identical clutter; category variety is
+  // then emergent, not enforced.) The baseline is always included.
   const cap = opts.topN ?? 8;
-  const buckets = new Map<string, SuggestedAction[]>();
-  for (const a of ranked) {
-    const key = a.category ?? 'Other';
-    const bucket = buckets.get(key) ?? [];
-    bucket.push(a);
-    buckets.set(key, bucket);
-  }
-  const bucketList = [...buckets.values()];
-  const picked: SuggestedAction[] = [];
-  let i = 0;
-  while (picked.length < cap && bucketList.some((b) => b.length > 0)) {
-    const bucket = bucketList[i % bucketList.length];
-    if (bucket.length > 0) picked.push(bucket.shift()!);
-    i++;
-  }
-
-  return [baseline, ...picked].sort(byRelevance);
+  return [baseline, ...ranked.slice(0, cap)].sort(byRelevance);
 }

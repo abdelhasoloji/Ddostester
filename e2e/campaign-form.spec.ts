@@ -11,13 +11,16 @@ async function noError(page: Page): Promise<void> {
   await expect(page.locator('.toast.error, .toast-error')).toHaveCount(0);
 }
 
-/** New campaign → target → Profile target → Compose → the seeded classic form. */
+/** New campaign → target → Profile target → open an action in the classic form. */
 async function openComposeForm(page: Page): Promise<void> {
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
   await page.locator('.recon-first input').first().fill(SELF);
   await page.getByRole('button', { name: /Profile target/ }).click();
-  await page.getByRole('button', { name: /Use these findings/ }).click();
+  await page
+    .getByRole('button', { name: /Open in editor/ })
+    .first()
+    .click();
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
 }
 
@@ -171,50 +174,32 @@ test('form: "← Back to recon" from the compose step returns to the recon summa
   await login(page, 'engineer');
   await openComposeForm(page);
   await page.getByRole('button', { name: /Back to recon/ }).click();
-  await expect(page.getByRole('button', { name: /Use these findings/ })).toBeVisible();
+  await expect(page.getByText(/Recommended actions/)).toBeVisible();
   // And "← Change target" from there returns to the target input.
   await page.getByRole('button', { name: /Change target/ }).click();
   await expect(page.getByRole('button', { name: /Profile target/ })).toBeVisible();
 });
 
-test('recon levers: the recon step surfaces delivery levers, and a checked lever CARRIES into the form', async ({
+test('recon actions: the recon step ranks suggested actions; composing one creates a governed campaign', async ({
   page,
 }) => {
-  // The recon-driven ergonomics: recon turns its signals into delivery levers the
-  // operator toggles BEFORE launching. This asserts the outcome (the lever changes
-  // the composed campaign's config), not just that the checkbox is clickable.
+  // P7: recon ranks the catalogue for this target's posture into unitary, tunable
+  // actions. This asserts the outcome (selecting one composes a GOVERNED campaign),
+  // not just that a card is clickable.
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
   await page.locator('.recon-first input').first().fill(SELF);
   await page.getByRole('button', { name: /Profile target/ }).click();
 
-  // The levers checklist renders with the recon-derived levers.
-  await expect(page.getByText('Delivery levers')).toBeVisible();
-  const lever = (name: string) =>
-    page.locator('.recon-levers .lever', { hasText: name }).locator('input[type="checkbox"]');
-  await expect(lever('Cache-busting')).toBeVisible();
-  await expect(lever('Auto-calibrate rate')).toBeVisible();
-  await expect(lever('User-Agent rotation')).toBeVisible();
-  // SELF is a bare target (no WAF/CDN/rate-limiter) → nothing recommended, all off.
-  await expect(lever('Cache-busting')).not.toBeChecked();
-  await expect(lever('Auto-calibrate rate')).not.toBeChecked();
+  // The Actions surface renders ranked, recon-suggested action cards.
+  await expect(page.getByText(/Recommended actions/)).toBeVisible();
+  const firstCard = page.locator('.action-card').first();
+  await expect(firstCard).toBeVisible();
 
-  // The operator opts two levers in, then composes.
-  await lever('Cache-busting').check();
-  await lever('Auto-calibrate rate').check();
-  await page.getByRole('button', { name: /Use these findings/ }).click();
-  await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
-
-  // The chosen levers are reflected in the launch form's actual config.
-  await expect(
-    page.locator('.cachebust-toggle', { hasText: 'Cache-busting' }).locator('input'),
-  ).toBeChecked();
-  await expect(
-    page.locator('.cachebust-toggle', { hasText: 'Auto-calibrate rate' }).locator('input'),
-  ).toBeChecked();
-  // A lever left OFF stays off in the form (no accidental enablement).
-  await expect(
-    page.locator('.cachebust-toggle', { hasText: 'No keep-alive' }).locator('input'),
-  ).not.toBeChecked();
+  // Select the top action and compose → a governed campaign (pending approval).
+  await firstCard.locator('input[type="checkbox"]').check();
+  await page.getByRole('button', { name: /Create campaign|Create assessment/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
+  await noError(page);
 });

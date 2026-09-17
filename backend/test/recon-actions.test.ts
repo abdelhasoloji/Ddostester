@@ -206,7 +206,7 @@ describe('recommendActions — over the real catalogue', () => {
     }
   });
 
-  it('dedupes, caps to topN (+baseline) and spreads across categories', () => {
+  it('dedupes, caps to topN (+baseline) and returns them relevance-first', () => {
     const as = recommendActions(recon({ dynamicPaths: ['/api/work.php'] }), {
       ...baseOpts,
       catalogue: PLAYBOOKS,
@@ -225,7 +225,8 @@ describe('recommendActions — over the real catalogue', () => {
       ].join('|'),
     );
     expect(new Set(sigs).size).toBe(sigs.length);
-    // More than one category represented (the real catalogue has several).
-    expect(new Set(as.map((a) => a.category)).size).toBeGreaterThan(1);
+    // Strictly relevance-first (an applicable boosted line is never buried).
+    const rels = as.map((a) => a.relevance);
+    expect([...rels].sort((x, y) => y - x)).toEqual(rels);
   });
 });
