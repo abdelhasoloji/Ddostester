@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RunSample } from './api.js';
-import { theaterPanels, hasLiveGenerator } from './ui.js';
+import { theaterPanels, hasLiveGenerator, panelsXMax } from './ui.js';
 
 const sample = (over: Partial<RunSample>): RunSample => ({
   t: 0,
@@ -104,5 +104,33 @@ describe('theaterPanels — external engine (no live generator counts)', () => {
     const panels = theaterPanels([sample({ t: 1, rps: 0, sent: 0, availPct: 100 })]);
     expect(panels[1].label).toBe('Legitimate latency p95 (ms)');
     expect(panels[1].series[0].points).toEqual([]); // nothing plotted, not [1, undefined]
+  });
+});
+
+describe('panelsXMax (shared x-domain — no line plotted past the frame)', () => {
+  const samples = [
+    sample({ t: 0, rps: 0, sent: 0, availPct: 100 }),
+    sample({ t: 1, rps: 400, sent: 400, failed: 400, availPct: 100 }),
+    sample({ t: 2, rps: 795, sent: 795, failed: 795, availPct: 100 }),
+  ];
+
+  it('is the largest elapsed second across the samples (never below 1)', () => {
+    expect(panelsXMax(samples)).toBe(2);
+    expect(panelsXMax([])).toBe(1);
+    expect(panelsXMax([sample({ t: 0 })])).toBe(1);
+    // Not rounded down — a fractional last tick must stay inside the domain.
+    expect(panelsXMax([sample({ t: 0 }), sample({ t: 2.4 })])).toBe(2.4);
+  });
+
+  it('covers every plotted point of every panel, so none overflows [0, xMax]', () => {
+    const xMax = panelsXMax(samples);
+    for (const p of theaterPanels(samples)) {
+      for (const s of p.series) {
+        for (const [x] of s.points) {
+          expect(x).toBeLessThanOrEqual(xMax);
+          expect(x).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
   });
 });

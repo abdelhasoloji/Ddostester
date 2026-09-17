@@ -59,6 +59,7 @@ export function UplotChart({
   height = 190,
   timeAxis = true,
   xFromZero = false,
+  xRange,
   yRange,
   yFromZero = false,
   thresholds,
@@ -74,6 +75,14 @@ export function UplotChart({
    * [0,1] in some redraw orders; this makes the time span deterministic.
    */
   xFromZero?: boolean;
+  /**
+   * For a NUMERIC x-axis, pin the domain to this exact [min, max] instead of
+   * deriving it from live uPlot data. Read through a ref on every redraw, so
+   * sibling charts fed the same range stay in lockstep and a line can never be
+   * plotted past the frame when one chart's `u.data[0]` is momentarily stale
+   * (the collapse-to-[0,1] overflow). Takes precedence over `xFromZero`.
+   */
+  xRange?: [number, number];
   /** Fixed left y-scale (e.g. [0, 100] for a score); omit to auto-range. */
   yRange?: [number, number];
   /**
@@ -97,6 +106,10 @@ export function UplotChart({
   // Keep the click handler current without rebuilding the plot.
   const clickRef = useRef(onPointClick);
   clickRef.current = onPointClick;
+  // A caller-supplied numeric x-domain, read live by the x-range function so it
+  // tracks the latest value without rebuilding the plot.
+  const xRangeRef = useRef(xRange);
+  xRangeRef.current = xRange;
   const shapeKey =
     series.map((s) => `${s.label}:${s.axis ?? 'left'}:${s.color ?? ''}`).join('|') +
     `@${height}@${timeAxis}@${xFromZero ? 'x0' : ''}@${yRange?.join('-') ?? ''}@${
@@ -158,13 +171,16 @@ export function UplotChart({
         // from the first two samples) so it never advanced. No manual setScale and
         // no range function here — auto mode is what keeps it moving.
         x:
-          !timeAxis && xFromZero
+          !timeAxis && (xFromZero || xRange)
             ? {
                 time: false,
-                // Span [0, max elapsed] from the x-column each redraw — stays
-                // live (recomputed on every setData) without the auto-mode
-                // collapse-to-[0,1] the theater panels hit.
+                // A caller-supplied [0,max] wins (deterministic, shared across
+                // sibling panels); otherwise span [0, max elapsed] from the
+                // x-column each redraw. Either way it stays live without the
+                // auto-mode collapse-to-[0,1] that plotted a line past the frame.
                 range: (u: uPlot): [number, number] => {
+                  const fixed = xRangeRef.current;
+                  if (fixed) return fixed;
                   const xs = (u.data[0] as number[]) ?? [];
                   let mx = 0;
                   for (const x of xs) if (x != null && x > mx) mx = x;
