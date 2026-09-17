@@ -2911,10 +2911,89 @@ input.invalid {
   flex-wrap: wrap;
 }
 .chip-xs.active {
-  background: rgba(0, 52, 132, 0.1);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
   border-color: var(--brand);
   color: var(--brand);
   font-weight: 600;
+}
+
+/* ---- Templates tab: align with the recon-first / campaign-editor look ---- */
+.tpl-launchbar {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.tpl-launchbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--brand),
+    color-mix(in srgb, var(--brand) 45%, var(--accent))
+  );
+}
+.tpl-search {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.tpl-search:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+}
+/* Category + sort chips: proper tactile pills. */
+.tpl-cats .chip-xs,
+.tpl-sort .chip-xs {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+.tpl-cats .chip-xs:hover,
+.tpl-sort .chip-xs:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+}
+/* Sort: a joined segmented control. */
+.tpl-sort {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.tpl-sort .chip-xs {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.28rem 0.7rem;
+}
+.tpl-sort .chip-xs.active {
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+}
+.tpl-row {
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.tpl-row:hover {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+}
+/* Step-count + date read as subtle chips instead of loose grey text. */
+.tpl-steps-count,
+.tpl-created {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-variant-numeric: tabular-nums;
 }
 .tpl-group {
   margin-bottom: 1.25rem;
