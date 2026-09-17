@@ -1,0 +1,96 @@
+# WEDOS ShieldTest — bare-origin benchmark (deliberately weak).
+# Intentionally UNPROTECTED: no rate limiting, no WAF, no edge cache, no
+# connection throttling, and generous timeouts so slow-header connections
+# ACCUMULATE (a slowloris weakness) instead of being shed. It is the baseline a
+# protected edge is measured against. Bounded only by the control plane's
+# HARD_CAPS at the generator side, and firewalled (ufw) so only the authorized
+# generator source can reach it.
+
+# Slow-request weakness: hold half-open / slow connections for a long time
+# instead of shedding them quickly. (A hardened edge would use short timeouts.)
+client_header_timeout 300s;
+client_body_timeout   300s;
+keepalive_timeout     300s;
+send_timeout          300s;
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    root /var/www/benchmark;
+    index index.html;
+
+    server_tokens on;   # reveal it is a plain origin (helps recon classify it)
+
+    # Advertise HTTP/2 (served for real on :443 below). Recon reads Alt-Svc to
+    # classify the target as h2-capable, which makes the HTTP/2 scenarios apply.
+    add_header Alt-Svc 'h2=":443"; ma=86400' always;
+
+    location = /health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_read_timeout 30s;
+    }
+
+    location / {
+        # A location with its own add_header does NOT inherit the server ones,
+        # so Alt-Svc is repeated here. The X-Cache/Age/Cache-Control headers make
+        # recon profile the origin's root as edge-cacheable (cache=hit), which
+        # makes the cache-busting scenario applicable — the weakness being that a
+        # bare origin with no real CDN can be bypassed with ?_=rand cache-busters.
+        add_header Alt-Svc 'h2=":443"; ma=86400' always;
+        add_header X-Cache 'HIT' always;
+        add_header Age '42' always;
+        add_header Cache-Control 'public, max-age=60' always;
+        try_files $uri $uri/ =404;
+    }
+}
+
+server {
+    # Real HTTP/2 endpoint (self-signed). The origin genuinely negotiates h2 here
+    # so the h2 scenarios exercise a real h2-capable origin, not just a header.
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/ssl/benchmark/benchmark.crt;
+    ssl_certificate_key /etc/ssl/benchmark/benchmark.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    root /var/www/benchmark;
+    index index.html;
+    server_tokens on;
+
+    location = /health {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_read_timeout 30s;
+    }
+
+    location / {
+        # A location with its own add_header does NOT inherit the server ones,
+        # so Alt-Svc is repeated here. The X-Cache/Age/Cache-Control headers make
+        # recon profile the origin's root as edge-cacheable (cache=hit), which
+        # makes the cache-busting scenario applicable — the weakness being that a
+        # bare origin with no real CDN can be bypassed with ?_=rand cache-busters.
+        add_header Alt-Svc 'h2=":443"; ma=86400' always;
+        add_header X-Cache 'HIT' always;
+        add_header Age '42' always;
+        add_header Cache-Control 'public, max-age=60' always;
+        try_files $uri $uri/ =404;
+    }
+}
