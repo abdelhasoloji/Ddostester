@@ -159,13 +159,45 @@ export function parseSitemapUrls(xml: string): string[] {
   return out;
 }
 
+/**
+ * Decodes the HTML character references that legitimately appear inside href/src
+ * attribute values — chiefly `&amp;` (an unescaped `&` is invalid in HTML, so a
+ * multi-parameter link is authored as `?a=1&amp;b=2`), plus the other named and
+ * numeric refs. Without this, a discovered path keeps its HTML-escaped source
+ * form (`?a=1&amp;b=2`) instead of the URL the browser would actually request
+ * (`?a=1&b=2`), and the generator would then flood a wrong query string. Single
+ * pass, matching how a browser decodes an attribute value. Pure.
+ */
+export function decodeHtmlEntities(s: string): string {
+  const NAMED: Record<string, string> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+  };
+  return s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, body: string) => {
+    if (body[0] === '#') {
+      const code =
+        body[1] === 'x' || body[1] === 'X'
+          ? Number.parseInt(body.slice(2), 16)
+          : Number.parseInt(body.slice(1), 10);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : whole;
+    }
+    return NAMED[body.toLowerCase()] ?? whole;
+  });
+}
+
 /** Same-host paths referenced by href/src in an HTML page. Pure. */
 export function extractPaths(html: string, host: string): string[] {
   const out = new Set<string>();
   const re = /(?:href|src)\s*=\s*["']([^"'#]+)["']/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
-    const ref = m[1].trim();
+    const ref = decodeHtmlEntities(m[1].trim());
     if (!ref || ref.startsWith('data:') || ref.startsWith('mailto:') || ref.startsWith('tel:'))
       continue;
     const p = toSameHostPath(ref, host);
