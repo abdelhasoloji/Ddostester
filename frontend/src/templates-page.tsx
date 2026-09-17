@@ -145,6 +145,17 @@ function PlaybookRow({
           <div className="threat-box">
             <div className="threat-title">
               Threat-informed <span className="threat-ref">{pb.threat.reference}</span>
+              {pb.threat.source && (
+                <a
+                  className="threat-source"
+                  href={pb.threat.source}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={pb.threat.source}
+                >
+                  Source ↗
+                </a>
+              )}
             </div>
             <div className="threat-line">
               <span className="k">Profile</span> {pb.threat.technique}

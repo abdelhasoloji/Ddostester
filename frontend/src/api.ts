@@ -100,6 +100,8 @@ export interface AcceptanceResult {
 export interface ThreatInfo {
   technique: string;
   reference: string;
+  /** Link to the authoritative public source (Cloudflare DDoS report, CVE, CERT, OWASP…). */
+  source?: string;
   measures: string;
   notReproduced: string;
 }
