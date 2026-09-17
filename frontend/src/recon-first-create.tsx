@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from './context.js';
+import { defaultTargetUrl } from './target-url.js';
 import { api } from './api.js';
 import type { ReconReport } from './api.js';
 import { hostOf, emptyForm } from './campaign-form.js';
@@ -460,7 +461,7 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             className="target-select"
             value={host && app.allowed.includes(host) ? host : ''}
             onChange={(e) => {
-              if (e.target.value) setTarget(`https://${e.target.value}/`);
+              if (e.target.value) setTarget(defaultTargetUrl(e.target.value));
             }}
             style={{ marginBottom: '.4rem' }}
           >
