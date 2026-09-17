@@ -61,6 +61,30 @@ describe('protectionBadgeState (the legit probe decides down vs protected)', () 
     );
   });
 
+  it('origin-5xx dominant is overwhelmed even with the probe UP (bare origin failing, not protection)', () => {
+    // The reported bug: a bare origin (no edge) 5xx-ing the flood while a cheap
+    // static probe path still answers (probe UP) must NOT read "protection engaging".
+    expect(
+      protectionBadgeState(false, 69, {
+        sent: 1000,
+        failed: 690,
+        statusCounts: { '5xx': 680, '4xx': 5 },
+        probe: { samples: 12, available: 10, health: 'degraded' },
+      } as never),
+    ).toBe('overwhelmed');
+  });
+
+  it('edge 4xx rejections with the probe UP = protection engaging (edge absorbing, not failing)', () => {
+    expect(
+      protectionBadgeState(false, 69, {
+        sent: 1000,
+        failed: 690,
+        statusCounts: { '4xx': 680, '5xx': 3 },
+        probe: { samples: 12, available: 12, health: 'ok' },
+      } as never),
+    ).toBe('protecting');
+  });
+
   it('a probe below 50% up is overwhelmed even without a critical health flag', () => {
     const half = { samples: 10, available: 4, health: 'degraded' as const };
     expect(protectionBadgeState(false, 80, { sent: 100, failed: 80, probe: half } as never)).toBe(
@@ -102,6 +126,23 @@ describe('protectionBadgeTitle — target overwhelmed', () => {
     expect(t).toMatch(/Target overwhelmed/);
     expect(t).toMatch(/origin failing under load/);
     expect(t).not.toMatch(/protection working/);
+  });
+
+  it('probe UP but origin 5xx-dominant → "Origin overwhelmed" (not protection engaging)', () => {
+    const t = protectionBadgeTitle(
+      false,
+      69,
+      {
+        sent: 1000,
+        failed: 690,
+        statusCounts: { '5xx': 680, '4xx': 5 },
+        probe: { samples: 12, available: 10, health: 'degraded' },
+      } as never,
+      'http-get',
+    );
+    expect(t).toMatch(/Origin overwhelmed/);
+    expect(t).toMatch(/never by\s+5xx|not an edge/i);
+    expect(t).not.toMatch(/Protection engaging/);
   });
 });
 
