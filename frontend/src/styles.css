@@ -1718,6 +1718,13 @@ input.invalid {
   font-weight: 400;
   color: var(--muted);
 }
+.threat-source {
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--brand);
+  white-space: nowrap;
+}
 .threat-line {
   margin-top: 0.2rem;
 }

@@ -115,6 +115,21 @@ describe('playbooks', () => {
     expect(total).toBeLessThanOrEqual(caps.maxDurationSec);
   });
 
+  it('threat-informed templates carry a clickable public source link', () => {
+    const threatTemplates = PLAYBOOKS.filter((p) => p.threat);
+    expect(threatTemplates.length).toBeGreaterThan(5);
+    // The key patterns we validated live are sourced to authoritative references.
+    const sourced = threatTemplates.filter((p) => p.threat?.source);
+    expect(sourced.length).toBeGreaterThanOrEqual(10);
+    for (const p of sourced) expect(p.threat!.source).toMatch(/^https:\/\//);
+    // A specific mapping: the HTTP/2 CONTINUATION line points at the CERT note.
+    const cont = PLAYBOOKS.find((p) => p.id === 'threat-http2-continuation');
+    expect(cont?.threat?.source).toContain('kb.cert.org');
+    // The JA4 fingerprint line points at the JA4 project.
+    const ja4 = PLAYBOOKS.find((p) => p.id === 'threat-ivan-ja4-sweep');
+    expect(ja4?.threat?.source).toContain('FoxIO-LLC/ja4');
+  });
+
   it('missingRequirements returns the features a target lacks (N/A), else empty', () => {
     const posture = { h2: false, waf: true, cache: false, dynamic: true };
     expect(missingRequirements(['h2', 'waf'], posture)).toEqual(['h2']);

@@ -113,6 +113,8 @@ export interface ThreatInfo {
   technique: string;
   /** Public reference (CVE / advisory / name). */
   reference: string;
+  /** Link to the authoritative public source (Cloudflare DDoS report, CVE, CERT, OWASP…). */
+  source?: string;
   /** What resilience question the run answers. */
   measures: string;
   /** The harmful mechanism intentionally left out (kept a measurement, not an attack). */
@@ -394,6 +396,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure how well the WAF / rate-limiter copes with rotating fingerprints and mixed URLs.',
     threat: {
       technique: 'Web DDoS "Tsunami" — randomized L7 flood',
+      source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
       reference: 'Industry L7 DDoS trend 2023–2026; Cloudflare DDoS threat report H1 2026',
       measures: 'WAF / rate-limit efficacy against fingerprint rotation and endpoint spread.',
       notReproduced:
@@ -434,6 +437,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Validate HTTP/2 request-handling resilience under a bounded high rate.',
     threat: {
       technique: 'HTTP/2 request burst',
+      source: 'https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/',
       reference: 'HTTP/2 Rapid Reset — CVE-2023-44487',
       measures: 'How the HTTP/2 request path holds up under a sustained bounded rate.',
       notReproduced:
@@ -472,6 +476,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Assess cache-hit ratio and origin protection under a realistic mixed-URL load.',
     threat: {
       technique: 'Cache-key stress',
+      source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
       reference: 'Cache-targeting L7 patterns; Cloudflare DDoS threat report H1 2026',
       measures: 'Cache-hit behaviour and origin shielding across a set of URLs.',
       notReproduced:
@@ -502,6 +507,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Verify edge URL filtering (origin shielding) against a random-URL L7 flood shape.',
     threat: {
       technique: 'Random-URL L7 flood',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS L7 — random_flood',
       measures: 'Edge URL-allowlist / 404 enforcement and origin shielding.',
       notReproduced:
@@ -547,6 +553,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Verify HTTP-method-allowlist enforcement against a POST-flood shape.',
     threat: {
       technique: 'POST/PUT method flood',
+      source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
       reference: 'zeroBS L7 — post_flood',
       measures: 'HTTP method allowlist / 405 enforcement at the edge.',
       notReproduced:
@@ -585,6 +592,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure combined WAF / rate-limit efficacy when method, URL and fingerprint all move.',
     threat: {
       technique: 'Multi-vector L7 (mixed method + endpoint + fingerprint)',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS L7 — http_multivector',
       measures: 'Combined edge defenses vs a shape that varies method, URL set and User-Agent.',
       notReproduced: 'Bounded rate; benign headers; no exhaustion, no spoofing.',
@@ -633,6 +641,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Assess bot-management / fingerprint classification under a mixed, bounded flood shape.',
     threat: {
       technique: 'Sophisticated IoT-botnet L7 (rotating fingerprints, deep paths)',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS L7 — get_flood (IoT v2)',
       measures: 'Fingerprint/bot classification when many benign UAs hit deep endpoints.',
       notReproduced:
@@ -672,6 +681,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Find how long detection lags on a slow ramp, and whether a plateau stays stable.',
     threat: {
       technique: 'Gradual ramp to plateau',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS DRS — RampUp / Plateau',
       measures: 'Detection lag on a slow ramp; stability of a sustained plateau.',
       notReproduced: 'Bounded ceiling; no volumetric — L7 requests only.',
@@ -708,6 +718,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Validate reaction to sudden synchronized bursts and recovery between pulses.',
     threat: {
       technique: 'Synchronized burst (coordinated strike)',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS glossary — THOR (synchronized strike)',
       measures: 'Reaction time to abrupt bursts and recovery in the lulls between pulses.',
       notReproduced: 'Bounded peak; a load shape only — not a real botnet time-sync.',
@@ -744,6 +755,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Check defense stability when method, URL and fingerprint all change together.',
     threat: {
       technique: 'Randomized parameters (Chewy / Chaos)',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'zeroBS glossary — Chewy / Chaos',
       measures: 'Whether classification/rate-limiting stays stable as parameters vary.',
       notReproduced:
@@ -795,6 +807,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Test header/fingerprint-based classification (bot management, device rules).',
     threat: {
       technique: 'Client fingerprint spoofing via headers',
+      source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
       reference: 'zeroBS L7 — get_flood (IoT v2)',
       measures: 'Header/fingerprint-based classification and rule matching at the edge.',
       notReproduced:
@@ -839,6 +852,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Validate header-size/count limits and header-parsing resilience at the edge (h2 CONTINUATION-flood shape).',
     threat: {
       technique: 'HTTP/2 Continuation Flood — header-block pressure',
+      source: 'https://kb.cert.org/vuls/id/421644',
       reference: 'HTTP/2 CONTINUATION Flood (CVE-2024-27316 / CVE-2024-27919, 2024)',
       measures:
         'Whether the edge enforces header count/size limits and parses a large-but-bounded header block without degradation.',
@@ -890,6 +904,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Validate the HTTP/2 request path and connection accounting under a sustained bounded rate.',
     threat: {
       technique: 'HTTP/2 request burst (MadeYouReset class)',
+      source: 'https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/',
       reference: 'MadeYouReset — CVE-2025-8671 (2025)',
       measures:
         'How the h2 request path and per-connection accounting hold up under a sustained, bounded, complete-request rate.',
@@ -930,6 +945,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Assess bot-management, fingerprint classification and rate-limiting against a large, diverse, bounded L7 fan-out.',
     threat: {
       technique: 'Hyper-volumetric L7 botnet fan-out (Aisuru / Mirai-class)',
+      source: 'https://radar.cloudflare.com/reports',
       reference:
         'Aisuru/Kimwolf record L7 botnets (2025–2026); Cloudflare H1 2026 record L7 attack — 2.45 billion HTTP requests across 1.2 million IPs',
       measures:
@@ -977,6 +993,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure how fast the edge / autoscaling reacts to sub-minute bursts and recovers between them — detection latency, not sustained volume.',
     threat: {
       technique: 'Sub-minute hyper-burst train (record short-duration DDoS)',
+      source: 'https://radar.cloudflare.com/reports',
       reference:
         'Aisuru/Kimwolf 31.4 Tbps / 35s burst & "The Night Before Christmas" campaign (Dec 2025); Cloudflare DDoS threat report H1 2026 (short attacks)',
       measures:
@@ -1034,6 +1051,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Check whether a single brief L7 spike trips mitigation, and how quickly the service recovers afterwards.',
     threat: {
       technique: 'Ransom DDoS (RDDoS) demonstration spike',
+      source: 'https://radar.cloudflare.com/reports',
       reference: 'Cloudflare DDoS threat report H1 2026 (ransom DDoS trend)',
       measures:
         'Whether a one-off short spike is absorbed or triggers mitigation, and the recovery time once it stops.',
@@ -1073,6 +1091,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure rate-limiting / WAF and origin protection on costly API endpoints, where each request does real work.',
     threat: {
       technique: 'API-targeted L7 (expensive business-logic endpoints)',
+      source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
       reference: 'Cloudflare DDoS threat report H1 2026 (sophisticated L7; API-targeted attacks)',
       measures:
         'Whether per-endpoint rate-limits / WAF rules protect costly API paths, and how the origin copes when each POST triggers real work.',
@@ -1122,6 +1141,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Measure how bot-management / JA4 fingerprint classification treats a rotating set of realistic browser fingerprints at a low, bounded rate.',
     threat: {
       technique: 'Browser/TLS (JA4) fingerprint enumeration — Ivan PoC',
+      source: 'https://github.com/FoxIO-LLC/ja4',
       reference:
         "Ivan's JA4/TLS impersonation PoC (curl_cffi browser sweep, 2026-08); JA4+ fingerprinting (FoxIO)",
       measures:
@@ -1169,6 +1189,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     when: 'Validate that JA4 / fingerprint classification stays stable when realistic browser fingerprints arrive in a randomized, bounded burst pattern.',
     threat: {
       technique: 'Randomized browser/TLS (JA4) fingerprint mix — Ivan PoC',
+      source: 'https://github.com/FoxIO-LLC/ja4',
       reference:
         "Ivan's JA4/TLS impersonation PoC (curl_cffi, random mode, 2026-08); JA4+ fingerprinting (FoxIO)",
       measures:

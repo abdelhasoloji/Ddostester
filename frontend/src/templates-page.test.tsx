@@ -55,6 +55,28 @@ describe('TemplatesPage — requires badge', () => {
     renderWithRouter(<TemplatesPage />);
     expect(await screen.findByText('needs WAF')).toBeInTheDocument();
   });
+
+  it('renders a clickable "Source ↗" link for a threat-informed template', async () => {
+    const threatPb = {
+      ...xlayerPb,
+      id: 'threat-continuation',
+      name: 'CONTINUATION referenced template',
+      threat: {
+        technique: 'HTTP/2 Continuation Flood',
+        reference: 'CERT VU#421644',
+        source: 'https://kb.cert.org/vuls/id/421644',
+        measures: 'x',
+        notReproduced: 'x',
+      },
+    } as unknown as Playbook;
+    fakeApi.playbooks = vi.fn().mockResolvedValue([threatPb]);
+    currentApp = makeApp({ role: 'engineer', authRequired: true });
+    renderWithRouter(<TemplatesPage />);
+    fireEvent.click(await screen.findByText('CONTINUATION referenced template'));
+    const links = await screen.findAllByRole('link', { name: /Source/ });
+    expect(links.length).toBeGreaterThan(0);
+    expect(links[0]).toHaveAttribute('href', 'https://kb.cert.org/vuls/id/421644');
+  });
 });
 
 describe('TemplatesPage — class-C ladder launch', () => {
