@@ -1691,6 +1691,50 @@ export function ApproveModal() {
   );
 }
 
+/** A password input with a show/hide toggle. The label stays `htmlFor`-associated
+ *  to the input, and the input is type=password at rest (so it is not a textbox
+ *  until revealed). */
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <div className="pw-field">
+        <input
+          id={id}
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          required
+        />
+        <button
+          type="button"
+          className="pw-toggle"
+          aria-label={show ? 'Hide password' : 'Show password'}
+          aria-pressed={show}
+          tabIndex={-1}
+          onClick={() => setShow((s) => !s)}
+        >
+          {show ? '🙈' : '👁'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Login() {
   const app = useApp();
   const [email, setEmail] = useState('');
@@ -1710,40 +1754,30 @@ export function Login() {
     }
   };
   return (
-    <section className="card" style={{ maxWidth: 420, margin: '2rem auto' }}>
+    <section className="card auth-card">
+      <span className="auth-eyebrow">◎ WEDOS ShieldTest</span>
       <h2>Sign in</h2>
-      {error && (
-        <p
-          style={{
-            background: 'var(--danger-bg)',
-            color: 'var(--danger)',
-            padding: '.5rem .75rem',
-            borderRadius: 6,
-          }}
-        >
-          {error}
-        </p>
-      )}
+      <p className="auth-sub">Resilience testing control plane — authorized operators only.</p>
+      {error && <p className="form-error">{error}</p>}
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
         <div className="field">
-          <label>Email</label>
+          <label htmlFor="login-email">Email</label>
           <input
+            id="login-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
+            autoFocus
             required
           />
         </div>
-        <div className="field">
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
+        <PasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
         <button type="submit" className="btn btn-primary" disabled={busy || !email || !password}>
           {busy ? <span className="spin" /> : null}Sign in
         </button>
@@ -1799,56 +1833,50 @@ export function ChangePasswordForm({
     }
   };
 
+  const reqs = [
+    { ok: next.length >= 12, label: 'At least 12 characters' },
+    { ok: next.length > 0 && next === confirm, label: 'New passwords match' },
+    {
+      ok: next.length > 0 && current.length > 0 && next !== current,
+      label: 'Different from current',
+    },
+  ];
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
-      {error && (
-        <p
-          style={{
-            background: 'var(--danger-bg)',
-            color: 'var(--danger)',
-            padding: '.5rem .75rem',
-            borderRadius: 6,
-            margin: 0,
-          }}
-        >
-          {error}
-        </p>
-      )}
-      <div className="field">
-        <label htmlFor="cp-current">Current password</label>
-        <input
-          id="cp-current"
-          type="password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="cp-next">New password</label>
-        <input
-          id="cp-next"
-          type="password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          autoComplete="new-password"
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="cp-confirm">Confirm new password</label>
-        <input
-          id="cp-confirm"
-          type="password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          autoComplete="new-password"
-          required
-        />
-      </div>
+      {error && <p className="form-error">{error}</p>}
+      <PasswordField
+        id="cp-current"
+        label="Current password"
+        value={current}
+        onChange={setCurrent}
+        autoComplete="current-password"
+      />
+      <PasswordField
+        id="cp-next"
+        label="New password"
+        value={next}
+        onChange={setNext}
+        autoComplete="new-password"
+      />
+      <PasswordField
+        id="cp-confirm"
+        label="Confirm new password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+      />
+      <ul className="pw-reqs" aria-label="Password requirements">
+        {reqs.map((r) => (
+          <li key={r.label} className={`pw-req${r.ok ? ' ok' : ''}`}>
+            <span className="tick" aria-hidden="true">
+              {r.ok ? '✓' : ''}
+            </span>
+            {r.label}
+          </li>
+        ))}
+      </ul>
       <p className="hint" style={{ margin: 0 }}>
-        At least 12 characters. Avoid common passwords and your email name.
+        Also avoid common passwords and your email name.
       </p>
       <button
         type="submit"
@@ -1872,11 +1900,12 @@ export function ForcedPasswordChange() {
     <>
       <div className="accent-line" />
       <div className="app">
-        <section className="card" style={{ maxWidth: 460, margin: '2rem auto' }}>
+        <section className="card auth-card">
+          <span className="auth-eyebrow">◎ Secure your account</span>
           <h2>Choose a new password</h2>
-          <p className="hint">
+          <p className="auth-sub">
             Your account uses a temporary password{app.identity ? ` (${app.identity.email})` : ''}.
-            Set your own password to continue.
+            Set your own to continue.
           </p>
           <ChangePasswordForm forced />
           <div style={{ textAlign: 'center', marginTop: '1rem' }}>

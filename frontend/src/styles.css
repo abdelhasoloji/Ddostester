@@ -5302,3 +5302,115 @@ table.remediations td {
 .sev-low {
   color: var(--muted);
 }
+
+/* ---------- Auth & password UI (login, forced change, self-service) ---------- */
+.auth-card {
+  position: relative;
+  overflow: hidden;
+  max-width: 420px;
+  margin: 2.5rem auto;
+  padding: 1.6rem 1.6rem 1.4rem;
+  border-radius: 14px;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--brand),
+    color-mix(in srgb, var(--brand) 45%, var(--accent))
+  );
+}
+.auth-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.auth-card h2 {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 1.35rem;
+}
+.auth-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1.1rem;
+}
+.form-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin: 0 0 0.2rem;
+  font-size: 0.88rem;
+}
+.pw-field {
+  position: relative;
+}
+.pw-field input {
+  padding-right: 2.4rem;
+}
+.pw-toggle {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.3rem 0.4rem;
+  opacity: 0.65;
+  border-radius: 6px;
+  transition: opacity 0.14s ease;
+}
+.pw-toggle:hover {
+  opacity: 1;
+}
+.pw-reqs {
+  list-style: none;
+  margin: 0.1rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+.pw-req {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+.pw-req .tick {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.pw-req.ok {
+  color: var(--text);
+}
+.pw-req.ok .tick {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
