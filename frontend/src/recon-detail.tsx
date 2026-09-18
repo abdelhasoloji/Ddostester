@@ -133,12 +133,16 @@ export function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClo
   ];
   const controls = Object.entries(recon.seededProfile ?? {});
   const paths = recon.suggestedPaths ?? recon.surface?.paths ?? [];
-  // `paths` is already ranked by likely cost to the origin (backend buildSurface),
-  // so the first few DYNAMIC entries are the costliest — the priority targets to
-  // concentrate fire on. Surface the top 3 explicitly.
+  // `paths` is ranked by likely cost to the origin (backend buildSurface). The
+  // seed's `focusDynamic` lines concentrate the ENTIRE flood on the single
+  // costliest dynamic path (dynamicPaths[0]) — so that #1 is the true "primary
+  // target". The next-costliest are hit by the broader endpoint-mix lines, not
+  // the concentrated focus, so we mark them distinctly (honest UI ↔ generator).
   const dynSet = new Set(recon.dynamicPaths ?? []);
-  const priority = paths.filter((pt) => dynSet.has(pt)).slice(0, 3);
-  const prime = new Set(priority);
+  const dynOrdered = paths.filter((pt) => dynSet.has(pt));
+  const primary = dynOrdered[0];
+  const secondary = dynOrdered.slice(1, 3);
+  const prime = new Set(primary ? [primary] : []);
 
   return (
     <Modal label={`Target intelligence for ${host}`} onClose={onClose} className="recon-modal">
@@ -254,23 +258,39 @@ export function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClo
 
         <section className="recon-sec">
           <h4>Attack surface</h4>
-          {priority.length > 0 && (
+          {primary && (
             <div className="recon-priority">
-              <div className="recon-priority-head">🎯 Priority targets — concentrate fire here</div>
-              <div className="recon-chip-row wrap">
-                {priority.map((pt, i) => (
-                  <span
-                    key={i}
-                    className="recon-chip path mono prime"
-                    title="Costliest origin-served path — highest per-request cost"
-                  >
-                    🎯 {pt}
-                  </span>
-                ))}
+              <div className="recon-priority-head">
+                🎯 Primary target — origin-exhaustion lines concentrate here
               </div>
+              <div className="recon-chip-row wrap">
+                <span
+                  className="recon-chip path mono prime"
+                  title="The single costliest origin-served path — focusDynamic lines put the whole flood here"
+                >
+                  🎯 {primary}
+                </span>
+              </div>
+              {secondary.length > 0 && (
+                <>
+                  <div className="recon-priority-sub">Also targeted, across the endpoint mix:</div>
+                  <div className="recon-chip-row wrap">
+                    {secondary.map((pt, i) => (
+                      <span
+                        key={i}
+                        className="recon-chip path mono dynamic"
+                        title="Next-costliest dynamic path — hit by endpoint-mix lines, not the concentrated focus"
+                      >
+                        ⚡ {pt}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
               <p className="recon-priority-why">
-                The costliest dynamic paths (ranked by likely origin cost) — each request hits
-                compute/DB, not cache. Hitting these first exhausts the origin fastest.
+                Origin-exhaustion / breaker lines put their <b>entire</b> flood on the single
+                costliest path (uncacheable compute/DB). Endpoint-mix lines spread across the other
+                dynamic paths; the recon-first quick launch floods them evenly.
               </p>
             </div>
           )}
