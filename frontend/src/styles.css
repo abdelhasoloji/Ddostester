@@ -4943,6 +4943,41 @@ table.remediations td {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   font-weight: 640;
 }
+/* Prime = the costliest paths (priority targets): a filled "hot" chip that pops
+   out of the ranked list. Declared after .dynamic so it wins when both apply. */
+.recon-chip.path.prime {
+  color: #fff;
+  background: linear-gradient(
+    180deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 66%, #c2410c)
+  );
+  border-color: color-mix(in srgb, var(--accent) 55%, #c2410c);
+  font-weight: 700;
+  box-shadow: 0 1px 7px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.recon-priority {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.recon-priority-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 680;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+.recon-priority-why {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
 .recon-sub {
   margin-top: 0.7rem;
   display: flex;
