@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { NavLink, Outlet, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   api,
   auditExportUrl,
@@ -621,6 +621,8 @@ export function Layout() {
   const sv = app.serverVersion;
   const mismatch = isBuildMismatch(sv);
   const grafanaBase = getGrafanaBase();
+  // Key the routed content by path so it re-mounts (and re-animates) on nav.
+  const location = useLocation();
   return (
     <>
       <div className="accent-line" />
@@ -706,7 +708,9 @@ export function Layout() {
               (Cmd/Ctrl-Shift-R); if it persists, the server needs a rebuild/restart.
             </div>
           )}
-          <Outlet />
+          <div className="route-fade" key={location.pathname}>
+            <Outlet />
+          </div>
         </main>
       </div>
 

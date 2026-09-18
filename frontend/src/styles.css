@@ -294,11 +294,17 @@ input.invalid {
   background: var(--surface-2);
   color: var(--text);
   transition:
-    background 0.12s,
+    background 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.07s ease,
     opacity 0.12s;
 }
 .btn:hover:not(:disabled) {
   background: var(--border);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -312,6 +318,7 @@ input.invalid {
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--primary) 32%, transparent);
 }
 .btn-danger {
   background: var(--danger);
@@ -1347,6 +1354,7 @@ input.invalid {
   gap: 0.15rem;
 }
 .nav-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -1357,16 +1365,38 @@ input.invalid {
   font-weight: 600;
   font-size: 0.9rem;
   transition:
-    background 0.12s,
-    color 0.12s;
+    background 0.14s ease,
+    color 0.14s ease;
 }
 .nav-link:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 .nav-link.active {
-  background: rgba(0, 52, 132, 0.1);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
   color: var(--brand);
+}
+/* An accent rail that grows in on the active item. */
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 3px;
+  height: 62%;
+  border-radius: 999px;
+  background: var(--brand);
+  transform: translateY(-50%) scaleY(1);
+  transform-origin: center;
+  animation: navRail 0.2s ease;
+}
+@keyframes navRail {
+  from {
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    transform: translateY(-50%) scaleY(1);
+  }
 }
 .nav-icon {
   width: 1.1rem;
@@ -1381,7 +1411,7 @@ input.invalid {
   background: var(--surface-2);
 }
 .nav-link-primary.active {
-  background: rgba(0, 52, 132, 0.14);
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
   color: var(--brand);
 }
 
@@ -1596,6 +1626,10 @@ input.invalid {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   border-radius: 6px 6px 0 0;
+  transition:
+    color 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease;
 }
 .ws-tab:hover {
   color: inherit;
@@ -1608,6 +1642,43 @@ input.invalid {
 }
 .ws-panel {
   padding: 1rem 0 0.25rem;
+}
+
+/* ---------- Global motion & interaction polish ----------
+   A gentle, consistent entrance for routed pages and tab panels, plus a single
+   keyboard-focus ring for controls that previously had none. All motion is
+   guarded by prefers-reduced-motion at the end. */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Routed page content (keyed by pathname in Layout) fades up on navigation. */
+.route-fade {
+  animation: fadeInUp 0.28s ease both;
+}
+/* The active tab's content (a fresh component per tab) fades up on switch. */
+.ws-panel > * {
+  animation: fadeInUp 0.24s ease both;
+}
+/* One accessible focus ring for interactive elements that don't define their
+   own :focus style (buttons, links, nav). Zero-specificity :where() so any
+   element with an existing :focus treatment keeps it. */
+:where(button, a, [role='tab'], [role='button'], summary, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 32%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-fade,
+  .ws-panel > *,
+  .nav-link.active::before {
+    animation: none;
+  }
 }
 @media (max-width: 720px) {
   .shell {
