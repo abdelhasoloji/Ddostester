@@ -133,6 +133,12 @@ export function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClo
   ];
   const controls = Object.entries(recon.seededProfile ?? {});
   const paths = recon.suggestedPaths ?? recon.surface?.paths ?? [];
+  // `paths` is already ranked by likely cost to the origin (backend buildSurface),
+  // so the first few DYNAMIC entries are the costliest — the priority targets to
+  // concentrate fire on. Surface the top 3 explicitly.
+  const dynSet = new Set(recon.dynamicPaths ?? []);
+  const priority = paths.filter((pt) => dynSet.has(pt)).slice(0, 3);
+  const prime = new Set(priority);
 
   return (
     <Modal label={`Target intelligence for ${host}`} onClose={onClose} className="recon-modal">
@@ -248,6 +254,26 @@ export function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClo
 
         <section className="recon-sec">
           <h4>Attack surface</h4>
+          {priority.length > 0 && (
+            <div className="recon-priority">
+              <div className="recon-priority-head">🎯 Priority targets — concentrate fire here</div>
+              <div className="recon-chip-row wrap">
+                {priority.map((pt, i) => (
+                  <span
+                    key={i}
+                    className="recon-chip path mono prime"
+                    title="Costliest origin-served path — highest per-request cost"
+                  >
+                    🎯 {pt}
+                  </span>
+                ))}
+              </div>
+              <p className="recon-priority-why">
+                The costliest dynamic paths (ranked by likely origin cost) — each request hits
+                compute/DB, not cache. Hitting these first exhausts the origin fastest.
+              </p>
+            </div>
+          )}
           {recon.loginPath && (
             <div className="recon-sub">
               <span className="rk">Login</span>
@@ -262,18 +288,23 @@ export function ReconDetailModal({ recon, onClose }: { recon: ReconReport; onClo
               </span>
               <div className="recon-chip-row wrap">
                 {paths.map((pt, i) => {
-                  const isDyn = (recon.dynamicPaths ?? []).includes(pt);
+                  const isDyn = dynSet.has(pt);
+                  const isPrime = prime.has(pt);
                   return (
                     <span
                       key={i}
-                      className={`recon-chip path mono${isDyn ? ' dynamic' : ''}`}
+                      className={`recon-chip path mono${isDyn ? ' dynamic' : ''}${
+                        isPrime ? ' prime' : ''
+                      }`}
                       title={
-                        isDyn
-                          ? 'Dynamic/expensive — pressures the origin'
-                          : 'Likely static/cached — light origin cost'
+                        isPrime
+                          ? 'Priority target — costliest origin-served path'
+                          : isDyn
+                            ? 'Dynamic/expensive — pressures the origin'
+                            : 'Likely static/cached — light origin cost'
                       }
                     >
-                      {isDyn ? '⚡ ' : ''}
+                      {isPrime ? '🎯 ' : isDyn ? '⚡ ' : ''}
                       {pt}
                     </span>
                   );
