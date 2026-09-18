@@ -258,6 +258,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'no-referrer');
+    // Defense in depth: also assert HSTS in-app (browsers only honour it over
+    // HTTPS) so a direct-to-Node deploy isn't reliant on the proxy for it. The
+    // TLS-terminating proxy still sets its own; this covers the proxy-less path.
+    reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     reply.header(
       'Content-Security-Policy',
       `default-src 'self'; script-src 'self' 'unsafe-hashes' ${PRINT_HANDLER_HASH}; ` +
@@ -1216,6 +1220,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const MAX_FAILS = 5;
   const LOCK_MS = 60_000;
 
+  // A fixed decoy hash so a login for a NON-EXISTENT account still pays one
+  // scrypt verification — otherwise "no such account" returns faster than "wrong
+  // password", a timing oracle that enumerates valid emails. Computed once.
+  const decoyHash = hashPassword('constant-time-decoy-not-a-credential');
   app.post('/api/auth/login', async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication disabled' });
     const { email, password } = req.body as { email?: string; password?: string };
@@ -1249,7 +1257,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       await auditAs(res.email, 'auth.login', undefined, 'env user');
     } else {
       const su = await store.getUser(email.toLowerCase());
-      if (su && verifyPassword(password, su.passwordHash)) {
+      if (!su) {
+        // Constant-time: burn an equivalent scrypt against the decoy so a missing
+        // account is indistinguishable by response time from a wrong password.
+        verifyPassword(password, decoyHash);
+      } else if (verifyPassword(password, su.passwordHash)) {
         // Correct credentials but a deactivated account: refuse with the same
         // generic message (no oracle), and record the reason out of band.
         if ((su.status ?? 'active') === 'disabled') {
@@ -1274,14 +1286,21 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     return { ...res, mustChangePassword };
   });
 
-  // Best-effort logout record. A stateless JWT can't be revoked server-side, so
-  // this only writes an audit trail; the client discards the token. (Immediate
-  // revocation on deactivation/password change is handled by resolveIdentity.)
+  // Logout REALLY revokes: bump the store user's token version so the presented
+  // token (and any other live session for that user) stops validating at once,
+  // via resolveIdentity's version check — instead of a cosmetic client-side
+  // discard that left the token usable until its 8 h expiry. Env-root and share
+  // identities have no store row (env accounts are managed via configuration).
   app.post('/api/auth/logout', async (req, reply) => {
     if (!auth.enabled) return { ok: true };
     const r = await resolveIdentity(req);
     if (!r.ok) return reply.code(r.code).send({ error: r.error });
     req.authUser = r.id;
+    const email = r.id.email.toLowerCase();
+    if (!auth.users.has(email) && !email.startsWith('share:')) {
+      const su = await store.getUser(email);
+      if (su) await store.saveUser({ ...su, tokenVersion: (su.tokenVersion ?? 0) + 1 });
+    }
     await audit(req, 'auth.logout', undefined, undefined);
     return { ok: true };
   });
