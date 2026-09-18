@@ -66,6 +66,17 @@ const MAX_CONCURRENT_RUNS = intEnv('MAX_CONCURRENT_RUNS', 3);
 
 const store = await createStore();
 const auth = initAuth();
+// Fail closed on a weak signing secret: HS256 with a short shared secret is
+// offline-brute-forceable, which would let an attacker forge a token for any
+// role. Enforced here (the real entrypoint) rather than in initAuth so unit
+// tests can keep using tiny fixture secrets. Generate: `openssl rand -base64 48`.
+if (auth.enabled && auth.secret.length < 32) {
+  console.error(
+    'FATAL: AUTH_JWT_SECRET must be at least 32 characters ' +
+      '(generate one with `openssl rand -base64 48`).',
+  );
+  process.exit(1);
+}
 const agent = selectAgent();
 const notifier = createNotifier(notifyConfigFromEnv());
 const protection = createProtectionProvider(protectionConfigFromEnv());

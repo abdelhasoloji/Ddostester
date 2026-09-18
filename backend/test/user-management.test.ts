@@ -350,4 +350,28 @@ describe('logout', () => {
     const chain = await store.listAuditChain();
     expect(chain.some((e) => e.action === 'auth.logout')).toBe(true);
   });
+
+  it('really revokes the token — it stops working after logout (not cosmetic)', async () => {
+    // Seed a clean engineer directly (no forced-change flag), so the token is
+    // usable on a guarded route before we test that logout kills it.
+    await store.saveUser({
+      email: 'lo2@wedos',
+      role: 'engineer',
+      passwordHash: hashPassword(GOOD_PW),
+    });
+    const t = await tokenFor('lo2@wedos', GOOD_PW);
+    const auth = { authorization: `Bearer ${t}` };
+    // The token works before logout.
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/campaigns', headers: auth })).statusCode,
+    ).toBe(200);
+    // Logout bumps the store user's token version…
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/auth/logout', headers: auth })).statusCode,
+    ).toBe(200);
+    // …so the SAME token is now rejected (revocation, not a client-side discard).
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/campaigns', headers: auth })).statusCode,
+    ).toBe(401);
+  });
 });
