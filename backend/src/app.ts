@@ -1237,9 +1237,17 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const count = (entry?.count ?? 0) + 1;
       loginFails.set(key, { count, until: Date.now() + LOCK_MS });
       req.log.warn({ email: email.toLowerCase(), ip: req.ip, reason }, 'login failed');
+      // Every failure is a Prometheus counter (labelled by REASON only — never by
+      // email, which an attacker controls and would explode series cardinality),
+      // so alerting can catch low-and-slow credential guessing that never trips
+      // the 5-attempt lock and so never reaches the audit chain.
+      metrics.inc('shieldtest_auth_login_failures_total', 'Failed login attempts by reason', {
+        reason,
+      });
       // Only the lock event reaches the (tamper-evident) audit chain, not every
       // attempt — enough to flag an attack without flooding the governance log.
       if (count === MAX_FAILS) {
+        metrics.inc('shieldtest_auth_lockouts_total', 'Login lockouts triggered (per source)');
         await auditAs(
           actor,
           'auth.login_locked',
@@ -1283,6 +1291,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
     if (!res) return rejectLogin('bad credentials', email.toLowerCase());
     loginFails.delete(key);
+    metrics.inc('shieldtest_auth_logins_total', 'Successful logins');
     return { ...res, mustChangePassword };
   });
 
