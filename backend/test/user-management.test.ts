@@ -4,6 +4,7 @@ import { buildApp } from '../src/app.js';
 import { MemoryStore } from '../src/store/memory.js';
 import { initAuth } from '../src/auth/guard.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { metrics } from '../src/modules/metrics/runtime.js';
 
 /**
  * Mature user management: forced password change on admin-set temp passwords,
@@ -373,5 +374,18 @@ describe('logout', () => {
     expect(
       (await app.inject({ method: 'GET', url: '/api/campaigns', headers: auth })).statusCode,
     ).toBe(401);
+  });
+});
+
+describe('login-failure metrics', () => {
+  it('counts a failed login as a Prometheus counter labelled by reason (not email)', async () => {
+    const r = await login('nobody@wedos', 'definitely-wrong-1');
+    expect(r.statusCode).toBe(401);
+    const out = metrics.render();
+    // The counter exists and is labelled by REASON (bounded cardinality) — never
+    // by the attacker-supplied email, which would explode the series count.
+    expect(out).toContain('shieldtest_auth_login_failures_total');
+    expect(out).toMatch(/shieldtest_auth_login_failures_total\{reason="bad credentials"\}/);
+    expect(out).not.toMatch(/login_failures_total\{[^}]*nobody@wedos/);
   });
 });
