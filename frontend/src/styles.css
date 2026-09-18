@@ -4972,6 +4972,13 @@ table.remediations td {
   margin-bottom: 0.5rem;
   color: var(--text);
 }
+.recon-priority-sub {
+  margin: 0.55rem 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
 .recon-priority-why {
   margin: 0.45rem 0 0;
   font-size: 0.78rem;
