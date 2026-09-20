@@ -457,6 +457,29 @@ export function RunTheater({
         )
       ) : (
         <>
+          {badgeState === 'overwhelmed' && !isSlowloris && (
+            <div className="target-down" role="status" aria-live="polite">
+              <div className="td-flash">⚠ TARGET DOWN</div>
+              <div className="td-sub">
+                origin failing under load — legitimate users can&rsquo;t get through
+              </div>
+              <div className="td-stats">
+                <span>
+                  <b>
+                    {p.probe?.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 0}
+                    %
+                  </b>{' '}
+                  legit availability
+                </span>
+                <span>
+                  <b>{absorbedPct}%</b> failed / 5xx
+                </span>
+                <span>
+                  reached origin <b>{Math.round(originRps)}</b> rps
+                </span>
+              </div>
+            </div>
+          )}
           <div className="theater-grid">
             {isSlowloris ? (
               <>
