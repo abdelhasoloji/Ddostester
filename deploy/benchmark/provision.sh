@@ -49,10 +49,20 @@ rm -f "${DOCROOT}/index.nginx-debian.html"
 chown -R www-data:www-data "${DOCROOT}"
 chmod -R a+rX "${DOCROOT}"
 
-echo "==> PHP-FPM pool: small, exhaustible (the benchmark weakness)"
+echo "==> PHP-FPM pool: small + shallow backlog, so exhaustion is a fast 5xx wall"
 POOL="/etc/php/${PHP_VER}/fpm/pool.d/www.conf"
 if [ -f "$POOL" ]; then
   sed -i -E 's/^;?\s*pm\.max_children\s*=.*/pm.max_children = 5/' "$POOL"
+  # A shallow listen backlog is the drama lever: once the 5 workers are busy,
+  # excess connections are refused immediately, so nginx returns 502 right away
+  # (a visible wall of 5xx) instead of letting requests pile into slow, invisible
+  # timeouts. That, plus the short fastcgi_read_timeout in the vhost, makes an
+  # origin-exhaustion run collapse the origin flagrantly and fast.
+  if grep -qE '^;?\s*listen\.backlog' "$POOL"; then
+    sed -i -E 's/^;?\s*listen\.backlog\s*=.*/listen.backlog = 16/' "$POOL"
+  else
+    printf '\nlisten.backlog = 16\n' >>"$POOL"
+  fi
 fi
 
 echo "==> self-signed cert for TLS+HTTP/2 on :443"

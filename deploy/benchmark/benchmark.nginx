@@ -36,7 +36,9 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
-        fastcgi_read_timeout 30s;
+        # Short read timeout so a request stuck behind a saturated FPM pool
+        # returns 504 fast (a visible 5xx) instead of hanging as a slow timeout.
+        fastcgi_read_timeout 5s;
     }
 
     location / {
@@ -78,7 +80,9 @@ server {
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
-        fastcgi_read_timeout 30s;
+        # Short read timeout so a request stuck behind a saturated FPM pool
+        # returns 504 fast (a visible 5xx) instead of hanging as a slow timeout.
+        fastcgi_read_timeout 5s;
     }
 
     location / {
