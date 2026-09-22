@@ -5508,3 +5508,68 @@ table.remediations td {
     animation: none;
   }
 }
+
+/* ── Assistant (conversational copilot) ─────────────────────────────── */
+.assistant-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.assistant-log {
+  max-height: 60vh;
+  min-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem;
+}
+.assistant-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.assistant-msg-role {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+.assistant-msg-body {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.assistant-msg-user {
+  align-items: flex-end;
+}
+.assistant-msg-user .assistant-msg-body {
+  background: var(--accent, #3b5bdb);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem 0.75rem 0.1rem 0.75rem;
+  max-width: 85%;
+}
+.assistant-msg-assistant .assistant-msg-body {
+  background: rgba(127, 127, 127, 0.12);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem 0.75rem 0.75rem 0.1rem;
+  max-width: 92%;
+}
+.assistant-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+.assistant-input textarea {
+  flex: 1;
+  resize: vertical;
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  background: transparent;
+  color: inherit;
+}
+.assistant-error {
+  color: #d64545;
+}

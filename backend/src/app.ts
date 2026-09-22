@@ -58,6 +58,8 @@ import {
 import type { BenchRun, BenchCoverage } from './modules/bench/model.js';
 import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
+import { registerAssistantRoutes } from './routes/assistant-routes.js';
+import { assistantConfigFromEnv } from './modules/assistant/provider.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
@@ -2609,6 +2611,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     prometheusUrl: opts.prometheusUrl,
     grafanaUrl: opts.grafanaUrl,
   });
+
+  // Conversational assistant (read-only bridge to an OpenAI-compatible LLM).
+  // Fail-soft: no ASSISTANT_ENDPOINT configured → the routes report
+  // `configured:false` and the chat endpoint returns 503 rather than failing.
+  registerAssistantRoutes(app, { guard, config: assistantConfigFromEnv() });
 
   return { app, runCampaign };
 }
