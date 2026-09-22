@@ -6,10 +6,27 @@ import {
   type AssistantConfig,
   type ChatTurn,
 } from '../modules/assistant/provider.js';
+import {
+  runpodConfigured,
+  podStatus,
+  podResume,
+  podStop,
+  type RunpodConfig,
+} from '../modules/assistant/runpod.js';
+
+/** Audit hook for pod power changes (start/stop). */
+export type AssistantAudit = (
+  req: FastifyRequest,
+  action: 'assistant.pod_start' | 'assistant.pod_stop',
+  detail?: string,
+) => void | Promise<void>;
 
 export interface AssistantRoutesCtx {
   guard: (perm: Permission) => preHandlerHookHandler;
   config: AssistantConfig;
+  /** Optional GPU-pod power control (RunPod). Absent → pod is "unmanaged". */
+  runpod?: RunpodConfig;
+  audit?: AssistantAudit;
 }
 
 interface OpenAiMessage {
@@ -27,14 +44,60 @@ interface OpenAiMessage {
  * through the existing approval + HARD_CAPS + kill-switch governance, never here.
  */
 export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRoutesCtx): void {
-  const { guard, config } = ctx;
+  const { guard, config, runpod, audit } = ctx;
+  const podManaged = runpod != null && runpodConfigured(runpod);
 
   // Lightweight status so the UI can show "assistant available / not configured"
-  // without leaking the endpoint or key.
+  // without leaking the endpoint or key. `podManaged` tells the UI to drive
+  // readiness from the pod power state (below) rather than a static endpoint.
   app.get('/api/assistant/status', { preHandler: guard('campaign:read') }, async () => ({
     configured: assistantConfigured(config),
     model: config.model,
+    podManaged,
   }));
+
+  // ── GPU pod power (RunPod stop/resume) ──────────────────────────────────
+  // Read the current pod state (any operator). Fail-soft when unmanaged.
+  app.get('/api/assistant/pod', { preHandler: guard('campaign:read') }, async () => {
+    if (!podManaged || !runpod) return { configured: false, state: 'UNKNOWN' as const };
+    return podStatus(runpod);
+  });
+
+  // Power on. Gated by `assistant:manage` (incurs GPU billing) + audited.
+  app.post(
+    '/api/assistant/pod/start',
+    { preHandler: guard('assistant:manage') },
+    async (req, reply) => {
+      if (!podManaged || !runpod) {
+        return reply.code(503).send({ error: 'pod_unmanaged', configured: false });
+      }
+      try {
+        const st = await podResume(runpod);
+        await audit?.(req, 'assistant.pod_start', `state=${st.state}`);
+        return st;
+      } catch (err) {
+        return reply.code(502).send({ error: err instanceof Error ? err.message : 'runpod error' });
+      }
+    },
+  );
+
+  // Power off — frees the GPU billing. Gated by `assistant:manage` + audited.
+  app.post(
+    '/api/assistant/pod/stop',
+    { preHandler: guard('assistant:manage') },
+    async (req, reply) => {
+      if (!podManaged || !runpod) {
+        return reply.code(503).send({ error: 'pod_unmanaged', configured: false });
+      }
+      try {
+        const st = await podStop(runpod);
+        await audit?.(req, 'assistant.pod_stop', `state=${st.state}`);
+        return st;
+      } catch (err) {
+        return reply.code(502).send({ error: err instanceof Error ? err.message : 'runpod error' });
+      }
+    },
+  );
 
   app.post(
     '/api/assistant/chat',

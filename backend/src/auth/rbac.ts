@@ -36,7 +36,11 @@ export type Permission =
   // governance.
   | 'bench:read'
   | 'bench:dispatch'
-  | 'bench:attest';
+  | 'bench:attest'
+  // Power the self-hosted assistant GPU pod on/off (RunPod stop/resume). It
+  // incurs GPU billing, so it is an operator/admin control, audited on every
+  // change. It generates NO load and touches no target — pure cost/lifecycle.
+  | 'assistant:manage';
 
 // Authoritative permission matrix — enforced on every request by `can()`. The
 // frontend keeps a UX-only mirror (`PERMS` in frontend/src/context.tsx) that
@@ -45,7 +49,13 @@ export type Permission =
 const MATRIX: Record<Role, Permission[]> = {
   // Operator: creates campaigns and launches approved ones. Does NOT approve
   // (separation of duties — the CISO validates).
-  engineer: ['campaign:read', 'campaign:create', 'campaign:execute', 'campaign:kill'],
+  engineer: [
+    'campaign:read',
+    'campaign:create',
+    'campaign:execute',
+    'campaign:kill',
+    'assistant:manage',
+  ],
   // Validation / governance: the ONLY role that approves a campaign, plus the
   // dual-control sign-off and the class-C bench governance. Deliberately not an
   // operator (no create/execute) — validation, not operations.
@@ -61,7 +71,7 @@ const MATRIX: Record<Role, Permission[]> = {
   // Platform administration: manages users and the operational limits. NOT an
   // operator and NOT an approver (separation of administration from operations
   // and validation).
-  admin: ['campaign:read', 'campaign:kill', 'user:manage', 'limits:manage'],
+  admin: ['campaign:read', 'campaign:kill', 'user:manage', 'limits:manage', 'assistant:manage'],
   // Read-only (SOC/NOC).
   viewer: ['campaign:read'],
 };
