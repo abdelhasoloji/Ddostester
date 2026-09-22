@@ -886,6 +886,7 @@ export const api = {
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
+  assistantStatus: () => get<{ configured: boolean; model: string }>('/api/assistant/status'),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
   createShare: (ttlMinutes?: number) =>
     post<{ authRequired: boolean; token: string | null; ttlMinutes?: number; expiresAt?: string }>(

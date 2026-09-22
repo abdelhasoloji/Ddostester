@@ -91,6 +91,7 @@ const SPINE_NAV = [
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
   { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
   { to: '/theater', label: 'Run Theater', icon: '🎬' },
+  { to: '/assistant', label: 'Assistant', icon: '💬' },
   // Prepare + Results retired from the spine; the audit log now lives in Settings.
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];

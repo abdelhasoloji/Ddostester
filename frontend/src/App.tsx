@@ -6,6 +6,7 @@ import { ReportsPage } from './reports-page.js';
 import { RunTheaterPage } from './run-theater.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { ZonesPage } from './zones-page.js';
+import { AssistantPage } from './assistant-page.js';
 
 /**
  * Authentication gate: while auth is enabled and the operator is not signed in,
@@ -43,6 +44,7 @@ function Gate() {
         <Route path="zones" element={<ZonesPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />
+        <Route path="assistant" element={<AssistantPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />

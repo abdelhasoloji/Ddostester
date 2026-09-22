@@ -1,0 +1,1 @@
+../qwen-deploy/persona/ethical-hacker.system.md
