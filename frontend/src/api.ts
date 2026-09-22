@@ -804,6 +804,15 @@ export interface HardCaps {
 }
 export const DEFAULT_CAPS: HardCaps = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
 
+/** Assistant GPU-pod power state (RunPod stop/resume). */
+export type PodState = 'RUNNING' | 'STARTING' | 'STOPPED' | 'UNKNOWN';
+export interface PodStatus {
+  configured: boolean;
+  state: PodState;
+  uptimeSec?: number;
+  error?: string;
+}
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
@@ -886,7 +895,11 @@ export const api = {
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
-  assistantStatus: () => get<{ configured: boolean; model: string }>('/api/assistant/status'),
+  assistantStatus: () =>
+    get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),
+  assistantPod: () => get<PodStatus>('/api/assistant/pod'),
+  assistantPodStart: () => post<PodStatus>('/api/assistant/pod/start'),
+  assistantPodStop: () => post<PodStatus>('/api/assistant/pod/stop'),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
   createShare: (ttlMinutes?: number) =>
     post<{ authRequired: boolean; token: string | null; ttlMinutes?: number; expiresAt?: string }>(

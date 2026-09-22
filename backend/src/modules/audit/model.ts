@@ -35,7 +35,9 @@ export interface AuditEntry {
     | 'suite.skip'
     | 'suite.pause'
     | 'suite.resume'
-    | 'suite.cancel';
+    | 'suite.cancel'
+    | 'assistant.pod_start'
+    | 'assistant.pod_stop';
   campaignId?: string;
   detail?: string;
   /**

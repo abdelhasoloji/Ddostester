@@ -60,6 +60,7 @@ import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { registerAssistantRoutes } from './routes/assistant-routes.js';
 import { assistantConfigFromEnv } from './modules/assistant/provider.js';
+import { runpodConfigFromEnv, podProxyEndpoint } from './modules/assistant/runpod.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
@@ -2615,7 +2616,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // Conversational assistant (read-only bridge to an OpenAI-compatible LLM).
   // Fail-soft: no ASSISTANT_ENDPOINT configured → the routes report
   // `configured:false` and the chat endpoint returns 503 rather than failing.
-  registerAssistantRoutes(app, { guard, config: assistantConfigFromEnv() });
+  // When a RunPod pod id is configured (but no explicit endpoint), the endpoint
+  // is derived from the pod's stable proxy URL so the UI power button and the
+  // chat target stay in sync without any reconfiguration.
+  const runpod = runpodConfigFromEnv();
+  const assistantConfig = assistantConfigFromEnv();
+  if (!assistantConfig.endpoint) assistantConfig.endpoint = podProxyEndpoint(runpod);
+  registerAssistantRoutes(app, {
+    guard,
+    config: assistantConfig,
+    runpod,
+    audit: (req, action, detail) => audit(req, action, undefined, detail),
+  });
 
   return { app, runCampaign };
 }

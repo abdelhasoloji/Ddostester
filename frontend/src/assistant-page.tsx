@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, getToken } from './api.js';
+import { api, getToken, type PodState } from './api.js';
+import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
 
 /**
@@ -10,6 +11,10 @@ import { PageHead } from './pages.js';
  * Any future action ("propose a bounded breakpoint campaign") must surface as a
  * proposal the operator approves through the existing governance, never fire
  * from here directly.
+ *
+ * The GPU pod that serves Qwen bills per hour, so operators can power it on/off
+ * from here (RunPod stop/resume, `assistant:manage`, audited). Chat is enabled
+ * only while the pod is running.
  */
 
 interface Msg {
@@ -19,15 +24,48 @@ interface Msg {
 
 type Status = 'checking' | 'ready' | 'not_configured';
 
+const POD_LABEL: Record<PodState, string> = {
+  RUNNING: 'Allumé',
+  STARTING: 'Démarrage…',
+  STOPPED: 'Éteint',
+  UNKNOWN: 'Indéterminé',
+};
+
 export function AssistantPage() {
+  const app = useApp();
+  const canManage = canDo(app.role, 'assistantManage', app.authRequired);
+
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
+  const [podManaged, setPodManaged] = useState(false);
+  const [podState, setPodState] = useState<PodState>('UNKNOWN');
+  const [podUptime, setPodUptime] = useState<number | undefined>(undefined);
+  const [podBusy, setPodBusy] = useState(false);
+  const [podError, setPodError] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Chat is usable when the endpoint is configured AND — if the pod is managed —
+  // the pod is running.
+  const chatReady = status === 'ready' && (!podManaged || podState === 'RUNNING');
+
+  async function refreshPod() {
+    try {
+      const p = await api.assistantPod();
+      setPodState(p.state);
+      setPodUptime(p.uptimeSec);
+      if (p.error) setPodError(p.error);
+      return p.state;
+    } catch {
+      return 'UNKNOWN' as PodState;
+    }
+  }
 
   useEffect(() => {
     api
@@ -35,13 +73,60 @@ export function AssistantPage() {
       .then((s) => {
         setStatus(s.configured ? 'ready' : 'not_configured');
         if (s.model) setModel(s.model);
+        setPodManaged(s.podManaged);
+        if (s.podManaged) void refreshPod();
       })
       .catch(() => setStatus('not_configured'));
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
+
+  // While the pod is starting, poll until it settles.
+  useEffect(() => {
+    if (podManaged && podState === 'STARTING') {
+      if (!pollRef.current) {
+        pollRef.current = setInterval(() => void refreshPod(), 5000);
+      }
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, [podManaged, podState]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
+
+  async function powerOn() {
+    setPodBusy(true);
+    setPodError(null);
+    setPodState('STARTING');
+    try {
+      const s = await api.assistantPodStart();
+      setPodState(s.state === 'STOPPED' ? 'STARTING' : s.state);
+    } catch (e) {
+      setPodError(e instanceof Error ? e.message : 'Échec du démarrage.');
+      void refreshPod();
+    } finally {
+      setPodBusy(false);
+    }
+  }
+
+  async function powerOff() {
+    setPodBusy(true);
+    setPodError(null);
+    try {
+      const s = await api.assistantPodStop();
+      setPodState(s.state === 'RUNNING' ? 'STOPPED' : s.state);
+      setPodUptime(undefined);
+    } catch (e) {
+      setPodError(e instanceof Error ? e.message : "Échec de l'arrêt.");
+      void refreshPod();
+    } finally {
+      setPodBusy(false);
+    }
+  }
 
   async function send() {
     const text = input.trim();
@@ -128,6 +213,12 @@ export function AssistantPage() {
     }
   }
 
+  const placeholder = !chatReady
+    ? podManaged && podState !== 'RUNNING'
+      ? 'Allume Qwen pour discuter…'
+      : 'Assistant indisponible'
+    : 'Écris ton message… (Entrée pour envoyer)';
+
   return (
     <div className="assistant-page">
       <PageHead
@@ -135,11 +226,58 @@ export function AssistantPage() {
         sub="Copilote conversationnel — lecture & raisonnement uniquement (ne lance aucune campagne)."
       />
 
-      {status === 'not_configured' && (
+      {/* GPU pod power control — visible only when the pod is managed. */}
+      {podManaged && (
+        <div className="card assistant-power">
+          <div className={`assistant-power-state assistant-power-${podState.toLowerCase()}`}>
+            <span className="assistant-power-dot" aria-hidden="true" />
+            <div>
+              <strong>Qwen&nbsp;·&nbsp;{POD_LABEL[podState]}</strong>
+              <span className="hint assistant-power-sub">
+                {podState === 'RUNNING'
+                  ? `GPU actif — pense à éteindre après usage (~0,60 $/h)${
+                      podUptime ? ` · up ${Math.round(podUptime / 60)} min` : ''
+                    }`
+                  : podState === 'STARTING'
+                    ? 'Démarrage du GPU (30–90 s)…'
+                    : 'GPU éteint — aucune facturation.'}
+              </span>
+            </div>
+          </div>
+          {canManage ? (
+            <div className="assistant-power-actions">
+              {podState === 'RUNNING' ? (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => void powerOff()}
+                  disabled={podBusy}
+                >
+                  Éteindre
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void powerOn()}
+                  disabled={podBusy || podState === 'STARTING'}
+                >
+                  {podState === 'STARTING' ? 'Démarrage…' : 'Allumer'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="hint">Alimentation réservée aux opérateurs.</span>
+          )}
+        </div>
+      )}
+
+      {podError && <p className="hint assistant-error">⚠ {podError}</p>}
+
+      {status === 'not_configured' && !podManaged && (
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p className="hint">
             L'assistant n'est pas configuré côté serveur. Définis <code>ASSISTANT_ENDPOINT</code>{' '}
-            (et <code>ASSISTANT_API_KEY</code>) sur l'API pour l'activer.
+            (et <code>ASSISTANT_API_KEY</code>) — ou <code>RUNPOD_API_KEY</code> +{' '}
+            <code>RUNPOD_POD_ID</code> pour le pilotage du pod — sur l'API pour l'activer.
           </p>
         </div>
       )}
@@ -169,12 +307,8 @@ export function AssistantPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            placeholder={
-              status === 'ready'
-                ? 'Écris ton message… (Entrée pour envoyer)'
-                : 'Assistant indisponible'
-            }
-            disabled={status !== 'ready' || busy}
+            placeholder={placeholder}
+            disabled={!chatReady || busy}
             rows={2}
           />
           {busy ? (
@@ -185,7 +319,7 @@ export function AssistantPage() {
             <button
               className="btn btn-primary"
               onClick={() => void send()}
-              disabled={status !== 'ready' || !input.trim()}
+              disabled={!chatReady || !input.trim()}
             >
               Envoyer
             </button>
