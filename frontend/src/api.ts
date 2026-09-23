@@ -813,6 +813,35 @@ export interface PodStatus {
   error?: string;
 }
 
+/** Protected target (governed onboarding). */
+export type TargetAuthStatus = 'unauthorized' | 'requested' | 'authorized' | 'revoked';
+export interface ProtectedTarget {
+  id: string;
+  host: string;
+  displayName?: string;
+  notes?: string;
+  owner?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  authStatus: TargetAuthStatus;
+  authAttestation?: string;
+  authRequestedBy?: string;
+  authRequestedAt?: string;
+  authorizedBy?: string;
+  authorizedAt?: string;
+  revokedBy?: string;
+  revokedAt?: string;
+}
+export interface RegisterTargetInput {
+  host: string;
+  displayName?: string;
+  notes?: string;
+  owner?: string;
+  /** When present, also requests authorization in the same call. */
+  attestation?: string;
+}
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
@@ -900,6 +929,13 @@ export const api = {
   assistantPod: () => get<PodStatus>('/api/assistant/pod'),
   assistantPodStart: () => post<PodStatus>('/api/assistant/pod/start'),
   assistantPodStop: () => post<PodStatus>('/api/assistant/pod/stop'),
+  targets: () => get<{ targets: ProtectedTarget[]; envAllowlist: string[] }>('/api/targets'),
+  registerTarget: (body: RegisterTargetInput) => post<ProtectedTarget>('/api/targets', body),
+  requestTargetAuth: (id: string, attestation: string) =>
+    post<ProtectedTarget>(`/api/targets/${id}/request`, { attestation }),
+  authorizeTarget: (id: string) => post<ProtectedTarget>(`/api/targets/${id}/authorize`),
+  revokeTarget: (id: string) => post<ProtectedTarget>(`/api/targets/${id}/revoke`),
+  deleteTarget: (id: string) => del<{ ok: boolean }>(`/api/targets/${id}`),
   notifyTest: () => post<{ delivered: boolean; sinks: string[] }>('/api/notify/test'),
   createShare: (ttlMinutes?: number) =>
     post<{ authRequired: boolean; token: string | null; ttlMinutes?: number; expiresAt?: string }>(

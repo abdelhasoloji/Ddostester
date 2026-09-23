@@ -40,7 +40,14 @@ export type Permission =
   // Power the self-hosted assistant GPU pod on/off (RunPod stop/resume). It
   // incurs GPU billing, so it is an operator/admin control, audited on every
   // change. It generates NO load and touches no target — pure cost/lifecycle.
-  | 'assistant:manage';
+  | 'assistant:manage'
+  // Register a protected target (zone metadata) and REQUEST authorization to
+  // test it. Metadata-only + a request; grants no test permission by itself.
+  | 'target:manage'
+  // Grant or revoke a target's authorization — adds/removes the host from the
+  // effective allowlist. CISO governance; separation of duties: the authorizer
+  // must differ from the requester (enforced in targets/model.ts).
+  | 'target:authorize';
 
 // Authoritative permission matrix — enforced on every request by `can()`. The
 // frontend keeps a UX-only mirror (`PERMS` in frontend/src/context.tsx) that
@@ -55,6 +62,7 @@ const MATRIX: Record<Role, Permission[]> = {
     'campaign:execute',
     'campaign:kill',
     'assistant:manage',
+    'target:manage',
   ],
   // Validation / governance: the ONLY role that approves a campaign, plus the
   // dual-control sign-off and the class-C bench governance. Deliberately not an
@@ -67,11 +75,19 @@ const MATRIX: Record<Role, Permission[]> = {
     'bench:read',
     'bench:dispatch',
     'bench:attest',
+    'target:authorize',
   ],
   // Platform administration: manages users and the operational limits. NOT an
   // operator and NOT an approver (separation of administration from operations
   // and validation).
-  admin: ['campaign:read', 'campaign:kill', 'user:manage', 'limits:manage', 'assistant:manage'],
+  admin: [
+    'campaign:read',
+    'campaign:kill',
+    'user:manage',
+    'limits:manage',
+    'assistant:manage',
+    'target:manage',
+  ],
   // Read-only (SOC/NOC).
   viewer: ['campaign:read'],
 };

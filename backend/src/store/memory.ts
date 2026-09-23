@@ -7,6 +7,7 @@ import { withCanonicalRole } from '../auth/rbac.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
+import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { Store } from './types.js';
 
 export class MemoryStore implements Store {
@@ -16,6 +17,7 @@ export class MemoryStore implements Store {
   private audit: AuditEntry[] = [];
   private users = new Map<string, User>();
   private playbooks = new Map<string, Playbook>();
+  private targets = new Map<string, ProtectedTarget>();
   private limits: OperationalLimits | undefined;
   private benchRuns = new Map<string, BenchRun>();
   private benchCoverage: BenchCoverage[] = [];
@@ -111,6 +113,18 @@ export class MemoryStore implements Store {
   }
   async deletePlaybook(id: string): Promise<void> {
     this.playbooks.delete(id);
+  }
+  async listTargets(): Promise<ProtectedTarget[]> {
+    return [...this.targets.values()].sort((a, b) => a.host.localeCompare(b.host));
+  }
+  async getTarget(id: string): Promise<ProtectedTarget | undefined> {
+    return this.targets.get(id);
+  }
+  async saveTarget(t: ProtectedTarget): Promise<void> {
+    this.targets.set(t.id, t);
+  }
+  async deleteTarget(id: string): Promise<void> {
+    this.targets.delete(id);
   }
   async getLimits(): Promise<OperationalLimits | undefined> {
     return this.limits ? { ...this.limits } : undefined;
