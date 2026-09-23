@@ -842,6 +842,31 @@ export interface RegisterTargetInput {
   attestation?: string;
 }
 
+/** Read-only mitigation validation (TTD/TTM tier). */
+export type MitigationVerdict =
+  'mitigated' | 'partial' | 'not-engaged' | 'no-measurement' | 'insufficient-data';
+export interface MitigationWindow {
+  fromSec: number;
+  toSec: number;
+  samples: number;
+  absorbedRatio: number;
+  availabilityPct: number;
+}
+export interface MitigationValidation {
+  ttdSec?: number;
+  ttmSec?: number;
+  source?: string;
+  before?: MitigationWindow;
+  after?: MitigationWindow;
+  absorbedDelta?: number;
+  availabilityDelta?: number;
+  wrsBefore?: number;
+  wrsAfter?: number;
+  wrsDelta?: number;
+  verdict: MitigationVerdict;
+  note: string;
+}
+
 export const api = {
   health: () =>
     fetch('/health').then((r) =>
@@ -923,6 +948,7 @@ export const api = {
   },
   verifyAudit: () => get<AuditVerdict>('/api/audit/verify'),
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
+  runMitigation: (runId: string) => get<MitigationValidation>(`/api/runs/${runId}/mitigation`),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
   assistantStatus: () =>
     get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),

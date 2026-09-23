@@ -152,6 +152,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     observabilitySummary: vi.fn().mockResolvedValue([]),
     impact: vi.fn().mockResolvedValue({ impact: [] }),
     zones: vi.fn().mockResolvedValue([]),
+    runMitigation: vi.fn().mockResolvedValue({ verdict: 'no-measurement', note: 'n/a' }),
     targets: vi.fn().mockResolvedValue({ targets: [], envAllowlist: [] }),
     registerTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
     updateTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
