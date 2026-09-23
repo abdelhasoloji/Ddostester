@@ -13,6 +13,16 @@ import type {
 } from './api.js';
 import type { Preset } from './presets.js';
 import type { CampaignFormSeed } from './campaign-form.js';
+
+/** A target-onboarding draft queued from the assistant to pre-fill the
+ *  Protected Zones "Add target" form. Governance is unchanged: registering a
+ *  target here is metadata only; authorization is a separate, gated step. */
+export interface DraftTarget {
+  host?: string;
+  displayName?: string;
+  owner?: string;
+  notes?: string;
+}
 import { lsGet, lsSet } from './storage.js';
 
 export interface Identity {
@@ -122,6 +132,10 @@ interface Ctx {
   draftCampaign: Partial<CampaignFormSeed> | null;
   queueReplay: (seed: Partial<CampaignFormSeed>) => void;
   clearDraftCampaign: () => void;
+  /** A target-onboarding draft queued from the assistant (pre-fills Zones). */
+  draftTarget: DraftTarget | null;
+  queueTarget: (t: DraftTarget) => void;
+  clearDraftTarget: () => void;
   /** Update the effective caps in-app after the CISO saves new operational limits. */
   applyEffectiveCaps: (caps: HardCaps) => void;
   setOperator: (v: string) => void;
@@ -196,6 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [draftPreset, setDraftPreset] = useState<Preset | null>(null);
   const [draftCampaign, setDraftCampaign] = useState<Partial<CampaignFormSeed> | null>(null);
+  const [draftTarget, setDraftTarget] = useState<DraftTarget | null>(null);
 
   const role = identity?.role ?? null;
 
@@ -305,6 +320,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearDraftPreset = useCallback(() => setDraftPreset(null), []);
   const queueReplay = useCallback((seed: Partial<CampaignFormSeed>) => setDraftCampaign(seed), []);
   const clearDraftCampaign = useCallback(() => setDraftCampaign(null), []);
+  const queueTarget = useCallback((t: DraftTarget) => setDraftTarget(t), []);
+  const clearDraftTarget = useCallback(() => setDraftTarget(null), []);
   const applyEffectiveCaps = useCallback((caps: HardCaps) => setHardCaps(caps), []);
 
   const login = async (email: string, password: string) => {
@@ -517,6 +534,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     draftCampaign,
     queueReplay,
     clearDraftCampaign,
+    draftTarget,
+    queueTarget,
+    clearDraftTarget,
     applyEffectiveCaps,
     setOperator,
     setExpanded,

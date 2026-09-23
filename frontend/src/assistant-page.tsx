@@ -4,21 +4,18 @@ import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
 import { renderMarkdown } from './markdown.js';
-import {
-  extractProposals,
-  proposalOverCaps,
-  proposalToSeed,
-  type AssistantProposal,
-} from './assistant-proposal.js';
+import { extractActions, type AssistantAction } from './assistant-action.js';
 
 /**
  * Assistant — an interactive conversational panel over the self-hosted LLM (Qwen).
  *
- * SAFETY / GOVERNANCE: this screen talks and can surface ACTION PROPOSALS, but it
- * never executes anything. A proposal the operator validates is queued as a draft
- * campaign and opened in the existing recon-first create flow, where it still
- * needs operator review, CISO approval, the frozen HARD_CAPS ceiling (enforced
- * server-side) and the kill-switch. No campaign is ever launched from here.
+ * SAFETY / GOVERNANCE: the chat PREPARES actionable cards; it never executes.
+ * Each action is a one-click hand-off to its governed screen — a test campaign
+ * pre-fills the campaign builder, a target pre-fills onboarding, tighter caps
+ * open the limit settings, and "open" just navigates. RBAC, approvals, the
+ * frozen HARD_CAPS ceiling and the kill-switch all still apply on those screens.
+ * No campaign is ever launched from here, and the chat route is a read-only
+ * text proxy that reaches no mutating endpoint.
  *
  * The GPU pod that serves Qwen bills per hour, so operators can power it on/off
  * from here (RunPod stop/resume, `assistant:manage`, audited). Chat is enabled
@@ -39,12 +36,19 @@ const POD_LABEL: Record<PodState, string> = {
   UNKNOWN: 'Unknown',
 };
 
+const ACTION_TAG: Record<AssistantAction['kind'], string> = {
+  campaign: 'Proposed test',
+  target: 'Register target',
+  limits: 'Adjust limits',
+  navigate: 'Go to',
+};
+
 /** Defensive-framed starter prompts, offered in the empty state. */
 const STARTERS: string[] = [
   'Explain a bounded breakpoint controller (gradual ramp + back-off under distress).',
   'What are the best practices to harden an HTTP endpoint against amplification?',
-  'How should I read TTD / TTM in a defensive mitigation test?',
-  'Propose a conservative resilience test against my authorized staging target.',
+  'Prepare a conservative resilience test against my authorized staging target.',
+  'Help me register a new authorized target and propose tighter caps for it.',
 ];
 
 export function AssistantPage() {
@@ -52,6 +56,8 @@ export function AssistantPage() {
   const navigate = useNavigate();
   const canManage = canDo(app.role, 'assistantManage', app.authRequired);
   const canCreate = canDo(app.role, 'create', app.authRequired);
+  const canManageTargets = canDo(app.role, 'targetManage', app.authRequired);
+  const canSetLimits = canDo(app.role, 'limits', app.authRequired);
 
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
@@ -70,8 +76,6 @@ export function AssistantPage() {
   const abortRef = useRef<AbortController | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Chat is usable when the endpoint is configured AND — if the pod is managed —
-  // the pod is running.
   const chatReady = status === 'ready' && (!podManaged || podState === 'RUNNING');
 
   async function refreshPod() {
@@ -101,7 +105,6 @@ export function AssistantPage() {
     };
   }, []);
 
-  // While the pod is starting, poll until it settles.
   useEffect(() => {
     if (podManaged && podState === 'STARTING') {
       if (!pollRef.current) {
@@ -244,16 +247,6 @@ export function AssistantPage() {
     }
   }
 
-  /**
-   * Validate a proposed action: queue it as a draft campaign and open the
-   * governed create flow. This NEVER launches — the operator reviews it there,
-   * a CISO approves, and HARD_CAPS are enforced server-side.
-   */
-  function reviewProposal(p: AssistantProposal) {
-    app.queueReplay(proposalToSeed(p));
-    navigate('/campaigns');
-  }
-
   /** Delegated copy for code blocks rendered inside assistant markdown. */
   function onLogClick(e: React.MouseEvent<HTMLDivElement>) {
     const btn = (e.target as HTMLElement).closest('.md-copy') as HTMLElement | null;
@@ -269,6 +262,61 @@ export function AssistantPage() {
     }, () => {
       /* clipboard blocked — no-op */
     });
+  }
+
+  /**
+   * Trigger a prepared action: hand it off to its governed screen. This NEVER
+   * executes — the operator finishes each action there (review, approval,
+   * server-side HARD_CAPS, kill-switch).
+   */
+  function runAction(a: AssistantAction) {
+    switch (a.kind) {
+      case 'campaign':
+        app.queueReplay(a.seed);
+        navigate('/campaigns');
+        break;
+      case 'target':
+        app.queueTarget(a.draft);
+        navigate('/zones');
+        break;
+      case 'limits':
+        navigate('/settings');
+        break;
+      case 'navigate':
+        navigate(a.to);
+        break;
+    }
+  }
+
+  /** The primary control for an action card, gated by role. */
+  function actionControl(a: AssistantAction) {
+    const btn = (label: string) => (
+      <button className="btn btn-primary" onClick={() => runAction(a)}>
+        {label}
+      </button>
+    );
+    switch (a.kind) {
+      case 'campaign':
+        return canCreate ? (
+          btn('Review in campaign builder →')
+        ) : (
+          <span className="hint">An engineer configures and launches this; a CISO approves it.</span>
+        );
+      case 'target':
+        return canManageTargets ? (
+          btn('Open target onboarding →')
+        ) : (
+          <span className="hint">Target onboarding is limited to operators.</span>
+        );
+      case 'limits':
+        return canSetLimits ? (
+          btn('Open limit settings →')
+        ) : (
+          <span className="hint">Operational limits are set by a CISO.</span>
+        );
+      case 'navigate':
+        return btn(`Open ${a.screen} →`);
+    }
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -288,10 +336,9 @@ export function AssistantPage() {
     <div className="assistant-page">
       <PageHead
         title="Assistant"
-        sub="Conversational copilot — it reasons and proposes; it never launches. You validate any action through governance."
+        sub="Conversational copilot — it reasons and prepares actions you trigger through governance; it never launches anything."
       />
 
-      {/* GPU pod power control — visible only when the pod is managed. */}
       {podManaged && (
         <div className="card assistant-power">
           <div className={`assistant-power-state assistant-power-${podState.toLowerCase()}`}>
@@ -365,7 +412,8 @@ export function AssistantPage() {
             <div className="assistant-empty">
               <p className="hint">
                 Ask about platform state, resilience, or code security. The assistant replies and can
-                propose a bounded test — it never runs anything itself.
+                prepare actions — a test, a target, tighter caps — that you trigger through
+                governance. It never runs anything itself.
               </p>
               <div className="assistant-starters">
                 {STARTERS.map((s) => (
@@ -406,7 +454,7 @@ export function AssistantPage() {
                 </div>
               );
             }
-            const { text, proposals } = extractProposals(m.content);
+            const { text, actions } = extractActions(m.content);
             return (
               <div key={i} className="assistant-msg assistant-msg-assistant">
                 <div className="assistant-msg-head">
@@ -432,65 +480,39 @@ export function AssistantPage() {
                 {!text && m.content === '' && (
                   <div className="assistant-msg-body">{busy && isLast ? '…' : ''}</div>
                 )}
-                {proposals.map((p, pi) => {
-                  const over = proposalOverCaps(p);
-                  return (
-                    <div key={pi} className="assistant-proposal">
-                      <div className="assistant-proposal-head">
-                        <span className="assistant-proposal-tag">Proposed action</span>
-                        <strong>{p.name}</strong>
-                      </div>
-                      <dl className="assistant-proposal-grid">
-                        <div>
-                          <dt>Target</dt>
-                          <dd className="mono">{p.target}</dd>
-                        </div>
-                        <div>
-                          <dt>Vector</dt>
-                          <dd>{p.vector}</dd>
-                        </div>
-                        <div>
-                          <dt>Max RPS</dt>
-                          <dd className={over.includes('maxRps') ? 'over' : undefined}>{p.maxRps}</dd>
-                        </div>
-                        <div>
-                          <dt>Concurrency</dt>
-                          <dd className={over.includes('concurrency') ? 'over' : undefined}>
-                            {p.concurrency}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Duration</dt>
-                          <dd className={over.includes('maxDurationSec') ? 'over' : undefined}>
-                            {p.maxDurationSec}s
-                          </dd>
-                        </div>
-                      </dl>
-                      {p.rationale && <p className="assistant-proposal-why">{p.rationale}</p>}
-                      {over.length > 0 && (
-                        <p className="hint assistant-error">
-                          ⚠ Above the safety ceiling ({over.join(', ')}) — it will be clamped on
-                          review.
-                        </p>
-                      )}
-                      <div className="assistant-proposal-actions">
-                        {canCreate ? (
-                          <button className="btn btn-primary" onClick={() => reviewProposal(p)}>
-                            Review in campaign builder →
-                          </button>
-                        ) : (
-                          <span className="hint">
-                            An engineer configures and launches this; a CISO approves it.
-                          </span>
-                        )}
-                      </div>
-                      <p className="assistant-proposal-note">
-                        A proposal only — nothing runs until you review it and it clears governance
-                        (approval · HARD_CAPS · kill-switch).
-                      </p>
+                {actions.map((a, ai) => (
+                  <div key={ai} className={`assistant-proposal assistant-proposal-${a.kind}`}>
+                    <div className="assistant-proposal-head">
+                      <span className="assistant-proposal-tag">{ACTION_TAG[a.kind]}</span>
+                      <strong>{a.title}</strong>
                     </div>
-                  );
-                })}
+                    {a.rows.length > 0 && (
+                      <dl className="assistant-proposal-grid">
+                        {a.rows.map((r) => (
+                          <div key={r.label}>
+                            <dt>{r.label}</dt>
+                            <dd className={[r.mono ? 'mono' : '', r.over ? 'over' : ''].join(' ').trim() || undefined}>
+                              {r.value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {a.rationale && <p className="assistant-proposal-why">{a.rationale}</p>}
+                    {'over' in a && a.over.length > 0 && (
+                      <p className="hint assistant-error">
+                        ⚠ Above the safety ceiling ({a.over.join(', ')}) — it will be clamped on
+                        review.
+                      </p>
+                    )}
+                    <div className="assistant-proposal-actions">{actionControl(a)}</div>
+                    <p className="assistant-proposal-note">
+                      {a.kind === 'navigate'
+                        ? 'Opens the screen — nothing changes on its own.'
+                        : 'A proposal only — nothing changes until you review it and it clears governance (approval · HARD_CAPS · kill-switch).'}
+                    </p>
+                  </div>
+                ))}
               </div>
             );
           })}

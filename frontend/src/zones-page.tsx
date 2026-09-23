@@ -123,6 +123,15 @@ function TargetsPanel() {
   };
   useEffect(load, []);
 
+  // Pre-fill and open the onboarding form when the assistant queues a target.
+  useEffect(() => {
+    if (!app.draftTarget) return;
+    setForm({ ...EMPTY_FORM, ...app.draftTarget });
+    setShowForm(true);
+    app.clearDraftTarget();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.draftTarget]);
+
   const upsert = (t: ProtectedTarget) =>
     setTargets((prev) => {
       const next = (prev ?? []).filter((x) => x.id !== t.id);
