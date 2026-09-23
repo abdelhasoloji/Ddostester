@@ -7,6 +7,7 @@ import { deriveAlerts } from '../modules/alerts/derive.js';
 import { deriveImpact } from '../modules/alerts/impact.js';
 import { buildAbsorptionSummary } from '../modules/observability/summary.js';
 import { buildZones } from '../modules/zones/zones.js';
+import { validateMitigation } from '../modules/mitigation/validation.js';
 import { queryRange, rangeWindow, type PromResult } from '../modules/metrics/prometheus-query.js';
 import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderMetrics } from '../modules/metrics/prometheus.js';
@@ -216,6 +217,19 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     return buildWrsHistory(campaigns, runs);
   });
+
+  // Read-only mitigation validation (TTD/TTM tier): correlates a run's measured
+  // detection/mitigation timing with its load timeline (absorption + availability
+  // before/after, WRS delta). Pure read — no traffic, no score change.
+  app.get(
+    '/api/runs/:runId/mitigation',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      const run = await store.getRun((req.params as { runId: string }).runId);
+      if (!run) return reply.code(404).send({ error: 'run not found' });
+      return validateMitigation({ timeline: run.timeline, protection: run.protection });
+    },
+  );
 
   app.get('/metrics', async (_req, reply) => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);

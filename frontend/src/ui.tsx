@@ -4,6 +4,7 @@ import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
 import { LiveLineChart } from './live-chart.js';
 import { ReplayFromRun } from './replay-from-run.js';
+import { MitigationPanel } from './mitigation-panel.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -935,6 +936,9 @@ export function CampaignCard({ c }: { c: Campaign }) {
             <span aria-hidden="true">🛑</span> {c.statusDetail}
           </div>
         )}
+
+      {/* Read-only mitigation validation (TTD/TTM) for a completed run. */}
+      {c.runId && <MitigationPanel runId={c.runId} />}
 
       {/* Only mount the inline live stream when the detail drawer is NOT open
           for this campaign — otherwise the drawer already shows it and both
