@@ -31,7 +31,12 @@ describe('extractActions — types', () => {
 
   it('parses register-target into a target draft', () => {
     const { actions } = extractActions(
-      block({ type: 'register-target', host: 'staging.ex.com', displayName: 'Staging', owner: 'sec' }),
+      block({
+        type: 'register-target',
+        host: 'staging.ex.com',
+        displayName: 'Staging',
+        owner: 'sec',
+      }),
     );
     expect(actions[0].kind).toBe('target');
     if (actions[0].kind === 'target') {

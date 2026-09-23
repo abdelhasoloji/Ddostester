@@ -254,14 +254,17 @@ export function AssistantPage() {
     const code = btn.closest('pre')?.querySelector('code')?.textContent ?? '';
     if (!code || !navigator.clipboard?.writeText) return;
     const label = btn.textContent;
-    navigator.clipboard.writeText(code).then(() => {
-      btn.textContent = 'Copied';
-      setTimeout(() => {
-        btn.textContent = label;
-      }, 1200);
-    }, () => {
-      /* clipboard blocked — no-op */
-    });
+    navigator.clipboard.writeText(code).then(
+      () => {
+        btn.textContent = 'Copied';
+        setTimeout(() => {
+          btn.textContent = label;
+        }, 1200);
+      },
+      () => {
+        /* clipboard blocked — no-op */
+      },
+    );
   }
 
   /**
@@ -300,7 +303,9 @@ export function AssistantPage() {
         return canCreate ? (
           btn('Review in campaign builder →')
         ) : (
-          <span className="hint">An engineer configures and launches this; a CISO approves it.</span>
+          <span className="hint">
+            An engineer configures and launches this; a CISO approves it.
+          </span>
         );
       case 'target':
         return canManageTargets ? (
@@ -411,8 +416,8 @@ export function AssistantPage() {
           {messages.length === 0 && (
             <div className="assistant-empty">
               <p className="hint">
-                Ask about platform state, resilience, or code security. The assistant replies and can
-                prepare actions — a test, a target, tighter caps — that you trigger through
+                Ask about platform state, resilience, or code security. The assistant replies and
+                can prepare actions — a test, a target, tighter caps — that you trigger through
                 governance. It never runs anything itself.
               </p>
               <div className="assistant-starters">
@@ -491,7 +496,12 @@ export function AssistantPage() {
                         {a.rows.map((r) => (
                           <div key={r.label}>
                             <dt>{r.label}</dt>
-                            <dd className={[r.mono ? 'mono' : '', r.over ? 'over' : ''].join(' ').trim() || undefined}>
+                            <dd
+                              className={
+                                [r.mono ? 'mono' : '', r.over ? 'over' : ''].join(' ').trim() ||
+                                undefined
+                              }
+                            >
                               {r.value}
                             </dd>
                           </div>

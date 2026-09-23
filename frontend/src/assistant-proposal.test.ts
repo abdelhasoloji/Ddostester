@@ -29,7 +29,9 @@ describe('parseProposal', () => {
     expect(parseProposal('{"target":"https://x"}')).toBeNull();
   });
   it('defaults vector to http-get and coerces numeric strings', () => {
-    const p = parseProposal('{"target":"https://x","maxRps":"20","concurrency":"5","maxDurationSec":"60"}')!;
+    const p = parseProposal(
+      '{"target":"https://x","maxRps":"20","concurrency":"5","maxDurationSec":"60"}',
+    )!;
     expect(p.vector).toBe('http-get');
     expect(p.maxRps).toBe(20);
   });
@@ -53,11 +55,15 @@ describe('extractProposals', () => {
 
 describe('caps + seed', () => {
   it('flags bounds over the ceiling', () => {
-    const p = parseProposal(JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }))!;
+    const p = parseProposal(
+      JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }),
+    )!;
     expect(proposalOverCaps(p).sort()).toEqual(['concurrency', 'maxDurationSec', 'maxRps']);
   });
   it('clamps the seed to the ceiling', () => {
-    const p = parseProposal(JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }))!;
+    const p = parseProposal(
+      JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }),
+    )!;
     const s = proposalToSeed(p);
     expect(s.maxRps).toBe(PROPOSAL_CAPS.maxRps);
     expect(s.concurrency).toBe(PROPOSAL_CAPS.concurrency);

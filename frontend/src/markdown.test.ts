@@ -55,7 +55,9 @@ describe('renderMarkdown — formatting', () => {
 
   it('renders an https link with safe rel/target', () => {
     const out = renderMarkdown('[docs](https://ex.io/a)');
-    expect(out).toContain('<a href="https://ex.io/a" target="_blank" rel="noopener noreferrer">docs</a>');
+    expect(out).toContain(
+      '<a href="https://ex.io/a" target="_blank" rel="noopener noreferrer">docs</a>',
+    );
   });
 
   it('wraps plain text in a paragraph and returns empty for empty input', () => {
@@ -79,6 +81,8 @@ describe('renderMarkdown — tables & code copy', () => {
   });
   it('adds a copy button to fenced code blocks', () => {
     const out = renderMarkdown('```\nx\n```');
-    expect(out).toContain('<button type="button" class="md-copy" aria-label="Copy code">Copy</button>');
+    expect(out).toContain(
+      '<button type="button" class="md-copy" aria-label="Copy code">Copy</button>',
+    );
   });
 });

@@ -13,18 +13,14 @@
  */
 
 const escapeHtml = (s: string): string =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** Inline formatting on already-escaped text. */
 function inline(escaped: string): string {
   const spans: string[] = [];
   let s = escaped.replace(/`([^`]+)`/g, (_m, c: string) => {
     spans.push(`<code class="md-code">${c}</code>`);
-    return `\u0000${spans.length - 1}\u0000`;
+    return `\uE000${spans.length - 1}\uE000`;
   });
   s = s.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
@@ -33,7 +29,7 @@ function inline(escaped: string): string {
   );
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-  s = s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => spans[Number(i)]);
+  s = s.replace(/\uE000(\d+)\uE000/g, (_m, i: string) => spans[Number(i)]);
   return s;
 }
 

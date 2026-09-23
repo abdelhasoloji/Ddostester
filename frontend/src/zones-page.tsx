@@ -129,7 +129,6 @@ function TargetsPanel() {
     setForm({ ...EMPTY_FORM, ...app.draftTarget });
     setShowForm(true);
     app.clearDraftTarget();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app.draftTarget]);
 
   const upsert = (t: ProtectedTarget) =>

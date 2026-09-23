@@ -5869,7 +5869,9 @@ table.remediations td {
   padding: 0.5rem 0.7rem;
   max-width: 100%;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .assistant-chip:hover:not(:disabled) {
   border-color: var(--primary);
@@ -5894,7 +5896,10 @@ table.remediations td {
   padding: 0.1rem 0.45rem;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 .assistant-msg:hover .assistant-copy,
 .assistant-copy:focus-visible {
@@ -5911,9 +5916,15 @@ table.remediations td {
   flex-direction: column;
   gap: 0.55rem;
 }
-.assistant-msg-body.md > :first-child { margin-top: 0; }
-.assistant-msg-body.md > :last-child { margin-bottom: 0; }
-.assistant-msg-body.md p { margin: 0; }
+.assistant-msg-body.md > :first-child {
+  margin-top: 0;
+}
+.assistant-msg-body.md > :last-child {
+  margin-bottom: 0;
+}
+.assistant-msg-body.md p {
+  margin: 0;
+}
 .assistant-msg-body.md .md-h {
   margin: 0.2rem 0 0;
   font-size: 0.95rem;
