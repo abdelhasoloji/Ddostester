@@ -844,7 +844,12 @@ export interface RegisterTargetInput {
 
 /** Read-only mitigation validation (TTD/TTM tier). */
 export type MitigationVerdict =
-  'mitigated' | 'partial' | 'not-engaged' | 'no-measurement' | 'insufficient-data';
+  | 'mitigated'
+  | 'partial'
+  | 'not-exercised'
+  | 'not-engaged'
+  | 'no-measurement'
+  | 'insufficient-data';
 export interface MitigationWindow {
   fromSec: number;
   toSec: number;
@@ -863,6 +868,7 @@ export interface MitigationValidation {
   wrsBefore?: number;
   wrsAfter?: number;
   wrsDelta?: number;
+  theoretical?: boolean;
   verdict: MitigationVerdict;
   note: string;
 }

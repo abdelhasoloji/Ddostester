@@ -41,7 +41,12 @@ export interface MitigationInput {
 }
 
 export type MitigationVerdict =
-  'mitigated' | 'partial' | 'not-engaged' | 'no-measurement' | 'insufficient-data';
+  | 'mitigated'
+  | 'partial'
+  | 'not-exercised'
+  | 'not-engaged'
+  | 'no-measurement'
+  | 'insufficient-data';
 
 export interface WindowStat {
   fromSec: number;
@@ -68,6 +73,8 @@ export interface MitigationValidation {
   /** WRS on the post-mitigation window with the measured TTD/TTM. */
   wrsAfter?: number;
   wrsDelta?: number;
+  /** The WRS delta is model-based (measured TTD/TTM), not backed by observed absorption. */
+  theoretical?: boolean;
   verdict: MitigationVerdict;
   note: string;
 }
@@ -160,19 +167,42 @@ export function validateMitigation(run: MitigationInput): MitigationValidation {
   const absorbedDelta = round2(after.absorbedRatio - before.absorbedRatio);
   const availabilityDelta = round2(after.availabilityPct - before.availabilityPct);
   // Before = un-mitigated proxy: as slow as the whole observed window; after = measured TTD/TTM.
-  const wrsBefore = windowWrs(before.availabilityPct, lastT, lastT);
-  const wrsAfter = windowWrs(after.availabilityPct, ttd, ttm);
-
-  const recovered = availabilityDelta >= 0 && absorbedDelta >= 0;
-  return {
+  const wrsBefore = round2(windowWrs(before.availabilityPct, lastT, lastT));
+  const wrsAfter = round2(windowWrs(after.availabilityPct, ttd, ttm));
+  const wrsDelta = round2(wrsAfter - wrsBefore);
+  const common = {
     ...base,
     before,
     after,
     absorbedDelta,
     availabilityDelta,
-    wrsBefore: round2(wrsBefore),
-    wrsAfter: round2(wrsAfter),
-    wrsDelta: round2(wrsAfter - wrsBefore),
+    wrsBefore,
+    wrsAfter,
+    wrsDelta,
+  };
+
+  // "Exercised" = the target actually saw pressure — the edge absorbed a
+  // meaningful share somewhere, or the legitimate probe dipped. Without that
+  // there was NO incident to mitigate, so a favourable verdict would overstate
+  // resilience (the project's honesty rule). The WRS delta is then purely the
+  // theoretical effect of the measured TTD/TTM, not observed mitigation.
+  const maxAbsorbed = Math.max(before.absorbedRatio, after.absorbedRatio);
+  const minAvail = Math.min(...tl.map((s) => s.availPct));
+  const exercised = maxAbsorbed >= 0.05 || minAvail <= 95;
+
+  if (!exercised) {
+    return {
+      ...common,
+      theoretical: true,
+      verdict: 'not-exercised',
+      note: `No incident exercised — the edge absorbed ~0% and availability held at ${minAvail}%. The WRS delta is theoretical: it reflects the measured TTD/TTM${base.source ? ` (${base.source})` : ''}, not observed mitigation. Validate against a target behind a protection/edge under real load.`,
+    };
+  }
+
+  const recovered = availabilityDelta >= 0 && absorbedDelta >= 0;
+  return {
+    ...common,
+    theoretical: base.source === 'mock',
     verdict: recovered ? 'mitigated' : 'partial',
     note: recovered
       ? `Edge engaged after ${round2(ttm)}s: absorption ${(before.absorbedRatio * 100).toFixed(0)}%→${(after.absorbedRatio * 100).toFixed(0)}%, availability ${before.availabilityPct}%→${after.availabilityPct}%.`

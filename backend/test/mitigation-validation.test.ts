@@ -56,6 +56,26 @@ describe('validateMitigation', () => {
     expect(v.note).toMatch(/absorption/);
   });
 
+  it('reports not-exercised (theoretical WRS) on a flat baseline with no incident', () => {
+    const flat: RunSampleLike[] = [
+      { t: 1, sent: 100, failed: 0, availPct: 100 },
+      { t: 2, sent: 200, failed: 0, availPct: 100 },
+      { t: 3, sent: 300, failed: 0, availPct: 100 },
+      { t: 4, sent: 400, failed: 0, availPct: 100 },
+      { t: 5, sent: 500, failed: 0, availPct: 100 },
+      { t: 6, sent: 600, failed: 0, availPct: 100 },
+    ];
+    const v = validateMitigation({
+      timeline: flat,
+      protection: { detectionTimeSec: 2, mitigationTimeSec: 4, source: 'mock' },
+    });
+    expect(v.verdict).toBe('not-exercised');
+    expect(v.theoretical).toBe(true);
+    expect(v.note).toMatch(/theoretical/i);
+    // The WRS delta is still reported, just flagged as model-based.
+    expect(v.wrsDelta).toBeGreaterThan(0);
+  });
+
   it('reports partial when the target does not recover after mitigation', () => {
     const noRecover = MITIGATED.map((s) => (s.t >= 5 ? { ...s, availPct: 55 } : s));
     const v = validateMitigation({

@@ -11,6 +11,7 @@ import type { MitigationValidation, MitigationVerdict } from './api.js';
 const VERDICT: Record<MitigationVerdict, { cls: string; label: string }> = {
   mitigated: { cls: 'mv-ok', label: '✓ mitigated' },
   partial: { cls: 'mv-warn', label: '~ partial' },
+  'not-exercised': { cls: 'mv-none', label: '○ not exercised' },
   'not-engaged': { cls: 'mv-bad', label: '⃠ not engaged' },
   'no-measurement': { cls: 'mv-none', label: 'no measurement' },
   'insufficient-data': { cls: 'mv-none', label: 'insufficient data' },
@@ -47,6 +48,14 @@ export function MitigationPanel({ runId }: { runId: string }) {
         <span className="mv-title">Mitigation validation</span>
         <span className={`mv-badge ${badge.cls}`}>{badge.label}</span>
         {v.source && <span className="hint">· {v.source}</span>}
+        {v.theoretical && (
+          <span
+            className="mv-theoretical"
+            title="WRS delta is model-based (measured TTD/TTM), not observed absorption"
+          >
+            theoretical Δ
+          </span>
+        )}
       </div>
 
       {(v.ttdSec != null || v.ttmSec != null) && (
