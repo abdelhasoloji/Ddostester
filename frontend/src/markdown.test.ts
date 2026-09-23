@@ -63,3 +63,22 @@ describe('renderMarkdown — formatting', () => {
     expect(renderMarkdown('')).toBe('');
   });
 });
+
+describe('renderMarkdown — tables & code copy', () => {
+  it('renders a GitHub-style table with alignment', () => {
+    const out = renderMarkdown('| Metric | Value |\n|:--|--:|\n| RPS | 50 |');
+    expect(out).toContain('<table class="md-table">');
+    expect(out).toContain('<th style="text-align:left">Metric</th>');
+    expect(out).toContain('<th style="text-align:right">Value</th>');
+    expect(out).toContain('<td style="text-align:right">50</td>');
+  });
+  it('escapes cell content in tables', () => {
+    const out = renderMarkdown('| a |\n|---|\n| <b> |');
+    expect(out).toContain('&lt;b&gt;');
+    expect(out).not.toContain('<b>');
+  });
+  it('adds a copy button to fenced code blocks', () => {
+    const out = renderMarkdown('```\nx\n```');
+    expect(out).toContain('<button type="button" class="md-copy" aria-label="Copy code">Copy</button>');
+  });
+});

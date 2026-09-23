@@ -254,6 +254,23 @@ export function AssistantPage() {
     navigate('/campaigns');
   }
 
+  /** Delegated copy for code blocks rendered inside assistant markdown. */
+  function onLogClick(e: React.MouseEvent<HTMLDivElement>) {
+    const btn = (e.target as HTMLElement).closest('.md-copy') as HTMLElement | null;
+    if (!btn) return;
+    const code = btn.closest('pre')?.querySelector('code')?.textContent ?? '';
+    if (!code || !navigator.clipboard?.writeText) return;
+    const label = btn.textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      btn.textContent = 'Copied';
+      setTimeout(() => {
+        btn.textContent = label;
+      }, 1200);
+    }, () => {
+      /* clipboard blocked — no-op */
+    });
+  }
+
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -343,7 +360,7 @@ export function AssistantPage() {
           )}
         </div>
 
-        <div className="assistant-log" ref={scrollRef}>
+        <div className="assistant-log" ref={scrollRef} onClick={onLogClick}>
           {messages.length === 0 && (
             <div className="assistant-empty">
               <p className="hint">

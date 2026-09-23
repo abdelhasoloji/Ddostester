@@ -2,12 +2,14 @@
  * markdown.ts — minimal, dependency-free, XSS-safe Markdown → HTML for assistant
  * replies. Every character of the source is HTML-escaped BEFORE any tag is
  * inserted, so model output can never inject markup. Supports the subset the
- * Qwen copilot actually emits: fenced code blocks (```lang), inline `code`,
- * **bold**, *italic*, #.. headings, -/* and 1. lists, > blockquotes, https
- * links, and paragraphs.
+ * Qwen copilot actually emits: fenced code blocks (```lang) with a copy button,
+ * inline `code`, **bold**, *italic*, #.. headings, -/* and 1. lists,
+ * > blockquotes, GitHub-style tables, https links, and paragraphs.
  *
  * SAFETY: designed for dangerouslySetInnerHTML. Keep the escape-first
  * invariant — never emit raw source HTML, and only ever build https anchors.
+ * The only interactive element emitted is our own <button class="md-copy">,
+ * which the page wires up by delegation (it carries no source-derived data).
  */
 
 const escapeHtml = (s: string): string =>
@@ -19,13 +21,11 @@ const escapeHtml = (s: string): string =>
 
 /** Inline formatting on already-escaped text. */
 function inline(escaped: string): string {
-  // Protect inline code spans so bold/italic/link never touch their contents.
   const spans: string[] = [];
   let s = escaped.replace(/`([^`]+)`/g, (_m, c: string) => {
     spans.push(`<code class="md-code">${c}</code>`);
     return `\u0000${spans.length - 1}\u0000`;
   });
-  // Links: only https(s), URL is constrained (no spaces or ")"), so attribute-safe.
   s = s.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (_m, label: string, url: string) =>
@@ -33,9 +33,32 @@ function inline(escaped: string): string {
   );
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-  // Restore inline code.
   s = s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => spans[Number(i)]);
   return s;
+}
+
+/** Split a `| a | b |` row into trimmed cell strings. */
+function tableCells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => c.trim());
+}
+
+/** A `|---|:--:|` separator row. */
+function isTableSep(line: string): boolean {
+  return line.includes('-') && /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(line);
+}
+
+function alignOf(cell: string): string {
+  const l = cell.startsWith(':');
+  const r = cell.endsWith(':');
+  if (l && r) return 'center';
+  if (r) return 'right';
+  if (l) return 'left';
+  return '';
 }
 
 /** Block-level rendering for a non-code segment. */
@@ -63,6 +86,28 @@ function renderBlocks(seg: string): string {
       const lvl = h[1].length;
       html.push(`<h${lvl} class="md-h">${inline(escapeHtml(h[2]))}</h${lvl}>`);
       i++;
+      continue;
+    }
+    // GitHub-style table: a header row followed by a separator row.
+    if (line.includes('|') && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      flush();
+      const header = tableCells(line);
+      const aligns = tableCells(lines[i + 1]).map(alignOf);
+      i += 2;
+      const body: string[][] = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim() !== '') {
+        body.push(tableCells(lines[i]));
+        i++;
+      }
+      const cell = (t: string, tag: 'th' | 'td', idx: number): string => {
+        const a = aligns[idx];
+        return `<${tag}${a ? ` style="text-align:${a}"` : ''}>${inline(escapeHtml(t))}</${tag}>`;
+      };
+      const thead = `<thead><tr>${header.map((t, k) => cell(t, 'th', k)).join('')}</tr></thead>`;
+      const tbody = `<tbody>${body
+        .map((r) => `<tr>${r.map((t, k) => cell(t, 'td', k)).join('')}</tr>`)
+        .join('')}</tbody>`;
+      html.push(`<div class="md-tablewrap"><table class="md-table">${thead}${tbody}</table></div>`);
       continue;
     }
     if (/^>\s?/.test(line)) {
@@ -111,7 +156,6 @@ export function renderMarkdown(src: string): string {
   if (!src) return '';
   const text = src.replace(/\r\n/g, '\n');
   const out: string[] = [];
-  // Split out fenced code blocks first (kept verbatim, escaped, no inline pass).
   const parts = text.split(/(```[\s\S]*?```)/g);
   for (const part of parts) {
     if (!part) continue;
@@ -120,7 +164,9 @@ export function renderMarkdown(src: string): string {
       const lang = (m?.[1] || '').trim();
       const code = escapeHtml(m?.[2] ?? '').replace(/\n$/, '');
       out.push(
-        `<pre class="md-pre"${lang ? ` data-lang="${escapeHtml(lang)}"` : ''}><code>${code}</code></pre>`,
+        `<pre class="md-pre"${lang ? ` data-lang="${escapeHtml(lang)}"` : ''}>` +
+          `<button type="button" class="md-copy" aria-label="Copy code">Copy</button>` +
+          `<code>${code}</code></pre>`,
       );
       continue;
     }
