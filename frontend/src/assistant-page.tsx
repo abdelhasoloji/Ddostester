@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
+import { renderMarkdown } from './markdown.js';
 
 /**
  * Assistant — a read-only conversational panel over the self-hosted LLM (Qwen).
@@ -31,6 +32,14 @@ const POD_LABEL: Record<PodState, string> = {
   UNKNOWN: 'Indéterminé',
 };
 
+/** Defensive-framed starter prompts, offered in the empty state. */
+const STARTERS: string[] = [
+  'Explique la logique d’un breakpoint controller borné (montée graduelle + back-off sous distress).',
+  'Quelles bonnes pratiques pour durcir un endpoint HTTP contre l’amplification ?',
+  'Comment interpréter TTD / TTM dans un test de mitigation défensif ?',
+  'Relis ce plan de test de résilience : est-il borné, réversible et capé ?',
+];
+
 export function AssistantPage() {
   const app = useApp();
   const canManage = canDo(app.role, 'assistantManage', app.authRequired);
@@ -47,6 +56,7 @@ export function AssistantPage() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -128,9 +138,9 @@ export function AssistantPage() {
     }
   }
 
-  async function send() {
-    const text = input.trim();
-    if (!text || busy) return;
+  async function send(override?: string) {
+    const text = (override ?? input).trim();
+    if (!text || busy || !chatReady) return;
     setError(null);
     const history: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages([...history, { role: 'assistant', content: '' }]);
@@ -204,6 +214,25 @@ export function AssistantPage() {
 
   function stop() {
     abortRef.current?.abort();
+  }
+
+  function resetConversation() {
+    abortRef.current?.abort();
+    setMessages([]);
+    setError(null);
+    setInput('');
+  }
+
+  function copyMsg(idx: number, text: string) {
+    const done = () => {
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((v) => (v === idx ? null : v)), 1200);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => {
+        /* clipboard blocked — no-op */
+      });
+    }
   }
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -283,21 +312,73 @@ export function AssistantPage() {
       )}
 
       <div className="card assistant-chat">
+        <div className="assistant-chat-head">
+          <span className="hint">
+            {model}
+            {busy ? ' · génère…' : ''}
+          </span>
+          {messages.length > 0 && (
+            <button className="btn btn-ghost assistant-new" onClick={resetConversation}>
+              Nouvelle conversation
+            </button>
+          )}
+        </div>
+
         <div className="assistant-log" ref={scrollRef}>
           {messages.length === 0 && (
-            <p className="hint">
-              Pose une question sur l'état de la plateforme, la résilience, la sécurité du code…
-              L'assistant répond, il n'exécute rien.
-            </p>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className={`assistant-msg assistant-msg-${m.role}`}>
-              <span className="assistant-msg-role">{m.role === 'user' ? 'Vous' : model}</span>
-              <div className="assistant-msg-body">
-                {m.content || (busy && i === messages.length - 1 ? '…' : '')}
+            <div className="assistant-empty">
+              <p className="hint">
+                Pose une question sur l'état de la plateforme, la résilience ou la sécurité du code.
+                L'assistant répond, il n'exécute rien.
+              </p>
+              <div className="assistant-starters">
+                {STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="assistant-chip"
+                    onClick={() => void send(s)}
+                    disabled={!chatReady}
+                    title={!chatReady ? 'Assistant indisponible' : undefined}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
+          )}
+          {messages.map((m, i) => {
+            const isLast = i === messages.length - 1;
+            const showMd = m.role === 'assistant' && m.content !== '';
+            return (
+              <div key={i} className={`assistant-msg assistant-msg-${m.role}`}>
+                <div className="assistant-msg-head">
+                  <span className="assistant-msg-role">{m.role === 'user' ? 'Vous' : model}</span>
+                  {m.content !== '' && (
+                    <button
+                      type="button"
+                      className="assistant-copy"
+                      onClick={() => copyMsg(i, m.content)}
+                      aria-label="Copier le message"
+                      title="Copier"
+                    >
+                      {copiedIdx === i ? '✓ Copié' : 'Copier'}
+                    </button>
+                  )}
+                </div>
+                {showMd ? (
+                  <div
+                    className="assistant-msg-body md"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+                  />
+                ) : (
+                  <div className="assistant-msg-body">
+                    {m.content || (busy && isLast ? '…' : '')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {error && <p className="hint assistant-error">⚠ {error}</p>}
