@@ -5974,3 +5974,81 @@ table.remediations td {
   color: var(--primary);
   text-decoration: underline;
 }
+
+/* ── Assistant: proposed-action card (assistant/markdown-ux) ── */
+.assistant-proposal {
+  margin-top: 0.6rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius, 8px);
+  background: var(--surface);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.assistant-proposal-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.assistant-proposal-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.1rem 0.4rem;
+}
+.assistant-proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem 0.9rem;
+  margin: 0;
+}
+.assistant-proposal-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.assistant-proposal-grid dt {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.assistant-proposal-grid dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+.assistant-proposal-grid dd.mono {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+.assistant-proposal-grid dd.over {
+  color: var(--danger, #c0492f);
+}
+.assistant-proposal-why {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.assistant-proposal-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.assistant-proposal-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}

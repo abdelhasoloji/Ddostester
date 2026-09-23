@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
 import { renderMarkdown } from './markdown.js';
+import {
+  extractProposals,
+  proposalOverCaps,
+  proposalToSeed,
+  type AssistantProposal,
+} from './assistant-proposal.js';
 
 /**
- * Assistant — a read-only conversational panel over the self-hosted LLM (Qwen).
+ * Assistant — an interactive conversational panel over the self-hosted LLM (Qwen).
  *
- * SAFETY: this screen only talks. It cannot launch campaigns or run anything;
- * the backend route is a text-only streaming proxy gated by `campaign:read`.
- * Any future action ("propose a bounded breakpoint campaign") must surface as a
- * proposal the operator approves through the existing governance, never fire
- * from here directly.
+ * SAFETY / GOVERNANCE: this screen talks and can surface ACTION PROPOSALS, but it
+ * never executes anything. A proposal the operator validates is queued as a draft
+ * campaign and opened in the existing recon-first create flow, where it still
+ * needs operator review, CISO approval, the frozen HARD_CAPS ceiling (enforced
+ * server-side) and the kill-switch. No campaign is ever launched from here.
  *
  * The GPU pod that serves Qwen bills per hour, so operators can power it on/off
  * from here (RunPod stop/resume, `assistant:manage`, audited). Chat is enabled
@@ -26,23 +33,25 @@ interface Msg {
 type Status = 'checking' | 'ready' | 'not_configured';
 
 const POD_LABEL: Record<PodState, string> = {
-  RUNNING: 'Allumé',
-  STARTING: 'Démarrage…',
-  STOPPED: 'Éteint',
-  UNKNOWN: 'Indéterminé',
+  RUNNING: 'On',
+  STARTING: 'Starting…',
+  STOPPED: 'Off',
+  UNKNOWN: 'Unknown',
 };
 
 /** Defensive-framed starter prompts, offered in the empty state. */
 const STARTERS: string[] = [
-  'Explique la logique d’un breakpoint controller borné (montée graduelle + back-off sous distress).',
-  'Quelles bonnes pratiques pour durcir un endpoint HTTP contre l’amplification ?',
-  'Comment interpréter TTD / TTM dans un test de mitigation défensif ?',
-  'Relis ce plan de test de résilience : est-il borné, réversible et capé ?',
+  'Explain a bounded breakpoint controller (gradual ramp + back-off under distress).',
+  'What are the best practices to harden an HTTP endpoint against amplification?',
+  'How should I read TTD / TTM in a defensive mitigation test?',
+  'Propose a conservative resilience test against my authorized staging target.',
 ];
 
 export function AssistantPage() {
   const app = useApp();
+  const navigate = useNavigate();
   const canManage = canDo(app.role, 'assistantManage', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired);
 
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
@@ -116,7 +125,7 @@ export function AssistantPage() {
       const s = await api.assistantPodStart();
       setPodState(s.state === 'STOPPED' ? 'STARTING' : s.state);
     } catch (e) {
-      setPodError(e instanceof Error ? e.message : 'Échec du démarrage.');
+      setPodError(e instanceof Error ? e.message : 'Failed to start the pod.');
       void refreshPod();
     } finally {
       setPodBusy(false);
@@ -131,7 +140,7 @@ export function AssistantPage() {
       setPodState(s.state === 'RUNNING' ? 'STOPPED' : s.state);
       setPodUptime(undefined);
     } catch (e) {
-      setPodError(e instanceof Error ? e.message : "Échec de l'arrêt.");
+      setPodError(e instanceof Error ? e.message : 'Failed to stop the pod.');
       void refreshPod();
     } finally {
       setPodBusy(false);
@@ -162,7 +171,7 @@ export function AssistantPage() {
       });
       if (!res.ok || !res.body) {
         throw new Error(
-          res.status === 503 ? 'Assistant non configuré côté serveur.' : `Erreur ${res.status}`,
+          res.status === 503 ? 'Assistant is not configured on the server.' : `Error ${res.status}`,
         );
       }
       const reader = res.body.getReader();
@@ -194,7 +203,7 @@ export function AssistantPage() {
                   return next;
                 });
               } else if (event === 'error') {
-                setError(j.message || 'Erreur de génération.');
+                setError(j.message || 'Generation error.');
               }
             } catch {
               /* ignore keepalive / partial */
@@ -204,7 +213,7 @@ export function AssistantPage() {
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        setError(e instanceof Error ? e.message : 'Échec de la requête.');
+        setError(e instanceof Error ? e.message : 'Request failed.');
       }
     } finally {
       setBusy(false);
@@ -235,6 +244,16 @@ export function AssistantPage() {
     }
   }
 
+  /**
+   * Validate a proposed action: queue it as a draft campaign and open the
+   * governed create flow. This NEVER launches — the operator reviews it there,
+   * a CISO approves, and HARD_CAPS are enforced server-side.
+   */
+  function reviewProposal(p: AssistantProposal) {
+    app.queueReplay(proposalToSeed(p));
+    navigate('/campaigns');
+  }
+
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -244,15 +263,15 @@ export function AssistantPage() {
 
   const placeholder = !chatReady
     ? podManaged && podState !== 'RUNNING'
-      ? 'Allume Qwen pour discuter…'
-      : 'Assistant indisponible'
-    : 'Écris ton message… (Entrée pour envoyer)';
+      ? 'Power Qwen on to chat…'
+      : 'Assistant unavailable'
+    : 'Write your message… (Enter to send)';
 
   return (
     <div className="assistant-page">
       <PageHead
         title="Assistant"
-        sub="Copilote conversationnel — lecture & raisonnement uniquement (ne lance aucune campagne)."
+        sub="Conversational copilot — it reasons and proposes; it never launches. You validate any action through governance."
       />
 
       {/* GPU pod power control — visible only when the pod is managed. */}
@@ -264,12 +283,12 @@ export function AssistantPage() {
               <strong>Qwen&nbsp;·&nbsp;{POD_LABEL[podState]}</strong>
               <span className="hint assistant-power-sub">
                 {podState === 'RUNNING'
-                  ? `GPU actif — pense à éteindre après usage (~0,60 $/h)${
+                  ? `GPU running — remember to power off after use (~$0.60/h)${
                       podUptime ? ` · up ${Math.round(podUptime / 60)} min` : ''
                     }`
                   : podState === 'STARTING'
-                    ? 'Démarrage du GPU (30–90 s)…'
-                    : 'GPU éteint — aucune facturation.'}
+                    ? 'Starting the GPU (30–90 s)…'
+                    : 'GPU off — no billing.'}
               </span>
             </div>
           </div>
@@ -281,7 +300,7 @@ export function AssistantPage() {
                   onClick={() => void powerOff()}
                   disabled={podBusy}
                 >
-                  Éteindre
+                  Power off
                 </button>
               ) : (
                 <button
@@ -289,12 +308,12 @@ export function AssistantPage() {
                   onClick={() => void powerOn()}
                   disabled={podBusy || podState === 'STARTING'}
                 >
-                  {podState === 'STARTING' ? 'Démarrage…' : 'Allumer'}
+                  {podState === 'STARTING' ? 'Starting…' : 'Power on'}
                 </button>
               )}
             </div>
           ) : (
-            <span className="hint">Alimentation réservée aux opérateurs.</span>
+            <span className="hint">Power control is limited to operators.</span>
           )}
         </div>
       )}
@@ -304,9 +323,9 @@ export function AssistantPage() {
       {status === 'not_configured' && !podManaged && (
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p className="hint">
-            L'assistant n'est pas configuré côté serveur. Définis <code>ASSISTANT_ENDPOINT</code>{' '}
-            (et <code>ASSISTANT_API_KEY</code>) — ou <code>RUNPOD_API_KEY</code> +{' '}
-            <code>RUNPOD_POD_ID</code> pour le pilotage du pod — sur l'API pour l'activer.
+            The assistant is not configured on the server. Set <code>ASSISTANT_ENDPOINT</code> (and{' '}
+            <code>ASSISTANT_API_KEY</code>) — or <code>RUNPOD_API_KEY</code> +{' '}
+            <code>RUNPOD_POD_ID</code> for pod power control — on the API to enable it.
           </p>
         </div>
       )}
@@ -315,11 +334,11 @@ export function AssistantPage() {
         <div className="assistant-chat-head">
           <span className="hint">
             {model}
-            {busy ? ' · génère…' : ''}
+            {busy ? ' · generating…' : ''}
           </span>
           {messages.length > 0 && (
             <button className="btn btn-ghost assistant-new" onClick={resetConversation}>
-              Nouvelle conversation
+              New conversation
             </button>
           )}
         </div>
@@ -328,8 +347,8 @@ export function AssistantPage() {
           {messages.length === 0 && (
             <div className="assistant-empty">
               <p className="hint">
-                Pose une question sur l'état de la plateforme, la résilience ou la sécurité du code.
-                L'assistant répond, il n'exécute rien.
+                Ask about platform state, resilience, or code security. The assistant replies and can
+                propose a bounded test — it never runs anything itself.
               </p>
               <div className="assistant-starters">
                 {STARTERS.map((s) => (
@@ -339,7 +358,7 @@ export function AssistantPage() {
                     className="assistant-chip"
                     onClick={() => void send(s)}
                     disabled={!chatReady}
-                    title={!chatReady ? 'Assistant indisponible' : undefined}
+                    title={!chatReady ? 'Assistant unavailable' : undefined}
                   >
                     {s}
                   </button>
@@ -349,33 +368,112 @@ export function AssistantPage() {
           )}
           {messages.map((m, i) => {
             const isLast = i === messages.length - 1;
-            const showMd = m.role === 'assistant' && m.content !== '';
+            if (m.role === 'user') {
+              return (
+                <div key={i} className="assistant-msg assistant-msg-user">
+                  <div className="assistant-msg-head">
+                    <span className="assistant-msg-role">You</span>
+                    {m.content !== '' && (
+                      <button
+                        type="button"
+                        className="assistant-copy"
+                        onClick={() => copyMsg(i, m.content)}
+                        aria-label="Copy message"
+                        title="Copy"
+                      >
+                        {copiedIdx === i ? '✓ Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="assistant-msg-body">{m.content}</div>
+                </div>
+              );
+            }
+            const { text, proposals } = extractProposals(m.content);
             return (
-              <div key={i} className={`assistant-msg assistant-msg-${m.role}`}>
+              <div key={i} className="assistant-msg assistant-msg-assistant">
                 <div className="assistant-msg-head">
-                  <span className="assistant-msg-role">{m.role === 'user' ? 'Vous' : model}</span>
+                  <span className="assistant-msg-role">{model}</span>
                   {m.content !== '' && (
                     <button
                       type="button"
                       className="assistant-copy"
                       onClick={() => copyMsg(i, m.content)}
-                      aria-label="Copier le message"
-                      title="Copier"
+                      aria-label="Copy message"
+                      title="Copy"
                     >
-                      {copiedIdx === i ? '✓ Copié' : 'Copier'}
+                      {copiedIdx === i ? '✓ Copied' : 'Copy'}
                     </button>
                   )}
                 </div>
-                {showMd ? (
+                {text && (
                   <div
                     className="assistant-msg-body md"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
                   />
-                ) : (
-                  <div className="assistant-msg-body">
-                    {m.content || (busy && isLast ? '…' : '')}
-                  </div>
                 )}
+                {!text && m.content === '' && (
+                  <div className="assistant-msg-body">{busy && isLast ? '…' : ''}</div>
+                )}
+                {proposals.map((p, pi) => {
+                  const over = proposalOverCaps(p);
+                  return (
+                    <div key={pi} className="assistant-proposal">
+                      <div className="assistant-proposal-head">
+                        <span className="assistant-proposal-tag">Proposed action</span>
+                        <strong>{p.name}</strong>
+                      </div>
+                      <dl className="assistant-proposal-grid">
+                        <div>
+                          <dt>Target</dt>
+                          <dd className="mono">{p.target}</dd>
+                        </div>
+                        <div>
+                          <dt>Vector</dt>
+                          <dd>{p.vector}</dd>
+                        </div>
+                        <div>
+                          <dt>Max RPS</dt>
+                          <dd className={over.includes('maxRps') ? 'over' : undefined}>{p.maxRps}</dd>
+                        </div>
+                        <div>
+                          <dt>Concurrency</dt>
+                          <dd className={over.includes('concurrency') ? 'over' : undefined}>
+                            {p.concurrency}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Duration</dt>
+                          <dd className={over.includes('maxDurationSec') ? 'over' : undefined}>
+                            {p.maxDurationSec}s
+                          </dd>
+                        </div>
+                      </dl>
+                      {p.rationale && <p className="assistant-proposal-why">{p.rationale}</p>}
+                      {over.length > 0 && (
+                        <p className="hint assistant-error">
+                          ⚠ Above the safety ceiling ({over.join(', ')}) — it will be clamped on
+                          review.
+                        </p>
+                      )}
+                      <div className="assistant-proposal-actions">
+                        {canCreate ? (
+                          <button className="btn btn-primary" onClick={() => reviewProposal(p)}>
+                            Review in campaign builder →
+                          </button>
+                        ) : (
+                          <span className="hint">
+                            An engineer configures and launches this; a CISO approves it.
+                          </span>
+                        )}
+                      </div>
+                      <p className="assistant-proposal-note">
+                        A proposal only — nothing runs until you review it and it clears governance
+                        (approval · HARD_CAPS · kill-switch).
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -402,7 +500,7 @@ export function AssistantPage() {
               onClick={() => void send()}
               disabled={!chatReady || !input.trim()}
             >
-              Envoyer
+              Send
             </button>
           )}
         </div>
