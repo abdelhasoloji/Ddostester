@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeHost,
   createTarget,
+  updateTarget,
   requestAuthorization,
   authorizeTarget,
   revokeTarget,
@@ -104,6 +105,27 @@ describe('lifecycle', () => {
       'ciso@x',
     );
     expect(authorizedHosts([unauth, requested, authd]).sort()).toEqual(['c.eu']);
+  });
+});
+
+describe('updateTarget', () => {
+  it('edits metadata and can clear a field', () => {
+    const t = mk({ displayName: 'Old', owner: 'a@x' });
+    const u = updateTarget(t, { displayName: 'New', owner: '' });
+    expect(u.displayName).toBe('New');
+    expect(u.owner).toBeUndefined();
+    expect(u.authStatus).toBe('unauthorized');
+  });
+  it('allows a host change while not authorized', () => {
+    const u = updateTarget(mk(), { host: 'https://Renamed.EU/x' });
+    expect(u.host).toBe('renamed.eu');
+  });
+  it('refuses to change the host of an authorized target', () => {
+    const auth = authorizeTarget(
+      requestAuthorization(mk(), 'eng@x', 'authorized to test — ownership on file.'),
+      'ciso@x',
+    );
+    expect(() => updateTarget(auth, { host: 'moved.eu' })).toThrow(/revoke/);
   });
 });
 

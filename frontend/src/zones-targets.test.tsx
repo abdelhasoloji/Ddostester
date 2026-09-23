@@ -129,6 +129,28 @@ describe('TargetsPanel (Protected Zones)', () => {
     );
   });
 
+  it('edits a target’s metadata inline', async () => {
+    fakeApi.targets.mockResolvedValue({
+      targets: [target({ authStatus: 'authorized', displayName: 'Old name' })],
+      envAllowlist: [],
+    });
+    fakeApi.updateTarget.mockResolvedValue(
+      target({ authStatus: 'authorized', displayName: 'New name' }),
+    );
+    renderWithRouter(<ZonesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Zone name'), { target: { value: 'New name' } });
+    fireEvent.change(screen.getByLabelText('Owner'), { target: { value: 'soc@fake' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(fakeApi.updateTarget).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ displayName: 'New name', owner: 'soc@fake' }),
+      ),
+    );
+    expect(await screen.findByText('New name')).toBeInTheDocument();
+  });
+
   it('deletes a non-authorized target', async () => {
     fakeApi.targets.mockResolvedValue({
       targets: [target({ authStatus: 'revoked' })],

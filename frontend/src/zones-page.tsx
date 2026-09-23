@@ -99,6 +99,15 @@ function TargetsPanel() {
   // Per-row attestation entry for requesting authorization on an existing target.
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [reqAtt, setReqAtt] = useState('');
+  // Per-row inline metadata editing.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ displayName: '', owner: '', notes: '' });
+
+  function openEdit(t: ProtectedTarget) {
+    setEditingId(t.id);
+    setEditForm({ displayName: t.displayName ?? '', owner: t.owner ?? '', notes: t.notes ?? '' });
+    setRequestingId(null);
+  }
 
   const load = () => {
     api
@@ -157,6 +166,7 @@ function TargetsPanel() {
       else upsert(r as ProtectedTarget);
       setRequestingId(null);
       setReqAtt('');
+      setEditingId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed.');
     } finally {
@@ -329,6 +339,15 @@ function TargetsPanel() {
                       Request authorization
                     </button>
                   )}
+                  {canManage && (
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      disabled={busy}
+                      onClick={() => (editingId === t.id ? setEditingId(null) : openEdit(t))}
+                    >
+                      Edit
+                    </button>
+                  )}
                   {canManage && t.authStatus !== 'authorized' && (
                     <button
                       className="btn btn-sm btn-ghost"
@@ -342,6 +361,46 @@ function TargetsPanel() {
                     <span className="hint">awaiting CISO</span>
                   )}
                 </div>
+
+                {editingId === t.id && (
+                  <div className="target-request target-edit">
+                    <div className="target-form-grid">
+                      <input
+                        value={editForm.displayName}
+                        onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                        placeholder="Zone / customer name"
+                        aria-label="Zone name"
+                      />
+                      <input
+                        value={editForm.owner}
+                        onChange={(e) => setEditForm({ ...editForm, owner: e.target.value })}
+                        placeholder="Owner / contact"
+                        aria-label="Owner"
+                      />
+                      <input
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        placeholder="Notes"
+                        aria-label="Notes"
+                      />
+                    </div>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      disabled={busy}
+                      onClick={() =>
+                        void act(t.id, () =>
+                          api.updateTarget(t.id, {
+                            displayName: editForm.displayName.trim(),
+                            owner: editForm.owner.trim(),
+                            notes: editForm.notes.trim(),
+                          }),
+                        )
+                      }
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
 
                 {requestingId === t.id && (
                   <div className="target-request">

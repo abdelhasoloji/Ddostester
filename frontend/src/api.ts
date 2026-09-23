@@ -931,6 +931,8 @@ export const api = {
   assistantPodStop: () => post<PodStatus>('/api/assistant/pod/stop'),
   targets: () => get<{ targets: ProtectedTarget[]; envAllowlist: string[] }>('/api/targets'),
   registerTarget: (body: RegisterTargetInput) => post<ProtectedTarget>('/api/targets', body),
+  updateTarget: (id: string, body: Partial<RegisterTargetInput>) =>
+    patch<ProtectedTarget>(`/api/targets/${id}`, body),
   requestTargetAuth: (id: string, attestation: string) =>
     post<ProtectedTarget>(`/api/targets/${id}/request`, { attestation }),
   authorizeTarget: (id: string) => post<ProtectedTarget>(`/api/targets/${id}/authorize`),

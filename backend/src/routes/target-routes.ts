@@ -5,6 +5,7 @@ import type { Store } from '../store/types.js';
 import type { AuditEntry } from '../modules/audit/model.js';
 import {
   createTarget,
+  updateTarget,
   requestAuthorization,
   authorizeTarget,
   revokeTarget,
@@ -97,6 +98,42 @@ export function registerTargetRoutes(app: FastifyInstance, ctx: TargetRoutesCtx)
       return reply
         .code(400)
         .send({ error: err instanceof TargetError ? err.message : 'could not register target' });
+    }
+  });
+
+  // Edit a target's metadata (name / owner / notes; host only while not
+  // authorized). Does not change the authorization state.
+  app.patch('/api/targets/:id', { preHandler: guard('target:manage') }, async (req, reply) => {
+    const t = await store.getTarget((req.params as { id: string }).id);
+    if (!t) return reply.code(404).send({ error: 'target not found' });
+    const body = (req.body ?? {}) as CreateBody;
+    try {
+      let host: string | undefined;
+      if (body.host !== undefined) {
+        host = normalizeHost(str(body.host) ?? '');
+        if (host !== t.host) {
+          if (envAllowlist.includes(host)) {
+            return reply
+              .code(409)
+              .send({ error: `host "${host}" is already in the env allowlist` });
+          }
+          const dup = (await store.listTargets()).find((x) => x.host === host && x.id !== t.id);
+          if (dup) return reply.code(409).send({ error: `host "${host}" is already registered` });
+        }
+      }
+      const next = updateTarget(t, {
+        displayName: str(body.displayName),
+        notes: str(body.notes),
+        owner: str(body.owner),
+        host,
+      });
+      await store.saveTarget(next);
+      await audit(req, 'target.update', `${next.host} updated`);
+      return next;
+    } catch (err) {
+      return reply
+        .code(400)
+        .send({ error: err instanceof TargetError ? err.message : 'could not update target' });
     }
   });
 
