@@ -102,6 +102,37 @@ export function createTarget(
   };
 }
 
+export interface UpdateTargetInput {
+  displayName?: string | null;
+  notes?: string | null;
+  owner?: string | null;
+  host?: string;
+}
+
+/**
+ * Edits a target's metadata. Name / owner / notes are always editable (pass an
+ * empty string or null to clear a field). The host is the allowlist unit, so it
+ * can only be changed while the target is NOT authorized — otherwise it would
+ * silently swap what is allowlisted; revoke first. Does not touch the auth state.
+ */
+export function updateTarget(
+  t: ProtectedTarget,
+  input: UpdateTargetInput,
+  now = new Date().toISOString(),
+): ProtectedTarget {
+  const next: ProtectedTarget = { ...t, updatedAt: now };
+  if (input.displayName !== undefined) next.displayName = clip(input.displayName ?? '', 120);
+  if (input.notes !== undefined) next.notes = clip(input.notes ?? '', 2000);
+  if (input.owner !== undefined) next.owner = clip(input.owner ?? '', 120);
+  if (input.host !== undefined) {
+    if (t.authStatus === 'authorized') {
+      throw new TargetError('revoke the target before changing the host of an authorized target');
+    }
+    next.host = normalizeHost(input.host);
+  }
+  return next;
+}
+
 /**
  * Requests authorization to test the host. Requires a non-empty attestation.
  * Allowed from `unauthorized` or `revoked` (re-request). A target already

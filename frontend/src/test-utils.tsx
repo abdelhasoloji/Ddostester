@@ -154,6 +154,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     zones: vi.fn().mockResolvedValue([]),
     targets: vi.fn().mockResolvedValue({ targets: [], envAllowlist: [] }),
     registerTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
+    updateTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
     requestTargetAuth: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'requested' }),
     authorizeTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'authorized' }),
     revokeTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'revoked' }),

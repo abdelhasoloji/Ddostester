@@ -39,6 +39,7 @@ export interface AuditEntry {
     | 'assistant.pod_start'
     | 'assistant.pod_stop'
     | 'target.register'
+    | 'target.update'
     | 'target.request_auth'
     | 'target.authorize'
     | 'target.revoke'
