@@ -36,6 +36,27 @@ describe('MitigationPanel', () => {
     expect(fakeApi.runMitigation).toHaveBeenCalledWith('r1');
   });
 
+  it('flags a not-exercised baseline as theoretical', async () => {
+    fakeApi.runMitigation.mockResolvedValue({
+      verdict: 'not-exercised',
+      source: 'mock',
+      ttdSec: 2,
+      ttmSec: 4,
+      theoretical: true,
+      before: { fromSec: 0, toSec: 2, samples: 1, absorbedRatio: 0, availabilityPct: 100 },
+      after: { fromSec: 4, toSec: 7, samples: 2, absorbedRatio: 0, availabilityPct: 100 },
+      absorbedDelta: 0,
+      availabilityDelta: 0,
+      wrsBefore: 75.76,
+      wrsAfter: 99.4,
+      wrsDelta: 23.64,
+      note: 'No incident exercised — the WRS delta is theoretical.',
+    });
+    render(<MitigationPanel runId="rx" />);
+    expect(await screen.findByText(/not exercised/)).toBeInTheDocument();
+    expect(screen.getByText('theoretical Δ')).toBeInTheDocument();
+  });
+
   it('shows only the note (no table) when there is no measurement', async () => {
     fakeApi.runMitigation.mockResolvedValue({
       verdict: 'no-measurement',

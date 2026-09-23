@@ -1346,6 +1346,15 @@ input.invalid {
   color: var(--muted, #7a7a7a);
   border-color: var(--border);
 }
+.mv-theoretical {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--fg) 30%, transparent);
+  color: var(--muted, #7a7a7a);
+}
 .mv-timings {
   display: flex;
   gap: 16px;
