@@ -61,6 +61,8 @@ import { registerReadRoutes } from './routes/read-routes.js';
 import { registerAssistantRoutes } from './routes/assistant-routes.js';
 import { assistantConfigFromEnv } from './modules/assistant/provider.js';
 import { runpodConfigFromEnv, podProxyEndpoint } from './modules/assistant/runpod.js';
+import { registerTargetRoutes } from './routes/target-routes.js';
+import { authorizedHosts } from './modules/targets/model.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
@@ -407,6 +409,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     detail?: string,
   ) => auditAs(req.authUser?.email ?? 'dev', action, campaignId, detail);
 
+  /**
+   * The EFFECTIVE allowlist enforced on every campaign/recon: the env allowlist
+   * (`opts.allowedTargets`) plus the hosts a CISO has AUTHORIZED via the governed
+   * target-onboarding flow. Only `authorized` targets extend it; unauthorized,
+   * requested, or revoked targets never do. Fail-closed: on any store error it
+   * falls back to the env allowlist alone, never widening it.
+   */
+  async function effectiveAllowlist(): Promise<string[]> {
+    try {
+      const extra = authorizedHosts(await store.listTargets());
+      return extra.length ? [...allowedTargets, ...extra] : allowedTargets;
+    } catch {
+      return allowedTargets;
+    }
+  }
+
   async function runCampaign(c: Campaign, actor: string): Promise<CampaignRun> {
     // Dual control: enforced here so NEITHER the execute endpoint NOR the suite
     // sequencer can bypass a mandatory CISO sign-off.
@@ -579,7 +597,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       );
       const run = await executeCampaign(
         c,
-        allowedTargets,
+        await effectiveAllowlist(),
         kill,
         onProgress,
         runAgent,
@@ -1034,7 +1052,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // Governance posture: does this deployment require a CISO sign-off on every
     // campaign (dual control)? The UI reads this to show/gate the CISO step.
     requireCisoApproval,
-    allowedTargets,
+    // Effective allowlist = env allowlist + CISO-authorized onboarded targets, so
+    // the UI's notion of testable hosts matches enforcement.
+    allowedTargets: await effectiveAllowlist(),
     labTargets,
     storage: store.backend,
     authRequired: auth.enabled,
@@ -1142,7 +1162,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!target) return reply.code(400).send({ error: 'target is required' });
     const agents = await describeAgents();
     try {
-      const report = await runRecon(target, probeUrl ?? target, allowedTargets, {
+      const report = await runRecon(target, probeUrl ?? target, await effectiveAllowlist(), {
         enginesAvailable: agents.filter((a) => a.available).length,
         capsConfigured: true,
         protectionConfigured: protection.configured,
@@ -1186,7 +1206,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const availN = (await describeAgents()).filter((a) => a.available).length;
       const recon = await Promise.race([
-        runRecon(target, probeUrl, allowedTargets, {
+        runRecon(target, probeUrl, await effectiveAllowlist(), {
           enginesAvailable: availN,
           capsConfigured: true,
           protectionConfigured: protection.configured,
@@ -1902,7 +1922,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const input = req.body as CampaignInput;
       if (req.authUser) input.createdBy = req.authUser.email;
-      const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+      const campaign = createCampaign(
+        input,
+        await effectiveAllowlist(),
+        agentChoices(),
+        effectiveCaps,
+      );
       await store.saveCampaign(campaign);
       await audit(req, 'campaign.create', campaign.id, `${campaign.name} → ${campaign.target}`);
       return reply.code(201).send(campaign);
@@ -1971,7 +1996,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         );
         const created: Campaign[] = [];
         for (const input of inputs) {
-          const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+          const campaign = createCampaign(
+            input,
+            await effectiveAllowlist(),
+            agentChoices(),
+            effectiveCaps,
+          );
           await store.saveCampaign(campaign);
           created.push(campaign);
         }
@@ -2042,7 +2072,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       );
       const created: Campaign[] = [];
       for (const input of inputs) {
-        const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+        const campaign = createCampaign(
+          input,
+          await effectiveAllowlist(),
+          agentChoices(),
+          effectiveCaps,
+        );
         await store.saveCampaign(campaign);
         created.push(campaign);
       }
@@ -2095,7 +2130,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             suiteName,
             suiteOrder: asSuite ? order : undefined,
           };
-          const campaign = createCampaign(input, allowedTargets, agentChoices(), effectiveCaps);
+          const campaign = createCampaign(
+            input,
+            await effectiveAllowlist(),
+            agentChoices(),
+            effectiveCaps,
+          );
           await store.saveCampaign(campaign);
           created.push(campaign);
           order++;
@@ -2627,6 +2667,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     config: assistantConfig,
     runpod,
     audit: (req, action, detail) => audit(req, action, undefined, detail),
+  });
+
+  // Protected-target onboarding (governed). Registering a target is metadata
+  // only; a CISO authorization adds the host to the effective allowlist above.
+  registerTargetRoutes(app, {
+    store,
+    guard,
+    audit: (req, action, detail) => audit(req, action, undefined, detail),
+    envAllowlist: allowedTargets,
+    actorOf: (req) => req.authUser?.email ?? 'dev',
   });
 
   return { app, runCampaign };

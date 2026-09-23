@@ -37,7 +37,12 @@ export interface AuditEntry {
     | 'suite.resume'
     | 'suite.cancel'
     | 'assistant.pod_start'
-    | 'assistant.pod_stop';
+    | 'assistant.pod_stop'
+    | 'target.register'
+    | 'target.request_auth'
+    | 'target.authorize'
+    | 'target.revoke'
+    | 'target.delete';
   campaignId?: string;
   detail?: string;
   /**

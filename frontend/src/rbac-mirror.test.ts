@@ -20,6 +20,8 @@ const ALL_PERMS: Perm[] = [
   'limits',
   'bench',
   'assistantManage',
+  'targetManage',
+  'targetAuthorize',
 ];
 
 // Mirror of backend MATRIX, projected onto the frontend's short aliases:
@@ -28,9 +30,9 @@ const ALL_PERMS: Perm[] = [
 //   limits↔limits:manage · bench↔bench:* · assistantManage↔assistant:manage
 //   (read is implicit for every role)
 const EXPECTED: Record<Role, Perm[]> = {
-  engineer: ['create', 'execute', 'kill', 'assistantManage'],
-  ciso: ['approve', 'cisoApprove', 'kill', 'bench'],
-  admin: ['kill', 'manage', 'limits', 'assistantManage'],
+  engineer: ['create', 'execute', 'kill', 'assistantManage', 'targetManage'],
+  ciso: ['approve', 'cisoApprove', 'kill', 'bench', 'targetAuthorize'],
+  admin: ['kill', 'manage', 'limits', 'assistantManage', 'targetManage'],
   viewer: [],
 };
 

@@ -5,6 +5,7 @@ import type { AuditEntry } from '../modules/audit/model.js';
 import { AUDIT_GENESIS, chainEntry } from '../modules/audit/integrity.js';
 import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
+import type { ProtectedTarget } from '../modules/targets/model.js';
 import { withCanonicalRole } from '../auth/rbac.js';
 
 /**
@@ -210,6 +211,21 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at        timestamptz;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version        integer NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    // Protected targets (governed onboarding). Metadata + authorization
+    // lifecycle; only `authorized` rows extend the effective allowlist.
+    id: 7,
+    sql: `
+      CREATE TABLE IF NOT EXISTS targets (
+        id          text PRIMARY KEY,
+        host        text NOT NULL,
+        auth_status text NOT NULL DEFAULT 'unauthorized',
+        data        jsonb NOT NULL,
+        updated_at  timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS targets_auth_status_idx ON targets (auth_status);
     `,
   },
 ];
@@ -521,6 +537,30 @@ export class PostgresStore implements Store {
 
   async deletePlaybook(id: string): Promise<void> {
     await this.pool.query('DELETE FROM playbooks WHERE id=$1', [id]);
+  }
+
+  async listTargets(): Promise<ProtectedTarget[]> {
+    const r = await this.pool.query<{ data: ProtectedTarget }>(
+      'SELECT data FROM targets ORDER BY host',
+    );
+    return r.rows.map((row) => row.data);
+  }
+  async getTarget(id: string): Promise<ProtectedTarget | undefined> {
+    const r = await this.pool.query<{ data: ProtectedTarget }>(
+      'SELECT data FROM targets WHERE id=$1',
+      [id],
+    );
+    return r.rows[0]?.data;
+  }
+  async saveTarget(t: ProtectedTarget): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO targets (id, host, auth_status, data, updated_at) VALUES ($1,$2,$3,$4, now())
+       ON CONFLICT (id) DO UPDATE SET host=$2, auth_status=$3, data=$4, updated_at=now()`,
+      [t.id, t.host, t.authStatus, JSON.stringify(t)],
+    );
+  }
+  async deleteTarget(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM targets WHERE id=$1', [id]);
   }
 
   async getLimits(): Promise<OperationalLimits | undefined> {

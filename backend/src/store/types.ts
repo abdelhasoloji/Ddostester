@@ -5,6 +5,7 @@ import type { User } from '../auth/users.js';
 import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
+import type { ProtectedTarget } from '../modules/targets/model.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
@@ -57,6 +58,14 @@ export interface Store {
   getPlaybook(id: string): Promise<Playbook | undefined>;
   savePlaybook(p: Playbook): Promise<void>;
   deletePlaybook(id: string): Promise<void>;
+  /**
+   * Protected targets (governed onboarding). Registering one is metadata only;
+   * only those with `authStatus === 'authorized'` extend the effective allowlist.
+   */
+  listTargets(): Promise<ProtectedTarget[]>;
+  getTarget(id: string): Promise<ProtectedTarget | undefined>;
+  saveTarget(t: ProtectedTarget): Promise<void>;
+  deleteTarget(id: string): Promise<void>;
   /**
    * CISO-managed operational limits (the effective caps, always ≤ the immutable
    * HARD_CAPS ceiling). `undefined` when never set — the effective caps then

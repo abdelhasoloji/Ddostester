@@ -28,7 +28,9 @@ export type Perm =
   | 'manage'
   | 'limits'
   | 'bench'
-  | 'assistantManage';
+  | 'assistantManage'
+  | 'targetManage'
+  | 'targetAuthorize';
 /**
  * Client-side UX gate only — the backend `MATRIX` in `backend/src/auth/rbac.ts`
  * is the authoritative enforcer (this just hides controls a role can't use).
@@ -37,15 +39,16 @@ export type Perm =
  * in step — `rbac-mirror.test.ts` locks this table so drift fails CI.
  */
 const PERMS: Record<Role, Perm[]> = {
-  // Operator: creates campaigns, launches approved ones, and powers the
-  // assistant GPU pod on/off ('assistantManage').
-  engineer: ['create', 'execute', 'kill', 'assistantManage'],
+  // Operator: creates campaigns, launches approved ones, powers the assistant
+  // GPU pod ('assistantManage'), and registers/requests targets ('targetManage').
+  engineer: ['create', 'execute', 'kill', 'assistantManage', 'targetManage'],
   // Validation/governance: the ONLY role that approves ('approve'), plus the
-  // dual-control sign-off ('cisoApprove') and the class-C bench ('bench').
-  ciso: ['approve', 'cisoApprove', 'kill', 'bench'],
+  // dual-control sign-off ('cisoApprove'), the class-C bench ('bench'), and
+  // target authorization ('targetAuthorize' — grants/revokes allowlist entries).
+  ciso: ['approve', 'cisoApprove', 'kill', 'bench', 'targetAuthorize'],
   // Platform administration: users ('manage') + operational limits ('limits');
-  // also powers the assistant GPU pod ('assistantManage', a cost control).
-  admin: ['manage', 'limits', 'kill', 'assistantManage'],
+  // powers the assistant GPU pod and registers/requests targets.
+  admin: ['manage', 'limits', 'kill', 'assistantManage', 'targetManage'],
   // Read-only (SOC/NOC).
   viewer: [],
 };
