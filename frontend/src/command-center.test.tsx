@@ -133,6 +133,9 @@ describe('Command Center', () => {
     expect(screen.getByRole('heading', { name: 'Command Center' })).toBeInTheDocument();
     expect(screen.getByText(/Active alerts · from recent runs/)).toBeInTheDocument();
     expect(screen.getByText(/Low WRS 62/)).toBeInTheDocument();
+    // Each alert carries a colored severity pill for at-a-glance triage.
+    expect(document.querySelector('.alert-sev-warning')?.textContent?.trim()).toBe('warning');
+    expect(document.querySelector('.alert-sev-info')?.textContent?.trim()).toBe('info');
     await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
     await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
   });

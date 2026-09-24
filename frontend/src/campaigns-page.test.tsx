@@ -246,4 +246,23 @@ describe('CampaignList — suite grouping', () => {
     expect(screen.getByText('SlowLoris')).toBeInTheDocument();
     expect(screen.getByText('GET-Flood')).toBeInTheDocument();
   });
+
+  it('makes expandable rows keyboard-operable (focusable, Enter/Space toggles)', () => {
+    currentApp = makeApp({
+      role: 'ciso',
+      campaigns: [
+        { ...member(0, 'COMPLETED'), suiteId: undefined, suiteName: undefined, name: 'Alpha run' },
+      ],
+    });
+    renderWithRouter(<CampaignList />);
+    const row = document.querySelector('tr.ct-row') as HTMLElement;
+    expect(row.getAttribute('tabindex')).toBe('0');
+    expect(row.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelector('.ct-detail .campaign')).toBeNull();
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(row.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector('.ct-detail .campaign')).not.toBeNull();
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(document.querySelector('.ct-detail .campaign')).toBeNull();
+  });
 });

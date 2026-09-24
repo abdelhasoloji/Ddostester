@@ -66,9 +66,22 @@ function ZoneCard({ z, onOpen }: { z: ZoneSummary; onOpen: () => void }) {
           <dt>DRS reached</dt>
           <dd>{z.maxDrs != null ? `DRS ${z.maxDrs}` : '—'}</dd>
         </div>
-        <div>
+        <div
+          className="zone-absorb"
+          title="Share of the offered attack load the edge soaked up before it reached origin. 0% = the edge never engaged (traffic passed straight to origin); a high % with the probe still up = protection working."
+        >
           <dt>Edge absorbed</dt>
-          <dd>{z.lastAbsorbedPct != null ? `${z.lastAbsorbedPct}%` : '—'}</dd>
+          <dd>
+            {z.lastAbsorbedPct == null ? (
+              '—'
+            ) : z.lastAbsorbedPct === 0 ? (
+              <span className="zone-absorb-v zone-absorb-idle">0% · edge idle</span>
+            ) : (
+              <span className={`zone-absorb-v${z.lastAbsorbedPct >= 60 ? ' zone-absorb-ok' : ''}`}>
+                {z.lastAbsorbedPct}%
+              </span>
+            )}
+          </dd>
         </div>
         <div>
           <dt>Campaigns</dt>
