@@ -1,21 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
 import { renderMarkdown } from './markdown.js';
-import { extractActions, type AssistantAction } from './assistant-action.js';
+import { extractActions } from './assistant-action.js';
+import { AssistantActionCard } from './assistant-action-card.js';
 
 /**
  * Assistant — an interactive conversational panel over the self-hosted LLM (Qwen).
  *
- * SAFETY / GOVERNANCE: the chat PREPARES actionable cards; it never executes.
- * Each action is a one-click hand-off to its governed screen — a test campaign
- * pre-fills the campaign builder, a target pre-fills onboarding, tighter caps
- * open the limit settings, and "open" just navigates. RBAC, approvals, the
- * frozen HARD_CAPS ceiling and the kill-switch all still apply on those screens.
- * No campaign is ever launched from here, and the chat route is a read-only
- * text proxy that reaches no mutating endpoint.
+ * SAFETY / GOVERNANCE: the chat prepares actionable cards that the operator
+ * completes inline (see assistant-action-card). Every step is governed and
+ * server-enforced — RBAC gates each control, the approver differs from the
+ * author (and the CISO co-signer from both), the frozen HARD_CAPS ceiling
+ * clamps the bounds, and the kill switch stays live while a campaign runs.
+ * The chat route itself stays a read-only text proxy.
  *
  * The GPU pod that serves Qwen bills per hour, so operators can power it on/off
  * from here (RunPod stop/resume, `assistant:manage`, audited). Chat is enabled
@@ -36,13 +35,6 @@ const POD_LABEL: Record<PodState, string> = {
   UNKNOWN: 'Unknown',
 };
 
-const ACTION_TAG: Record<AssistantAction['kind'], string> = {
-  campaign: 'Proposed test',
-  target: 'Register target',
-  limits: 'Adjust limits',
-  navigate: 'Go to',
-};
-
 /** Defensive-framed starter prompts, offered in the empty state. */
 const STARTERS: string[] = [
   'Explain a bounded breakpoint controller (gradual ramp + back-off under distress).',
@@ -53,11 +45,7 @@ const STARTERS: string[] = [
 
 export function AssistantPage() {
   const app = useApp();
-  const navigate = useNavigate();
   const canManage = canDo(app.role, 'assistantManage', app.authRequired);
-  const canCreate = canDo(app.role, 'create', app.authRequired);
-  const canManageTargets = canDo(app.role, 'targetManage', app.authRequired);
-  const canSetLimits = canDo(app.role, 'limits', app.authRequired);
 
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
@@ -267,63 +255,6 @@ export function AssistantPage() {
     );
   }
 
-  /**
-   * Trigger a prepared action: hand it off to its governed screen. This NEVER
-   * executes — the operator finishes each action there (review, approval,
-   * server-side HARD_CAPS, kill-switch).
-   */
-  function runAction(a: AssistantAction) {
-    switch (a.kind) {
-      case 'campaign':
-        app.queueReplay(a.seed);
-        navigate('/campaigns');
-        break;
-      case 'target':
-        app.queueTarget(a.draft);
-        navigate('/zones');
-        break;
-      case 'limits':
-        navigate('/settings');
-        break;
-      case 'navigate':
-        navigate(a.to);
-        break;
-    }
-  }
-
-  /** The primary control for an action card, gated by role. */
-  function actionControl(a: AssistantAction) {
-    const btn = (label: string) => (
-      <button className="btn btn-primary" onClick={() => runAction(a)}>
-        {label}
-      </button>
-    );
-    switch (a.kind) {
-      case 'campaign':
-        return canCreate ? (
-          btn('Review in campaign builder →')
-        ) : (
-          <span className="hint">
-            An engineer configures and launches this; a CISO approves it.
-          </span>
-        );
-      case 'target':
-        return canManageTargets ? (
-          btn('Open target onboarding →')
-        ) : (
-          <span className="hint">Target onboarding is limited to operators.</span>
-        );
-      case 'limits':
-        return canSetLimits ? (
-          btn('Open limit settings →')
-        ) : (
-          <span className="hint">Operational limits are set by a CISO.</span>
-        );
-      case 'navigate':
-        return btn(`Open ${a.screen} →`);
-    }
-  }
-
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -341,7 +272,7 @@ export function AssistantPage() {
     <div className="assistant-page">
       <PageHead
         title="Assistant"
-        sub="Conversational copilot — it reasons and prepares actions you trigger through governance; it never launches anything."
+        sub="Conversational copilot — it reasons and runs actions inline, through governance: approval, HARD_CAPS and the kill switch still apply."
       />
 
       {podManaged && (
@@ -417,8 +348,8 @@ export function AssistantPage() {
             <div className="assistant-empty">
               <p className="hint">
                 Ask about platform state, resilience, or code security. The assistant replies and
-                can prepare actions — a test, a target, tighter caps — that you trigger through
-                governance. It never runs anything itself.
+                can prepare actions — a test, a target, tighter caps — that you complete right here,
+                through governance (approval · HARD_CAPS · kill switch).
               </p>
               <div className="assistant-starters">
                 {STARTERS.map((s) => (
@@ -486,42 +417,7 @@ export function AssistantPage() {
                   <div className="assistant-msg-body">{busy && isLast ? '…' : ''}</div>
                 )}
                 {actions.map((a, ai) => (
-                  <div key={ai} className={`assistant-proposal assistant-proposal-${a.kind}`}>
-                    <div className="assistant-proposal-head">
-                      <span className="assistant-proposal-tag">{ACTION_TAG[a.kind]}</span>
-                      <strong>{a.title}</strong>
-                    </div>
-                    {a.rows.length > 0 && (
-                      <dl className="assistant-proposal-grid">
-                        {a.rows.map((r) => (
-                          <div key={r.label}>
-                            <dt>{r.label}</dt>
-                            <dd
-                              className={
-                                [r.mono ? 'mono' : '', r.over ? 'over' : ''].join(' ').trim() ||
-                                undefined
-                              }
-                            >
-                              {r.value}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
-                    {a.rationale && <p className="assistant-proposal-why">{a.rationale}</p>}
-                    {'over' in a && a.over.length > 0 && (
-                      <p className="hint assistant-error">
-                        ⚠ Above the safety ceiling ({a.over.join(', ')}) — it will be clamped on
-                        review.
-                      </p>
-                    )}
-                    <div className="assistant-proposal-actions">{actionControl(a)}</div>
-                    <p className="assistant-proposal-note">
-                      {a.kind === 'navigate'
-                        ? 'Opens the screen — nothing changes on its own.'
-                        : 'A proposal only — nothing changes until you review it and it clears governance (approval · HARD_CAPS · kill-switch).'}
-                    </p>
-                  </div>
+                  <AssistantActionCard key={ai} action={a} />
                 ))}
               </div>
             );

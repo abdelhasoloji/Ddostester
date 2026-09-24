@@ -153,6 +153,15 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     impact: vi.fn().mockResolvedValue({ impact: [] }),
     zones: vi.fn().mockResolvedValue([]),
     runMitigation: vi.fn().mockResolvedValue({ verdict: 'no-measurement', note: 'n/a' }),
+    createCampaign: vi.fn().mockResolvedValue({ id: 'c1', status: 'PENDING_APPROVAL' }),
+    approve: vi.fn().mockResolvedValue({ id: 'c1', status: 'APPROVED' }),
+    cisoApprove: vi.fn().mockResolvedValue({ id: 'c1', status: 'APPROVED' }),
+    execute: vi
+      .fn()
+      .mockResolvedValue({ runId: 'r1', status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } }),
+    kill: vi.fn().mockResolvedValue({ status: 'KILLED_MANUAL' }),
+    listCampaigns: vi.fn().mockResolvedValue([]),
+    setLimits: vi.fn().mockResolvedValue({ effective: {}, ceiling: {} }),
     targets: vi.fn().mockResolvedValue({ targets: [], envAllowlist: [] }),
     registerTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
     updateTarget: vi.fn().mockResolvedValue({ id: 't1', host: 'x', authStatus: 'unauthorized' }),
