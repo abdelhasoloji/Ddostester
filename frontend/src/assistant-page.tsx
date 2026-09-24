@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
+import { renderMarkdown } from './markdown.js';
+import { extractActions, type AssistantAction } from './assistant-action.js';
 
 /**
- * Assistant — a read-only conversational panel over the self-hosted LLM (Qwen).
+ * Assistant — an interactive conversational panel over the self-hosted LLM (Qwen).
  *
- * SAFETY: this screen only talks. It cannot launch campaigns or run anything;
- * the backend route is a text-only streaming proxy gated by `campaign:read`.
- * Any future action ("propose a bounded breakpoint campaign") must surface as a
- * proposal the operator approves through the existing governance, never fire
- * from here directly.
+ * SAFETY / GOVERNANCE: the chat PREPARES actionable cards; it never executes.
+ * Each action is a one-click hand-off to its governed screen — a test campaign
+ * pre-fills the campaign builder, a target pre-fills onboarding, tighter caps
+ * open the limit settings, and "open" just navigates. RBAC, approvals, the
+ * frozen HARD_CAPS ceiling and the kill-switch all still apply on those screens.
+ * No campaign is ever launched from here, and the chat route is a read-only
+ * text proxy that reaches no mutating endpoint.
  *
  * The GPU pod that serves Qwen bills per hour, so operators can power it on/off
  * from here (RunPod stop/resume, `assistant:manage`, audited). Chat is enabled
@@ -25,15 +30,34 @@ interface Msg {
 type Status = 'checking' | 'ready' | 'not_configured';
 
 const POD_LABEL: Record<PodState, string> = {
-  RUNNING: 'Allumé',
-  STARTING: 'Démarrage…',
-  STOPPED: 'Éteint',
-  UNKNOWN: 'Indéterminé',
+  RUNNING: 'On',
+  STARTING: 'Starting…',
+  STOPPED: 'Off',
+  UNKNOWN: 'Unknown',
 };
+
+const ACTION_TAG: Record<AssistantAction['kind'], string> = {
+  campaign: 'Proposed test',
+  target: 'Register target',
+  limits: 'Adjust limits',
+  navigate: 'Go to',
+};
+
+/** Defensive-framed starter prompts, offered in the empty state. */
+const STARTERS: string[] = [
+  'Explain a bounded breakpoint controller (gradual ramp + back-off under distress).',
+  'What are the best practices to harden an HTTP endpoint against amplification?',
+  'Prepare a conservative resilience test against my authorized staging target.',
+  'Help me register a new authorized target and propose tighter caps for it.',
+];
 
 export function AssistantPage() {
   const app = useApp();
+  const navigate = useNavigate();
   const canManage = canDo(app.role, 'assistantManage', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const canManageTargets = canDo(app.role, 'targetManage', app.authRequired);
+  const canSetLimits = canDo(app.role, 'limits', app.authRequired);
 
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
@@ -47,12 +71,11 @@ export function AssistantPage() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Chat is usable when the endpoint is configured AND — if the pod is managed —
-  // the pod is running.
   const chatReady = status === 'ready' && (!podManaged || podState === 'RUNNING');
 
   async function refreshPod() {
@@ -82,7 +105,6 @@ export function AssistantPage() {
     };
   }, []);
 
-  // While the pod is starting, poll until it settles.
   useEffect(() => {
     if (podManaged && podState === 'STARTING') {
       if (!pollRef.current) {
@@ -106,7 +128,7 @@ export function AssistantPage() {
       const s = await api.assistantPodStart();
       setPodState(s.state === 'STOPPED' ? 'STARTING' : s.state);
     } catch (e) {
-      setPodError(e instanceof Error ? e.message : 'Échec du démarrage.');
+      setPodError(e instanceof Error ? e.message : 'Failed to start the pod.');
       void refreshPod();
     } finally {
       setPodBusy(false);
@@ -121,16 +143,16 @@ export function AssistantPage() {
       setPodState(s.state === 'RUNNING' ? 'STOPPED' : s.state);
       setPodUptime(undefined);
     } catch (e) {
-      setPodError(e instanceof Error ? e.message : "Échec de l'arrêt.");
+      setPodError(e instanceof Error ? e.message : 'Failed to stop the pod.');
       void refreshPod();
     } finally {
       setPodBusy(false);
     }
   }
 
-  async function send() {
-    const text = input.trim();
-    if (!text || busy) return;
+  async function send(override?: string) {
+    const text = (override ?? input).trim();
+    if (!text || busy || !chatReady) return;
     setError(null);
     const history: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages([...history, { role: 'assistant', content: '' }]);
@@ -152,7 +174,7 @@ export function AssistantPage() {
       });
       if (!res.ok || !res.body) {
         throw new Error(
-          res.status === 503 ? 'Assistant non configuré côté serveur.' : `Erreur ${res.status}`,
+          res.status === 503 ? 'Assistant is not configured on the server.' : `Error ${res.status}`,
         );
       }
       const reader = res.body.getReader();
@@ -184,7 +206,7 @@ export function AssistantPage() {
                   return next;
                 });
               } else if (event === 'error') {
-                setError(j.message || 'Erreur de génération.');
+                setError(j.message || 'Generation error.');
               }
             } catch {
               /* ignore keepalive / partial */
@@ -194,7 +216,7 @@ export function AssistantPage() {
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        setError(e instanceof Error ? e.message : 'Échec de la requête.');
+        setError(e instanceof Error ? e.message : 'Request failed.');
       }
     } finally {
       setBusy(false);
@@ -206,6 +228,102 @@ export function AssistantPage() {
     abortRef.current?.abort();
   }
 
+  function resetConversation() {
+    abortRef.current?.abort();
+    setMessages([]);
+    setError(null);
+    setInput('');
+  }
+
+  function copyMsg(idx: number, text: string) {
+    const done = () => {
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((v) => (v === idx ? null : v)), 1200);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => {
+        /* clipboard blocked — no-op */
+      });
+    }
+  }
+
+  /** Delegated copy for code blocks rendered inside assistant markdown. */
+  function onLogClick(e: React.MouseEvent<HTMLDivElement>) {
+    const btn = (e.target as HTMLElement).closest('.md-copy') as HTMLElement | null;
+    if (!btn) return;
+    const code = btn.closest('pre')?.querySelector('code')?.textContent ?? '';
+    if (!code || !navigator.clipboard?.writeText) return;
+    const label = btn.textContent;
+    navigator.clipboard.writeText(code).then(
+      () => {
+        btn.textContent = 'Copied';
+        setTimeout(() => {
+          btn.textContent = label;
+        }, 1200);
+      },
+      () => {
+        /* clipboard blocked — no-op */
+      },
+    );
+  }
+
+  /**
+   * Trigger a prepared action: hand it off to its governed screen. This NEVER
+   * executes — the operator finishes each action there (review, approval,
+   * server-side HARD_CAPS, kill-switch).
+   */
+  function runAction(a: AssistantAction) {
+    switch (a.kind) {
+      case 'campaign':
+        app.queueReplay(a.seed);
+        navigate('/campaigns');
+        break;
+      case 'target':
+        app.queueTarget(a.draft);
+        navigate('/zones');
+        break;
+      case 'limits':
+        navigate('/settings');
+        break;
+      case 'navigate':
+        navigate(a.to);
+        break;
+    }
+  }
+
+  /** The primary control for an action card, gated by role. */
+  function actionControl(a: AssistantAction) {
+    const btn = (label: string) => (
+      <button className="btn btn-primary" onClick={() => runAction(a)}>
+        {label}
+      </button>
+    );
+    switch (a.kind) {
+      case 'campaign':
+        return canCreate ? (
+          btn('Review in campaign builder →')
+        ) : (
+          <span className="hint">
+            An engineer configures and launches this; a CISO approves it.
+          </span>
+        );
+      case 'target':
+        return canManageTargets ? (
+          btn('Open target onboarding →')
+        ) : (
+          <span className="hint">Target onboarding is limited to operators.</span>
+        );
+      case 'limits':
+        return canSetLimits ? (
+          btn('Open limit settings →')
+        ) : (
+          <span className="hint">Operational limits are set by a CISO.</span>
+        );
+      case 'navigate':
+        return btn(`Open ${a.screen} →`);
+    }
+  }
+
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -215,18 +333,17 @@ export function AssistantPage() {
 
   const placeholder = !chatReady
     ? podManaged && podState !== 'RUNNING'
-      ? 'Allume Qwen pour discuter…'
-      : 'Assistant indisponible'
-    : 'Écris ton message… (Entrée pour envoyer)';
+      ? 'Power Qwen on to chat…'
+      : 'Assistant unavailable'
+    : 'Write your message… (Enter to send)';
 
   return (
     <div className="assistant-page">
       <PageHead
         title="Assistant"
-        sub="Copilote conversationnel — lecture & raisonnement uniquement (ne lance aucune campagne)."
+        sub="Conversational copilot — it reasons and prepares actions you trigger through governance; it never launches anything."
       />
 
-      {/* GPU pod power control — visible only when the pod is managed. */}
       {podManaged && (
         <div className="card assistant-power">
           <div className={`assistant-power-state assistant-power-${podState.toLowerCase()}`}>
@@ -235,12 +352,12 @@ export function AssistantPage() {
               <strong>Qwen&nbsp;·&nbsp;{POD_LABEL[podState]}</strong>
               <span className="hint assistant-power-sub">
                 {podState === 'RUNNING'
-                  ? `GPU actif — pense à éteindre après usage (~0,60 $/h)${
+                  ? `GPU running — remember to power off after use (~$0.60/h)${
                       podUptime ? ` · up ${Math.round(podUptime / 60)} min` : ''
                     }`
                   : podState === 'STARTING'
-                    ? 'Démarrage du GPU (30–90 s)…'
-                    : 'GPU éteint — aucune facturation.'}
+                    ? 'Starting the GPU (30–90 s)…'
+                    : 'GPU off — no billing.'}
               </span>
             </div>
           </div>
@@ -252,7 +369,7 @@ export function AssistantPage() {
                   onClick={() => void powerOff()}
                   disabled={podBusy}
                 >
-                  Éteindre
+                  Power off
                 </button>
               ) : (
                 <button
@@ -260,12 +377,12 @@ export function AssistantPage() {
                   onClick={() => void powerOn()}
                   disabled={podBusy || podState === 'STARTING'}
                 >
-                  {podState === 'STARTING' ? 'Démarrage…' : 'Allumer'}
+                  {podState === 'STARTING' ? 'Starting…' : 'Power on'}
                 </button>
               )}
             </div>
           ) : (
-            <span className="hint">Alimentation réservée aux opérateurs.</span>
+            <span className="hint">Power control is limited to operators.</span>
           )}
         </div>
       )}
@@ -275,29 +392,140 @@ export function AssistantPage() {
       {status === 'not_configured' && !podManaged && (
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p className="hint">
-            L'assistant n'est pas configuré côté serveur. Définis <code>ASSISTANT_ENDPOINT</code>{' '}
-            (et <code>ASSISTANT_API_KEY</code>) — ou <code>RUNPOD_API_KEY</code> +{' '}
-            <code>RUNPOD_POD_ID</code> pour le pilotage du pod — sur l'API pour l'activer.
+            The assistant is not configured on the server. Set <code>ASSISTANT_ENDPOINT</code> (and{' '}
+            <code>ASSISTANT_API_KEY</code>) — or <code>RUNPOD_API_KEY</code> +{' '}
+            <code>RUNPOD_POD_ID</code> for pod power control — on the API to enable it.
           </p>
         </div>
       )}
 
       <div className="card assistant-chat">
-        <div className="assistant-log" ref={scrollRef}>
-          {messages.length === 0 && (
-            <p className="hint">
-              Pose une question sur l'état de la plateforme, la résilience, la sécurité du code…
-              L'assistant répond, il n'exécute rien.
-            </p>
+        <div className="assistant-chat-head">
+          <span className="hint">
+            {model}
+            {busy ? ' · generating…' : ''}
+          </span>
+          {messages.length > 0 && (
+            <button className="btn btn-ghost assistant-new" onClick={resetConversation}>
+              New conversation
+            </button>
           )}
-          {messages.map((m, i) => (
-            <div key={i} className={`assistant-msg assistant-msg-${m.role}`}>
-              <span className="assistant-msg-role">{m.role === 'user' ? 'Vous' : model}</span>
-              <div className="assistant-msg-body">
-                {m.content || (busy && i === messages.length - 1 ? '…' : '')}
+        </div>
+
+        <div className="assistant-log" ref={scrollRef} onClick={onLogClick}>
+          {messages.length === 0 && (
+            <div className="assistant-empty">
+              <p className="hint">
+                Ask about platform state, resilience, or code security. The assistant replies and
+                can prepare actions — a test, a target, tighter caps — that you trigger through
+                governance. It never runs anything itself.
+              </p>
+              <div className="assistant-starters">
+                {STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="assistant-chip"
+                    onClick={() => void send(s)}
+                    disabled={!chatReady}
+                    title={!chatReady ? 'Assistant unavailable' : undefined}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
+          )}
+          {messages.map((m, i) => {
+            const isLast = i === messages.length - 1;
+            if (m.role === 'user') {
+              return (
+                <div key={i} className="assistant-msg assistant-msg-user">
+                  <div className="assistant-msg-head">
+                    <span className="assistant-msg-role">You</span>
+                    {m.content !== '' && (
+                      <button
+                        type="button"
+                        className="assistant-copy"
+                        onClick={() => copyMsg(i, m.content)}
+                        aria-label="Copy message"
+                        title="Copy"
+                      >
+                        {copiedIdx === i ? '✓ Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="assistant-msg-body">{m.content}</div>
+                </div>
+              );
+            }
+            const { text, actions } = extractActions(m.content);
+            return (
+              <div key={i} className="assistant-msg assistant-msg-assistant">
+                <div className="assistant-msg-head">
+                  <span className="assistant-msg-role">{model}</span>
+                  {m.content !== '' && (
+                    <button
+                      type="button"
+                      className="assistant-copy"
+                      onClick={() => copyMsg(i, m.content)}
+                      aria-label="Copy message"
+                      title="Copy"
+                    >
+                      {copiedIdx === i ? '✓ Copied' : 'Copy'}
+                    </button>
+                  )}
+                </div>
+                {text && (
+                  <div
+                    className="assistant-msg-body md"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
+                  />
+                )}
+                {!text && m.content === '' && (
+                  <div className="assistant-msg-body">{busy && isLast ? '…' : ''}</div>
+                )}
+                {actions.map((a, ai) => (
+                  <div key={ai} className={`assistant-proposal assistant-proposal-${a.kind}`}>
+                    <div className="assistant-proposal-head">
+                      <span className="assistant-proposal-tag">{ACTION_TAG[a.kind]}</span>
+                      <strong>{a.title}</strong>
+                    </div>
+                    {a.rows.length > 0 && (
+                      <dl className="assistant-proposal-grid">
+                        {a.rows.map((r) => (
+                          <div key={r.label}>
+                            <dt>{r.label}</dt>
+                            <dd
+                              className={
+                                [r.mono ? 'mono' : '', r.over ? 'over' : ''].join(' ').trim() ||
+                                undefined
+                              }
+                            >
+                              {r.value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {a.rationale && <p className="assistant-proposal-why">{a.rationale}</p>}
+                    {'over' in a && a.over.length > 0 && (
+                      <p className="hint assistant-error">
+                        ⚠ Above the safety ceiling ({a.over.join(', ')}) — it will be clamped on
+                        review.
+                      </p>
+                    )}
+                    <div className="assistant-proposal-actions">{actionControl(a)}</div>
+                    <p className="assistant-proposal-note">
+                      {a.kind === 'navigate'
+                        ? 'Opens the screen — nothing changes on its own.'
+                        : 'A proposal only — nothing changes until you review it and it clears governance (approval · HARD_CAPS · kill-switch).'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         {error && <p className="hint assistant-error">⚠ {error}</p>}
@@ -321,7 +549,7 @@ export function AssistantPage() {
               onClick={() => void send()}
               disabled={!chatReady || !input.trim()}
             >
-              Envoyer
+              Send
             </button>
           )}
         </div>
