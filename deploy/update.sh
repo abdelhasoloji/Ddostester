@@ -54,6 +54,15 @@ deploy_current() {
       "${COMPOSE[@]}" up -d --build
       ;;
     systemd)
+      # A prior deploy run as a different user (e.g. a manual `root` run) can
+      # leave root-owned files under the gitignored frontend/dist that this
+      # service-user run cannot unlink — vite then fails
+      # "EACCES … unlink dist/assets/*" and the served frontend goes stale while
+      # the backend advances. Reset the build output first (best-effort; falls
+      # back to sudo, harmless when already clean).
+      rm -rf "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
+        || sudo -n rm -rf "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
+        || true
       npm ci
       # Stamp the UI version from this (known-good) git context and pass it to
       # the build via env: git inside Vite can fail on the server (dubious
