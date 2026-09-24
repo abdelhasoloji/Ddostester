@@ -1859,6 +1859,83 @@ function SuiteStepChips({
   );
 }
 
+// ---------- Results (Assessment suites): filters harmonised with the Campaign table ----------
+export type SuiteProgressId = 'all' | 'running' | 'pending' | 'done';
+export const SUITE_PROGRESS_FILTERS: {
+  id: SuiteProgressId;
+  label: string;
+  match: (s: SuiteSummary) => boolean;
+}[] = [
+  { id: 'all', label: 'All', match: () => true },
+  { id: 'running', label: 'Running', match: (s) => s.running > 0 },
+  { id: 'pending', label: 'Pending', match: (s) => s.running === 0 && s.pending > 0 },
+  { id: 'done', label: 'Done', match: (s) => s.running === 0 && s.pending === 0 },
+];
+
+export type SuiteSortKey = 'recent' | 'name' | 'progress' | 'wrs' | 'verdict' | 'target';
+const SUITE_LEVEL_ORDER: readonly string[] = ['A+', 'A', 'B', 'C', 'D', 'F'];
+
+function suiteProgressRank(s: SuiteSummary): number {
+  if (s.running > 0) return 0;
+  if (s.pending > 0) return 1;
+  return 3;
+}
+function suiteVerdictRank(v: 'PASS' | 'FAIL' | null): number {
+  return v === 'FAIL' ? 0 : v === 'PASS' ? 1 : 2;
+}
+
+/** Order suites by a column, honouring direction. Pure, so it is unit-tested. */
+export function sortSuites(
+  suites: SuiteSummary[],
+  key: SuiteSortKey,
+  dir: 'asc' | 'desc',
+): SuiteSummary[] {
+  const ms = (s: SuiteSummary) => Date.parse(s.createdAt) || 0;
+  const cmp = (a: SuiteSummary, b: SuiteSummary): number => {
+    switch (key) {
+      case 'name':
+        return a.suiteName.localeCompare(b.suiteName);
+      case 'progress':
+        return suiteProgressRank(a) - suiteProgressRank(b) || ms(b) - ms(a);
+      case 'wrs':
+        return (a.wrs ? a.wrs.min : -1) - (b.wrs ? b.wrs.min : -1);
+      case 'verdict':
+        return suiteVerdictRank(a.verdict) - suiteVerdictRank(b.verdict) || ms(b) - ms(a);
+      case 'target':
+        return (hostOf(a.target) ?? a.target).localeCompare(hostOf(b.target) ?? b.target);
+      case 'recent':
+      default:
+        return ms(a) - ms(b);
+    }
+  };
+  return [...suites].sort((a, b) => (dir === 'asc' ? cmp(a, b) : -cmp(a, b)));
+}
+
+/** Filter suites by progress, free text (name/target), WRS level and verdict. Pure. */
+export function filterSuites(
+  suites: SuiteSummary[],
+  opts: { progress: SuiteProgressId; q: string; level: string; verdict: string },
+): SuiteSummary[] {
+  const match = SUITE_PROGRESS_FILTERS.find((f) => f.id === opts.progress)!.match;
+  let list = suites.filter(match);
+  const term = opts.q.trim().toLowerCase();
+  if (term) {
+    list = list.filter(
+      (s) => s.suiteName.toLowerCase().includes(term) || s.target.toLowerCase().includes(term),
+    );
+  }
+  if (opts.level && opts.level !== 'all') {
+    list =
+      opts.level === 'none'
+        ? list.filter((s) => !s.wrs)
+        : list.filter((s) => s.wrs?.level === opts.level);
+  }
+  if (opts.verdict && opts.verdict !== 'all') {
+    list = list.filter((s) => s.verdict === opts.verdict);
+  }
+  return list;
+}
+
 export function SuitesSection() {
   // Read-only reporting view of assessment suites, as one compact table matching
   // the Campaign list (a row expands to its per-step chips on demand). The
@@ -1867,6 +1944,12 @@ export function SuitesSection() {
   const [suites, setSuites] = useState<SuiteSummary[]>([]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const app = useApp();
+  const [progress, setProgress] = useState<SuiteProgressId>('all');
+  const [q, setQ] = useState('');
+  const [level, setLevel] = useState<string>('all');
+  const [verdictF, setVerdictF] = useState<string>('all');
+  const [sortKey, setSortKey] = useState<SuiteSortKey>('recent');
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
   useEffect(() => {
     api
       .suites()
@@ -1892,40 +1975,139 @@ export function SuitesSection() {
     });
 
   const anyVerdict = suites.some((s) => s.verdict);
-  if (suites.length === 0) return null;
+  const anyUnscored = suites.some((s) => !s.wrs);
+  const levelsPresent = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of suites) if (s.wrs) set.add(s.wrs.level);
+    return SUITE_LEVEL_ORDER.filter((l) => set.has(l));
+  }, [suites]);
 
-  // Newest assessments first — order by creation time, descending.
-  const sorted = [...suites].sort(
-    (a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0),
+  // "Previous replay" (for the Compare link) follows the newest-first API order,
+  // so it is computed from the ORIGINAL list — independent of filter/sort.
+  const prevBySuiteId = useMemo(() => {
+    const byNewest = [...suites].sort(
+      (a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0),
+    );
+    const m = new Map<string, string>();
+    byNewest.forEach((s, i) => {
+      const pr = byNewest
+        .slice(i + 1)
+        .find((o) => o.suiteName === s.suiteName && o.target === s.target);
+      if (pr) m.set(s.suiteId, pr.suiteId);
+    });
+    return m;
+  }, [suites]);
+
+  const filtered = useMemo(
+    () => filterSuites(suites, { progress, q, level, verdict: verdictF }),
+    [suites, progress, q, level, verdictF],
   );
+  const sorted = useMemo(() => sortSuites(filtered, sortKey, dir), [filtered, sortKey, dir]);
+
+  const toggleSort = (k: SuiteSortKey) => {
+    if (k === sortKey) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(k);
+      setDir(k === 'name' || k === 'target' ? 'asc' : 'desc');
+    }
+  };
+  const ariaSort = (k: SuiteSortKey): 'ascending' | 'descending' | 'none' =>
+    sortKey === k ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const arrow = (k: SuiteSortKey) => (sortKey === k ? (dir === 'asc' ? ' ▲' : ' ▼') : '');
+  const SortTh = ({ k, label, cls }: { k: SuiteSortKey; label: string; cls?: string }) => (
+    <th className={`ct-th${cls ? ' ' + cls : ''}`} aria-sort={ariaSort(k)}>
+      <button type="button" className="ct-sort" onClick={() => toggleSort(k)}>
+        {label}
+        {arrow(k)}
+      </button>
+    </th>
+  );
+
+  if (suites.length === 0) return null;
 
   return (
     <>
       <h2 className="section-title">
-        Assessment suites <span className="hint">({suites.length})</span>
+        Assessment suites <span className="hint">({filtered.length})</span>
         {inFlight && <span className="hint"> · auto-refreshing…</span>}
       </h2>
+
+      <div className="filter-bar">
+        <div className="filter-chips">
+          {SUITE_PROGRESS_FILTERS.map((f) => {
+            const n = suites.filter(f.match).length;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                className={`chip${progress === f.id ? ' chip-active' : ''}`}
+                onClick={() => setProgress(f.id)}
+              >
+                {f.label} <span className="chip-count">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="filter-tools">
+          <input
+            className="filter-search"
+            aria-label="Search suites by name or target"
+            type="search"
+            placeholder="Search name or target…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <select
+            aria-label="Filter by WRS level"
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+          >
+            <option value="all">All WRS</option>
+            {levelsPresent.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+            {anyUnscored && <option value="none">Not scored</option>}
+          </select>
+          {anyVerdict && (
+            <select
+              aria-label="Filter by verdict"
+              value={verdictF}
+              onChange={(e) => setVerdictF(e.target.value)}
+            >
+              <option value="all">All verdicts</option>
+              <option value="PASS">Pass</option>
+              <option value="FAIL">Fail</option>
+            </select>
+          )}
+        </div>
+      </div>
+
       <div className="ct-wrap" style={{ marginBottom: '1rem' }}>
         <table className="campaign-table">
           <thead>
             <tr>
               <th className="ct-th-exp" aria-hidden="true"></th>
-              <th className="ct-th">Suite</th>
-              <th className="ct-th">Progress</th>
-              <th className="ct-th ct-num">WRS</th>
-              {anyVerdict && <th className="ct-th">Verdict</th>}
-              <th className="ct-th">Target</th>
-              <th className="ct-th">Date</th>
+              <SortTh k="name" label="Suite" />
+              <SortTh k="progress" label="Progress" />
+              <SortTh k="wrs" label="WRS" cls="ct-num" />
+              {anyVerdict && <SortTh k="verdict" label="Verdict" />}
+              <SortTh k="target" label="Target" />
+              <SortTh k="recent" label="Date" />
               <th className="ct-th ct-suite-report">Report</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((s, i) => {
-              // Rows are newest-first; the previous replay of the same playbook
-              // on the same target (if any) is the next match further down.
-              const prev = sorted
-                .slice(i + 1)
-                .find((o) => o.suiteName === s.suiteName && o.target === s.target);
+            {sorted.length === 0 && (
+              <tr>
+                <td className="ct-empty" colSpan={anyVerdict ? 8 : 7}>
+                  No suites match your filters.
+                </td>
+              </tr>
+            )}
+            {sorted.map((s) => {
+              const prevId = prevBySuiteId.get(s.suiteId);
               const isOpen = open.has(s.suiteId);
               return (
                 <Fragment key={s.suiteId}>
@@ -1997,10 +2179,10 @@ export function SuitesSection() {
                       >
                         Report ↗
                       </a>
-                      {prev && (
+                      {prevId && (
                         <a
                           className="btn btn-sm btn-ghost ct-compare"
-                          href={suiteCompareUrl(prev.suiteId, s.suiteId)}
+                          href={suiteCompareUrl(prevId, s.suiteId)}
                           target="_blank"
                           rel="noreferrer"
                           title="Per-line WRS/verdict vs the previous replay of this playbook (tune & replay)"
