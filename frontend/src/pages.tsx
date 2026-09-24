@@ -437,6 +437,12 @@ export function CommandCenterPage() {
                     .join(' · ')}
                 >
                   <span className="alert-dot" aria-hidden="true" />
+                  <span
+                    className={`alert-sev alert-sev-${a.severity}`}
+                    title={`Severity: ${a.severity}`}
+                  >
+                    {a.severity}
+                  </span>
                   <span className="alert-title">{a.title}</span>
                   <span className="alert-detail">
                     {a.metric && <b className="alert-metric">{a.metric.value}</b>} {a.detail}
@@ -1649,6 +1655,13 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
                 <tr
                   className={`ct-row${isOpen ? ' ct-open' : ''}`}
                   onClick={() => toggleOpen(r.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleOpen(r.key);
+                    }
+                  }}
+                  tabIndex={0}
                   aria-expanded={isOpen}
                 >
                   <td className="ct-exp" aria-hidden="true">
@@ -1912,6 +1925,13 @@ export function SuitesSection() {
                   <tr
                     className={`ct-row${isOpen ? ' ct-open' : ''}`}
                     onClick={() => toggleOpen(s.suiteId)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleOpen(s.suiteId);
+                      }
+                    }}
+                    tabIndex={0}
                     aria-expanded={isOpen}
                   >
                     <td className="ct-exp" aria-hidden="true">
@@ -1946,13 +1966,15 @@ export function SuitesSection() {
                         <span className="hint">not scored</span>
                       )}
                     </td>
-                    <td>
-                      {s.verdict ? (
-                        <VerdictBadge verdict={s.verdict} />
-                      ) : (
-                        <span className="hint">—</span>
-                      )}
-                    </td>
+                    {anyVerdict && (
+                      <td>
+                        {s.verdict ? (
+                          <VerdictBadge verdict={s.verdict} />
+                        ) : (
+                          <span className="hint">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="ct-target" title={s.target}>
                       {hostOf(s.target) ?? s.target}
                     </td>

@@ -4077,7 +4077,7 @@ table.remediations td {
 /* Clickable Command Center alert rows */
 .alert-row-btn {
   display: grid;
-  grid-template-columns: auto minmax(9rem, auto) 1fr auto;
+  grid-template-columns: auto auto minmax(9rem, auto) 1fr auto;
   align-items: baseline;
   gap: 0.5rem;
   width: 100%;
@@ -6579,4 +6579,49 @@ table.remediations td {
 .campaign-table td.ct-suite-report .ct-compare:hover {
   color: var(--primary);
   background: transparent;
+}
+
+/* UX pass #2 — alert severity pill, focusable table rows, zone "edge absorbed" clarity */
+.alert-sev {
+  align-self: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.alert-sev-critical {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.alert-sev-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: var(--warning);
+}
+.alert-sev-info {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 40%, transparent);
+}
+.campaign-table tbody .ct-row {
+  cursor: pointer;
+}
+.campaign-table tbody .ct-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.zone-absorb-v {
+  font-weight: 600;
+}
+.zone-absorb-idle {
+  color: var(--warning);
+}
+.zone-absorb-ok {
+  color: var(--success);
 }

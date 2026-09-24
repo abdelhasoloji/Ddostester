@@ -56,12 +56,21 @@ describe('ZonesPage', () => {
         campaigns: 2,
         suites: 0,
       }),
+      zone({
+        host: 'idle.eu',
+        lastWrs: 40,
+        lastLevel: 'D',
+        maxDrs: 1,
+        lastAbsorbedPct: 0,
+      }),
     ]);
     renderWithRouter(<ZonesPage />);
     expect(await screen.findByText(/bank\.cz/)).toBeInTheDocument();
     expect(screen.getByText(/shop\.eu/)).toBeInTheDocument();
     expect(screen.getByText('DRS 5')).toBeInTheDocument();
     expect(screen.getByText('96.4%')).toBeInTheDocument();
+    // A 0% absorbed reading is spelled out so it is not mistaken for "no data".
+    expect(screen.getByText(/0% · edge idle/)).toBeInTheDocument();
     // Status reflects posture: a running zone shows "testing", an A-grade "resilient".
     expect(screen.getByText(/● testing/)).toBeInTheDocument();
     expect(screen.getByText(/resilient/)).toBeInTheDocument();
