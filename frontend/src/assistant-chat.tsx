@@ -5,6 +5,7 @@ import { renderMarkdown } from './markdown.js';
 import { extractActions } from './assistant-action.js';
 import { AssistantActionCard } from './assistant-action-card.js';
 import { lsGet, lsSet } from './storage.js';
+import { WedosMascot, type MascotState } from './wedos-mascot.js';
 
 /**
  * AssistantChat — the conversational panel over the self-hosted LLM (Qwen),
@@ -172,6 +173,7 @@ export function AssistantChat({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [inputFocused, setInputFocused] = useState(false);
 
   const [convos, setConvos] = useState<Convo[]>(() => loadConvos());
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -194,6 +196,18 @@ export function AssistantChat({
   const sendRef = useRef<(t: string, o?: { auto?: boolean; label?: string }) => void>(() => {});
 
   const chatReady = status === 'ready' && (!podManaged || podState === 'RUNNING');
+
+  // Map live assistant activity onto the mascot's animation state.
+  const lastMsg = messages[messages.length - 1];
+  const mascotState: MascotState = !chatReady
+    ? 'idle'
+    : busy
+      ? lastMsg?.role === 'assistant' && lastMsg.content.length > 0
+        ? 'speaking'
+        : 'thinking'
+      : inputFocused
+        ? 'listening'
+        : 'idle';
 
   async function refreshPod() {
     try {
@@ -589,9 +603,12 @@ export function AssistantChat({
 
   return (
     <div className={`assistant-chat-root assistant-chat-${variant}`}>
+      <div className="assistant-hero">
+        <WedosMascot state={mascotState} width={132} height={172} />
+      </div>
       {variant === 'dock' && (
         <div className="assistant-dock-head">
-          <strong>Assistant</strong>
+          <strong>WEDOS AI Assistant</strong>
           <span className="hint">context-aware · governed</span>
           {onCollapse && (
             <button
@@ -855,6 +872,8 @@ export function AssistantChat({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKey}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 placeholder={placeholder}
                 disabled={!chatReady || busy}
                 rows={2}
