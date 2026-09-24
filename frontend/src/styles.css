@@ -6133,3 +6133,104 @@ table.remediations td {
 .assistant-msg-body.md .md-pre[data-lang]::before {
   right: 3.2rem;
 }
+
+/* Assistant — inline governed action cards (assistant-action-card) */
+.assistant-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+.assistant-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85rem;
+}
+.assistant-field-wide {
+  grid-column: 1 / -1;
+}
+.assistant-field > span {
+  color: var(--muted);
+}
+.assistant-field input,
+.assistant-field select,
+.assistant-reason {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.assistant-field input.invalid {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+.assistant-attest {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 0.83rem;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  border-radius: 8px;
+  background: var(--warning-bg);
+}
+.assistant-attest input {
+  margin-top: 2px;
+}
+.assistant-stage {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.assistant-reason {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.assistant-result {
+  border-top: 1px solid color-mix(in srgb, var(--good, #1f9d55) 40%, transparent);
+}
+.assistant-ok {
+  color: var(--good, #1f9d55);
+}
+.assistant-status {
+  margin-left: auto;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.assistant-status-pending_approval {
+  color: var(--warning, #b7791f);
+  border-color: color-mix(in srgb, var(--warning, #b7791f) 45%, transparent);
+}
+.assistant-status-approved {
+  color: var(--good, #1f9d55);
+  border-color: color-mix(in srgb, var(--good, #1f9d55) 45%, transparent);
+}
+.assistant-status-running {
+  color: var(--warning, #b7791f);
+  border-color: color-mix(in srgb, var(--warning, #b7791f) 55%, transparent);
+}
+.assistant-status-completed {
+  color: var(--good, #1f9d55);
+  border-color: color-mix(in srgb, var(--good, #1f9d55) 55%, transparent);
+}
+.assistant-status-rejected,
+.assistant-status-killed_auto,
+.assistant-status-killed_manual,
+.assistant-status-cancelled {
+  color: var(--danger, #d64545);
+  border-color: color-mix(in srgb, var(--danger, #d64545) 45%, transparent);
+}
+@media (max-width: 640px) {
+  .assistant-form {
+    grid-template-columns: 1fr;
+  }
+}
