@@ -6,18 +6,16 @@ import shakenUrl from './assets/mascot/shaken.webp';
 /**
  * WedosMascot — the animated "WEDOS AI Assistant" character.
  *
- * It is a faithful port of the approved mockup (maquette-mascotte-flottante):
- * three WebP sprite sheets drawn on a <canvas>, auto-cropped to their opaque
- * bounds, with a gentle floating bob and a shake wobble. The mockup's per-state
- * frame tables and geometry are kept verbatim so the on-screen result matches.
+ * Faithful port of the approved mockup: three WebP sprite sheets drawn on a
+ * <canvas>, auto-cropped to their opaque bounds, with a floating bob and a shake
+ * wobble. Playback is smoothed with cross-fade interpolation between adjacent
+ * poses (a smoothstep dissolve at a finer cadence), so the limited number of
+ * source frames animates fluidly without new art.
  *
  * Sprite sheets (shipped as assets, not inlined):
  *  - talk   1536×1024, frame 384×512  (idle / waving / speaking)
  *  - mind   1024×1536, frame 256×768  (listening / thinking)
  *  - shaken 1024×1536, frame 512×768  (shake)
- *
- * The character is state-driven (no dragging here — it lives in the assistant
- * panel): the caller maps assistant activity to a MascotState.
  */
 export type MascotState = 'idle' | 'waving' | 'listening' | 'thinking' | 'speaking' | 'shaken';
 
@@ -27,7 +25,61 @@ const SRC: Record<'talk' | 'mind' | 'shaken', string> = {
   shaken: shakenUrl,
 };
 
-// One shared set of decoded images across every mounted mascot.
+interface StateCfg {
+  a: 'talk' | 'mind' | 'shaken';
+  seq: number[];
+  rate: number;
+  fw: number;
+  fh: number;
+  loop: boolean;
+}
+
+// Per-state frame table + playback rate. Rates are higher than the raw mockup
+// because cross-fade interpolation fills the gaps between poses smoothly.
+const CFG: Record<MascotState, StateCfg> = {
+  idle: { a: 'talk', seq: [0], rate: 1, fw: 384, fh: 512, loop: true },
+  waving: {
+    a: 'talk',
+    seq: [0, 1, 2, 3, 5, 3, 5, 6, 7],
+    rate: 6,
+    fw: 384,
+    fh: 512,
+    loop: false,
+  },
+  speaking: {
+    a: 'talk',
+    seq: [1, 2, 3, 4, 5, 4, 3, 2, 6],
+    rate: 9,
+    fw: 384,
+    fh: 512,
+    loop: true,
+  },
+  listening: {
+    a: 'mind',
+    seq: [0, 1, 3, 1, 2, 3],
+    rate: 4,
+    fw: 256,
+    fh: 768,
+    loop: true,
+  },
+  thinking: {
+    a: 'mind',
+    seq: [4, 5, 6, 7],
+    rate: 3.6,
+    fw: 256,
+    fh: 768,
+    loop: true,
+  },
+  shaken: {
+    a: 'shaken',
+    seq: [0, 1, 2, 1, 2, 3],
+    rate: 9,
+    fw: 512,
+    fh: 768,
+    loop: false,
+  },
+};
+
 let sharedImages: Record<string, HTMLImageElement> | null = null;
 function getImages(): Record<string, HTMLImageElement> {
   if (sharedImages) return sharedImages;
@@ -66,7 +118,6 @@ export function WedosMascot({
   const stateAtRef = useRef<number>(performance.now());
   const shakeRef = useRef<number>(0);
 
-  // React to state changes without restarting the render loop.
   useEffect(() => {
     if (state !== stateRef.current) {
       stateRef.current = state;
@@ -142,6 +193,45 @@ export function WedosMascot({
       return result;
     }
 
+    function drawFrame(
+      im: HTMLImageElement,
+      asset: string,
+      n: number,
+      fw: number,
+      fh: number,
+      alpha: number,
+      now: number,
+      w: number,
+      h: number,
+    ) {
+      if (!ctx) return;
+      const cols = Math.round(im.naturalWidth / fw);
+      const crop = bounds(im, asset, n, fw, fh);
+      const th = h * 0.9;
+      const sy = th / crop.h;
+      const sx = asset === 'mind' ? sy * Math.min(1.25, Math.max(1, 0.5 / (crop.w / crop.h))) : sy;
+      const dw = crop.w * sx;
+      const bob = Math.sin(now / 650) * h * 0.004;
+      const shake = shakeRef.current;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(w / 2, h * 0.96);
+      ctx.rotate(shake * Math.sin(now * 0.04) * 0.09);
+      ctx.translate(-w / 2, -h * 0.96);
+      ctx.drawImage(
+        im,
+        (n % cols) * fw + crop.x,
+        Math.floor(n / cols) * fh + crop.y,
+        crop.w,
+        crop.h,
+        w / 2 - crop.feet * sx + shake * Math.sin(now * 0.03) * w * 0.03,
+        h * 0.96 - th + bob,
+        dw,
+        th,
+      );
+      ctx.restore();
+    }
+
     let raf = 0;
     let last = performance.now();
     const render = (now: number) => {
@@ -152,64 +242,30 @@ export function WedosMascot({
         h = canvas.height;
       if (!w || !h) return;
       shakeRef.current *= Math.exp(-dt * 4);
-      const st = stateRef.current;
-      const q = (now - stateAtRef.current) / 1000;
-      let asset: 'talk' | 'mind' | 'shaken' = 'talk';
-      let n = 0,
-        fw = 384,
-        fh = 512;
-      if (st === 'shaken') {
-        asset = 'shaken';
-        n = [0, 1, 2, 1, 2, 3][Math.min(5, Math.floor(q * 4.3))];
-        fw = 512;
-        fh = 768;
-      } else if (st === 'listening') {
-        asset = 'mind';
-        n = [0, 1, 3, 1, 2, 3][Math.floor(q * 2.1) % 6];
-        fw = 256;
-        fh = 768;
-      } else if (st === 'thinking') {
-        asset = 'mind';
-        n = 4 + (Math.floor(q * 2) % 4);
-        fw = 256;
-        fh = 768;
-      } else if (st === 'speaking') {
-        asset = 'talk';
-        n = [1, 2, 3, 4, 5, 4, 3, 2, 6][Math.floor(q * 5) % 9];
-      } else if (st === 'waving') {
-        asset = 'talk';
-        n = [0, 1, 2, 3, 5, 3, 5, 6, 7][Math.min(8, Math.floor(q * 3.5))];
-      }
-      const im = images[asset];
+      const cfg = CFG[stateRef.current] || CFG.idle;
+      const im = images[cfg.a];
       ctx.clearRect(0, 0, w, h);
       if (!im.complete || !im.naturalWidth || !images.talk.complete || !images.talk.naturalWidth)
         return;
-      const cols = Math.round(im.naturalWidth / fw);
-      const crop = bounds(im, asset, n, fw, fh);
-      const targetHeight = h * 0.91;
-      const scaleY = targetHeight / crop.h;
-      const scaleX =
-        asset === 'mind' ? scaleY * Math.min(1.25, Math.max(1, 0.5 / (crop.w / crop.h))) : scaleY;
-      const dw = crop.w * scaleX;
-      const dh = targetHeight;
-      const bob = Math.sin(now / 650) * h * 0.004;
-      const shake = shakeRef.current;
-      ctx.save();
-      ctx.translate(w / 2, h * 0.96);
-      ctx.rotate(shake * Math.sin(now * 0.04) * 0.09);
-      ctx.translate(-w / 2, -h * 0.96);
-      ctx.drawImage(
-        im,
-        (n % cols) * fw + crop.x,
-        Math.floor(n / cols) * fh + crop.y,
-        crop.w,
-        crop.h,
-        w / 2 - crop.feet * scaleX + shake * Math.sin(now * 0.03) * w * 0.03,
-        h * 0.96 - dh + bob,
-        dw,
-        dh,
-      );
-      ctx.restore();
+      const q = (now - stateAtRef.current) / 1000;
+      const pos = q * cfg.rate;
+      const i = Math.floor(pos);
+      let t = pos - i;
+      let nA: number, nB: number;
+      const len = cfg.seq.length;
+      if (cfg.loop) {
+        nA = cfg.seq[((i % len) + len) % len];
+        nB = cfg.seq[(((i + 1) % len) + len) % len];
+      } else {
+        const ia = Math.min(len - 1, i);
+        const ib = Math.min(len - 1, i + 1);
+        nA = cfg.seq[ia];
+        nB = cfg.seq[ib];
+        if (ia === len - 1) t = 0;
+      }
+      const ts = t * t * (3 - 2 * t); // smoothstep dissolve
+      drawFrame(im, cfg.a, nA, cfg.fw, cfg.fh, 1, now, w, h);
+      if (ts > 0.02 && nB !== nA) drawFrame(im, cfg.a, nB, cfg.fw, cfg.fh, ts, now, w, h);
     };
     raf = requestAnimationFrame(render);
 
