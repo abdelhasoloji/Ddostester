@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api, getToken, type PodState } from './api.js';
 import { useApp, canDo } from './context.js';
 import { renderMarkdown } from './markdown.js';
@@ -6,6 +7,7 @@ import { extractActions } from './assistant-action.js';
 import { AssistantActionCard } from './assistant-action-card.js';
 import { lsGet, lsSet } from './storage.js';
 import { WedosMascot, type MascotState } from './wedos-mascot.js';
+import { describeZoneAt, type ZoneInfo } from './assistant-zones.js';
 
 /**
  * AssistantChat — the conversational panel over the self-hosted LLM (Qwen),
@@ -57,13 +59,6 @@ interface Convo {
 
 type Status = 'checking' | 'ready' | 'not_configured';
 
-const POD_LABEL: Record<PodState, string> = {
-  RUNNING: 'On',
-  STARTING: 'Starting…',
-  STOPPED: 'Off',
-  UNKNOWN: 'Unknown',
-};
-
 /** Defensive-framed starter prompts, offered in the empty state. */
 const STARTERS: string[] = [
   'What are my authorized targets and current caps?',
@@ -74,9 +69,35 @@ const STARTERS: string[] = [
 
 const CONVOS_KEY = 'assistantConvos';
 const AUTO_KEY = 'assistantAutoSuggest';
+const FLOAT_KEY = 'assistantFloating';
+const FLOATPOS_KEY = 'assistantFloatPos';
 const MAX_CONVOS = 50;
 /** Minimum gap between two automatic suggestions (debounce bursts). */
 const PROACTIVE_MIN_MS = 15000;
+
+/** Floating-companion window footprint (px), used for drag clamping. */
+const FLOAT_W = 300;
+const FLOAT_H = 320;
+/** How long the zone explanation lingers (and the mascot keeps "speaking") after a drop. */
+const EXPLAIN_MS = 7000;
+
+function loadFloatPos(): { x: number; y: number } {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const fallback = { x: Math.max(8, vw - FLOAT_W - 24), y: Math.max(8, vh - FLOAT_H - 40) };
+  try {
+    const raw = lsGet(FLOATPOS_KEY);
+    if (!raw) return fallback;
+    const p = JSON.parse(raw) as { x?: number; y?: number };
+    if (typeof p.x !== 'number' || typeof p.y !== 'number') return fallback;
+    return {
+      x: Math.min(Math.max(4, p.x), Math.max(4, vw - 80)),
+      y: Math.min(Math.max(4, p.y), Math.max(4, vh - 80)),
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 function isMsg(v: unknown): v is Msg {
   return (
@@ -180,6 +201,17 @@ export function AssistantChat({
   const [showHistory, setShowHistory] = useState(false);
   const [autoSuggest, setAutoSuggest] = useState<boolean>(() => lsGet(AUTO_KEY) !== '0');
 
+  // Floating companion: detach the assistant into a draggable window that
+  // explains whatever zone it is dropped on. Only the always-on dock owns it.
+  const canFloat = variant === 'dock';
+  const [floating, setFloating] = useState<boolean>(() => canFloat && lsGet(FLOAT_KEY) === '1');
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => loadFloatPos());
+  const [dragging, setDragging] = useState(false);
+  const [zone, setZone] = useState<ZoneInfo | null>(null);
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const explainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const floatRef = useRef<HTMLDivElement>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -197,31 +229,45 @@ export function AssistantChat({
 
   const chatReady = status === 'ready' && (!podManaged || podState === 'RUNNING');
 
-  // Map live assistant activity onto the mascot's animation state.
+  // Map live assistant activity onto the mascot's animation state. Priority:
+  // being dragged (shaken) > explaining a zone (speaking) > chatting > listening.
   const lastMsg = messages[messages.length - 1];
-  const mascotState: MascotState = !chatReady
-    ? 'idle'
-    : busy
-      ? lastMsg?.role === 'assistant' && lastMsg.content.length > 0
-        ? 'speaking'
-        : 'thinking'
-      : inputFocused
-        ? 'listening'
-        : 'idle';
+  const explaining = zone !== null && !dragging;
+  const mascotState: MascotState = dragging
+    ? 'shaken'
+    : explaining
+      ? 'speaking'
+      : chatReady && busy
+        ? lastMsg?.role === 'assistant' && lastMsg.content.length > 0
+          ? 'speaking'
+          : 'thinking'
+        : chatReady && inputFocused
+          ? 'listening'
+          : 'idle';
   const podOff = podManaged && podState !== 'RUNNING';
-  const statePillLabel = podOff
-    ? 'Off'
-    : status !== 'ready'
-      ? '…'
-      : mascotState === 'thinking'
-        ? 'Thinking'
-        : mascotState === 'speaking'
-          ? 'Speaking'
-          : mascotState === 'listening'
-            ? 'Listening'
-            : 'Ready';
+  const statePillLabel = dragging
+    ? 'Moving'
+    : explaining
+      ? 'Explaining'
+      : podOff
+        ? 'Off'
+        : status !== 'ready'
+          ? '…'
+          : mascotState === 'thinking'
+            ? 'Thinking'
+            : mascotState === 'speaking'
+              ? 'Speaking'
+              : mascotState === 'listening'
+                ? 'Listening'
+                : 'Ready';
   const statePillCls =
-    podOff || status !== 'ready' ? 'off' : mascotState === 'idle' ? 'ready' : 'busy';
+    dragging || explaining
+      ? 'busy'
+      : podOff || status !== 'ready'
+        ? 'off'
+        : mascotState === 'idle'
+          ? 'ready'
+          : 'busy';
 
   async function refreshPod() {
     try {
@@ -268,6 +314,22 @@ export function AssistantChat({
   useEffect(() => {
     lsSet(AUTO_KEY, autoSuggest ? '1' : '0');
   }, [autoSuggest]);
+
+  useEffect(() => {
+    if (canFloat) lsSet(FLOAT_KEY, floating ? '1' : '0');
+  }, [floating, canFloat]);
+
+  useEffect(() => {
+    lsSet(FLOATPOS_KEY, JSON.stringify(pos));
+  }, [pos]);
+
+  // Clear the pending zone-explanation timer if the component unmounts.
+  useEffect(
+    () => () => {
+      if (explainTimerRef.current) clearTimeout(explainTimerRef.current);
+    },
+    [],
+  );
 
   /**
    * Persist the current conversation once a turn settles (never mid-stream, so
@@ -609,11 +671,220 @@ export function AssistantChat({
     }
   }
 
+  function sampleZone(): ZoneInfo | null {
+    const el = floatRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return describeZoneAt(r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  function onFloatDragStart(e: React.PointerEvent) {
+    if (e.button != null && e.button !== 0) return;
+    dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+    setDragging(true);
+    if (explainTimerRef.current) {
+      clearTimeout(explainTimerRef.current);
+      explainTimerRef.current = null;
+    }
+    setZone(null);
+    try {
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      /* jsdom / unsupported */
+    }
+  }
+
+  function onFloatDragMove(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const x = Math.min(Math.max(4, e.clientX - d.dx), Math.max(4, vw - 60));
+    const y = Math.min(Math.max(4, e.clientY - d.dy), Math.max(4, vh - 60));
+    setPos({ x, y });
+  }
+
+  function onFloatDragEnd(e: React.PointerEvent) {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setDragging(false);
+    try {
+      (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    // Explain whatever the window now sits over; keep "speaking" briefly.
+    const z = sampleZone();
+    if (z) {
+      setZone(z);
+      if (explainTimerRef.current) clearTimeout(explainTimerRef.current);
+      explainTimerRef.current = setTimeout(() => setZone(null), EXPLAIN_MS);
+    }
+  }
+
+  function toggleFloat() {
+    setFloating((v) => {
+      const next = !v;
+      if (next) setPos(loadFloatPos());
+      return next;
+    });
+  }
+
   const placeholder = !chatReady
     ? podManaged && podState !== 'RUNNING'
       ? 'Power Qwen on to chat…'
       : 'Assistant unavailable'
     : 'Write your message… (Enter to send)';
+
+  // Compact power control replacing the old banner: one on/off pill.
+  const podToggle = podManaged ? (
+    <button
+      type="button"
+      className={`assistant-pod-btn assistant-pod-${podState.toLowerCase()}`}
+      onClick={() => (podState === 'RUNNING' ? void powerOff() : void powerOn())}
+      disabled={!canManage || podBusy || podState === 'STARTING'}
+      title={
+        !canManage
+          ? 'Power control is limited to operators'
+          : podState === 'RUNNING'
+            ? `Qwen GPU is on${
+                podUptime ? ` (up ${Math.round(podUptime / 60)} min)` : ''
+              } — click to power off (~$0.60/h while on)`
+            : podState === 'STARTING'
+              ? 'Starting the GPU (30–90 s)…'
+              : 'Power the Qwen GPU on (~$0.60/h)'
+      }
+      aria-pressed={podState === 'RUNNING'}
+      aria-label={`Qwen ${podState === 'RUNNING' ? 'on, click to power off' : 'off, click to power on'}`}
+    >
+      <span className="assistant-pod-dot" aria-hidden="true" />
+      Qwen {podState === 'RUNNING' ? 'on' : podState === 'STARTING' ? '…' : 'off'}
+    </button>
+  ) : null;
+
+  const detachBtn = canFloat ? (
+    <button
+      type="button"
+      className="btn btn-ghost assistant-detach"
+      onClick={toggleFloat}
+      title="Detach the assistant into a floating window you can drag anywhere"
+      aria-pressed={floating}
+    >
+      ⤢ Float
+    </button>
+  ) : null;
+
+  // The message composer, shared verbatim by the panel and the floating window.
+  const composer = (cls: string) => (
+    <div className={`assistant-input${cls ? ' ' + cls : ''}`}>
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={onKey}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setInputFocused(false)}
+        placeholder={placeholder}
+        disabled={!chatReady || busy}
+        rows={2}
+      />
+      {busy ? (
+        <button className="btn btn-ghost" onClick={stop}>
+          Stop
+        </button>
+      ) : (
+        <button
+          className="btn btn-primary"
+          onClick={sendInput}
+          disabled={!chatReady || !input.trim()}
+        >
+          Send
+        </button>
+      )}
+    </div>
+  );
+
+  // What the floating mascot "says": the zone it was dropped on wins; otherwise
+  // its latest answer, so a live reply is still readable in the compact window.
+  const floatBubble = zone
+    ? { title: zone.title, body: zone.text }
+    : lastMsg?.role === 'assistant' && lastMsg.content.trim()
+      ? { title: model, body: extractActions(lastMsg.content).text || lastMsg.content }
+      : null;
+
+  const floatWindow =
+    canFloat && floating && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={floatRef}
+            data-assistant-float=""
+            className={`assistant-chat-root assistant-chat-float${dragging ? ' is-dragging' : ''}`}
+            style={{ left: pos.x, top: pos.y, width: FLOAT_W }}
+          >
+            {floatBubble && (
+              <div className="assistant-float-bubble">
+                <span className="assistant-float-bubble-title">{floatBubble.title}</span>
+                <span className="assistant-float-bubble-body">{floatBubble.body}</span>
+              </div>
+            )}
+            <div
+              className="assistant-float-handle"
+              onPointerDown={onFloatDragStart}
+              onPointerMove={onFloatDragMove}
+              onPointerUp={onFloatDragEnd}
+              onPointerCancel={onFloatDragEnd}
+              role="button"
+              tabIndex={0}
+              aria-label="Drag the assistant — drop it on a panel to have it explained"
+              title="Drag me onto any panel and I’ll explain it"
+            >
+              <WedosMascot state={mascotState} width={110} height={140} />
+              <span className={`assistant-statepill assistant-statepill-${statePillCls}`}>
+                {statePillLabel}
+              </span>
+            </div>
+            {composer('assistant-float-input')}
+            <div className="assistant-float-bar">
+              {podToggle}
+              <button
+                type="button"
+                className="btn btn-ghost assistant-suggest"
+                onClick={suggestNow}
+                disabled={!chatReady || busy}
+                title={!chatReady ? 'Power Qwen on to get suggestions' : 'Suggest next actions'}
+              >
+                Suggest
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost assistant-detach"
+                onClick={toggleFloat}
+                title="Dock the assistant back"
+              >
+                ⤡ Dock
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  // When floating, the dock column steps aside to a small "docked away" note and
+  // the real UI lives in the portal window above.
+  if (canFloat && floating) {
+    return (
+      <>
+        <div className="assistant-chat-root assistant-chat-dock assistant-docked-away">
+          <p className="hint assistant-docked-note">
+            🛰 The assistant is floating — drag it over any panel for an explanation.{' '}
+            <button type="button" className="btn btn-ghost" onClick={toggleFloat}>
+              ⤡ Dock it back
+            </button>
+          </p>
+        </div>
+        {floatWindow}
+      </>
+    );
+  }
 
   return (
     <div className={`assistant-chat-root assistant-chat-${variant}`}>
@@ -645,49 +916,6 @@ export function AssistantChat({
         </div>
       )}
 
-      {podManaged && (
-        <div className="card assistant-power">
-          <div className={`assistant-power-state assistant-power-${podState.toLowerCase()}`}>
-            <span className="assistant-power-dot" aria-hidden="true" />
-            <div>
-              <strong>Qwen&nbsp;·&nbsp;{POD_LABEL[podState]}</strong>
-              <span className="hint assistant-power-sub">
-                {podState === 'RUNNING'
-                  ? `GPU running — remember to power off after use (~$0.60/h)${
-                      podUptime ? ` · up ${Math.round(podUptime / 60)} min` : ''
-                    }`
-                  : podState === 'STARTING'
-                    ? 'Starting the GPU (30–90 s)…'
-                    : 'GPU off — no billing.'}
-              </span>
-            </div>
-          </div>
-          {canManage ? (
-            <div className="assistant-power-actions">
-              {podState === 'RUNNING' ? (
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => void powerOff()}
-                  disabled={podBusy}
-                >
-                  Power off
-                </button>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => void powerOn()}
-                  disabled={podBusy || podState === 'STARTING'}
-                >
-                  {podState === 'STARTING' ? 'Starting…' : 'Power on'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <span className="hint">Power control is limited to operators.</span>
-          )}
-        </div>
-      )}
-
       {podError && <p className="hint assistant-error">⚠ {podError}</p>}
 
       {status === 'not_configured' && !podManaged && (
@@ -707,6 +935,8 @@ export function AssistantChat({
             {busy ? ' · generating…' : ''}
           </span>
           <div className="assistant-head-actions">
+            {podToggle}
+            {detachBtn}
             <label
               className="assistant-auto-toggle"
               title="When on, Qwen proactively suggests next actions after platform changes (only while the pod is running)."
@@ -888,31 +1118,7 @@ export function AssistantChat({
 
             {error && <p className="hint assistant-error">⚠ {error}</p>}
 
-            <div className="assistant-input">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={onKey}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                placeholder={placeholder}
-                disabled={!chatReady || busy}
-                rows={2}
-              />
-              {busy ? (
-                <button className="btn btn-ghost" onClick={stop}>
-                  Stop
-                </button>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  onClick={sendInput}
-                  disabled={!chatReady || !input.trim()}
-                >
-                  Send
-                </button>
-              )}
-            </div>
+            {composer('')}
           </>
         )}
       </div>
