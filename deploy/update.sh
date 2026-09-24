@@ -55,13 +55,15 @@ deploy_current() {
       ;;
     systemd)
       # A prior deploy run as a different user (e.g. a manual `root` run) can
-      # leave root-owned files under the gitignored frontend/dist that this
-      # service-user run cannot unlink — vite then fails
-      # "EACCES … unlink dist/assets/*" and the served frontend goes stale while
-      # the backend advances. Reset the build output first (best-effort; falls
-      # back to sudo, harmless when already clean).
-      rm -rf "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
-        || sudo -n rm -rf "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
+      # leave root-owned files under the gitignored node_modules/ and dist/ that
+      # this service-user run cannot overwrite — `npm ci` then fails
+      # "EACCES … unlink node_modules/.bin/*" and vite "EACCES … unlink
+      # dist/assets/*", so the served frontend goes stale while the backend
+      # advances. Heal ownership of the whole repo first (best-effort: prefer a
+      # sudo chown, else remove the build artifacts; harmless when already clean).
+      sudo -n chown -R "$(id -u):$(id -g)" "$REPO_DIR" 2>/dev/null \
+        || rm -rf "$REPO_DIR/node_modules" "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
+        || sudo -n rm -rf "$REPO_DIR/node_modules" "$REPO_DIR/frontend/dist" "$REPO_DIR/backend/dist" 2>/dev/null \
         || true
       npm ci
       # Stamp the UI version from this (known-good) git context and pass it to
