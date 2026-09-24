@@ -208,6 +208,20 @@ export function AssistantChat({
       : inputFocused
         ? 'listening'
         : 'idle';
+  const podOff = podManaged && podState !== 'RUNNING';
+  const statePillLabel = podOff
+    ? 'Off'
+    : status !== 'ready'
+      ? '…'
+      : mascotState === 'thinking'
+        ? 'Thinking'
+        : mascotState === 'speaking'
+          ? 'Speaking'
+          : mascotState === 'listening'
+            ? 'Listening'
+            : 'Ready';
+  const statePillCls =
+    podOff || status !== 'ready' ? 'off' : mascotState === 'idle' ? 'ready' : 'busy';
 
   async function refreshPod() {
     try {
@@ -604,7 +618,14 @@ export function AssistantChat({
   return (
     <div className={`assistant-chat-root assistant-chat-${variant}`}>
       <div className="assistant-hero">
-        <WedosMascot state={mascotState} width={132} height={172} />
+        <WedosMascot
+          state={mascotState}
+          width={variant === 'dock' ? 96 : 150}
+          height={variant === 'dock' ? 126 : 196}
+        />
+        <span className={`assistant-statepill assistant-statepill-${statePillCls}`}>
+          {statePillLabel}
+        </span>
       </div>
       {variant === 'dock' && (
         <div className="assistant-dock-head">

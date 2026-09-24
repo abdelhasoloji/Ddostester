@@ -385,7 +385,7 @@ export function CommandCenterPage() {
         sub="Fleet resilience, live alerts and what's running — the state of the estate at a glance."
       />
       <div className="kpis">
-        <div className="kpi">
+        <Link className="kpi kpi-link" to="/reports">
           <div className="kpi-v">
             {fleet != null ? (
               <WrsPill wrs={{ wrs: fleet, level: gradeFromScore(fleet) } as WrsBreakdown} />
@@ -397,27 +397,26 @@ export function CommandCenterPage() {
             Fleet resilience · {scored.length} target
             {scored.length === 1 ? '' : 's'}
           </div>
-        </div>
-        <div className="kpi">
+        </Link>
+        <Link className="kpi kpi-link" to="/theater">
           <div className="kpi-v">{running.length}</div>
           <div className="kpi-k">Runs in flight</div>
-        </div>
-        <div className="kpi">
+        </Link>
+        <Link className="kpi kpi-link" to="/theater">
           <div className="kpi-v">
             <span className={`health-pill health-${health}`}>{health}</span>
           </div>
           <div className="kpi-k">Generator health</div>
-        </div>
-        <div className="kpi">
+        </Link>
+        <a className="kpi kpi-link" href="#cc-alerts">
           <div className="kpi-v">{alerts.length}</div>
           <div className="kpi-k">Active alerts</div>
-        </div>
+        </a>
       </div>
-
       <RoleFocus />
 
       {alerts.length > 0 && (
-        <div className="card" style={{ marginTop: '1rem' }}>
+        <div id="cc-alerts" className="card" style={{ marginTop: '1rem' }}>
           <div className="section-title">Active alerts · from recent runs</div>
           <ul className="alerts-list">
             {alerts.slice(0, 6).map((a) => (
@@ -1878,6 +1877,7 @@ export function SuitesSection() {
       return n;
     });
 
+  const anyVerdict = suites.some((s) => s.verdict);
   if (suites.length === 0) return null;
 
   return (
@@ -1894,7 +1894,7 @@ export function SuitesSection() {
               <th className="ct-th">Suite</th>
               <th className="ct-th">Progress</th>
               <th className="ct-th ct-num">WRS</th>
-              <th className="ct-th">Verdict</th>
+              {anyVerdict && <th className="ct-th">Verdict</th>}
               <th className="ct-th">Target</th>
               <th className="ct-th ct-suite-report">Report</th>
             </tr>
@@ -1967,7 +1967,7 @@ export function SuitesSection() {
                       </a>
                       {prev && (
                         <a
-                          className="btn btn-sm btn-ghost"
+                          className="btn btn-sm btn-ghost ct-compare"
                           href={suiteCompareUrl(prev.suiteId, s.suiteId)}
                           target="_blank"
                           rel="noreferrer"
@@ -1980,7 +1980,7 @@ export function SuitesSection() {
                   </tr>
                   {isOpen && (
                     <tr className="ct-detail">
-                      <td colSpan={7}>
+                      <td colSpan={anyVerdict ? 7 : 6}>
                         <SuiteStepChips
                           steps={s.members.map((m) => ({
                             key: m.id,
