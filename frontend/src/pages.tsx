@@ -93,8 +93,9 @@ const SPINE_NAV = [
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
   { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
   { to: '/theater', label: 'Run Theater', icon: '🎬' },
+  { to: '/reports', label: 'Results', icon: '📊' },
   { to: '/assistant', label: 'Assistant', icon: '💬' },
-  // Prepare + Results retired from the spine; the audit log now lives in Settings.
+  // Prepare retired from the spine; the audit log now lives in Settings.
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
 
@@ -1893,6 +1894,11 @@ export function SuitesSection() {
   const anyVerdict = suites.some((s) => s.verdict);
   if (suites.length === 0) return null;
 
+  // Newest assessments first — order by creation time, descending.
+  const sorted = [...suites].sort(
+    (a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0),
+  );
+
   return (
     <>
       <h2 className="section-title">
@@ -1909,14 +1915,15 @@ export function SuitesSection() {
               <th className="ct-th ct-num">WRS</th>
               {anyVerdict && <th className="ct-th">Verdict</th>}
               <th className="ct-th">Target</th>
+              <th className="ct-th">Date</th>
               <th className="ct-th ct-suite-report">Report</th>
             </tr>
           </thead>
           <tbody>
-            {suites.map((s, i) => {
-              // Suites are newest-first; the previous replay of the same playbook
+            {sorted.map((s, i) => {
+              // Rows are newest-first; the previous replay of the same playbook
               // on the same target (if any) is the next match further down.
-              const prev = suites
+              const prev = sorted
                 .slice(i + 1)
                 .find((o) => o.suiteName === s.suiteName && o.target === s.target);
               const isOpen = open.has(s.suiteId);
@@ -1978,6 +1985,9 @@ export function SuitesSection() {
                     <td className="ct-target" title={s.target}>
                       {hostOf(s.target) ?? s.target}
                     </td>
+                    <td className="ct-created" title={new Date(s.createdAt).toLocaleString()}>
+                      {fmtRowDate(Date.parse(s.createdAt) || 0)}
+                    </td>
                     <td className="ct-suite-report" onClick={(e) => e.stopPropagation()}>
                       <a
                         className="btn btn-sm btn-ghost"
@@ -2002,7 +2012,7 @@ export function SuitesSection() {
                   </tr>
                   {isOpen && (
                     <tr className="ct-detail">
-                      <td colSpan={anyVerdict ? 7 : 6}>
+                      <td colSpan={anyVerdict ? 8 : 7}>
                         <SuiteStepChips
                           steps={s.members.map((m) => ({
                             key: m.id,
