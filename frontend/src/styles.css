@@ -6313,11 +6313,16 @@ table.remediations td {
   display: flex;
   flex-direction: column;
   margin: 0;
+  overflow: hidden; /* contain children so nothing spills past the dock bottom */
 }
 .assistant-chat-dock .assistant-log {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+/* Keep the composer fully visible at the bottom — only the log scrolls. */
+.assistant-chat-dock .assistant-input {
+  flex: 0 0 auto;
 }
 /* Below the three-column threshold, hide the dock (the Assistant tab remains). */
 @media (max-width: 1180px) {
