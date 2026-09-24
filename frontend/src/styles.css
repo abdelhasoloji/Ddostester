@@ -6329,3 +6329,143 @@ table.remediations td {
     display: none;
   }
 }
+
+/* ── Assistant: conversation history panel (assistant/history) ── */
+.assistant-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.assistant-history-toggle {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+}
+.assistant-history-toggle.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.assistant-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+}
+.assistant-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.assistant-history-empty {
+  padding: 0.5rem 0.1rem;
+}
+.assistant-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.assistant-history-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  background: var(--surface);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.assistant-history-item:hover {
+  border-color: var(--primary);
+}
+.assistant-history-item.is-current {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.assistant-history-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+}
+.assistant-history-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.assistant-history-meta {
+  font-size: 0.72rem;
+}
+.assistant-history-del {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 0 0.6rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.assistant-history-del:hover {
+  color: var(--danger, #d33);
+}
+
+/* ── Assistant: proactive next-action suggestions (assistant/proactive) ── */
+.assistant-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.assistant-auto-toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.assistant-suggest {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+}
+.assistant-auto-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.6rem;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 0 var(--radius, 8px) var(--radius, 8px) 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.assistant-auto-badge {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+  white-space: nowrap;
+}
+.assistant-auto-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

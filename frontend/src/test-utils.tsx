@@ -37,6 +37,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     ready: true,
     anyRunning: false,
     campaigns: [],
+    alerts: [],
     runs: {},
     wrsSeries: [],
     auditRows: [],
