@@ -18,6 +18,7 @@ import type {
   LiveProgressData,
 } from './api.js';
 import { useApp, canDo } from './context.js';
+import { requestAiSupport } from './assistant-bus.js';
 import { Modal } from './modal.js';
 import { wrsClass } from './wrs.js';
 import { formatInterval, fmtDateTime } from './campaign-form.js';
@@ -50,6 +51,32 @@ const badgeLabel: Record<CampaignStatus, string> = {
   KILLED_MANUAL: 'Manually killed',
   CANCELLED: 'Cancelled',
 };
+
+/** A small pill placed on a card that hands the block's live context to the
+ *  assistant and opens it for an interactive exchange (see assistant-bus). */
+export function AiSupportButton({
+  title,
+  context,
+  className,
+}: {
+  title: string;
+  context: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`ai-support-btn${className ? ' ' + className : ''}`}
+      title="Ask the AI about this block — opens the assistant with its context"
+      onClick={(e) => {
+        e.stopPropagation();
+        requestAiSupport({ title, context });
+      }}
+    >
+      <span aria-hidden="true">🤖</span> AI support
+    </button>
+  );
+}
 
 export function StatusBadge({ status }: { status: CampaignStatus }) {
   return (

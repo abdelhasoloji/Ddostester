@@ -4,7 +4,7 @@ import { api } from './api.js';
 import type { ZoneSummary, ProtectedTarget, TargetAuthStatus } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
-import { wrsClass } from './ui.js';
+import { wrsClass, AiSupportButton } from './ui.js';
 
 /**
  * Protected zones — the WEDOS-Protection framing: the estate seen per protected
@@ -199,7 +199,13 @@ function TargetsPanel() {
     <section className="card targets-panel">
       <div className="targets-head">
         <div>
-          <h3>Protected targets</h3>
+          <div className="card-head">
+            <h3>Protected targets</h3>
+            <AiSupportButton
+              title="Protected targets"
+              context="the registered protected zones/targets and their authorization state (a CISO must authorize before any test)."
+            />
+          </div>
           <p className="hint">
             Onboard a host as a protected zone. Registering is metadata only — a CISO must authorize
             it (separately from the requester) before any test can run against it.

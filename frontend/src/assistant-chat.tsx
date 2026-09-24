@@ -8,6 +8,7 @@ import { AssistantActionCard } from './assistant-action-card.js';
 import { lsGet, lsSet } from './storage.js';
 import { WedosMascot, type MascotState } from './wedos-mascot.js';
 import { describeZoneAt, type ZoneInfo } from './assistant-zones.js';
+import { onAiSupport } from './assistant-bus.js';
 
 /**
  * AssistantChat — the conversational panel over the self-hosted LLM (Qwen),
@@ -195,6 +196,18 @@ export function AssistantChat({
   const [error, setError] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+
+  // A card's "AI support" button pre-loads that block's context into the
+  // composer for an interactive exchange (the Layout opens the dock).
+  useEffect(
+    () =>
+      onAiSupport((req) => {
+        setInput(
+          `About "${req.title}": ${req.context}\n\nHelp me interpret this and suggest the next actions.`,
+        );
+      }),
+    [],
+  );
 
   const [convos, setConvos] = useState<Convo[]>(() => loadConvos());
   const [currentId, setCurrentId] = useState<string | null>(null);

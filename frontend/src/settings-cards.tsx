@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useApp, canDo, roleLabel } from './context.js';
 import { api, getGrafanaBase, setGrafanaBase, grafanaDashUrl } from './api.js';
 import type { HardCaps, ManagedUser, Role } from './api.js';
+import { AiSupportButton } from './ui.js';
 
 export function PurgeCard() {
   const app = useApp();
@@ -32,7 +33,13 @@ export function PurgeCard() {
 
   return (
     <div className="card">
-      <h2>Purge campaigns</h2>
+      <div className="card-head">
+        <h2>Purge campaigns</h2>
+        <AiSupportButton
+          title="Purge campaigns"
+          context="destructive maintenance action to purge settled or all campaigns from the store."
+        />
+      </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Permanently delete test campaigns and their runs. This <b>cannot be undone</b>; the
         tamper-evident audit log is kept. Officer only, and audited.
@@ -153,7 +160,13 @@ export function UsersCard() {
   const me = app.identity?.email;
   return (
     <div className="card">
-      <h2>Users &amp; access</h2>
+      <div className="card-head">
+        <h2>Users &amp; access</h2>
+        <AiSupportButton
+          title="Users & access"
+          context="platform user administration — accounts, roles (engineer/ciso/admin/viewer) and access."
+        />
+      </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Manage runtime users. Users defined in <code>AUTH_USERS</code> (env) are the immutable root
         and are shown as <b>env</b>; they can&apos;t be edited here. Every change is audited.
@@ -356,7 +369,13 @@ export function LimitsCard() {
 
   return (
     <div className="card">
-      <h2>Operational limits (admin)</h2>
+      <div className="card-head">
+        <h2>Operational limits (admin)</h2>
+        <AiSupportButton
+          title="Operational limits (admin)"
+          context="the operational caps (maxRps/concurrency/duration) under the frozen HARD_CAPS ceiling."
+        />
+      </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Set the caps ShieldTest enforces on every campaign and playbook. They can be tightened
         freely or raised up to — but <b>never above</b> — the immutable safety ceiling below. The
@@ -410,7 +429,13 @@ export function NotificationsCard() {
   };
   return (
     <div className="card">
-      <h2>Notifications</h2>
+      <div className="card-head">
+        <h2>Notifications</h2>
+        <AiSupportButton
+          title="Notifications"
+          context="the notification sinks (Slack / generic webhook) fired on campaign completion, kill or WRS regression."
+        />
+      </div>
       <div className="kv">
         <div>
           <span className="k">Status</span>
@@ -467,7 +492,13 @@ export function ObservabilityCard() {
   };
   return (
     <div className="card">
-      <h2>Observability (Grafana)</h2>
+      <div className="card-head">
+        <h2>Observability (Grafana)</h2>
+        <AiSupportButton
+          title="Observability (Grafana)"
+          context="the Grafana/Prometheus observability wiring — base URL and run dashboards."
+        />
+      </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Prometheus scrapes the control plane; Grafana holds the historical, multi-run view. Point
         the app at your Grafana base URL and the Run Theater &amp; Results gain an{' '}
