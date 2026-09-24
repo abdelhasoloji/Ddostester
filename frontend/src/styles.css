@@ -6234,3 +6234,98 @@ table.remediations td {
     grid-template-columns: 1fr;
   }
 }
+
+/* Assistant — always-on docked column (mounted in the app shell) */
+.shell.dock-open {
+  grid-template-columns: 244px minmax(0, 1fr) 384px;
+}
+.shell.dock-min {
+  grid-template-columns: 244px minmax(0, 1fr) 46px;
+}
+.assistant-dock {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: calc(100vh - 4px);
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.assistant-dock-rail {
+  align-items: center;
+  padding-top: 0.75rem;
+}
+.assistant-dock-expand {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+.assistant-dock-expand:hover {
+  border-color: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+/* The chat fills the docked column and scrolls internally. */
+.assistant-chat-dock {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0.7rem;
+  gap: 0.55rem;
+  overflow: hidden;
+}
+.assistant-dock-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0.15rem 0.1rem;
+}
+.assistant-dock-head strong {
+  font-size: 0.95rem;
+}
+.assistant-dock-collapse {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 1;
+}
+.assistant-dock-collapse:hover {
+  border-color: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.assistant-chat-dock .assistant-power {
+  margin: 0;
+  padding: 8px 10px;
+}
+.assistant-chat-dock .assistant-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.assistant-chat-dock .assistant-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Below the three-column threshold, hide the dock (the Assistant tab remains). */
+@media (max-width: 1180px) {
+  .shell.dock-open,
+  .shell.dock-min {
+    grid-template-columns: 244px minmax(0, 1fr);
+  }
+  .assistant-dock {
+    display: none;
+  }
+}

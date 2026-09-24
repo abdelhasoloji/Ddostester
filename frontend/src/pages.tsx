@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
+import { AssistantChat } from './assistant-chat.js';
+import { lsGet, lsSet } from './storage.js';
 import {
   api,
   auditExportUrl,
@@ -350,7 +352,12 @@ export function CommandCenterPage() {
         }) as WrsBreakdown,
       }
     : fallback
-      ? { runId: fallback.runId!, name: fallback.name, target: fallback.target, wrs: fallback.wrs! }
+      ? {
+          runId: fallback.runId!,
+          name: fallback.name,
+          target: fallback.target,
+          wrs: fallback.wrs!,
+        }
       : null;
   const trend = app.wrsSeries.find((s) => s.points.length >= 2);
 
@@ -387,7 +394,8 @@ export function CommandCenterPage() {
             )}
           </div>
           <div className="kpi-k">
-            Fleet resilience · {scored.length} target{scored.length === 1 ? '' : 's'}
+            Fleet resilience · {scored.length} target
+            {scored.length === 1 ? '' : 's'}
           </div>
         </div>
         <div className="kpi">
@@ -498,7 +506,12 @@ export function CommandCenterPage() {
             Last result · {last.name} <span className="muted">→ {last.target}</span>
           </div>
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '.6rem', marginBottom: '.4rem' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '.6rem',
+              marginBottom: '.4rem',
+            }}
           >
             {last.wrs && <WrsPill wrs={last.wrs} />}
             {lastRun?.confidence?.degraded && (
@@ -624,10 +637,27 @@ export function Layout() {
   const grafanaBase = getGrafanaBase();
   // Key the routed content by path so it re-mounts (and re-animates) on nav.
   const location = useLocation();
+  const [dockOpen, setDockOpen] = useState(() => {
+    try {
+      return lsGet('assistantDock') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      lsSet('assistantDock', dockOpen ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [dockOpen]);
+  // The docked assistant column shows on every screen except its own full page.
+  const showDock = !location.pathname.startsWith('/assistant');
+  const shellClass = `shell${showDock ? (dockOpen ? ' dock-open' : ' dock-min') : ''}`;
   return (
     <>
       <div className="accent-line" />
-      <div className="shell">
+      <div className={shellClass}>
         <aside className="sidebar">
           <div className="brand-lockup sidebar-brand">
             <img className="brand-logo logo-light" src="/wedos-logo.png" alt="WEDOS" />
@@ -713,6 +743,25 @@ export function Layout() {
             <Outlet />
           </div>
         </main>
+
+        {showDock &&
+          (dockOpen ? (
+            <aside className="assistant-dock">
+              <AssistantChat variant="dock" onCollapse={() => setDockOpen(false)} />
+            </aside>
+          ) : (
+            <aside className="assistant-dock assistant-dock-rail">
+              <button
+                type="button"
+                className="assistant-dock-expand"
+                onClick={() => setDockOpen(true)}
+                title="Open the assistant"
+                aria-label="Open the assistant"
+              >
+                💬
+              </button>
+            </aside>
+          ))}
       </div>
 
       <CampaignDrawer />
@@ -740,9 +789,17 @@ export function PageHead({ title, sub }: { title: string; sub?: React.ReactNode 
 
 // ---------- Campaigns ----------
 type StatusFilterId = 'all' | 'pending' | 'approved' | 'running' | 'done' | 'rejected';
-const STATUS_FILTERS: { id: StatusFilterId; label: string; match: (c: Campaign) => boolean }[] = [
+const STATUS_FILTERS: {
+  id: StatusFilterId;
+  label: string;
+  match: (c: Campaign) => boolean;
+}[] = [
   { id: 'all', label: 'All', match: () => true },
-  { id: 'pending', label: 'Pending', match: (c) => c.status === 'PENDING_APPROVAL' },
+  {
+    id: 'pending',
+    label: 'Pending',
+    match: (c) => c.status === 'PENDING_APPROVAL',
+  },
   { id: 'approved', label: 'Approved', match: (c) => c.status === 'APPROVED' },
   { id: 'running', label: 'Running', match: (c) => c.status === 'RUNNING' },
   {
@@ -1066,16 +1123,24 @@ export function suiteTiming(members: Campaign[]): SuiteTiming {
 }
 
 /** Aggregate WRS across scored members: average + worst (min) with its level. */
-export function suiteWrs(
-  members: Campaign[],
-): { avg: number; min: number; level: WrsBreakdown['level']; scored: number } | null {
+export function suiteWrs(members: Campaign[]): {
+  avg: number;
+  min: number;
+  level: WrsBreakdown['level'];
+  scored: number;
+} | null {
   const scored = members.filter((m) => m.wrs);
   if (!scored.length) return null;
   const vals = scored.map((m) => m.wrs!.wrs);
   const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   let worst = scored[0];
   for (const m of scored) if (m.wrs!.wrs < worst.wrs!.wrs) worst = m;
-  return { avg, min: worst.wrs!.wrs, level: worst.wrs!.level, scored: scored.length };
+  return {
+    avg,
+    min: worst.wrs!.wrs,
+    level: worst.wrs!.level,
+    scored: scored.length,
+  };
 }
 
 /**
@@ -1757,7 +1822,13 @@ const SUITE_STEP_CLASS: Record<string, string> = {
 function SuiteStepChips({
   steps,
 }: {
-  steps: { key: string; order: number; label: string; wrs?: string; status: string }[];
+  steps: {
+    key: string;
+    order: number;
+    label: string;
+    wrs?: string;
+    status: string;
+  }[];
 }) {
   return (
     <div className="suite-steps">
@@ -2035,7 +2106,11 @@ export function GapPlannerSection() {
       const name = `Plan — ${host.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
       const r =
         planPicks.length >= 2
-          ? await api.composeSuite({ playbookIds: planPicks, name, target: targetUrl })
+          ? await api.composeSuite({
+              playbookIds: planPicks,
+              name,
+              target: targetUrl,
+            })
           : await api.instantiatePlaybook(planPicks[0], { target: targetUrl });
       app.push(
         'success',

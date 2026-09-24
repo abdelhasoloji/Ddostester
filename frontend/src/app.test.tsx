@@ -14,6 +14,12 @@ const fakeApi = {
   listUsers: vi.fn().mockResolvedValue([]),
   playbooks: vi.fn().mockResolvedValue([]),
   suites: vi.fn().mockResolvedValue([]),
+  assistantStatus: vi
+    .fn()
+    .mockResolvedValue({ configured: false, model: 'qwen', podManaged: false }),
+  assistantPod: vi.fn().mockResolvedValue({ configured: false, state: 'UNKNOWN' }),
+  assistantPodStart: vi.fn().mockResolvedValue({ state: 'STARTING' }),
+  assistantPodStop: vi.fn().mockResolvedValue({ state: 'STOPPED' }),
 };
 
 vi.mock('./api.js', async (orig) => {
@@ -31,7 +37,10 @@ const { App } = await import('./App.js');
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  fakeApi.health.mockResolvedValue({ allowedTargets: ['h'], authRequired: false });
+  fakeApi.health.mockResolvedValue({
+    allowedTargets: ['h'],
+    authRequired: false,
+  });
   fakeApi.agents.mockResolvedValue({ default: 'builtin', agents: [] });
   fakeApi.listCampaigns.mockResolvedValue([]);
   fakeApi.wrsHistory.mockResolvedValue([]);
@@ -54,7 +63,10 @@ describe('App gate', () => {
   });
 
   it('shows the sign-in screen when auth is required and no one is signed in', async () => {
-    fakeApi.health.mockResolvedValue({ allowedTargets: [], authRequired: true });
+    fakeApi.health.mockResolvedValue({
+      allowedTargets: [],
+      authRequired: true,
+    });
     render(<App />);
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument(),
@@ -64,7 +76,10 @@ describe('App gate', () => {
   });
 
   it('forces a password change when the signed-in account has a temp password', async () => {
-    fakeApi.health.mockResolvedValue({ allowedTargets: [], authRequired: true });
+    fakeApi.health.mockResolvedValue({
+      allowedTargets: [],
+      authRequired: true,
+    });
     localStorage.setItem('token', 'temp-session');
     fakeApi.me.mockResolvedValue({
       email: 'temp@wedos',

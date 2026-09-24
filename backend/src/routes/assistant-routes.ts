@@ -27,6 +27,12 @@ export interface AssistantRoutesCtx {
   /** Optional GPU-pod power control (RunPod). Absent → pod is "unmanaged". */
   runpod?: RunpodConfig;
   audit?: AssistantAudit;
+  /**
+   * Optional live-context provider. Its text is appended to the system prompt on
+   * each chat turn so answers reflect real platform state (authorized targets,
+   * recent campaigns, caps). Read-only and best-effort — never blocks the chat.
+   */
+  assistantContext?: (req: FastifyRequest) => Promise<string> | string;
 }
 
 interface OpenAiMessage {
@@ -44,7 +50,7 @@ interface OpenAiMessage {
  * through the existing approval + HARD_CAPS + kill-switch governance, never here.
  */
 export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRoutesCtx): void {
-  const { guard, config, runpod, audit } = ctx;
+  const { guard, config, runpod, audit, assistantContext } = ctx;
   const podManaged = runpod != null && runpodConfigured(runpod);
 
   // Lightweight status so the UI can show "assistant available / not configured"
@@ -110,15 +116,21 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
       const body = (req.body ?? {}) as { messages?: unknown };
       const turns: ChatTurn[] = sanitizeTurns(body.messages);
       if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
-        return reply
-          .code(400)
-          .send({ error: 'expected a non-empty messages array ending with a user turn' });
+        return reply.code(400).send({
+          error: 'expected a non-empty messages array ending with a user turn',
+        });
       }
 
-      const messages: OpenAiMessage[] = [
-        { role: 'system', content: config.systemPrompt },
-        ...turns,
-      ];
+      let systemContent = config.systemPrompt;
+      if (assistantContext) {
+        try {
+          const extra = await assistantContext(req);
+          if (extra && extra.trim()) systemContent += '\n\n' + extra.trim();
+        } catch {
+          /* live context is best-effort — never block the chat */
+        }
+      }
+      const messages: OpenAiMessage[] = [{ role: 'system', content: systemContent }, ...turns];
 
       // Take over the socket for Server-Sent Events.
       reply.hijack();
@@ -191,7 +203,9 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
         }
         send('done', { ok: true });
       } catch (err) {
-        send('error', { message: err instanceof Error ? err.message : 'stream failed' });
+        send('error', {
+          message: err instanceof Error ? err.message : 'stream failed',
+        });
       } finally {
         clearTimeout(timer);
         res.end();
