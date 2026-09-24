@@ -91,22 +91,39 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     resetUserPassword: vi.fn().mockResolvedValue({ email: 'x', mustChangePassword: true }),
     deleteUser: vi.fn().mockResolvedValue({ deleted: 'x' }),
     logout: vi.fn().mockResolvedValue({ ok: true }),
-    changePassword: vi
-      .fn()
-      .mockResolvedValue({ token: 't', email: 'x', role: 'engineer', mustChangePassword: false }),
+    changePassword: vi.fn().mockResolvedValue({
+      token: 't',
+      email: 'x',
+      role: 'engineer',
+      mustChangePassword: false,
+    }),
     createPlaybook: vi.fn().mockResolvedValue({}),
     deletePlaybook: vi.fn().mockResolvedValue({ deleted: 'x' }),
-    instantiatePlaybook: vi
-      .fn()
-      .mockResolvedValue({ suiteId: 's', campaigns: [], recon: { seeded: false } }),
-    composeSuite: vi
-      .fn()
-      .mockResolvedValue({ suiteId: 's', campaigns: [], recon: { seeded: false } }),
+    instantiatePlaybook: vi.fn().mockResolvedValue({
+      suiteId: 's',
+      campaigns: [],
+      recon: { seeded: false },
+    }),
+    composeSuite: vi.fn().mockResolvedValue({
+      suiteId: 's',
+      campaigns: [],
+      recon: { seeded: false },
+    }),
     notifyTest: vi.fn().mockResolvedValue({ delivered: true, sinks: [] }),
+    assistantStatus: vi.fn().mockResolvedValue({
+      configured: false,
+      model: 'qwen',
+      podManaged: false,
+    }),
+    assistantPod: vi.fn().mockResolvedValue({ configured: false, state: 'UNKNOWN' }),
+    assistantPodStart: vi.fn().mockResolvedValue({ state: 'STARTING' }),
+    assistantPodStop: vi.fn().mockResolvedValue({ state: 'STOPPED' }),
     verifyAudit: vi.fn().mockResolvedValue({ ok: true, count: 3, headHash: 'abc123def456' }),
-    benchScenarios: vi
-      .fn()
-      .mockResolvedValue({ scenarios: [], dispatchEnabled: false, labTargets: [] }),
+    benchScenarios: vi.fn().mockResolvedValue({
+      scenarios: [],
+      dispatchEnabled: false,
+      labTargets: [],
+    }),
     benchRuns: vi.fn().mockResolvedValue({ runs: [] }),
     createBenchRun: vi.fn().mockResolvedValue({}),
     benchCoverage: vi.fn().mockResolvedValue({ coverage: [] }),
@@ -116,7 +133,11 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     runSuite: vi.fn().mockResolvedValue({ suiteId: 's', steps: 3, started: true }),
     pauseSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: true }),
     resumeSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: false }),
-    cancelSuite: vi.fn().mockResolvedValue({ suiteId: 's', cancelled: true, killedCurrent: true }),
+    cancelSuite: vi.fn().mockResolvedValue({
+      suiteId: 's',
+      cancelled: true,
+      killedCurrent: true,
+    }),
     suiteSequences: vi.fn().mockResolvedValue({ sequences: {} }),
     recon: vi.fn().mockResolvedValue({
       target: 'https://bank.cz/',
@@ -156,9 +177,11 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     createCampaign: vi.fn().mockResolvedValue({ id: 'c1', status: 'PENDING_APPROVAL' }),
     approve: vi.fn().mockResolvedValue({ id: 'c1', status: 'APPROVED' }),
     cisoApprove: vi.fn().mockResolvedValue({ id: 'c1', status: 'APPROVED' }),
-    execute: vi
-      .fn()
-      .mockResolvedValue({ runId: 'r1', status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } }),
+    execute: vi.fn().mockResolvedValue({
+      runId: 'r1',
+      status: 'COMPLETED',
+      wrs: { wrs: 90, level: 'A' },
+    }),
     kill: vi.fn().mockResolvedValue({ status: 'KILLED_MANUAL' }),
     listCampaigns: vi.fn().mockResolvedValue([]),
     setLimits: vi.fn().mockResolvedValue({ effective: {}, ceiling: {} }),
@@ -172,8 +195,22 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     purgeCampaigns: vi.fn().mockResolvedValue({ deleted: 3, killedRunning: 0, scope: 'settled' }),
     compareRuns: vi.fn().mockResolvedValue({
       target: 'h.wedos',
-      before: { runId: 'r1', campaign: 'A', at: '', wrs: 41, level: 'D', status: 'KILLED_AUTO' },
-      after: { runId: 'r2', campaign: 'B', at: '', wrs: 97, level: 'A+', status: 'COMPLETED' },
+      before: {
+        runId: 'r1',
+        campaign: 'A',
+        at: '',
+        wrs: 41,
+        level: 'D',
+        status: 'KILLED_AUTO',
+      },
+      after: {
+        runId: 'r2',
+        campaign: 'B',
+        at: '',
+        wrs: 97,
+        level: 'A+',
+        status: 'COMPLETED',
+      },
       wrsDelta: 56,
       levelBefore: 'D',
       levelAfter: 'A+',
@@ -201,9 +238,13 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
       ],
       remainingRemediations: [],
     }),
-    metricsRange: vi
-      .fn()
-      .mockResolvedValue({ name: '', title: '', unit: 'reqps', source: 'unavailable', series: [] }),
+    metricsRange: vi.fn().mockResolvedValue({
+      name: '',
+      title: '',
+      unit: 'reqps',
+      source: 'unavailable',
+      series: [],
+    }),
     ...overrides,
   };
 }

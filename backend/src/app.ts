@@ -112,6 +112,7 @@ import {
 import type { Playbook } from './modules/playbooks/playbooks.js';
 import { tlsInsecure } from './util/tls.js';
 import { getBuildInfo } from './version.js';
+import { deriveAlerts } from './modules/alerts/derive.js';
 
 export interface BuildOptions {
   store: Store;
@@ -299,19 +300,30 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (email.startsWith('share:')) {
       return {
         ok: true,
-        id: { email, role: canonicalRole(payload.role) ?? (payload.role as Role) },
+        id: {
+          email,
+          role: canonicalRole(payload.role) ?? (payload.role as Role),
+        },
         mustChange: false,
       };
     }
     if (auth.users.has(email.toLowerCase())) {
       return {
         ok: true,
-        id: { email, role: canonicalRole(payload.role) ?? (payload.role as Role) },
+        id: {
+          email,
+          role: canonicalRole(payload.role) ?? (payload.role as Role),
+        },
         mustChange: false,
       };
     }
     const su = await store.getUser(email.toLowerCase());
-    if (!su) return { ok: false, code: 401, error: 'account no longer exists — sign in again' };
+    if (!su)
+      return {
+        ok: false,
+        code: 401,
+        error: 'account no longer exists — sign in again',
+      };
     if ((su.status ?? 'active') === 'disabled') {
       return { ok: false, code: 401, error: 'account disabled' };
     }
@@ -332,9 +344,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       if (!r.ok) return reply.code(r.code).send({ error: r.error });
       req.authUser = r.id;
       if (r.mustChange) {
-        return reply
-          .code(403)
-          .send({ error: 'password change required', code: 'password_change_required' });
+        return reply.code(403).send({
+          error: 'password change required',
+          code: 'password_change_required',
+        });
       }
       if (!can(r.id.role, perm)) {
         return reply.code(403).send({ error: `missing ${perm} permission` });
@@ -572,7 +585,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // progress. Without this seed the live stream would find no record and tell
     // the UI the run is "done", stranding the progress view on "Starting run…".
     // Cleared in the finally below; onProgress overwrites it once load begins.
-    onProgress({ sent: 0, successful: 0, failed: 0, elapsedSec: 0, actualRps: 0 });
+    onProgress({
+      sent: 0,
+      successful: 0,
+      failed: 0,
+      elapsedSec: 0,
+      actualRps: 0,
+    });
     try {
       let host = c.target;
       try {
@@ -1074,7 +1093,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // simple flood auto-routes to an out-of-process engine — the frontend reads
     // these to predict, at config time, whether a configured rate/concurrency
     // will actually be delivered by the built-in engine or routed away.
-    builtinCeilings: { rps: BUILTIN_RPS_CEILING, concurrency: BUILTIN_CONCURRENCY_CEILING },
+    builtinCeilings: {
+      rps: BUILTIN_RPS_CEILING,
+      concurrency: BUILTIN_CONCURRENCY_CEILING,
+    },
     // Observability: whether the app-native Prometheus charts have a data source,
     // and the Grafana base URL (+ run dashboard uid) for the "Open in Grafana"
     // deep-links. Null when unconfigured — the UI then hides the Grafana links.
@@ -1115,7 +1137,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       `operational limits set: maxRps=${next.maxRps}, maxConcurrency=${next.maxConcurrency}, ` +
         `maxDurationSec=${next.maxDurationSec} (ceiling ${HARD_CAPS.maxRps}/${HARD_CAPS.maxConcurrency}/${HARD_CAPS.maxDurationSec})`,
     );
-    return reply.send({ ceiling: { ...HARD_CAPS }, effective: effectiveCaps });
+    return reply.send({
+      ceiling: { ...HARD_CAPS },
+      effective: effectiveCaps,
+    });
   });
 
   // Readiness probe: 503 when the store is unreachable (e.g. DB down), so a
@@ -1249,7 +1274,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const decoyHash = hashPassword('constant-time-decoy-not-a-credential');
   app.post('/api/auth/login', async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication disabled' });
-    const { email, password } = req.body as { email?: string; password?: string };
+    const { email, password } = req.body as {
+      email?: string;
+      password?: string;
+    };
     if (!email || !password) return reply.code(400).send({ error: 'email and password required' });
     const key = `${email.toLowerCase()}|${req.ip}`;
     const entry = loginFails.get(key);
@@ -1331,7 +1359,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const email = r.id.email.toLowerCase();
     if (!auth.users.has(email) && !email.startsWith('share:')) {
       const su = await store.getUser(email);
-      if (su) await store.saveUser({ ...su, tokenVersion: (su.tokenVersion ?? 0) + 1 });
+      if (su)
+        await store.saveUser({
+          ...su,
+          tokenVersion: (su.tokenVersion ?? 0) + 1,
+        });
     }
     await audit(req, 'auth.logout', undefined, undefined);
     return { ok: true };
@@ -1349,9 +1381,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const body = req.body as { currentPassword?: string; newPassword?: string };
     const email = r.id.email.toLowerCase();
     if (auth.users.has(email)) {
-      return reply
-        .code(400)
-        .send({ error: 'Your account is managed via configuration and cannot self-change here.' });
+      return reply.code(400).send({
+        error: 'Your account is managed via configuration and cannot self-change here.',
+      });
     }
     const su = await store.getUser(email);
     if (!su) return reply.code(404).send({ error: 'user not found' });
@@ -1382,7 +1414,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // the viewer role regardless of the caller — a share link can only read.
   app.post('/api/share', { preHandler: guard('campaign:read') }, async (req, reply) => {
     if (!auth.enabled) {
-      return reply.send({ authRequired: false, token: null, expiresAt: null });
+      return reply.send({
+        authRequired: false,
+        token: null,
+        expiresAt: null,
+      });
     }
     const { ttlMinutes } = (req.body ?? {}) as { ttlMinutes?: number };
     const ttlMin = Math.min(Math.max(Math.round(Number(ttlMinutes) || 60), 1), 7 * 24 * 60);
@@ -1408,9 +1444,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     { preHandler: guard('campaign:approve') },
     async (req, reply) => {
       if (labTargets.length === 0) {
-        return reply
-          .code(400)
-          .send({ error: 'DRS validation is disabled (no LAB_TARGETS configured).' });
+        return reply.code(400).send({
+          error: 'DRS validation is disabled (no LAB_TARGETS configured).',
+        });
       }
       const b = (req.body ?? {}) as {
         technique?: string;
@@ -1423,9 +1459,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       };
       const cls = String(b.class ?? '').toUpperCase();
       if (cls !== 'A' && cls !== 'B') {
-        return reply
-          .code(400)
-          .send({ error: 'class must be A or B (class C is out of scope — network bench).' });
+        return reply.code(400).send({
+          error: 'class must be A or B (class C is out of scope — network bench).',
+        });
       }
       if (!b.technique?.trim()) return reply.code(400).send({ error: 'technique is required.' });
       const OUTCOMES = ['MITIGATED', 'NOT_MITIGATED', 'INCONCLUSIVE', 'ABORTED'];
@@ -1563,13 +1599,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // This makes result-posting idempotent-safe: a duplicate or late post can't
     // overwrite a terminal run or record a second MEASURED_LAB coverage row.
     if (existing.status !== 'CLAIMED') {
-      return reply
-        .code(409)
-        .send({ error: `run is ${existing.status}, not CLAIMED — cannot post a result` });
+      return reply.code(409).send({
+        error: `run is ${existing.status}, not CLAIMED — cannot post a result`,
+      });
     }
     const b = (req.body ?? {}) as { verdict?: unknown; error?: string };
     if (b.error && !b.verdict) {
-      const updated = await store.setBenchRunResult(id, { error: String(b.error).slice(0, 500) });
+      const updated = await store.setBenchRunResult(id, {
+        error: String(b.error).slice(0, 500),
+      });
       await auditAs(
         existing.claimedBy ?? 'runner',
         'bench.verdict',
@@ -1670,7 +1708,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
-    const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+    const record: BenchCoverage = {
+      ...entry,
+      id: randomUUID(),
+      at: new Date().toISOString(),
+    };
     await store.saveBenchCoverage(record);
     await audit(
       req,
@@ -1696,7 +1738,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
-    const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+    const record: BenchCoverage = {
+      ...entry,
+      id: randomUUID(),
+      at: new Date().toISOString(),
+    };
     await store.saveBenchCoverage(record);
     await audit(
       req,
@@ -1714,7 +1760,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     '/api/bench/coverage/import',
     { preHandler: guard('bench:attest') },
     async (req, reply) => {
-      const b = (req.body ?? {}) as { format?: string; data?: unknown; source?: string };
+      const b = (req.body ?? {}) as {
+        format?: string;
+        data?: unknown;
+        source?: string;
+      };
       const format = b.format === 'csv' ? 'csv' : 'json';
       let parsed;
       try {
@@ -1729,7 +1779,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
       const saved: BenchCoverage[] = [];
       for (const entry of parsed.entries) {
-        const record: BenchCoverage = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+        const record: BenchCoverage = {
+          ...entry,
+          id: randomUUID(),
+          at: new Date().toISOString(),
+        };
         await store.saveBenchCoverage(record);
         saved.push(record);
       }
@@ -1742,9 +1796,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           `INGESTED_EXTERNAL · imported ${saved.length} verdict(s) [${vectors}]`,
         );
       }
-      return reply
-        .code(201)
-        .send({ imported: saved.length, errors: parsed.errors, records: saved });
+      return reply.code(201).send({
+        imported: saved.length,
+        errors: parsed.errors,
+        records: saved,
+      });
     },
   );
 
@@ -1755,7 +1811,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const r = await resolveIdentity(req);
     if (!r.ok) return reply.code(r.code).send({ error: r.error });
     req.authUser = r.id;
-    return { email: r.id.email, role: r.id.role, mustChangePassword: r.mustChange };
+    return {
+      email: r.id.email,
+      role: r.id.role,
+      mustChangePassword: r.mustChange,
+    };
   });
 
   // --- User management (officer only; env users are immutable) ---------------
@@ -1783,18 +1843,30 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.post('/api/users', { preHandler: guard('user:manage') }, async (req, reply) => {
     if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
     try {
-      const body = req.body as { email?: string; role?: string; password?: string };
+      const body = req.body as {
+        email?: string;
+        role?: string;
+        password?: string;
+      };
       const current = await currentUsers();
       const { email, role } = assertUpsert(
-        { email: body.email ?? '', role: body.role ?? '', password: body.password ?? '' },
-        { envEmails: envEmailSet(), current, actorEmail: req.authUser?.email ?? '' },
+        {
+          email: body.email ?? '',
+          role: body.role ?? '',
+          password: body.password ?? '',
+        },
+        {
+          envEmails: envEmailSet(),
+          current,
+          actorEmail: req.authUser?.email ?? '',
+        },
       );
       // Create-only: never silently overwrite an existing account's role/password.
       // Role changes go through PATCH; a re-create is an explicit 409.
       if (current.some((u) => u.email.toLowerCase() === email)) {
-        return reply
-          .code(409)
-          .send({ error: `User ${email} already exists — use PATCH to change their role.` });
+        return reply.code(409).send({
+          error: `User ${email} already exists — use PATCH to change their role.`,
+        });
       }
       // Admin-set password is temporary: the user must change it at first login.
       await store.saveUser({
@@ -1849,9 +1921,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         if (nextStatus === 'disabled') revoke = true;
         await audit(req, 'user.status', undefined, `${existing.email} → ${nextStatus}`);
       }
-      if (revoke) updated = { ...updated, tokenVersion: (existing.tokenVersion ?? 0) + 1 };
+      if (revoke)
+        updated = {
+          ...updated,
+          tokenVersion: (existing.tokenVersion ?? 0) + 1,
+        };
       await store.saveUser(updated);
-      return { email: updated.email, role: updated.role, status: updated.status, source: 'store' };
+      return {
+        email: updated.email,
+        role: updated.role,
+        status: updated.status,
+        source: 'store',
+      };
     } catch (err) {
       if (err instanceof UserError) return reply.code(400).send({ error: err.message });
       return fail(err, reply);
@@ -1974,10 +2055,17 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const id = (req.params as { id: string }).id;
       const pb = getPlaybook(id) ?? (await store.getPlaybook(id));
       if (!pb) return reply.code(404).send({ error: 'playbook not found' });
-      const body = req.body as { target?: string; probeUrl?: string; recurrenceMin?: number };
+      const body = req.body as {
+        target?: string;
+        probeUrl?: string;
+        recurrenceMin?: number;
+      };
       if (!body.target) return reply.code(400).send({ error: 'target is required' });
       try {
-        const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+        const engines = (await describeAgents()).map((a) => ({
+          id: a.id,
+          available: a.available,
+        }));
         // Systematic recon: seed the suite's endpoints from the target's real
         // published surface so path-based lines can't flood non-existent paths
         // (404). Best-effort and non-blocking (see reconSeed).
@@ -2012,9 +2100,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           `playbook "${pb.name}" → ${created.length} campaigns (suite ${created[0]?.suiteId}` +
             `${seed.summary.seeded ? ', recon-seeded' : ''})`,
         );
-        return reply
-          .code(201)
-          .send({ suiteId: created[0]?.suiteId, campaigns: created, recon: seed.summary });
+        return reply.code(201).send({
+          suiteId: created[0]?.suiteId,
+          campaigns: created,
+          recon: seed.summary,
+        });
       } catch (err) {
         return fail(err, reply);
       }
@@ -2034,9 +2124,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     };
     const ids = Array.isArray(body.playbookIds) ? body.playbookIds : [];
     if (ids.length < 1) {
-      return reply
-        .code(400)
-        .send({ error: 'playbookIds must list at least one template to compose' });
+      return reply.code(400).send({
+        error: 'playbookIds must list at least one template to compose',
+      });
     }
     if (!body.target) return reply.code(400).send({ error: 'target is required' });
     const playbooks: Playbook[] = [];
@@ -2054,7 +2144,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const name =
       body.name?.trim() || `Composite — ${playbooks.map((p) => p.name).join(' + ')}`.slice(0, 120);
     try {
-      const engines = (await describeAgents()).map((a) => ({ id: a.id, available: a.available }));
+      const engines = (await describeAgents()).map((a) => ({
+        id: a.id,
+        available: a.available,
+      }));
       // Systematic recon-seeding (same as single-playbook instantiation).
       const seed = await reconSeed(body.target, body.probeUrl || body.target);
       const inputs = buildCompositeSuite(
@@ -2088,9 +2181,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         `composite "${name}" ← ${playbooks.length} templates → ${created.length} campaigns ` +
           `(suite ${created[0]?.suiteId}${seed.summary.seeded ? ', recon-seeded' : ''})`,
       );
-      return reply
-        .code(201)
-        .send({ suiteId: created[0]?.suiteId, campaigns: created, recon: seed.summary });
+      return reply.code(201).send({
+        suiteId: created[0]?.suiteId,
+        campaigns: created,
+        recon: seed.summary,
+      });
     } catch (err) {
       return fail(err, reply);
     }
@@ -2236,7 +2331,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   ] as const;
   app.post('/api/campaigns/purge', { preHandler: guard('user:manage') }, async (req, reply) => {
     try {
-      const body = (req.body ?? {}) as { scope?: string; namePrefix?: unknown };
+      const body = (req.body ?? {}) as {
+        scope?: string;
+        namePrefix?: unknown;
+      };
       const scope = body.scope === 'all' ? 'all' : 'settled';
       // Optional selective purge: only delete campaigns whose name starts with one
       // of these prefixes (e.g. clearing test-harness runs while keeping real
@@ -2662,11 +2760,67 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const runpod = runpodConfigFromEnv();
   const assistantConfig = assistantConfigFromEnv();
   if (!assistantConfig.endpoint) assistantConfig.endpoint = podProxyEndpoint(runpod);
+  // Live platform context injected into the assistant's system prompt so it can
+  // answer about real state (authorized targets, recent campaigns, caps). Bounded
+  // and read-only; failures never block the chat.
+  const buildAssistantContext = async (): Promise<string> => {
+    const [campaigns, runs, allowed] = await Promise.all([
+      store.listCampaigns(),
+      store.listRuns(),
+      effectiveAllowlist(),
+    ]);
+    const bi = getBuildInfo();
+    const caps = effectiveCaps;
+    const lines: string[] = [];
+    lines.push('=== LIVE PLATFORM CONTEXT (read-only, current server state) ===');
+    lines.push(`Build: v${bi.version}+${bi.build} (${bi.commit}). Storage: ${store.backend}.`);
+    lines.push(
+      `Operational caps ENFORCED now: maxRps ${caps.maxRps}, maxConcurrency ${caps.maxConcurrency}, ` +
+        `maxDurationSec ${caps.maxDurationSec} (immutable ceiling ` +
+        `${HARD_CAPS.maxRps}/${HARD_CAPS.maxConcurrency}/${HARD_CAPS.maxDurationSec}).`,
+    );
+    lines.push(
+      allowed.length
+        ? `Authorized targets (${allowed.length}): ${allowed.slice(0, 40).join(', ')}` +
+            (allowed.length > 40 ? ', …' : '') +
+            '.'
+        : 'Authorized targets: none registered/authorized.',
+    );
+    const recent = [...campaigns]
+      .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+      .slice(0, 8);
+    if (recent.length) {
+      lines.push(`Recent campaigns (${recent.length} of ${campaigns.length}):`);
+      for (const c of recent) {
+        const wrs = c.wrs ? ` · WRS ${c.wrs.wrs} (${c.wrs.level})` : '';
+        lines.push(`- ${c.name} · ${c.status} · ${c.target}${wrs}`);
+      }
+    } else {
+      lines.push('Recent campaigns: none.');
+    }
+    try {
+      const alerts = deriveAlerts(runs, campaigns, { limit: 5 });
+      if (alerts.length) {
+        lines.push(`Active alerts (${alerts.length}):`);
+        for (const a of alerts.slice(0, 5)) lines.push(`- [${a.severity}] ${a.title}`);
+      }
+    } catch {
+      /* alerts are best-effort */
+    }
+    lines.push(
+      'Use this context to answer questions about the current platform state; do not invent data ' +
+        'beyond it. When proposing an action, only use authorized targets and keep bounds within the ' +
+        'enforced caps.',
+    );
+    return lines.join('\n');
+  };
+
   registerAssistantRoutes(app, {
     guard,
     config: assistantConfig,
     runpod,
     audit: (req, action, detail) => audit(req, action, undefined, detail),
+    assistantContext: () => buildAssistantContext(),
   });
 
   // Protected-target onboarding (governed). Registering a target is metadata
