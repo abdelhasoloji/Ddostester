@@ -48,8 +48,10 @@ import {
   WrsTrend,
   wrsClass,
   AbsorptionWidget,
+  AiSupportButton,
   hostOf,
 } from './ui.js';
+import { onAiSupport } from './assistant-bus.js';
 import { ReconFirstCreate } from './recon-first-create.js';
 import { presetSeed } from './campaign-form.js';
 import { gradeFromScore } from './wrs.js';
@@ -265,7 +267,13 @@ function AbsorptionByShape() {
   };
   return (
     <div className="card" style={{ marginTop: '1rem' }}>
-      <div className="section-title">Absorption by attack shape</div>
+      <div className="card-head">
+        <div className="section-title">Absorption by attack shape</div>
+        <AiSupportButton
+          title="Absorption by attack shape"
+          context="the Command Center table breaking down, per target and vector, how much offered load the edge absorbed (last vs mean) and the resulting WRS."
+        />
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="kvs abs-shape">
           <thead>
@@ -418,7 +426,13 @@ export function CommandCenterPage() {
 
       {alerts.length > 0 && (
         <div id="cc-alerts" className="card" style={{ marginTop: '1rem' }}>
-          <div className="section-title">Active alerts · from recent runs</div>
+          <div className="card-head">
+            <div className="section-title">Active alerts · from recent runs</div>
+            <AiSupportButton
+              title="Active alerts"
+              context="the Command Center list of recent alerts (protection-regression, auto-kill, low-WRS) across the fleet."
+            />
+          </div>
           <ul className="alerts-list">
             {alerts.slice(0, 6).map((a) => (
               <li key={a.key} className={`alert-row alert-${a.severity}`}>
@@ -463,7 +477,15 @@ export function CommandCenterPage() {
 
       {impact.length > 0 && (
         <div className="card" style={{ marginTop: '1rem' }}>
-          <div className="section-title">💥 Steps that floored the target · what actually hurt</div>
+          <div className="card-head">
+            <div className="section-title">
+              💥 Steps that floored the target · what actually hurt
+            </div>
+            <AiSupportButton
+              title="Steps that floored the target"
+              context="the Command Center list of the test steps that broke the target — vector, breaking RPS, availability and whether it was auto-killed."
+            />
+          </div>
           <ul className="impact-list">
             {impact.slice(0, 8).map((im) => (
               <li key={im.runId} className="impact-row">
@@ -508,8 +530,14 @@ export function CommandCenterPage() {
 
       {last && (
         <div className="card" style={{ marginTop: '1rem' }}>
-          <div className="section-title">
-            Last result · {last.name} <span className="muted">→ {last.target}</span>
+          <div className="card-head">
+            <div className="section-title">
+              Last result · {last.name} <span className="muted">→ {last.target}</span>
+            </div>
+            <AiSupportButton
+              title="Last result"
+              context="the most recent completed assessment's headline WRS and protection-absorption breakdown for its target."
+            />
           </div>
           <div
             style={{
@@ -535,7 +563,13 @@ export function CommandCenterPage() {
 
       {trend && (
         <div className="card" style={{ marginTop: '1rem' }}>
-          <div className="section-title">WRS trend · {trend.target}</div>
+          <div className="card-head">
+            <div className="section-title">WRS trend · {trend.target}</div>
+            <AiSupportButton
+              title="WRS trend"
+              context="the WRS resilience trend over time for the current target, with the regression flag when it drops."
+            />
+          </div>
           <WrsTrend points={trend.points} regression={trend.regression} />
         </div>
       )}
@@ -657,6 +691,8 @@ export function Layout() {
       /* ignore */
     }
   }, [dockOpen]);
+  // An "AI support" button on any card asks the docked assistant to open.
+  useEffect(() => onAiSupport(() => setDockOpen(true)), []);
   // The docked assistant column shows on every screen except its own full page.
   const showDock = !location.pathname.startsWith('/assistant');
   const shellClass = `shell${showDock ? (dockOpen ? ' dock-open' : ' dock-min') : ''}`;
@@ -1760,10 +1796,16 @@ export function CampaignList() {
 
   return (
     <>
-      <h2 className="section-title">
-        Campaign list <span className="hint">({filtered.length})</span>
-        {app.anyRunning && <span className="hint"> · auto-refreshing…</span>}
-      </h2>
+      <div className="card-head">
+        <h2 className="section-title">
+          Campaign list <span className="hint">({filtered.length})</span>
+          {app.anyRunning && <span className="hint"> · auto-refreshing…</span>}
+        </h2>
+        <AiSupportButton
+          title="Campaign list"
+          context="the campaign list with its current status/target/WRS filters — recent and in-flight resilience campaigns and suites."
+        />
+      </div>
 
       {hasCampaigns && (
         <div className="filter-bar">
@@ -2027,10 +2069,16 @@ export function SuitesSection() {
 
   return (
     <>
-      <h2 className="section-title">
-        Assessment suites <span className="hint">({filtered.length})</span>
-        {inFlight && <span className="hint"> · auto-refreshing…</span>}
-      </h2>
+      <div className="card-head">
+        <h2 className="section-title">
+          Assessment suites <span className="hint">({filtered.length})</span>
+          {inFlight && <span className="hint"> · auto-refreshing…</span>}
+        </h2>
+        <AiSupportButton
+          title="Assessment suites"
+          context="the Results table of assessment suites — per-suite progress, aggregate WRS, verdicts and targets across recent campaigns."
+        />
+      </div>
 
       <div className="filter-bar">
         <div className="filter-chips">
@@ -2255,9 +2303,15 @@ function NetworkLadderPanel() {
   if (!ladder) return null;
   return (
     <div className="card" style={{ marginBottom: '1rem' }}>
-      <h2 className="section-title" style={{ marginTop: 0 }}>
-        Network layer <span className="hint">— from the lab (class C, L3/4)</span>
-      </h2>
+      <div className="card-head">
+        <h2 className="section-title" style={{ marginTop: 0 }}>
+          Network layer <span className="hint">— from the lab (class C, L3/4)</span>
+        </h2>
+        <AiSupportButton
+          title="Network layer (lab DRS ladder)"
+          context="the class-C L3/4 lab ladder — which network vectors the edge absorbed per DRS tier, and where lab verdicts exist."
+        />
+      </div>
       <p className="hint" style={{ marginTop: 0 }}>
         The closed synthetic lab reports whether the edge absorbs each network vector — the L3/4
         tiers the bounded L7 tests below can never reach. Together they read as one full-stack DRS
@@ -2741,7 +2795,13 @@ export function SettingsPage() {
         sub="Platform administration — engines, users, limits and observability."
       />
       <div className="card">
-        <h2>Engine &amp; security</h2>
+        <div className="card-head">
+          <h2>Engine &amp; security</h2>
+          <AiSupportButton
+            title="Engine & security"
+            context="the platform engine and security posture — active agent, JWT/RBAC, protection integration, TLS verification and the allowed/lab targets."
+          />
+        </div>
         <div className="kv">
           <div>
             <span className="k">Active agent</span>
@@ -2809,7 +2869,13 @@ export function SettingsPage() {
       <ObservabilityCard />
 
       <div className="card">
-        <h2>Load engines</h2>
+        <div className="card-head">
+          <h2>Load engines</h2>
+          <AiSupportButton
+            title="Load engines"
+            context="the installed load generators (builtin-http, k6, vegeta, locust, jmeter, gatling) and their capabilities/constraints."
+          />
+        </div>
         <p className="hint" style={{ marginBottom: '.75rem' }}>
           Third-party generators are operated by the team and delegated to via adapters — all
           produce bounded HTTP load only. A campaign can pick any installed engine; unavailable ones
