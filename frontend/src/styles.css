@@ -6786,3 +6786,10 @@ table.remediations td {
 .assistant-docked-note .btn {
   margin-top: 6px;
 }
+
+/* Results filters — empty state row when no suite matches the active filters */
+.ct-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 1.25rem 0.5rem;
+}
