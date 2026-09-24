@@ -1847,10 +1847,12 @@ function SuiteStepChips({
 }
 
 export function SuitesSection() {
-  // Read-only reporting view of assessment suites. The governance controls
-  // (approve scenario / run sequence) live on the Campaigns screen — on
-  // SuiteGroupCard and SuiteRunBanner — not here; Results only reports.
+  // Read-only reporting view of assessment suites, as one compact table matching
+  // the Campaign list (a row expands to its per-step chips on demand). The
+  // governance controls (approve scenario / run sequence) live on the Campaigns
+  // screen — not here; Results only reports.
   const [suites, setSuites] = useState<SuiteSummary[]>([]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const app = useApp();
   useEffect(() => {
     api
@@ -1868,76 +1870,136 @@ export function SuitesSection() {
     return () => clearInterval(t);
   }, [inFlight, app]);
 
+  const toggleOpen = (id: string) =>
+    setOpen((o) => {
+      const n = new Set(o);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
   if (suites.length === 0) return null;
 
   return (
     <>
-      <h2 className="section-title">Assessment suites</h2>
-      <div className="card" style={{ display: 'grid', gap: '.75rem', marginBottom: '1rem' }}>
-        {suites.map((s, i) => {
-          // Suites are newest-first; the previous replay of the same playbook on
-          // the same target (if any) is the next match further down the list.
-          const prev = suites
-            .slice(i + 1)
-            .find((o) => o.suiteName === s.suiteName && o.target === s.target);
-          return (
-            <div key={s.suiteId} className="wrs-hist">
-              <div className="wrs-hist-main">
-                <b>{s.suiteName}</b>
-                <code>{s.target}</code>
-                {s.wrs ? (
-                  <span
-                    className={`wrs ${wrsClass(s.wrs.level)}`}
-                    title="Aggregate: worst-step WRS"
+      <h2 className="section-title">
+        Assessment suites <span className="hint">({suites.length})</span>
+        {inFlight && <span className="hint"> · auto-refreshing…</span>}
+      </h2>
+      <div className="ct-wrap" style={{ marginBottom: '1rem' }}>
+        <table className="campaign-table">
+          <thead>
+            <tr>
+              <th className="ct-th-exp" aria-hidden="true"></th>
+              <th className="ct-th">Suite</th>
+              <th className="ct-th">Progress</th>
+              <th className="ct-th ct-num">WRS</th>
+              <th className="ct-th">Verdict</th>
+              <th className="ct-th">Target</th>
+              <th className="ct-th ct-suite-report">Report</th>
+            </tr>
+          </thead>
+          <tbody>
+            {suites.map((s, i) => {
+              // Suites are newest-first; the previous replay of the same playbook
+              // on the same target (if any) is the next match further down.
+              const prev = suites
+                .slice(i + 1)
+                .find((o) => o.suiteName === s.suiteName && o.target === s.target);
+              const isOpen = open.has(s.suiteId);
+              return (
+                <Fragment key={s.suiteId}>
+                  <tr
+                    className={`ct-row${isOpen ? ' ct-open' : ''}`}
+                    onClick={() => toggleOpen(s.suiteId)}
+                    aria-expanded={isOpen}
                   >
-                    <span className="wrs-score">{s.wrs.min}</span> {s.wrs.level}
-                    <span className="hint" style={{ marginLeft: '.4rem' }}>
-                      avg {s.wrs.avg}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="hint">not scored yet</span>
-                )}
-                {s.verdict && <VerdictBadge verdict={s.verdict} />}
-                <span className="hint">
-                  {s.completed}/{s.total} done
-                  {s.pending ? ` · ${s.pending} pending` : ''}
-                  {s.running ? ` · ${s.running} running` : ''}
-                </span>
-                <a
-                  className="btn btn-sm btn-ghost"
-                  href={suiteReportUrl(s.suiteId)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Report ↗
-                </a>
-                {prev && (
-                  <a
-                    className="btn btn-sm btn-ghost"
-                    href={suiteCompareUrl(prev.suiteId, s.suiteId)}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="Per-line WRS/verdict vs the previous replay of this playbook (tune & replay)"
-                  >
-                    Compare vs previous ↗
-                  </a>
-                )}
-              </div>
-              <SuiteStepChips
-                steps={s.members.map((m) => ({
-                  key: m.id,
-                  order: m.order,
-                  label: m.name.startsWith(`${s.suiteName} — `)
-                    ? m.name.slice(s.suiteName.length + 3)
-                    : m.name,
-                  wrs: m.wrs != null ? `${m.wrs} ${m.level}` : undefined,
-                  status: m.status,
-                }))}
-              />
-            </div>
-          );
-        })}
+                    <td className="ct-exp" aria-hidden="true">
+                      {isOpen ? '▾' : '▸'}
+                    </td>
+                    <td className="ct-name">
+                      <span className="ct-kind ct-kind-suite" aria-hidden="true">
+                        📋
+                      </span>
+                      <span className="ct-name-txt">{s.suiteName}</span>
+                      <span className="ct-steps"> · {s.total} steps</span>
+                    </td>
+                    <td>
+                      <span className="hint">
+                        {s.completed}/{s.total} done
+                        {s.pending ? ` · ${s.pending} pending` : ''}
+                        {s.running ? ` · ${s.running} running` : ''}
+                      </span>
+                    </td>
+                    <td className="ct-num">
+                      {s.wrs ? (
+                        <span
+                          className={`wrs-pill ${wrsClass(s.wrs.level)}`}
+                          title="Aggregate: worst-step WRS · average across scored steps"
+                        >
+                          {s.wrs.min} {s.wrs.level}
+                          <span className="hint" style={{ marginLeft: '.35rem' }}>
+                            avg {s.wrs.avg}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="hint">not scored</span>
+                      )}
+                    </td>
+                    <td>
+                      {s.verdict ? (
+                        <VerdictBadge verdict={s.verdict} />
+                      ) : (
+                        <span className="hint">—</span>
+                      )}
+                    </td>
+                    <td className="ct-target" title={s.target}>
+                      {hostOf(s.target) ?? s.target}
+                    </td>
+                    <td className="ct-suite-report" onClick={(e) => e.stopPropagation()}>
+                      <a
+                        className="btn btn-sm btn-ghost"
+                        href={suiteReportUrl(s.suiteId)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Report ↗
+                      </a>
+                      {prev && (
+                        <a
+                          className="btn btn-sm btn-ghost"
+                          href={suiteCompareUrl(prev.suiteId, s.suiteId)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Per-line WRS/verdict vs the previous replay of this playbook (tune & replay)"
+                        >
+                          Compare ↗
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="ct-detail">
+                      <td colSpan={7}>
+                        <SuiteStepChips
+                          steps={s.members.map((m) => ({
+                            key: m.id,
+                            order: m.order,
+                            label: m.name.startsWith(`${s.suiteName} — `)
+                              ? m.name.slice(s.suiteName.length + 3)
+                              : m.name,
+                            wrs: m.wrs != null ? `${m.wrs} ${m.level}` : undefined,
+                            status: m.status,
+                          }))}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </>
   );

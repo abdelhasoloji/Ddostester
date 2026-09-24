@@ -6474,3 +6474,16 @@ table.remediations td {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Results → Assessment suites: report/compare actions cell in the suites table. */
+.campaign-table th.ct-suite-report,
+.campaign-table td.ct-suite-report {
+  white-space: nowrap;
+  text-align: right;
+}
+.campaign-table td.ct-suite-report {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
