@@ -222,3 +222,51 @@ describe('AssistantChat — proactive suggestions', () => {
     expect(global.fetch).not.toHaveBeenCalledWith('/api/assistant/chat', expect.anything());
   });
 });
+
+describe('AssistantChat — floating companion & pod control', () => {
+  it('detaches into a floating window (portal) and docks back, persisting the choice', async () => {
+    mockFetch('hi');
+    render(<AssistantChat variant="dock" />);
+    await screen.findByText('WEDOS AI Assistant');
+
+    fireEvent.click(await screen.findByRole('button', { name: /Float/ }));
+
+    // The real UI moves into a portal window with its own composer.
+    await waitFor(() => expect(document.querySelector('[data-assistant-float]')).toBeTruthy());
+    expect(document.querySelector('.assistant-float-input')).toBeTruthy();
+    expect(localStorage.getItem('assistantFloating')).toBe('1');
+    // The column steps aside to a docked-away note.
+    expect(screen.getByText(/The assistant is floating/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Dock it back/ }));
+    await waitFor(() => expect(document.querySelector('[data-assistant-float]')).toBeNull());
+    expect(localStorage.getItem('assistantFloating')).toBe('0');
+  });
+
+  it('restores the floating window on mount when it was left floating', async () => {
+    mockFetch('hi');
+    localStorage.setItem('assistantFloating', '1');
+    render(<AssistantChat variant="dock" />);
+    await waitFor(() => expect(document.querySelector('[data-assistant-float]')).toBeTruthy());
+  });
+
+  it('does not offer floating on the full-page variant', async () => {
+    mockFetch('hi');
+    render(<AssistantChat variant="page" />);
+    await waitReady();
+    expect(screen.queryByRole('button', { name: /Float/ })).toBeNull();
+  });
+
+  it('shows a compact Qwen on/off pill when the pod is managed and powers it on', async () => {
+    currentApp = makeApp({ role: 'admin', authRequired: false });
+    fakeApi.assistantStatus = vi
+      .fn()
+      .mockResolvedValue({ configured: true, model: 'qwen', podManaged: true });
+    fakeApi.assistantPod = vi.fn().mockResolvedValue({ configured: true, state: 'STOPPED' });
+    render(<AssistantChat variant="dock" />);
+
+    const pill = await screen.findByRole('button', { name: /Qwen off/ });
+    fireEvent.click(pill);
+    await waitFor(() => expect(fakeApi.assistantPodStart).toHaveBeenCalled());
+  });
+});
