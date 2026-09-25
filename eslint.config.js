@@ -10,7 +10,13 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['backend/**/*.{ts,mjs}', 'lab/**/*.mjs', 'scripts/**/*.mjs', 'eslint.config.js'],
+    files: [
+      'backend/**/*.{ts,mjs}',
+      'lab/**/*.mjs',
+      'scripts/**/*.mjs',
+      'deploy/**/*.{mjs,js,cjs}',
+      'eslint.config.js',
+    ],
     languageOptions: { globals: { ...globals.node } },
   },
   {
@@ -20,7 +26,10 @@ export default tseslint.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
   },
   prettier,

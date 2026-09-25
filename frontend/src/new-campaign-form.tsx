@@ -141,6 +141,7 @@ export function NewCampaignForm({
         target: form.target,
         probeUrl: form.probeUrl,
         referenceUrl: form.referenceUrl.trim() || undefined,
+        probeVantage: form.probeVantage === 'remote' ? 'remote' : undefined,
         vector: form.vector,
         body: form.vector === 'http-post' ? form.body : undefined,
         maxRps: Number(form.maxRps),
@@ -306,6 +307,23 @@ export function NewCampaignForm({
             </span>
           )}
         </div>
+        {app.remoteProbe && (
+          <div className="field">
+            <label>Probe vantage</label>
+            <select
+              value={form.probeVantage}
+              onChange={(e) => setForm({ ...form, probeVantage: e.target.value })}
+            >
+              <option value="local">Local (control plane / VPS1)</option>
+              <option value="remote">Remote agent (VPS2, tailnet)</option>
+            </select>
+            <span className="hint">
+              Where the availability probe is measured from. Pick <b>Remote</b> when the target
+              rate-limits by source IP (e.g. one connection per IP), so the probe uses a different
+              source IP than the load generator instead of colliding with it.
+            </span>
+          </div>
+        )}
         <div className="field">
           <label>Max RPS</label>
           <input

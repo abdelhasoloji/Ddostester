@@ -18,6 +18,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     requireCisoApproval: false,
     notifications: [],
     protection: false,
+    remoteProbe: false,
     tlsInsecure: false,
     agents: [
       {

@@ -25,3 +25,23 @@ describe('probeLimitsFromEnv', () => {
     expect(l.windowMs).toBe(PROBE_LIMITS.windowMs);
   });
 });
+
+import { remoteProbeFromEnv } from '../src/config/limits.js';
+
+describe('remoteProbeFromEnv', () => {
+  it('returns null when neither URL nor token is set', () => {
+    expect(remoteProbeFromEnv({})).toBeNull();
+  });
+  it('returns null when only one of URL / token is set', () => {
+    expect(remoteProbeFromEnv({ PROBE_AGENT_URL: 'http://100.64.0.2:8099/probe' })).toBeNull();
+    expect(remoteProbeFromEnv({ PROBE_AGENT_TOKEN: 'secret' })).toBeNull();
+  });
+  it('returns the config (trimmed) when both are set', () => {
+    expect(
+      remoteProbeFromEnv({
+        PROBE_AGENT_URL: '  http://100.64.0.2:8099/probe  ',
+        PROBE_AGENT_TOKEN: '  secret  ',
+      }),
+    ).toEqual({ agentUrl: 'http://100.64.0.2:8099/probe', token: 'secret' });
+  });
+});

@@ -99,6 +99,8 @@ interface Ctx {
   requireCisoApproval: boolean;
   notifications: string[];
   protection: boolean;
+  /** Whether a remote read-only probe agent is configured (per-campaign probe vantage). */
+  remoteProbe: boolean;
   tlsInsecure: boolean;
   agents: AgentInfo[];
   authRequired: boolean;
@@ -192,6 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [requireCisoApproval, setRequireCisoApproval] = useState(false);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [protection, setProtection] = useState(false);
+  const [remoteProbe, setRemoteProbe] = useState(false);
   const [tlsInsecure, setTlsInsecure] = useState(false);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [authRequired, setAuthRequired] = useState(false);
@@ -258,6 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRequireCisoApproval(h.requireCisoApproval ?? false);
     setNotifications(h.notifications ?? []);
     setProtection(h.protection ?? false);
+    setRemoteProbe(h.remoteProbe ?? false);
     setTlsInsecure(h.tlsInsecure ?? false);
     setAuthRequired(h.authRequired);
     // Seed the Grafana deep-link base from the server config when the browser
@@ -528,6 +532,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     requireCisoApproval,
     notifications,
     protection,
+    remoteProbe,
     tlsInsecure,
     agents,
     authRequired,

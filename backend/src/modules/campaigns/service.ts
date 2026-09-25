@@ -72,6 +72,14 @@ export function createCampaign(
   // same allowlist as the target/probe so it can never become an unbounded GET.
   if (input.referenceUrl) assertHostAllowed(input.referenceUrl, allowedHosts, 'Reference');
 
+  if (
+    input.probeVantage !== undefined &&
+    input.probeVantage !== 'local' &&
+    input.probeVantage !== 'remote'
+  ) {
+    throw new CampaignError("probeVantage must be 'local' or 'remote'.");
+  }
+
   // Caps are whole numbers: rps, concurrent workers and seconds are counts, so a
   // fractional value is a client error, not a bounded-but-odd request.
   if (!Number.isInteger(input.maxRps) || input.maxRps < 1 || input.maxRps > caps.maxRps) {

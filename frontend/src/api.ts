@@ -27,6 +27,7 @@ export interface Campaign {
   probeUrl: string;
   /** Optional independent reference vantage (canary) for outage attribution. */
   referenceUrl?: string;
+  probeVantage?: 'local' | 'remote';
   vector: string;
   status: CampaignStatus;
   createdBy: string;
@@ -881,6 +882,7 @@ export const api = {
         version?: { version: string; build: string; commit: string; builtAt?: string };
         requireCisoApproval?: boolean;
         allowedTargets: string[];
+        remoteProbe?: boolean;
         labTargets?: string[];
         storage: string;
         authRequired: boolean;

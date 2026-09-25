@@ -16,7 +16,12 @@ import { captureBaseline, computeBaselineDelta } from './baseline.js';
 import type { BaselineDelta, BaselineMetrics, CaptureBaseline } from './baseline.js';
 import { noopTargetTelemetryProvider } from '../target-telemetry/provider.js';
 import type { TargetSample, TargetTelemetryProvider } from '../target-telemetry/types.js';
-import { probeLimitsFromEnv, ESTIMATED_TIMINGS, CALIBRATION_SEC } from '../../config/limits.js';
+import {
+  probeLimitsFromEnv,
+  remoteProbeFromEnv,
+  ESTIMATED_TIMINGS,
+  CALIBRATION_SEC,
+} from '../../config/limits.js';
 import { calibratedRate, scaleScenario, peakRps, type CalibrationResult } from './calibration.js';
 import { metrics } from '../metrics/runtime.js';
 import type { RunConfidence } from '../reports/confidence.js';
@@ -280,12 +285,28 @@ export async function executeCampaign(
 
   // Probe/kill-switch thresholds are centralised and env-tunable (config/limits).
   const probeLimits = probeLimitsFromEnv();
+  // Remote probe vantage (per-campaign): when the campaign asks to probe from the
+  // configured read-only agent (e.g. VPS2 over the tailnet), resolve it from env
+  // and FAIL CLOSED if none is configured — never silently fall back to the local
+  // source IP, since avoiding the generator's IP is the whole point.
+  let remoteProbe: { agentUrl: string; token: string } | undefined;
+  if (campaign.probeVantage === 'remote') {
+    const cfg = remoteProbeFromEnv();
+    if (!cfg) {
+      throw new Error(
+        'This campaign requests the remote probe vantage, but no probe agent is configured ' +
+          '(PROBE_AGENT_URL / PROBE_AGENT_TOKEN). Configure the agent or use the local vantage.',
+      );
+    }
+    remoteProbe = cfg;
+  }
   const probe = new Probe(
     campaign.probeUrl,
     killSwitch,
     probeLimits.intervalMs,
     probeLimits.timeoutMs,
     probeLimits,
+    remoteProbe,
   );
   // Corroboration signal for the probe's auto-kill: true while the load
   // generator is currently landing successful responses on the same target — in

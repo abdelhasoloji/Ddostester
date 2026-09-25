@@ -47,6 +47,40 @@ describe('NewCampaignForm', () => {
     expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
   });
 
+  it('hides the probe-vantage toggle when no remote agent is configured', () => {
+    currentApp = makeApp({ remoteProbe: false });
+    render(<NewCampaignForm />);
+    expect(screen.queryByText('Probe vantage')).not.toBeInTheDocument();
+  });
+
+  it('shows the probe-vantage toggle and flows remote into the payload when configured', async () => {
+    currentApp = makeApp({ remoteProbe: true });
+    render(<NewCampaignForm />);
+    expect(screen.getByText('Probe vantage')).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'ENISA run' } });
+    // There are several selects; find the one holding the vantage options.
+    const vantage = Array.from(document.querySelectorAll('select')).find((el) =>
+      el.textContent?.includes('Remote agent'),
+    ) as HTMLSelectElement;
+    fireEvent.change(vantage, { target: { value: 'remote' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload).toMatchObject({ probeVantage: 'remote' });
+  });
+
+  it('omits probeVantage from the payload when left local', async () => {
+    currentApp = makeApp({ remoteProbe: true });
+    render(<NewCampaignForm />);
+    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'local run' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload.probeVantage).toBeUndefined();
+  });
+
   it('switching preset updates the Name field when it is still preset-owned', () => {
     render(<NewCampaignForm />);
     const nameInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
