@@ -2,7 +2,6 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from './context.js';
 import { Login, ForcedPasswordChange } from './ui.js';
 import { CommandCenterPage, Layout, SettingsPage, AccountPage } from './pages.js';
-import { ReportsPage } from './reports-page.js';
 import { RunTheaterPage } from './run-theater.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { ZonesPage } from './zones-page.js';
@@ -45,7 +44,6 @@ function Gate() {
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />
         <Route path="assistant" element={<AssistantPage />} />
-        <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />
         {/* Bookmark-compat: old paths folded into their live home. */}

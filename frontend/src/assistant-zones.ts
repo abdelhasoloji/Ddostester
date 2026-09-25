@@ -46,7 +46,7 @@ const SELECTOR_ZONES: { sel: string; title: string; text: string }[] = [
   {
     sel: '.kpi-link,[class*="kpi"]',
     title: 'Live KPI',
-    text: 'A headline metric of the fleet — click it through to its detail: reports, theater or the alerts list.',
+    text: 'A headline metric of the fleet — click it through to its detail: theater or the alerts list.',
   },
   {
     sel: '[class*="zone"]',
@@ -80,10 +80,6 @@ const ROUTE_ZONES: Record<string, { title: string; text: string }> = {
   '/assistant': {
     title: 'Assistant',
     text: "That's me — ask about platform state, resilience or code security, and I propose governed next actions.",
-  },
-  '/reports': {
-    title: 'Reports',
-    text: 'The resilience assessments and WRS history for your campaigns.',
   },
   '/settings': {
     title: 'Settings',
