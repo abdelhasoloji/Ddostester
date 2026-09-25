@@ -104,3 +104,57 @@ describe('ZonesPage', () => {
     expect(screen.queryByText(/Couldn't load protected zones/)).not.toBeInTheDocument();
   });
 });
+
+describe('Protected targets panel', () => {
+  it('lists env-allowlisted (legacy) hosts as read-only rows in the table', async () => {
+    fakeApi.zones.mockResolvedValue([]);
+    fakeApi.targets.mockResolvedValue({
+      targets: [],
+      envAllowlist: ['bank.cz', '46.28.109.92'],
+    });
+    renderWithRouter(<ZonesPage />);
+    // Both legacy hosts show, badged as permanently allowlisted…
+    expect(await screen.findByText('bank.cz')).toBeInTheDocument();
+    expect(screen.getByText('46.28.109.92')).toBeInTheDocument();
+    expect(screen.getAllByText(/env-allowlisted/)).toHaveLength(2);
+    // …and the panel does NOT read as empty when only env hosts exist.
+    expect(screen.queryByText(/No targets registered yet/)).not.toBeInTheDocument();
+  });
+
+  it('does not duplicate a host that is both env-allowlisted and onboarded', async () => {
+    fakeApi.zones.mockResolvedValue([]);
+    fakeApi.targets.mockResolvedValue({
+      targets: [
+        { id: 't1', host: 'bank.cz', authStatus: 'authorized', authorizedBy: 'ciso@wedos' },
+      ],
+      envAllowlist: ['bank.cz'],
+    });
+    renderWithRouter(<ZonesPage />);
+    await screen.findByText('bank.cz');
+    // Only the onboarded row remains; the env duplicate is filtered out.
+    expect(screen.getAllByText('bank.cz')).toHaveLength(1);
+    expect(screen.queryByText(/env-allowlisted/)).not.toBeInTheDocument();
+  });
+
+  it('refreshes the effective allowlist after a CISO authorizes a target', async () => {
+    currentApp = makeApp({ role: 'ciso', authRequired: true });
+    fakeApi.zones.mockResolvedValue([]);
+    fakeApi.targets.mockResolvedValue({
+      targets: [
+        { id: 't1', host: 'app.customer.eu', authStatus: 'requested', authRequestedBy: 'op@wedos' },
+      ],
+      envAllowlist: [],
+    });
+    fakeApi.authorizeTarget.mockResolvedValue({
+      id: 't1',
+      host: 'app.customer.eu',
+      authStatus: 'authorized',
+      authorizedBy: 'ciso@wedos',
+    });
+    renderWithRouter(<ZonesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Authorize' }));
+    await waitFor(() => expect(fakeApi.authorizeTarget).toHaveBeenCalledWith('t1'));
+    // The allowlist changed → the shared /health posture is refreshed.
+    await waitFor(() => expect(currentApp.refreshHealth).toHaveBeenCalled());
+  });
+});

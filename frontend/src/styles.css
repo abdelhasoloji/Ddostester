@@ -1478,6 +1478,15 @@ input.invalid {
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+/* Legacy hosts permanently allowlisted via server env — shown read-only in the
+   Protected targets table so the estate view is complete. Muted, left-accented. */
+.target-list-env {
+  margin-bottom: 8px;
+}
+.target-row-env {
+  background: var(--surface-2);
+  border-left: 3px solid var(--border);
+}
 .target-main {
   grid-area: main;
   display: flex;
