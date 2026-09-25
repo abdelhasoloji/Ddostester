@@ -224,6 +224,23 @@ describe('ReconFirstCreate (recon-first flow)', () => {
     expect(screen.getByText(/preflight GO/)).toBeInTheDocument();
   });
 
+  it('re-runs recon on the same target from the results view', async () => {
+    reconActionsMock.mockResolvedValue(
+      withActions(base({ profile: { posture: { server: 'LiteSpeed' } } as never }), [
+        action('baseline', 'Baseline — pre-load health'),
+      ]),
+    );
+    renderWithRouter(<ReconFirstCreate />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'https://bank.cz/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Profile target/i }));
+    await waitFor(() => expect(screen.getByText(/Recommended actions/)).toBeInTheDocument());
+    expect(reconActionsMock).toHaveBeenCalledTimes(1);
+    // The results view offers a re-run that re-profiles the same target.
+    fireEvent.click(screen.getByRole('button', { name: /Re-run recon/i }));
+    await waitFor(() => expect(reconActionsMock).toHaveBeenCalledTimes(2));
+    expect(reconActionsMock.mock.calls[1][0]).toBe('https://bank.cz/');
+  });
+
   it('selects actions and composes them into a governed campaign', async () => {
     reconActionsMock.mockResolvedValue(
       withActions(base({}), [

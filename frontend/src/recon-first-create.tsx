@@ -269,6 +269,15 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             <button
               type="button"
               className="btn btn-sm btn-ghost"
+              onClick={runRecon}
+              disabled={busy}
+              title="Re-profile the same target (e.g. after fixing the origin) to refresh the preflight verdict and posture"
+            >
+              {busy ? 'Profiling…' : '↻ Re-run recon'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
               onClick={() => setShowIntel(true)}
             >
               full intel →
