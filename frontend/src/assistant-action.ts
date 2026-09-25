@@ -44,7 +44,6 @@ export const SCREENS: Record<string, string> = {
   zones: '/zones',
   campaigns: '/campaigns',
   theater: '/theater',
-  reports: '/reports',
   settings: '/settings',
 };
 

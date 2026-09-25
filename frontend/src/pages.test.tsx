@@ -15,7 +15,6 @@ vi.mock('./api.js', async (orig) => {
 });
 
 const { AuditLog, SettingsPage, AccountPage, CampaignLaunch } = await import('./pages.js');
-const { ReportsPage } = await import('./reports-page.js');
 const { GuidePage } = await import('./guide-page.js');
 const { CampaignsWorkspace } = await import('./campaigns-workspace.js');
 
@@ -104,11 +103,6 @@ describe('pages render', () => {
     expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('tabindex', '-1');
     fireEvent.keyDown(launch, { key: 'ArrowRight' });
     expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('ReportsPage', () => {
-    renderWithRouter(<ReportsPage />);
-    expect(screen.getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   });
 
   it('AuditLog (now hosted in Settings) shows an entry', () => {

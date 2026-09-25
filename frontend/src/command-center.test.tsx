@@ -103,7 +103,6 @@ vi.mock('./api.js', async (orig) => {
 });
 
 const { CommandCenterPage } = await import('./pages.js');
-const { ReportsPage } = await import('./reports-page.js');
 const { RunTheaterPage } = await import('./run-theater.js');
 
 // --- EventSource mock so Run Theater can subscribe in jsdom ---
@@ -427,24 +426,5 @@ describe('Run Theater', () => {
     expect(screen.getByText('Fingerprint')).toBeInTheDocument();
     expect(screen.getByText('Edge posture')).toBeInTheDocument();
     expect(screen.getByText('/search')).toBeInTheDocument();
-  });
-});
-
-describe('Results page', () => {
-  // Per-run detail now lives on the Campaigns list (filter Done, expand a row);
-  // Results is the cross-campaign surface — suite verdicts, compare, compliance.
-  it('renders an inline mitigation-proof verdict when two runs are compared', async () => {
-    currentApp = makeApp({
-      role: 'engineer',
-      campaigns: [
-        scoredCampaign,
-        { ...scoredCampaign, id: 'c2', runId: 'run2', name: 'After mitigation' },
-      ],
-    });
-    renderWithRouter(<ReportsPage />);
-    // CompareSection auto-fetches the structured comparison and shows the verdict.
-    expect(await screen.findByText('▲ Improved')).toBeInTheDocument();
-    expect(screen.getByText(/Resilience improved: D→A\+/)).toBeInTheDocument();
-    expect(fakeApi.compareRuns).toHaveBeenCalled();
   });
 });

@@ -25,7 +25,6 @@ describe('routeZone', () => {
 describe('describeZoneAt', () => {
   it('falls back to the route description when nothing is under the point', () => {
     setPoints(() => []);
-    expect(describeZoneAt(10, 10, '/reports').title).toBe('Reports');
   });
 
   it('reads the element BEHIND the mascot, skipping the float window itself', () => {

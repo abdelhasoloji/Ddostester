@@ -65,7 +65,7 @@ export const DEFAULT_SYSTEM_PROMPT = [
   '```action',
   '{"type":"adjust-limits","maxRps":500,"maxConcurrency":100,"maxDurationSec":300,"rationale":"why"}',
   '```',
-  '4) open — send the operator to a screen (overview | zones | campaigns | theater | reports | settings):',
+  '4) open — send the operator to a screen (overview | zones | campaigns | theater | settings):',
   '```action',
   '{"type":"open","screen":"theater","label":"Review the running test","rationale":"why"}',
   '```',

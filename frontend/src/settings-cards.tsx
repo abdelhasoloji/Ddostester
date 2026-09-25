@@ -477,7 +477,7 @@ export function NotificationsCard() {
 /**
  * Observability card — point the app at a Grafana base URL (a local SSH tunnel
  * `http://localhost:3000`, or a reverse-proxied route). Once set, the Run
- * Theater and Results deep-link into the provisioned "ShieldTest — Runs"
+ * Theater deep-links into the provisioned "ShieldTest — Runs"
  * dashboard. Stored per browser (localStorage); no server round-trip.
  */
 export function ObservabilityCard() {
@@ -501,10 +501,9 @@ export function ObservabilityCard() {
       </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
         Prometheus scrapes the control plane; Grafana holds the historical, multi-run view. Point
-        the app at your Grafana base URL and the Run Theater &amp; Results gain an{' '}
-        <b>Open in Grafana ↗</b> deep-link, scoped to the run. Use a local tunnel (
-        <code>ssh -L 3000:127.0.0.1:3000 …</code> → <code>http://localhost:3000</code>) or a
-        reverse-proxied route.
+        the app at your Grafana base URL and the Run Theater gains an <b>Open in Grafana ↗</b>{' '}
+        deep-link, scoped to the run. Use a local tunnel (<code>ssh -L 3000:127.0.0.1:3000 …</code>{' '}
+        → <code>http://localhost:3000</code>) or a reverse-proxied route.
       </p>
       <div className="field" style={{ maxWidth: 460 }}>
         <label htmlFor="grafana-url">Grafana base URL</label>
