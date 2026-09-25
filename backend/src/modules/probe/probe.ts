@@ -122,6 +122,15 @@ export class Probe {
     private readonly intervalMs = PROBE_LIMITS.intervalMs,
     private readonly timeoutMs = PROBE_LIMITS.timeoutMs,
     limits: Partial<ProbeLimits> = {},
+    /**
+     * Optional remote vantage: when set, each sample is taken by a read-only
+     * probe agent on another host (e.g. VPS2 over the tailnet) instead of
+     * directly from this process. Used when the target rate-limits by source IP,
+     * so the probe would otherwise collide with the load generator's IP. The
+     * agent reports what IT saw (status/latency/headers), measured from its own
+     * source IP. Absent = local vantage (direct fetch).
+     */
+    private readonly remote?: { agentUrl: string; token: string },
   ) {
     // Positional interval/timeout win (back-compat with existing callers/tests);
     // everything else comes from the merged limits.
@@ -177,21 +186,16 @@ export class Probe {
     let status = 0;
     let latencyMs = 0;
     try {
-      // Dedicated dispatcher (see `dispatcher` field) so a saturated generator
-      // pool can never starve the probe.
-      const res = await pooledFetch(this.url, { signal: ac.signal, dispatcher: this.dispatcher });
-      // TTFB: measured the moment response headers arrive, BEFORE draining the
-      // body. This keeps the latency metric a measure of the server's
-      // responsiveness rather than of the response size / our own bandwidth.
-      latencyMs = performance.now() - t0;
-      status = res.status;
-      ok = res.ok;
-      this.captureHeadersOnChange(status, res.headers as unknown as Headers);
-      // Drain the body to release the socket (not timed). On an ERROR status we
-      // also decode a bounded slice to detect an edge-served error page (the
-      // origin buckling behind a healthy edge, a rate-limit or a challenge).
-      const buf = await res.arrayBuffer().catch(() => undefined);
-      if (status >= 400 && buf) this.captureEdgeError(status, buf);
+      const r = this.remote
+        ? await this.acquireRemote(ac.signal, t0)
+        : await this.acquireLocal(ac.signal, t0);
+      ok = r.ok;
+      status = r.status;
+      latencyMs = r.latencyMs;
+      this.captureHeadersOnChange(status, r.headers);
+      // On an ERROR status, decode a bounded slice to detect an edge-served error
+      // page (origin buckling behind a healthy edge, a rate-limit or a challenge).
+      if (status >= 400 && r.body) this.captureEdgeError(status, r.body);
     } catch {
       ok = false;
       latencyMs = performance.now() - t0; // time to failure (timeout / network)
@@ -202,6 +206,89 @@ export class Probe {
     const sample: ProbeSample = { at: Date.now(), ok, status, latencyMs };
     this.samples.push(sample);
     this.evaluateAutoKill(sample);
+  }
+
+  /** Local vantage: direct measurement from this process (the default). */
+  private async acquireLocal(
+    signal: AbortSignal,
+    t0: number,
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    latencyMs: number;
+    headers?: Headers;
+    body?: ArrayBuffer;
+  }> {
+    // Dedicated dispatcher (see `dispatcher` field) so a saturated generator pool
+    // can never starve the probe.
+    const res = await pooledFetch(this.url, { signal, dispatcher: this.dispatcher });
+    // TTFB: measured the moment response headers arrive, BEFORE draining the body
+    // — a measure of the server's responsiveness, not of the response size.
+    const latencyMs = performance.now() - t0;
+    // Drain the body (not timed) to release the socket.
+    const body = await res.arrayBuffer().catch(() => undefined);
+    return {
+      ok: res.ok,
+      status: res.status,
+      latencyMs,
+      headers: res.headers as unknown as Headers,
+      body,
+    };
+  }
+
+  /**
+   * Remote vantage: ask the read-only probe agent to GET the target and report
+   * what IT saw — availability/latency/status measured from the agent's source
+   * IP. Response headers and a bounded error-body slice are forwarded so posture
+   * / edge-error inference still work. A transport or agent-side failure is a
+   * failed measurement (ok:false), never trusted as a target-outage signal.
+   */
+  private async acquireRemote(
+    signal: AbortSignal,
+    t0: number,
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    latencyMs: number;
+    headers?: Headers;
+    body?: ArrayBuffer;
+  }> {
+    const remote = this.remote!;
+    const res = await pooledFetch(remote.agentUrl, {
+      method: 'POST',
+      signal,
+      dispatcher: this.dispatcher,
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${remote.token}`,
+      },
+      body: JSON.stringify({ url: this.url, timeoutMs: this.timeoutMs }),
+    });
+    if (!res.ok) {
+      await res.arrayBuffer().catch(() => undefined);
+      return { ok: false, status: 0, latencyMs: performance.now() - t0 };
+    }
+    const j = (await res.json().catch(() => null)) as {
+      ok?: boolean;
+      status?: number;
+      latencyMs?: number;
+      headers?: Record<string, string>;
+      bodySlice?: string;
+    } | null;
+    if (!j) return { ok: false, status: 0, latencyMs: performance.now() - t0 };
+    const headers = j.headers ? new Headers(j.headers) : undefined;
+    let body: ArrayBuffer | undefined;
+    if (j.bodySlice) {
+      const u8 = new TextEncoder().encode(j.bodySlice);
+      body = u8.buffer.slice(0, u8.byteLength);
+    }
+    return {
+      ok: !!j.ok,
+      status: typeof j.status === 'number' ? j.status : 0,
+      latencyMs: typeof j.latencyMs === 'number' ? j.latencyMs : performance.now() - t0,
+      headers,
+      body,
+    };
   }
 
   /** Snapshot response headers the first time a new status *class* is seen (up to

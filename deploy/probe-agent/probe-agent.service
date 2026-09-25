@@ -1,0 +1,23 @@
+[Unit]
+Description=WEDOS ShieldTest probe agent (read-only availability vantage)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/probe-agent.env
+ExecStart=/usr/bin/node /opt/probe-agent/probe-agent.mjs
+Restart=on-failure
+RestartSec=3
+# Hardening: read-only, no privilege, no new privileges.
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

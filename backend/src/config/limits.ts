@@ -134,6 +134,27 @@ export const PROBE_LIMITS: Readonly<ProbeLimits> = Object.freeze({
 
 /** Resolve the effective probe limits, applying env overrides over the defaults.
  *  A missing/invalid/negative env value falls back to the default (never throws). */
+/**
+ * Remote probe agent (read-only availability vantage on another host, e.g. VPS2
+ * over the tailnet). Configured only via env, so a campaign that asks for the
+ * 'remote' vantage runs against a vetted endpoint the operator set — never a
+ * client-supplied URL. Returns null when no remote vantage is configured, so the
+ * runner fails closed and the UI hides the toggle.
+ */
+export interface RemoteProbeConfig {
+  /** Full URL of the agent's probe endpoint, e.g. http://100.x.y.z:8099/probe */
+  agentUrl: string;
+  /** Bearer token the agent requires. */
+  token: string;
+}
+
+export function remoteProbeFromEnv(env: NodeJS.ProcessEnv = process.env): RemoteProbeConfig | null {
+  const agentUrl = env.PROBE_AGENT_URL?.trim();
+  const token = env.PROBE_AGENT_TOKEN?.trim();
+  if (!agentUrl || !token) return null;
+  return { agentUrl, token };
+}
+
 export function probeLimitsFromEnv(env: NodeJS.ProcessEnv = process.env): ProbeLimits {
   const num = (v: string | undefined, dflt: number): number => {
     if (v === undefined) return dflt;

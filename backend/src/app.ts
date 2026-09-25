@@ -42,6 +42,7 @@ import {
   BUILTIN_CONCURRENCY_CEILING,
   clampToCeiling,
   withinCeiling,
+  remoteProbeFromEnv,
 } from './config/limits.js';
 import { highRateEngineUpgrade } from './modules/campaigns/engine-route.js';
 import type { HardCaps } from './config/limits.js';
@@ -1081,6 +1082,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     notifications: notifier.sinks,
     protection: protection.configured,
     targetTelemetry: targetTelemetry.configured,
+    // Whether a remote read-only probe agent is configured (e.g. VPS2 over the
+    // tailnet). The UI shows the per-campaign "probe vantage" toggle only when true.
+    remoteProbe: remoteProbeFromEnv() !== null,
     tlsInsecure: tlsInsecure(),
     // `hardCaps` = the EFFECTIVE operational caps the server enforces right now
     // (the CISO-set limits, or the ceiling when unset). The frontend reads these

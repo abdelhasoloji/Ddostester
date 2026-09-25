@@ -88,6 +88,15 @@ export interface CampaignInput {
    * allowlist, like the target/probe. Absent = no corroboration.
    */
   referenceUrl?: string;
+  /**
+   * Where the availability probe is measured from. 'local' (default) probes from
+   * the control plane; 'remote' probes via the configured read-only probe agent
+   * on another host (e.g. VPS2 over the tailnet), so the probe uses a different
+   * source IP than the load generator — needed when the target rate-limits by
+   * source IP. 'remote' requires the server to have a probe agent configured
+   * (PROBE_AGENT_URL / PROBE_AGENT_TOKEN); a run fails closed otherwise.
+   */
+  probeVantage?: 'local' | 'remote';
   createdBy: string;
   /** The author attests the target is authorized (internal WEDOS / written mandate). */
   authorized: boolean;
