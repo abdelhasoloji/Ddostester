@@ -104,6 +104,7 @@ function TargetsPanel() {
   const canAuthorize = canDo(app.role, 'targetAuthorize', app.authRequired);
 
   const [targets, setTargets] = useState<ProtectedTarget[] | null>(null);
+  const [envAllowlist, setEnvAllowlist] = useState<string[]>([]);
   const [failed, setFailed] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -127,6 +128,7 @@ function TargetsPanel() {
       .targets()
       .then((r) => {
         setTargets(r.targets);
+        setEnvAllowlist(r.envAllowlist ?? []);
         setFailed(false);
       })
       .catch(() => {
@@ -188,12 +190,21 @@ function TargetsPanel() {
       setRequestingId(null);
       setReqAtt('');
       setEditingId(null);
+      // Authorizing/revoking a target changes the effective allowlist; refresh the
+      // shared /health posture so the campaign target picker reflects it at once.
+      void app.refreshHealth();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed.');
     } finally {
       setBusyId(null);
     }
   }
+
+  // Hosts permanently allowlisted via server env config are always testable and
+  // need no governed onboarding — surface them here (deduped against onboarded
+  // targets) so the table shows the complete set of protected hosts, not just the
+  // ones onboarded through this panel.
+  const envHosts = envAllowlist.filter((h) => !(targets ?? []).some((t) => t.host === h));
 
   return (
     <section className="card targets-panel">
@@ -286,6 +297,29 @@ function TargetsPanel() {
         </form>
       )}
 
+      {envHosts.length > 0 && (
+        <ul className="target-list target-list-env">
+          {envHosts.map((h) => (
+            <li key={`env-${h}`} className="target-row target-row-env">
+              <div className="target-main">
+                <span className="target-host">{h}</span>
+                <span
+                  className="zone-status zs-ok"
+                  title="Permanently allowlisted in server config"
+                >
+                  ✓ env-allowlisted
+                </span>
+              </div>
+              <div className="target-sub hint">
+                <span>
+                  permanently allowlisted in server config · always testable, no onboarding needed
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {targets === null ? (
         <p className="hint">
           <span className="spin" /> Loading targets…
@@ -298,7 +332,9 @@ function TargetsPanel() {
           </button>
         </div>
       ) : targets.length === 0 ? (
-        <p className="hint">No targets registered yet.</p>
+        envHosts.length === 0 ? (
+          <p className="hint">No targets registered yet.</p>
+        ) : null
       ) : (
         <ul className="target-list">
           {targets.map((t) => {

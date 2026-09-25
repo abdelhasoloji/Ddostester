@@ -78,6 +78,13 @@ beforeEach(() => {
 });
 
 describe('pages render', () => {
+  it('refreshes the effective allowlist when the workspace mounts', () => {
+    renderWithRouter(<CampaignsWorkspace />);
+    // A target authorized after the initial page load must show up in the target
+    // picker without a reload, so the workspace re-reads /health on mount.
+    expect(currentApp.refreshHealth).toHaveBeenCalled();
+  });
+
   it('CampaignsWorkspace lists campaigns under the workspace tabs', () => {
     renderWithRouter(<CampaignsWorkspace />);
     expect(screen.getByRole('heading', { name: 'Campaigns' })).toBeInTheDocument();

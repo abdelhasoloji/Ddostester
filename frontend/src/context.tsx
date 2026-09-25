@@ -144,6 +144,8 @@ interface Ctx {
   setApproveFor: (c: Campaign | null) => void;
   push: (kind: Toast['kind'], msg: string) => void;
   refresh: () => void;
+  /** Re-fetch /health to refresh the effective allowlist and server posture. */
+  refreshHealth: () => Promise<void>;
   loadHistory: () => void;
   loadAudit: () => void;
   loadAlerts: () => void;
@@ -245,25 +247,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => undefined);
   }, []);
 
+  const applyHealthPosture = useCallback((h: Awaited<ReturnType<typeof api.health>>) => {
+    setAllowed(h.allowedTargets);
+    setLabTargets(h.labTargets ?? []);
+    setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
+    setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
+    if (h.builtinCeilings) setBuiltinCeilings(h.builtinCeilings);
+    setAgentName(h.agent ?? '');
+    setServerVersion(h.version ?? null);
+    setRequireCisoApproval(h.requireCisoApproval ?? false);
+    setNotifications(h.notifications ?? []);
+    setProtection(h.protection ?? false);
+    setTlsInsecure(h.tlsInsecure ?? false);
+    setAuthRequired(h.authRequired);
+    // Seed the Grafana deep-link base from the server config when the browser
+    // hasn't set one, so "Open in Grafana" works out of the box.
+    if (h.metrics?.grafanaUrl && !getGrafanaBase()) setGrafanaBase(h.metrics.grafanaUrl);
+  }, []);
+
+  /**
+   * Re-fetch /health and re-apply the server posture — notably the EFFECTIVE
+   * allowlist (env allowlist + CISO-authorized targets). Called when the campaign
+   * workspace mounts and right after a target is authorized/revoked, so a host
+   * onboarded or authorized after the initial page load shows up in the target
+   * picker without a full reload. Never touches auth / identity / token state.
+   */
+  const refreshHealth = useCallback(async () => {
+    try {
+      applyHealthPosture(await api.health());
+    } catch {
+      /* keep last-known posture on a transient failure */
+    }
+  }, [applyHealthPosture]);
+
   useEffect(() => {
     api
       .health()
       .then(async (h) => {
-        setAllowed(h.allowedTargets);
-        setLabTargets(h.labTargets ?? []);
-        setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
-        setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
-        if (h.builtinCeilings) setBuiltinCeilings(h.builtinCeilings);
-        setAgentName(h.agent ?? '');
-        setServerVersion(h.version ?? null);
-        setRequireCisoApproval(h.requireCisoApproval ?? false);
-        setNotifications(h.notifications ?? []);
-        setProtection(h.protection ?? false);
-        setTlsInsecure(h.tlsInsecure ?? false);
-        setAuthRequired(h.authRequired);
-        // Seed the Grafana deep-link base from the server config when the browser
-        // hasn't set one, so "Open in Grafana" works out of the box.
-        if (h.metrics?.grafanaUrl && !getGrafanaBase()) setGrafanaBase(h.metrics.grafanaUrl);
+        applyHealthPosture(h);
         if (h.authRequired && getToken()) {
           try {
             const me = await api.me();
@@ -282,7 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .agents()
       .then((r) => setAgents(r.agents))
       .catch(() => undefined);
-  }, []);
+  }, [applyHealthPosture]);
 
   const ready = authChecked && (!authRequired || identity !== null);
   useEffect(() => {
@@ -544,6 +565,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApproveFor,
     push,
     refresh,
+    refreshHealth,
     loadHistory,
     loadAudit,
     loadAlerts,

@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useApp } from './context.js';
 import { PageHead, SuiteRunBanner, CampaignLaunch, CampaignList } from './pages.js';
 import { GuidePage } from './guide-page.js';
 import { TemplatesPage } from './templates-page.js';
@@ -21,6 +22,14 @@ const TABS = [
 ] as const;
 
 export function CampaignsWorkspace() {
+  const { refreshHealth } = useApp();
+  // The effective allowlist can change after the initial page load (a target
+  // onboarded or authorized in another view/session), so refresh /health when the
+  // workspace mounts — the target picker then always offers the current allowed
+  // hosts without a full reload.
+  useEffect(() => {
+    void refreshHealth();
+  }, [refreshHealth]);
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab') ?? 'launch';
   const active = TABS.some((t) => t.id === requested) ? requested : 'launch';

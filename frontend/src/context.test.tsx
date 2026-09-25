@@ -38,6 +38,7 @@ function Harness() {
       <span data-testid="expanded">{app.expanded ?? ''}</span>
       <span data-testid="identity">{app.identity?.email ?? 'none'}</span>
       <span data-testid="campaigns">{app.campaigns.length}</span>
+      <span data-testid="allowed">{app.allowed.join(',')}</span>
       <span data-testid="audit">{app.auditRows?.length ?? -1}</span>
       <span data-testid="toasts">{app.toasts.length}</span>
       <span data-testid="operator">{app.operator}</span>
@@ -52,6 +53,7 @@ function Harness() {
       <button onClick={() => app.loadAudit()}>audit</button>
       <button onClick={() => app.loadHistory()}>history</button>
       <button onClick={() => app.refresh()}>refresh</button>
+      <button onClick={() => void app.refreshHealth()}>refreshHealth</button>
       <button onClick={() => app.push('info', 'hi')}>toast</button>
       <button onClick={() => app.setOperator('op2')}>operator</button>
     </div>
@@ -150,6 +152,30 @@ describe('AppProvider bootstrap', () => {
     fakeApi.listCampaigns.mockRejectedValue(new Error('down'));
     await mountReady();
     await waitFor(() => expect(screen.getByTestId('toasts').textContent).toBe('1'));
+  });
+
+  it('refreshHealth re-fetches /health and updates the effective allowlist', async () => {
+    await mountReady();
+    expect(screen.getByTestId('allowed').textContent).toBe('h');
+    // A target authorized after load widens the effective allowlist on the server.
+    fakeApi.health.mockResolvedValue({
+      allowedTargets: ['h', 'sandbox.trustena.lu'],
+      authRequired: false,
+    });
+    fireEvent.click(screen.getByText('refreshHealth'));
+    await waitFor(() =>
+      expect(screen.getByTestId('allowed').textContent).toBe('h,sandbox.trustena.lu'),
+    );
+  });
+
+  it('refreshHealth keeps the last-known posture when /health fails', async () => {
+    await mountReady();
+    expect(screen.getByTestId('allowed').textContent).toBe('h');
+    fakeApi.health.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(screen.getByText('refreshHealth'));
+    // No throw, allowlist unchanged.
+    await waitFor(() => expect(fakeApi.health).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('allowed').textContent).toBe('h');
   });
 });
 
