@@ -9,6 +9,13 @@ import { lsGet, lsSet } from './storage.js';
 import { WedosMascot, type MascotState } from './wedos-mascot.js';
 import { describeZoneAt, type ZoneInfo } from './assistant-zones.js';
 import { onAiSupport } from './assistant-bus.js';
+import {
+  readAttachment,
+  attachmentsToPromptBlock,
+  formatSize,
+  MAX_FILES,
+  type Attachment,
+} from './assistant-attachments.js';
 
 /**
  * AssistantChat — the conversational panel over the self-hosted LLM (Qwen),
@@ -192,6 +199,8 @@ export function AssistantChat({
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attError, setAttError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -592,7 +601,42 @@ export function AssistantChat({
   sendRef.current = send;
 
   function sendInput() {
-    void send(input);
+    const block = attachmentsToPromptBlock(attachments);
+    const text = block ? `${input.trim()}${block}` : input;
+    if (!text.trim() || busy || !chatReady) return;
+    void send(text);
+    setAttachments([]);
+    setAttError(null);
+  }
+
+  async function addFiles(files: File[]) {
+    if (!files.length) return;
+    setAttError(null);
+    const room = MAX_FILES - attachments.length;
+    if (room <= 0) {
+      setAttError(`Maximum ${MAX_FILES} pièces jointes.`);
+      return;
+    }
+    const parsed = await Promise.all(files.slice(0, room).map(readAttachment));
+    setAttachments((prev) => [...prev, ...parsed]);
+    if (files.length > room) setAttError(`Maximum ${MAX_FILES} pièces jointes — surplus ignoré.`);
+  }
+
+  /** Open a native file picker without a persistent hidden input: the composer is
+   *  rendered in two places (dock + float), and a throwaway input avoids a
+   *  duplicate-node / shared-ref bug. */
+  function pickFiles() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.multiple = true;
+    inp.onchange = () => {
+      if (inp.files) void addFiles(Array.from(inp.files));
+    };
+    inp.click();
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   /** Manual, on-demand "what next?" — same governed suggestion path. */
@@ -790,29 +834,63 @@ export function AssistantChat({
   // The message composer, shared verbatim by the panel and the floating window.
   const composer = (cls: string) => (
     <div className={`assistant-input${cls ? ' ' + cls : ''}`}>
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={onKey}
-        onFocus={() => setInputFocused(true)}
-        onBlur={() => setInputFocused(false)}
-        placeholder={placeholder}
-        disabled={!chatReady || busy}
-        rows={2}
-      />
-      {busy ? (
-        <button className="btn btn-ghost" onClick={stop}>
-          Stop
-        </button>
-      ) : (
-        <button
-          className="btn btn-primary"
-          onClick={sendInput}
-          disabled={!chatReady || !input.trim()}
-        >
-          Send
-        </button>
+      {attachments.length > 0 && (
+        <div className="assistant-attachments">
+          {attachments.map((a) => (
+            <span
+              key={a.id}
+              className={`att-chip${a.note ? ' att-chip-note' : ''}`}
+              title={a.note ?? `${formatSize(a.size)}${a.truncated ? ' · tronqué' : ''}`}
+            >
+              <span className="att-chip-name">📎 {a.name}</span>
+              <button
+                type="button"
+                className="att-chip-x"
+                aria-label={`Retirer ${a.name}`}
+                onClick={() => removeAttachment(a.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
       )}
+      {attError && <div className="assistant-att-error hint">⚠ {attError}</div>}
+      <div className="assistant-input-row">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKey}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          placeholder={placeholder}
+          disabled={!chatReady || busy}
+          rows={2}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost assistant-attach-btn"
+          onClick={pickFiles}
+          disabled={!chatReady || busy}
+          title="Joindre un fichier (texte extrait quand possible)"
+          aria-label="Joindre un fichier"
+        >
+          📎
+        </button>
+        {busy ? (
+          <button className="btn btn-ghost" onClick={stop}>
+            Stop
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            onClick={sendInput}
+            disabled={!chatReady || (!input.trim() && attachments.length === 0)}
+          >
+            Send
+          </button>
+        )}
+      </div>
     </div>
   );
 
