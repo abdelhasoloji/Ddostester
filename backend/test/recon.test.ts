@@ -13,6 +13,7 @@ import {
   pathCost,
   buildSurface,
   computeBaseline,
+  dominantProbeStatus,
   preflight,
   assembleReconReport,
   reconPostureSnapshot,
@@ -179,6 +180,48 @@ describe('preflight (D)', () => {
     expect(pf.go).toBe(true);
     expect(pf.items.find((i) => i.key === 'protection')!.ok).toBe(false);
   });
+  it('an unreachable probe with a known status explains WHY (e.g. a 404 probe path)', () => {
+    const pf = preflight({ ...base, probeReachable: false, probeStatus: 404 });
+    expect(pf.go).toBe(false);
+    const item = pf.items.find((i) => i.key === 'probe-reachable')!;
+    expect(item.ok).toBe(false);
+    expect(item.detail).toMatch(/404/);
+    expect(item.detail).toMatch(/2xx/);
+  });
+  it('falls back to the generic reason when the probe never returned a status', () => {
+    const pf = preflight({ ...base, probeReachable: false });
+    expect(pf.items.find((i) => i.key === 'probe-reachable')!.detail).toBe(
+      'no successful probe sample',
+    );
+  });
+});
+
+describe('dominantProbeStatus', () => {
+  it('returns the most common non-zero status', () => {
+    expect(
+      dominantProbeStatus([
+        { ok: false, latencyMs: 5, status: 404 },
+        { ok: false, latencyMs: 6, status: 404 },
+        { ok: false, latencyMs: 7, status: 403 },
+      ]),
+    ).toBe(404);
+  });
+  it('ignores network-error samples with no status', () => {
+    expect(
+      dominantProbeStatus([
+        { ok: false, latencyMs: 5 },
+        { ok: false, latencyMs: 6, status: 502 },
+      ]),
+    ).toBe(502);
+  });
+  it('returns undefined when every sample was a network error', () => {
+    expect(
+      dominantProbeStatus([
+        { ok: false, latencyMs: 5 },
+        { ok: false, latencyMs: 6 },
+      ]),
+    ).toBeUndefined();
+  });
 });
 
 describe('assembleReconReport (E)', () => {
@@ -207,6 +250,34 @@ describe('assembleReconReport (E)', () => {
     expect(report.loginPath).toBe('/login');
     expect(report.preflight.go).toBe(true); // probeReachable derived from baseline
     expect(report.baseline.samples).toBe(1);
+  });
+
+  it('flags a 404 probe path as an actionable NO-GO reason (not a phantom outage)', () => {
+    const report = assembleReconReport({
+      target: 'https://portal.example.eu/',
+      probeUrl: 'https://portal.example.eu/health',
+      headerSnapshots: [{ server: 'srp' }],
+      statuses: [200, 404],
+      host: 'portal.example.eu',
+      homepageHtml: '<a href="/login">l</a>',
+      // The root served 200, but the /health probe path 404s on this SPA.
+      baselineSamples: [
+        { ok: false, latencyMs: 9, status: 404 },
+        { ok: false, latencyMs: 8, status: 404 },
+      ],
+      preflightInput: {
+        targetAllowed: true,
+        probeAllowed: true,
+        enginesAvailable: 1,
+        capsConfigured: true,
+        protectionConfigured: true,
+        labRunnerConfigured: false,
+      },
+    });
+    expect(report.preflight.go).toBe(false);
+    const item = report.preflight.items.find((i) => i.key === 'probe-reachable')!;
+    expect(item.detail).toMatch(/404/);
+    expect(item.detail).toMatch(/2xx/);
   });
 });
 

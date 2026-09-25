@@ -314,7 +314,9 @@ function percentile(sorted: number[], p: number): number {
 }
 
 /** Summarises warmup probe samples into a normal-operation baseline. Pure. */
-export function computeBaseline(samples: { ok: boolean; latencyMs: number }[]): Baseline {
+export function computeBaseline(
+  samples: { ok: boolean; latencyMs: number; status?: number }[],
+): Baseline {
   const n = samples.length;
   if (n === 0)
     return { samples: 0, availabilityPct: 0, latencyP50: 0, latencyP95: 0, latencyMean: 0 };
@@ -328,6 +330,32 @@ export function computeBaseline(samples: { ok: boolean; latencyMs: number }[]): 
     latencyP95: percentile(lat, 95),
     latencyMean: Number(mean.toFixed(1)),
   };
+}
+
+/**
+ * The HTTP status the probe kept returning when it never succeeded, so the
+ * preflight can say WHY it is unreachable (e.g. a probe path that 404s) instead
+ * of a vague "no successful sample". Returns the most common non-zero status, or
+ * undefined when every sample was a network error (no status). Pure.
+ */
+export function dominantProbeStatus(
+  samples: { ok: boolean; latencyMs: number; status?: number }[],
+): number | undefined {
+  const counts = new Map<number, number>();
+  for (const sm of samples) {
+    if (typeof sm.status === 'number' && sm.status > 0) {
+      counts.set(sm.status, (counts.get(sm.status) ?? 0) + 1);
+    }
+  }
+  let best: number | undefined;
+  let bestN = 0;
+  for (const [st, n] of counts) {
+    if (n > bestN) {
+      best = st;
+      bestN = n;
+    }
+  }
+  return best;
 }
 
 // ── Preflight go/no-go (D) ────────────────────────────────────────────────────
@@ -353,6 +381,9 @@ export interface PreflightInput {
   capsConfigured: boolean;
   protectionConfigured: boolean;
   labRunnerConfigured: boolean;
+  /** When the probe never succeeded, the HTTP status it kept returning (if any) —
+   *  lets the checklist explain a 404/403 probe path instead of a vague failure. */
+  probeStatus?: number;
 }
 
 /** Builds the readiness checklist; go = every REQUIRED item passes. Pure. */
@@ -377,7 +408,11 @@ export function preflight(i: PreflightInput): Preflight {
       label: 'Probe reachable',
       ok: i.probeReachable,
       required: true,
-      detail: i.probeReachable ? 'responds to the legitimate probe' : 'no successful probe sample',
+      detail: i.probeReachable
+        ? 'responds to the legitimate probe'
+        : i.probeStatus
+          ? `probe URL returned HTTP ${i.probeStatus} — pick an endpoint that serves 2xx (e.g. the site root "/")`
+          : 'no successful probe sample',
     },
     {
       key: 'engines',
@@ -462,7 +497,7 @@ export interface AssembleInput {
   robots?: string;
   sitemapXml?: string;
   homepageHtml?: string;
-  baselineSamples: { ok: boolean; latencyMs: number }[];
+  baselineSamples: { ok: boolean; latencyMs: number; status?: number }[];
   preflightInput: Omit<PreflightInput, 'probeReachable'>;
 }
 
@@ -479,7 +514,15 @@ export function assembleReconReport(input: AssembleInput): ReconReport {
     host: input.host,
   });
   const baseline = computeBaseline(input.baselineSamples);
-  const pf = preflight({ ...input.preflightInput, probeReachable: baseline.availabilityPct > 0 });
+  // When the probe never succeeded, surface WHY (e.g. a 404 probe path) so a
+  // NO-GO reads as an actionable config fix, not a phantom target outage.
+  const probeStatus =
+    baseline.availabilityPct === 0 ? dominantProbeStatus(input.baselineSamples) : undefined;
+  const pf = preflight({
+    ...input.preflightInput,
+    probeReachable: baseline.availabilityPct > 0,
+    probeStatus,
+  });
   return {
     target: input.target,
     probeUrl: input.probeUrl,

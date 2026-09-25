@@ -86,14 +86,14 @@ export async function runRecon(
   if (!('error' in sm) && sm.res.ok) sitemapXml = sm.body;
 
   // Baseline: a few low-rate legitimate-probe samples.
-  const baselineSamples: { ok: boolean; latencyMs: number }[] = [];
+  const baselineSamples: { ok: boolean; latencyMs: number; status?: number }[] = [];
   for (let i = 0; i < BASELINE_SAMPLES; i++) {
     const r = await get(probeUrl);
     if ('error' in r) baselineSamples.push({ ok: false, latencyMs: r.ms });
     else {
       headerSnapshots.push(snapshot(r.res));
       statuses.push(r.res.status);
-      baselineSamples.push({ ok: r.res.ok, latencyMs: r.ms });
+      baselineSamples.push({ ok: r.res.ok, latencyMs: r.ms, status: r.res.status });
     }
   }
 
