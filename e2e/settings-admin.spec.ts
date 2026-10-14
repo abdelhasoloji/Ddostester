@@ -13,7 +13,7 @@ async function noError(page: Page): Promise<void> {
 test('settings: operational limits change actually persists (survives a reload)', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const durSel =
     '.card:has-text("Operational limits") .field:has(label:has-text("Max duration")) input';
@@ -37,7 +37,7 @@ test('settings: operational limits change actually persists (survives a reload)'
 test('settings: purge card — scope select + Purge… reveals confirm, then Cancel (no delete)', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const card = page.locator('.card', { hasText: 'Purge campaigns' });
   const scope = card.locator('select[aria-label="Purge scope"]');
@@ -53,7 +53,7 @@ test('settings: purge card — scope select + Purge… reveals confirm, then Can
 });
 
 test('settings: observability — save a Grafana base URL, deep-links appear', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const card = page.locator('.card', { hasText: 'Observability (Grafana)' });
   await card.locator('#grafana-url').fill('http://localhost:3000');
@@ -66,7 +66,7 @@ test('settings: observability — save a Grafana base URL, deep-links appear', a
 test('settings: users — add, change role via row select, reset-password Cancel, remove', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const email = `e2e-role-${Date.now()}@wedos`;
   await page.locator('.field:has(label:text-is("Email")) input').fill(email);

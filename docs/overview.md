@@ -31,7 +31,7 @@ proves a real product feature:
 | WEDOS Protection (product)              | What ShieldTest proves                                 |
 | --------------------------------------- | ------------------------------------------------------ |
 | L3/L4 mitigation ("within seconds")     | Network DRS ladder, class-C lab · `synFloodProtection` |
-| WAF (OWASP + WEDOS rules)               | zeroBS L7 templates · `wafSignatures`                  |
+| WAF (OWASP + WEDOS rules)               | DRS L7 templates · `wafSignatures`                     |
 | Rate-limiting & bot challenge (ATP/PoW) | `rateLimiting` / `challenge` controls                  |
 | Origin shielding & Anycast CDN cache    | `originShielding` / `cacheKeyPolicy`                   |
 | Geo / ASN / IP-reputation filtering     | `urlAllowlist` / method policy                         |

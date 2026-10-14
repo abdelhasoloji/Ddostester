@@ -16,7 +16,7 @@ function buildAuth() {
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('pw-engineer-1') },
     { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-12') },
   ]);
-  return initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+  return initAuth({ USER_MODE: 'team', AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
 }
 
 async function login(app: FastifyInstance, email: string, pw: string): Promise<string> {

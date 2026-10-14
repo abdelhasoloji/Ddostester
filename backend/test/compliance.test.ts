@@ -55,7 +55,8 @@ describe('compliance / resilience assessment report', () => {
     expect(html).toContain('Per-scenario results');
     expect(html).toContain('Glossary');
     expect(html).toContain('Volumetric / L3-L4 — class C, network bench');
-    expect(html).toContain('DRS 4.5'); // customer-defined cap note
+    expect(html).toContain('DRS 3.00.00');
+    expect(html).not.toContain('DRS 4.5');
   });
 
   it('derives Held / Low for a clean high-WRS run', () => {
@@ -170,7 +171,7 @@ describe('compliance / resilience assessment report', () => {
       ],
     };
     const html = renderComplianceHtml([], [], { bench });
-    expect(html).toContain('zeroBS Volumetric coverage');
+    expect(html).toContain('DRS Volumetric coverage');
     expect(html).toContain('udp_dns_reflection');
     expect(html).toContain('MEASURED LAB');
     expect(html).toContain('ATTESTED');

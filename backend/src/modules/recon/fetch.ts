@@ -1,5 +1,6 @@
 import { assembleReconReport, type ReconReport, type PreflightInput } from './recon.js';
-import { hostOf } from '../../util/net.js';
+import { assertDestination } from '../../util/destination.js';
+import { readBoundedBody } from '../../util/http-body.js';
 
 /**
  * Bounded, allowlisted network orchestration for the preparation phase. Kept
@@ -25,14 +26,19 @@ function snapshot(res: Response): Record<string, string> {
 
 async function get(
   url: string,
+  signal?: AbortSignal,
 ): Promise<{ res: Response; body: string; ms: number } | { error: true; ms: number }> {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
   const started = Date.now();
   try {
-    const res = await fetch(url, { signal: ac.signal, redirect: 'follow' });
-    const buf = await res.arrayBuffer();
-    const body = new TextDecoder().decode(buf.slice(0, MAX_BODY_BYTES));
+    if (signal?.aborted) return { error: true, ms: 0 };
+    const res = await fetch(url, {
+      signal: signal ? AbortSignal.any([signal, ac.signal]) : ac.signal,
+      redirect: 'manual',
+    });
+    const buf = await readBoundedBody(res.body, MAX_BODY_BYTES);
+    const body = new TextDecoder().decode(buf);
     return { res, body, ms: Date.now() - started };
   } catch {
     return { error: true, ms: Date.now() - started };
@@ -50,23 +56,19 @@ export async function runRecon(
   probeUrl: string,
   allowedHosts: string[],
   flags: Omit<PreflightInput, 'probeReachable' | 'targetAllowed' | 'probeAllowed'>,
+  signal?: AbortSignal,
 ): Promise<ReconReport> {
-  const host = hostOf(target);
-  const probeHost = hostOf(probeUrl);
+  const host = assertDestination(target, allowedHosts).hostname;
+  const probeHost = assertDestination(probeUrl, allowedHosts).hostname;
   const targetAllowed = allowedHosts.includes(host);
   const probeAllowed = allowedHosts.includes(probeHost);
-  if (!targetAllowed) {
-    throw new Error(
-      `Target "${host}" is not in ALLOWED_TARGETS — recon refuses off-allowlist hosts.`,
-    );
-  }
 
   const origin = new URL(target).origin;
   const headerSnapshots: Record<string, string>[] = [];
   const statuses: number[] = [];
 
   // Homepage (headers + body for link extraction).
-  const home = await get(target);
+  const home = await get(target, signal);
   let homepageHtml: string | undefined;
   let negotiatedProtocol: string | undefined;
   if (!('error' in home)) {
@@ -78,17 +80,17 @@ export async function runRecon(
   }
 
   // robots.txt + sitemap.xml (published surface only).
-  const robotsRes = await get(`${origin}/robots.txt`);
+  const robotsRes = await get(`${origin}/robots.txt`, signal);
   const robots = !('error' in robotsRes) && robotsRes.res.ok ? robotsRes.body : undefined;
   let sitemapXml: string | undefined;
   const sitemapUrl = `${origin}/sitemap.xml`;
-  const sm = await get(sitemapUrl);
+  const sm = await get(sitemapUrl, signal);
   if (!('error' in sm) && sm.res.ok) sitemapXml = sm.body;
 
   // Baseline: a few low-rate legitimate-probe samples.
   const baselineSamples: { ok: boolean; latencyMs: number; status?: number }[] = [];
   for (let i = 0; i < BASELINE_SAMPLES; i++) {
-    const r = await get(probeUrl);
+    const r = await get(probeUrl, signal);
     if ('error' in r) baselineSamples.push({ ok: false, latencyMs: r.ms });
     else {
       headerSnapshots.push(snapshot(r.res));

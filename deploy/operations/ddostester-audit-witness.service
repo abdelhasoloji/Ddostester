@@ -1,0 +1,18 @@
+[Unit]
+Description=Independent signed Ddostester audit witness
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+RuntimeDirectory=ddostester-audit-witness
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/flock -n /run/ddostester-audit-witness/collector.lock /usr/bin/node /usr/local/lib/ddostester-audit-witness/collect.mjs
+User=root
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/ddostester-audit-witness /var/lib/ddostester-audit-witness /run/ddostester-audit-witness
+TimeoutStartSec=25

@@ -83,6 +83,7 @@ export interface GuardContext {
   envEmails: Set<string>;
   current: ManagedUser[];
   actorEmail: string;
+  primaryAdminEmail?: string;
 }
 
 /** Validates and authorizes a create/update; returns the normalized target. */
@@ -90,6 +91,8 @@ export function assertUpsert(input: UpsertInput, ctx: GuardContext): { email: st
   const email = normalizeEmail(input.email ?? '');
   if (!EMAIL_RE.test(email)) throw new UserError('A valid email is required.');
   if (!isRole(input.role)) throw new UserError('Invalid role.');
+  if (ctx.primaryAdminEmail && input.role === 'admin' && email !== ctx.primaryAdminEmail)
+    throw new UserError('Only the owner can have the admin role.');
   const pwProblem = passwordProblem(input.password ?? '', email);
   if (pwProblem) throw new UserError(pwProblem);
   if (ctx.envEmails.has(email)) {
@@ -118,6 +121,12 @@ export function assertRoleChange(
   const email = normalizeEmail(rawEmail ?? '');
   if (!email) throw new UserError('Email is required.');
   if (!isRole(rawRole)) throw new UserError('Invalid role.');
+  if (
+    ctx.primaryAdminEmail &&
+    ((rawRole === 'admin' && email !== ctx.primaryAdminEmail) ||
+      (email === ctx.primaryAdminEmail && rawRole !== 'admin'))
+  )
+    throw new UserError('The owner must remain the only admin.');
   if (ctx.envEmails.has(email)) {
     throw new UserError('This user is defined in AUTH_USERS (env) and cannot be modified here.');
   }
@@ -136,6 +145,7 @@ export function assertRoleChange(
 /** Validates and authorizes a delete; returns the normalized target email. */
 export function assertDelete(rawEmail: string, ctx: GuardContext): string {
   const email = normalizeEmail(rawEmail ?? '');
+  if (email === ctx.primaryAdminEmail) throw new UserError('The owner cannot be deleted.');
   if (!email) throw new UserError('Email is required.');
   if (ctx.envEmails.has(email)) {
     throw new UserError('This user is defined in AUTH_USERS (env) and cannot be deleted here.');
@@ -196,6 +206,8 @@ export function assertStatusChange(
     throw new UserError('Status must be "active" or "disabled".');
   }
   const status = rawStatus as UserStatus;
+  if (email === ctx.primaryAdminEmail && status === 'disabled')
+    throw new UserError('The owner cannot be deactivated.');
   if (ctx.envEmails.has(email)) {
     throw new UserError('This user is defined in AUTH_USERS (env) and cannot be modified here.');
   }

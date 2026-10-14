@@ -1,3 +1,4 @@
+import { permissionsFor } from '../../backend/src/auth/rbac.js';
 import { describe, expect, it } from 'vitest';
 import { canDo } from './context.js';
 import type { Perm } from './context.js';
@@ -32,14 +33,14 @@ const ALL_PERMS: Perm[] = [
 const EXPECTED: Record<Role, Perm[]> = {
   engineer: ['create', 'execute', 'kill', 'assistantManage', 'targetManage'],
   ciso: ['approve', 'cisoApprove', 'kill', 'bench', 'targetAuthorize'],
-  admin: ['kill', 'manage', 'limits', 'assistantManage', 'targetManage'],
+  admin: ALL_PERMS,
   viewer: [],
 };
 
 describe('frontend RBAC mirror', () => {
   for (const role of Object.keys(EXPECTED) as Role[]) {
     it(`grants ${role} exactly its expected capabilities`, () => {
-      const granted = ALL_PERMS.filter((p) => canDo(role, p, true));
+      const granted = ALL_PERMS.filter((p) => canDo(role, p, true, 'team', permissionsFor(role)));
       expect(new Set(granted)).toEqual(new Set(EXPECTED[role]));
     });
   }

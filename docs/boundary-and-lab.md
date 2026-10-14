@@ -190,7 +190,7 @@ raw-flood traffic. Attestation checklists (`/api/bench/attestations`) and
 external import (`/api/bench/coverage/import`) give auditable, deterministic
 outcomes.
 
-The bench catalogue mirrors the **Volumetric** section of a zeroBS DRS report
+The bench catalogue mirrors the **Volumetric** section of a DRS report
 (reference **P25-20300**): five reproducible vectors (UDP amplification/rate +
 two no-spoof TCP state-table vectors) and six **out-of-model** ones that can
 never be dispatched (`ip_spoofing`, fragmentation, GRE, multi-proto combos).

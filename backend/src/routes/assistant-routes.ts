@@ -1,3 +1,10 @@
+import { validateKusaProposal, type ProposalPolicy } from '../modules/assistant/proposals.js';
+import {
+  ProcessTokenBudget,
+  type AssistantTokenBudget,
+} from '../modules/assistant/token-budget.js';
+import { once } from 'node:events';
+import { IO_LIMITS } from '../config/limits.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
 import type { Permission } from '../auth/rbac.js';
 import {
@@ -22,6 +29,8 @@ export type AssistantAudit = (
 ) => void | Promise<void>;
 
 export interface AssistantRoutesCtx {
+  tokenBudget?: AssistantTokenBudget;
+  proposalPolicy?: () => Promise<ProposalPolicy>;
   guard: (perm: Permission) => preHandlerHookHandler;
   config: AssistantConfig;
   /** Optional GPU-pod power control (RunPod). Absent → pod is "unmanaged". */
@@ -52,6 +61,49 @@ interface OpenAiMessage {
 export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRoutesCtx): void {
   const { guard, config, runpod, audit, assistantContext } = ctx;
   const podManaged = runpod != null && runpodConfigured(runpod);
+  const tokenBudget = ctx.tokenBudget ?? new ProcessTokenBudget();
+
+  let activeChats = 0;
+  const streams = new Set<FastifyReply['raw']>();
+  app.addHook('preClose', async () => {
+    for (const stream of streams) stream.end();
+  });
+  const chatBudget = new Map<string, { at: number; count: number }>();
+  let globalBudget = { at: Date.now(), count: 0 };
+  const reserveChat = (email: string): boolean => {
+    const now = Date.now();
+    for (const [key, value] of chatBudget) if (now - value.at >= 60000) chatBudget.delete(key);
+    if (now - globalBudget.at >= 60000) globalBudget = { at: now, count: 0 };
+    const user = chatBudget.get(email) ?? { at: now, count: 0 };
+    if (
+      activeChats >= 2 ||
+      user.count >= 5 ||
+      globalBudget.count >= 20 ||
+      (!chatBudget.has(email) && chatBudget.size >= 1000)
+    )
+      return false;
+    activeChats++;
+    user.count++;
+    globalBudget.count++;
+    chatBudget.set(email, user);
+    return true;
+  };
+
+  app.post(
+    '/api/assistant/proposals/validate',
+    { preHandler: guard('campaign:read') },
+    async (request, reply) => {
+      if (!ctx.proposalPolicy)
+        return reply.code(503).send({ error: 'Proposal policy unavailable' });
+      try {
+        return validateKusaProposal(request.body, await ctx.proposalPolicy());
+      } catch (error) {
+        return reply
+          .code(400)
+          .send({ error: error instanceof Error ? error.message : 'Invalid proposal' });
+      }
+    },
+  );
 
   // Lightweight status so the UI can show "assistant available / not configured"
   // without leaking the endpoint or key. `podManaged` tells the UI to drive
@@ -78,6 +130,7 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
         return reply.code(503).send({ error: 'pod_unmanaged', configured: false });
       }
       try {
+        await audit?.(req, 'assistant.pod_start', 'intent: requested before external power change');
         const st = await podResume(runpod);
         await audit?.(req, 'assistant.pod_start', `state=${st.state}`);
         return st;
@@ -96,6 +149,7 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
         return reply.code(503).send({ error: 'pod_unmanaged', configured: false });
       }
       try {
+        await audit?.(req, 'assistant.pod_stop', 'intent: requested before external power change');
         const st = await podStop(runpod);
         await audit?.(req, 'assistant.pod_stop', `state=${st.state}`);
         return st;
@@ -125,34 +179,61 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
       if (assistantContext) {
         try {
           const extra = await assistantContext(req);
-          if (extra && extra.trim()) systemContent += '\n\n' + extra.trim();
+          if (extra && extra.trim())
+            systemContent += '\n\n' + extra.trim().slice(0, IO_LIMITS.assistantContextChars);
         } catch {
           /* live context is best-effort — never block the chat */
         }
       }
       const messages: OpenAiMessage[] = [{ role: 'system', content: systemContent }, ...turns];
 
+      if (!reserveChat(req.authUser?.email ?? 'dev'))
+        return reply.code(429).send({ error: 'assistant capacity exceeded — try again later' });
+      let tokenReservation;
+      try {
+        const units = messages.reduce(
+          (sum, message) => sum + Buffer.byteLength(message.content, 'utf8') + 64,
+          config.maxTokens,
+        );
+        tokenReservation = await tokenBudget.reserve(req.authUser?.email ?? 'dev', units);
+      } catch {
+        activeChats--;
+        return reply.code(503).send({ error: 'assistant accounting unavailable' });
+      }
+      if (!tokenReservation) {
+        activeChats--;
+        return reply.code(429).send({ error: 'assistant daily token reservation budget exceeded' });
+      }
       // Take over the socket for Server-Sent Events.
       reply.hijack();
       const res = reply.raw;
+      streams.add(res);
+      res.once('close', () => streams.delete(res));
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache, no-transform',
         connection: 'keep-alive',
         'x-accel-buffering': 'no',
       });
-      const send = (event: string, data: unknown): void => {
-        res.write(`event: ${event}\n`);
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-      };
-
       const ac = new AbortController();
+      const send = async (event: string, data: unknown): Promise<void> => {
+        if (res.destroyed || res.writableEnded) return;
+        if (!res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+          await once(res, 'drain', { signal: ac.signal });
+      };
       const timer = setTimeout(() => ac.abort(), config.timeoutMs);
       res.on('close', () => ac.abort());
+      let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
       try {
+        await send('provenance', {
+          model: config.model,
+          protocol: 'openai-compatible-chat-stream',
+          budget: tokenReservation,
+        });
         const upstream = await fetch(`${config.endpoint}/chat/completions`, {
           method: 'POST',
+          redirect: 'error',
           signal: ac.signal,
           headers: {
             'content-type': 'application/json',
@@ -168,18 +249,25 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
         });
 
         if (!upstream.ok || !upstream.body) {
-          send('error', { message: `upstream ${upstream.status}` });
+          await send('error', { message: `upstream ${upstream.status}` });
           res.end();
           clearTimeout(timer);
           return;
         }
 
         const reader = upstream.body.getReader();
+        upstreamReader = reader;
         const decoder = new TextDecoder();
         let buf = '';
+        let streamBytes = 0;
         for (;;) {
           const { value, done } = await reader.read();
           if (done) break;
+          streamBytes += value.byteLength;
+          if (streamBytes > IO_LIMITS.assistantStreamBytes)
+            throw new Error('assistant response exceeds stream byte budget');
+          if (Buffer.byteLength(buf, 'utf8') + value.byteLength > 64 * 1024)
+            throw new Error('assistant SSE frame exceeds byte budget');
           buf += decoder.decode(value, { stream: true });
           // Parse complete SSE lines from the upstream (llama.cpp emits
           // `data: {json}\n\n`, ending with `data: [DONE]`).
@@ -195,18 +283,21 @@ export function registerAssistantRoutes(app: FastifyInstance, ctx: AssistantRout
                 choices?: { delta?: { content?: string } }[];
               };
               const delta = j.choices?.[0]?.delta?.content;
-              if (delta) send('delta', { content: delta });
+              if (delta) await send('delta', { content: delta });
             } catch {
               // partial/non-JSON keepalive line — ignore
             }
           }
         }
-        send('done', { ok: true });
+        await send('done', { ok: true });
       } catch (err) {
-        send('error', {
+        await send('error', {
           message: err instanceof Error ? err.message : 'stream failed',
-        });
+        }).catch(() => undefined);
       } finally {
+        ac.abort();
+        await upstreamReader?.cancel().catch(() => undefined);
+        activeChats--;
         clearTimeout(timer);
         res.end();
       }

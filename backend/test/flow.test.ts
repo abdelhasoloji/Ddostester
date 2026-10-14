@@ -25,9 +25,9 @@ const cfg = (over: Partial<LoadTestConfig> = {}): LoadTestConfig => ({
 });
 
 describe('iterationRate', () => {
-  it('divides the rate by the step count (floored, >= 1)', () => {
+  it('does not round a whole flow above the request budget', () => {
     expect(iterationRate(60, 3)).toBe(20);
-    expect(iterationRate(5, 10)).toBe(1); // floor(0.5) -> 0 -> clamped to 1
+    expect(iterationRate(5, 10)).toBe(0);
     expect(iterationRate(100, 1)).toBe(100);
   });
 });
@@ -52,20 +52,86 @@ describe('validateConfig flow', () => {
 });
 
 describe('k6 flow', () => {
+  it('bounds request timeouts and preserves step headers for plain and correlated flows', () => {
+    const plain = buildK6Script(
+      cfg({
+        timeoutMs: 1000,
+        flow: [
+          {
+            method: 'POST',
+            url: 'http://127.0.0.1/a',
+            headers: { 'content-type': 'application/json' },
+          },
+        ],
+      }),
+    );
+    expect(plain).toContain("timeout: '1000ms'");
+    expect(plain).toContain('"content-type": "application/json"');
+    expect(plain).toContain('http.expectedStatuses({ min: 200, max: 299 })');
+    const correlated = buildK6Script(
+      cfg({
+        timeoutMs: 1200,
+        flow: [
+          {
+            method: 'GET',
+            url: 'http://127.0.0.1/a',
+            extract: { name: 'id', from: 'json', expr: 'id' },
+          },
+        ],
+      }),
+    );
+    expect(correlated).toContain("timeout: '1200ms'");
+    expect(() => buildK6Script(cfg({ timeoutMs: Infinity }))).toThrow();
+  });
+
+  it('rejects non-finite phase rates and unrepresentable scheduling periods', () => {
+    expect(() => buildK6Script(cfg({ phases: [{ maxRps: Infinity, durationSec: 3 }] }))).toThrow();
+    expect(() => buildK6Script(cfg({ maxRps: Number.MIN_VALUE }))).toThrow();
+    expect(() => buildK6Script(cfg({ maxRps: Number.MAX_VALUE }))).toThrow();
+  });
+
+  it('widens the time unit for low-budget journeys and phases', () => {
+    const single = buildK6Script(cfg({ flow, maxRps: 1 }));
+    expect(single).toContain("timeUnit: '3s'");
+    expect(single).toContain("gracefulStop: '0s'");
+    expect(single).toContain('rate: 1');
+    const phased = buildK6Script(
+      cfg({
+        flow,
+        maxRps: 5,
+        phases: [
+          { maxRps: 1, durationSec: 3 },
+          { maxRps: 5, durationSec: 3 },
+        ],
+      }),
+    );
+    expect(phased).toContain("timeUnit: '3s'");
+    expect(phased).toContain("gracefulStop: '0s'");
+    expect(phased).toContain('startRate: 1');
+    expect(phased).toContain("target: 5, duration: '3s'");
+  });
+
+  it('schedules fractional single-request rates without raising them to 1 RPS', () => {
+    const script = buildK6Script(cfg({ maxRps: 0.5 }));
+    expect(script).toContain("timeUnit: '2s'");
+    expect(script).toContain('rate: 1');
+  });
+
   it('caps the iteration rate and renders each step + think', () => {
     const s = buildK6Script(cfg({ flow }));
     expect(s).toContain('rate: 20');
-    expect(s).toContain('http.request("GET", "http://127.0.0.1/a"');
-    expect(s).toContain('http.request("POST", "http://127.0.0.1/b"');
+    expect(s).toContain('_request("GET", "http://127.0.0.1/a"');
+    expect(s).toContain('_request("POST", "http://127.0.0.1/b"');
     expect(s).toContain('sleep(0.500)');
   });
 });
 
 describe('gatling flow', () => {
-  it('divides users/sec, chains steps and pauses', () => {
+  it('caps concurrent users and total request rate, chains steps and pauses', () => {
     const s = buildGatlingSim(cfg({ flow }));
     expect(s).toContain('import java.time.Duration;');
-    expect(s).toContain('constantUsersPerSec(20).during(10)');
+    expect(s).toContain('constantConcurrentUsers(5).during(10)');
+    expect(s).toContain('Math.ceil(1_000_000_000d / 60)');
     expect(s).toContain('.get("http://127.0.0.1/a")');
     expect(s).toContain('.post("http://127.0.0.1/b")');
     expect(s).toContain('.pause(Duration.ofMillis(500))');
@@ -73,22 +139,21 @@ describe('gatling flow', () => {
 });
 
 describe('jmeter flow', () => {
-  it('renders one sampler per step, a think timer and a shared throughput cap', () => {
+  it('renders one HTTP sampler per step and pauses after requests', () => {
     const x = buildJmxPlan(cfg({ flow }));
     expect(x).toContain('testname="step-1"');
     expect(x).toContain('testname="step-3"');
-    expect(x).toContain('<stringProp name="ConstantTimer.delay">500</stringProp>');
-    expect(x).toContain('<value>3600</value>'); // 60 rps * 60 shared across samplers
+    expect(x).toContain('<stringProp name="ActionProcessor.duration">500</stringProp>');
+    expect(x).toContain('16666667L'); // Shared slots cap all HTTP samplers at 60 rps
   });
 });
 
 describe('locust flow', () => {
-  it('paces so users*steps/pacing ≈ maxRps and sleeps between steps', () => {
+  it('shares the request cap across all users/steps and keeps think pauses', () => {
     const f = buildLocustfile(cfg({ flow }));
-    expect(f).toContain('import time');
-    expect(f).toContain('time.sleep(0.500)');
-    // pacing = users(5) * steps(3) / maxRps(60) = 0.25
-    expect(f).toContain('constant_pacing(0.25)');
+    expect(f).toContain('time.monotonic()');
+    expect(f).toContain('time.sleep(0.5)');
+    expect(f).toContain(`_interval = ${1 / 60}`);
   });
 });
 

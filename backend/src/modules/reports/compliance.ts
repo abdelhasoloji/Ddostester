@@ -24,7 +24,7 @@ export { availabilityPct };
 
 /**
  * RPT-02 — Aggregated resilience assessment / compliance report.
- * Aggregates runs over a period into a zeroBS-DRS-style assessment (scope,
+ * Aggregates runs over a period into a DRS-style assessment (scope,
  * per-scenario results with RiskLevel + mitigation verdict, glossary) plus the
  * DORA / NIS2 / ISO 27001 compliance breakdown. Purely analytical — the report
  * generates no traffic. Methodology: docs/assessment-methodology.md.
@@ -32,7 +32,7 @@ export { availabilityPct };
 export interface ComplianceOptions {
   from?: string; // ISO
   to?: string; // ISO
-  /** Class-C network-bench coverage (zeroBS Volumetric matrix + evidence). */
+  /** Class-C network-bench coverage (DRS Volumetric matrix + evidence). */
   bench?: { scenarios: BenchScenario[]; coverage: BenchCoverage[] };
 }
 
@@ -45,7 +45,7 @@ const METHOD_PILL: Record<CoverageMethod, 'good' | 'warn' | 'neutral'> = {
 };
 
 /**
- * Class-C bench coverage section: the zeroBS Volumetric matrix with, per vector,
+ * Class-C bench coverage section: the DRS Volumetric matrix with, per vector,
  * its DRS level and how it is covered (measured in the lab, ingested from the
  * network team's bench, attested, modelled). Read-only evidence — no emission.
  */
@@ -74,7 +74,7 @@ function benchCoverageSection(bench?: ComplianceOptions['bench']): string {
       return `<tr><td><code>${esc(s.id)}</code></td><td>${esc(s.proto)}</td><td>${s.drs}</td><td>${bcell}</td><td>${method}</td><td>${ev}</td></tr>`;
     })
     .join('');
-  return `<h2>Network bench (class C) — zeroBS Volumetric coverage</h2>
+  return `<h2>Network bench (class C) — DRS Volumetric coverage</h2>
 <div class="grid cards" style="margin-bottom:.7rem">
   ${statCard('Vectors', String(total))}
   ${statCard('Measured (lab)', String(measured))}
@@ -226,7 +226,7 @@ export function renderComplianceHtml(
     { yMax: 100, width: 240, height: 44 },
   );
 
-  // Per-scenario results table (zeroBS "L7 Summary" shape, bounded).
+  // Per-scenario results table (DRS "L7 Summary" shape, bounded).
   const scenarioRows = inPeriod
     .map((r, i) => {
       const c = campById.get(r.campaignId);
@@ -321,7 +321,7 @@ export function renderComplianceHtml(
  ${row('Targets', [...targets].map(esc).join(', ') || '—')}
  ${row('Load engines', [...engines].map(esc).join(', ') || '—')}
  ${row('Method', `Bounded HTTP (GET/POST), allowlisted, capped ≤ ${HARD_CAPS.maxRps} rps / ${HARD_CAPS.maxConcurrency} conc / ${HARD_CAPS.maxDurationSec} s`)}
- ${row('DRS note', 'Customer-defined targets — assessment capped at DRS 4.5 by methodology')}
+ ${row('DRS note', 'DRS 3.00.00 is evaluated only from frozen independent evidence; no DRS score is inferred from WRS or reference-level labels')}
 </table>` +
     `<h2>Score &amp; risk distribution</h2>
 <div class="two-col">
@@ -356,7 +356,7 @@ ${benchSection}
 
 <h2>Glossary</h2>
 <table class="kvs">
- <tr><th>WRS / DRS</th><td>WEDOS Resiliency Score (0–100). DRS = zeroBS DDoS Resiliency Score; customer-defined targets cap the assessment at DRS 4.5.</td></tr>
+ <tr><th>WRS / DRS</th><td>WRS is a separate 0–100 diagnostic. DRS 3.00.00 uses per-level vector ratios and independently archived evidence; missing scenarios produce partial or indeterminate coverage. No certification is issued.</td></tr>
  <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
  <tr><th>Mitigation</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> auto-killed (target down ≥30 s) · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
  <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.</td></tr>

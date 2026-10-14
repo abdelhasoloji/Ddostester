@@ -44,7 +44,7 @@ describe('deriveImpact (E16)', () => {
     expect(impact[0].severity).toBeGreaterThanOrEqual(impact[impact.length - 1].severity);
   });
 
-  it('EXCLUDES probe-contention false negatives (PF1) — a serving target is not an impact', () => {
+  it('preserves observed probe degradation and marks disagreement uncertain', () => {
     const runs = [
       run({
         runId: 'r1',
@@ -54,7 +54,8 @@ describe('deriveImpact (E16)', () => {
         probe: { samples: 10, available: 0 } as never,
       }),
     ];
-    expect(deriveImpact(runs, campaigns)).toHaveLength(0);
+    expect(deriveImpact(runs, campaigns)).toHaveLength(1);
+    expect(deriveImpact(runs, campaigns)[0]).toMatchObject({ availabilityPct: 0, uncertain: true });
   });
 
   it('reports the breaking rps and the highest rate sustained', () => {

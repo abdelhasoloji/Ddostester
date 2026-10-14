@@ -1,0 +1,13 @@
+# Comparaison de runs enregistrés
+
+Les routes de comparaison JSON et HTML utilisent le même contrôle `ddostester.run-comparability/v1`. Une différence de WRS ne suffit plus à classer une amélioration. La réponse indique `comparability.comparable`, les raisons et un verdict `inconclusive` lorsque les preuves sont absentes, incompatibles ou dégradées.
+
+Le runner enregistre dans la configuration du résultat le moteur exécuté, la version de Node, la référence source, l'URL et la vantage de sonde. La référence doit être un SHA Git complet ou `snapshot:` suivi du SHA-256 complet ; les références de développement, raccourcies ou non identifiées ne satisfont pas ce contrôle. Ces champs sont des traces du runtime, pas une attestation cryptographique indépendante.
+
+Le contrôle compare les configurations enregistrées : destination complète, méthodes, budgets, durée/phases, flow, payloads, pauses, graine/index IoT et contexte d'exécution. Les headers fonctionnels restent comparés. Seul le tag serveur `X-WEDOS-TEST`, différent pour chaque run, et le callback interne de bail `requestPermit` sont exclus. Les raisons ne divulguent pas les valeurs de headers ou les payloads.
+
+Une comparaison interprétable exige aussi des observations de sonde cohérentes, un score mesuré valide, une confiance enregistrée non dégradée et une assessment conclusive. Les mesures de flotte incomplètes, une baseline explicitement incomplète ou une récupération précédente non vérifiée bloquent l'interprétation. Les runs interrompus manuellement ou non terminés ne permettent pas de conclusion d'amélioration. Les valeurs restent affichées à titre descriptif ; les indicateurs directionnels `improved` deviennent null, et le HTML ne colore plus les deltas comme une amélioration ou régression.
+
+Cette première version reconnaît le builtin identifié par sa référence source et son runtime. La conformité/version exacte des moteurs externes et de fleet n'est pas encore enregistrée par ce contrat ; leurs comparaisons restent inconclusives. L'historique sans contexte ou confiance ne récupère pas ces paramètres depuis une campagne actuelle et reste inconclusif. Cela réduit volontairement les conclusions de comparaison disponibles pour les anciens runs.
+
+Un passage de ce contrôle signifie uniquement que les champs de charge enregistrés sont identiques et les mesures interprétables selon ces critères. Il ne prouve pas l'identité du réseau, du matériel, de l'état applicatif, des autres clients ou de l'environnement. Une amélioration observée ne démontre pas à elle seule un effet causal d'une mitigation. La recette réelle de runs homogènes et le contrôle de l'environnement restent requis pour G3.

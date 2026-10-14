@@ -33,8 +33,8 @@ describe('theaterPanels — built-in engine (live generator counts)', () => {
       sample({ t: 2, rps: 200, sent: 400, failed: 200, availPct: 80 }),
     ]);
     expect(panels.map((p) => p.label)).toEqual([
-      'Offered vs reached-origin RPS',
-      'Absorbed by edge (%)',
+      'Offered vs successful-response RPS',
+      'Generator failures (%)',
       'Legitimate availability (%)',
     ]);
     // RPS panel anchors at zero; the percent panels are fixed to [0,100].

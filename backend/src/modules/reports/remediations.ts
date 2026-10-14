@@ -69,7 +69,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
       severity: w.collateral < 70 ? 'high' : 'medium',
       weakness: `Mitigation caused collateral damage (collateral score ${w.collateral}/100) — legitimate traffic was blocked alongside the attack.`,
       remediation:
-        'Prefer challenge/rate-shaping over hard IP blocking, and narrow the mitigation rules; the zeroBS criterion explicitly requires NOT blocking source IPs (else DRS 3 only).',
+        'Prefer challenge/rate-shaping over hard IP blocking, and narrow the mitigation rules; the DRS criterion explicitly requires NOT blocking source IPs (else DRS 3 only).',
     });
   }
 
@@ -99,7 +99,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
           ? `Mitigation engaged late (time-to-mitigate ${ttm}s, score ${w.mitigation}/100).`
           : `Mitigation scored low (${w.mitigation}/100).`,
       remediation:
-        'Enable always-on / automatic mitigation so protection engages without manual action; the zeroBS criterion requires instant/automatic mitigation up to DRS 4.',
+        'Enable always-on / automatic mitigation so protection engages without manual action; the DRS criterion requires instant/automatic mitigation up to DRS 4.',
     });
   }
 

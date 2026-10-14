@@ -24,7 +24,8 @@ import type {
   BenchCoverage,
   CoverageMethod,
 } from '../modules/bench/model.js';
-import type { Store } from './types.js';
+import type { Store, AccountPolicy, UserTransaction } from './types.js';
+import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const { Pool } = pg;
 
@@ -228,6 +229,10 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS targets_auth_status_idx ON targets (auth_status);
     `,
   },
+  {
+    id: 8,
+    sql: `CREATE TABLE IF NOT EXISTS fleet_devices_v1 (id text PRIMARY KEY, data jsonb NOT NULL);`,
+  },
 ];
 
 /** settings key for the CISO-managed operational limits. */
@@ -239,8 +244,32 @@ const LIMITS_KEY = 'operational_limits';
  * target, WRS, dates) — the basis of a per-target WRS history (TSD §5.4).
  */
 export class PostgresStore implements Store {
+  async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
+    const r = await this.pool.query<{ data: FleetDevice }>(
+      'SELECT data FROM fleet_devices_v1 WHERE id=$1',
+      [id],
+    );
+    return r.rows[0]?.data;
+  }
+  async listFleetDevices(): Promise<FleetDevice[]> {
+    const result = await this.pool.query<{ data: FleetDevice }>(
+      'SELECT data FROM fleet_devices_v1 ORDER BY id',
+    );
+    return result.rows.map((row) => row.data);
+  }
+  async saveFleetDevice(device: FleetDevice): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO fleet_devices_v1(id,data) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET data=$2',
+      [device.id, JSON.stringify(device)],
+    );
+  }
+  async deleteFleetDevice(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM fleet_devices_v1 WHERE id=$1', [id]);
+  }
   readonly backend = 'postgres' as const;
   private pool: pg.Pool;
+  private transactionClient?: pg.PoolClient;
+  private runtimeLease?: pg.PoolClient;
 
   /** true if the TimescaleDB extension is available (wrs_samples becomes a hypertable). */
   private timescale = false;
@@ -249,6 +278,22 @@ export class PostgresStore implements Store {
     this.pool = new Pool({ connectionString });
   }
 
+  async acquireRuntimeLease(): Promise<boolean> {
+    if (this.runtimeLease) return true;
+    const client = await this.pool.connect();
+    const result = await client.query<{ locked: boolean }>(
+      'SELECT pg_try_advisory_lock($1) AS locked',
+      [714210],
+    );
+    if (!result.rows[0]?.locked) {
+      client.release();
+      return false;
+    }
+    // Losing the dedicated lease connection must stop the runtime, never continue unlocked.
+    client.on('error', () => process.kill(process.pid, 'SIGTERM'));
+    this.runtimeLease = client;
+    return true;
+  }
   async init(): Promise<void> {
     await this.runMigrations();
 
@@ -411,31 +456,34 @@ export class PostgresStore implements Store {
     return r.rows.map((x) => x.data);
   }
 
+  private async appendAudit(e: AuditEntry, client: Pick<pg.Pool, 'query'>): Promise<void> {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_LOCK_KEY]);
+    const head = await client.query<{ hash: string | null }>(
+      'SELECT hash FROM audit ORDER BY seq DESC LIMIT 1',
+    );
+    const prev = head.rows[0]?.hash ?? AUDIT_GENESIS;
+    const chained = chainEntry(e, prev);
+    await client.query(
+      `INSERT INTO audit (id, at, actor, action, campaign_id, detail, prev_hash, hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [
+        chained.id,
+        chained.at,
+        chained.actor,
+        chained.action,
+        chained.campaignId ?? null,
+        chained.detail ?? null,
+        chained.prevHash ?? null,
+        chained.hash ?? null,
+      ],
+    );
+  }
   async saveAudit(e: AuditEntry): Promise<void> {
+    if (this.transactionClient) return this.appendAudit(e, this.transactionClient);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      // Serialize concurrent appends so the chain never forks.
-      await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_LOCK_KEY]);
-      const head = await client.query<{ hash: string | null }>(
-        'SELECT hash FROM audit ORDER BY seq DESC LIMIT 1',
-      );
-      const prev = head.rows[0]?.hash ?? AUDIT_GENESIS;
-      const chained = chainEntry(e, prev);
-      await client.query(
-        `INSERT INTO audit (id, at, actor, action, campaign_id, detail, prev_hash, hash)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [
-          chained.id,
-          chained.at,
-          chained.actor,
-          chained.action,
-          chained.campaignId ?? null,
-          chained.detail ?? null,
-          chained.prevHash ?? null,
-          chained.hash ?? null,
-        ],
-      );
+      await this.appendAudit(e, client);
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -482,8 +530,108 @@ export class PostgresStore implements Store {
     return withCanonicalRole(rowToUser(x));
   }
 
-  async saveUser(u: User): Promise<void> {
+  async getAccountPolicy(): Promise<AccountPolicy | undefined> {
+    const r = await this.pool.query<{ data: AccountPolicy }>(
+      'SELECT data FROM settings WHERE key=$1',
+      ['access-policy/v1'],
+    );
+    return r.rows[0]?.data;
+  }
+  async setAccountPolicy(policy: AccountPolicy): Promise<void> {
     await this.pool.query(
+      'INSERT INTO settings(key,data,updated_at) VALUES($1,$2,now()) ON CONFLICT(key) DO UPDATE SET data=$2,updated_at=now()',
+      ['access-policy/v1', JSON.stringify(policy)],
+    );
+  }
+  async transaction<T>(fn: (tx: Store) => Promise<T>): Promise<T> {
+    if (this.transactionClient) return fn(this);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock($1)', [714209]);
+      const tx = Object.create(this) as PostgresStore;
+      tx.pool = client as unknown as pg.Pool;
+      tx.transactionClient = client;
+      const result = await fn(tx);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+  async transactionUsers<T>(fn: (tx: UserTransaction) => Promise<T>): Promise<T> {
+    if (this.transactionClient) return fn(this);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock($1)', [714209]);
+      const tx: UserTransaction = {
+        listUsers: async () =>
+          (await client.query<UserRow>(`${USER_SELECT} ORDER BY email`)).rows
+            .map((row) => withCanonicalRole(rowToUser(row)))
+            .filter((u): u is User => !!u),
+        getUser: async (email) => {
+          const r = await client.query<UserRow>(`${USER_SELECT} WHERE email=$1`, [
+            email.toLowerCase(),
+          ]);
+          return r.rows[0] ? withCanonicalRole(rowToUser(r.rows[0])) : undefined;
+        },
+        saveUser: (user) => this.upsertUser(user, client),
+        deleteUser: async (email) => {
+          await client.query('DELETE FROM users WHERE email=$1', [email.toLowerCase()]);
+        },
+        saveAudit: (entry) => this.appendAudit(entry, client),
+        getAccountPolicy: async () =>
+          (
+            await client.query<{ data: AccountPolicy }>('SELECT data FROM settings WHERE key=$1', [
+              'access-policy/v1',
+            ])
+          ).rows[0]?.data,
+        setAccountPolicy: async (policy) => {
+          await client.query(
+            'INSERT INTO settings(key,data,updated_at) VALUES($1,$2,now()) ON CONFLICT(key) DO UPDATE SET data=$2,updated_at=now()',
+            ['access-policy/v1', JSON.stringify(policy)],
+          );
+        },
+      };
+      const result = await fn(tx);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async saveUser(u: User): Promise<void> {
+    await this.upsertUser(u, this.pool);
+  }
+
+  async saveUsersAtomically(users: User[]): Promise<void> {
+    if (this.transactionClient) {
+      for (const user of users) await this.upsertUser(user, this.transactionClient);
+      return;
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const u of users) await this.upsertUser(u, client);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async upsertUser(u: User, db: Pick<pg.Pool, 'query'>): Promise<void> {
+    await db.query(
       `INSERT INTO users
          (email, role, password_hash, status, must_change_password, last_login_at,
           token_version, created_at)
@@ -667,6 +815,11 @@ export class PostgresStore implements Store {
   }
 
   async close(): Promise<void> {
+    if (this.runtimeLease) {
+      await this.runtimeLease.query('SELECT pg_advisory_unlock($1)', [714210]);
+      this.runtimeLease.release();
+      this.runtimeLease = undefined;
+    }
     await this.pool.end();
   }
 }

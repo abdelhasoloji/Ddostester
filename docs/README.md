@@ -34,7 +34,7 @@ code-anchored reference. Start with [overview.md](./overview.md).
 | Doc                                            | What it covers                                                                                                                               |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | [measurement.md](./measurement.md)             | WRS formula & levels, the bounded-DRS assessment methodology + scenario catalogue, the five-phase engagement model, the tune-and-replay loop |
-| [pretest-p26-20371.md](./pretest-p26-20371.md) | The zeroBS P26-20371 L7 line-by-line mapping (reference record)                                                                              |
+| [pretest-p26-20371.md](./pretest-p26-20371.md) | The DRS P26-20371 L7 line-by-line mapping (reference record)                                                                                 |
 
 ## Operations
 
@@ -58,3 +58,14 @@ code-anchored reference. Start with [overview.md](./overview.md).
 > HTTP** load tests against authorized infrastructure. It implements **no attack
 > vector** (L3/L4 flood, amplification, L7 exhaustion). See
 > [boundary-and-lab.md](./boundary-and-lab.md).
+
+Audit applicatif : [constats du 13 octobre 2026](./application-audit-2026-10-13.md) et [corrections et validation](./application-audit-fixes-2026-10-13.md).
+
+## Prioritised improvement plan
+
+[Profils IoT HTTP simulés](./iot-profiles.md) : contrat de création, graine, think-time et limites de reproductibilité.
+
+[Roadmap d’amélioration 2026](./improvement-roadmap-2026-10.md): build 451 baseline,
+implementation lots, validation gates, resources, estimates and first sprint.
+
+DRS 3.00.00: immutable reference in `standards/drs/3.00.00/manifest.json`; evidence workflow and API in [Fleet missions](fleet-missions.md#versioned-drs-plans-and-evidence). The source PDF and license are archived with the reference; WRS is a separate diagnostic.

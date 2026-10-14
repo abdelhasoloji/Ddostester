@@ -55,6 +55,7 @@ export interface ActionRow {
 }
 
 interface Base {
+  proposal?: Record<string, unknown>;
   title: string;
   rationale: string;
   rows: ActionRow[];
@@ -178,6 +179,14 @@ function navigateAction(o: Record<string, unknown>): AssistantAction | null {
 }
 
 function parseAction(o: Record<string, unknown>): AssistantAction | null {
+  if (o.schema !== undefined && !['test-campaign', 'adjust-limits', 'open'].includes(str(o.type)))
+    return null;
+  const action = parseLegacyAction(o);
+  if (action && o.schema !== undefined) action.proposal = { ...o };
+  return action;
+}
+
+function parseLegacyAction(o: Record<string, unknown>): AssistantAction | null {
   const type = str(o.type).toLowerCase();
   switch (type) {
     case 'test-campaign':

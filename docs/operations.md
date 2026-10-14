@@ -24,7 +24,7 @@ Overridable env: `PORT` (8080), `HOST` (`127.0.0.1` — **never** `0.0.0.0`),
 `ALLOWED_TARGETS` (allowlist). Add a target:
 `ALLOWED_TARGETS="127.0.0.1,test-host.internal" bash deploy/setup.sh`.
 
-**Persistence.** Without `DATABASE_URL` the store is in-memory (lost on restart).
+**Persistence.** Default single mode requires PostgreSQL, strong JWT auth and the explicit account migration in [single-user.md](./single-user.md). In-memory storage is restricted to legacy team-mode development/tests.
 To persist: `DATABASE_URL="postgresql://shieldtest:pw@127.0.0.1:5432/shieldtest"
 bash deploy/setup.sh`. The schema is applied by **ordered migrations** at startup
 (`schema_migrations`, each once in a transaction) so a restore into a fresh DB +
@@ -97,7 +97,7 @@ one idempotent command per host.
 
 **VPS 1** — `deploy/provision/host-app.sh` (then `deploy/setup.sh`). Env in
 `/etc/ddostester.env` (chmod 600): `DATABASE_URL`, `AUTH_JWT_SECRET`,
-`AUTH_USERS` (≥ 2 users: an `engineer` + an `officer`), `ALLOWED_TARGETS`,
+`USER_MODE` and persisted managed profiles (engineer/ciso for team, owner confirmation for single), `ALLOWED_TARGETS`,
 `LAB_TARGETS` (a class-C governance label, **not** a connect target),
 `BENCH_RUNNER_TOKEN`, and the scrubber hook (`PROTECTION_METRICS_URL`,
 `PROTECTION_SOURCE_LABEL`). Hash passwords with `npm run hash-password -w backend
@@ -203,3 +203,65 @@ security headers, the bind guard.
   misleading pass. Runs on the control-plane host (needs `AUTH_JWT_SECRET`) via
   the governed flow, bounded by `HARD_CAPS`:
   `set -a; . /etc/ddostester.env; set +a; node scripts/template-matrix.mjs --dur 30 http://<bare-origin>/ https://<protected>/`
+
+## Verified release promotion and hardening
+
+### Local PostgreSQL and recovery verification
+
+With dependencies installed and the PostgreSQL 16 image already cached in a local Docker context:
+
+```sh
+task_pg_evidence_parent="$(mktemp -d)"
+node scripts/operations/local-postgres-gate.mjs "$task_pg_evidence_parent/new-gate"
+```
+
+The gate accepts no application database URL. It creates a dedicated temporary PostgreSQL container and bridge network, publishes only on loopback, runs all mandatory PostgreSQL suites and the encrypted recovery check, then verifies removal of its identified resources. The container uses the cached image ID, a non-root user, 0.5 CPU, 512 MiB RAM and temporary data storage. Credentials are private and removed after cleanup; logs and cleanup receipts remain in the new private evidence directory. No image download occurs during the gate. Its Node version is recorded, so a local run on Node 26 does not establish CI parity with Node 22.
+
+Append `--browser-single` to run the single-owner browser recipe against that same disposable database after the PostgreSQL and recovery suites. Build the app first (`npm run build`) and provide an installed Playwright browser, optionally through `PW_CHROMIUM`. The dedicated configuration verifies the loopback gate database name and tests persistence of operational limits and explicit execution confirmation. This recipe does not yet cover the complete account/session matrix. Its fixture remains separate from the default team/memory browser suite.
+
+`deploy/update.sh` now refuses local changes and builds a new immutable directory
+from the fetched revision. It runs the full verification before switching the
+systemd service via `40-verified-release.conf`; existing envfiles remain untouched.
+It verifies API build identity, readiness and every UI asset against a release
+manifest. Failure restores the previous override. The previous `30-access-release`
+override is retained, so rollback to it remains possible. Do not delete releases
+or backups until retention and rollback have been reviewed.
+
+This automatic path supports systemd. Docker requires explicitly versioned image
+promotion and manifest validation; the script refuses the old unchecked Compose
+promotion. Additional sudo rights are needed for installing the override and
+reloading systemd; a restart-only CI rule is insufficient. Setup preserves an
+existing envfile, checks the persisted account policy before restart, and migrates
+accounts only when `MIGRATE_ACCOUNTS=1` is explicitly selected. Bootstrap secrets
+must be removed after successful provisioning.
+
+Only one runtime per PostgreSQL database is supported; an advisory lease rejects
+another replica. Shutdown blocks new launches and kills active runs. All starts
+revalidate current destinations, authorization, approvals and operational limits.
+`RETENTION_DAYS=0` disables retention. `INSECURE_TLS=true` also requires the explicit
+`ISOLATED_LAB=1` opt-in and is forbidden on connected deployments; use a trusted CA.
+
+Browser reads use the HttpOnly cookie described in security-and-governance.md;
+never put session JWTs in report URLs. Assistant chat budgets are two concurrent
+streams, five per identity/minute, twenty globally/minute; upstream buffers are
+bounded and downstream backpressure is respected. Login cost budgets are twenty
+per source/minute and one hundred globally/minute, independently of email.
+
+Prometheus names now describe generator observations: `successful_rps` and
+`failed_ratio`. Historical JSON absorption fields remain compatible but do not
+prove origin traffic or edge absorption. Target/edge telemetry is needed for
+attribution. Dashboards and alert rules must be promoted with the app.
+
+Audit witnesses: run `scripts/audit-checkpoint.mjs` from an independently controlled
+collector with a read token supplied through its environment. Store each witness
+under a new filename outside the application host, pass the previous witness to
+check continuity, and alert on failure. Credentials, sink and scheduling belong
+to the infrastructure configuration; none is created or invoked by this change.
+
+Owner password recovery uses the audited, offline administrative procedure in
+[owner-recovery.md](./owner-recovery.md). It requires the exclusive PostgreSQL
+runtime lease and preserves the existing sole administrator and other accounts.
+
+For private laboratory builds from preserved local work, see the identified
+[source snapshot procedure](./source-snapshots.md). Product releases still require
+the reviewed Git reference and release gate.

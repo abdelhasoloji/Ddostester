@@ -1,3 +1,4 @@
+import { remoteProbeQualityReasons } from './confidence.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { wrsLevel } from '../wrs/scoring.js';
@@ -124,6 +125,10 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const level = run?.wrs?.level ?? ctx.level ?? (wrs != null ? wrsLevel(wrs) : null);
 
   const caveats: string[] = [];
+  if (run?.generator.fleet?.measurementComplete === false)
+    caveats.push(
+      'Fleet evidence is incomplete; this run cannot establish a complete resilience verdict.',
+    );
   if (underDelivered) {
     caveats.push(
       `Delivered only ${Math.round(deliveryRatio * 100)}% of the intended offered rate ` +
@@ -143,8 +148,8 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   if (run?.confidence?.degraded) caveats.push(...(run.confidence.reasons ?? []));
   if (run?.probeContended) {
     caveats.push(
-      'The legitimate probe lost the connection race to the flood at the target (probe-contended), ' +
-        'so availability was derived from generator success, not the probe.',
+      'The independent probe and generator disagree; the cause is uncertain. ' +
+        'Raw probe availability and safety thresholds were preserved.',
     );
   }
 
@@ -163,20 +168,36 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   else if (rejectedRatio >= tarpitRatio) mechanism = 'rejected';
   else mechanism = 'tarpitted';
 
+  const baselineMissing =
+    run?.baseline?.observation?.complete === false ||
+    Boolean(run?.baseline?.quality && remoteProbeQualityReasons(run.baseline.quality).length);
+  if (baselineMissing)
+    caveats.push(
+      'Remote baseline observations or resource diagnostics are uncertain; no reliable baseline comparison is available.',
+    );
   // Verdict — tied to what the measurement can prove.
   let verdict: VectorVerdict;
-  if (ctx.status === 'KILLED_AUTO') verdict = run?.probeContended ? 'inconclusive' : 'breached';
+  if (ctx.status === 'KILLED_AUTO')
+    verdict = run?.probeContended || baselineMissing ? 'inconclusive' : 'breached';
   else if (ctx.status === 'KILLED_MANUAL') verdict = 'inconclusive';
   else if (!run) verdict = 'inconclusive';
-  else if (underDelivered || run.confidence?.degraded) verdict = 'inconclusive';
+  else if (
+    underDelivered ||
+    baselineMissing ||
+    run.confidence?.degraded ||
+    run.generator.fleet?.measurementComplete === false
+  )
+    verdict = 'inconclusive';
   else if (avail >= 99) verdict = 'held';
   else if (avail < AVAIL_BREACH && !run.probeContended) verdict = 'breached';
   else verdict = 'partial';
 
   const confident =
     ctx.status === 'COMPLETED' &&
+    !baselineMissing &&
     !underDelivered &&
     !run?.confidence?.degraded &&
+    run?.generator.fleet?.measurementComplete !== false &&
     !run?.probeContended;
 
   let observation = buildObservation({
@@ -271,7 +292,7 @@ function buildObservation(x: {
     return (
       `Delivered only ${Math.round(x.deliveryRatio * 100)}% of the intended offered rate ` +
       `(${x.achievedRps}/${x.expectedRps} req/s) — a generator-side shortfall, so this is ` +
-      `INCONCLUSIVE at the DRS ${x.drs} rate. At the delivered rate the origin served the load and ` +
+      `INCONCLUSIVE at the DRS ${x.drs} rate. At the delivered rate successful HTTP responses were observed and ` +
       `legitimate availability held at ${x.availPct}%.${wrsTail}`
     );
   }
@@ -293,15 +314,15 @@ function describeMechanism(
     case 'served':
       return isSlow
         ? `The target held the slow connections open (little shedding)`
-        : `The origin served the load directly (~${originRps} req/s reached origin; the edge absorbed ${absorbedPct}%)`;
+        : `Successful HTTP responses: ~${originRps} req/s; generator failure ratio: ${absorbedPct}% (origin/edge attribution requires telemetry)`;
     case 'shed':
       return `The target shed the slow/incomplete connections (request/header timeout) — the correct defense`;
     case 'rejected':
-      return `The edge rejected ${absorbedPct}% of the offered load with a response (4xx/5xx)`;
+      return `HTTP failures (4xx/5xx): ${absorbedPct}% of offered requests; cause unproven`;
     case 'tarpitted':
-      return `The edge held ${absorbedPct}% of the connections until they timed out (tarpit)`;
+      return `Transport failures: ${absorbedPct}% of offered requests; timeouts do not prove edge tarpitting`;
     case 'blocked':
-      return `The edge blocked ${absorbedPct}% of the offered load (mechanism not resolved — the out-of-process engine reports no per-status breakdown)`;
+      return `Generator failures: ${absorbedPct}% of offered requests (no per-status breakdown; attribution unavailable)`;
     default:
       return `No run data`;
   }

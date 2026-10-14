@@ -72,11 +72,11 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
   const app = useApp();
   const navigate = useNavigate();
   const caps = app.hardCaps;
-  const canCreate = canDo(app.role, 'create', app.authRequired);
-  const canApprove = canDo(app.role, 'approve', app.authRequired);
-  const canCiso = canDo(app.role, 'cisoApprove', app.authRequired);
-  const canExecute = canDo(app.role, 'execute', app.authRequired);
-  const canKill = canDo(app.role, 'kill', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
+  const canApprove = canDo(app.role, 'approve', app.authRequired, app.userMode, app.capabilities);
+  const canCiso = canDo(app.role, 'cisoApprove', app.authRequired, app.userMode, app.capabilities);
+  const canExecute = canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
+  const canKill = canDo(app.role, 'kill', app.authRequired, app.userMode, app.capabilities);
 
   const seed = action.seed;
   const seedTarget = typeof seed.target === 'string' ? seed.target : '';
@@ -143,6 +143,7 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
     setErr(null);
     setBusy(true);
     try {
+      if (action.proposal) await api.validateAssistantProposal(action.proposal);
       const c = await api.createCampaign({
         name: form.name.trim(),
         target: form.target.trim(),
@@ -155,7 +156,12 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
         createdBy: app.authRequired ? app.identity?.email : app.operator,
       });
       setCamp(c);
-      app.push('success', 'Campaign created — awaiting approval.');
+      app.push(
+        'success',
+        app.approvalPolicy === 'confirmation'
+          ? 'Campaign created — review and confirm before running.'
+          : 'Campaign created — awaiting approval.',
+      );
       app.refresh();
     } catch (e) {
       setErr(msg(e));
@@ -206,6 +212,10 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
 
   async function runNow() {
     if (!camp || busy) return;
+    if (app.approvalPolicy === 'confirmation') {
+      app.setConfirmExec(camp);
+      return;
+    }
     setErr(null);
     setBusy(true);
     setCamp({ ...camp, status: 'RUNNING' });
@@ -345,7 +355,11 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
                 disabled={!canSubmit || busy}
                 onClick={() => void submit()}
               >
-                {busy ? 'Submitting…' : 'Submit for approval'}
+                {busy
+                  ? 'Submitting…'
+                  : app.approvalPolicy === 'confirmation'
+                    ? 'Create campaign'
+                    : 'Submit for approval'}
               </button>
             ) : (
               <span className="hint">
@@ -372,7 +386,7 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
             ]}
           />
 
-          {status === 'PENDING_APPROVAL' && (
+          {status === 'PENDING_APPROVAL' && app.approvalPolicy !== 'confirmation' && (
             <div className="assistant-stage">
               {canApprove ? (
                 <>
@@ -404,7 +418,8 @@ function CampaignCard({ action }: { action: CampaignActionT }) {
             </div>
           )}
 
-          {status === 'APPROVED' && (
+          {(status === 'APPROVED' ||
+            (app.approvalPolicy === 'confirmation' && status === 'PENDING_APPROVAL')) && (
             <div className="assistant-stage">
               {app.requireCisoApproval && !camp.cisoApprovedBy ? (
                 canCiso ? (
@@ -474,8 +489,20 @@ type TargetActionT = Extract<AssistantAction, { kind: 'target' }>;
 
 function TargetCard({ action }: { action: TargetActionT }) {
   const app = useApp();
-  const canManageTargets = canDo(app.role, 'targetManage', app.authRequired);
-  const canAuthorize = canDo(app.role, 'targetAuthorize', app.authRequired);
+  const canManageTargets = canDo(
+    app.role,
+    'targetManage',
+    app.authRequired,
+    app.userMode,
+    app.capabilities,
+  );
+  const canAuthorize = canDo(
+    app.role,
+    'targetAuthorize',
+    app.authRequired,
+    app.userMode,
+    app.capabilities,
+  );
   const rawHost = action.draft.host ?? '';
   const host = rawHost.toLowerCase();
   const already = app.allowed.includes(host);
@@ -585,7 +612,7 @@ type LimitsActionT = Extract<AssistantAction, { kind: 'limits' }>;
 
 function LimitsCard({ action }: { action: LimitsActionT }) {
   const app = useApp();
-  const canSetLimits = canDo(app.role, 'limits', app.authRequired);
+  const canSetLimits = canDo(app.role, 'limits', app.authRequired, app.userMode, app.capabilities);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -596,6 +623,7 @@ function LimitsCard({ action }: { action: LimitsActionT }) {
     setErr(null);
     setBusy(true);
     try {
+      if (action.proposal) await api.validateAssistantProposal(action.proposal);
       await api.setLimits({
         maxRps: action.caps.maxRps,
         maxConcurrency: action.caps.maxConcurrency,

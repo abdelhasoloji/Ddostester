@@ -6,7 +6,7 @@ Guide for agents/contributors working on this repository.
 
 Internal **resilience testing** control plane: orchestration, governance,
 measurement and scoring of load campaigns against **authorized** infrastructure.
-Full-stack: Fastify/TypeScript backend (ESM, Node ≥ 22), React/Vite frontend.
+Full-stack: Fastify/TypeScript backend (ESM, Node ≥ 22.19), React/Vite frontend.
 
 ## Non-negotiable boundary (must be respected absolutely)
 
@@ -43,7 +43,7 @@ and `docs/boundary-and-lab.md`.
 
 ## Install / run / test
 
-Prerequisites: **Node ≥ 22**, **PostgreSQL** (falls back to in-memory store if
+Prerequisites: **Node ≥ 22.19**, **PostgreSQL** (falls back to in-memory store if
 unset), Docker only for the optional Compose stack / mTLS proxy.
 
 ```bash
@@ -136,3 +136,14 @@ production/public infrastructure under any circumstance.
   = ceiling). Never widen the ceiling to satisfy a request.
 - Every change: `npm run typecheck && npm test && npm run build` must pass.
 - Secrets are never committed; tokens are never logged (request serializer).
+
+## Unique administrator with managed profiles
+
+The administrator has all application capabilities. USER_MODE=single selects the default
+personal workflow: the owner explicitly confirms every launch; team mode retains separation
+of duties. The persisted owner defaults to abdelha@wedos; other profiles remain manageable
+and retain their status/password. A second admin and owner demotion/deletion are forbidden.
+Run the versioned migration explicitly before the first new-version startup; ordinary startup
+only verifies policy. Capabilities are returned by /api/auth/me and enforced by the API.
+Allowlist, immutable caps, kill switch and audit remain mandatory. No campaign is required
+for account/deployment validation. See [migration and operation](docs/single-user.md).

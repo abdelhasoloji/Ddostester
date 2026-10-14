@@ -16,7 +16,7 @@ async function noError(page: Page): Promise<void> {
 }
 
 test('every nav section renders without an error (officer)', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   for (const s of SECTIONS) {
     await goTo(page, s);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -92,7 +92,7 @@ test('Templates: search narrows the list, then compose bar appears on select', a
 test('Settings/theme: choosing dark or light applies data-theme to the document', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const buttons = page.locator('.theme-toggle button');
   await expect(buttons).toHaveCount(3); // light / system / dark

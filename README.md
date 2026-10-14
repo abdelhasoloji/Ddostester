@@ -18,8 +18,8 @@ authorization to test**.
 - **PROBE** — legitimate probe + 3-level kill switch (auto / manual / time-based).
 - **WRS** — resilience scoring + **per-target history & regression detection**.
 - **RPT** — HTML campaign report + **aggregated compliance report (DORA/NIS2)**.
-- **Auth + RBAC** — JWT, engineer / officer / viewer / ciso roles (toggleable),
-  runtime user management (officer) on top of immutable env-defined users.
+- **Auth + RBAC** — JWT, engineer / admin / viewer / ciso capabilities,
+  PostgreSQL-managed profiles and one persisted administrator.
 - **Two-layer caps** — a frozen, immutable `HARD_CAPS` ceiling; the **CISO** role
   sets the effective operational limits from the UI, always clamped ≤ the ceiling
   and audited (`config/limits.ts`, `PUT /api/limits`).
@@ -65,10 +65,11 @@ cp .env.example .env          # set ALLOWED_TARGETS
 npm run dev:api               # API on :8080
 npm run dev:web               # UI on :5173 (proxy /api → :8080)
 npm test                      # backend tests
-# Persistence: set DATABASE_URL (PostgreSQL); otherwise in-memory storage.
+# Default single mode requires DATABASE_URL, strong auth and explicit account migration.
+# Memory storage is available only for legacy team-mode development/tests.
 ```
 
-Server deployment (Ubuntu, Node 22, systemd) — a single service serving the API
+Server deployment (Ubuntu, Node ≥ 22.19, systemd) — a single service serving the API
 **and** the UI, on loopback:
 
 ```bash
@@ -167,3 +168,14 @@ control plane performs only bounded, allowlisted HTTP and contains no
 amplification/spoofing/UDP code at all. The two connect only through a read-only,
 governed verdict contract (see [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md)).
 See [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md) for the split and the pointer.
+
+## Unique administrator with managed profiles
+
+The administrator has all application capabilities. USER_MODE=single selects the default
+personal workflow: the owner explicitly confirms every launch; team mode retains separation
+of duties. The persisted owner defaults to abdelha@wedos; other profiles remain manageable
+and retain their status/password. A second admin and owner demotion/deletion are forbidden.
+Run the versioned migration explicitly before the first new-version startup; ordinary startup
+only verifies policy. Capabilities are returned by /api/auth/me and enforced by the API.
+Allowlist, immutable caps, kill switch and audit remain mandatory. No campaign is required
+for account/deployment validation. See [migration and operation](docs/single-user.md).

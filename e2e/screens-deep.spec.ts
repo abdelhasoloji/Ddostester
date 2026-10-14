@@ -126,7 +126,7 @@ test('templates: sort controls, allowed-host chip, compose two, then clear', asy
 });
 
 test('settings: admin adds a user then deletes it', async ({ page }) => {
-  await login(page, 'officer'); // → admin
+  await login(page, 'admin'); // → admin
   await goTo(page, 'Settings');
   const email = `e2e-ui-${Date.now()}@wedos`;
   await page.locator('.field:has(label:text-is("Email")) input').fill(email);
@@ -142,7 +142,7 @@ test('settings: admin adds a user then deletes it', async ({ page }) => {
 });
 
 test('settings: notifications Test button', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const testBtn = page.getByRole('button', { name: /^Test$|Send test/ });
   if (await testBtn.count()) {
@@ -156,7 +156,7 @@ test('settings: operational limits form saves (always-editable, no Edit step)', 
 }) => {
   // LimitsCard is an always-editable form with a "Save limits" button — there is
   // no separate Edit step (the earlier test looked for a non-existent "Edit").
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const card = page.locator('.card', { hasText: 'Operational limits' });
   const save = card.getByRole('button', { name: 'Save limits' });
@@ -167,7 +167,7 @@ test('settings: operational limits form saves (always-editable, no Edit step)', 
 });
 
 test('command center: renders the resilience summary and opens Run Theater', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Command Center');
   await noError(page);
   const link = page.getByRole('link', { name: /Run Theater/ });
@@ -178,7 +178,7 @@ test('command center: renders the resilience summary and opens Run Theater', asy
 });
 
 test('audit log (in Settings): Verify integrity produces a chain verdict', async ({ page }) => {
-  await login(page, 'officer'); // the audit log now lives inside Settings
+  await login(page, 'admin'); // the audit log now lives inside Settings
   await goTo(page, 'Settings');
   await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
   await page.getByRole('button', { name: /Verify integrity/ }).click();
@@ -189,7 +189,7 @@ test('audit log (in Settings): Verify integrity produces a chain verdict', async
 test('protected zones render, and the retired /prepare URL redirects to Campaigns', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Protected zones');
   await noError(page);
   // Prepare was retired (its recon folded into the Campaigns launch flow); the

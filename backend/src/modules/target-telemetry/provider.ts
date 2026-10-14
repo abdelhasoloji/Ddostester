@@ -1,3 +1,5 @@
+import { readBoundedBody } from '../../util/http-body.js';
+import { IO_LIMITS } from '../../config/limits.js';
 import type { TargetSample, TargetTelemetryContext, TargetTelemetryProvider } from './types.js';
 
 export interface TargetTelemetryConfig {
@@ -52,11 +54,14 @@ const fetchJsonGet: FetchJsonGet = async (url, timeoutMs) => {
   try {
     const res = await fetch(url, {
       method: 'GET',
+      redirect: 'error',
       headers: { 'x-wedos-shieldtest': 'target-telemetry-query' },
       signal: controller.signal,
     });
     if (!res.ok) return null;
-    return await res.json();
+    return JSON.parse(
+      new TextDecoder().decode(await readBoundedBody(res.body, IO_LIMITS.responseBytes)),
+    );
   } finally {
     clearTimeout(timer);
   }
@@ -70,6 +75,7 @@ export function parseTargetSample(
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   const num = (v: unknown): number | undefined => {
+    if (typeof v !== 'number' && (typeof v !== 'string' || !v.trim())) return undefined;
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
   };
@@ -79,12 +85,25 @@ export function parseTargetSample(
     conntrack: num(o.conntrack),
     nicRxMbps: num(o.nicRxMbps),
     nicTxMbps: num(o.nicTxMbps),
+    receivedRequests:
+      typeof o.receivedRequests === 'number' &&
+      Number.isSafeInteger(o.receivedRequests) &&
+      o.receivedRequests >= 0
+        ? o.receivedRequests
+        : undefined,
+    receiptComplete: typeof o.receiptComplete === 'boolean' ? o.receiptComplete : undefined,
+    sourceIps: Array.isArray(o.sourceIps)
+      ? o.sourceIps.filter((v): v is string => typeof v === 'string').slice(0, 16)
+      : undefined,
+    source: typeof o.source === 'string' ? o.source.slice(0, 128) : undefined,
+    targetPodUid: typeof o.targetPodUid === 'string' ? o.targetPodUid.slice(0, 128) : undefined,
   };
   const hasMetric =
     sample.cpuPct != null ||
     sample.conntrack != null ||
     sample.nicRxMbps != null ||
-    sample.nicTxMbps != null;
+    sample.nicTxMbps != null ||
+    sample.receivedRequests != null;
   return hasMetric ? sample : null;
 }
 
@@ -101,6 +120,7 @@ class PollTargetTelemetryProvider implements TargetTelemetryProvider {
     try {
       const u = new URL(this.url);
       u.searchParams.set('campaignId', ctx.campaignId);
+      if (ctx.runId) u.searchParams.set('runId', ctx.runId);
       u.searchParams.set('target', ctx.target);
       return parseTargetSample(await this.get(u.toString(), this.timeoutMs));
     } catch {
@@ -142,6 +162,9 @@ export function createTargetTelemetryProvider(
 
 export interface TargetTelemetrySummary {
   samples: number;
+  receivedRequestsMax?: number;
+  receiptComplete?: boolean;
+  sourceIps?: string[];
   cpuPctMax?: number;
   conntrackMax?: number;
   nicRxMbpsMax?: number;
@@ -156,6 +179,16 @@ export function summarizeTargetTelemetry(series: TargetSample[]): TargetTelemetr
   };
   return {
     samples: series.length,
+    ...(series.some((s) => s.receivedRequests !== undefined)
+      ? {
+          receivedRequestsMax: peak((s) => s.receivedRequests),
+          receiptComplete: series.some((s) => s.receiptComplete !== undefined)
+            ? series.every((s) => s.receiptComplete === true) &&
+              new Set(series.map((s) => s.targetPodUid).filter(Boolean)).size <= 1
+            : undefined,
+          sourceIps: [...new Set(series.flatMap((s) => s.sourceIps ?? []))],
+        }
+      : {}),
     cpuPctMax: peak((s) => s.cpuPct),
     conntrackMax: peak((s) => s.conntrack),
     nicRxMbpsMax: peak((s) => s.nicRxMbps),

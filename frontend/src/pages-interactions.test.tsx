@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { useLocation } from 'react-router-dom';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
@@ -93,6 +94,24 @@ const twoPlaybooks = [
 ];
 
 describe('UsersCard interactions', () => {
+  it('filters active and disabled accounts without mutating users', async () => {
+    fakeApi.listUsers.mockResolvedValue([
+      { email: 'eng@wedos', role: 'engineer', source: 'store' },
+      { email: 'inactive@wedos', role: 'viewer', source: 'store', status: 'disabled' },
+    ]);
+    renderWithRouter(<SettingsPage />);
+    await screen.findByText('inactive@wedos');
+    const filter = screen.getByLabelText('Account status');
+    fireEvent.change(filter, { target: { value: 'active' } });
+    expect(screen.getByText('eng@wedos')).toBeInTheDocument();
+    expect(screen.queryByText('inactive@wedos')).not.toBeInTheDocument();
+    fireEvent.change(filter, { target: { value: 'disabled' } });
+    expect(screen.getByText('inactive@wedos')).toBeInTheDocument();
+    expect(screen.queryByText('eng@wedos')).not.toBeInTheDocument();
+    expect(fakeApi.setUserStatus).not.toHaveBeenCalled();
+    expect(fakeApi.updateUserRole).not.toHaveBeenCalled();
+  });
+
   it('changes a store user role through the dropdown', async () => {
     renderWithRouter(<SettingsPage />);
     await waitFor(() => expect(screen.getByText('eng@wedos')).toBeInTheDocument());
@@ -248,6 +267,8 @@ describe('TemplatesPage', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: /Create (assessment|campaign)/, hidden: true }),
     );
+    expect(fakeApi.instantiatePlaybook).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Create with Local generator' }));
     await waitFor(() =>
       expect(fakeApi.instantiatePlaybook).toHaveBeenCalledWith(
         'pb1',
@@ -265,6 +286,8 @@ describe('TemplatesPage', () => {
     fireEvent.click(await screen.findByLabelText('Select "Soak" to compose'));
     // The compose basket appears; launch the composition.
     fireEvent.click(await screen.findByRole('button', { name: /Create assessment/ }));
+    expect(fakeApi.composeSuite).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Create with Local generator' }));
     await waitFor(() =>
       expect(fakeApi.composeSuite).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -331,4 +354,49 @@ describe('TemplatesPage', () => {
     );
     expect(fakeApi.playbooks).toHaveBeenCalledTimes(2);
   });
+});
+
+it('offers Fleet before creating a preset and forwards the target without silently instantiating its suite', async () => {
+  currentApp = makeApp({
+    authRequired: true,
+    role: 'admin',
+    userMode: 'single',
+    allowed: ['staging.wedos'],
+    agents: [
+      ...makeApp().agents,
+      {
+        id: 'fleet',
+        name: 'iot-fleet',
+        available: true,
+        multiPhase: false,
+        flowCapable: false,
+        description: 'Fleet',
+      },
+    ],
+  });
+  function Location() {
+    const location = useLocation();
+    return <output data-testid="destination">{location.pathname + location.search}</output>;
+  }
+  renderWithRouter(
+    <>
+      <TemplatesPage />
+      <Location />
+    </>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'staging.wedos' }));
+  fireEvent.click(await screen.findByText('Ramp'));
+  fireEvent.click(
+    await screen.findByRole('button', { name: /Create (assessment|campaign)/, hidden: true }),
+  );
+  expect(screen.getByRole('dialog', { name: 'Choose campaign generator' })).toHaveTextContent(
+    'alternative campaign',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Review with IoT Fleet' }));
+  expect(screen.getByTestId('destination')).toHaveTextContent(
+    '/campaigns?engine=fleet&target=https%3A%2F%2Fstaging.wedos%2F',
+  );
+  expect(fakeApi.instantiatePlaybook).not.toHaveBeenCalled();
+  expect(fakeApi.composeSuite).not.toHaveBeenCalled();
+  expect(currentApp.clearDraftCampaign).toHaveBeenCalled();
 });

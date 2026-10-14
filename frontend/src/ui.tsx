@@ -1,10 +1,14 @@
+import { FleetCampaignLive } from './fleet-campaign-live.js';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
 import { LiveLineChart } from './live-chart.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { MitigationPanel } from './mitigation-panel.js';
+import { FleetEvidencePanel } from './fleet-evidence.js';
+import { ProbeQualityPanel } from './probe-quality.js';
+import { DurableFleetEvidencePanel } from './durable-fleet-evidence.js';
 import { APP_VERSION_LABEL, APP_BUILT } from './version.js';
 import type {
   Campaign,
@@ -21,7 +25,7 @@ import { useApp, canDo } from './context.js';
 import { requestAiSupport } from './assistant-bus.js';
 import { Modal } from './modal.js';
 import { wrsClass } from './wrs.js';
-import { formatInterval, fmtDateTime } from './campaign-form.js';
+import { duplicateCampaignSeed, formatInterval, fmtDateTime } from './campaign-form.js';
 // Re-exported so existing imports (pages.tsx, tests) keep resolving from './ui.js'.
 export { NewCampaignForm } from './new-campaign-form.js';
 export {
@@ -144,11 +148,19 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
   return (
     <div className="absorption">
       <div className="absorption-head">
-        <span>Protection absorption</span>
+        <span>Generator outcomes</span>
+        {(g.unfinalizedRequests ?? 0) > 0 && (
+          <span className="hint">
+            {g.unfinalizedRequests} unfinalized HTTP outcomes; receipt and status unknown
+          </span>
+        )}
         {/* Neutral: a low absorbed% is not "bad" — the origin may simply have served
             the load. The run verdict above sets the interpretation. */}
-        <span className="absorb-pct" title="Fraction the edge absorbed vs let through to origin">
-          {a.absorbedPct}% absorbed by edge
+        <span
+          className="absorb-pct"
+          title="Fraction of generator requests that failed; attribution requires corroboration"
+        >
+          {a.absorbedPct}% generator failures
         </span>
       </div>
       <div className="absorption-funnel">
@@ -164,19 +176,26 @@ export function AbsorptionWidget({ run }: { run: CampaignRun }) {
         <div className="arrow">→</div>
         <div>
           <b>{a.originRps.toFixed(1)}</b>
-          <span>reached origin</span>
+          <span>successful responses</span>
         </div>
       </div>
-      <div className="absorption-bar" title={`${a.absorbedPct}% absorbed by the target edge`}>
+      <div
+        className="absorption-bar"
+        title={`${a.absorbedPct}% generator failures (edge attribution requires corroboration)`}
+      >
         <div className="absorb-fill" style={{ width: `${Math.min(100, a.absorbedPct)}%` }} />
       </div>
       {(a.rejectedRatio != null || a.tarpitRatio != null || a.offeredShortfall != null) && (
         <div
           className="absorb-mech"
-          title="How the edge said no, and whether we could offer the configured rate"
+          title="Observed HTTP failures, transport failures and offered-rate shortfall"
         >
-          <span className="mech reject">reject {((a.rejectedRatio ?? 0) * 100).toFixed(0)}%</span>
-          <span className="mech tarpit">tarpit {((a.tarpitRatio ?? 0) * 100).toFixed(0)}%</span>
+          <span className="mech reject">
+            HTTP failure {((a.rejectedRatio ?? 0) * 100).toFixed(0)}%
+          </span>
+          <span className="mech tarpit">
+            transport failure {((a.tarpitRatio ?? 0) * 100).toFixed(0)}%
+          </span>
           <span className="mech shortfall">
             shortfall {((a.offeredShortfall ?? 0) * 100).toFixed(0)}%
           </span>
@@ -266,74 +285,13 @@ export function protectionBadgeTitle(
   p: LiveProgressData | null,
   vector?: string,
 ): string {
-  if (waiting) {
-    return "Capturing the target's pre-load baseline (its normal availability and latency), so the run's impact can be measured against it.";
-  }
-  const probeUp =
-    p?.probe && p.probe.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 100;
-  // Target being taken DOWN — the honest read whatever the absorbed% says.
-  if (protectionBadgeState(waiting, absorbedPct, p) === 'overwhelmed') {
-    const cc = p?.statusCounts ?? {};
-    const r4 = cc['4xx'] ?? 0;
-    const e5 = cc['5xx'] ?? 0;
-    const errs = `${e5 ? ` (${e5} origin 5xx)` : ''}${r4 ? `, ${r4} × 4xx` : ''}`;
-    // Two ways a target reads as overwhelmed: the legitimate probe itself is down
-    // (real users can't reach it), OR the origin is 5xx-erroring the flood while a
-    // cheap/static probe path still answers (the dynamic tier is failing).
-    if (probeUp < 50) {
-      return (
-        `Target overwhelmed — the legitimate probe is only ${probeUp}% up: real users can't reach ` +
-        `it. ${p?.failed ?? 0} of ${p?.sent ?? 0} requests failed${errs}.\n` +
-        `This is the origin failing under load — NOT a protection absorbing the attack. There is no ` +
-        `healthy edge in front of it shielding real users.`
-      );
-    }
-    return (
-      `Origin overwhelmed — the origin is erroring ${absorbedPct}% of the offered load with ` +
-      `5xx${errs}. A protective edge absorbs by rejecting (4xx) or dropping requests, never by ` +
-      `5xx — so this is the ORIGIN failing under load, not an edge defending it.\n` +
-      `A light/static probe path still answers (${probeUp}% up), but the dynamic tier under attack ` +
-      `is failing. There is no healthy edge shielding it.`
-    );
-  }
-  // Slow-header (Slowloris) has NO request stream to absorb — the vector holds
-  // connections open, and "protection" means the target SHEDS the slow ones. So
-  // the mechanism is connections shed, not requests rejected. (E12)
-  if (vector === 'http-slowloris') {
-    const opened = p?.sent ?? 0;
-    const shed = p?.failed ?? 0;
-    const held = Math.max(0, opened - shed);
-    if (absorbedPct >= 20) {
-      return (
-        `Protection engaging — the target is shedding slow connections: ${shed} of ${opened} ` +
-        `opened connections dropped (${absorbedPct}%), only ${held} still held.\n` +
-        `Shedding slow/partial connections is the correct defense against a slow-header attack — ` +
-        `the target refuses to let them tie up its workers.\n` +
-        `The legitimate probe is still ${probeUp}% up — real users keep their connections.`
-      );
-    }
-    return (
-      `Running — the target is holding ${held} of ${opened} slow connections open ` +
-      `(only ${absorbedPct}% shed so far). Watch the shed rate climb if it starts dropping ` +
-      `slow/partial connections to protect its worker pool.`
-    );
-  }
-  const c = p?.statusCounts ?? {};
-  const rej = c['4xx'] ?? 0;
-  const err5 = c['5xx'] ?? 0;
-  if (absorbedPct >= 20) {
-    return (
-      `Protection engaging — the target's edge is absorbing ${absorbedPct}% of the offered load ` +
-      `(${p?.failed ?? 0} of ${p?.sent ?? 0} requests never reached a healthy origin).\n` +
-      `Mechanism so far: ${rej} edge rejections (4xx)${err5 ? `, ${err5} origin 5xx` : ''}.\n` +
-      `The legitimate probe is still ${probeUp}% up — real users are unaffected while the attack ` +
-      `shape is absorbed. That's protection working, not the target failing.`
-    );
-  }
-  return (
-    `Running — load is flowing and the edge is currently passing most of it through to origin ` +
-    `(only ${absorbedPct}% absorbed). Watch this climb if rate-limiting / bot-management kicks in.`
-  );
+  if (waiting) return 'Capturing pre-load probe availability and latency.';
+  const probeUp = p?.probe?.samples
+    ? Math.round((p.probe.available / p.probe.samples) * 100)
+    : null;
+  if (vector === 'http-slowloris')
+    return `Slow connections: ${p?.sent ?? 0} opened, ${p?.failed ?? 0} closed. Independent probe availability: ${probeUp ?? 'unknown'}%.`;
+  return `Generator failures: ${absorbedPct}% (${p?.failed ?? 0}/${p?.sent ?? 0}). HTTP 4xx: ${p?.statusCounts?.['4xx'] ?? 0}; HTTP 5xx: ${p?.statusCounts?.['5xx'] ?? 0}. Independent probe availability: ${probeUp ?? 'unknown'}%. Edge absorption and origin impact require corroborating telemetry.`;
 }
 
 /**
@@ -343,6 +301,8 @@ export function protectionBadgeTitle(
  * always in reach. Subscribes to the same SSE stream as LiveProgress.
  */
 export function RunTheater({
+  fleet,
+  fleetDeviceCount,
   campaignId,
   name,
   target,
@@ -351,6 +311,8 @@ export function RunTheater({
   onKill,
   killing,
 }: {
+  fleet?: boolean;
+  fleetDeviceCount?: number;
   campaignId: string;
   name: string;
   target: string;
@@ -410,7 +372,6 @@ export function RunTheater({
     // A dropped stream leaves the run going server-side; stop the spinner and
     // say so instead of pretending progress is still arriving.
     es.onerror = () => {
-      es.close();
       setErrored(true);
     };
     return () => es.close();
@@ -445,6 +406,7 @@ export function RunTheater({
       <div className="theater-head">
         <div>
           <div className="theater-title">{name}</div>
+          {fleet && <FleetCampaignLive campaignId={campaignId} expectedCount={fleetDeviceCount} />}
           <span className="hint">
             {target} · engine {eng ?? '—'}
             {p ? ` · ${p.elapsedSec}s / ${p.maxDurationSec}s` : ''}
@@ -473,10 +435,18 @@ export function RunTheater({
         <div className="live-fill" style={{ width: `${pct}%` }} />
       </div>
 
+      {p && errored && (
+        <p role="status" className="hint" style={{ color: 'var(--warning)' }}>
+          ⚠ Live updates interrupted — last values may be stale. Reconnecting when available;
+          refresh or sign in again if the session ended.
+        </p>
+      )}
+
       {!p ? (
         errored ? (
           <p className="hint" style={{ marginTop: '1rem', color: 'var(--warning)' }}>
-            ⚠ Live updates interrupted — the run continues. Reopen or refresh to reconnect.
+            ⚠ Live updates interrupted — the run continues. Reconnecting when available; refresh or
+            sign in again if the session ended.
           </p>
         ) : (
           <p className="hint" style={{ marginTop: '1rem' }}>
@@ -503,7 +473,7 @@ export function RunTheater({
                   <b>{absorbedPct}%</b> failed / 5xx
                 </span>
                 <span>
-                  reached origin <b>{Math.round(originRps)}</b> rps
+                  successful responses <b>{Math.round(originRps)}</b> rps
                 </span>
               </div>
             </div>
@@ -550,7 +520,7 @@ export function RunTheater({
                   </div>
                 </div>
                 <div className="theater-metric">
-                  <div className="tm-k">Reached origin</div>
+                  <div className="tm-k">Successful responses</div>
                   <div className="tm-v good">
                     {genPending ? (
                       <span className="tm-na" title="Computed when the engine settles">
@@ -569,7 +539,9 @@ export function RunTheater({
                       erroring, not an edge absorbing the attack — label it
                       honestly so a bare-origin collapse can't read as protection. */}
                   <div className="tm-k">
-                    {badgeState === 'overwhelmed' ? 'Failed at origin' : 'Absorbed by edge'}
+                    {badgeState === 'overwhelmed'
+                      ? 'HTTP / transport failures'
+                      : 'Generator failures'}
                   </div>
                   {genPending ? (
                     <div className="tm-v">
@@ -671,7 +643,6 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
     // Surface a dropped stream instead of spinning forever; the run itself
     // keeps going server-side and the card refreshes on the next poll.
     es.onerror = () => {
-      es.close();
       setErrored(true);
     };
     return () => es.close();
@@ -682,7 +653,8 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
         <span className="hint">
           {errored ? (
             <span style={{ color: 'var(--warning)' }}>
-              ⚠ Live updates interrupted — refresh to reconnect.
+              ⚠ Live updates interrupted — reconnecting when available. Refresh or sign in again if
+              the session ended.
             </span>
           ) : (
             <>
@@ -700,6 +672,12 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
   const hasCounters = p.sent > 0;
   return (
     <div className="details">
+      {errored && (
+        <p role="status" className="hint" style={{ color: 'var(--warning)' }}>
+          ⚠ Live updates interrupted — last values may be stale. Reconnecting when available;
+          refresh or sign in again if the session ended.
+        </p>
+      )}
       <div className="live-bar">
         <div className="live-fill" style={{ width: `${pct}%` }} />
       </div>
@@ -777,8 +755,19 @@ function canRunCampaign(
   ar: boolean,
   myEmail?: string,
   requireCiso = false,
+  userMode: 'team' | 'single' = 'team',
+  capabilities: readonly string[] = [],
+  approvalPolicy: 'confirmation' | 'dual_control' = 'dual_control',
 ): boolean {
-  if (c.status !== 'APPROVED' || !canDo(role, 'execute', ar)) return false;
+  if (c.drsMode === 'engine-validation' || c.drsMode === 'measured') return false;
+  const drs = c.drsDocument?.revisions.find((r) => r.number === c.drsDocument?.currentRevision);
+  if (drs && (drs.plan.mode !== 'synthetic-lab' || !drs.planHash || drs.finalizedAt)) return false;
+  if (approvalPolicy === 'confirmation')
+    return (
+      (c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
+      canDo(role, 'execute', ar, userMode, capabilities)
+    );
+  if (c.status !== 'APPROVED' || !canDo(role, 'execute', ar, userMode, capabilities)) return false;
   if (ar && myEmail && c.approvedBy && myEmail.toLowerCase() === c.approvedBy.toLowerCase()) {
     return false;
   }
@@ -788,8 +777,17 @@ function canRunCampaign(
 }
 
 /** Whether to offer the CISO sign-off action on this campaign to this viewer. */
-function canCisoApprove(c: Campaign, role: Role | null, ar: boolean): boolean {
-  return c.status === 'APPROVED' && !c.cisoApprovedBy && canDo(role, 'cisoApprove', ar);
+function canCisoApprove(
+  c: Campaign,
+  role: Role | null,
+  ar: boolean,
+  capabilities: readonly string[] = [],
+): boolean {
+  return (
+    c.status === 'APPROVED' &&
+    !c.cisoApprovedBy &&
+    canDo(role, 'cisoApprove', ar, 'team', capabilities)
+  );
 }
 
 /** A small badge showing the dual-control sign-off state. */
@@ -814,12 +812,30 @@ export function CampaignCard({ c }: { c: Campaign }) {
   const isBusy = app.busy[c.id];
   const role = app.role;
   const ar = app.authRequired;
-  const canRun = canRunCampaign(c, role, ar, app.identity?.email, app.requireCisoApproval);
+  const canRun = canRunCampaign(
+    c,
+    role,
+    ar,
+    app.identity?.email,
+    app.requireCisoApproval,
+    app.userMode,
+    app.capabilities,
+    app.approvalPolicy,
+  );
   const showCiso = app.requireCisoApproval && c.status !== 'PENDING_APPROVAL';
   return (
     <div className={`campaign${c.archived ? ' is-archived' : ''}`}>
       <div className="campaign-head">
         <span className="campaign-name">{c.name}</span>
+        {(c.drsProfileId || c.drsMode) && (
+          <span className="badge" title="Bounded functional measurement; not a DRS certification">
+            {c.drsMode === 'engine-validation'
+              ? 'DRS · Simulation'
+              : c.drsMode === 'measured'
+                ? 'DRS · Measured plan'
+                : 'DRS · Laboratory'}
+          </span>
+        )}
         {c.archived && (
           <span className="badge badge-CANCELLED" title="Archived">
             Archived
@@ -830,21 +846,36 @@ export function CampaignCard({ c }: { c: Campaign }) {
         {c.wrs && <WrsPill wrs={c.wrs} />}
         {c.acceptanceResult && <VerdictBadge verdict={c.acceptanceResult.verdict} />}
         <div className="campaign-actions">
-          {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
-            <button className="btn btn-sm" disabled={isBusy} onClick={() => app.setApproveFor(c)}>
-              Approve / Reject
-            </button>
-          )}
-          {canCisoApprove(c, role, ar) && (
+          {canDo(role, 'create', ar, app.userMode, app.capabilities) && (
             <button
-              className="btn btn-sm btn-primary"
-              disabled={isBusy}
-              onClick={() => app.cisoApprove(c)}
-              title="Mandatory CISO sign-off (dual control)"
+              className="btn btn-sm"
+              onClick={() => {
+                app.queueReplay(duplicateCampaignSeed(c));
+                navigate('/campaigns');
+              }}
             >
-              {isBusy ? <span className="spin" /> : null}CISO sign-off
+              Duplicate / change generator
             </button>
           )}
+
+          {app.approvalPolicy !== 'confirmation' &&
+            c.status === 'PENDING_APPROVAL' &&
+            canDo(role, 'approve', ar, app.userMode, app.capabilities) && (
+              <button className="btn btn-sm" disabled={isBusy} onClick={() => app.setApproveFor(c)}>
+                Approve / Reject
+              </button>
+            )}
+          {app.approvalPolicy !== 'confirmation' &&
+            canCisoApprove(c, role, ar, app.capabilities) && (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={isBusy}
+                onClick={() => app.cisoApprove(c)}
+                title="Mandatory CISO sign-off (dual control)"
+              >
+                {isBusy ? <span className="spin" /> : null}CISO sign-off
+              </button>
+            )}
           {canRun && (
             <button
               className="btn btn-sm btn-primary"
@@ -854,7 +885,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
               {isBusy ? <span className="spin" /> : null}Run
             </button>
           )}
-          {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
+          {c.status === 'RUNNING' && canDo(role, 'kill', ar, app.userMode, app.capabilities) && (
             <button
               className="btn btn-sm btn-danger"
               disabled={app.killing[c.id]}
@@ -864,7 +895,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
             </button>
           )}
           {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
-            canDo(role, 'approve', ar) && (
+            canDo(role, 'approve', ar, app.userMode, app.capabilities) && (
               <button
                 className="btn btn-sm btn-ghost"
                 disabled={isBusy}
@@ -884,7 +915,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
               Report ↗
             </a>
           )}
-          {canDo(role, 'create', ar) && c.status !== 'RUNNING' && (
+          {canDo(role, 'create', ar, app.userMode, app.capabilities) && c.status !== 'RUNNING' && (
             <button
               className="btn btn-sm btn-ghost"
               disabled={isBusy}
@@ -955,6 +986,11 @@ export function CampaignCard({ c }: { c: Campaign }) {
         )}
       </div>
 
+      {c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed') && (
+        <p className="kill-note" role="alert">
+          {c.statusDetail}
+        </p>
+      )}
       {c.statusDetail &&
         (c.status === 'KILLED_AUTO' ||
           c.status === 'KILLED_MANUAL' ||
@@ -1056,17 +1092,17 @@ export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
   }
   return [
     {
-      label: 'Offered vs reached-origin RPS',
+      label: 'Offered vs successful-response RPS',
       yFromZero: true,
       series: [
         { label: 'offered', points: offered, color: '#3b82f6' },
-        { label: 'reached origin', points: origin, color: '#10b981' },
+        { label: 'successful responses', points: origin, color: '#10b981' },
       ],
     },
     {
-      label: 'Absorbed by edge (%)',
+      label: 'Generator failures (%)',
       yRange: [0, 100],
-      series: [{ label: 'absorbed %', points: absorbed, color: '#f59e0b' }],
+      series: [{ label: 'generator failures %', points: absorbed, color: '#f59e0b' }],
     },
     availabilityPanel,
   ];
@@ -1229,22 +1265,33 @@ function EdgeErrorNote({ errors }: { errors: NonNullable<CampaignRun['edgeErrors
 
 export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
+  const reportedAgents =
+    g.fleet?.counterCoverage?.reportedAgents ??
+    g.fleet?.shards.filter((shard) => shard.result?.generator).length;
+  const partialCounters = !!g.fleet && (reportedAgents ?? 0) < g.fleet.shards.length;
+  const counterValue = (value: number) => (partialCounters && !reportedAgents ? 'unknown' : value);
   return (
     <div className="details">
       {run.assessment && <RunVerdictLine a={run.assessment} />}
       {run.edgeErrors && run.edgeErrors.length > 0 && <EdgeErrorNote errors={run.edgeErrors} />}
       <div className="metrics">
-        <Metric label="Requests">{g.totalRequests}</Metric>
-        <Metric label="Success / failures">
-          {g.successful} / {g.failed}
+        <Metric label={partialCounters ? 'Reported requests (partial)' : 'Requests'}>
+          {counterValue(g.totalRequests)}
+        </Metric>
+        <Metric label={partialCounters ? 'Reported outcomes (partial)' : 'Success / failures'}>
+          {counterValue(g.successful)} / {counterValue(g.failed)}
         </Metric>
         {g.assertionsChecked ? (
           <Metric label="Assertion failures">
             {g.assertionFailures ?? 0} / {g.assertionsChecked}
           </Metric>
         ) : null}
-        <Metric label="Actual RPS">{g.actualRps}</Metric>
-        <Metric label="Latency p95">{g.latencyMs.p95} ms</Metric>
+        <Metric label={partialCounters ? 'Reported RPS (partial)' : 'Actual RPS'}>
+          {counterValue(g.actualRps)}
+        </Metric>
+        <Metric label={partialCounters ? 'Reported latency p95 (partial)' : 'Latency p95'}>
+          {g.latencySampleCount === 0 ? 'unknown' : `${counterValue(g.latencyMs.p95)} ms`}
+        </Metric>
         <Metric label="Probe 5xx">{run.probe.errorRate5xx}%</Metric>
         <Metric label="Probe availability">
           {run.probe.available}/{run.probe.samples}
@@ -1268,9 +1315,23 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       )}
       {run.baseline && (
         <div className="metrics" style={{ marginTop: '.5rem' }}>
-          <Metric label="Baseline availability">{run.baseline.availabilityPct}%</Metric>
-          <Metric label="Baseline latency p95">{run.baseline.latencyMs.p95} ms</Metric>
-          {run.baselineDelta && (
+          <Metric label="Baseline availability">
+            {run.baseline.observation?.complete === false
+              ? 'unknown'
+              : `${run.baseline.availabilityPct}%`}
+          </Metric>
+          <Metric label="Baseline latency p95">
+            {run.baseline.observation?.complete === false
+              ? 'unknown'
+              : `${run.baseline.latencyMs.p95} ms`}
+          </Metric>
+          {run.baseline.observation && (
+            <Metric label="Baseline observations">
+              {run.baseline.observation.receivedSamples}/{run.baseline.observation.expectedSamples}{' '}
+              received
+            </Metric>
+          )}
+          {run.baselineDelta && run.baseline.observation?.complete !== false && (
             <>
               <Metric label="Δ latency p95 (load)">
                 {run.baselineDelta.latencyP95DeltaMs >= 0 ? '+' : ''}
@@ -1326,6 +1387,24 @@ export function RunDetails({ run }: { run: CampaignRun }) {
         <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
       )}
       <AbsorptionWidget run={run} />
+      <FleetEvidencePanel run={run} />
+      <ProbeQualityPanel probe={run.probe} />
+      {run.recoveryBeforeRun && (
+        <p>
+          Recovery before this suite step:{' '}
+          {run.recoveryBeforeRun.available && run.recoveryBeforeRun.verified !== false
+            ? 'available'
+            : 'unverified or unavailable'}{' '}
+          · {run.recoveryBeforeRun.checks} checks ·{' '}
+          {(run.recoveryBeforeRun.waitedMs / 1000).toFixed(1)} s
+        </p>
+      )}
+      {run.recoveryBeforeRun?.quality && (
+        <ProbeQualityPanel probe={run.recoveryBeforeRun} title="Recovery before step diagnostics" />
+      )}
+      {run.baseline?.quality && (
+        <ProbeQualityPanel probe={run.baseline} title="Remote baseline diagnostics" />
+      )}
       {run.confidence?.degraded && (
         <p className="hint warn-hint" style={{ marginTop: '.5rem' }}>
           ⚠ <b>Measurement degraded — this WRS may be understated.</b>{' '}
@@ -1334,9 +1413,8 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       )}
       {run.probeContended && (
         <p className="hint" style={{ marginTop: '.5rem' }}>
-          ℹ <b>Probe contended by the flood.</b> The legit probe lost the connection race to the
-          load, so availability here is taken from the generator’s own success rate (the target was
-          serving) — not the probe’s. No false auto-kill fired.
+          ℹ <b>Probe and generator disagree.</b> Raw probe measurements and safety thresholds were
+          preserved. The cause needs independent telemetry; this result is uncertain.
         </p>
       )}
       {run.breakingPoint &&
@@ -1436,7 +1514,16 @@ export function CampaignDrawer() {
   const role = app.role;
   const ar = app.authRequired;
   const canRun = c
-    ? canRunCampaign(c, role, ar, app.identity?.email, app.requireCisoApproval)
+    ? canRunCampaign(
+        c,
+        role,
+        ar,
+        app.identity?.email,
+        app.requireCisoApproval,
+        app.userMode,
+        app.capabilities,
+        app.approvalPolicy,
+      )
     : false;
 
   useEffect(() => {
@@ -1471,33 +1558,50 @@ export function CampaignDrawer() {
           </button>
         </div>
 
-        {c.statusDetail && (c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL') && (
-          <div className="kill-note" role="note">
-            <span aria-hidden="true">🛑</span> {c.statusDetail}
-          </div>
-        )}
+        {c.statusDetail &&
+          (c.status === 'KILLED_AUTO' ||
+            c.status === 'KILLED_MANUAL' ||
+            c.status === 'CANCELLED') && (
+            <div className="kill-note" role="note">
+              <span aria-hidden="true">🛑</span> {c.statusDetail}
+            </div>
+          )}
 
+        {c.agent === 'fleet' && c.status === 'CANCELLED' && !run && (
+          <DurableFleetEvidencePanel key={c.id} campaignId={c.id} />
+        )}
         <div className="drawer-actions">
-          {c.status === 'PENDING_APPROVAL' && canDo(role, 'approve', ar) && (
-            <button className="btn btn-sm" onClick={() => app.setApproveFor(c)}>
-              Approve / Reject
-            </button>
-          )}
-          {canCisoApprove(c, role, ar) && (
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={() => app.cisoApprove(c)}
-              title="Mandatory CISO sign-off (dual control)"
+          {(c.drsMode || c.drsDocument) && (
+            <Link
+              className="btn"
+              to={`/campaigns?tab=evidence&campaign=${encodeURIComponent(c.id)}`}
             >
-              CISO sign-off
-            </button>
+              Prepare DRS assessment
+            </Link>
           )}
+          {app.approvalPolicy !== 'confirmation' &&
+            c.status === 'PENDING_APPROVAL' &&
+            canDo(role, 'approve', ar, app.userMode, app.capabilities) && (
+              <button className="btn btn-sm" onClick={() => app.setApproveFor(c)}>
+                Approve / Reject
+              </button>
+            )}
+          {app.approvalPolicy !== 'confirmation' &&
+            canCisoApprove(c, role, ar, app.capabilities) && (
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => app.cisoApprove(c)}
+                title="Mandatory CISO sign-off (dual control)"
+              >
+                CISO sign-off
+              </button>
+            )}
           {canRun && (
             <button className="btn btn-sm btn-primary" onClick={() => app.setConfirmExec(c)}>
               Run
             </button>
           )}
-          {c.status === 'RUNNING' && canDo(role, 'kill', ar) && (
+          {c.status === 'RUNNING' && canDo(role, 'kill', ar, app.userMode, app.capabilities) && (
             <button
               className="btn btn-sm btn-danger"
               disabled={app.killing[c.id]}
@@ -1507,7 +1611,7 @@ export function CampaignDrawer() {
             </button>
           )}
           {(c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED') &&
-            canDo(role, 'approve', ar) && (
+            canDo(role, 'approve', ar, app.userMode, app.capabilities) && (
               <button
                 className="btn btn-sm btn-ghost"
                 onClick={() => app.cancel(c)}
@@ -1580,6 +1684,16 @@ export function CampaignDrawer() {
             <dt>Author</dt>
             <dd>{c.createdBy}</dd>
           </div>
+          {c.iotProfile && (
+            <div>
+              <dt>Synthetic IoT profile</dt>
+              <dd>
+                {c.iotProfile.id} · seed {c.iotProfile.seed} · device {c.iotProfile.deviceIndex}
+                <br />
+                Reproducible HTTP payload and pauses; timing depends on the environment.
+              </dd>
+            </div>
+          )}
           {c.approvedBy && (
             <div>
               <dt>Approver</dt>
@@ -1694,11 +1808,18 @@ export function ApproveModal() {
   );
   if (!c) return null;
   const effective = app.authRequired ? (app.identity?.email ?? '') : approver;
-  const sameAsAuthor = effective.trim() !== '' && effective.trim() === c.createdBy;
+  const sameAsAuthor =
+    app.approvalPolicy !== 'confirmation' &&
+    effective.trim() !== '' &&
+    effective.trim() === c.createdBy;
   return (
     <Modal label={`Approval — ${c.name}`} onClose={() => app.setApproveFor(null)}>
       <h3>Approval — {c.name}</h3>
-      <p>Separation of duties: the approver must differ from the author ({c.createdBy}).</p>
+      <p>
+        {app.approvalPolicy === 'confirmation'
+          ? 'Administrator review. Explicit confirmation is still required before running.'
+          : `Separation of duties: the approver must differ from the author (${c.createdBy}).`}
+      </p>
       {app.authRequired ? (
         <p className="hint">
           Approver: <b>{app.identity?.email}</b>

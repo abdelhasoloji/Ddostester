@@ -6,6 +6,7 @@ import type { Remediation } from './remediations.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
+import { runComparability } from './comparability.js';
 
 /**
  * RPT-03 — Before / after comparison of two runs (typically the same target
@@ -22,7 +23,7 @@ export interface CompareSide {
 // The verdict/delta logic used to live only inside the HTML template. Promoted
 // here as a pure, reusable object so the UI and API can consume it directly.
 
-export type CompareVerdict = 'improved' | 'regressed' | 'unchanged';
+export type CompareVerdict = 'improved' | 'regressed' | 'unchanged' | 'inconclusive';
 
 export interface MetricDelta {
   key: string;
@@ -40,6 +41,7 @@ export interface MetricDelta {
 }
 
 export interface RunComparison {
+  comparability: ReturnType<typeof runComparability>;
   target: string;
   before: RunComparisonSide;
   after: RunComparisonSide;
@@ -90,6 +92,7 @@ const round0 = (n: number): number => Math.round(n);
  * work?" verdict plus per-metric deltas. Pure; generates no traffic.
  */
 export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
+  const comparability = runComparability(a.run, b.run);
   const before: RunComparisonSide = {
     runId: a.run.runId,
     campaign: a.campaign.name,
@@ -113,13 +116,15 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
   let verdict: CompareVerdict = 'unchanged';
   if (wrsDelta >= WRS_CHANGE_THRESHOLD || levelUp) verdict = 'improved';
   else if (wrsDelta <= -WRS_CHANGE_THRESHOLD || levelDown) verdict = 'regressed';
+  if (!comparability.comparable) verdict = 'inconclusive';
 
   const verb =
     verdict === 'improved' ? 'improved' : verdict === 'regressed' ? 'regressed' : 'unchanged';
   const sign = wrsDelta > 0 ? '+' : '';
-  const headline =
-    `Resilience ${verb}: ${before.level}→${after.level} · ` +
-    `WRS ${before.wrs}→${after.wrs} (${sign}${wrsDelta})`;
+  const headline = !comparability.comparable
+    ? `Comparison inconclusive: ${comparability.reasons.join('; ')}`
+    : `Resilience ${verb}: ${before.level}→${after.level} · ` +
+      `WRS ${before.wrs}→${after.wrs} (${sign}${wrsDelta})`;
 
   const metrics: MetricDelta[] = [
     metricDelta('wrs', 'WRS', before.wrs, after.wrs, true),
@@ -151,6 +156,7 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
   ];
 
   return {
+    comparability,
     target: hostOf(b.campaign.target),
     before,
     after,
@@ -159,13 +165,15 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
     levelAfter: after.level,
     verdict,
     headline,
-    metrics,
+    metrics: comparability.comparable
+      ? metrics
+      : metrics.map((metric) => ({ ...metric, improved: null })),
     remainingRemediations: deriveRemediations(b.campaign, b.run),
   };
 }
 
 /** Signed delta with an arrow; `betterWhenUp` decides the good direction. */
-function delta(a: number, b: number, betterWhenUp: boolean, unit = ''): string {
+function directionalDelta(a: number, b: number, betterWhenUp: boolean, unit = ''): string {
   const d = Math.round((b - a) * 10) / 10;
   if (d === 0) return `±0${unit}`;
   const up = d > 0;
@@ -176,15 +184,21 @@ function delta(a: number, b: number, betterWhenUp: boolean, unit = ''): string {
 }
 
 export function renderCompareHtml(a: CompareSide, b: CompareSide): string {
+  const comparison = compareRuns(a, b);
+  const delta = (before: number, after: number, betterWhenUp: boolean, unit = '') =>
+    comparison.comparability.comparable
+      ? directionalDelta(before, after, betterWhenUp, unit)
+      : `<span class="muted">${Math.round((after - before) * 10) / 10}${unit} (descriptive)</span>`;
   const aAvail = availabilityPct(a.run);
   const bAvail = availabilityPct(b.run);
   const aP95 = a.run.probe.latencyMs.p95;
   const bP95 = b.run.probe.latencyMs.p95;
   const wrsDelta = b.run.wrs.wrs - a.run.wrs.wrs;
-  const verdict =
-    wrsDelta > 0
+  const verdict = !comparison.comparability.comparable
+    ? { label: 'Comparison inconclusive', cls: 'muted' }
+    : comparison.verdict === 'improved'
       ? { label: `Improved (+${wrsDelta} WRS)`, cls: 'good' }
-      : wrsDelta < 0
+      : comparison.verdict === 'regressed'
         ? { label: `Regressed (${wrsDelta} WRS)`, cls: 'bad' }
         : { label: 'No change', cls: 'muted' };
 
@@ -226,6 +240,7 @@ export function renderCompareHtml(a: CompareSide, b: CompareSide): string {
 </div>
 <p class="muted">Generated on ${new Date().toISOString()} · WEDOS internal use</p>
 <p class="verdict"><span class="${verdict.cls}">${verdict.label}</span></p>
+${comparison.comparability.comparable ? '' : `<p class="muted">${esc(comparison.comparability.reasons.join('; '))}. Values are descriptive; no improvement conclusion is supported.</p>`}
 
 <table>
  <tr><th>Metric</th><th>A — ${esc(a.campaign.name)}</th><th>B — ${esc(b.campaign.name)}</th><th>Δ (A→B)</th></tr>

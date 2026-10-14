@@ -19,6 +19,7 @@ function fakeAgent(result: {
   latencyMs?: number;
   headers?: Record<string, string>;
   bodySlice?: string;
+  quality?: unknown;
 }): { server: Server; seen: { auth?: string; body?: string } } {
   const seen: { auth?: string; body?: string } = {};
   const server = createServer((req, res) => {
@@ -33,7 +34,20 @@ function fakeAgent(result: {
         return;
       }
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ latencyMs: 12, ...result }));
+      const request = JSON.parse(raw);
+      const observedAt = new Date().toISOString();
+      res.end(
+        JSON.stringify({
+          latencyMs: 12,
+          ...result,
+          ...(result.quality
+            ? { quality: { ...(result.quality as object), sampledAt: observedAt } }
+            : {}),
+          schema: 'ddostester.probe.response/v2',
+          requestId: request.requestId,
+          observedAt,
+        }),
+      );
     });
   });
   return { server, seen };
@@ -44,6 +58,18 @@ describe('Probe remote vantage — healthy target via the agent', () => {
     ok: true,
     status: 200,
     headers: { server: 'nginx' },
+    quality: {
+      schema: 'ddostester.probe.quality/v1',
+      scope: 'process-during-measurement',
+      elapsedMs: 100,
+      cpuUserUsec: 200,
+      cpuSystemUsec: 100,
+      rssBytes: 100000,
+      eventLoopDelayMaxMs: 25,
+      cgroupThrottledUsecDelta: 5000,
+      sampledAt: '2026-10-13T17:00:00.000Z',
+      recentEventLoop: { scope: 'process-recent-window', windowMs: 1000, samples: 40, maxMs: 180 },
+    },
   });
   let agentUrl = '';
   beforeAll(async () => {
@@ -69,6 +95,15 @@ describe('Probe remote vantage — healthy target via the agent', () => {
     const m = probe.metrics();
     expect(m.samples).toBeGreaterThan(0);
     expect(m.available).toBe(m.samples); // every agent reply was ok:200
+    expect(m.quality).toMatchObject({
+      measuredSamples: m.samples,
+      totalSamples: m.samples,
+      peakEventLoopDelayMs: 25,
+      peakRecentEventLoopDelayMs: 180,
+      eventLoopMeasuredSamples: m.samples,
+      peakThrottledFraction: 0.05,
+      latest: { cpuUserUsec: 200, rssBytes: 100000 },
+    });
     // The probe sent the bearer token and the TARGET url (not the agent url) to probe.
     expect(seen.auth).toBe('Bearer test-token');
     expect(seen.body).toContain('portal.example.eu');

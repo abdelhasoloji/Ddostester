@@ -1,4 +1,8 @@
+import { createRevision, defaultPlan } from '../drs/workflow.js';
+import { drsWorkflow, drsCatalog } from '../drs/catalog.js';
+import { FLEET_LIMITS } from '../../config/limits.js';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
 import type { HardCaps } from '../../config/limits.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
@@ -11,6 +15,7 @@ import {
   MAX_USER_AGENTS,
 } from '../../engine/types.js';
 import { flowUsesCorrelation } from '../../engine/correlation.js';
+import { compileIoTProfile } from '../../engine/iot-profile.js';
 
 const EXTRACT_SOURCES = ['json', 'header', 'regex'];
 
@@ -26,6 +31,8 @@ function assertHostAllowed(rawUrl: string, allowedHosts: string[], label: string
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     throw new CampaignError(`${label}: only http/https are supported.`);
   }
+  if (parsed.username || parsed.password)
+    throw new CampaignError('Embedded destination credentials are forbidden');
   if (!allowedHosts.includes(parsed.hostname)) {
     throw new CampaignError(
       `${label}: host "${parsed.hostname}" is not in the allowlist. ` +
@@ -58,6 +65,32 @@ export function createCampaign(
   // never exceed either the ceiling or the current operational limit.
   caps: HardCaps = HARD_CAPS,
 ): Campaign {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new CampaignError('Invalid campaign input');
+  if (
+    input.drsMode !== undefined &&
+    !['engine-validation', 'synthetic-lab', 'measured'].includes(input.drsMode)
+  )
+    throw new CampaignError('Unknown DRS campaign mode');
+  if ('drsDocument' in input)
+    throw new CampaignError('DRS revisions and proofs must use the audited DRS workflow');
+  if (drsWorkflow()) {
+    const profile = drsCatalog().profiles.find(
+      (p) =>
+        p.id ===
+        (input.drsProfileId === 'cra-l7-get-flood' ? 'drs-3.00.00-151002' : input.drsProfileId),
+    );
+    if (!profile?.supported)
+      throw new CampaignError(
+        'Select an executable DRS Fleet profile. Unsupported profiles cannot be substituted.',
+      );
+    if (input.agent !== 'fleet' || !input.fleetDeviceIds?.length)
+      throw new CampaignError(
+        'DRS campaigns require explicit enrolled Fleet agents; local engines are retired.',
+      );
+    if ((input as Campaign).archived)
+      throw new CampaignError('Archived campaigns cannot be executed.');
+  }
   if (!input.authorized) {
     throw new CampaignError(
       'The campaign must be attested as authorized (authorized=true) by its author.',
@@ -66,6 +99,39 @@ export function createCampaign(
   if (!input.name?.trim()) throw new CampaignError('Campaign name is required.');
   if (!input.createdBy?.trim()) throw new CampaignError('Author (createdBy) is required.');
 
+  if (input.iotProfile !== undefined) {
+    if (input.agent !== 'builtin' || input.vector !== 'http-post')
+      throw new CampaignError(
+        'IoT profiles require an explicit builtin engine and http-post vector.',
+      );
+    if (input.endpoints || input.dataset || input.body || input.cacheBust)
+      throw new CampaignError(
+        'IoT profiles cannot be combined with custom flows, endpoints, data or cache-busting.',
+      );
+    try {
+      const flow = compileIoTProfile(input.iotProfile, input.target, input.probeUrl);
+      // Approval and launch preflights revalidate the stored compiled flow.
+      // Only the exact deterministic expansion may accompany the profile.
+      if (input.flow !== undefined && !isDeepStrictEqual(input.flow, flow))
+        throw new CampaignError('IoT flow differs from its profile expansion.');
+      input = {
+        ...input,
+        iotProfile: {
+          id: input.iotProfile.id,
+          seed: input.iotProfile.seed,
+          deviceIndex: input.iotProfile.deviceIndex,
+        },
+        flow,
+      };
+    } catch (error) {
+      throw new CampaignError(error instanceof Error ? error.message : 'Invalid IoT profile');
+    }
+  }
+
+  for (const headers of [input.headers, ...(input.flow ?? []).map((step) => step.headers)]) {
+    if (headers && Object.keys(headers).some((name) => name.toLowerCase() === 'x-wedos-test'))
+      throw new CampaignError('X-WEDOS-TEST is reserved for server-issued traceability.');
+  }
   assertHostAllowed(input.target, allowedHosts, 'Target');
   assertHostAllowed(input.probeUrl, allowedHosts, 'Probe');
   // The optional reference vantage is a read-only health check; hold it to the
@@ -254,6 +320,75 @@ export function createCampaign(
     }
   }
 
+  if (input.agent === 'fleet') {
+    if (
+      input.fleetDeviceIds !== undefined &&
+      (!Array.isArray(input.fleetDeviceIds) ||
+        !input.fleetDeviceIds.length ||
+        input.fleetDeviceIds.length > FLEET_LIMITS.maxAgents ||
+        new Set(input.fleetDeviceIds).size !== input.fleetDeviceIds.length ||
+        !input.fleetDeviceIds.every(
+          (id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(id),
+        ))
+    )
+      throw new CampaignError('Select one to three distinct enrolled Fleet devices.');
+    const persistent = process.env.FLEET_MISSIONS_ENABLED === '1';
+    if (
+      !persistent &&
+      (input.probeVantage !== 'remote' ||
+        input.probeUrl !== 'http://lab-target:8080/health' ||
+        input.referenceUrl)
+    )
+      throw new CampaignError(
+        'Fleet requires the dedicated remote probe; local/reference fallbacks are disabled.',
+      );
+    if (input.scheduledAt || input.recurrence)
+      throw new CampaignError('Fleet MVP requires an interactive launch; scheduler is disabled.');
+    if (![input.maxRps, input.concurrency, input.maxDurationSec].every(Number.isSafeInteger))
+      throw new CampaignError('Fleet budgets must be integers.');
+    if (
+      (input.headers && Object.keys(input.headers).length > 0) ||
+      input.calibrate ||
+      input.scenario ||
+      input.flow ||
+      input.endpoints ||
+      input.userAgents ||
+      input.dataset ||
+      input.assertion ||
+      input.cacheBust ||
+      input.noKeepAlive ||
+      input.parallelism ||
+      input.vector !== 'http-get'
+    )
+      throw new CampaignError(
+        'Fleet MVP supports a plain constant GET without calibration or extra flows.',
+      );
+    if (
+      !persistent &&
+      input.target !== 'http://lab-target:8080/health' &&
+      input.target !== 'http://lab-target:8080/'
+    )
+      throw new CampaignError('Fleet requires the dedicated lab target.');
+    if (persistent) {
+      const origins = (process.env.FLEET_CAMPAIGN_ORIGINS ?? 'http://lab-target:8080')
+        .split(',')
+        .map((s) => new URL(s.trim()).origin);
+      if (!origins.includes(new URL(input.target).origin))
+        throw new CampaignError('This target origin is not enabled for enrolled Fleet campaigns.');
+    }
+    if (
+      input.maxRps < (input.fleetDeviceIds?.length ?? FLEET_LIMITS.maxAgents) ||
+      input.maxRps > FLEET_LIMITS.maxRps ||
+      input.concurrency < (input.fleetDeviceIds?.length ?? FLEET_LIMITS.maxAgents) ||
+      input.concurrency > FLEET_LIMITS.maxConcurrency ||
+      input.maxDurationSec < FLEET_LIMITS.minDurationSec ||
+      input.maxDurationSec > FLEET_LIMITS.maxDurationSec
+    )
+      throw new CampaignError('Fleet campaign exceeds its laboratory envelope.');
+  }
+  if (input.fleetDeviceIds !== undefined && input.agent !== 'fleet')
+    throw new CampaignError('Device selection requires the Fleet engine.');
+
   // Validate the chosen load engine when the caller supplies the agent list.
   if (input.agent && agents) {
     const chosen = agents.find((a) => a.id === input.agent);
@@ -286,12 +421,20 @@ export function createCampaign(
     }
   }
 
-  return {
+  const created: Campaign = {
+    drsProfileId: input.drsProfileId,
     ...input,
     id: randomUUID(),
     status: 'PENDING_APPROVAL',
     createdAt: new Date().toISOString(),
   };
+  if (input.drsMode)
+    created.drsDocument = createRevision(
+      undefined,
+      defaultPlan(created, input.drsMode),
+      input.createdBy,
+    );
+  return created;
 }
 
 /**
@@ -304,12 +447,13 @@ export function approveCampaign(
   approvedBy: string,
   decision: 'APPROVED' | 'REJECTED',
   reason?: string,
+  opts: { singleUser?: boolean } = {},
 ): Campaign {
   if (campaign.status !== 'PENDING_APPROVAL') {
     throw new CampaignError(`Campaign is not approvable (status ${campaign.status}).`);
   }
   if (!approvedBy?.trim()) throw new CampaignError('Approver is required.');
-  if (approvedBy === campaign.createdBy) {
+  if (!opts.singleUser && approvedBy.toLowerCase() === campaign.createdBy.toLowerCase()) {
     throw new CampaignError('Separation of duties: approver ≠ author.');
   }
   if (decision === 'REJECTED' && !reason?.trim()) {

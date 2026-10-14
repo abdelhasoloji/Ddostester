@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-target
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: lab-target }
+  template:
+    metadata:
+      labels: { app: lab-target }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 82
+        runAsGroup: 82
+        fsGroup: 82
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: target
+          image: ddostester-lab-target:local
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8080 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 250m, memory: 128Mi }
+            limits: { cpu: '1', memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /health, port: 8080 }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: run, mountPath: /run/nginx }
+            - { name: receipts, mountPath: /var/log/lab }
+        - name: telemetry
+          image: ddostester-lab-telemetry:local
+          imagePullPolicy: Never
+          env:
+            - name: TELEMETRY_BIND
+              valueFrom:
+                fieldRef: { fieldPath: status.podIP }
+            - name: POD_UID
+              valueFrom:
+                fieldRef: { fieldPath: metadata.uid }
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 82
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          ports: [{ containerPort: 9101 }]
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 128Mi }
+          volumeMounts:
+            - { name: receipts, mountPath: /var/log/lab }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+        - name: run
+          emptyDir: { sizeLimit: 8Mi }
+        - name: receipts
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-target
+spec:
+  selector: { app: lab-target }
+  ports:
+    [{ name: http, port: 8080, targetPort: 8080 }, { name: receipts, port: 9101, targetPort: 9101 }]

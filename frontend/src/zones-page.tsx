@@ -100,8 +100,20 @@ const EMPTY_FORM = { host: '', displayName: '', owner: '', notes: '', attestatio
 
 function TargetsPanel() {
   const app = useApp();
-  const canManage = canDo(app.role, 'targetManage', app.authRequired);
-  const canAuthorize = canDo(app.role, 'targetAuthorize', app.authRequired);
+  const canManage = canDo(
+    app.role,
+    'targetManage',
+    app.authRequired,
+    app.userMode,
+    app.capabilities,
+  );
+  const canAuthorize = canDo(
+    app.role,
+    'targetAuthorize',
+    app.authRequired,
+    app.userMode,
+    app.capabilities,
+  );
 
   const [targets, setTargets] = useState<ProtectedTarget[] | null>(null);
   const [envAllowlist, setEnvAllowlist] = useState<string[]>([]);

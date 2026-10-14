@@ -1,7 +1,135 @@
 import { describe, expect, it } from 'vitest';
 import { renderCampaignReportHtml } from '../src/modules/reports/report.js';
+import { runsSummaryCsv } from '../src/modules/reports/csv.js';
+
+it('exports missing latency as unknown rather than zero milliseconds', () => {
+  const interrupted = run();
+  interrupted.generator.latencySampleCount = 0;
+  expect(renderCampaignReportHtml(campaign(), interrupted)).toContain('Generator latency unknown');
+  const [headers, values] = runsSummaryCsv([interrupted])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('latencyP95Ms')]).toBe('');
+});
+
+it('records the latency aggregation method without retroactively labeling old runs', () => {
+  const combined = run();
+  combined.generator.latencyMethod = 'native-combined-results';
+  expect(renderCampaignReportHtml(campaign(), combined)).toContain(
+    'phase percentiles are not averaged',
+  );
+  const [headers, values] = runsSummaryCsv([combined])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('generatorLatencyMethod')]).toBe('native-combined-results');
+  expect(renderCampaignReportHtml(campaign(), run())).not.toContain(
+    'Generator latency aggregation',
+  );
+});
+
+it('exports unfinalized outcomes without inferring target receipts or statuses', () => {
+  const incomplete = run();
+  incomplete.generator.finalizedRequests = 29999;
+  incomplete.generator.unfinalizedRequests = 1;
+  const html = renderCampaignReportHtml(campaign(), incomplete);
+  expect(html).toContain('29999 / 1');
+  expect(html).toContain('no inferred target receipt or HTTP status');
+  expect(html).toContain('Measurement degraded');
+  const [headers, values] = runsSummaryCsv([incomplete])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('unfinalizedRequests')]).toBe('1');
+  expect(values[headers.indexOf('finalizedRequests')]).toBe('29999');
+});
+
+it('identifies the synthetic profile and reproducibility limits in the report', () => {
+  const recorded = run();
+  recorded.generator.config = {
+    url: 'http://127.0.0.1/',
+    concurrency: 1,
+    durationSec: 2,
+    maxRps: 2,
+    authorized: true,
+    iotProfile: { id: 'sensor-heartbeat/v1', seed: 42, deviceIndex: 7 },
+  };
+  const html = renderCampaignReportHtml(
+    campaign({
+      iotProfile: {
+        id: 'sensor-heartbeat/v1',
+        seed: 99,
+        deviceIndex: 8,
+      },
+    }),
+    recorded,
+  );
+  expect(html).toContain('Profile sensor-heartbeat/v1 · seed 42 · device index 7');
+  expect(html).toContain('not reproducible firmware or network emulation');
+  expect(html).not.toContain('seed 99');
+  const [headers, values] = runsSummaryCsv([recorded])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('iotProfile')]).toBe('sensor-heartbeat/v1');
+  expect(values[headers.indexOf('iotSeed')]).toBe('42');
+  expect(values[headers.indexOf('iotDeviceIndex')]).toBe('7');
+  const legacy = renderCampaignReportHtml(
+    campaign({ iotProfile: recorded.generator.config.iotProfile }),
+    run(),
+  );
+  expect(legacy).not.toContain('<h2>Synthetic IoT profile</h2>');
+  const [legacyHeaders, legacyValues] = runsSummaryCsv([run()])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(legacyValues[legacyHeaders.indexOf('iotProfile')]).toBe('');
+});
+
+it('leaves global counters unknown when fleet final reports are missing', () => {
+  const missing = run();
+  missing.generator.fleet = {
+    measurementComplete: false,
+    shards: [{ agentId: 'one', state: 'LOST', attemptId: 'a', leaseUntil: 0 }],
+  };
+  missing.generator.totalRequests = 0;
+  const html = renderCampaignReportHtml(campaign(), missing);
+  expect(html).toContain('Reported requests (partial)');
+  expect(html).toContain('0/1 final reports');
+  const [headers, values] = runsSummaryCsv([missing])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('requests')]).toBe('');
+  expect(values[headers.indexOf('reportedRequests')]).toBe('0');
+  expect(values[headers.indexOf('fleetReportedAgents')]).toBe('0');
+});
 import type { Campaign } from '../src/modules/campaigns/model.js';
 import type { CampaignRun } from '../src/modules/campaigns/runner.js';
+
+it('exports unknown probe diagnostics separately from measured zero throttling', () => {
+  const measured = run();
+  measured.probe.quality = {
+    measuredSamples: 90,
+    totalSamples: 120,
+    peakEventLoopDelayMs: null,
+    peakThrottledFraction: 0,
+    peakRecentEventLoopDelayMs: 175,
+  };
+  const html = renderCampaignReportHtml(campaign(), measured);
+  expect(html).toContain('90/120 measurements');
+  expect(html).toContain('Probe event-loop delay peak</th><td>unknown');
+  const [headers, values] = runsSummaryCsv([measured])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('probeDiagnosticSamples')]).toBe('90');
+  expect(values[headers.indexOf('probeEventLoopDelayPeakMs')]).toBe('');
+  expect(values[headers.indexOf('probeThrottledFractionPeak')]).toBe('0');
+  expect(values[headers.indexOf('probeRecentEventLoopDelayPeakMs')]).toBe('175');
+  expect(html).toContain('Probe recent process-window event-loop delay peak</th><td>175 ms');
+});
 
 function campaign(over: Partial<Campaign> = {}): Campaign {
   return {
@@ -190,4 +318,71 @@ describe('renderCampaignReportHtml — template applicability (requires → N/A)
     expect(html).toContain('Template applicability');
     expect(html).toContain('not recorded');
   });
+});
+
+it('labels missing baseline observations and suppresses contradictory stored comparisons', () => {
+  const incomplete = run();
+  incomplete.baseline = {
+    samples: 3,
+    availabilityPct: 0,
+    latencyMs: { p50: 0, p95: 0 },
+    observation: {
+      vantage: 'remote',
+      expectedSamples: 3,
+      receivedSamples: 0,
+      missingSamples: 3,
+      complete: false,
+    },
+  };
+  incomplete.baselineDelta = {
+    latencyP50DeltaMs: 1,
+    latencyP95DeltaMs: 2,
+    availabilityDeltaPct: 100,
+  };
+  const html = renderCampaignReportHtml(campaign(), incomplete);
+  expect(html).toContain('Remote baseline incomplete');
+  expect(html).toContain('0/3 observations received');
+  expect(html).not.toContain('Degradation under load vs baseline');
+  expect(html).not.toContain('p95 latency shifted by');
+});
+
+it('exports baseline resource scope independently of under-load probe quality', () => {
+  const measured = run();
+  measured.baseline = {
+    samples: 3,
+    availabilityPct: 100,
+    latencyMs: { p50: 10, p95: 20 },
+    quality: {
+      measuredSamples: 2,
+      totalSamples: 3,
+      eventLoopMeasuredSamples: 2,
+      peakEventLoopDelayMs: null,
+      peakRecentEventLoopDelayMs: 175,
+      peakThrottledFraction: 0,
+    },
+  };
+  const html = renderCampaignReportHtml(campaign(), measured);
+  expect(html).toContain('Baseline diagnostic coverage</th><td>2/3');
+  expect(html).toContain('Baseline recent process-window event-loop delay peak</th><td>175 ms');
+  const [headers, values] = runsSummaryCsv([measured])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('baselineDiagnosticSamples')]).toBe('2');
+  expect(values[headers.indexOf('baselineRecentEventLoopDelayPeakMs')]).toBe('175');
+  expect(values[headers.indexOf('baselineThrottledFractionPeak')]).toBe('0');
+});
+
+it('identifies suite recovery as a before-step observation in HTML and CSV', () => {
+  const measured = run();
+  measured.recoveryBeforeRun = { available: true, verified: true, checks: 2, waitedMs: 1250 };
+  const html = renderCampaignReportHtml(campaign(), measured);
+  expect(html).toContain('Recovery before suite step');
+  expect(html).toContain('2 checks');
+  const [headers, values] = runsSummaryCsv([measured])
+    .trim()
+    .split('\n')
+    .map((line) => line.split(','));
+  expect(values[headers.indexOf('recoveryBeforeRunVerified')]).toBe('true');
+  expect(values[headers.indexOf('recoveryBeforeRunChecks')]).toBe('2');
 });

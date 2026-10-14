@@ -1,0 +1,298 @@
+[
+  {
+    "source_type_id": "11001",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "SYN Flood",
+    "description": "A flood of TCP SYN packets, data size should be 0.",
+    "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+  },
+  {
+    "source_type_id": "51002",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "HTTP/S GET Flood",
+    "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+    "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+  },
+  {
+    "source_type_id": "22003",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "UDP Flood",
+    "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+    "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+  },
+  {
+    "source_type_id": "13004",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "TCP RST Flood",
+    "description": "A flood of RST packets.",
+    "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+  },
+  {
+    "source_type_id": "33005",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "ICMP Flood",
+    "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+    "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+  },
+  {
+    "source_type_id": "23006",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "NTP Reflection Flood",
+    "description": "An NTP Reflected flood the using MONLIST argument",
+    "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+  },
+  {
+    "source_type_id": "14007",
+    "source_section": "4.2",
+    "source_page": 13,
+    "name": "TCP PSH+ACK Flood",
+    "description": "A flood of PSH+ACK packets. The data size SHOULD be small or zero.",
+    "source_text": "14007 TCP PSH+ACK Flood\nA flood of PSH+ACK packets. The data size SHOULD be\nsmall or zero."
+  },
+  {
+    "source_type_id": "14008",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "TCP SYN+ACK Flood",
+    "description": "A SYN+ACK flood targeting the handshake process to destabilize network connections.",
+    "source_text": "14008 TCP SYN+ACK Flood\nA SYN+ACK flood targeting the handshake process to\ndestabilize network connections."
+  },
+  {
+    "source_type_id": "14009",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "TCP ACK Flood",
+    "description": "A flood of ACK packets. The data size SHOULD be small or zero.",
+    "source_text": "14009 TCP ACK Flood\nA flood of ACK packets. The data size SHOULD be small\nor zero."
+  },
+  {
+    "source_type_id": "14010",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "TCP FIN Flood",
+    "description": "A flood of TCP FIN packets. The data size SHOULD be small or zero.",
+    "source_text": "14010 TCP FIN Flood\nA flood of TCP FIN packets. The data size SHOULD be\nsmall or zero."
+  },
+  {
+    "source_type_id": "54011",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "DNS Query Flood",
+    "description": "A flood of DNS queries designed to overwhelm DNS servers with excessive requests.",
+    "source_text": "54011 DNS Query Flood\nA flood of DNS queries designed to overwhelm DNS servers\nwith excessive requests."
+  },
+  {
+    "source_type_id": "24012",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "UDP Multi-vector Flood",
+    "description": "A combined attack using various UDP-based vectors to target different network vulnerabilities.",
+    "source_text": "24012 UDP Multi-vector Flood\nA combined attack using various UDP-based vectors to\ntarget different network vulnerabilities."
+  },
+  {
+    "source_type_id": "24013",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "DNS Garbage Flood",
+    "description": "A flood of UDP packets. DST Port must be 53. The data is garbage (not proper DNS request or reply). Data size SHOULD be large.",
+    "source_text": "24013 DNS Garbage Flood\nA flood of UDP packets. DST Port must be 53. The data\nis garbage (not proper DNS request or reply). Data size\nSHOULD be large."
+  },
+  {
+    "source_type_id": "55014",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "HTTP/S Flood Cookie Support",
+    "description": "An HTTP Flood in which the attack tool is able to support cookie and respond to an HTTP 302 Redirect response.",
+    "source_text": "55014 HTTP/S Flood Cookie Support\nAn HTTP Flood in which the attack tool is able to support\ncookie and respond to an HTTP 302 Redirect response."
+  },
+  {
+    "source_type_id": "55015",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "HTTP/S Search Page Flood",
+    "description": "An HTTP flood targeted at one or more search functions in the attacked website.",
+    "source_text": "55015 HTTP/S Search Page Flood\nAn HTTP flood targeted at one or more search functions\nin the attacked website."
+  },
+  {
+    "source_type_id": "55016",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "HTTP/S Login Flood",
+    "description": "An HTTP flood aimed at login pages, designed to exploit resource-intensive processes.",
+    "source_text": "55016 HTTP/S Login Flood\nAn HTTP flood aimed at login pages, designed to exploit\nresource-intensive processes."
+  },
+  {
+    "source_type_id": "85017",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "HTTP/S Large File Download Flood",
+    "description": "A targeted attack on large file downloads to consume significant bandwidth and server resources.",
+    "source_text": "85017 HTTP/S Large File Download Flood\nA targeted attack on large file downloads to consume\nsignificant bandwidth and server resources."
+  },
+  {
+    "source_type_id": "55018",
+    "source_section": "4.2",
+    "source_page": 14,
+    "name": "DNS Recursive Flood",
+    "description": "A flood on DNS packet in which the subdomain is ever changing (1000.ddostarget.com, 1001.ddostarget.com)",
+    "source_text": "55018 DNS Recursive Flood\nA flood on DNS packet in which the subdomain is ever\nchanging (1000.ddostarget.com, 1001.ddostarget.com)"
+  },
+  {
+    "source_type_id": "85019",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "HTTP/S Slow POST",
+    "description": "Slow Post is an HTTP/S based low-and-slow DDoS attack using POST request with large Content-Length, however the attacker send the data byte-by-byte keep the connection ever open.",
+    "source_text": "85019 HTTP/S Slow POST\nSlow Post is an HTTP/S based low-and-slow DDoS attack\nusing POST request with large Content-Length, however\nthe attacker send the data byte-by-byte keep the\nconnection ever open."
+  },
+  {
+    "source_type_id": "85020",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "SSL Renegotiation",
+    "description": "A low-and-slow HTTPS based attack. Using the SSL- Renegotiation option the attack causes the server to renegotiate the SSL that consumes large compute power.",
+    "source_text": "85020 SSL Renegotiation\nA low-and-slow HTTPS based attack. Using the SSL-\nRenegotiation option the attack causes the server to\nrenegotiate the SSL that consumes large compute power."
+  },
+  {
+    "source_type_id": "35021",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "IPSEC Flood",
+    "description": "A flood targeting IPSEC protocols and ports, aimed at disrupting secure communication channels.",
+    "source_text": "35021 IPSEC Flood\nA flood targeting IPSEC protocols and ports, aimed at\ndisrupting secure communication channels."
+  },
+  {
+    "source_type_id": "85022",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "HTTP/2.0 Continuation Flood",
+    "description": "An attack using HTTP/2.0 continuation frames to exhaust server processing capacities by sending fragmented headers.",
+    "source_text": "85022 HTTP/2.0 Continuation Flood\nAn attack using HTTP/2.0 continuation frames to exhaust\nserver processing capacities by sending fragmented\nheaders."
+  },
+  {
+    "source_type_id": "85023",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "Rapid Reset",
+    "description": "A flood involving rapid resets of HTTP/2.0 connections, designed to destabilize communication and exhaust system resources.",
+    "source_text": "85023 Rapid Reset\nA flood involving rapid resets of HTTP/2.0 connections,\ndesigned to destabilize communication and exhaust system\nresources."
+  },
+  {
+    "source_type_id": "25024",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "Multi-protocol Flood",
+    "description": "A complex flood that utilizes multiple protocols including ICMP, UDP, and TCP to achieve widespread network disruption.",
+    "source_text": "25024 Multi-protocol Flood\nA complex flood that utilizes multiple protocols\nincluding ICMP, UDP, and TCP to achieve widespread\nnetwork disruption."
+  },
+  {
+    "source_type_id": "55025",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "HTTPS Flood Headless Browse",
+    "description": "An HTTP/S flood in the attacking client is a headless browser and therefore encompasses all the technologies and libraries of a normal browser and can pass multiple standard DDoS mitigation challenges.",
+    "source_text": "55025 HTTPS Flood Headless Browse\nAn HTTP/S flood in the attacking client is a headless\nbrowser and therefore encompasses all the technologies\nand libraries of a normal browser and can pass multiple\nstandard DDoS mitigation challenges."
+  },
+  {
+    "source_type_id": "55026",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "HTTPS Flood JavaScript Support",
+    "description": "An HTTP/S flood in the attacking client is able to process JavaScript (JS) and therefore pass standard JS DDoS mitigation challenges.",
+    "source_text": "55026 HTTPS Flood JavaScript Support\nAn HTTP/S flood in the attacking client is able to\nprocess JavaScript (JS) and therefore pass standard JS\nDDoS mitigation challenges."
+  },
+  {
+    "source_type_id": "56027",
+    "source_section": "4.2",
+    "source_page": 15,
+    "name": "Multi-Vector Flood",
+    "description": "A sophisticated attack that layers multiple types of flooding to target various aspects of network infrastructure simultaneously, aiming to exploit different vulnerabilities within the network stack. This flood operates across both application layer (Layer 7) and network/transport layers (Layers 3/4).",
+    "source_text": "56027 Multi-Vector Flood\nA sophisticated attack that layers multiple types of\nflooding to target various aspects of network\ninfrastructure simultaneously, aiming to exploit\ndifferent vulnerabilities within the network stack. This\nflood operates across both application layer (Layer 7)\nand network/transport layers (Layers 3/4)."
+  },
+  {
+    "source_type_id": "26028",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "UDP Amplification Flood",
+    "description": "A UDP amplification attack that significantly increases the volume of incoming traffic to the victim by exploiting public-facing services.",
+    "source_text": "26028 UDP Amplification Flood\nA UDP amplification attack that significantly increases\nthe volume of incoming traffic to the victim by\nexploiting public-facing services."
+  },
+  {
+    "source_type_id": "57029",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "QUIC HTTP/3 Flood",
+    "description": "A flood utilizing the QUIC protocol and HTTP/3, designed to maximize efficiency and impact through high-speed, multiplexed connections.",
+    "source_text": "57029 QUIC HTTP/3 Flood\nA flood utilizing the QUIC protocol and HTTP/3, designed\nto maximize efficiency and impact through high-speed,\nmultiplexed connections."
+  },
+  {
+    "source_type_id": "17030",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "Large Payload SYN Flood",
+    "description": "A flood of TCP SYN packets with very large payloads, designed to overwhelm network equipment and processing capabilities. Also known as Tsunami Flood.",
+    "source_text": "17030 Large Payload SYN Flood\nA flood of TCP SYN packets with very large payloads,\ndesigned to overwhelm network equipment and processing\ncapabilities. Also known as Tsunami Flood."
+  },
+  {
+    "source_type_id": "17031",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "GRE Flood",
+    "description": "A flood using Generic Routing Encapsulation (GRE) protocols and ports, aimed at disrupting network communication channels.",
+    "source_text": "17031 GRE Flood\nA flood using Generic Routing Encapsulation (GRE)\nprotocols and ports, aimed at disrupting network\ncommunication channels."
+  },
+  {
+    "source_type_id": "454016",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "Pulse Wave / Hit & Run Flood",
+    "description": "A series of brief, maximum-capacity volumetric bursts (lasting seconds to a minute) designed to suddenly shock network infrastructure, cause immediate resource exhaustion, and drop before automated mitigation defences can fully engage.",
+    "source_text": "454016 Pulse Wave / Hit & Run Flood\nA series of brief, maximum-capacity volumetric bursts\n(lasting seconds to a minute) designed to suddenly shock\nnetwork infrastructure, cause immediate resource\nexhaustion, and drop before automated mitigation\ndefences can fully engage."
+  },
+  {
+    "source_type_id": "353007",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "API Unformatted Payload Flood",
+    "description": "A flood of raw, structurally invalid text, targeting public API endpoints, forcing the application gateway parser to consume excessive CPU cycles attempting to read or decode the unformatted incoming traffic.",
+    "source_text": "353007 API Unformatted Payload Flood\nA flood of raw, structurally invalid text, targeting\npublic API endpoints, forcing the application gateway\nparser to consume excessive CPU cycles attempting to\nread or decode the unformatted incoming traffic."
+  },
+  {
+    "source_type_id": "454015",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "API Formatted Unauthenticated Flood",
+    "description": "A flood of syntactically correct and perfectly formatted JSON or XML payloads targeting public API endpoints that do not contain the authenticated session token (such as JWT).",
+    "source_text": "454015 API Formatted Unauthenticated Flood\nA flood of syntactically correct and perfectly formatted\nJSON or XML payloads targeting public API endpoints that\ndo not contain the authenticated session token (such as\nJWT)."
+  },
+  {
+    "source_type_id": "55029",
+    "source_section": "4.2",
+    "source_page": 16,
+    "name": "API Authenticated Request Flood",
+    "description": "A flood targeting protected API endpoints utilizing valid authorization tokens (such as JWT or OAuth), successfully bypassing basic API gateway security filters and forcing backend applications to process resource-intensive database updates.",
+    "source_text": "55029 API Authenticated Request Flood\nA flood targeting protected API endpoints utilizing\nvalid authorization tokens (such as JWT or OAuth),\nsuccessfully bypassing basic API gateway security\nfilters and forcing backend applications to process\nresource-intensive database updates."
+  },
+  {
+    "source_type_id": "565032",
+    "source_section": "4.2",
+    "source_page": 17,
+    "name": "Non-HTTP/S Application Floods",
+    "description": "Application flood that aren’t HTTP/S-based. For example, SIP Reflection Flood is a reflected amplification flood targeting Session Initiation Protocol (SIP) VoIP infrastructure.",
+    "source_text": "565032 Non-HTTP/S Application Floods\nApplication flood that aren’t HTTP/S-based. For example,\nSIP Reflection Flood is a reflected amplification flood\ntargeting Session Initiation Protocol (SIP) VoIP\ninfrastructure."
+  },
+  {
+    "source_type_id": "545033",
+    "source_section": "4.2",
+    "source_page": 17,
+    "name": "Fragmented Network Floods",
+    "description": "Network floods consisting fragmented packets with payload. Common examples are fragmented TCP packets containing the ACK flag, forcing the target’s stateful firewalls and deep packet inspection (DPI) systems to waste memory resources, or large UDP packets split across multiple IP fragments forcing network security devices to hold the fragments in memory buffers for reassembly, leading to buffer exhaustion.",
+    "source_text": "545033 Fragmented Network Floods\nNetwork floods consisting fragmented packets with\npayload. Common examples are fragmented TCP packets\ncontaining the ACK flag, forcing the target’s stateful\nfirewalls and deep packet inspection (DPI) systems to\nwaste memory resources, or large UDP packets split\nacross multiple IP fragments forcing network security\ndevices to hold the fragments in memory buffers for\nreassembly, leading to buffer exhaustion."
+  }
+]

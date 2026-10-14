@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily off-host encrypted Ddostester replica
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=ddostester-backup-replica.service
+[Install]
+WantedBy=timers.target

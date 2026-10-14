@@ -45,7 +45,11 @@ beforeAll(async () => {
       passwordHash: hashPassword(u.pw),
     })),
   );
-  const auth = initAuth({ AUTH_JWT_SECRET: 'testsecret', AUTH_USERS } as NodeJS.ProcessEnv);
+  const auth = initAuth({
+    USER_MODE: 'team',
+    AUTH_JWT_SECRET: 'testsecret',
+    AUTH_USERS,
+  } as NodeJS.ProcessEnv);
   const built = await buildApp({
     store: new MemoryStore(),
     auth,
@@ -79,7 +83,7 @@ describe('RBAC matrix', () => {
   });
 
   it('create (POST /api/campaigns): engineer only', async () => {
-    const expected: Record<RoleKey, number> = { engineer: 201, ciso: 403, admin: 403, viewer: 403 };
+    const expected: Record<RoleKey, number> = { engineer: 201, ciso: 403, admin: 201, viewer: 403 };
     for (const k of ROLE_KEYS) {
       const r = await app.inject({
         method: 'POST',
@@ -92,7 +96,7 @@ describe('RBAC matrix', () => {
   });
 
   it('approve: CISO reaches handler (404), others 403', async () => {
-    const expected: Record<RoleKey, number> = { engineer: 403, ciso: 404, admin: 403, viewer: 403 };
+    const expected: Record<RoleKey, number> = { engineer: 403, ciso: 404, admin: 404, viewer: 403 };
     for (const k of ROLE_KEYS) {
       const r = await app.inject({
         method: 'POST',
@@ -105,7 +109,7 @@ describe('RBAC matrix', () => {
   });
 
   it('execute: engineer reaches handler (404), others 403', async () => {
-    const expected: Record<RoleKey, number> = { engineer: 404, ciso: 403, admin: 403, viewer: 403 };
+    const expected: Record<RoleKey, number> = { engineer: 404, ciso: 403, admin: 404, viewer: 403 };
     for (const k of ROLE_KEYS) {
       const r = await app.inject({
         method: 'POST',

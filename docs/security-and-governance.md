@@ -60,80 +60,74 @@ and compared in constant time (`timingSafeEqual`); `exp` is checked; the header
 `backend/src/auth/rbac.ts` (mirrored on the frontend and locked by
 `frontend/src/rbac-mirror.test.ts`).
 
-### Roles (current model)
+### Roles and managed accounts
 
-| Role               | Permissions                                                                                             |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
-| `engineer`         | create, execute, kill, read                                                                             |
-| `officer`          | **approve/reject** + everything the engineer can do; runtime user management                            |
-| `viewer` (SOC/NOC) | read + emergency **kill switch**                                                                        |
-| `ciso`             | read + kill + **set operational limits** (`limits:manage`); governance only — no create/approve/execute |
+| Profile  | Capabilities                                                                             |
+| -------- | ---------------------------------------------------------------------------------------- |
+| admin    | All capabilities; manages accounts and operational limits. Persisted unique owner.       |
+| engineer | Read, create, execute approved campaigns, kill, assistant power and target registration. |
+| ciso     | Read, approve/co-sign, kill, target authorization and governed bench.                    |
+| viewer   | Read only. Chat is read-oriented but subject to cost quotas.                             |
 
-- **Separation of duties**: author, approver and executor are derived from the
-  **token**, never the request body, so they cannot be spoofed; approver≠author
-  and approver≠executor are enforced (`service.ts`, `app.ts`).
-- **Separation of governance**: `officer` runs operations + manages users; `ciso`
-  alone sets operational limits (always clamped ≤ the frozen `HARD_CAPS`).
-- **Optional dual control**: `REQUIRE_CISO_APPROVAL=1` adds a mandatory CISO
-  sign-off (a third distinct actor) before a campaign runs — see
-  [operations.md](./operations.md).
+The API returns capabilities; the frontend consumes them without a separate role
+matrix. The legacy officer label is normalized on migration/read. `USER_MODE=single`
+is the default: the owner confirms launches explicitly. Other profiles retain
+separation of duties. In team mode author/approver/executor separation remains
+mandatory. `REQUIRE_CISO_APPROVAL=1` is incompatible with single mode.
 
-> A **role/permission rework** is a tracked backlog item (ciso validates,
-> engineer launches an approved campaign, admin administers) — see the roadmap;
-> the table above is the shipped model.
+Account policy v1 fixes one owner (default `abdelha@wedos`). The explicit migration
+imports env accounts into PostgreSQL; startup only checks policy. The owner cannot
+be demoted, disabled or deleted; another admin cannot be created. Password hashes
+and statuses are preserved. Follow [single-user.md](./single-user.md), including
+bootstrap and recovery, rather than treating AUTH_USERS as the normal identity source.
 
-### User lifecycle & sessions
+User changes and their audit are transactional. Password/role/status changes and
+session revocation advance tokenVersion. HTTP password work uses bounded async
+scrypt; login has global/source budgets before hashing, plus per-email/source
+lockout. Stored passwords are never returned. Password resets require a subsequent
+password change; self-service rotation returns a fresh session.
 
-`AUTH_USERS` (env) is the **immutable root**; on top of it an `officer` manages
-runtime users (DB-stored, scrypt-hashed) with no SSH/redeploy
-(`backend/src/modules/users/service.ts`, `backend/src/auth/{users,password-policy}.ts`).
-Guards, all audited (`user.upsert`/`user.delete`/`user.status`/`password.reset`/`password.change`):
+### Browser reads and session transport
 
-- only `officer` manages users; env users can't be edited here;
-- no self-lockout; **at least one _active_ officer must remain**;
-- one **password policy** — ≥ 12 chars, not common, not email-derived;
-- **temporary passwords / forced first-login change** — admin-set passwords are
-  temporary; guarded routes return `403 { code: 'password_change_required' }`
-  until changed;
-- **self-service change** (`POST /api/auth/password`) rotates the token and
-  revokes other sessions;
-- **immediate session revocation** via a per-user token version (password/role
-  change, deactivation, deletion invalidate outstanding tokens at once, not at
-  the 8 h expiry);
-- **login/last-login tracking** + `auth.login`/`auth.logout`/`auth.login_locked`
-  auditing (per-attempt failures go to logs, not the chain; anti-brute-force lock
-  = 5 failures → 60 s).
+Writes require Bearer authentication. Reports and SSE use a `shieldtest_read`
+HttpOnly, SameSite=Strict cookie, refreshed by login, password rotation, session
+revocation and `/api/auth/me`. It is Secure except for loopback HTTP development.
+Cookie reads revalidate account status and tokenVersion; SSE rechecks during its
+lifetime. Session JWTs in query parameters are refused. Existing short-lived
+share tokens remain read-only in team mode; single mode refuses sharing.
 
-### Auth endpoints & configuration
+Node is bound to loopback by default; use HTTPS/mTLS or SSH tunnels for access.
+A token in localStorage is still sensitive to same-origin script execution; CSP
+and controlled asset delivery remain mandatory. Cookie authentication is not
+accepted for writes. API details: [api.md](./api.md).
 
-| Method                | Route                         | Role                 |
-| --------------------- | ----------------------------- | -------------------- |
-| POST                  | `/api/auth/login`             | — (returns a token)  |
-| POST                  | `/api/auth/logout`            | authenticated        |
-| POST                  | `/api/auth/password`          | authenticated (self) |
-| GET                   | `/api/auth/me`                | authenticated        |
-| GET/POST/PATCH/DELETE | `/api/users[...]`             | **officer**          |
-| POST                  | `/api/campaigns/:id/approval` | **officer**          |
-| PUT                   | `/api/limits`                 | **ciso**             |
+### Session decision — roadmap R02
 
-Send the token as `Authorization: Bearer <token>`; report/SSE links also accept
-`?token=`. Full endpoint list: [api.md](./api.md).
+The selected transport is a **one-hour Bearer write session**, with a separate
+HttpOnly read cookie for SSE/reports. Login, password rotation and self-session
+revocation issue new JWTs with `exp - iat = 3600` seconds. There is no silent
+refresh token or rolling extension: password authentication is required again
+at expiry. `/api/auth/me` refreshes only the read cookie's remaining lifetime,
+not the signed JWT. The frontend removes its cached token on HTTP 401.
 
-```bash
-export AUTH_JWT_SECRET="$(openssl rand -hex 32)"
-npm run hash-password -w backend -- MyPassword        # -> scrypt$...
-export AUTH_USERS='[{"email":"eng@wedos","role":"engineer","passwordHash":"scrypt$..."}, ...]'
-```
+This keeps the existing API authorization contract while bounding the default
+browser write credential. A full write-cookie session would require a separate
+CSRF design and browser/API migration; it is not implemented by repurposing the
+read cookie. localStorage persistence is retained, so the token remains readable
+by same-origin JavaScript; the shorter lifetime does not remove that exposure.
 
-`GET /health` reports `authRequired: true|false`.
-
----
+Existing signed sessions retain their own expiry during migration, including
+older eight-hour sessions. No account password, status or tokenVersion is reset
+by this change; explicit revocation remains available. Read-only share tokens
+retain their separately specified TTL and cannot authorize writes. This policy is
+active in the private Linux source-06 lab, with login/JWT/cookie lifetime
+verified through its real API. Production build 451 is unchanged; full browser
+expiry/reconnection recipes remain separate validations.
 
 ## 4. Tamper-evident audit chain
 
 Every governed action (create, approve, reject, execute, kill, user/playbook
-changes, limits, bench) is linked into a **SHA-256 hash chain**, so any
-alteration is detectable. It generates no traffic and changes no boundary. Logic
+changes, limits, bench) is linked into a **SHA-256 hash chain**, so changes to retained chain entries are detectable. It generates no traffic and changes no boundary. Logic
 is a pure module, `backend/src/modules/audit/integrity.ts`, covered by
 property-based tests.
 
@@ -157,6 +151,18 @@ Retention (`pruneOldData`) deletes entries older than `RETENTION_DAYS`; the tail
 stays verifiable via the anchor rule.
 
 ---
+
+Every business write also commits an actor-bound `store.mutate` receipt in the same
+transaction, with a SHA-256 of its arguments (never their secret values). Summary
+entries no longer silently swallow failures. Launch and GPU-power intent is
+persisted before external effects. User lifecycle operations use their explicit
+transactional audit entries.
+
+External anchoring is an operational dependency: `scripts/audit-checkpoint.mjs`
+exports a witness with exclusive creation and checks continuity against a previous
+witness. Retain witnesses in a separate access-controlled/immutable destination.
+The application database alone cannot prove that an administrator did not rewrite
+its entire history. No external witness service is provisioned automatically.
 
 ## 5. Security self-review
 

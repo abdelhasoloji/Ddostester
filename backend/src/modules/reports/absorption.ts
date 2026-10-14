@@ -1,19 +1,9 @@
 /**
- * Protection-absorption: how much of the offered load the target's edge absorbed
- * (rate-limited / tarpitted / 4xx / dropped) versus let through to origin.
- *
- * This is the product-level signal WEDOS cares about — "your protection absorbed
- * X% of Y offered load". Computed from the generator result so the report, the
- * /metrics gauges and the frontend widget all agree (single source of truth).
- *
- * Absorption is broken down by MECHANISM, because an edge can defend two very
- * different ways (bank.cz, e.g., overwhelmingly tarpits rather than 4xx-rejects):
- *  - reject: the edge ANSWERED refusing the request (4xx/5xx) — a fast "no";
- *  - tarpit: the edge HELD the connection until we gave up (timeout/abort) — a
- *    slow "no" that costs the attacker far more.
- * And separately from absorption, `offeredShortfall` captures backpressure: we
- * couldn't even offer the configured rate (latency-bound), which is NOT the edge
- * rejecting traffic and must not be mistaken for it.
+ * Legacy generator delivery/failure summary, retained for historical compatibility.
+ * Successful responses do not establish arrival at origin. HTTP failures and
+ * transport errors do not establish edge rejection, mitigation or deliberate
+ * tarpitting without independent receiver/protection evidence.
+ * offeredShortfall describes under-delivery relative to the requested mean rate.
  */
 export interface Absorption {
   /** Requested ceiling (campaign.maxRps) — the PEAK offered rate, for display. */
@@ -28,9 +18,9 @@ export interface Absorption {
   expectedRps: number;
   /** Load we actually sent (generator actualRps). */
   achievedRps: number;
-  /** Load that reached origin — successful (2xx/3xx) responses per second. */
+  /** @deprecated Compatibility name: successful generator responses per second. */
   originRps: number;
-  /** Fraction absorbed by the edge = failed / total, in [0,1]. */
+  /** @deprecated Compatibility name: generator failure fraction = failed / total. */
   absorbedRatio: number;
   /** Same as absorbedRatio, as a 0–100 percentage (rounded to 1 decimal). */
   absorbedPct: number;
@@ -39,9 +29,9 @@ export interface Absorption {
   /** Backpressure: `1 - achieved/configured`, in [0,1]. Latency-bound shortfall,
    *  NOT edge rejection (we never offered this load). */
   offeredShortfall: number;
-  /** Fraction the edge REJECTED with a response (4xx/5xx) / total, in [0,1]. */
+  /** Legacy name: unsuccessful HTTP response fraction, without attribution. */
   rejectedRatio: number;
-  /** Fraction the edge TARPITTED (held → timeout/abort) / total, in [0,1]. */
+  /** Legacy name: transport failure fraction, without attribution. */
   tarpitRatio: number;
 }
 
@@ -55,23 +45,18 @@ export interface AbsorptionInput {
   successful: number;
   failed: number;
   durationSec: number;
-  /** Count of 4xx/5xx responses (edge answered, refusing). Optional. */
+  /** Count of unsuccessful HTTP responses. Optional. */
   rejected?: number;
-  /** Count of transport errors — timeouts/aborts/resets (edge held). Optional. */
+  /** Count of transport errors — timeouts/aborts/resets. Optional. */
   tarpitted?: number;
 }
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /**
- * Split generator failures into the two edge mechanisms. Pure.
- *  - rejected  : the edge ANSWERED refusing — a 4xx/5xx HTTP status.
- *  - tarpitted : the edge HELD the connection until it failed with NO HTTP response
- *    (timeout/reset/abort). External engines report these as a `0xx`/`err` status
- *    bucket (vegeta maps code 0 → "0xx"). Counting those as "rejected" mislabels a
- *    tarpit — a cache-busted GET that holds the origin to 10s timeouts reads as
- *    {0xx: 77309, 2xx: 18660}, which is a tarpit, not a 4xx/5xx rejection.
- * Falls back to the `errors` map count when the engine buckets no transport status.
+ * Separate non-success HTTP status buckets from transport failures. These
+ * compatibility keys describe observed generator outcomes, not their cause.
+ * Fall back to the error map only when no transport status bucket is available.
  */
 export function splitFailures(
   statusCounts: Record<string, number>,

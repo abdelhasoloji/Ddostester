@@ -2,11 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { applyTlsPolicy, tlsInsecure } from '../src/util/tls.js';
 
 const snapshot = {
+  ISOLATED_LAB: process.env.ISOLATED_LAB,
   INSECURE_TLS: process.env.INSECURE_TLS,
   NODE_TLS_REJECT_UNAUTHORIZED: process.env.NODE_TLS_REJECT_UNAUTHORIZED,
 };
 
 afterEach(() => {
+  if (snapshot.ISOLATED_LAB === undefined) delete process.env.ISOLATED_LAB;
+  else process.env.ISOLATED_LAB = snapshot.ISOLATED_LAB;
   process.env.INSECURE_TLS = snapshot.INSECURE_TLS;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = snapshot.NODE_TLS_REJECT_UNAUTHORIZED;
 });
@@ -22,6 +25,7 @@ describe('tls policy', () => {
 
   it('enables insecure mode and warns when INSECURE_TLS=true', () => {
     process.env.INSECURE_TLS = 'true';
+    process.env.ISOLATED_LAB = '1';
     delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     expect(tlsInsecure()).toBe(true);
     const warnings: string[] = [];

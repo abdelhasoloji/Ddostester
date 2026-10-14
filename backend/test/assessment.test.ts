@@ -97,7 +97,7 @@ describe('assessVector — mechanism (grounded on absorption, never statusCounts
     );
     expect(va.mechanism).toBe('served');
     expect(va.verdict).toBe('partial');
-    expect(va.observation).toMatch(/origin served the load/i);
+    expect(va.observation).toMatch(/successful HTTP responses/i);
     expect(va.observation).not.toMatch(/rejecting/i); // the old bug
   });
 
@@ -122,7 +122,7 @@ describe('assessVector — mechanism (grounded on absorption, never statusCounts
       ctx(),
     );
     expect(va.mechanism).toBe('blocked');
-    expect(va.observation).toMatch(/mechanism not resolved/i);
+    expect(va.observation).toMatch(/attribution unavailable/i);
   });
 });
 
@@ -332,4 +332,22 @@ describe('assessSuite — worst-case aggregation', () => {
     expect(sa.headline).toMatch(/Worst WRS 40/);
     expect(sa.headline).toMatch(/inconclusive/);
   });
+});
+
+it('keeps automatic safety stop but withholds an outage verdict when remote baseline is missing', () => {
+  const run = mkRun({ status: 'KILLED_AUTO', availCount: 10 });
+  run.baseline = {
+    samples: 3,
+    availabilityPct: 0,
+    latencyMs: { p50: 0, p95: 0 },
+    observation: {
+      vantage: 'remote',
+      expectedSamples: 3,
+      receivedSamples: 0,
+      missingSamples: 3,
+      complete: false,
+    },
+  };
+  expect(assessVector(run, ctx({ status: 'KILLED_AUTO' })).verdict).toBe('inconclusive');
+  expect(run.status).toBe('KILLED_AUTO');
 });

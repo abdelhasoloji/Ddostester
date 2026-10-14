@@ -9,9 +9,9 @@ describe('computeBaselineDelta', () => {
       { samples: 3, availabilityPct: 100, latencyMs: { p50: 10, p95: 20 } },
       { availabilityPct: 80, latencyMs: { p50: 35, p95: 90 } },
     );
-    expect(d.latencyP50DeltaMs).toBe(25);
-    expect(d.latencyP95DeltaMs).toBe(70);
-    expect(d.availabilityDeltaPct).toBe(-20);
+    expect(d!.latencyP50DeltaMs).toBe(25);
+    expect(d!.latencyP95DeltaMs).toBe(70);
+    expect(d!.availabilityDeltaPct).toBe(-20);
   });
 
   it('is zero when nothing changed', () => {
@@ -54,4 +54,41 @@ describe('captureBaseline', () => {
     const b = await captureBaseline(`${base}/`, ac.signal, 3, 10, 500);
     expect(b.samples).toBe(0);
   });
+});
+
+it('withholds comparison when remote baseline observations are missing', () => {
+  expect(
+    computeBaselineDelta(
+      {
+        samples: 3,
+        availabilityPct: 0,
+        latencyMs: { p50: 0, p95: 0 },
+        observation: {
+          vantage: 'remote',
+          expectedSamples: 3,
+          receivedSamples: 0,
+          missingSamples: 3,
+          complete: false,
+        },
+      },
+      { availabilityPct: 100, latencyMs: { p50: 10, p95: 20 } },
+    ),
+  ).toBeUndefined();
+});
+
+it('withholds baseline comparison when the probe process was contended', () => {
+  const quality = {
+    measuredSamples: 3,
+    totalSamples: 3,
+    eventLoopMeasuredSamples: 3,
+    peakEventLoopDelayMs: 150,
+    peakRecentEventLoopDelayMs: null,
+    peakThrottledFraction: 0,
+  };
+  expect(
+    computeBaselineDelta(
+      { samples: 3, availabilityPct: 100, latencyMs: { p50: 10, p95: 20 }, quality },
+      { availabilityPct: 100, latencyMs: { p50: 20, p95: 40 } },
+    ),
+  ).toBeUndefined();
 });

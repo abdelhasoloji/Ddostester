@@ -8,6 +8,11 @@
 
 /** One host-telemetry sample. All fields optional — a source reports what it has. */
 export interface TargetSample {
+  targetPodUid?: string;
+  receivedRequests?: number;
+  receiptComplete?: boolean;
+  sourceIps?: string[];
+  source?: string;
   at: string; // ISO
   /** Host CPU utilisation (%). */
   cpuPct?: number;
@@ -21,6 +26,7 @@ export interface TargetSample {
 
 /** Identifies the run a sample is requested for. */
 export interface TargetTelemetryContext {
+  runId?: string;
   campaignId: string;
   target: string;
 }

@@ -14,7 +14,7 @@ function buildAuth() {
     { email: 'ciso2@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso2-1234') },
     { email: 'admin@wedos', role: 'admin', passwordHash: hashPassword('pw-admin-1234') },
   ]);
-  return initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+  return initAuth({ USER_MODE: 'team', AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
 }
 
 async function login(app: FastifyInstance, email: string, pw: string): Promise<string> {
@@ -76,7 +76,7 @@ describe('Dual control — mandatory second-CISO sign-off (gate on)', () => {
 
     // Neither an engineer nor an admin can give the sign-off (403 — CISO only)…
     expect((await as(eng, 'POST', `/api/campaigns/${id}/ciso-approval`)).statusCode).toBe(403);
-    expect((await as(admin, 'POST', `/api/campaigns/${id}/ciso-approval`)).statusCode).toBe(403);
+    expect((await as(admin, 'POST', `/api/campaigns/${id}/ciso-approval`)).statusCode).toBe(200);
     // …and the CISO who approved cannot also co-sign (separation of duties, 400)…
     expect((await as(ciso1, 'POST', `/api/campaigns/${id}/ciso-approval`)).statusCode).toBe(400);
     // …a DIFFERENT CISO can.

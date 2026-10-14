@@ -1,0 +1,11 @@
+groups:
+  - name: private-lab-collection
+    rules:
+      - alert: LabControlScrapeUnavailable
+        expr: up{job="lab-control"} == 0 or absent(up{job="lab-control"})
+        for: 1m
+        labels:
+          severity: warning
+          environment: private-kubernetes-lab
+        annotations:
+          summary: Dedicated lab control metrics unavailable for at least one minute

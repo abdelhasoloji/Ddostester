@@ -87,7 +87,7 @@ Real-time progress SSE stream during execution (CAM-04): events
 ~1×/s. Before load begins (the awaited pre-load baseline capture) or between
 suite steps it emits `{status:"waiting"}` keepalives, and only sends
 `{status:"done"}` — closing the stream — once the campaign is terminal. Token
-via `?token=` (EventSource).
+via the HttpOnly read cookie (EventSource). Session JWTs in URLs are refused.
 
 ## `POST /api/campaigns/:id/kill`
 
@@ -131,7 +131,7 @@ per target. Unauthenticated (loopback, non-sensitive aggregates).
 ## `GET /api/reports/compliance`
 
 Aggregated compliance report (DORA/NIS2/ISO 27001) in HTML. Optional `from`/`to`
-query (ISO). Token via `?token=` accepted for browser opening.
+query (ISO). Browser opening uses the HttpOnly read cookie; session JWTs in query parameters are refused.
 
 ## `GET /api/agents`
 
@@ -214,7 +214,7 @@ their hashes, plus the `headHash` and the verdict. Sent as a JSON attachment.
 - `GET /api/runs` — list runs (optional `campaignId`). `GET /api/runs/:runId` —
   raw run. Both `campaign:read`.
 - `GET /api/runs.csv`, `GET /api/runs/:runId/timeline.csv` — CSV downloads; a
-  read token in `?token=` is accepted for browser opening.
+  browser reads use an HttpOnly cookie; only team share grants may use `?token=`.
 - `GET /api/wrs/history` — per-target WRS history and regressions
   (`campaign:read`).
 - `GET /api/reports/compare?a=<runId>&b=<runId>` — before/after HTML comparison
@@ -272,7 +272,7 @@ The control plane **records** CISO-authorized class-C run requests and serves
 them to an **isolated external runner** (the [shieldtest-lab](https://github.com/abdelhasoloji/shieldtest-lab));
 it **never executes the scenario or emits any traffic**. Dispatch is fail-closed:
 disabled unless BOTH a `LAB_TARGETS` host and a `BENCH_RUNNER_TOKEN` are set.
-The catalogue mirrors the zeroBS DRS Volumetric matrix (report P25-20300). See
+The catalogue mirrors the DRS Volumetric matrix (report P25-20300). See
 [boundary-and-lab.md](./boundary-and-lab.md) §8.
 
 - `GET /api/bench/scenarios` — catalogue + `{ dispatchEnabled, labTargets }`
@@ -307,11 +307,105 @@ The catalogue mirrors the zeroBS DRS Volumetric matrix (report P25-20300). See
 
 ## User management
 
-`GET/POST /api/users`, `PATCH/DELETE /api/users/:email` — **Security Officer**
-(`user:manage`). Manages runtime users; env-defined users are immutable and the
-allowlist can never be weakened. See [security-and-governance.md](./security-and-governance.md).
+`GET/POST /api/users`, `PATCH/DELETE /api/users/:email` — **Administrator**
+(`user:manage`, in both single and team modes). `POST` creates a stored account
+with a temporary password; `PATCH` accepts `role` and/or `status` (`active` or
+`disabled`). Role/status changes revoke existing sessions through tokenVersion.
+`POST /api/users/:email/password` resets a temporary password and revokes sessions;
+`POST /api/users/:email/sessions/revoke` revokes another stored account's sessions.
+Mutations and audit entries share a transaction. The persisted owner remains the
+sole admin and cannot be deleted, disabled or demoted by these routes. Environment
+accounts must be imported before mutation. Target allowlists remain separately
+enforced. See [security-and-governance.md](./security-and-governance.md) and
+[owner recovery](./owner-recovery.md).
 
 ## `POST /api/notify/test`
 
 Sends a test notification to every configured sink (`campaign:create`). `400` if
 no sink is configured. See [observability.md](./observability.md).
+
+## Legacy generator fields and fleet evidence
+
+`originRps` is a compatibility field for successful generator responses per second.
+It does not measure traffic received by the origin. `absorbedRatio` and
+`absorbedPct` are the generator failure fraction and its percentage, respectively;
+they do not prove mitigation, rejection at the edge or a tarpit. New integrations
+should use explicit successful-response and failure labels, and corroborated
+receiver telemetry for target arrival. Historical JSON fields remain readable;
+there is no removal date or silent score recalculation.
+
+`GET /api/runs/:runId/fleet-evidence.json` exports a recorded campaign report.
+`GET /api/fleet/runs/:runId/evidence.json` and
+`GET /api/fleet/campaigns/:campaignId/evidence.json` export durable coordination
+snapshots, including when no finalized campaign report survived a control crash.
+All require `campaign:read` and return `Cache-Control: no-store`. The durable
+snapshot identifies itself as `isFinalizedCampaignReport=false`; missing probe,
+baseline, receiver receipts and WRS are not reconstructed. SHA-256 detects content
+alteration, without authenticating the exporter.
+
+For new plans, durable counter coverage uses the original persisted fleet size.
+Legacy plans without that field return `expectedAgents=null`; surviving shard rows
+do not establish original coverage. This additive migration is implemented in the
+current sources and must run through coordinator initialization before those
+sources are promoted. Linux source-06 has this migration and returns null for
+legacy plans; source-05 historical exports retain their earlier calculation.
+
+## Authenticated session lifetime
+
+New login/password-rotation/self-revocation session JWTs default to one hour.
+Writes require Bearer authentication. The HttpOnly read cookie uses the remaining
+signed JWT lifetime and never extends it when `/api/auth/me` is called. At expiry,
+the client must authenticate again; no refresh token is issued. Existing signed
+sessions remain valid until their original expiry or explicit version revocation.
+Separately governed read-only share tokens retain their requested TTL. This
+policy is verified on the private Linux source-06 API; production build 451
+remains unchanged.
+
+## Remote baseline observation coverage
+
+New remote baselines record `observation` with vantage, expected/received/missing
+sample counts and completeness. `samples` and numeric availability remain compatible
+with existing readers; when observation coverage is incomplete, those numeric
+fields do not establish target availability. The UI shows unknown, comparison
+deltas and baseline drift notifications are withheld, and measurement confidence
+is degraded. An automatic safety stop still occurs under its original policy, but
+an incomplete remote baseline prevents attributing that stop to a proven target
+outage. Historical baseline records without this metadata remain readable; stored
+scores and assessments are not silently rewritten. This is available in the private Linux source-06 image; its full phase/fleet
+recipe remains pending.
+
+Remote baseline `quality` now uses the same summary as live probe diagnostics:
+measured/total samples, known event-loop coverage, per-measurement and recent-window
+peaks, throttled fraction and latest process sample. Baseline and load remain separate
+phases; their overlapping process windows are not independent costs. Missing or
+contended baseline diagnostics degrade confidence and suppress baseline comparisons
+and drift attribution. HTML, CSV and the detail panel expose baseline diagnostic
+fields separately. Historical baselines without this optional field remain readable.
+This is deployed in the private Linux source-06 image; complete real phase
+validation remains pending.
+
+## Recovery gate provenance
+
+For remote recovery, `available` describes observed reachability; `verified`
+also requires complete responses and sufficient non-contended resource diagnostics.
+The suite refuses to advance on `verified=false`, retains the gate snapshot in its
+audit, and pauses after repeated unavailable or unverified gates. A passed gate is
+stored as `recoveryBeforeRun` on the following suite step, exposed in its detail,
+HTML/CSV and fleet evidence. This is a before-step observation, not a measurement
+of recovery after that run. Legacy/local recovery records keep their existing
+reachability contract. Waiting uses monotonic elapsed time and clips each request
+and polling sleep to the remaining gate budget. These changes are present in the private Linux source-06 image; full suite
+recovery validation on that image remains pending.
+
+## Fleet startup diagnostics
+
+New fleet summaries record `startup` (`ddostester.fleet.startup/v1`) with per-agent
+start delays relative to the parent, coverage and first/last known delay. Only
+coherent generator start/finish timestamps within the parent window are included;
+missing or incompatible clocks are unknown. These are generator timestamps, not
+first request arrivals at the target. The global `actualRps` retains its complete
+parent-window denominator, including deployment/startup; per-agent active-window
+rates are not substituted for it. A backwards parent clock rejects aggregation
+instead of creating an inflated rate. UI/HTML/CSV/evidence export keep startup
+cost separate from the measured global rate. This addition is source-only; Linux
+source-06 records retain their original fields and scoring.

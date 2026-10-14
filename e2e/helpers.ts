@@ -1,13 +1,47 @@
 import { expect, type Page } from '@playwright/test';
 import { ROLES, type RoleName } from './roles.js';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
-// The app + API are served on one loopback port; a campaign can safely target
-// the server's own /health (127.0.0.1 is allowlisted in the E2E config).
-export const SELF = 'http://127.0.0.1:8099/health';
+// A dedicated target process, separate from the control plane's API.
+export const SELF = 'http://127.0.0.1:8100/health';
 
 /** Log in as a role and wait for the authenticated shell (nav) to appear. */
-export async function login(page: Page, role: RoleName): Promise<void> {
+export async function login(
+  page: Page,
+  role: RoleName,
+  options: { fresh?: boolean } = {},
+): Promise<void> {
   const { email, password } = ROLES[role];
+  const cache =
+    process.env.E2E_SESSION_CACHE && join(process.env.E2E_SESSION_CACHE, role + '.json');
+  if (cache && !options.fresh) {
+    const saved = await readFile(cache, 'utf8')
+      .then((text) => JSON.parse(text))
+      .catch(() => null);
+    const origin = saved?.origins?.find(
+      (entry: { origin: string }) => entry.origin === 'http://127.0.0.1:8099',
+    );
+    const token = origin?.localStorage?.find(
+      (entry: { name: string }) => entry.name === 'token',
+    )?.value;
+    if (token) {
+      const response = await page.request.get('/api/auth/me', {
+        headers: { authorization: 'Bearer ' + token },
+      });
+      const identity = response.ok() ? await response.json() : null;
+      if (identity?.email === email && identity?.role === role) {
+        await page.context().addCookies(saved.cookies);
+        await page.goto('/');
+        await page.evaluate((value) => localStorage.setItem('token', value), token);
+        await page.reload();
+        await expect(
+          page.locator('nav.nav').getByRole('link', { name: 'Campaigns' }),
+        ).toBeVisible();
+        return;
+      }
+    }
+  }
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await page.locator('input[autocomplete="username"]').fill(email);
@@ -16,6 +50,8 @@ export async function login(page: Page, role: RoleName): Promise<void> {
   // Shell loaded: the sidebar nav is present (scope to it — the v2 home also has
   // "Campaigns" links in the page body).
   await expect(page.locator('nav.nav').getByRole('link', { name: 'Campaigns' })).toBeVisible();
+  if (cache)
+    await writeFile(cache, JSON.stringify(await page.context().storageState()), { mode: 0o600 });
 }
 
 /** Go to a nav section by its visible label ("Campaigns", "Reports", ...).
@@ -44,6 +80,7 @@ export async function createCampaign(
     target?: string;
     probe?: string;
     maxRps?: number;
+    concurrency?: number;
     durationSec?: number;
   } = {},
 ): Promise<string> {
@@ -67,6 +104,10 @@ export async function createCampaign(
   await page.locator('.field:has(label:text-is("Target (URL)")) input').fill(target);
   await page.locator('.field:has(label:text-is("Probe (URL)")) input').fill(probe);
   await page.locator('.field:has(label:text-is("Max RPS")) input').fill(String(opts.maxRps ?? 5));
+  if (opts.concurrency !== undefined)
+    await page
+      .locator('.field:has(label:text-is("Concurrency")) input')
+      .fill(String(opts.concurrency));
   await page
     .locator('.field:has(label:text-is("Max duration (s)")) input')
     .fill(String(opts.durationSec ?? 2));

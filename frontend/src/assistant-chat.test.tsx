@@ -66,6 +66,33 @@ async function waitReady() {
 }
 
 describe('AssistantChat — conversation history', () => {
+  it('keeps response provenance through streamed text without inventing billed usage', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      sse([
+        `event: provenance\ndata: ${JSON.stringify({
+          model: 'verified-model',
+          budget: {
+            schemaVersion: 'ddostester.assistant.budget/v1',
+            reservedUnits: 1200,
+            persistence: 'postgres',
+            providerTokens: null,
+            cost: null,
+          },
+        })}\n\n`,
+        'event: delta\ndata: {"content":"A bounded proposal"}\n\n',
+      ]),
+    );
+    render(<AssistantChat variant="page" />);
+    const box = await waitReady();
+    fireEvent.change(box, { target: { value: 'Help me review' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText('A bounded proposal');
+    expect(screen.getByText('verified-model')).toBeInTheDocument();
+    expect(
+      screen.getByText(/budget units reserved.*usage and cost unavailable/),
+    ).toBeInTheDocument();
+  });
+
   it('saves a finished turn and lists / reopens it from the History panel', async () => {
     mockFetch('Hello operator');
     render(<AssistantChat variant="page" />);

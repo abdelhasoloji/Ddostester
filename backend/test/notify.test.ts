@@ -134,14 +134,14 @@ describe('detectBaselineDrift', () => {
 
   it('flags an availability drop of ≥ 5 points', () => {
     const v = detectBaselineDrift(base, { ...base, availabilityPct: 94 });
-    expect(v.drifted).toBe(true);
-    expect(v.availabilityDeltaPct).toBe(-6);
+    expect(v!.drifted).toBe(true);
+    expect(v!.availabilityDeltaPct).toBe(-6);
   });
 
   it('flags a p95 latency rise beyond 25% and 20 ms', () => {
     const v = detectBaselineDrift(base, { ...base, latencyMs: { p50: 5, p95: 70 } });
-    expect(v.drifted).toBe(true);
-    expect(v.latencyP95DeltaMs).toBe(30);
+    expect(v!.drifted).toBe(true);
+    expect(v!.latencyP95DeltaMs).toBe(30);
   });
 
   it('ignores a small latency rise under the absolute floor', () => {
@@ -150,11 +150,11 @@ describe('detectBaselineDrift', () => {
       { ...base, latencyMs: { p50: 1, p95: 8 } },
     );
     // +4 ms is a big % but below the 20 ms floor → not drift.
-    expect(v.drifted).toBe(false);
+    expect(v!.drifted).toBe(false);
   });
 
   it('is stable when nothing moved', () => {
-    expect(detectBaselineDrift(base, base).drifted).toBe(false);
+    expect(detectBaselineDrift(base, base)!.drifted).toBe(false);
   });
 });
 
@@ -263,4 +263,43 @@ describe('createNotifier', () => {
       }),
     ).resolves.toBeUndefined();
   });
+});
+
+it('does not emit a baseline drift verdict from missing remote observations', () => {
+  const baseline = { samples: 3, availabilityPct: 100, latencyMs: { p50: 10, p95: 20 } };
+  const missing = {
+    ...baseline,
+    availabilityPct: 0,
+    observation: {
+      vantage: 'remote' as const,
+      expectedSamples: 3,
+      receivedSamples: 0,
+      missingSamples: 3,
+      complete: false,
+    },
+  };
+  expect(detectBaselineDrift(baseline, missing)).toBeUndefined();
+  expect(detectBaselineDrift(missing, baseline)).toBeUndefined();
+});
+
+it('keeps the critical safety notification without attributing missing baseline to target outage', () => {
+  const stopped = run({ status: 'KILLED_AUTO' });
+  stopped.baseline = {
+    samples: 3,
+    availabilityPct: 0,
+    latencyMs: { p50: 0, p95: 0 },
+    observation: {
+      vantage: 'remote',
+      expectedSamples: 3,
+      receivedSamples: 0,
+      missingSamples: 3,
+      complete: false,
+    },
+  };
+  const event = buildRunNotifications(campaign(), stopped).find(
+    (e) => e.kind === 'campaign.killed',
+  );
+  expect(event?.severity).toBe('critical');
+  expect(event?.text).toContain('uncertain remote baseline');
+  expect(event?.text).not.toContain('(target unavailable)');
 });

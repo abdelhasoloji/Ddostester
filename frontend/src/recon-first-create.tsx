@@ -202,9 +202,19 @@ export function applyLevers(
   };
 }
 
-export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
+export function ReconFirstCreate({
+  onDone,
+  preferredAgent,
+  preferredDevices,
+  initialTarget,
+}: {
+  onDone?: () => void;
+  preferredAgent?: 'fleet';
+  preferredDevices?: string[];
+  initialTarget?: string;
+}) {
   const app = useApp();
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState(initialTarget ?? '');
   const [phase, setPhase] = useState<'target' | 'recon' | 'compose'>('target');
   const [recon, setRecon] = useState<ReconReport | null>(null);
   const [actions, setActions] = useState<SuggestedAction[]>([]);
@@ -244,7 +254,29 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
             Editing an action against <code>{host}</code> — fields pre-filled; adjust anything.
           </span>
         </div>
-        <NewCampaignForm initial={editorSeed} onDone={onDone} />
+        <NewCampaignForm
+          initial={
+            preferredAgent === 'fleet'
+              ? {
+                  ...editorSeed,
+                  agent: 'fleet',
+                  fleetDeviceIds: preferredDevices ?? [],
+                  vector: 'http-get',
+                  maxRps: 3,
+                  concurrency: 3,
+                  maxDurationSec: 20,
+                  profile: 'constant',
+                  endpoints: '',
+                  flow: '',
+                  body: '',
+                  cacheBust: false,
+                  noKeepAlive: false,
+                  calibrate: false,
+                }
+              : editorSeed
+          }
+          onDone={onDone}
+        />
       </div>
     );
   }
@@ -304,19 +336,39 @@ export function ReconFirstCreate({ onDone }: { onDone?: () => void }) {
           {recon.loginPath && <span className="recon-chip login">login {recon.loginPath}</span>}
         </div>
 
-        <ReconActionsSurface
-          recon={recon}
-          actions={actions}
-          onOpenEditor={(seed) => {
-            setEditorSeed(seed);
-            setPhase('compose');
-          }}
-          onScratch={() => {
-            setEditorSeed({ target, probeUrl: target });
-            setPhase('compose');
-          }}
-          onDone={onDone}
-        />
+        {preferredAgent === 'fleet' ? (
+          <section className="card">
+            <h3>Configure the Fleet campaign</h3>
+            <p>
+              Use the discovered target with the three enrolled VPS Lab bots. The first increment
+              runs one GET URL with an independent campaign probe. Discovered paths remain visible
+              in full intel.
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setEditorSeed({ target: recon.target, probeUrl: recon.target });
+                setPhase('compose');
+              }}
+            >
+              Configure Fleet campaign
+            </button>
+          </section>
+        ) : (
+          <ReconActionsSurface
+            recon={recon}
+            actions={actions}
+            onOpenEditor={(seed) => {
+              setEditorSeed(seed);
+              setPhase('compose');
+            }}
+            onScratch={() => {
+              setEditorSeed({ target, probeUrl: target });
+              setPhase('compose');
+            }}
+            onDone={onDone}
+          />
+        )}
       </div>
     );
   }
@@ -423,7 +475,7 @@ function ReconActionsSurface({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
 
   const applicable = actions.filter((a) => a.applicable);
   const na = actions.filter((a) => !a.applicable);
@@ -446,9 +498,11 @@ function ReconActionsSurface({
       });
       app.push(
         'success',
-        r.suiteId
-          ? `Assessment created — ${r.campaigns.length} steps (pending approval).`
-          : `Campaign created — pending approval.`,
+        app.approvalPolicy === 'confirmation'
+          ? `Created ${r.campaigns.length} step(s) — review and confirm before running.`
+          : r.suiteId
+            ? `Assessment created — ${r.campaigns.length} steps (pending approval).`
+            : `Campaign created — pending approval.`,
       );
       await app.refresh();
       onDone?.();

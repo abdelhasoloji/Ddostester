@@ -9,6 +9,7 @@ import {
   collateralScore,
 } from '../src/modules/wrs/scoring.js';
 import { buildEndpointPicker, iterationRate } from '../src/engine/loadTest.js';
+import { buildK6Script } from '../src/agents/k6.js';
 
 const num = fc.double({ min: -1e6, max: 1e6, noNaN: true });
 
@@ -65,12 +66,38 @@ describe('WRS invariants', () => {
 });
 
 describe('engine rate invariants', () => {
-  it('iterationRate never exceeds maxRps and is always >= 1', () => {
+  it('k6 integer arrivals preserve request caps across short flows', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 2000 }),
+        fc.integer({ min: 1, max: 20 }),
+        (rps, steps) => {
+          const script = buildK6Script({
+            url: 'http://127.0.0.1/health',
+            concurrency: 2,
+            durationSec: 3,
+            maxRps: rps,
+            authorized: true,
+            flow: Array.from({ length: steps }, () => ({
+              method: 'GET' as const,
+              url: 'http://127.0.0.1/health',
+            })),
+          });
+          const rate = Number(/\n\s+rate: ([0-9]+)/.exec(script)![1]);
+          const period = Number(/timeUnit: '([0-9]+)s'/.exec(script)![1]);
+          expect(rate).toBeGreaterThanOrEqual(1);
+          expect((rate * steps) / period).toBeLessThanOrEqual(rps);
+        },
+      ),
+    );
+  });
+
+  it('integer iterationRate never raises the total request budget', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 2000 }), fc.integer({ min: 1, max: 20 }), (rps, n) => {
         const r = iterationRate(rps, n);
-        expect(r).toBeGreaterThanOrEqual(1);
-        expect(r * n).toBeLessThanOrEqual(Math.max(rps, n)); // total request rate stays bounded
+        expect(r).toBeGreaterThanOrEqual(0);
+        expect(r * n).toBeLessThanOrEqual(rps);
       }),
     );
   });

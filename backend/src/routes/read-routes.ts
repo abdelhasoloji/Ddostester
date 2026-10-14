@@ -10,12 +10,18 @@ import { buildZones } from '../modules/zones/zones.js';
 import { validateMitigation } from '../modules/mitigation/validation.js';
 import { queryRange, rangeWindow, type PromResult } from '../modules/metrics/prometheus-query.js';
 import { resolveSeries } from '../modules/metrics/series-catalog.js';
-import { renderMetrics } from '../modules/metrics/prometheus.js';
+import { renderFleetMetrics, renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
 import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml, compareRuns } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
+import { fleetEvidence } from '../modules/reports/fleet-evidence.js';
+import { reconcileFleetReceipts } from '../modules/reports/fleet-receipts.js';
+import { FLEET_LIMITS } from '../config/limits.js';
+import { randomUUID } from 'node:crypto';
+import { fleetStatusFromEnv } from '../modules/fleet/status.js';
+import { persistedFleetEvidenceFromEnv } from '../modules/fleet/persisted-evidence.js';
 import { htmlToPdf } from '../modules/reports/pdf.js';
 import { runsSummaryCsv, runTimelineCsv } from '../modules/reports/csv.js';
 import {
@@ -59,7 +65,7 @@ async function sendReport(
 export interface ReadRoutesCtx {
   store: Store;
   guard: (perm: Permission) => preHandlerHookHandler;
-  readTokenAllowed: (req: FastifyRequest) => boolean;
+  readTokenAllowed: (req: FastifyRequest) => boolean | Promise<boolean>;
   /**
    * Prometheus base URL for the app-native charts (option B). Absent → the
    * `/api/metrics/range` endpoint reports `unavailable` and the UI hides the
@@ -78,9 +84,54 @@ export interface ReadRoutesCtx {
  */
 export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): void {
   const { store, guard, readTokenAllowed, prometheusUrl, grafanaUrl } = ctx;
+  app.get('/api/fleet/status', { preHandler: guard('campaign:read') }, async (_req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return fleetStatusFromEnv();
+  });
+  app.get<{ Params: { runId: string } }>(
+    '/api/fleet/runs/:runId/evidence.json',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(req.params.runId))
+        return reply.code(400).send({ error: 'Invalid fleet run identifier' });
+      try {
+        const evidence = await persistedFleetEvidenceFromEnv(req.params.runId);
+        if (!evidence) return reply.code(404).send({ error: 'Fleet run not found' });
+        reply.header(
+          'content-disposition',
+          `attachment; filename="fleet-${req.params.runId}-durable.json"`,
+        );
+        return evidence;
+      } catch {
+        return reply.code(503).send({ error: 'Durable fleet evidence unavailable' });
+      }
+    },
+  );
 
-  // App-native charts (option B): a bounded, read-only Prometheus range-query
-  // proxy. The client asks for a NAMED series (never raw PromQL), scoped to an
+  app.get<{ Params: { campaignId: string } }>(
+    '/api/fleet/campaigns/:campaignId/evidence.json',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(req.params.campaignId))
+        return reply.code(400).send({ error: 'Invalid campaign identifier' });
+      try {
+        const evidence = await persistedFleetEvidenceFromEnv(
+          '',
+          process.env,
+          req.params.campaignId,
+        );
+        if (!evidence) return reply.code(404).send({ error: 'No recorded fleet evidence' });
+        return evidence;
+      } catch {
+        return reply.code(503).send({ error: 'Durable fleet evidence unavailable' });
+      }
+    },
+  );
+
+  // App-native charts: bounded, read-only Prometheus range-query proxy.
+  // The client asks for a NAMED series (never raw PromQL), scoped to an
   // optional target and time window; the app renders it with its own charts, so
   // the graph shows the same data as Grafana without embedding Grafana. Fail-
   // soft: no PROMETHEUS_URL → `source: "unavailable"` and the UI hides the chart.
@@ -135,7 +186,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   });
 
   app.get('/api/suites/:id/report', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const suite = await findSuite((req.params as { id: string }).id);
     if (!suite) return reply.code(404).send({ error: 'suite not found' });
     const runs = await store.listRuns();
@@ -146,7 +198,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   // "tune-and-replay" loop: replay the playbook after a WEDOS rule change and
   // read the per-line WRS/verdict delta). Read-only; generates no traffic.
   app.get('/api/reports/suite-compare', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const { a, b } = req.query as { a?: string; b?: string };
     if (!a || !b) return reply.code(400).send({ error: 'both suite ids (a, b) are required' });
     const [sa, sb] = await Promise.all([findSuite(a), findSuite(b)]);
@@ -234,7 +287,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   app.get('/metrics', async (_req, reply) => {
     const [campaigns, runs] = await Promise.all([store.listCampaigns(), store.listRuns()]);
     // Business metrics (on-demand) + live runtime/operational metrics.
-    const body = renderMetrics(campaigns, runs.length) + metrics.render();
+    const body =
+      renderMetrics(campaigns, runs.length) + renderFleetMetrics(runs) + metrics.render();
     return reply.type('text/plain; version=0.0.4').send(body);
   });
 
@@ -305,10 +359,62 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     const r = await store.getRun((req.params as { runId: string }).runId);
     return r ?? reply.code(404).send({ error: 'run not found' });
   });
+  app.post<{ Params: { runId: string } }>(
+    '/api/runs/:runId/fleet-receipts',
+    {
+      preHandler: guard('user:manage'),
+      bodyLimit: FLEET_LIMITS.maxRps * FLEET_LIMITS.maxDurationSec * 512 + 4096,
+    },
+    async (req, reply) => {
+      const run = await store.getRun(req.params.runId);
+      if (!run) return reply.code(404).send({ error: 'run_not_found' });
+      if (!run.generator.fleet) return reply.code(409).send({ error: 'not_a_fleet_run' });
+      if (run.generator.fleet.receiverEvidence)
+        return reply.code(409).send({ error: 'receiver_evidence_already_recorded' });
+      let evidence;
+      try {
+        evidence = reconcileFleetReceipts(run, req.body, req.authUser?.email ?? 'operator');
+      } catch (error) {
+        return reply
+          .code(400)
+          .send({ error: error instanceof Error ? error.message : 'invalid_receiver_records' });
+      }
+      const recorded = await store.transaction(async (tx) => {
+        const current = await tx.getRun(run.runId);
+        if (!current?.generator.fleet || current.generator.fleet.receiverEvidence) return false;
+        current.generator.fleet.receiverEvidence = evidence;
+        await tx.saveRun(current);
+        await tx.saveAudit({
+          id: randomUUID(),
+          at: evidence.recordedAt,
+          actor: evidence.recordedBy,
+          action: 'store.mutate',
+          detail: `fleet.receiver.import run=${run.runId} sha256=${evidence.sha256} provenance=${evidence.provenance}`,
+        });
+        return true;
+      });
+      if (!recorded) return reply.code(409).send({ error: 'receiver_evidence_already_recorded' });
+      return reply.code(201).send(evidence);
+    },
+  );
+
+  app.get(
+    '/api/runs/:runId/fleet-evidence.json',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      const run = await store.getRun((req.params as { runId: string }).runId);
+      if (!run) return reply.code(404).send({ error: 'run not found' });
+      if (!run.generator.fleet) return reply.code(409).send({ error: 'run has no fleet evidence' });
+      reply.header('content-disposition', 'attachment; filename="fleet-evidence.json"');
+      reply.header('cache-control', 'no-store');
+      return fleetEvidence(run);
+    },
+  );
 
   // CSV exports (RPT-03) — browser downloads carry a read token in the query.
   app.get('/api/runs.csv', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const { campaignId } = req.query as { campaignId?: string };
     const runs = await store.listRuns(campaignId);
     return reply
@@ -318,7 +424,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   });
 
   app.get('/api/runs/:runId/timeline.csv', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const runId = (req.params as { runId: string }).runId;
     const r = await store.getRun(runId);
     if (!r) return reply.code(404).send({ error: 'run not found' });
@@ -329,7 +436,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   });
 
   app.get('/api/reports/compliance', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const { from, to } = req.query as { from?: string; to?: string };
     const [campaigns, runs, coverage] = await Promise.all([
       store.listCampaigns(),
@@ -349,7 +457,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   });
 
   app.get('/api/runs/:runId/report', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const r = await store.getRun((req.params as { runId: string }).runId);
     if (!r) return reply.code(404).send({ error: 'run not found' });
     const c = await store.getCampaign(r.campaignId);
@@ -360,7 +469,8 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   // Before / after comparison of two runs (e.g. same target pre/post a
   // protection change). Read-only; generates no traffic.
   app.get('/api/reports/compare', async (req, reply) => {
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     const { a, b } = req.query as { a?: string; b?: string };
     if (!a || !b) return reply.code(400).send({ error: 'both run ids (a, b) are required' });
     const [ra, rb] = await Promise.all([store.getRun(a), store.getRun(b)]);

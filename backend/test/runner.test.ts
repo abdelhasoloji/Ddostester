@@ -5,6 +5,9 @@ import { executeCampaign } from '../src/modules/campaigns/runner.js';
 import { KillSwitch } from '../src/modules/probe/probe.js';
 import { renderCampaignReportHtml } from '../src/modules/reports/report.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
+import { createCampaign } from '../src/modules/campaigns/service.js';
+import { BuiltinHttpAgent } from '../src/agents/builtin.js';
+import type { AttackAgent } from '../src/agents/types.js';
 
 describe('executeCampaign — run time-series', () => {
   let base: string;
@@ -68,6 +71,101 @@ describe('executeCampaign — run time-series', () => {
       status: 'APPROVED',
       createdAt: new Date().toISOString(),
     }) as Campaign;
+
+  it('prepares before the load timer, refreshes baseline and disposes the prepared run', async () => {
+    const events: string[] = [];
+    const kill = new KillSwitch();
+    const agent: AttackAgent = new BuiltinHttpAgent();
+    agent.prepare = async (config, hosts, signal) => {
+      events.push('prepare');
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      expect(signal?.aborted).toBe(false);
+      return {
+        run: async () => {
+          events.push('load');
+          return new BuiltinHttpAgent().run(config, hosts, signal);
+        },
+        dispose: async () => {
+          events.push('dispose');
+        },
+      };
+    };
+    await executeCampaign(
+      { ...makeCampaign(), maxDurationSec: 1 },
+      ['127.0.0.1'],
+      kill,
+      undefined,
+      agent,
+      undefined,
+      async () => {
+        events.push('baseline');
+        return { samples: 3, availabilityPct: 100, latencyMs: { p50: 1, p95: 1 } };
+      },
+    );
+    expect(events).toEqual(['baseline', 'prepare', 'baseline', 'load', 'dispose']);
+  }, 10000);
+
+  it('disposes without launching when cancelled after runtime preparation', async () => {
+    const kill = new KillSwitch();
+    let baselineCalls = 0,
+      disposed = false,
+      launched = false;
+    const agent: AttackAgent = new BuiltinHttpAgent();
+    agent.prepare = async () => ({
+      run: async () => {
+        launched = true;
+        throw new Error('Unexpected launch');
+      },
+      dispose: async () => {
+        disposed = true;
+      },
+    });
+    await expect(
+      executeCampaign(
+        makeCampaign(),
+        ['127.0.0.1'],
+        kill,
+        undefined,
+        agent,
+        undefined,
+        async () => {
+          if (++baselineCalls === 2) kill.trigger('KILLED_MANUAL');
+          return { samples: 3, availabilityPct: 100, latencyMs: { p50: 1, p95: 1 } };
+        },
+      ),
+    ).rejects.toThrow('cancelled during preparation');
+    expect(disposed).toBe(true);
+    expect(launched).toBe(false);
+  });
+
+  it('captures the IoT profile in the actual generator result independently of campaign changes', async () => {
+    const campaign = createCampaign(
+      {
+        ...makeCampaign(),
+        agent: 'builtin',
+        vector: 'http-post',
+        iotProfile: { id: 'sensor-heartbeat/v1', seed: 42, deviceIndex: 7 },
+      },
+      ['127.0.0.1'],
+    );
+    campaign.status = 'APPROVED';
+    const expectedFlow = structuredClone(campaign.flow);
+    const run = await executeCampaign(campaign, ['127.0.0.1'], new KillSwitch());
+    campaign.iotProfile!.seed = 99;
+    campaign.flow![1].body = 'changed after run';
+    expect(run.generator.config.iotProfile).toEqual({
+      id: 'sensor-heartbeat/v1',
+      seed: 42,
+      deviceIndex: 7,
+    });
+    expect(run.generator.config.execution).toMatchObject({
+      engine: 'builtin-http',
+      runtime: process.version,
+      probeUrl: campaign.probeUrl,
+      probeVantage: 'local',
+    });
+    expect(run.generator.config.flow).toEqual(expectedFlow);
+  }, 15_000);
 
   it('retires the live per-run Prometheus gauges when the run ends (no stale flat line)', async () => {
     const { metrics } = await import('../src/modules/metrics/runtime.js');
@@ -220,6 +318,23 @@ describe('executeCampaign — run time-series', () => {
     expect(calls[1]).toBe(114);
     expect(calls[1]).toBeLessThan(800);
   }, 20000);
+
+  it('calibration never rounds a fractional campaign up to one request per second', async () => {
+    const { agent, calls } = recordingAgent(0.2);
+    const run = await executeCampaign(
+      { ...makeCampaign(), maxRps: 0.5, maxDurationSec: 1, calibrate: true },
+      ['127.0.0.1'],
+      new KillSwitch(),
+      undefined,
+      agent as never,
+      undefined,
+      async () => ({ samples: 3, availabilityPct: 100, latencyMs: { p50: 1, p95: 1 } }),
+    );
+    expect(calls[0]).toBe(0.5);
+    expect(calls[1]).toBeCloseTo(0.19);
+    expect(run.calibration?.requestedRps).toBe(0.5);
+    expect(run.calibration?.appliedRps).toBeCloseTo(0.19);
+  }, 10000);
 
   it('keeps the requested rate (single run, no calibration record) when calibrate is off', async () => {
     const { agent, calls } = recordingAgent(120);

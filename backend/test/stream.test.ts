@@ -76,7 +76,7 @@ describe('GET /api/campaigns/:id/stream', () => {
     app = (
       await buildApp({
         store,
-        auth: initAuth({} as NodeJS.ProcessEnv),
+        auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
         allowedTargets: ALLOWED,
         logger: false,
         serveStatic: false,
@@ -111,3 +111,26 @@ describe('GET /api/campaigns/:id/stream', () => {
     expect(text).toContain('"status":"done"');
   });
 });
+
+it('closes an idle waiting SSE stream during app shutdown', async () => {
+  const store = new MemoryStore();
+  const c = approveCampaign(createCampaign(base, ALLOWED), 'off@wedos', 'APPROVED');
+  await store.saveCampaign(c);
+  const { app } = await buildApp({
+    store,
+    auth: initAuth({ USER_MODE: 'team' }),
+    allowedTargets: ALLOWED,
+    logger: false,
+    serveStatic: false,
+  });
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const res = await fetch(
+    `http://127.0.0.1:${(app.server.address() as AddressInfo).port}/api/campaigns/${c.id}/stream`,
+  );
+  const reader = res.body!.getReader();
+  expect((await reader.read()).done).toBe(false);
+  await app.close();
+  while (!(await reader.read()).done) {
+    /* Consume any frame already queued before close. */
+  }
+}, 3000);

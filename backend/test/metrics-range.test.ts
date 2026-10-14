@@ -15,7 +15,7 @@ describe('series-catalog', () => {
     const r = resolveSeries('run_rps', 'bank.cz');
     expect(r).not.toBeNull();
     expect(r!.def.unit).toBe('reqps');
-    expect(r!.lines.map((l) => l.label)).toEqual(['offered', 'reached origin']);
+    expect(r!.lines.map((l) => l.label)).toEqual(['offered', 'successful responses']);
     expect(r!.lines[0].promql).toContain('shieldtest_run_live_offered_rps{target="bank.cz"}');
   });
 
@@ -136,7 +136,7 @@ describe('GET /api/metrics/range', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: ['bank.cz'],
       logger: false,
       serveStatic: false,
@@ -159,6 +159,9 @@ describe('GET /api/metrics/range', () => {
     const b = r.json();
     expect(b.source).toBe('unavailable');
     expect(b.unit).toBe('reqps');
-    expect(b.series.map((s: { label: string }) => s.label)).toEqual(['offered', 'reached origin']);
+    expect(b.series.map((s: { label: string }) => s.label)).toEqual([
+      'offered',
+      'successful responses',
+    ]);
   });
 });

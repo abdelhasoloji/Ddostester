@@ -89,6 +89,18 @@ export interface ResponseAssertion {
 }
 
 export interface LoadTestConfig {
+  fleetDeviceIds?: string[];
+  execution?: {
+    engine: string;
+    runtime: string;
+    sourceRef: string;
+    probeUrl: string;
+    probeVantage: 'local' | 'remote';
+  };
+  /** Public reproducibility metadata captured at run start. */
+  iotProfile?: import('./iot-profile.js').IoTProfile;
+  /** Trusted in-process lease veto, never accepted in a wire assignment. */
+  requestPermit?: () => boolean;
   /** Full target URL (e.g. http://localhost:3000/health). */
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
@@ -186,11 +198,40 @@ export interface LoadTestConfig {
 }
 
 export interface LoadTestResult {
+  latencyPolicy?: 'histogram-upper-bound-v1';
+  fleet?: {
+    receiverEvidence?: import('../modules/reports/fleet-receipts.js').FleetReceiverEvidence;
+    startup?: {
+      schema: 'ddostester.fleet.startup/v1';
+      scope: 'generator-timestamps-relative-to-parent';
+      reportedAgents: number;
+      expectedAgents: number;
+      firstGeneratorStartDelayMs: number | null;
+      lastGeneratorStartDelayMs: number | null;
+      agents: { agentId: string; generatorStartDelayMs: number | null }[];
+    };
+    counterCoverage?: {
+      reportedAgents: number;
+      expectedAgents: number;
+      scope: 'received-final-results-only';
+    };
+    jobEvidence?: Record<string, unknown>[];
+    measurementComplete: boolean;
+    shards: import('../modules/fleet/summary.js').FleetShardEvidence[];
+  };
+  latencyHistogram?: import('./stats.js').LatencyHistogram;
+  latencySampleCount?: number;
+  latencyMethod?:
+    'native-combined-results' | 'common-histogram-upper-bounds' | 'native-rounded-response-times';
   id: string;
   config: LoadTestConfig;
   startedAt: string;
   finishedAt: string;
   totalRequests: number;
+  /** Started attempts with a finalized HTTP metric; absent on legacy adapters. */
+  finalizedRequests?: number;
+  /** Started attempts lacking a finalized outcome; never assigned an HTTP status. */
+  unfinalizedRequests?: number;
   successful: number;
   failed: number;
   statusCounts: Record<string, number>;

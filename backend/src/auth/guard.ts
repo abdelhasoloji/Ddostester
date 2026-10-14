@@ -1,23 +1,28 @@
 import type { FastifyRequest } from 'fastify';
 import { verifyJwt, signJwt } from './jwt.js';
 import type { JwtPayload } from './jwt.js';
-import { verifyPassword } from './passwords.js';
+import { verifyPasswordAsync, verifyPassword } from './passwords.js';
 import { loadUsers } from './users.js';
 import type { User } from './users.js';
 import { canonicalRole } from './rbac.js';
 import type { Role } from './rbac.js';
+import { DEFAULT_SINGLE_USER_EMAIL, userModeFromEnv, type UserMode } from './single-user.js';
 
 export interface AuthState {
   enabled: boolean;
   secret: string;
   users: Map<string, User>;
+  userMode?: UserMode;
+  singleUserEmail?: string;
 }
 
 /** Auth enabled only if AUTH_JWT_SECRET is set (otherwise dev mode). */
 export function initAuth(env = process.env): AuthState {
   const secret = env.AUTH_JWT_SECRET ?? '';
   const users = loadUsers(env.AUTH_USERS);
-  return { enabled: secret !== '', secret, users };
+  const userMode = userModeFromEnv(env);
+  const singleUserEmail = env.SINGLE_USER_EMAIL?.trim().toLowerCase() || DEFAULT_SINGLE_USER_EMAIL;
+  return { enabled: secret !== '', secret, users, userMode, singleUserEmail };
 }
 
 export interface Identity {
@@ -25,6 +30,18 @@ export interface Identity {
   role: Role;
 }
 
+export async function loginAsync(
+  state: AuthState,
+  email: string,
+  password: string,
+): Promise<{ token: string; email: string; role: Role } | null> {
+  const u = state.users.get(email.toLowerCase());
+  if (!u || !(await verifyPasswordAsync(password, u.passwordHash))) return null;
+  const token = signJwt({ sub: u.email, role: u.role }, state.secret);
+  return { token, email: u.email, role: u.role };
+}
+
+/** Legacy synchronous helper retained for CLI/tests; HTTP uses loginAsync. */
 export function login(
   state: AuthState,
   email: string,
@@ -32,8 +49,11 @@ export function login(
 ): { token: string; email: string; role: Role } | null {
   const u = state.users.get(email.toLowerCase());
   if (!u || !verifyPassword(password, u.passwordHash)) return null;
-  const token = signJwt({ sub: u.email, role: u.role }, state.secret);
-  return { token, email: u.email, role: u.role };
+  return {
+    token: signJwt({ sub: u.email, role: u.role }, state.secret),
+    email: u.email,
+    role: u.role,
+  };
 }
 
 /** Verified JWT payload from the Bearer header, or null. */

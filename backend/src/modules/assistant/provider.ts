@@ -14,6 +14,8 @@
  * other providers in this codebase.
  */
 
+import { IO_LIMITS } from '../../config/limits.js';
+
 export interface AssistantConfig {
   /** OpenAI-compatible base URL, e.g. https://<pod>-8080.proxy.runpod.net/v1 */
   endpoint?: string;
@@ -50,24 +52,20 @@ export const DEFAULT_SYSTEM_PROMPT = [
   '',
   'ACTION PROTOCOL — when a concrete next step would help, PREPARE it as an',
   'actionable card: a short plain-language explanation AND one or more fenced',
-  'blocks, each a single JSON object with a "type". The operator triggers each',
+  'blocks, each a single JSON object with schema "ddostester.kusa.proposal/v1" and a "type". The operator triggers each',
   'from its governed screen; you never execute anything yourself.',
   'Supported actions:',
   '1) test-campaign — a bounded resilience test against an AUTHORIZED target:',
   '```action',
-  '{"type":"test-campaign","name":"label","target":"https://authorized/path","vector":"http-get","maxRps":50,"concurrency":10,"maxDurationSec":120,"rationale":"why safe"}',
+  '{"schema":"ddostester.kusa.proposal/v1","type":"test-campaign","name":"label","target":"https://authorized/path","vector":"http-get","maxRps":50,"concurrency":10,"maxDurationSec":120,"rationale":"why safe"}',
   '```',
-  '2) register-target — onboard a target you are authorized to test:',
+  '2) adjust-limits — propose tighter operational caps (an administrator applies them):',
   '```action',
-  '{"type":"register-target","host":"staging.example.com","displayName":"Staging","owner":"team","notes":"scope","rationale":"why"}',
+  '{"schema":"ddostester.kusa.proposal/v1","type":"adjust-limits","maxRps":500,"maxConcurrency":100,"maxDurationSec":300,"rationale":"why"}',
   '```',
-  '3) adjust-limits — propose tighter operational caps (a CISO applies them):',
+  '3) open — send the operator to a screen (overview | zones | campaigns | theater | settings):',
   '```action',
-  '{"type":"adjust-limits","maxRps":500,"maxConcurrency":100,"maxDurationSec":300,"rationale":"why"}',
-  '```',
-  '4) open — send the operator to a screen (overview | zones | campaigns | theater | settings):',
-  '```action',
-  '{"type":"open","screen":"theater","label":"Review the running test","rationale":"why"}',
+  '{"schema":"ddostester.kusa.proposal/v1","type":"open","screen":"theater","label":"Review the running test","rationale":"why"}',
   '```',
   'Rules: keep test-campaign and adjust-limits within the caps (maxRps <= 2000,',
   'concurrency/maxConcurrency <= 500, maxDurationSec <= 900) and start',
@@ -86,9 +84,15 @@ export function assistantConfigFromEnv(env: NodeJS.ProcessEnv = process.env): As
     endpoint: env.ASSISTANT_ENDPOINT?.trim() || undefined,
     apiKey: env.ASSISTANT_API_KEY?.trim() || undefined,
     model: env.ASSISTANT_MODEL?.trim() || 'qwen',
-    timeoutMs: num(env.ASSISTANT_TIMEOUT_MS, 120000),
-    maxTokens: num(env.ASSISTANT_MAX_TOKENS, 1200),
-    systemPrompt: env.ASSISTANT_SYSTEM_PROMPT?.trim() || DEFAULT_SYSTEM_PROMPT,
+    timeoutMs: Math.max(1000, Math.min(120000, Math.floor(num(env.ASSISTANT_TIMEOUT_MS, 120000)))),
+    maxTokens: Math.max(
+      1,
+      Math.min(IO_LIMITS.assistantMaxTokens, Math.floor(num(env.ASSISTANT_MAX_TOKENS, 1200))),
+    ),
+    systemPrompt: (env.ASSISTANT_SYSTEM_PROMPT?.trim() || DEFAULT_SYSTEM_PROMPT).slice(
+      0,
+      IO_LIMITS.assistantPromptChars,
+    ),
   };
 }
 
@@ -106,12 +110,16 @@ export interface ChatTurn {
 export function sanitizeTurns(input: unknown, maxTurns = 24, maxChars = 8000): ChatTurn[] {
   if (!Array.isArray(input)) return [];
   const turns: ChatTurn[] = [];
-  for (const raw of input.slice(-maxTurns)) {
+  let remaining = IO_LIMITS.assistantHistoryChars;
+  for (const raw of input.slice(-maxTurns).reverse()) {
     if (!raw || typeof raw !== 'object') continue;
     const role = (raw as { role?: unknown }).role;
     const content = (raw as { content?: unknown }).content;
     if ((role === 'user' || role === 'assistant') && typeof content === 'string') {
-      turns.push({ role, content: content.slice(0, maxChars) });
+      const bounded = content.slice(0, Math.min(maxChars, remaining));
+      if (bounded) turns.unshift({ role, content: bounded });
+      remaining -= bounded.length;
+      if (remaining === 0) break;
     }
   }
   return turns;

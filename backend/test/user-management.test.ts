@@ -10,7 +10,7 @@ import { metrics } from '../src/modules/metrics/runtime.js';
  * Mature user management: forced password change on admin-set temp passwords,
  * self-service change, admin reset, soft deactivation, and immediate session
  * revocation (a deleted / disabled / role-changed / password-changed account's
- * outstanding token stops working at once, not at the 8h token expiry).
+ * outstanding token stops working at once, not at token expiry).
  */
 const allowed = ['127.0.0.1'];
 // An env admin is the immutable root that can always manage users.
@@ -44,7 +44,11 @@ beforeEach(async () => {
   store = new MemoryStore();
   const built = await buildApp({
     store,
-    auth: initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: ENV_USERS } as NodeJS.ProcessEnv),
+    auth: initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 'sek',
+      AUTH_USERS: ENV_USERS,
+    } as NodeJS.ProcessEnv),
     allowedTargets: allowed,
     logger: false,
     serveStatic: false,

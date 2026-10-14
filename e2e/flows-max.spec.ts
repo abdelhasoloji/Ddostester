@@ -45,7 +45,7 @@ test('sidebar: theme buttons apply the theme; notifications bell opens then clos
 test('Audit log (in Settings): Verify integrity and the Export (JSON) link', async ({ page }) => {
   // The tamper-evident audit log now lives inside Settings (the Assurance nav item
   // was retired).
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
   // Verify integrity must produce a verdict, not just "no error".
@@ -76,7 +76,7 @@ test('Recon-first create: run recon against an allowlisted target', async ({ pag
 });
 
 test('Protected zones: renders and its recon/retry control works', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Protected zones');
   await clickIf(page, /Profile target|Retry/);
   await noError(page);
@@ -154,7 +154,7 @@ test('recon-first create: run recon then "Start from scratch" reaches the seeded
 test('Settings admin: role change, deactivate/reactivate, reset, remove all take effect', async ({
   page,
 }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Settings');
   const email = `e2e-mgmt-${Date.now()}@wedos`;
   await page.locator('.field:has(label:text-is("Email")) input').fill(email);

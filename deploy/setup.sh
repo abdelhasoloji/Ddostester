@@ -24,6 +24,8 @@ DATABASE_URL="${DATABASE_URL:-}"
 # Auth (optional): if AUTH_JWT_SECRET is set, auth+RBAC is enabled.
 AUTH_JWT_SECRET="${AUTH_JWT_SECRET:-}"
 AUTH_USERS="${AUTH_USERS:-}"
+USER_MODE="${USER_MODE:-single}"
+SINGLE_USER_EMAIL="${SINGLE_USER_EMAIL:-abdelha@wedos}"
 # Class-C bench (optional): the app↔lab-runner bearer + governance label.
 BENCH_RUNNER_TOKEN="${BENCH_RUNNER_TOKEN:-}"
 LAB_TARGETS="${LAB_TARGETS:-}"
@@ -55,6 +57,7 @@ echo "==> Writing secrets (EnvironmentFile, chmod 600)"
 # environment file, not the systemd unit (world-readable). Lines are written
 # only if the variable is provided.
 ENVFILE="/etc/${SERVICE}.env"
+if ! sudo test -f "$ENVFILE"; then
 sudo touch "$ENVFILE"
 sudo chmod 600 "$ENVFILE"
 # NOTE: use `if…fi`, not `[ -n "$X" ] && echo` — under `set -o pipefail` a
@@ -65,9 +68,19 @@ sudo chmod 600 "$ENVFILE"
   if [ -n "$DATABASE_URL" ]; then echo "DATABASE_URL=$DATABASE_URL"; fi
   if [ -n "$AUTH_JWT_SECRET" ]; then echo "AUTH_JWT_SECRET=$AUTH_JWT_SECRET"; fi
   if [ -n "$AUTH_USERS" ]; then echo "AUTH_USERS=$AUTH_USERS"; fi
+  echo "USER_MODE=$USER_MODE"
+  echo "SINGLE_USER_EMAIL=$SINGLE_USER_EMAIL"
   if [ -n "$BENCH_RUNNER_TOKEN" ]; then echo "BENCH_RUNNER_TOKEN=$BENCH_RUNNER_TOKEN"; fi
   if [ -n "$LAB_TARGETS" ]; then echo "LAB_TARGETS=$LAB_TARGETS"; fi
+  if [ -n "${SINGLE_USER_PASSWORD:-}" ]; then echo "SINGLE_USER_PASSWORD=$SINGLE_USER_PASSWORD"; fi
 } | sudo tee "$ENVFILE" >/dev/null
+else
+  echo "==> Preserving existing protected runtime environment"
+fi
+if [ "${MIGRATE_ACCOUNTS:-0}" = 1 ]; then
+  sudo /usr/bin/node scripts/account-preflight.mjs "$ENVFILE" migrate
+fi
+sudo /usr/bin/node scripts/account-preflight.mjs "$ENVFILE" check
 
 echo "==> Writing the systemd service"
 sudo tee "/etc/systemd/system/${SERVICE}.service" >/dev/null <<UNIT

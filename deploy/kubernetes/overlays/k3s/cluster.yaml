@@ -1,0 +1,31 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: ddostester-linux-lab
+servers: 1
+agents: 0
+image: docker.io/rancher/k3s:v1.37.1-k3s1@sha256:ca7f37d993d82ef0dcdcfecb2e0e2618ea541dbaffc620c8cedebe01a82acd0d
+subnet: 172.30.94.0/24
+kubeAPI:
+  host: localhost
+  hostIP: 127.0.0.1
+  hostPort: '16643'
+options:
+  k3d:
+    disableLoadbalancer: true
+    timeout: 90s
+  kubeconfig:
+    updateDefaultKubeconfig: false
+    switchCurrentContext: false
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik,servicelb,metrics-server
+        nodeFilters: ['server:*']
+      - arg: --cluster-cidr=10.247.0.0/16
+        nodeFilters: ['server:*']
+      - arg: --service-cidr=10.98.0.0/16
+        nodeFilters: ['server:*']
+  runtime:
+    labels:
+      - label: ddostester.purpose=isolated-linux-lab
+        nodeFilters: ['server:*']

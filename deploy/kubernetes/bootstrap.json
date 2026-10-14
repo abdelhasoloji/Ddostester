@@ -1,0 +1,138 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "lab-account-bootstrap",
+    "namespace": "ddostester-lab"
+  },
+  "spec": {
+    "backoffLimit": 0,
+    "activeDeadlineSeconds": 60,
+    "ttlSecondsAfterFinished": 3600,
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "lab-control",
+          "purpose": "account-bootstrap"
+        }
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "HOST",
+                "value": "0.0.0.0"
+              },
+              {
+                "name": "PORT",
+                "value": "8080"
+              },
+              {
+                "name": "USER_MODE",
+                "value": "single"
+              },
+              {
+                "name": "SINGLE_USER_EMAIL",
+                "value": "abdelha@wedos"
+              },
+              {
+                "name": "SCHEDULER",
+                "value": "off"
+              },
+              {
+                "name": "ALLOWED_TARGETS",
+                "value": "lab-target"
+              },
+              {
+                "name": "PROBE_AGENT_URL",
+                "value": "http://lab-probe:8099/probe"
+              },
+              {
+                "name": "PROBE_AGENT_TOKEN",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "token",
+                    "name": "probe-identity"
+                  }
+                }
+              },
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "database-url",
+                    "name": "lab-identities"
+                  }
+                }
+              },
+              {
+                "name": "AUTH_JWT_SECRET",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "signing-secret",
+                    "name": "lab-identities"
+                  }
+                }
+              },
+              {
+                "name": "SINGLE_USER_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "lab-identities",
+                    "key": "owner-password"
+                  }
+                }
+              }
+            ],
+            "image": "ddostester-lab-control:local",
+            "imagePullPolicy": "Never",
+            "name": "control",
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              },
+              "requests": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              }
+            ],
+            "command": ["node", "backend/dist/cli/migrate-users.js", "--apply"]
+          }
+        ],
+        "securityContext": {
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "128Mi"
+            },
+            "name": "tmp"
+          }
+        ],
+        "restartPolicy": "Never"
+      }
+    }
+  }
+}

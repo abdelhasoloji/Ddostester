@@ -88,7 +88,7 @@ beforeEach(() => {
 });
 
 describe('GapPlannerSection', () => {
-  it('declares a control and renders the zeroBS ladder + break point on analyze', async () => {
+  it('declares a control and renders the DRS ladder + break point on analyze', async () => {
     render(
       <MemoryRouter>
         <GapPlannerSection />

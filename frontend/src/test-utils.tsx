@@ -1,3 +1,5 @@
+import { permissionsFor } from '../../backend/src/auth/rbac.js';
+import type { Role } from './api.js';
 import { vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
@@ -31,6 +33,13 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
       },
     ],
     authRequired: false,
+    userMode: 'team',
+    capabilities: overrides.role ? permissionsFor(overrides.role as Role) : [],
+    primaryAdminEmail: null,
+    approvalPolicy:
+      overrides.userMode === 'single' && overrides.role === 'admin'
+        ? 'confirmation'
+        : 'dual_control',
     authChecked: true,
     identity: null,
     mustChangePassword: false,
@@ -70,6 +79,8 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
     loadAudit: vi.fn(),
     login: vi.fn().mockResolvedValue(undefined),
     changeOwnPassword: vi.fn().mockResolvedValue(undefined),
+    revokeUserSessions: vi.fn().mockResolvedValue({ revoked: true }),
+    revokeOwnSessions: vi.fn().mockResolvedValue({ token: 'fresh' }),
     logout: vi.fn(),
     createCampaign: vi.fn().mockResolvedValue(undefined),
     approve: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +107,8 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     setUserStatus: vi.fn().mockResolvedValue({}),
     resetUserPassword: vi.fn().mockResolvedValue({ email: 'x', mustChangePassword: true }),
     deleteUser: vi.fn().mockResolvedValue({ deleted: 'x' }),
+    revokeUserSessions: vi.fn().mockResolvedValue({ revoked: true }),
+    revokeOwnSessions: vi.fn().mockResolvedValue({ token: 'fresh' }),
     logout: vi.fn().mockResolvedValue({ ok: true }),
     changePassword: vi.fn().mockResolvedValue({
       token: 't',
@@ -116,6 +129,8 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
       recon: { seeded: false },
     }),
     notifyTest: vi.fn().mockResolvedValue({ delivered: true, sinks: [] }),
+    validateAssistantProposal: vi.fn().mockResolvedValue({ requiresOperatorReview: true }),
+    fleetStatus: vi.fn().mockResolvedValue({ configured: false, available: false }),
     assistantStatus: vi.fn().mockResolvedValue({
       configured: false,
       model: 'qwen',

@@ -1,10 +1,4 @@
-/**
- * Impact leaderboard (E16): from run history, the steps that actually FLOORED
- * the target — ranked by how hard they hit it. Deliberately EXCLUDES the
- * probe-contention false negatives (PF1): a run where the probe lost the race to
- * the flood but the target was serving is NOT an impact, and must not appear here
- * as if the step took the target down. Pure + testable.
- */
+/** Observed probe impact, with uncertainty retained when generator and probe disagree. */
 import type { CampaignRun } from '../campaigns/runner.js';
 import type { Campaign } from '../campaigns/model.js';
 
@@ -26,6 +20,7 @@ export interface ImpactEntry {
   wrs: number;
   /** Composite severity used for ranking (higher = hit the target harder). */
   severity: number;
+  uncertain?: boolean;
 }
 
 function availabilityOf(run: CampaignRun): number {
@@ -52,10 +47,10 @@ export function deriveImpact(
   const entries: ImpactEntry[] = [];
   for (const run of runs) {
     const contended = run.probeContended === true;
-    const availabilityPct = contended ? 100 : availabilityOf(run);
+    const availabilityPct = availabilityOf(run);
     const brokeByBP = run.breakingPoint?.reached === true;
-    const brokeByAvail = !contended && availabilityPct < availFloor;
-    const realAutoKill = run.status === 'KILLED_AUTO' && !contended;
+    const brokeByAvail = availabilityPct < availFloor;
+    const realAutoKill = run.status === 'KILLED_AUTO';
     if (!brokeByBP && !brokeByAvail && !realAutoKill) continue;
 
     // Severity: how hard it hit. A big availability drop dominates; a breaking
@@ -76,6 +71,7 @@ export function deriveImpact(
       autoKilled: realAutoKill,
       wrs: run.wrs?.wrs ?? 0,
       severity: Math.round(severity),
+      uncertain: contended || run.confidence?.degraded === true,
     });
   }
   entries.sort((a, b) => b.severity - a.severity);

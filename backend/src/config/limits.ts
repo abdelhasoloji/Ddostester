@@ -253,3 +253,64 @@ export const BUILTIN_CONCURRENCY_CEILING = 300;
  * any run, and calibration only ever LOWERS the offered rate, never raises it.
  */
 export const CALIBRATION_SEC = 12;
+
+/** Transport and supervisor budgets shared by all adapters. */
+export const IO_LIMITS = Object.freeze({
+  assistantStreamBytes: 512 * 1024,
+  assistantContextChars: 8000,
+  assistantHistoryChars: 16000,
+  assistantPromptChars: 8000,
+  assistantMaxTokens: 4096,
+  operatorProxyConnections: 32,
+  operatorProxyIdleMs: 120000,
+  responseBytes: 512 * 1024,
+  processOutputBytes: 1024 * 1024,
+  processStreamBytes: 64 * 1024 * 1024,
+  processGraceMs: 1000,
+  processDeadlineMs: (HARD_CAPS.maxDurationSec + 15) * 1000,
+  binaryCheckMs: 3000,
+  agentPreparationMs: 60_000,
+});
+
+/** Closed laboratory fleet bounds; these never increase campaign HARD_CAPS. */
+export const FLEET_LIMITS = Object.freeze({
+  maxAgents: 3,
+  maxRps: 15,
+  maxConcurrency: 6,
+  maxDurationSec: 60,
+  minDurationSec: 10,
+  stopTimeoutMs: 8000,
+  coordinationLock: 714211,
+  heartbeatMs: 2000,
+  leaseMs: 6000,
+  stopGraceMs: 2000,
+  maxMessageBytes: 65536,
+} as const);
+
+/** Shared fleet latency buckets, milliseconds; overflow is represented separately. */
+export const LATENCY_BUCKETS_MS = Object.freeze([
+  1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000,
+]);
+
+/** Registry capacity is independent of the immutable execution envelope. */
+export const FLEET_INVENTORY_LIMITS = Object.freeze({
+  maxDevices: 5000,
+  maxSites: 100,
+  pageSize: 100,
+});
+
+/** Evidence storage envelopes; unrelated to load-generation ceilings. */
+export const DRS_EVIDENCE_LIMITS = Object.freeze({
+  maxRevisions: 32,
+  maxAttempts: 512,
+  maxSamples: 2048,
+  maxServices: 32,
+  maxSources: 64,
+  maxText: 4096,
+  maxArtifactBytes: 1048576,
+  maxArchiveBytes: 8388608,
+  baselineMinSec: 300,
+  baselineMaxSec: 600,
+  maxObservationSec: 21600,
+  capacityTimeoutMs: 10000,
+});

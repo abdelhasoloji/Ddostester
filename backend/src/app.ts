@@ -1,3 +1,16 @@
+import { transition as transitionDrs, finalize as finalizeDrs } from './modules/drs/workflow.js';
+import { runAttachment } from './modules/drs/attachments.js';
+import { assessDrs } from './modules/drs/scoring.js';
+import { registerDrsRoutes } from './routes/drs-routes.js';
+import { drsReport } from './modules/drs/report.js';
+import { drsWorkflow, drsCatalog } from './modules/drs/catalog.js';
+import { registerFleetMissionRoutes } from './routes/fleet-mission-routes.js';
+import {
+  auditedStore,
+  mutationActor,
+  mutationSessionVersion,
+  mutationSessionExpiresAt,
+} from './store/audited.js';
 import { existsSync } from 'node:fs';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname, join } from 'node:path';
@@ -13,7 +26,12 @@ import { liveProgress } from './runtime/live.js';
 import { metrics } from './modules/metrics/runtime.js';
 import { computeAbsorption, splitFailures } from './modules/reports/absorption.js';
 import { scenarioMeanRps } from './modules/campaigns/calibration.js';
-import { computeConfidence, EVENT_LOOP_LAG_GUARD_MS } from './modules/reports/confidence.js';
+import {
+  fleetCpuContention,
+  remoteProbeQualityReasons,
+  computeConfidence,
+  EVENT_LOOP_LAG_GUARD_MS,
+} from './modules/reports/confidence.js';
 import { assessVector } from './modules/reports/assessment.js';
 import {
   createCampaign,
@@ -26,7 +44,11 @@ import {
   CampaignError,
 } from './modules/campaigns/service.js';
 import { executeCampaign } from './modules/campaigns/runner.js';
-import { waitForTargetAvailable, type RecoveryOptions } from './modules/campaigns/recovery.js';
+import {
+  waitForTargetAvailable,
+  type RecoveryOptions,
+  type RecoveryResult,
+} from './modules/campaigns/recovery.js';
 import { reArmRecurring } from './modules/campaigns/scheduler.js';
 import type { CampaignRun } from './modules/campaigns/runner.js';
 import type {
@@ -61,30 +83,29 @@ import { KillSwitch } from './modules/probe/probe.js';
 import { registerReadRoutes } from './routes/read-routes.js';
 import { registerAssistantRoutes } from './routes/assistant-routes.js';
 import { assistantConfigFromEnv } from './modules/assistant/provider.js';
+import type { AssistantTokenBudget } from './modules/assistant/token-budget.js';
+import {
+  assistantTargetOrigin,
+  assistantMeasurementSummary,
+  assistantLatestRun,
+} from './modules/assistant/context.js';
 import { runpodConfigFromEnv, podProxyEndpoint } from './modules/assistant/runpod.js';
 import { registerTargetRoutes } from './routes/target-routes.js';
 import { authorizedHosts } from './modules/targets/model.js';
 import { buildWrsHistory } from './modules/wrs/history.js';
 import type { AuditEntry } from './modules/audit/model.js';
 import type { LoadProgress } from './engine/loadTest.js';
-import { login, identityFromRequest, payloadFromRequest } from './auth/guard.js';
-import { signJwt } from './auth/jwt.js';
-import { hashPassword, verifyPassword } from './auth/passwords.js';
+import { loginAsync as login, payloadFromRequest } from './auth/guard.js';
+import { configureAccounts } from './auth/single-user.js';
+import { registerUserRoutes } from './routes/user-routes.js';
+import { registerFleetRoutes } from './routes/fleet-routes.js';
+import { signJwt, verifyJwt } from './auth/jwt.js';
+import { hashPassword, hashPasswordAsync, verifyPasswordAsync } from './auth/passwords.js';
 import { passwordProblem } from './auth/password-policy.js';
-import { can, canonicalRole } from './auth/rbac.js';
+import { can, canonicalRole, permissionsFor, ACCESS_CONTRACT_VERSION } from './auth/rbac.js';
 import type { Permission, Role } from './auth/rbac.js';
-import type { User } from './auth/users.js';
-import {
-  assertDelete,
-  assertReset,
-  assertRoleChange,
-  assertStatusChange,
-  assertUpsert,
-  combineUsers,
-  UserError,
-} from './modules/users/service.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
-import { createAgent, describeAgents, agentChoices } from './agents/index.js';
+import { createAgent, describeAgents, agentChoices, resolveCampaignAgent } from './agents/index.js';
 import { runRecon } from './modules/recon/fetch.js';
 import { reconPostureSnapshot } from './modules/recon/recon.js';
 import { recommendActions } from './modules/recon/actions.js';
@@ -116,6 +137,7 @@ import { getBuildInfo } from './version.js';
 import { deriveAlerts } from './modules/alerts/derive.js';
 
 export interface BuildOptions {
+  assistantTokenBudget?: AssistantTokenBudget;
   store: Store;
   auth: AuthState;
   allowedTargets: string[];
@@ -186,7 +208,12 @@ export interface BuiltApp {
 
 /** Builds the Fastify app (routes + logic) without starting to listen. */
 export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
-  const { store, auth, allowedTargets } = opts;
+  const { auth, allowedTargets } = opts;
+  const store = auditedStore(opts.store);
+  const singleUser = auth.userMode === 'single';
+  if (singleUser && opts.requireCisoApproval) {
+    throw new Error('Single-user mode is incompatible with REQUIRE_CISO_APPROVAL.');
+  }
   const labTargets = opts.labTargets ?? [];
   // Fail-closed separation (drs-validation-policy.md §4): a lab target must never
   // also be a production allowlist target, and vice-versa.
@@ -210,6 +237,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   const maxConcurrentRuns = opts.maxConcurrentRuns ?? 3;
   const requireCisoApproval = opts.requireCisoApproval ?? false;
 
+  await configureAccounts(store, auth);
+  const accountPolicy = await store.getAccountPolicy();
+
   const app = Fastify({
     logger:
       opts.logger === false
@@ -228,6 +258,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             },
             redact: ['req.headers.authorization'],
           },
+  });
+  const readStreams = new Set<FastifyReply['raw']>();
+  app.addHook('preClose', async () => {
+    for (const stream of readStreams) stream.end();
+  });
+  app.addHook('onRoute', (route) => {
+    const handler = route.handler;
+    route.handler = function (req, reply) {
+      return mutationActor.run(req.authUser?.email ?? 'system', () =>
+        mutationSessionVersion.run(
+          req.authUser ? (payloadFromRequest(auth, req)?.ver ?? 0) : undefined,
+          () =>
+            mutationSessionExpiresAt.run(
+              req.authUser ? (payloadFromRequest(auth, req)?.exp ?? 0) * 1000 : undefined,
+              () => handler.call(this, req, reply),
+            ),
+        ),
+      );
+    };
   });
   // Same-origin by default (UI is served by this server). Set CORS_ORIGIN
   // (comma-separated) only if the UI is hosted on a different origin.
@@ -298,6 +347,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // this function feeds `guard()`/`req.authUser`, so a stale id here would
     // deny a legacy user everything (MATRIX has no `officer`). identityFromRequest
     // canonicalises too; this is the store-aware twin that must not drift.
+    if (singleUser && email.startsWith('share:'))
+      return { ok: false, code: 401, error: 'share tokens are disabled' };
     if (email.startsWith('share:')) {
       return {
         ok: true,
@@ -313,7 +364,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         ok: true,
         id: {
           email,
-          role: canonicalRole(payload.role) ?? (payload.role as Role),
+          role: auth.users.get(email.toLowerCase())!.role,
         },
         mustChange: false,
       };
@@ -338,11 +389,35 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     };
   }
 
+  const adminConfirmation = (req: FastifyRequest): boolean =>
+    singleUser && req.authUser?.role === 'admin';
+  const accessContract = (role: Role) => ({
+    capabilities: permissionsFor(role),
+    contractVersion: ACCESS_CONTRACT_VERSION,
+    userMode: auth.userMode ?? 'team',
+    primaryAdminEmail: accountPolicy?.primaryAdminEmail,
+    approvalPolicy:
+      singleUser && role === 'admin' ? ('confirmation' as const) : ('dual_control' as const),
+  });
+
   function guard(perm: Permission) {
     return async (req: FastifyRequest, reply: FastifyReply) => {
       if (!auth.enabled) return;
-      const r = await resolveIdentity(req);
+      const identityRequest =
+        perm === 'campaign:read' &&
+        req.method === 'GET' &&
+        !req.headers.authorization &&
+        readCookie(req)
+          ? ({ headers: { authorization: `Bearer ${readCookie(req)}` } } as FastifyRequest)
+          : req;
+      const r = await resolveIdentity(identityRequest);
       if (!r.ok) return reply.code(r.code).send({ error: r.error });
+      if (
+        accountPolicy &&
+        r.id.role === 'admin' &&
+        r.id.email.toLowerCase() !== accountPolicy.primaryAdminEmail
+      )
+        return reply.code(403).send({ error: 'Only the owner has administrator permissions.' });
       req.authUser = r.id;
       if (r.mustChange) {
         return reply.code(403).send({
@@ -350,22 +425,78 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           code: 'password_change_required',
         });
       }
-      if (!can(r.id.role, perm)) {
+      if (!can(r.id.role, perm, auth.userMode)) {
         return reply.code(403).send({ error: `missing ${perm} permission` });
       }
     };
   }
 
+  const readCookie = (req: FastifyRequest): string | undefined => {
+    const value = req.headers.cookie
+      ?.split(';')
+      .map((v) => v.trim())
+      .find((v) => v.startsWith('shieldtest_read='))
+      ?.slice('shieldtest_read='.length);
+    if (!value) return undefined;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return undefined;
+    }
+  };
+  const setReadCookie = (
+    req: FastifyRequest,
+    reply: FastifyReply,
+    token: string,
+    clear = false,
+  ) => {
+    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(req.hostname);
+    const expiry = clear ? undefined : verifyJwt(token, auth.secret)?.exp;
+    const maxAge = expiry === undefined ? 0 : Math.max(0, expiry - Math.floor(Date.now() / 1000));
+    reply.header(
+      'set-cookie',
+      `shieldtest_read=${clear ? '' : encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${maxAge}${loopback && req.protocol === 'http' ? '' : '; Secure'}`,
+    );
+  };
+  // Set/refresh the browser read cookie after successful session operations.
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (
+      reply.statusCode < 400 &&
+      ['/api/auth/login', '/api/auth/password', '/api/auth/sessions/revoke'].includes(
+        req.routeOptions.url ?? '',
+      ) &&
+      typeof payload === 'string'
+    ) {
+      try {
+        const body = JSON.parse(payload);
+        if (typeof body.token === 'string') setReadCookie(req, reply, body.token);
+      } catch {
+        /* Non-JSON error/response. */
+      }
+    }
+    if (
+      req.routeOptions.url === '/api/auth/me' &&
+      reply.statusCode < 400 &&
+      req.headers.authorization?.startsWith('Bearer ')
+    )
+      setReadCookie(req, reply, req.headers.authorization.slice(7));
+    if (req.routeOptions.url === '/api/auth/logout' && reply.statusCode < 400)
+      setReadCookie(req, reply, '', true);
+    return payload;
+  });
+
   /** Verifies a read token passed in the query (browser links: report, SSE). */
-  function readTokenAllowed(req: FastifyRequest): boolean {
+  async function readTokenAllowed(req: FastifyRequest): Promise<boolean> {
     if (!auth.enabled) return true;
     const { token } = req.query as { token?: string };
-    const id = token
-      ? identityFromRequest(auth, {
-          headers: { authorization: `Bearer ${token}` },
-        } as FastifyRequest)
-      : identityFromRequest(auth, req);
-    return id !== null && can(id.role, 'campaign:read');
+    const r = await resolveIdentity(
+      token && verifyJwt(token, auth.secret)?.sub.startsWith('share:') && !singleUser
+        ? ({ headers: { authorization: `Bearer ${token}` } } as FastifyRequest)
+        : req.headers.authorization
+          ? req
+          : ({ headers: { authorization: `Bearer ${readCookie(req) ?? ''}` } } as FastifyRequest),
+    );
+    return r.ok && !r.mustChange && can(r.id.role, 'campaign:read', auth.userMode);
   }
 
   if (opts.serveStatic !== false) {
@@ -390,11 +521,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   }
 
+  const failureReferences = new WeakMap<object, string>();
   function fail(err: unknown, reply: FastifyReply) {
     if (err instanceof CampaignError) return reply.code(400).send({ error: err.message });
     if (err instanceof AgentError) return reply.code(503).send({ error: err.message });
-    app.log.error(err);
-    return reply.code(500).send({ error: 'internal error' });
+    const diagnosticId =
+      (err && typeof err === 'object' ? failureReferences.get(err) : undefined) ?? randomUUID();
+    app.log.error({ err, diagnosticId });
+    return reply.code(500).send({ error: 'internal error', diagnosticId });
   }
 
   async function auditAs(
@@ -403,19 +537,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     campaignId?: string,
     detail?: string,
   ) {
-    try {
-      await store.saveAudit({
-        id: randomUUID(),
-        at: new Date().toISOString(),
-        actor,
-        action,
-        campaignId,
-        detail,
-      });
-    } catch (err) {
-      app.log.error({ err }, 'failed to write audit entry');
-    }
+    await store.saveAudit({
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      actor,
+      action,
+      campaignId,
+      detail,
+    });
   }
+
   const audit = (
     req: FastifyRequest,
     action: AuditEntry['action'],
@@ -439,7 +570,47 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   }
 
-  async function runCampaign(c: Campaign, actor: string): Promise<CampaignRun> {
+  async function runCampaign(
+    c: Campaign,
+    actor: string,
+    recoveryBeforeRun?: RecoveryResult,
+  ): Promise<CampaignRun> {
+    if (kills.isStopping()) throw new CampaignError('Control plane is shutting down');
+    assertExecutable(c);
+    // Every actor (manual, suite and scheduler) uses current policy before any I/O.
+    const currentCaps = clampToCeiling(await store.getLimits());
+    const { drsDocument, ...executionInput } = c;
+    if (c.drsMode === 'engine-validation')
+      throw new CampaignError('Engine validation never dispatches traffic; use DRS simulation');
+    if (c.drsMode === 'measured')
+      throw new CampaignError(
+        'Measured assessment requires independently qualified collectors and capacity',
+      );
+    if (drsDocument) {
+      const revision = drsDocument.revisions.find((r) => r.number === drsDocument.currentRevision);
+      if (revision?.plan.mode === 'engine-validation')
+        throw new CampaignError(
+          'Engine validation uses simulated events only; use the DRS simulation control',
+        );
+      if (!revision?.planHash || revision.finalizedAt)
+        throw new CampaignError('A frozen active DRS plan is required');
+      assessDrs(revision);
+      const budget = revision.plan.budgets;
+      if (
+        c.maxRps > budget.maxRps ||
+        c.concurrency > budget.concurrency ||
+        c.maxDurationSec > budget.maxDurationSec ||
+        (c.fleetDeviceIds?.length ?? 1) > budget.maxAgents
+      )
+        throw new CampaignError(
+          'Campaign parameters exceed frozen DRS plan budgets; create a matching revision',
+        );
+      if (revision.plan.mode === 'measured')
+        throw new CampaignError(
+          'Measured DRS dispatch requires independently qualified collectors and scenario capacity; no local substitute is permitted',
+        );
+    }
+    createCampaign(executionInput, await effectiveAllowlist(), agentChoices(), currentCaps);
     // Dual control: enforced here so NEITHER the execute endpoint NOR the suite
     // sequencer can bypass a mandatory CISO sign-off.
     if (requireCisoApproval && !c.cisoApprovedBy) {
@@ -485,115 +656,123 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         'This campaign already has a run in flight — kill or wait for it before starting another.',
       );
     }
+    if (kills.count() >= maxConcurrentRuns)
+      throw new CampaignError('Concurrent run budget exhausted.');
     const kill = new KillSwitch();
     kills.set(c.id, kill);
-    await store.saveCampaign(transition(c, 'RUNNING'));
-    // Per-campaign engine, falling back to the server default agent for an
-    // unknown id. The UI offers engines that may not be installed ("→ default");
-    // honour that at execution too — fall back to the built-in engine rather than
-    // failing the run when the chosen external tool is unavailable.
-    let runAgent = createAgent(c.agent) ?? agent;
-    if (runAgent !== agent && !(await runAgent.available())) {
-      runAgent = agent;
-    }
-    // Measurement fidelity: the in-process built-in generator caps out ~150 rps
-    // and silently under-delivers above it. When a high-rate simple flood would
-    // run on the built-in engine, auto-route it to an out-of-process engine
-    // (vegeta/k6) that can actually deliver the configured rate — but only if
-    // that engine is installed; otherwise keep built-in (still bounded/safe,
-    // just rate-limited). See modules/campaigns/engine-route.ts.
-    if ((opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
-      const upgradeId = highRateEngineUpgrade(c, BUILTIN_RPS_CEILING, BUILTIN_CONCURRENCY_CEILING);
-      if (upgradeId) {
-        const upgraded = createAgent(upgradeId);
-        if (upgraded && (await upgraded.available())) {
-          const why =
-            c.maxRps > BUILTIN_RPS_CEILING
-              ? `maxRps ${c.maxRps} > built-in ceiling ${BUILTIN_RPS_CEILING} rps`
-              : `concurrency ${c.concurrency} > built-in ceiling ${BUILTIN_CONCURRENCY_CEILING} (event-loop safety)`;
-          app.log.info(
-            {
-              evt: 'run.autoroute',
-              campaignId: c.id,
-              to: upgradeId,
-              maxRps: c.maxRps,
-              concurrency: c.concurrency,
-            },
-            `auto-routed to ${upgradeId} (${why})`,
-          );
-          runAgent = upgraded;
+    const liveLabels = { target: new URL(c.target).hostname, vector: c.vector };
+    try {
+      await auditAs(
+        actor,
+        'campaign.execute',
+        c.id,
+        'Execution intent persisted before transport preparation',
+      );
+      await store.saveCampaign(transition(c, 'RUNNING'));
+      let runAgent = await resolveCampaignAgent(c.agent, agent);
+      // Measurement fidelity: the in-process built-in generator caps out ~150 rps
+      // and silently under-delivers above it. When a high-rate simple flood would
+      // run on the built-in engine, auto-route it to an out-of-process engine
+      // (vegeta/k6) that can actually deliver the configured rate — but only if
+      // that engine is installed; otherwise keep built-in (still bounded/safe,
+      // just rate-limited). See modules/campaigns/engine-route.ts.
+      if (!c.agent && (opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
+        const upgradeId = highRateEngineUpgrade(
+          c,
+          BUILTIN_RPS_CEILING,
+          BUILTIN_CONCURRENCY_CEILING,
+        );
+        if (upgradeId) {
+          const upgraded = createAgent(upgradeId);
+          if (upgraded && (await upgraded.available())) {
+            const why =
+              c.maxRps > BUILTIN_RPS_CEILING
+                ? `maxRps ${c.maxRps} > built-in ceiling ${BUILTIN_RPS_CEILING} rps`
+                : `concurrency ${c.concurrency} > built-in ceiling ${BUILTIN_CONCURRENCY_CEILING} (event-loop safety)`;
+            app.log.info(
+              {
+                evt: 'run.autoroute',
+                campaignId: c.id,
+                to: upgradeId,
+                maxRps: c.maxRps,
+                concurrency: c.concurrency,
+              },
+              `auto-routed to ${upgradeId} (${why})`,
+            );
+            runAgent = upgraded;
+          }
         }
       }
-    }
-    // Track the worst event-loop lag seen during the run so we can flag the WRS
-    // as measurement-degraded if the generator host was itself struggling.
-    let peakEventLoopLagMs = 0;
-    // Live per-run gauges (updated every tick) so Grafana animates the run in
-    // real time, mirroring the app's Run Theater — offered/reached-origin RPS,
-    // absorbed ratio and legit-probe availability. The settle-time `_last`
-    // gauges keep the post-run summary; these `_live` series are retired when the
-    // run ends (see the finally block) so a finished run leaves no stale line.
-    let liveHost = c.target;
-    try {
-      liveHost = new URL(c.target).hostname;
-    } catch {
-      /* keep raw */
-    }
-    const liveLabels = { target: liveHost, vector: c.vector };
-    const onProgress = (p: LoadProgress) => {
-      const lag = metrics.eventLoopLagMs();
-      if (lag > peakEventLoopLagMs) peakEventLoopLagMs = lag;
-      liveProgress.set(c.id, {
-        ...p,
-        maxDurationSec: c.maxDurationSec,
-        status: 'RUNNING',
-        engine: runAgent.name,
-      });
-      // Same definitions the Run Theater cards use (see frontend RunTheater):
-      // offered = achieved RPS, reached-origin = successful/elapsed, absorbed =
-      // failed/sent, probe availability from the live probe snapshot.
-      const originRps = p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
-      const absorbed = p.sent > 0 ? p.failed / p.sent : 0;
-      metrics.setGauge(
-        'shieldtest_run_live_offered_rps',
-        'Live offered RPS of the in-flight run',
-        p.actualRps,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_origin_rps',
-        'Live RPS reaching origin (successful) of the in-flight run',
-        originRps,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_absorbed_ratio',
-        'Live absorbed ratio (failed/sent) of the in-flight run',
-        absorbed,
-        liveLabels,
-      );
-      if (p.probe && p.probe.samples > 0) {
+      // Track the worst event-loop lag seen during the run so we can flag the WRS
+      // as measurement-degraded if the generator host was itself struggling.
+      let peakEventLoopLagMs = 0;
+      // Live per-run gauges (updated every tick) so Grafana animates the run in
+      // real time, mirroring the app's Run Theater — offered/successful-response RPS,
+      // absorbed ratio and legit-probe availability. The settle-time `_last`
+      // gauges keep the post-run summary; these `_live` series are retired when the
+      // run ends (see the finally block) so a finished run leaves no stale line.
+      const onProgress = (p: LoadProgress) => {
+        const revision = c.drsDocument?.revisions.find(
+          (r) => r.number === c.drsDocument?.currentRevision,
+        );
+        if (revision?.state === 'BASELINE')
+          transitionDrs(
+            revision,
+            'LEVEL_EXECUTION',
+            'Bounded diagnostic generation; no full standard conditions inferred',
+          );
+        const lag = metrics.eventLoopLagMs();
+        if (lag > peakEventLoopLagMs) peakEventLoopLagMs = lag;
+        liveProgress.set(c.id, {
+          ...p,
+          maxDurationSec: c.maxDurationSec,
+          status: 'RUNNING',
+          engine: runAgent.name,
+        });
+        // Same definitions the Run Theater cards use (see frontend RunTheater):
+        // offered = achieved RPS, reached-origin = successful/elapsed, absorbed =
+        // failed/sent, probe availability from the live probe snapshot.
+        const originRps = p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
+        const absorbed = p.sent > 0 ? p.failed / p.sent : 0;
         metrics.setGauge(
-          'shieldtest_run_live_probe_avail_pct',
-          'Live legit-probe availability % of the in-flight run',
-          (p.probe.available / p.probe.samples) * 100,
+          'shieldtest_run_live_offered_rps',
+          'Live offered RPS of the in-flight run',
+          p.actualRps,
           liveLabels,
         );
-      }
-    };
-    // Seed a zeroed progress record immediately: the run opens with a baseline
-    // capture (awaited, a few seconds) during which the engine emits no
-    // progress. Without this seed the live stream would find no record and tell
-    // the UI the run is "done", stranding the progress view on "Starting run…".
-    // Cleared in the finally below; onProgress overwrites it once load begins.
-    onProgress({
-      sent: 0,
-      successful: 0,
-      failed: 0,
-      elapsedSec: 0,
-      actualRps: 0,
-    });
-    try {
+        metrics.setGauge(
+          'shieldtest_run_live_successful_rps',
+          'Live RPS returning successful HTTP responses (successful) of the in-flight run',
+          originRps,
+          liveLabels,
+        );
+        metrics.setGauge(
+          'shieldtest_run_live_failed_ratio',
+          'Live absorbed ratio (failed/sent) of the in-flight run',
+          absorbed,
+          liveLabels,
+        );
+        if (p.probe && p.probe.samples > 0) {
+          metrics.setGauge(
+            'shieldtest_run_live_probe_avail_pct',
+            'Live legit-probe availability % of the in-flight run',
+            (p.probe.available / p.probe.samples) * 100,
+            liveLabels,
+          );
+        }
+      };
+      // Seed a zeroed progress record immediately: the run opens with a baseline
+      // capture (awaited, a few seconds) during which the engine emits no
+      // progress. Without this seed the live stream would find no record and tell
+      // the UI the run is "done", stranding the progress view on "Starting run…".
+      // Cleared in the finally below; onProgress overwrites it once load begins.
+      onProgress({
+        sent: 0,
+        successful: 0,
+        failed: 0,
+        elapsedSec: 0,
+        actualRps: 0,
+      });
       let host = c.target;
       try {
         host = new URL(c.target).hostname;
@@ -615,6 +794,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         },
         `run.start ${c.name}`,
       );
+      const plannedRevision = c.drsDocument?.revisions.find(
+        (r) => r.number === c.drsDocument?.currentRevision,
+      );
+      if (plannedRevision?.planHash) {
+        transitionDrs(
+          plannedRevision,
+          'CAPACITY_CHECK',
+          'Bounded adapter and shared envelope checked; full standard capacity not established',
+        );
+        transitionDrs(
+          plannedRevision,
+          'BASELINE',
+          'Independent low-rate HTTP reference, minimum five minutes; functional journey remains separate evidence',
+        );
+        await store.saveCampaign(c);
+      }
       const run = await executeCampaign(
         c,
         await effectiveAllowlist(),
@@ -694,13 +889,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         runLabels,
       );
       metrics.setGauge(
-        'shieldtest_run_origin_rps_last',
+        'shieldtest_run_successful_rps_last',
         'RPS that reached origin (2xx/3xx) in the last run per target',
         absorption.originRps,
         runLabels,
       );
       metrics.setGauge(
-        'shieldtest_run_absorbed_ratio_last',
+        'shieldtest_run_failed_ratio_last',
         'Fraction of requests absorbed by the target edge (rate-limited/tarpitted/4xx) in the last run',
         absorption.absorbedRatio,
         runLabels,
@@ -734,11 +929,39 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // or high event-loop lag during the run)? If so, badge the WRS as degraded.
       run.absorption = absorption;
       run.confidence = computeConfidence({
+        unfinalizedRequests: run.generator.unfinalizedRequests,
         hardStopped: run.generator.hardStopped,
+        fleetIncomplete: run.generator.fleet?.measurementComplete === false,
+        fleetCpuContention: fleetCpuContention(run.generator.fleet?.shards),
         peakEventLoopLagMs,
         killedAuto: run.status === 'KILLED_AUTO',
         generatorRequests: run.generator.totalRequests,
       });
+      if (run.probeContended) {
+        run.confidence.degraded = true;
+        run.confidence.reasons.push(
+          'Independent probe and generator disagree; probe measurements and kill thresholds were preserved.',
+        );
+      }
+      if (run.baseline?.observation?.complete === false) {
+        run.confidence.degraded = true;
+        run.confidence.reasons.push(
+          'Remote baseline observations are incomplete; target baseline availability and comparison remain uncertain.',
+        );
+      }
+      if (c.probeVantage === 'remote') {
+        const reasons = [
+          ...remoteProbeQualityReasons(run.probe.quality),
+          ...(run.baseline
+            ? remoteProbeQualityReasons(run.baseline.quality).map((reason) => `Baseline: ${reason}`)
+            : []),
+        ];
+        if (reasons.length) {
+          run.confidence.degraded = true;
+          run.confidence.reasons.push(...reasons);
+        }
+      }
+
       if (run.confidence.degraded) {
         metrics.inc(
           'shieldtest_run_confidence_degraded_total',
@@ -770,7 +993,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           const corr = corroborate(absorption.absorbedRatio, edge);
           run.edgeCorroboration = corr;
           metrics.setGauge(
-            'shieldtest_run_edge_absorbed_ratio_last',
+            'shieldtest_run_edge_failed_ratio_last',
             'Absorbed fraction reported by the target edge itself (bilateral corroboration)',
             corr.edgeAbsorbedRatio,
             runLabels,
@@ -802,6 +1025,21 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         },
         `run.settled ${c.name} → ${run.status} · WRS ${run.wrs.wrs} in ${runDurationSec.toFixed(1)}s`,
       );
+      if (recoveryBeforeRun) run.recoveryBeforeRun = recoveryBeforeRun;
+      const drsRevision = c.drsDocument?.revisions.find(
+        (r) => r.number === c.drsDocument?.currentRevision,
+      );
+      if (drsRevision?.planHash) {
+        transitionDrs(
+          drsRevision,
+          'RECOVERY',
+          'Injection ceased; full independent recovery evidence is not supplied by this diagnostic run',
+        );
+        drsRevision.attachments ??= [];
+        drsRevision.attachments.push(runAttachment(run));
+        finalizeDrs(drsRevision);
+        run.drsAssessment = drsReport(drsRevision);
+      }
       await store.saveRun(run);
       // Publish the last run's probe health as Prometheus gauges, labelled by
       // target, so Grafana can chart/alert on measured availability, latency and
@@ -888,8 +1126,27 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
       return run;
     } catch (err) {
-      await store.saveCampaign(transition(c, 'APPROVED'));
-      throw err;
+      const diagnosticId = randomUUID();
+      const reported =
+        err instanceof Error ? err : new Error('Campaign execution failed', { cause: err });
+      failureReferences.set(reported, diagnosticId);
+      app.log.error({ err: reported, campaignId: c.id, diagnosticId }, 'campaign execution failed');
+      const revision = c.drsDocument?.revisions.find(
+        (r) => r.number === c.drsDocument?.currentRevision,
+      );
+      if (revision?.planHash && !revision.finalizedAt) {
+        transitionDrs(
+          revision,
+          'EVIDENCE_VALIDATION',
+          `Physical execution interrupted (reference ${diagnosticId}); no unobserved scenario counts as success`,
+        );
+        finalizeDrs(revision);
+      }
+      await store.saveCampaign({
+        ...transition(c, 'APPROVED'),
+        statusDetail: `Last run failed (reference ${diagnosticId}); review before retrying.`,
+      });
+      throw reported;
     } finally {
       liveProgress.clear(c.id);
       kills.clear(c.id);
@@ -898,8 +1155,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // run's last value as a stale flat line on the Grafana live panels.
       for (const g of [
         'shieldtest_run_live_offered_rps',
-        'shieldtest_run_live_origin_rps',
-        'shieldtest_run_live_absorbed_ratio',
+        'shieldtest_run_live_successful_rps',
+        'shieldtest_run_live_failed_ratio',
         'shieldtest_run_live_probe_avail_pct',
       ]) {
         metrics.clearGauge(g, liveLabels);
@@ -929,7 +1186,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     current?: string;
     total: number;
     started: number;
-    /** Consecutive recovery-gate skips because the target stayed unreachable. */
+    /** Consecutive unavailable or unverified recovery-gate skips. */
     downSkips: number;
     /** Paused by the sequencer itself because the target looked genuinely down
      *  (as opposed to a manual pause). Cleared on resume. */
@@ -1009,6 +1266,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         // recovering from the previous load). Bounded, so the suite never hangs;
         // if the target never recovers we skip the step rather than hammer a down
         // target. The wait time is recorded (a real recovery-time signal).
+        let recoveryBeforeRun: RecoveryResult | undefined;
         if (opts.suiteRecovery !== false && ctrl.started > 0 && !ctrl.cancelled) {
           const recoveryOpts =
             typeof opts.suiteRecovery === 'object' ? opts.suiteRecovery : undefined;
@@ -1017,18 +1275,28 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           ctrl.gateMaxWaitMs = recoveryOpts?.maxWaitMs ?? RECOVERY_MAX_WAIT_MS;
           let gate;
           try {
+            const recoveryRemote = c.probeVantage === 'remote' ? remoteProbeFromEnv() : undefined;
+            if (c.probeVantage === 'remote' && !recoveryRemote)
+              throw new Error('Remote recovery vantage is unavailable');
             gate = await waitForTargetAvailable(c.probeUrl || c.target, {
               isCancelled: () => ctrl.cancelled,
               ...(recoveryOpts ?? {}),
+              remote: recoveryRemote ?? undefined,
             });
           } finally {
             ctrl.gateStartedAt = undefined; // gate settled — stop the countdown
           }
           const secs = Math.round(gate.waitedMs / 1000);
-          if (!gate.available) {
+          recoveryBeforeRun = gate;
+          if (!gate.available || gate.verified === false) {
             ctrl.downSkips += 1;
-            await auditAs(actor, 'suite.skip', c.id, `target unavailable after ${secs}s — skipped`);
-            // The target looks genuinely DOWN (repeated failed recovery). Stop
+            await auditAs(
+              actor,
+              'suite.skip',
+              c.id,
+              `recovery ${gate.verified === false ? 'unverified' : 'unavailable'} after ${secs}s — skipped; ${JSON.stringify(gate)}`,
+            );
+            // Recovery remains unavailable or unverified. Stop
             // grinding through skips and auto-pause the whole sequence — never
             // keep cycling load attempts against a downed origin; wait for an
             // operator to resume once it is back.
@@ -1039,19 +1307,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
                 actor,
                 'suite.pause',
                 c.id,
-                `origin unreachable — auto-paused after ${ctrl.downSkips} consecutive skips (protecting the target)`,
+                `recovery unavailable or unverified — auto-paused after ${ctrl.downSkips} consecutive skips (protecting the target)`,
               );
             }
             continue;
           }
           ctrl.downSkips = 0;
-          await auditAs(actor, 'suite.gate', c.id, `target available after ${secs}s — proceeding`);
+          await auditAs(
+            actor,
+            'suite.gate',
+            c.id,
+            `recovery available after ${secs}s — proceeding; ${JSON.stringify(gate)}`,
+          );
         }
         if (ctrl.cancelled) break;
         ctrl.current = c.id;
         ctrl.started += 1;
         try {
-          await runCampaign(c, actor); // awaits the step's terminal state
+          await runCampaign(c, actor, recoveryBeforeRun); // awaits the step's terminal state
         } catch (err) {
           // A failed/blocked step still advances the sequence.
           await auditAs(actor, 'suite.skip', c.id, `run error: ${(err as Error).message}`);
@@ -1066,6 +1339,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/health', async () => ({
     status: 'ok',
+    drsWorkflow: drsWorkflow(),
+    userMode: auth.userMode ?? 'team',
+    accessContractVersion: ACCESS_CONTRACT_VERSION,
+    accountPolicy: (await store.getAccountPolicy()) ? 'single_admin' : 'legacy_team',
     // Build stamp of THIS running server — lets you confirm which commit the API
     // actually serves (the frontend footer only reflects the bundle it shipped).
     version: getBuildInfo(),
@@ -1191,12 +1468,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!target) return reply.code(400).send({ error: 'target is required' });
     const agents = await describeAgents();
     try {
-      const report = await runRecon(target, probeUrl ?? target, await effectiveAllowlist(), {
-        enginesAvailable: agents.filter((a) => a.available).length,
-        capsConfigured: true,
-        protectionConfigured: protection.configured,
-        labRunnerConfigured: labTargets.length > 0,
-      });
+      const report = await runRecon(
+        target,
+        probeUrl ?? target,
+        await effectiveAllowlist(),
+        {
+          enginesAvailable: agents.filter((a) => a.available).length,
+          capsConfigured: true,
+          protectionConfigured: protection.configured,
+          labRunnerConfigured: labTargets.length > 0,
+        },
+        AbortSignal.timeout(15000),
+      );
       if (!actions) return report;
       const suggested = recommendActions(report, {
         catalogue: PLAYBOOKS,
@@ -1235,12 +1518,18 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const availN = (await describeAgents()).filter((a) => a.available).length;
       const recon = await Promise.race([
-        runRecon(target, probeUrl, await effectiveAllowlist(), {
-          enginesAvailable: availN,
-          capsConfigured: true,
-          protectionConfigured: protection.configured,
-          labRunnerConfigured: labTargets.length > 0,
-        }),
+        runRecon(
+          target,
+          probeUrl,
+          await effectiveAllowlist(),
+          {
+            enginesAvailable: availN,
+            capsConfigured: true,
+            protectionConfigured: protection.configured,
+            labRunnerConfigured: labTargets.length > 0,
+          },
+          AbortSignal.timeout(RECON_SEED_TIMEOUT_MS),
+        ),
         new Promise<never>((_, reject) => {
           const t = setTimeout(() => reject(new Error('recon timed out')), RECON_SEED_TIMEOUT_MS);
           t.unref?.();
@@ -1267,6 +1556,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   }
 
+  // Cost budgets are checked before scrypt, independently of attacker-controlled email.
+  const loginBudget = new Map<string, { at: number; count: number }>();
+  let globalLoginWindow = { at: Date.now(), count: 0 };
+  const acceptLoginCost = (ip: string): boolean => {
+    const now = Date.now();
+    if (now - globalLoginWindow.at >= 60000) globalLoginWindow = { at: now, count: 0 };
+    for (const [key, value] of loginBudget) if (now - value.at >= 60000) loginBudget.delete(key);
+    const source = loginBudget.get(ip) ?? { at: now, count: 0 };
+    if (
+      source.count >= 20 ||
+      globalLoginWindow.count >= 100 ||
+      (!loginBudget.has(ip) && loginBudget.size >= 1000)
+    )
+      return false;
+    source.count++;
+    globalLoginWindow.count++;
+    loginBudget.set(ip, source);
+    return true;
+  };
+
   // Anti-brute-force: temporary lock after several failures (per email+IP).
   const loginFails = new Map<string, { count: number; until: number }>();
   const MAX_FAILS = 5;
@@ -1276,84 +1585,106 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // scrypt verification — otherwise "no such account" returns faster than "wrong
   // password", a timing oracle that enumerates valid emails. Computed once.
   const decoyHash = hashPassword('constant-time-decoy-not-a-credential');
-  app.post('/api/auth/login', async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication disabled' });
-    const { email, password } = req.body as {
-      email?: string;
-      password?: string;
-    };
-    if (!email || !password) return reply.code(400).send({ error: 'email and password required' });
-    const key = `${email.toLowerCase()}|${req.ip}`;
-    const entry = loginFails.get(key);
-    if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
-      return reply.code(429).send({ error: 'too many attempts — try again later' });
-    }
-    const rejectLogin = async (reason: string, actor: string) => {
-      const count = (entry?.count ?? 0) + 1;
-      loginFails.set(key, { count, until: Date.now() + LOCK_MS });
-      req.log.warn({ email: email.toLowerCase(), ip: req.ip, reason }, 'login failed');
-      // Every failure is a Prometheus counter (labelled by REASON only — never by
-      // email, which an attacker controls and would explode series cardinality),
-      // so alerting can catch low-and-slow credential guessing that never trips
-      // the 5-attempt lock and so never reaches the audit chain.
-      metrics.inc('shieldtest_auth_login_failures_total', 'Failed login attempts by reason', {
-        reason,
-      });
-      // Only the lock event reaches the (tamper-evident) audit chain, not every
-      // attempt — enough to flag an attack without flooding the governance log.
-      if (count === MAX_FAILS) {
-        metrics.inc('shieldtest_auth_lockouts_total', 'Login lockouts triggered (per source)');
-        await auditAs(
-          actor,
-          'auth.login_locked',
-          undefined,
-          `${count} failed attempts (${reason})`,
-        );
+  app.post(
+    '/api/auth/login',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', minLength: 1, maxLength: 254 },
+            password: { type: 'string', minLength: 1, maxLength: 1024 },
+          },
+          required: ['email', 'password'],
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      if (!auth.enabled) return reply.code(400).send({ error: 'authentication disabled' });
+      const { email, password } = req.body as {
+        email?: string;
+        password?: string;
+      };
+      if (!email || !password)
+        return reply.code(400).send({ error: 'email and password required' });
+      for (const [bucket, failure] of loginFails)
+        if (failure.until < Date.now()) loginFails.delete(bucket);
+      if (loginFails.size >= 10_000) loginFails.delete(loginFails.keys().next().value!);
+      if (!acceptLoginCost(req.ip))
+        return reply.code(429).send({ error: 'login capacity exceeded — try again later' });
+      const key = `${email.toLowerCase()}|${req.ip}`;
+      const entry = loginFails.get(key);
+      if (entry && entry.count >= MAX_FAILS && Date.now() < entry.until) {
+        return reply.code(429).send({ error: 'too many attempts — try again later' });
       }
-      return reply.code(401).send({ error: 'invalid credentials' });
-    };
-
-    // Env-defined users first (immutable root); then runtime store users.
-    let res = login(auth, email, password);
-    let mustChangePassword = false;
-    if (res) {
-      await auditAs(res.email, 'auth.login', undefined, 'env user');
-    } else {
-      const su = await store.getUser(email.toLowerCase());
-      if (!su) {
-        // Constant-time: burn an equivalent scrypt against the decoy so a missing
-        // account is indistinguishable by response time from a wrong password.
-        verifyPassword(password, decoyHash);
-      } else if (verifyPassword(password, su.passwordHash)) {
-        // Correct credentials but a deactivated account: refuse with the same
-        // generic message (no oracle), and record the reason out of band.
-        if ((su.status ?? 'active') === 'disabled') {
-          return rejectLogin('account disabled', su.email);
+      const rejectLogin = async (reason: string, actor: string) => {
+        const count = (entry?.count ?? 0) + 1;
+        loginFails.set(key, { count, until: Date.now() + LOCK_MS });
+        req.log.warn({ email: email.toLowerCase(), ip: req.ip, reason }, 'login failed');
+        // Every failure is a Prometheus counter (labelled by REASON only — never by
+        // email, which an attacker controls and would explode series cardinality),
+        // so alerting can catch low-and-slow credential guessing that never trips
+        // the 5-attempt lock and so never reaches the audit chain.
+        metrics.inc('shieldtest_auth_login_failures_total', 'Failed login attempts by reason', {
+          reason,
+        });
+        // Only the lock event reaches the (tamper-evident) audit chain, not every
+        // attempt — enough to flag an attack without flooding the governance log.
+        if (count === MAX_FAILS) {
+          metrics.inc('shieldtest_auth_lockouts_total', 'Login lockouts triggered (per source)');
+          await auditAs(
+            actor,
+            'auth.login_locked',
+            undefined,
+            `${count} failed attempts (${reason})`,
+          );
         }
-        await store.recordLogin(su.email, new Date().toISOString());
-        mustChangePassword = !!su.mustChangePassword;
-        // Canonicalise the stored role (maps the legacy `officer` id to `admin`)
-        // so both the token and the login response carry a current Role — the
-        // same normalisation `identityFromRequest` applies on every request.
-        const role = canonicalRole(su.role) ?? su.role;
-        res = {
-          token: signJwt({ sub: su.email, role, ver: su.tokenVersion ?? 0 }, auth.secret),
-          email: su.email,
-          role,
-        };
-        await auditAs(su.email, 'auth.login', undefined, undefined);
+        return reply.code(401).send({ error: 'invalid credentials' });
+      };
+
+      // Env-defined users first (immutable root); then runtime store users.
+      let res = await login(auth, email, password);
+      let mustChangePassword = false;
+      if (res) {
+        await auditAs(res.email, 'auth.login', undefined, 'env user');
+      } else {
+        const su = await store.getUser(email.toLowerCase());
+        if (!su) {
+          // Constant-time: burn an equivalent scrypt against the decoy so a missing
+          // account is indistinguishable by response time from a wrong password.
+          await verifyPasswordAsync(password, decoyHash);
+        } else if (await verifyPasswordAsync(password, su.passwordHash)) {
+          // Correct credentials but a deactivated account: refuse with the same
+          // generic message (no oracle), and record the reason out of band.
+          if ((su.status ?? 'active') === 'disabled') {
+            return rejectLogin('account disabled', su.email);
+          }
+          await store.recordLogin(su.email, new Date().toISOString());
+          mustChangePassword = !!su.mustChangePassword;
+          // Canonicalise the stored role (maps the legacy `officer` id to `admin`)
+          // so both the token and the login response carry a current Role — the
+          // same normalisation `identityFromRequest` applies on every request.
+          const role = canonicalRole(su.role) ?? su.role;
+          res = {
+            token: signJwt({ sub: su.email, role, ver: su.tokenVersion ?? 0 }, auth.secret),
+            email: su.email,
+            role,
+          };
+          await auditAs(su.email, 'auth.login', undefined, undefined);
+        }
       }
-    }
-    if (!res) return rejectLogin('bad credentials', email.toLowerCase());
-    loginFails.delete(key);
-    metrics.inc('shieldtest_auth_logins_total', 'Successful logins');
-    return { ...res, mustChangePassword };
-  });
+      if (!res) return rejectLogin('bad credentials', email.toLowerCase());
+      loginFails.delete(key);
+      metrics.inc('shieldtest_auth_logins_total', 'Successful logins');
+      return { ...res, mustChangePassword, ...accessContract(res.role) };
+    },
+  );
 
   // Logout REALLY revokes: bump the store user's token version so the presented
   // token (and any other live session for that user) stops validating at once,
   // via resolveIdentity's version check — instead of a cosmetic client-side
-  // discard that left the token usable until its 8 h expiry. Env-root and share
+  // discard that left the token usable until its expiry. Env-root and share
   // identities have no store row (env accounts are managed via configuration).
   app.post('/api/auth/logout', async (req, reply) => {
     if (!auth.enabled) return { ok: true };
@@ -1362,14 +1693,21 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     req.authUser = r.id;
     const email = r.id.email.toLowerCase();
     if (!auth.users.has(email) && !email.startsWith('share:')) {
-      const su = await store.getUser(email);
-      if (su)
-        await store.saveUser({
-          ...su,
-          tokenVersion: (su.tokenVersion ?? 0) + 1,
+      await store.transactionUsers(async (tx) => {
+        const su = await tx.getUser(email);
+        const payload = payloadFromRequest(auth, req);
+        if (su && (!payload || (payload.ver ?? 0) !== (su.tokenVersion ?? 0)))
+          throw new Error('Stale logout session.');
+        if (su) await tx.saveUser({ ...su, tokenVersion: (su.tokenVersion ?? 0) + 1 });
+        await tx.saveAudit({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          actor: email,
+          action: 'auth.logout',
         });
+      });
     }
-    await audit(req, 'auth.logout', undefined, undefined);
+    if (auth.users.has(email) || email.startsWith('share:')) await audit(req, 'auth.logout');
     return { ok: true };
   });
 
@@ -1377,46 +1715,106 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // Store users only (env passwords are managed via configuration). Bumps the
   // revocation epoch (killing other sessions) and returns a fresh token so the
   // current session survives.
-  app.post('/api/auth/password', async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    const r = await resolveIdentity(req);
-    if (!r.ok) return reply.code(r.code).send({ error: r.error });
-    req.authUser = r.id;
-    const body = req.body as { currentPassword?: string; newPassword?: string };
-    const email = r.id.email.toLowerCase();
-    if (auth.users.has(email)) {
-      return reply.code(400).send({
-        error: 'Your account is managed via configuration and cannot self-change here.',
+  app.post(
+    '/api/auth/password',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            currentPassword: { type: 'string', maxLength: 1024 },
+            newPassword: { type: 'string', maxLength: 1024 },
+          },
+          required: [],
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+      const r = await resolveIdentity(req);
+      if (!r.ok) return reply.code(r.code).send({ error: r.error });
+      req.authUser = r.id;
+      const email = r.id.email.toLowerCase();
+      if (auth.users.has(email))
+        return reply.code(400).send({
+          error: 'Your account is managed via configuration and cannot self-change here.',
+        });
+      const body = (req.body ?? {}) as { currentPassword?: string; newPassword?: string };
+      return store.transactionUsers(async (tx) => {
+        const su = await tx.getUser(email);
+        if (!su) return reply.code(404).send({ error: 'user not found' });
+        const payload = payloadFromRequest(auth, req);
+        if (!payload || (payload.ver ?? 0) !== (su.tokenVersion ?? 0))
+          return reply.code(401).send({ error: 'session expired — sign in again' });
+        if (!(await verifyPasswordAsync(body.currentPassword ?? '', su.passwordHash)))
+          return reply.code(400).send({ error: 'Current password is incorrect.' });
+        const password = body.newPassword ?? '';
+        const problem = passwordProblem(password, email);
+        if (problem) return reply.code(400).send({ error: problem });
+        if (await verifyPasswordAsync(password, su.passwordHash))
+          return reply.code(400).send({ error: 'New password must differ from the current one.' });
+        const ver = (su.tokenVersion ?? 0) + 1;
+        await tx.saveUser({
+          ...su,
+          passwordHash: await hashPasswordAsync(password),
+          mustChangePassword: false,
+          tokenVersion: ver,
+        });
+        await tx.saveAudit({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          actor: email,
+          action: 'password.change',
+          detail: email,
+        });
+        return {
+          token: signJwt({ sub: su.email, role: su.role, ver }, auth.secret),
+          email: su.email,
+          role: su.role,
+          mustChangePassword: false,
+          ...accessContract(su.role),
+        };
       });
-    }
-    const su = await store.getUser(email);
-    if (!su) return reply.code(404).send({ error: 'user not found' });
-    if (!verifyPassword(body.currentPassword ?? '', su.passwordHash)) {
-      return reply.code(400).send({ error: 'Current password is incorrect.' });
-    }
-    const newPassword = body.newPassword ?? '';
-    const problem = passwordProblem(newPassword, email);
-    if (problem) return reply.code(400).send({ error: problem });
-    if (verifyPassword(newPassword, su.passwordHash)) {
-      return reply.code(400).send({ error: 'New password must differ from the current one.' });
-    }
-    const nextVer = (su.tokenVersion ?? 0) + 1;
-    await store.saveUser({
-      ...su,
-      passwordHash: hashPassword(newPassword),
-      mustChangePassword: false,
-      tokenVersion: nextVer,
-    });
-    await audit(req, 'password.change', undefined, email);
-    // Other sessions (old version) are now revoked; this fresh token carries the
-    // new version so the current session survives.
-    const token = signJwt({ sub: su.email, role: su.role, ver: nextVer }, auth.secret);
-    return { token, email: su.email, role: su.role, mustChangePassword: false };
-  });
+    },
+  );
+  app.post(
+    '/api/auth/sessions/revoke',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
+      const email = req.authUser!.email.toLowerCase();
+      return store.transactionUsers(async (tx) => {
+        const su = await tx.getUser(email);
+        if (!su)
+          return reply.code(400).send({ error: 'Import this account before revoking sessions.' });
+        const payload = payloadFromRequest(auth, req);
+        if (!payload || (payload.ver ?? 0) !== (su.tokenVersion ?? 0))
+          return reply.code(401).send({ error: 'session expired — sign in again' });
+        const ver = (su.tokenVersion ?? 0) + 1;
+        await tx.saveUser({ ...su, tokenVersion: ver });
+        await tx.saveAudit({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          actor: email,
+          action: 'auth.sessions_revoke',
+          detail: 'Other sessions revoked; current session rotated.',
+        });
+        return {
+          token: signJwt({ sub: su.email, role: su.role, ver }, auth.secret),
+          email: su.email,
+          role: su.role,
+          ...accessContract(su.role),
+        };
+      });
+    },
+  );
 
   // Mint a short-lived, read-only share token for report links. Downgraded to
   // the viewer role regardless of the caller — a share link can only read.
   app.post('/api/share', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    if (singleUser)
+      return reply.code(409).send({ error: 'Share tokens are disabled in single-user mode.' });
     if (!auth.enabled) {
       return reply.send({
         authRequired: false,
@@ -1819,180 +2217,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       email: r.id.email,
       role: r.id.role,
       mustChangePassword: r.mustChange,
+      ...accessContract(r.id.role),
     };
   });
 
-  // --- User management (officer only; env users are immutable) ---------------
-  const envUsers = (): { email: string; role: Role }[] =>
-    [...auth.users.values()].map((u) => ({ email: u.email, role: u.role }));
-  const envEmailSet = (): Set<string> => new Set([...auth.users.keys()]);
-  /** Env-defined users merged with runtime store users (env wins on collision). */
-  const currentUsers = async () => {
-    const stored = (await store.listUsers()).map((u) => ({
-      email: u.email,
-      role: u.role,
-      status: u.status ?? 'active',
-      mustChangePassword: u.mustChangePassword ?? false,
-      createdAt: u.createdAt,
-      lastLoginAt: u.lastLoginAt,
-    }));
-    return combineUsers(envUsers(), stored);
-  };
-
-  app.get('/api/users', { preHandler: guard('user:manage') }, async (_req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    return currentUsers();
-  });
-
-  app.post('/api/users', { preHandler: guard('user:manage') }, async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    try {
-      const body = req.body as {
-        email?: string;
-        role?: string;
-        password?: string;
-      };
-      const current = await currentUsers();
-      const { email, role } = assertUpsert(
-        {
-          email: body.email ?? '',
-          role: body.role ?? '',
-          password: body.password ?? '',
-        },
-        {
-          envEmails: envEmailSet(),
-          current,
-          actorEmail: req.authUser?.email ?? '',
-        },
-      );
-      // Create-only: never silently overwrite an existing account's role/password.
-      // Role changes go through PATCH; a re-create is an explicit 409.
-      if (current.some((u) => u.email.toLowerCase() === email)) {
-        return reply.code(409).send({
-          error: `User ${email} already exists — use PATCH to change their role.`,
-        });
-      }
-      // Admin-set password is temporary: the user must change it at first login.
-      await store.saveUser({
-        email,
-        role,
-        passwordHash: hashPassword(body.password ?? ''),
-        status: 'active',
-        mustChangePassword: true,
-        createdAt: new Date().toISOString(),
-        tokenVersion: 0,
-      });
-      await audit(req, 'user.upsert', undefined, `${email} → ${role} (create)`);
-      return reply.code(201).send({ email, role, source: 'store', mustChangePassword: true });
-    } catch (err) {
-      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
-      return fail(err, reply);
-    }
-  });
-
-  app.patch('/api/users/:email', { preHandler: guard('user:manage') }, async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    try {
-      const raw = decodeURIComponent((req.params as { email: string }).email);
-      const body = req.body as { role?: string; status?: string };
-      if (body.role == null && body.status == null) {
-        return reply.code(400).send({ error: 'nothing to change (role or status required)' });
-      }
-      const ctx = {
-        envEmails: envEmailSet(),
-        current: await currentUsers(),
-        actorEmail: req.authUser?.email ?? '',
-      };
-      // Validate against the combined view FIRST (env-immutable, self, existence)
-      // so those surface as 400s before we ever touch the store.
-      const nextRole = body.role != null ? assertRoleChange(raw, body.role, ctx).role : undefined;
-      const nextStatus =
-        body.status != null ? assertStatusChange(raw, body.status, ctx).status : undefined;
-      const existing = await store.getUser(raw.toLowerCase());
-      if (!existing) return reply.code(404).send({ error: 'user not found' });
-      let updated: User = existing;
-      let revoke = false;
-
-      if (nextRole !== undefined) {
-        updated = { ...updated, role: nextRole };
-        // A role change takes effect immediately: revoke outstanding tokens.
-        revoke = true;
-        await audit(req, 'user.upsert', undefined, `${existing.email} → ${nextRole} (role change)`);
-      }
-      if (nextStatus !== undefined) {
-        updated = { ...updated, status: nextStatus };
-        // Deactivation must cut access now, not at token exp.
-        if (nextStatus === 'disabled') revoke = true;
-        await audit(req, 'user.status', undefined, `${existing.email} → ${nextStatus}`);
-      }
-      if (revoke)
-        updated = {
-          ...updated,
-          tokenVersion: (existing.tokenVersion ?? 0) + 1,
-        };
-      await store.saveUser(updated);
-      return {
-        email: updated.email,
-        role: updated.role,
-        status: updated.status,
-        source: 'store',
-      };
-    } catch (err) {
-      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
-      return fail(err, reply);
-    }
-  });
-
-  // Admin password reset — sets a temporary password the user must change at
-  // next login, and revokes their outstanding sessions.
-  app.post(
-    '/api/users/:email/password',
-    { preHandler: guard('user:manage') },
-    async (req, reply) => {
-      if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-      try {
-        const raw = decodeURIComponent((req.params as { email: string }).email);
-        const body = req.body as { password?: string };
-        const { email } = assertReset(raw, body.password ?? '', {
-          envEmails: envEmailSet(),
-          current: await currentUsers(),
-          actorEmail: req.authUser?.email ?? '',
-        });
-        const existing = await store.getUser(email);
-        if (!existing) return reply.code(404).send({ error: 'user not found' });
-        await store.saveUser({
-          ...existing,
-          passwordHash: hashPassword(body.password ?? ''),
-          mustChangePassword: true,
-          tokenVersion: (existing.tokenVersion ?? 0) + 1,
-        });
-        await audit(req, 'password.reset', undefined, email);
-        return { email, source: 'store', mustChangePassword: true };
-      } catch (err) {
-        if (err instanceof UserError) return reply.code(400).send({ error: err.message });
-        return fail(err, reply);
-      }
-    },
+  registerUserRoutes(app, { store, auth, guard });
+  registerFleetRoutes(app, store, guard);
+  registerDrsRoutes(app, store, guard);
+  await registerFleetMissionRoutes(
+    app,
+    store,
+    guard,
+    auth,
+    () => effectiveCaps,
+    undefined,
+    effectiveAllowlist,
   );
-
-  app.delete('/api/users/:email', { preHandler: guard('user:manage') }, async (req, reply) => {
-    if (!auth.enabled) return reply.code(400).send({ error: 'authentication is disabled' });
-    try {
-      const raw = decodeURIComponent((req.params as { email: string }).email);
-      const current = await currentUsers();
-      const email = assertDelete(raw, {
-        envEmails: envEmailSet(),
-        current,
-        actorEmail: req.authUser?.email ?? '',
-      });
-      await store.deleteUser(email);
-      await audit(req, 'user.delete', undefined, email);
-      return { deleted: email };
-    } catch (err) {
-      if (err instanceof UserError) return reply.code(400).send({ error: err.message });
-      return fail(err, reply);
-    }
-  });
 
   app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () =>
     store.listCampaigns(),
@@ -2021,8 +2261,35 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
+  app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
+    const catalogue = drsCatalog();
+    return {
+      ...catalogue,
+      executionCaps: {
+        ...catalogue.executionCaps,
+        maxRps: Math.min(catalogue.executionCaps.maxRps, effectiveCaps.maxRps),
+        maxConcurrency: Math.min(
+          catalogue.executionCaps.maxConcurrency,
+          effectiveCaps.maxConcurrency,
+        ),
+        maxDurationSec: Math.min(
+          catalogue.executionCaps.maxDurationSec,
+          effectiveCaps.maxDurationSec,
+        ),
+      },
+    };
+  });
+
   // Assessment playbooks: curated + user-defined sequences of bounded campaigns.
   app.get('/api/playbooks', { preHandler: guard('campaign:read') }, async () => {
+    if (drsWorkflow())
+      return drsCatalog().profiles.map((p) => ({
+        ...p,
+        category: 'DRS 3.00.00 reference',
+        drsLevel: p.level,
+        steps: [],
+        createdAt: '2026-08-04T00:00:00.000Z',
+      }));
     const curated = PLAYBOOKS.map((p) => ({ ...p, custom: false }));
     const custom = await store.listPlaybooks();
     return [...curated, ...custom];
@@ -2030,6 +2297,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.post('/api/playbooks', { preHandler: guard('campaign:create') }, async (req, reply) => {
     try {
+      if (drsWorkflow())
+        return reply
+          .code(409)
+          .send({ error: 'The DRS catalogue is versioned; custom templates are retired.' });
       const pb = validatePlaybookInput(req.body, effectiveCaps);
       await store.savePlaybook(pb);
       await audit(req, 'playbook.upsert', undefined, `${pb.name} (${pb.steps.length} steps)`);
@@ -2056,6 +2327,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     '/api/playbooks/:id/instantiate',
     { preHandler: guard('campaign:create') },
     async (req, reply) => {
+      if (drsWorkflow())
+        return reply.code(409).send({
+          error:
+            'Configure a DRS Fleet profile from the catalogue; legacy template instantiation is retired.',
+        });
       const id = (req.params as { id: string }).id;
       const pb = getPlaybook(id) ?? (await store.getPlaybook(id));
       if (!pb) return reply.code(404).send({ error: 'playbook not found' });
@@ -2119,6 +2395,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // given order under a single suiteId). Behaves like any other suite from
   // there on: sequencer, aggregate WRS, one assessment report.
   app.post('/api/suites/compose', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    if (drsWorkflow())
+      return reply.code(409).send({
+        error: 'Legacy compositions are retired. Configure an executable DRS Fleet profile.',
+      });
     const body = req.body as {
       playbookIds?: string[];
       name?: string;
@@ -2203,6 +2483,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     '/api/suites/from-actions',
     { preHandler: guard('campaign:create') },
     async (req, reply) => {
+      if (drsWorkflow())
+        return reply
+          .code(409)
+          .send({ error: 'Action-derived suites are retired in DRS Fleet mode.' });
       const body = req.body as { name?: string; campaigns?: CampaignInput[] };
       const inputs = Array.isArray(body.campaigns) ? body.campaigns : [];
       if (inputs.length < 1) {
@@ -2265,7 +2549,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           reason?: string;
         };
         const approvedBy = req.authUser?.email ?? body.approvedBy ?? '';
-        const updated = approveCampaign(c, approvedBy, body.decision, body.reason);
+        const updated = approveCampaign(c, approvedBy, body.decision, body.reason, {
+          singleUser: adminConfirmation(req),
+        });
         await store.saveCampaign(updated);
         await audit(
           req,
@@ -2416,7 +2702,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     '/api/campaigns/:id/execute',
     { preHandler: guard('campaign:execute') },
     async (req, reply) => {
-      const c = await store.getCampaign((req.params as { id: string }).id);
+      let c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campaign not found' });
       // A step whose suite sequence is running is driven by the sequencer — a
       // manual run here would put two steps in flight at once. Refuse it.
@@ -2428,6 +2714,31 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         });
       }
       try {
+        if (adminConfirmation(req)) {
+          if ((req.body as { confirmed?: unknown } | undefined)?.confirmed !== true) {
+            return reply.code(400).send({
+              error: 'Explicit run confirmation is required.',
+              code: 'confirmation_required',
+            });
+          }
+          createCampaign(c, await effectiveAllowlist(), agentChoices(), effectiveCaps);
+          if (c.status === 'PENDING_APPROVAL') {
+            c = approveCampaign(
+              c,
+              req.authUser!.email,
+              'APPROVED',
+              'Single-user run confirmation',
+              { singleUser: adminConfirmation(req) },
+            );
+            await store.saveCampaign(c);
+          }
+          await audit(
+            req,
+            'campaign.confirm',
+            c.id,
+            `Confirmed ${c.target}: ${c.maxRps} RPS, ${c.concurrency} concurrent, ${c.maxDurationSec}s`,
+          );
+        }
         assertExecutable(c, { requireCiso: requireCisoApproval });
       } catch (err) {
         return fail(err, reply);
@@ -2437,7 +2748,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // the remaining concentration (approver≠executor). Only meaningful when
       // auth identifies the actor.
       const executor = req.authUser?.email;
-      if (executor && c.approvedBy && executor.toLowerCase() === c.approvedBy.toLowerCase()) {
+      if (
+        !adminConfirmation(req) &&
+        executor &&
+        c.approvedBy &&
+        executor.toLowerCase() === c.approvedBy.toLowerCase()
+      ) {
         return reply.code(403).send({
           error: 'Separation of duties: the approver of a campaign cannot also execute it.',
         });
@@ -2471,7 +2787,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       for (const m of members) {
         if (m.status !== 'PENDING_APPROVAL') continue;
         try {
-          await store.saveCampaign(approveCampaign(m, actor, 'APPROVED'));
+          await store.saveCampaign(
+            approveCampaign(m, actor, 'APPROVED', undefined, {
+              singleUser: adminConfirmation(req),
+            }),
+          );
           approved += 1;
         } catch {
           // A step the approver authored can't be self-approved (author≠approver);
@@ -2508,7 +2828,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       for (const m of members) {
         if (m.status !== 'PENDING_APPROVAL') continue;
         try {
-          await store.saveCampaign(approveCampaign(m, actor, 'REJECTED', reason));
+          await store.saveCampaign(
+            approveCampaign(m, actor, 'REJECTED', reason, { singleUser: adminConfirmation(req) }),
+          );
           rejected += 1;
         } catch {
           // A step the actor authored can't be self-rejected either — leave it.
@@ -2533,7 +2855,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
     if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
     const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
-    if (pending > 0) {
+    if (adminConfirmation(req)) {
+      if ((req.body as { confirmed?: unknown } | undefined)?.confirmed !== true) {
+        return reply.code(400).send({
+          error: 'Explicit assessment confirmation is required.',
+          code: 'confirmation_required',
+        });
+      }
+      // Validate every runnable step before changing any campaign state.
+      try {
+        for (const m of members) {
+          if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
+            createCampaign(m, await effectiveAllowlist(), agentChoices(), effectiveCaps);
+            if (m.status === 'APPROVED') assertExecutable(m);
+          }
+        }
+      } catch (err) {
+        return fail(err, reply);
+      }
+    }
+    if (!adminConfirmation(req) && pending > 0) {
       return reply.code(409).send({
         error: `approve the scenario first — ${pending} step(s) await CISO approval`,
       });
@@ -2546,8 +2887,39 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return reply.code(409).send({ error: 'this suite sequence is already running' });
     }
     ctrl.total = members.length;
+    if (adminConfirmation(req)) {
+      try {
+        for (const m of members) {
+          if (m.status === 'PENDING_APPROVAL') {
+            await store.saveCampaign(
+              approveCampaign(
+                m,
+                req.authUser!.email,
+                'APPROVED',
+                'Single-user assessment confirmation',
+                { singleUser: adminConfirmation(req) },
+              ),
+            );
+          }
+        }
+        await audit(
+          req,
+          'campaign.confirm',
+          undefined,
+          `Assessment ${suiteId}: ${members.length} steps confirmed`,
+        );
+      } catch (err) {
+        suiteRuns.delete(suiteId);
+        return fail(err, reply);
+      }
+    }
     const actor = req.authUser?.email ?? 'dev';
-    await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
+    try {
+      await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
+    } catch (err) {
+      suiteRuns.delete(suiteId);
+      throw err;
+    }
     // Do not await — the whole sequence can run for many minutes.
     void runSuiteSequence(suiteId, actor, ctrl);
     return reply.code(202).send({ suiteId, steps: members.length, started: true });
@@ -2655,15 +3027,25 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/campaigns/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
-    if (!readTokenAllowed(req)) return reply.code(401).send({ error: 'authentication required' });
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
     reply.hijack();
     const res = reply.raw;
+    readStreams.add(res);
+    res.once('close', () => readStreams.delete(res));
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
       connection: 'keep-alive',
     });
-    const send = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    const send = (obj: unknown) => {
+      if (res.writableEnded || res.destroyed) return false;
+      if (res.writableLength > 64 * 1024) {
+        res.end();
+        return false;
+      }
+      return res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    };
     const TERMINAL: CampaignStatus[] = [
       'COMPLETED',
       'KILLED_AUTO',
@@ -2680,18 +3062,28 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     // load, or a suite step awaiting its turn) there may be no live record yet —
     // emit a "waiting" keepalive instead of a premature "done".
     const timer = setInterval(async () => {
-      const p = liveProgress.get(id);
-      if (p) return send(p);
-      const c = await store.getCampaign(id);
-      if (!c || TERMINAL.includes(c.status)) {
-        send({ status: 'done' });
+      try {
+        if (!(await readTokenAllowed(req))) {
+          clearInterval(timer);
+          res.end();
+          return;
+        }
+        const p = liveProgress.get(id);
+        if (p) return send(p);
+        const c = await store.getCampaign(id);
+        if (!c || TERMINAL.includes(c.status)) {
+          send({ status: 'done' });
+          clearInterval(timer);
+          res.end();
+        } else {
+          send({ status: 'waiting' });
+        }
+      } catch {
         clearInterval(timer);
         res.end();
-      } else {
-        send({ status: 'waiting' });
       }
     }, 1000);
-    req.raw.on('close', () => clearInterval(timer));
+    res.on('close', () => clearInterval(timer));
   });
 
   app.post(
@@ -2796,8 +3188,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (recent.length) {
       lines.push(`Recent campaigns (${recent.length} of ${campaigns.length}):`);
       for (const c of recent) {
-        const wrs = c.wrs ? ` · WRS ${c.wrs.wrs} (${c.wrs.level})` : '';
-        lines.push(`- ${c.name} · ${c.status} · ${c.target}${wrs}`);
+        const latestRun = assistantLatestRun(runs, c.id);
+        const wrs = ` · ${assistantMeasurementSummary(latestRun)}`;
+        lines.push(`- Campaign ${c.id} · ${c.status} · ${assistantTargetOrigin(c.target)}${wrs}`);
       }
     } else {
       lines.push('Recent campaigns: none.');
@@ -2806,7 +3199,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const alerts = deriveAlerts(runs, campaigns, { limit: 5 });
       if (alerts.length) {
         lines.push(`Active alerts (${alerts.length}):`);
-        for (const a of alerts.slice(0, 5)) lines.push(`- [${a.severity}] ${a.title}`);
+        for (const a of alerts.slice(0, 5)) lines.push(`- [${a.severity}] Signal ${a.kind}`);
       }
     } catch {
       /* alerts are best-effort */
@@ -2816,15 +3209,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         'beyond it. When proposing an action, only use authorized targets and keep bounds within the ' +
         'enforced caps.',
     );
+    lines.push(
+      singleUser
+        ? 'User mode: single administrator. Campaign execution requires explicit operator confirmation; there is no separate CISO approval.'
+        : 'User mode: team; separation of duties applies.',
+    );
     return lines.join('\n');
   };
 
   registerAssistantRoutes(app, {
+    tokenBudget: opts.assistantTokenBudget,
     guard,
     config: assistantConfig,
     runpod,
     audit: (req, action, detail) => audit(req, action, undefined, detail),
     assistantContext: () => buildAssistantContext(),
+    proposalPolicy: async () => ({
+      allowedHosts: await effectiveAllowlist(),
+      caps: clampToCeiling(await store.getLimits()),
+      userMode: singleUser ? 'single' : 'team',
+    }),
   });
 
   // Protected-target onboarding (governed). Registering a target is metadata
@@ -2835,6 +3239,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     audit: (req, action, detail) => audit(req, action, undefined, detail),
     envAllowlist: allowedTargets,
     actorOf: (req) => req.authUser?.email ?? 'dev',
+    selfAuthorize: adminConfirmation,
   });
 
   return { app, runCampaign };

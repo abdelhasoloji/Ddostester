@@ -1,5 +1,13 @@
 # Load-engine strategy — keep/drop decision & usage plan (E8)
 
+> Historical assessment, 2026-09-13. The R01–R10 roadmap currently retains all six
+> adapters and validates them explicitly. The installed/usage figures below are
+> historical observations, not current availability or operational conformance.
+> Gatling 3.16.0 now has an offline Maven-bundle path through `GATLING_HOME`;
+> `GATLING_BIN` retains the legacy launcher path. See
+> [the current execution evidence](roadmap-execution-2026-10-13.md) and
+> [the bounded native recipe](../scripts/conformance/README.md).
+
 Assessment of every load-generator adapter in `backend/src/agents/`, a keep/drop
 decision, and a plan to maximise out-of-process engine usage. Sourced to
 filenames; usage figures from the live VPS1 database (2026-09-13).

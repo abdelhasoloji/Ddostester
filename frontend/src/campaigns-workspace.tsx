@@ -1,3 +1,4 @@
+import { DrsAssessmentWorkspace } from './drs-assessment-workspace.js';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from './context.js';
@@ -17,12 +18,14 @@ import { PlanPage } from './plan-page.js';
 const TABS = [
   { id: 'launch', label: 'Launch' },
   { id: 'templates', label: 'Templates' },
+  { id: 'evidence', label: 'DRS assessment' },
   { id: 'plan', label: 'Plan' },
   { id: 'guide', label: 'How it works' },
 ] as const;
 
 export function CampaignsWorkspace() {
-  const { refreshHealth } = useApp();
+  const app = useApp();
+  const { refreshHealth } = app;
   // The effective allowlist can change after the initial page load (a target
   // onboarded or authorized in another view/session), so refresh /health when the
   // workspace mounts — the target picker then always offers the current allowed
@@ -32,21 +35,29 @@ export function CampaignsWorkspace() {
   }, [refreshHealth]);
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab') ?? 'launch';
-  const active = TABS.some((t) => t.id === requested) ? requested : 'launch';
+  const active =
+    app.drsWorkflow && !['launch', 'templates', 'evidence'].includes(requested)
+      ? 'launch'
+      : TABS.some((t) => t.id === requested)
+        ? requested
+        : 'launch';
   const select = (id: string) => setParams(id === 'launch' ? {} : { tab: id }, { replace: false });
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  const visibleTabs = TABS.filter(
+    (t) => !app.drsWorkflow || ['launch', 'templates', 'evidence'].includes(t.id),
+  );
   // WAI-ARIA tabs keyboard model: ←/→ (and Home/End) move between tabs with
   // automatic activation, so the panel follows focus.
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
     let next = index;
-    if (e.key === 'ArrowRight') next = (index + 1) % TABS.length;
-    else if (e.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
+    if (e.key === 'ArrowRight') next = (index + 1) % visibleTabs.length;
+    else if (e.key === 'ArrowLeft') next = (index - 1 + visibleTabs.length) % visibleTabs.length;
     else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = TABS.length - 1;
+    else if (e.key === 'End') next = visibleTabs.length - 1;
     else return;
     e.preventDefault();
-    select(TABS[next].id);
+    select(visibleTabs[next].id);
     tabRefs.current[next]?.focus();
   };
 
@@ -59,7 +70,7 @@ export function CampaignsWorkspace() {
       <SuiteRunBanner />
 
       <div className="ws-tabs" role="tablist" aria-label="Campaigns workspace">
-        {TABS.map((t, i) => (
+        {visibleTabs.map((t, i) => (
           <button
             key={t.id}
             ref={(el) => {
@@ -75,7 +86,13 @@ export function CampaignsWorkspace() {
             onClick={() => select(t.id)}
             onKeyDown={(e) => onTabKey(e, i)}
           >
-            {t.label}
+            {app.drsWorkflow
+              ? t.id === 'launch'
+                ? 'DRS campaigns'
+                : t.id === 'templates'
+                  ? 'DRS catalogue'
+                  : 'DRS assessment'
+              : t.label}
           </button>
         ))}
       </div>
@@ -83,6 +100,7 @@ export function CampaignsWorkspace() {
       <div className="ws-panel" role="tabpanel" id="ws-panel" aria-labelledby={`ws-tab-${active}`}>
         {active === 'launch' && <CampaignLaunch />}
         {active === 'templates' && <TemplatesPage embedded />}
+        {active === 'evidence' && <DrsAssessmentWorkspace />}
         {active === 'plan' && <PlanPage embedded />}
         {active === 'guide' && <GuidePage embedded />}
       </div>

@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh Ddostester operational evidence metrics
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=ddostester-freshness.service
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,8 @@
+import { DrsCatalogPanel } from './drs-catalog.js';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from './api.js';
+import { Modal } from './modal.js';
 import { TargetBar } from './target-bar.js';
 import type { Playbook, BenchCatalogue } from './api.js';
 import { useApp, canDo } from './context.js';
@@ -115,6 +117,12 @@ function PlaybookRow({
           </span>
         ))}
         {pb.custom && <span className="engine-badge ok">custom</span>}
+        <span
+          className="engine-badge"
+          title="Local keeps the template engines. Fleet opens a bounded GET draft for review; full Fleet suites remain unsupported."
+        >
+          Choose generator before creation
+        </span>
         <span className="tpl-steps-count">
           {pb.steps.length} step{pb.steps.length === 1 ? '' : 's'}
         </span>
@@ -248,6 +256,8 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   const [target, setTarget] = useState('');
   const [recurMin, setRecurMin] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [generatorChoice, setGeneratorChoice] = useState<Playbook | 'compose' | null>(null);
+  const fleetAvailable = app.agents.some((a) => a.id === 'fleet' && a.available);
   const [selected, setSelected] = useState<string[]>([]);
   const [composeName, setComposeName] = useState('');
   const [composing, setComposing] = useState(false);
@@ -273,7 +283,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
 
   // Class-C bench catalogue (for launching a template's companion ladder). Only a
   // CISO with the lab runner configured can dispatch — others just see the note.
-  const canBench = canDo(app.role, 'bench', app.authRequired);
+  const canBench = canDo(app.role, 'bench', app.authRequired, app.userMode, app.capabilities);
   const [benchCat, setBenchCat] = useState<BenchCatalogue | null>(null);
   const [ladderBusy, setLadderBusy] = useState<string | null>(null);
   useEffect(() => {
@@ -319,7 +329,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
     }
   };
 
-  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
   const targetHost = hostOf(target);
   const targetAllowed = targetHost !== null && app.allowed.includes(targetHost);
 
@@ -480,16 +490,101 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
     }
   };
 
+  if (app.drsWorkflow) return <DrsCatalogPanel />;
   return (
     <>
       {!embedded && (
         <PageHead
           title="Campaign templates"
-          sub="One-click curated sequences of bounded campaigns. Pick a target, launch, and the whole assessment is created — each campaign still goes through approval before it runs."
+          sub="Pick a target and template, then choose Local generator or a reviewed IoT Fleet GET draft. Every campaign still requires launch confirmation or approval."
         />
       )}
 
+      {generatorChoice && (
+        <Modal label="Choose campaign generator" onClose={() => setGeneratorChoice(null)}>
+          <h2>Choose campaign generator</h2>
+          <p>
+            <b>
+              {generatorChoice === 'compose'
+                ? composeName || 'Selected templates'
+                : generatorChoice.name}
+            </b>{' '}
+            · <code>{target}</code>
+          </p>
+          <div className="card">
+            <h3>Local generator</h3>
+            <p>
+              Keep the complete template sequence, its declared engines and your recurrence
+              settings.
+            </p>
+            <button
+              className="btn btn-primary"
+              disabled={!targetAllowed || !!busy || composing}
+              onClick={() => {
+                const choice = generatorChoice;
+                setGeneratorChoice(null);
+                if (choice === 'compose') void compose();
+                else void launch(choice);
+              }}
+            >
+              Create with Local generator
+            </button>
+          </div>
+          <div className="card">
+            <h3>IoT Fleet</h3>
+            <p>
+              Open a separate bounded GET draft on the same target: 3 requests/s total, 20 seconds,
+              one to three selected bots. Review target discovery, agent selection and budget before
+              creating it.
+            </p>
+            <p className="hint">
+              This is an alternative campaign, not the original assessment sequence. Multi-step
+              Fleet suites, POST, ramps and scheduled Fleet campaigns are not supported yet.
+              Recurrence is not copied.
+            </p>
+            <button
+              className="btn btn-primary"
+              disabled={!targetAllowed || !fleetAvailable}
+              onClick={() => {
+                app.clearDraftCampaign();
+                app.clearDraftPreset();
+                setGeneratorChoice(null);
+                navigate('/campaigns?' + new URLSearchParams({ engine: 'fleet', target }));
+              }}
+            >
+              Review with IoT Fleet
+            </button>
+            {!fleetAvailable && <p role="status">Fleet is unavailable on this installation.</p>}
+          </div>
+          <button className="btn btn-ghost" onClick={() => setGeneratorChoice(null)}>
+            Cancel
+          </button>
+        </Modal>
+      )}
       {/* Launch context: target + optional recurrence. */}
+      <section className="card" aria-label="Fleet compatible template">
+        <h2>IoT Fleet · bounded GET</h2>
+        <p>
+          Compatible with one to three enrolled agents: 3 RPS total, 20 seconds, one GET target and
+          an independent probe. Device selection and target recon are reviewed before creating the
+          campaign.
+        </p>
+        <p className="hint">
+          The assessment suites below use their own engines; they cannot be switched to Fleet
+          automatically. POST business profiles and Fleet suites are not supported yet.
+        </p>
+        {canCreate && app.agents.some((a) => a.id === 'fleet' && a.available) && (
+          <Link
+            className="btn btn-primary"
+            to={
+              '/campaigns?' +
+              new URLSearchParams({ engine: 'fleet', ...(targetAllowed ? { target } : {}) })
+            }
+          >
+            Use Fleet GET template
+          </Link>
+        )}
+      </section>
       <div className="card tpl-launchbar">
         <div className="field">
           <label>Target for the assessment</label>
@@ -589,7 +684,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                 isNew={isNewPb(pb)}
                 selected={selected.includes(pb.id)}
                 onToggleSelect={() => toggleSelect(pb.id)}
-                onLaunch={() => launch(pb)}
+                onLaunch={() => setGeneratorChoice(pb)}
                 onDelete={() => removePlaybook(pb)}
                 canBench={canBench}
                 benchDispatch={benchCat?.dispatchEnabled ?? false}
@@ -616,7 +711,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                   isNew={isNewPb(pb)}
                   selected={selected.includes(pb.id)}
                   onToggleSelect={() => toggleSelect(pb.id)}
-                  onLaunch={() => launch(pb)}
+                  onLaunch={() => setGeneratorChoice(pb)}
                   onDelete={() => removePlaybook(pb)}
                   canBench={canBench}
                   benchDispatch={benchCat?.dispatchEnabled ?? false}
@@ -731,7 +826,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
             <button
               className="btn btn-primary"
               disabled={selected.length < 1 || !targetAllowed || overCap || composing}
-              onClick={compose}
+              onClick={() => setGeneratorChoice('compose')}
               title={
                 !targetAllowed
                   ? 'Pick an allowlisted target above first'

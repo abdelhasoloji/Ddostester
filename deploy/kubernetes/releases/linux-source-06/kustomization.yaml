@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [../../overlays/k3s]
+images:
+  - name: ddostester-lab-control
+    newName: docker.io/library/ddostester-lab-control
+    digest: sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be
+  - name: ddostester-lab-probe
+    newName: docker.io/library/ddostester-lab-probe
+    digest: sha256:7b7173d524a23d5682fc7364657c98404dc1449b0b0a0ebe8ce55a7d301e9711
+  - name: ddostester-lab-target
+    newName: docker.io/library/ddostester-lab-target
+    digest: sha256:33bbf6b979abe338a38c05771c020eb94800188721e023e7b0d7d57152d8f106
+  - name: ddostester-lab-telemetry
+    newName: docker.io/library/ddostester-lab-telemetry
+    digest: sha256:a631916e75380fb214cd167b8c6183e8cee5a7a94ad73888af48e088117c8521
+  - name: ddostester-lab-postgres
+    newName: docker.io/library/ddostester-lab-postgres
+    digest: sha256:defe9f57cd443ae60436b39134e7d5bb062511c236e1f65d603bd5fa19353a9b
+patches:
+  - path: fleet-enabled.yaml
+replacements:
+  - source:
+      kind: Deployment
+      name: lab-control
+      fieldPath: spec.template.spec.containers.[name=control].image
+    targets:
+      - select:
+          kind: Deployment
+          name: lab-control
+        fieldPaths:
+          - spec.template.spec.containers.[name=control].env.[name=FLEET_AGENT_IMAGE].value

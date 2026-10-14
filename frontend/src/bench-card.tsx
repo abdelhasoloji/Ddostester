@@ -68,7 +68,7 @@ function methodPill(m?: CoverageMethod) {
 
 export function BenchCard() {
   const app = useApp();
-  const canBench = canDo(app.role, 'bench', app.authRequired);
+  const canBench = canDo(app.role, 'bench', app.authRequired, app.userMode, app.capabilities);
   const [cat, setCat] = useState<BenchCatalogue | null>(null);
   const [runs, setRuns] = useState<BenchRun[]>([]);
   const [coverage, setCoverage] = useState<BenchCoverage[]>([]);
@@ -252,13 +252,13 @@ export function BenchCard() {
 
   return (
     <div className="card">
-      <h2>Network bench — class C (CISO)</h2>
+      <h2>Network bench — advanced · class C (CISO)</h2>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
-        The <b>zeroBS DRS Volumetric</b> matrix (report P25-20300). Launch a bounded synthetic
-        realization of a UDP amplification/rate vector on the isolated lab and read its verdict
-        here. The control plane <b>records and governs</b> the run — it never emits the traffic. An
-        isolated external runner claims the request, executes it off the control plane, and posts
-        back a read-only class-C verdict. Every request and verdict is audited.
+        The <b>DRS Volumetric</b> matrix (report P25-20300). Launch a bounded synthetic realization
+        of a UDP amplification/rate vector on the isolated lab and read its verdict here. The
+        control plane <b>records and governs</b> the run — it never emits the traffic. An isolated
+        external runner claims the request, executes it off the control plane, and posts back a
+        read-only class-C verdict. Every request and verdict is audited.
       </p>
 
       {!dispatchEnabled && (
@@ -346,9 +346,7 @@ export function BenchCard() {
       )}
       {scenarios.length > 0 && (
         <>
-          <h3 style={{ fontSize: '.92rem', margin: '1.25rem 0 .5rem' }}>
-            zeroBS Volumetric coverage
-          </h3>
+          <h3 style={{ fontSize: '.92rem', margin: '1.25rem 0 .5rem' }}>DRS Volumetric coverage</h3>
           <div
             className="hint"
             style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '0 0 .6rem' }}
@@ -691,7 +689,7 @@ export function BenchCard() {
       )}
 
       <p className="hint" style={{ marginTop: '.75rem' }}>
-        Mapped to zeroBS report <b>P25-20300</b> (Volumetric section). Out-of-model vectors (TCP/GRE
+        Mapped to DRS report <b>P25-20300</b> (Volumetric section). Out-of-model vectors (TCP/GRE
         stateful floods, IP spoofing, fragmentation) are shown for coverage but can never be
         dispatched — spoofing is never permitted here by construction. The report&apos;s Layer-7
         vectors live in the control plane&apos;s playbooks. These verdicts are class C, read-only

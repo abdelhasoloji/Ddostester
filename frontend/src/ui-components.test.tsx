@@ -1,3 +1,4 @@
+import { permissionsFor } from '../../backend/src/auth/rbac.js';
 import { describe, expect, it, vi } from 'vitest';
 import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -68,6 +69,30 @@ const run: CampaignRun = {
 };
 
 describe('RunDetails', () => {
+  it('does not present absent final latency samples as zero milliseconds', () => {
+    render(<RunDetails run={{ ...run, generator: { ...run.generator, latencySampleCount: 0 } }} />);
+    expect(screen.getByText('Latency p95').parentElement).toHaveTextContent('unknown');
+  });
+  it('marks lost-agent counters as unknown instead of zero generation', () => {
+    const lost: CampaignRun = {
+      ...run,
+      generator: {
+        ...run.generator,
+        totalRequests: 0,
+        successful: 0,
+        failed: 0,
+        actualRps: 0,
+        fleet: {
+          measurementComplete: false,
+          shards: [{ agentId: 'one', state: 'LOST', attemptId: 'a', leaseUntil: 0 }],
+        },
+      },
+    };
+    render(<RunDetails run={lost} />);
+    expect(screen.getByText('Reported requests (partial)')).toBeInTheDocument();
+    expect(screen.getByText('Reported RPS (partial)')).toBeInTheDocument();
+    expect(screen.getAllByText('unknown').length).toBeGreaterThan(0);
+  });
   it('renders metrics, status distribution, SLO failure and measured source', () => {
     render(<RunDetails run={run} />);
     expect(screen.getByText('Requests')).toBeInTheDocument();
@@ -83,6 +108,42 @@ describe('RunDetails', () => {
     expect(screen.getByText('12s')).toBeInTheDocument();
   });
 
+  it('does not present missing remote baseline responses as zero target availability', () => {
+    render(
+      <RunDetails
+        run={{
+          ...run,
+          baseline: {
+            samples: 3,
+            availabilityPct: 0,
+            latencyMs: { p50: 0, p95: 0 },
+            observation: {
+              vantage: 'remote',
+              expectedSamples: 3,
+              receivedSamples: 0,
+              missingSamples: 3,
+              complete: false,
+            },
+          },
+          baselineDelta: { latencyP50DeltaMs: 2, latencyP95DeltaMs: 4, availabilityDeltaPct: 100 },
+        }}
+      />,
+    );
+    expect(screen.getByText('0/3 received')).toBeInTheDocument();
+    expect(screen.getAllByText('unknown').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('+4 ms')).not.toBeInTheDocument();
+  });
+  it('labels recovery as belonging before the suite step', () => {
+    render(
+      <RunDetails
+        run={{
+          ...run,
+          recoveryBeforeRun: { available: true, verified: true, checks: 2, waitedMs: 1250 },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Recovery before this suite step: available/)).toBeInTheDocument();
+  });
   it('renders the baseline and under-load deltas when present', () => {
     const withBaseline: CampaignRun = {
       ...run,
@@ -139,6 +200,7 @@ function appWith(
     busy: {},
     killing: {},
     role,
+    capabilities: permissionsFor(role),
     authRequired: true,
     requireCisoApproval: false,
     setApproveFor: vi.fn(),

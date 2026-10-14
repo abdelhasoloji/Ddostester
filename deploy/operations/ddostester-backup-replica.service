@@ -1,0 +1,20 @@
+[Unit]
+Description=Pull and verify encrypted Ddostester backup replica
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+StateDirectory=ddostester-backup-replica
+StateDirectoryMode=0700
+RuntimeDirectory=ddostester-backup-replica
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/flock -n /run/ddostester-backup-replica/pull.lock /usr/bin/node /usr/local/lib/ddostester-operations/backup-replica.mjs
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/ddostester-backup-replica /run/ddostester-backup-replica
+TimeoutStartSec=135

@@ -17,7 +17,7 @@ const SECTIONS: { link: string; title: string }[] = [
 ];
 
 test('every section renders its page (officer)', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   for (const s of SECTIONS) {
     await goTo(page, s.link);
     await expect(page.getByRole('heading', { level: 1, name: s.title })).toBeVisible();
@@ -25,7 +25,7 @@ test('every section renders its page (officer)', async ({ page }) => {
 });
 
 test('the Campaigns workspace exposes its tabs and switches surfaces', async ({ page }) => {
-  await login(page, 'officer');
+  await login(page, 'admin');
   await goTo(page, 'Campaigns');
   // The four workspace tabs (Templates + Plan + Guide are folded in here now).
   for (const t of ['Launch', 'Templates', 'Plan', 'How it works']) {

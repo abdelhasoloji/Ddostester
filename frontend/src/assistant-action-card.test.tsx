@@ -47,6 +47,21 @@ const campaignAction = (over: string[] = []): AssistantAction => ({
 });
 
 describe('AssistantActionCard — campaign', () => {
+  it('blocks submission when the server rejects a versioned proposal', async () => {
+    const action = {
+      ...campaignAction(),
+      proposal: { schema: 'ddostester.kusa.proposal/v1', type: 'test-campaign', approved: true },
+    };
+    fakeApi.validateAssistantProposal.mockRejectedValueOnce(
+      new Error('Unsupported proposal fields'),
+    );
+    render(<AssistantActionCard action={action} />);
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await screen.findByText(/Unsupported proposal fields/);
+    expect(fakeApi.validateAssistantProposal).toHaveBeenCalledWith(action.proposal);
+    expect(fakeApi.createCampaign).not.toHaveBeenCalled();
+  });
   it('runs the full governed cycle inline: submit → approve → run → result', async () => {
     fakeApi.createCampaign.mockResolvedValue({ id: 'c1', status: 'PENDING_APPROVAL' });
     fakeApi.approve.mockResolvedValue({ id: 'c1', status: 'APPROVED' });

@@ -47,7 +47,11 @@ describe('admin campaign purge', () => {
     store = new MemoryStore();
     const built = await buildApp({
       store,
-      auth: initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: USERS } as NodeJS.ProcessEnv),
+      auth: initAuth({
+        USER_MODE: 'team',
+        AUTH_JWT_SECRET: 'sek',
+        AUTH_USERS: USERS,
+      } as NodeJS.ProcessEnv),
       allowedTargets: ['bank.cz'],
       logger: false,
       serveStatic: false,

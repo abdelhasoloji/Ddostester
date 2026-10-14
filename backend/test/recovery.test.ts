@@ -83,3 +83,15 @@ describe('waitForTargetAvailable (between-wave recovery gate)', () => {
     expect(res.checks).toBe(0);
   });
 });
+
+it('clips polling sleep to the remaining recovery budget', async () => {
+  const result = await waitForTargetAvailable('http://fixture.test/', {
+    maxWaitMs: 40,
+    intervalMs: 1000,
+    needed: 1,
+    fetchImpl: async () => new Response('unavailable', { status: 503 }),
+  });
+  expect(result.available).toBe(false);
+  expect(result.waitedMs).toBeLessThan(500);
+  expect(result.checks).toBe(1);
+});

@@ -18,7 +18,7 @@ describe('report Print/PDF button CSP allowance', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: ['127.0.0.1'],
       logger: false,
       serveStatic: false,

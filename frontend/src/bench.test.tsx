@@ -92,7 +92,7 @@ vi.mock('./api.js', async (orig) => {
 
 const { SettingsPage } = await import('./pages.js');
 
-describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
+describe('Network bench cockpit (Settings) — DRS matrix', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentApp = makeApp({
@@ -102,10 +102,10 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
     });
   });
 
-  it('shows the CISO the zeroBS coverage matrix and a completed verdict', async () => {
+  it('shows the CISO the DRS coverage matrix and a completed verdict', async () => {
     renderWithRouter(<SettingsPage />);
-    expect(await screen.findByText(/Network bench — class C/)).toBeTruthy();
-    expect(await screen.findByText(/zeroBS Volumetric coverage/)).toBeTruthy();
+    expect(await screen.findByText(/Network bench — advanced · class C/)).toBeTruthy();
+    expect(await screen.findByText(/DRS Volumetric coverage/)).toBeTruthy();
     // Out-of-model vectors are shown for coverage.
     expect(await screen.findByText('tcp_synflood')).toBeTruthy();
     expect(screen.getByText('ip_spoofing')).toBeTruthy();
@@ -145,15 +145,15 @@ describe('Network bench cockpit (Settings) — zeroBS matrix', () => {
     await waitFor(() => expect(fakeApi.recordBenchCoverage).toHaveBeenCalled());
   });
 
-  it('hides the bench cockpit from non-CISO roles', async () => {
+  it('hides the bench cockpit from profiles without bench capabilities', async () => {
     currentApp = makeApp({
-      role: 'admin',
+      role: 'viewer',
       authRequired: true,
-      identity: { email: 'off@wedos', role: 'admin' },
+      identity: { email: 'off@wedos', role: 'viewer' },
     });
     renderWithRouter(<SettingsPage />);
     await screen.findByText(/Engine & security/);
-    expect(screen.queryByText(/Network bench — class C/)).toBeNull();
+    expect(screen.queryByText(/Network bench — advanced · class C/)).toBeNull();
     expect(fakeApi.benchScenarios).not.toHaveBeenCalled();
   });
 });

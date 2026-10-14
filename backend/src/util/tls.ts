@@ -21,6 +21,10 @@ export function tlsInsecure(): boolean {
  */
 export function applyTlsPolicy(warn: (msg: string) => void): boolean {
   if (!tlsInsecure()) return false;
+  if (process.env.ISOLATED_LAB !== '1')
+    throw new Error(
+      'INSECURE_TLS requires ISOLATED_LAB=1; use NODE_EXTRA_CA_CERTS on connected deployments.',
+    );
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   warn(
     'INSECURE_TLS=true — TLS certificate verification is DISABLED for all outbound ' +

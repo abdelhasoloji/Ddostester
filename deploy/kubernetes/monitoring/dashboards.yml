@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: private-lab
+    orgId: 1
+    folder: Private lab
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/lab-dashboards

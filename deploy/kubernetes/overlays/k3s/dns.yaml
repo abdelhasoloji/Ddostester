@@ -1,0 +1,24 @@
+# Dedicated laboratory cluster only. Do not apply to shared team DNS.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+            lameduck 5s
+        }
+        ready
+        kubernetes cluster.local {
+            namespaces ddostester-lab
+            pods disabled
+            ttl 5
+        }
+        prometheus :9153
+        cache 5
+        reload
+        loadbalance
+    }

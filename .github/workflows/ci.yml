@@ -34,6 +34,7 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --fund=false
       - run: npm run lint
       - run: npm run typecheck
+      - run: node --test scripts/operations/witness/proof.test.mjs
       - run: npm audit --audit-level=high
 
   # Frontend tests (with coverage thresholds) + build.
@@ -67,3 +68,36 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --fund=false
       - run: npm run test:coverage -w backend
       - run: npm run build -w backend
+
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ddostester_test
+          POSTGRES_PASSWORD: disposable_ci_only
+          POSTGRES_DB: ddostester_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ddostester_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgres://ddostester_test:disposable_ci_only@127.0.0.1:5432/ddostester_test
+      REQUIRE_POSTGRES_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm run test:postgres -w backend
+      - name: Authenticated recovery gate
+        env:
+          PG_TOOLS_CONTAINER: ${{ job.services.postgres.id }}
+        run: node scripts/operations/recovery-check.mjs

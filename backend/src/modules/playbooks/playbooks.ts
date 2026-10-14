@@ -508,7 +508,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Random-URL L7 flood',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS L7 — random_flood',
+      reference: 'DRS L7 — random_flood',
       measures: 'Edge URL-allowlist / 404 enforcement and origin shielding.',
       notReproduced:
         'Bounded rate; a fixed set of non-existent paths (no unique-per-request cache-busters).',
@@ -554,7 +554,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'POST/PUT method flood',
       source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
-      reference: 'zeroBS L7 — post_flood',
+      reference: 'DRS L7 — post_flood',
       measures: 'HTTP method allowlist / 405 enforcement at the edge.',
       notReproduced:
         'Bounded rate; GET/POST only (no PUT); no exhaustion — complete, rate-capped requests.',
@@ -593,7 +593,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Multi-vector L7 (mixed method + endpoint + fingerprint)',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS L7 — http_multivector',
+      reference: 'DRS L7 — http_multivector',
       measures: 'Combined edge defenses vs a shape that varies method, URL set and User-Agent.',
       notReproduced: 'Bounded rate; benign headers; no exhaustion, no spoofing.',
     },
@@ -642,7 +642,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Sophisticated IoT-botnet L7 (rotating fingerprints, deep paths)',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS L7 — get_flood (IoT v2)',
+      reference: 'DRS L7 — get_flood (IoT v2)',
       measures: 'Fingerprint/bot classification when many benign UAs hit deep endpoints.',
       notReproduced:
         'Bounded rate; benign UAs from a fixed set; no botnet, no exhaustion, no spoofing.',
@@ -682,7 +682,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Gradual ramp to plateau',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS DRS — RampUp / Plateau',
+      reference: 'DRS — RampUp / Plateau',
       measures: 'Detection lag on a slow ramp; stability of a sustained plateau.',
       notReproduced: 'Bounded ceiling; no volumetric — L7 requests only.',
     },
@@ -719,7 +719,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Synchronized burst (coordinated strike)',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS glossary — THOR (synchronized strike)',
+      reference: 'DRS glossary — THOR (synchronized strike)',
       measures: 'Reaction time to abrupt bursts and recovery in the lulls between pulses.',
       notReproduced: 'Bounded peak; a load shape only — not a real botnet time-sync.',
     },
@@ -756,7 +756,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Randomized parameters (Chewy / Chaos)',
       source: 'https://radar.cloudflare.com/reports',
-      reference: 'zeroBS glossary — Chewy / Chaos',
+      reference: 'DRS glossary — Chewy / Chaos',
       measures: 'Whether classification/rate-limiting stays stable as parameters vary.',
       notReproduced:
         'Bounded rate; fixed benign parameter sets — no per-request randomization or cache-busting.',
@@ -808,7 +808,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     threat: {
       technique: 'Client fingerprint spoofing via headers',
       source: 'https://www.cloudflare.com/learning/ddos/application-layer-ddos-attack/',
-      reference: 'zeroBS L7 — get_flood (IoT v2)',
+      reference: 'DRS L7 — get_flood (IoT v2)',
       measures: 'Header/fingerprint-based classification and rule matching at the edge.',
       notReproduced:
         'Bounded rate; benign, fixed header values — no TLS/JA4 manipulation, no exhaustion.',
@@ -1235,20 +1235,20 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
   {
     id: 'pretest-cra-l7',
-    name: 'Pre-test — zeroBS L7 playbook (P26-20371)',
+    name: 'Pre-test — DRS L7 playbook (P26-20371)',
     category: 'Threat-informed',
     drsLevel: 5,
     summary:
-      'An ordered DRS 3→5 dry-run of the reproducible Layer-7 lines of the zeroBS P26-20371 ' +
+      'An ordered DRS 3→5 dry-run of the reproducible Layer-7 lines of the DRS P26-20371 ' +
       'playbook, so the CRA-platform protection can be rehearsed before the external engagement. ' +
       'Bounded HTTP only. Point it at an AUTHORIZED, allowlisted staging replica — never the ' +
       'ENISA production URLs. Lines not reproduced here (true SlowLoris, HPACK bomb, dedicated ' +
       'WAF-cracker, credential brute-force, and the L3/4 TCP-handshake line) are documented as ' +
       'out of this L7 sequence — the TCP line runs on the isolated class-C bench, not here.',
-    when: 'Rehearse the P26-20371 L7 lines against a staging replica before the zeroBS run.',
+    when: 'Rehearse the P26-20371 L7 lines against a staging replica before the DRS run.',
     threat: {
-      technique: 'zeroBS L7 functionality-test sequence (P26-20371)',
-      reference: 'zeroBS Playbook P26-20371 — DRS v3, ENISA/CRA portal',
+      technique: 'DRS L7 functionality-test sequence (P26-20371)',
+      reference: 'DRS Playbook P26-20371 — DRS v3, ENISA/CRA portal',
       measures:
         'Whether the WEDOS L7 protection detects and mitigates each DRS 3→5 request-shape ' +
         'instantly (≤ DRS4) without blocking source IPs, measured via detect/mitigate timing, ' +
@@ -1993,11 +1993,11 @@ const CURATED_PLAYBOOKS: Playbook[] = [
   },
 ];
 
-// Each reproducible zeroBS P26-20371 L7 line, exposed as its OWN single-step
+// Each reproducible DRS P26-20371 L7 line, exposed as its OWN single-step
 // playbook, so an operator can replay any one line on its own — not only the
 // full 12-step sequence. Derived from the parent `pretest-cra-l7` steps so the
 // two can never drift: edit the parent, the single-line templates follow.
-const ZEROBS_PARENT_ID = 'pretest-cra-l7';
+const DRS_PARENT_ID = 'pretest-cra-l7';
 
 function lineSlug(name: string): string {
   return name
@@ -2007,9 +2007,9 @@ function lineSlug(name: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-/** The single-step template id for a zeroBS L7 line (used by the gap planner to
+/** The single-step template id for a DRS L7 line (used by the gap planner to
  *  turn a recommended line into a composable/replayable campaign). */
-export function zeroBsLineTemplateId(stepName: string): string {
+export function drsLineTemplateId(stepName: string): string {
   return `cra-l7-${lineSlug(stepName)}`;
 }
 function drsOfName(name: string): number | undefined {
@@ -2017,17 +2017,17 @@ function drsOfName(name: string): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
-const ZEROBS_LINE_PLAYBOOKS: Playbook[] = (() => {
-  const parent = CURATED_PLAYBOOKS.find((p) => p.id === ZEROBS_PARENT_ID);
+const DRS_LINE_PLAYBOOKS: Playbook[] = (() => {
+  const parent = CURATED_PLAYBOOKS.find((p) => p.id === DRS_PARENT_ID);
   if (!parent) return [];
   return parent.steps.map((step) => ({
     id: `cra-l7-${lineSlug(step.name)}`,
-    name: `zeroBS L7 — ${step.name}`,
-    category: 'zeroBS L7 lines (P26-20371)',
+    name: `DRS L7 — ${step.name}`,
+    category: 'DRS L7 lines (P26-20371)',
     drsLevel: drsOfName(step.name) ?? parent.drsLevel,
     summary: step.summary,
     when:
-      'Replay this single zeroBS P26-20371 L7 line on its own against an authorized, ' +
+      'Replay this single DRS P26-20371 L7 line on its own against an authorized, ' +
       'allowlisted staging replica — never the ENISA production URLs.',
     threat: parent.threat,
     steps: [step],
@@ -2037,7 +2037,7 @@ const ZEROBS_LINE_PLAYBOOKS: Playbook[] = (() => {
 /**
  * When each curated template was introduced (date the template first shipped,
  * from git history). Documentation/UX only — it never changes what is sent. The
- * zeroBS single-line templates share the date they were split out (see below).
+ * DRS single-line templates share the date they were split out (see below).
  */
 const CURATED_CREATED_AT: Record<string, string> = {
   'quick-readiness': '2026-09-05',
@@ -2072,13 +2072,13 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'l7-pulse-burst': '2026-09-16',
   'l7-post-storm': '2026-09-16',
 };
-/** Date the zeroBS L7 lines were split into their own single-step templates. */
-const ZEROBS_LINES_CREATED_AT = '2026-09-11';
+/** Date the DRS L7 lines were split into their own single-step templates. */
+const DRS_LINES_CREATED_AT = '2026-09-11';
 const toIso = (d: string): string => `${d}T00:00:00.000Z`;
 
 /**
  * The full playbook library: the curated multi-step scenarios plus one
- * single-step template per zeroBS L7 line (each independently replayable). Each
+ * single-step template per DRS L7 line (each independently replayable). Each
  * template is stamped with its introduction date (`createdAt`).
  */
 export const PLAYBOOKS: Playbook[] = [
@@ -2086,7 +2086,7 @@ export const PLAYBOOKS: Playbook[] = [
     ...p,
     createdAt: CURATED_CREATED_AT[p.id] ? toIso(CURATED_CREATED_AT[p.id]) : undefined,
   })),
-  ...ZEROBS_LINE_PLAYBOOKS.map((p) => ({ ...p, createdAt: toIso(ZEROBS_LINES_CREATED_AT) })),
+  ...DRS_LINE_PLAYBOOKS.map((p) => ({ ...p, createdAt: toIso(DRS_LINES_CREATED_AT) })),
 ];
 
 export function getPlaybook(id: string): Playbook | undefined {

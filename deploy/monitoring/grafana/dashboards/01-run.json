@@ -1,6 +1,6 @@
 {
   "uid": "shieldtest-run",
-  "title": "ShieldTest \u00b7 Run & Absorption",
+  "title": "ShieldTest \u00b7 Run & Generator Outcomes",
   "editable": true,
   "schemaVersion": 39,
   "version": 3,
@@ -38,7 +38,7 @@
     {
       "id": 100,
       "type": "row",
-      "title": "Live run \u2014 traffic & absorption",
+      "title": "Live run \u2014 generator outcomes",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -49,7 +49,7 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Offered vs Reached-origin RPS (live)",
+      "title": "Offered vs Successful-response RPS (live)",
       "description": "Real-time, straight from the in-flight run (mirrors the app's Run Theater). Empty when no run is in flight.",
       "datasource": {
         "type": "prometheus",
@@ -76,8 +76,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_live_origin_rps{target=~\"$target\"}",
-          "legendFormat": "reached origin \u00b7 {{target}}/{{vector}}",
+          "expr": "shieldtest_run_live_successful_rps{target=~\"$target\"}",
+          "legendFormat": "successful responses \u00b7 {{target}}/{{vector}}",
           "refId": "B"
         }
       ],
@@ -130,7 +130,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_absorbed_ratio_last{target=~\"$target\"}*100",
+          "expr": "shieldtest_run_failed_ratio_last{target=~\"$target\"}*100",
           "legendFormat": "absorbed",
           "refId": "A"
         },
@@ -315,7 +315,7 @@
     {
       "id": 12,
       "type": "stat",
-      "title": "Absorbed % (live)",
+      "title": "Generator failures % (live)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -333,7 +333,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(shieldtest_run_live_absorbed_ratio{target=~\"$target\"})*100 or max(shieldtest_run_absorbed_ratio_last{target=~\"$target\"})*100",
+          "expr": "max(shieldtest_run_live_failed_ratio{target=~\"$target\"})*100 or max(shieldtest_run_failed_ratio_last{target=~\"$target\"})*100",
           "legendFormat": "",
           "refId": "A"
         }

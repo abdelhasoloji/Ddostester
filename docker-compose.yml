@@ -49,6 +49,10 @@ services:
       # loopback bind + SSH tunnel). Set both to require a signed token.
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
       AUTH_USERS: ${AUTH_USERS:-}
+      USER_MODE: ${USER_MODE:-single}
+      SINGLE_USER_EMAIL: ${SINGLE_USER_EMAIL:-abdelha@wedos}
+      SINGLE_USER_PASSWORD: ${SINGLE_USER_PASSWORD:-}
+      REQUIRE_CISO_APPROVAL: ${REQUIRE_CISO_APPROVAL:-0}
       # Load agent: 'builtin' (bounded in-process HTTP) or 'k6' (external tool).
       AGENT: ${AGENT:-builtin}
       # Optional CORS origin for the UI if served from a different host.

@@ -11,7 +11,7 @@ import { verifyChain } from '../src/modules/audit/integrity.js';
 /**
  * One contract, run against every Store implementation, so memory and postgres
  * behave identically. The postgres suite runs only when DATABASE_URL_TEST is
- * set (e.g. a disposable local cluster); it is skipped in CI otherwise.
+ * set (e.g. a disposable local cluster); it is mandatory in the PostgreSQL CI job.
  */
 
 function makeCampaign(over: Partial<Campaign> = {}): Campaign {
@@ -97,8 +97,28 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
       const c = makeCampaign();
       await store.saveCampaign(c);
       const r = makeRun(c.id);
+      const quality = {
+        measuredSamples: 2,
+        totalSamples: 2,
+        eventLoopMeasuredSamples: 2,
+        peakEventLoopDelayMs: 20,
+        peakRecentEventLoopDelayMs: null,
+        peakThrottledFraction: 0,
+      };
+      r.baseline = { samples: 2, availabilityPct: 100, latencyMs: { p50: 10, p95: 20 }, quality };
+      r.recoveryBeforeRun = {
+        available: true,
+        verified: true,
+        waitedMs: 1250,
+        checks: 2,
+        quality,
+        observation: { vantage: 'remote', receivedSamples: 2, missingSamples: 0, complete: true },
+      };
       await store.saveRun(r);
-      expect((await store.getRun(r.runId))?.campaignId).toBe(c.id);
+      const stored = await store.getRun(r.runId);
+      expect(stored?.campaignId).toBe(c.id);
+      expect(stored?.baseline?.quality).toEqual(quality);
+      expect(stored?.recoveryBeforeRun).toEqual(r.recoveryBeforeRun);
       expect((await store.listRuns(c.id)).map((x) => x.runId)).toContain(r.runId);
     });
 
@@ -188,6 +208,20 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
       expect(await store.getPlaybook(id)).toBeUndefined();
     });
 
+    it('lists newly recorded runs first and preserves order when updating an older run', async () => {
+      const c = makeCampaign();
+      await store.saveCampaign(c);
+      const older = makeRun(c.id);
+      const newer = makeRun(c.id);
+      await store.saveRun(older);
+      await store.saveRun(newer);
+      await store.saveRun(older);
+      expect((await store.listRuns(c.id)).map((run) => run.runId)).toEqual([
+        newer.runId,
+        older.runId,
+      ]);
+    });
+
     it('healthy() and pruneOldData()', async () => {
       expect(await store.healthy()).toBe(true);
       const removed = await store.pruneOldData(365);
@@ -195,9 +229,44 @@ function contract(name: string, makeStore: () => Store, skip: boolean): void {
         expect.objectContaining({ runs: expect.any(Number), audit: expect.any(Number) }),
       );
     });
+    it('persists fleet inventory and rolls it back transactionally', async () => {
+      const device = {
+        id: randomUUID(),
+        agentId: 'contract-' + randomUUID(),
+        name: 'Sensor',
+        group: 'Lab',
+        profile: 'sensor' as const,
+        privateIp: '10.0.0.10',
+        notes: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        credential: { hash: 'a'.repeat(64), expiresAt: Date.now() + 86400_000 },
+        heartbeat: {
+          sequence: 1,
+          receivedAt: Date.now(),
+          version: 'contract/v1',
+          uptimeSec: 1,
+          peerIp: '127.0.0.1',
+        },
+      };
+      await store.saveFleetDevice(device);
+      expect((await store.listFleetDevices()).find((d) => d.id === device.id)).toEqual(device);
+      await expect(
+        store.transaction(async (tx) => {
+          await tx.deleteFleetDevice(device.id);
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+      expect((await store.listFleetDevices()).some((d) => d.id === device.id)).toBe(true);
+      await store.deleteFleetDevice(device.id);
+      expect((await store.listFleetDevices()).some((d) => d.id === device.id)).toBe(false);
+    });
   });
 }
 
 const pgUrl = process.env.DATABASE_URL_TEST;
+if (process.env.REQUIRE_POSTGRES_TESTS === '1' && !pgUrl) {
+  throw new Error('DATABASE_URL_TEST is required for the PostgreSQL gate');
+}
 contract('memory', () => new MemoryStore(), false);
 contract('postgres', () => new PostgresStore(pgUrl ?? ''), !pgUrl);

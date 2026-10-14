@@ -1,6 +1,6 @@
-# Pre-test runbook — zeroBS L7 playbook P26-20371
+# Pre-test runbook — DRS L7 playbook P26-20371
 
-Rehearse the reproducible Layer-7 lines of the zeroBS **P26-20371** playbook
+Rehearse the reproducible Layer-7 lines of the DRS **P26-20371** playbook
 (ENISA/CRA portal, DRS 3→5) against an **authorized staging replica**, before
 the external engagement — so the WEDOS protection is exercised and our own
 playbooks are validated first.
@@ -13,7 +13,7 @@ target to point at.
 
 ## Line-by-line mapping
 
-| #   | DRS | zeroBS line                                    | Reproduced by                                                          | Status                                       |
+| #   | DRS | DRS line                                       | Reproduced by                                                          | Status                                       |
 | --- | --- | ---------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
 | 1   | 3   | TCP-Handshakes                                 | class-C bench `tcp_synflood` / `tcp_maxpackets` (no-spoof state-table) | ✅ separate isolated runner                  |
 | 2   | 3   | SlowLoris                                      | `pretest-cra-l7` SlowLoris step (`http-slowloris`, bounded hold)       | ✅                                           |

@@ -29,19 +29,21 @@ const T = (t: string) => `{target="${sanitizeTarget(t)}"}`;
 
 export const SERIES_CATALOG: Record<string, SeriesDef> = {
   run_rps: {
-    title: 'Live RPS — offered vs reached origin',
+    title: 'Live RPS — offered vs successful responses',
     unit: 'reqps',
     needsTarget: true,
     lines: [
       { label: 'offered', expr: (t) => `shieldtest_run_live_offered_rps${T(t)}` },
-      { label: 'reached origin', expr: (t) => `shieldtest_run_live_origin_rps${T(t)}` },
+      { label: 'successful responses', expr: (t) => `shieldtest_run_live_successful_rps${T(t)}` },
     ],
   },
   run_absorbed: {
     title: 'Absorbed by edge (%)',
     unit: 'percent',
     needsTarget: true,
-    lines: [{ label: 'absorbed %', expr: (t) => `shieldtest_run_live_absorbed_ratio${T(t)}*100` }],
+    lines: [
+      { label: 'generator failures %', expr: (t) => `shieldtest_run_live_failed_ratio${T(t)}*100` },
+    ],
   },
   run_availability: {
     title: 'Legitimate availability (%)',

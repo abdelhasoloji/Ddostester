@@ -16,7 +16,11 @@ async function login(app: FastifyInstance, email: string, pw: string): Promise<s
 
 describe('DRS validation governance', () => {
   it('fails closed when LAB_TARGETS overlaps ALLOWED_TARGETS', async () => {
-    const auth = initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS: '[]' } as NodeJS.ProcessEnv);
+    const auth = initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 's',
+      AUTH_USERS: '[]',
+    } as NodeJS.ProcessEnv);
     await expect(
       buildApp({
         store: new MemoryStore(),
@@ -39,7 +43,11 @@ describe('DRS validation governance', () => {
         { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-123') },
         { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('pw-engineer-123') },
       ]);
-      const auth = initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+      const auth = initAuth({
+        USER_MODE: 'team',
+        AUTH_JWT_SECRET: 's',
+        AUTH_USERS,
+      } as NodeJS.ProcessEnv);
       app = (
         await buildApp({
           store: new MemoryStore(),
@@ -111,7 +119,11 @@ describe('DRS validation governance', () => {
     const AUTH_USERS = JSON.stringify([
       { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-123') },
     ]);
-    const auth = initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+    const auth = initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 's',
+      AUTH_USERS,
+    } as NodeJS.ProcessEnv);
     const app = (
       await buildApp({
         store: new MemoryStore(),

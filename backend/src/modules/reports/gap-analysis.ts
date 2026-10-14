@@ -7,13 +7,13 @@ import {
   benchLadderScenarios,
   type BenchCoverage,
 } from '../bench/model.js';
-import { getPlaybook, zeroBsLineTemplateId, type LoadProfile } from '../playbooks/playbooks.js';
+import { getPlaybook, drsLineTemplateId, type LoadProfile } from '../playbooks/playbooks.js';
 
 /**
- * RPT-05 — Protection-gap analyzer, shaped to the real zeroBS P26-20371 run.
+ * RPT-05 — Protection-gap analyzer, shaped to the real DRS P26-20371 run.
  *
  * Given the DECLARED WEDOS controls for the authorized target, model the
- * engagement the way zeroBS actually drives it and emit the plan that follows
+ * engagement the way DRS actually drives it and emit the plan that follows
  * from it:
  *   - each threat line is mitigated by a CHAIN of controls; the attacker works
  *     the weakest link, so coverage is the worst control in the chain;
@@ -21,7 +21,7 @@ import { getPlaybook, zeroBsLineTemplateId, type LoadProfile } from '../playbook
  *     playbook climbs attacker capability and a collapsed lower tier makes the
  *     higher tiers moot;
  *   - the earliest tier with a real gap is the predicted BREAK POINT — where
- *     zeroBS would stop climbing and concentrate;
+ *     DRS would stop climbing and concentrate;
  *   - every line carries the real, capped intensity of its bounded playbook step
  *     (rps / concurrency / duration / shape) so the plan reads like the scenario.
  *
@@ -78,7 +78,7 @@ interface ThreatLine {
   disposition: Disposition;
   /** Bounded lines: the pretest-cra-l7 step that exercises this line. */
   step?: string;
-  /** DRS5 lines that chain the earlier primitives (zeroBS runs them last). */
+  /** DRS5 lines that chain the earlier primitives (DRS runs them last). */
   combination?: boolean;
   /** Attested lines / partials: why part of it is out of the bounded model. */
   attestedNote?: string;
@@ -227,7 +227,7 @@ function priorityOf(score: number): Priority {
   return 'low';
 }
 
-/** zeroBS attacker-capability tier label for a DRS level. */
+/** DRS attacker-capability tier label for a DRS level. */
 export function drsTier(drs: number): string {
   if (drs >= 5) return 'DRS 5 — advanced / nation-state';
   if (drs === 4) return 'DRS 4 — elevated / botnet';
@@ -255,7 +255,7 @@ export interface PlanItem {
   name: string;
   /** Full control chain with each link's declared status. */
   controls: ControlState[];
-  /** The weakest link — the one zeroBS would work. */
+  /** The weakest link — the one DRS would work. */
   weakest: ControlState;
   priority: Priority;
   score: number;
@@ -285,7 +285,7 @@ export interface GapAnalysis {
   plan: PlanItem[];
   /** Out-of-model lines: verify by attestation, never emitted. */
   attestationOnly: AttestationItem[];
-  /** The earliest line in the ladder with a real gap — where zeroBS concentrates. */
+  /** The earliest line in the ladder with a real gap — where DRS concentrates. */
   breakPoint: {
     line: number;
     name: string;
@@ -327,7 +327,7 @@ const STEP_INTENSITY: Map<string, Intensity> = (() => {
 })();
 
 /**
- * Maps a declared control profile to a zeroBS-shaped escalation plan: bounded
+ * Maps a declared control profile to a DRS-shaped escalation plan: bounded
  * lines in DRS order with per-line weakest-link coverage and real capped
  * intensity, a predicted break point, and the attestation-only lines.
  */
@@ -361,8 +361,8 @@ export function analyzeGaps(profile: ProtectionProfile, target?: string): GapAna
         priority,
         score,
         step: t.step!,
-        templateId: getPlaybook(zeroBsLineTemplateId(t.step!))
-          ? zeroBsLineTemplateId(t.step!)
+        templateId: getPlaybook(drsLineTemplateId(t.step!))
+          ? drsLineTemplateId(t.step!)
           : undefined,
         intensity: STEP_INTENSITY.get(t.step!),
         combination: t.combination ?? false,
@@ -384,7 +384,7 @@ export function analyzeGaps(profile: ProtectionProfile, target?: string): GapAna
   // Engagement order: climb the DRS ladder (low → high), line order within a tier.
   plan.sort((a, b) => a.drs - b.drs || a.line - b.line);
 
-  // Break point: the earliest tier with a real gap is where zeroBS concentrates.
+  // Break point: the earliest tier with a real gap is where DRS concentrates.
   const firstAbsent = plan.find((p) => p.weakest.status === 'absent');
   const firstHigh = plan.find((p) => p.priority === 'high');
   const firstUnknown = plan.find((p) => p.weakest.status === 'unknown');
@@ -397,7 +397,7 @@ export function analyzeGaps(profile: ProtectionProfile, target?: string): GapAna
         weakest: bp.weakest,
         note:
           bp.weakest.status === 'absent'
-            ? `No ${bp.weakest.label.toLowerCase()} on a ${drsTier(bp.drs)} line — the ladder likely breaks here; zeroBS would concentrate and escalate from this rung.`
+            ? `No ${bp.weakest.label.toLowerCase()} on a ${drsTier(bp.drs)} line — the ladder likely breaks here; DRS would concentrate and escalate from this rung.`
             : `Weakest rung on the ladder (${bp.weakest.label.toLowerCase()}: ${bp.weakest.status}) — prove this line first, it gates everything above it.`,
       }
     : null;
@@ -773,7 +773,7 @@ ${rows}
 <button class="print-btn" onclick="window.print()">Print / PDF</button>
 <div class="brand">
  <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
- <h1><span class="wm">WEDOS ShieldTest</span> — Protection-gap analysis (zeroBS P26-20371 shape)</h1>
+ <h1><span class="wm">WEDOS ShieldTest</span> — Protection-gap analysis (DRS P26-20371 shape)</h1>
 </div>
 <p class="muted">Generated on ${esc(a.generatedAt)}${
     a.target ? ` · target <code>${esc(a.target)}</code>` : ''
@@ -781,7 +781,7 @@ ${rows}
 <p><b>${a.summary.high}</b> high · <b>${a.summary.medium}</b> medium · <b>${a.summary.low}</b> low priority to replay · <b>${a.summary.attested}</b> attestation-only line(s).</p>
 ${breakHtml}
 <h2>DRS escalation ladder (replay in this order)</h2>
-<p class="muted">The zeroBS engagement climbs attacker capability 3 → 4 → 5. Replay each rung, read the per-line delta with the suite-compare, and fix the weakest link before climbing. Intensities are the real capped playbook values.</p>
+<p class="muted">The DRS engagement climbs attacker capability 3 → 4 → 5. Replay each rung, read the per-line delta with the suite-compare, and fix the weakest link before climbing. Intensities are the real capped playbook values.</p>
 ${ladder}
 <h2>Attestation-only (out of the bounded model)</h2>
 <p class="muted">Validated by attestation of the control, never emitted — no exploit, amplification or spoofing.</p>

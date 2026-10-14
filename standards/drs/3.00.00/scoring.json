@@ -1,0 +1,21 @@
+{
+  "standard_version": "3.00.00",
+  "engine_version": "shieldtester-drs/1",
+  "interpretation_profile": "strict-conservative/1",
+  "source_section": "5",
+  "source_pages": [26, 27],
+  "pass_percent_by_level": [75, 75, 75, 85, 85, 85, 85],
+  "fail_percent": 40,
+  "score_formula": "level - 1 + passed / total",
+  "threshold_comparisons": {
+    "pass": ">",
+    "fail": "<",
+    "equal": "MET"
+  },
+  "first_level_failure_score": null,
+  "missing_evidence": "INCONCLUSIVE / NOT_EVALUATED; no official score",
+  "rounding": "display only",
+  "baseline_min_seconds": 300,
+  "baseline_origin": "ShieldTester choice, not DRS mandate",
+  "exclude_from_denominator": "No exclusion without a normative reviewed rule; current profile has none"
+}

@@ -1,3 +1,7 @@
+import pg from 'pg';
+import { PostgresTokenBudget } from './modules/assistant/token-budget.js';
+import { FleetCoordinator } from './modules/fleet/coordinator.js';
+import { stopAllProcesses } from './agents/proc.js';
 import { createStore } from './store/index.js';
 import { initAuth } from './auth/guard.js';
 import { kills } from './runtime/kills.js';
@@ -17,15 +21,20 @@ import { buildApp } from './app.js';
 import { applyTlsPolicy } from './util/tls.js';
 import { decideBind } from './util/bind.js';
 
+// New application launches use the DRS-only workflow; legacy is an explicit regression mode.
+process.env.CAMPAIGN_CATALOG ??= 'drs-fleet';
+if (!['drs-fleet', 'legacy'].includes(process.env.CAMPAIGN_CATALOG))
+  throw new Error('Invalid CAMPAIGN_CATALOG');
+
 // Apply the TLS policy before any outbound connection (store, fetch) is opened.
 applyTlsPolicy((msg) => console.warn(`[tls] ${msg}`));
 
 /** Reads a positive-integer env var, failing fast on an invalid value. */
-function intEnv(name: string, def: number): number {
+function intEnv(name: string, def: number, allowZero = false): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === '') return def;
   const n = Number(raw);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < (allowZero ? 0 : 1)) {
     throw new Error(`Invalid ${name}="${raw}" — expected a positive integer.`);
   }
   return n;
@@ -59,13 +68,22 @@ const LAB_TARGETS = (process.env.LAB_TARGETS ?? '')
 // Bearer token an isolated bench runner presents to claim/complete governed
 // class-C runs. Unset = governed dispatch disabled (fail-closed).
 const BENCH_RUNNER_TOKEN = (process.env.BENCH_RUNNER_TOKEN ?? '').trim();
-const SCHEDULER = (process.env.SCHEDULER ?? 'on') !== 'off';
 const SCHEDULER_INTERVAL_MS = intEnv('SCHEDULER_INTERVAL_MS', 30_000);
-const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90);
+const RETENTION_DAYS = intEnv('RETENTION_DAYS', 90, true);
 const MAX_CONCURRENT_RUNS = intEnv('MAX_CONCURRENT_RUNS', 3);
 
 const store = await createStore();
+if (!(await store.acquireRuntimeLease()))
+  throw new Error(
+    'Another control-plane runtime holds the database lease; only one replica is supported.',
+  );
 const auth = initAuth();
+const SCHEDULER = auth.userMode !== 'single' && (process.env.SCHEDULER ?? 'on') !== 'off';
+if (auth.userMode === 'single' && store.backend !== 'postgres') {
+  throw new Error(
+    'USER_MODE=single requires DATABASE_URL for persistent credentials and session revocation.',
+  );
+}
 // Fail closed on a weak signing secret: HS256 with a short shared secret is
 // offline-brute-forceable, which would let an attacker forge a token for any
 // role. Enforced here (the real entrypoint) rather than in initAuth so unit
@@ -81,7 +99,13 @@ const agent = selectAgent();
 const notifier = createNotifier(notifyConfigFromEnv());
 const protection = createProtectionProvider(protectionConfigFromEnv());
 const targetTelemetry = createTargetTelemetryProvider(targetTelemetryConfigFromEnv());
+const assistantPool = process.env.DATABASE_URL
+  ? new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 2 })
+  : undefined;
+const assistantTokenBudget = assistantPool ? new PostgresTokenBudget(assistantPool) : undefined;
+await assistantTokenBudget?.init();
 const { app, runCampaign } = await buildApp({
+  assistantTokenBudget,
   store,
   auth,
   allowedTargets: ALLOWED_TARGETS,
@@ -99,6 +123,40 @@ const { app, runCampaign } = await buildApp({
   grafanaUrl: process.env.GRAFANA_URL?.trim() || undefined,
 });
 
+delete process.env.SINGLE_USER_PASSWORD;
+const assistantRetention = assistantTokenBudget
+  ? setInterval(
+      () => {
+        void assistantTokenBudget
+          .prune()
+          .catch((err) => app.log.error({ err }, 'assistant budget retention failed'));
+      },
+      24 * 3600 * 1000,
+    )
+  : undefined;
+assistantRetention?.unref();
+app.addHook('onClose', async () => {
+  clearInterval(assistantRetention);
+  await assistantPool?.end();
+});
+
+// The singleton lease is held before revoking interrupted distributed assignments.
+if (process.env.FLEET_ENABLED === '1') {
+  const fleetPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 2000,
+    query_timeout: 2500,
+    statement_timeout: 2000,
+  });
+  try {
+    const coordinator = new FleetCoordinator(fleetPool);
+    await coordinator.init();
+    await coordinator.reconcile();
+  } finally {
+    await fleetPool.end();
+  }
+}
+
 // --- Reconcile orphaned RUNNING campaigns -----------------------------------
 // At boot the in-memory kill registry is empty, so any campaign the store still
 // marks RUNNING was left by a previous process that died mid-run (a deploy
@@ -110,7 +168,9 @@ const { app, runCampaign } = await buildApp({
 {
   const reset = await reconcileOrphanedRuns(store);
   if (reset > 0) {
-    app.log.warn(`reconciled ${reset} orphaned RUNNING campaign(s) at startup → APPROVED`);
+    app.log.warn(
+      `reconciled ${reset} orphaned RUNNING campaign(s) at startup (fleet cancelled; local runs returned to approval)`,
+    );
   }
 }
 
@@ -164,6 +224,8 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
   app.log.info(`shutting down (${signal})…`);
   try {
+    kills.stopAll();
+    await stopAllProcesses();
     await app.close();
     await store.close();
   } catch (err) {

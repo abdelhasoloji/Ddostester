@@ -1,0 +1,45 @@
+rule_files:
+  - operations.rules.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: ddostester_backup_completed_timestamp_seconds
+        values: '0+60x20'
+      - series: ddostester_audit_witness_verified_timestamp_seconds
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: DdostesterBackupStale
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DdostesterAuditWitnessStale
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: ddostester_backup_completed_timestamp_seconds
+        values: '1+0x1860'
+      - series: ddostester_audit_witness_verified_timestamp_seconds
+        values: '1+0x1860'
+    alert_rule_test:
+      - eval_time: 31h
+        alertname: DdostesterBackupStale
+        exp_alerts:
+          - exp_labels: { severity: critical, source: shieldtest }
+            exp_annotations:
+              summary: Encrypted database backup missing or older than 30 hours
+      - eval_time: 30m
+        alertname: DdostesterAuditWitnessStale
+        exp_alerts:
+          - exp_labels: { severity: critical, source: shieldtest }
+            exp_annotations:
+              summary: Signed audit witness invalid or older than 15 minutes
+  - interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: DdostesterReplicaStale
+        exp_alerts:
+          - exp_labels: { severity: critical, source: shieldtest }
+            exp_annotations:
+              summary: Verified off-host backup replica missing or older than 30 hours

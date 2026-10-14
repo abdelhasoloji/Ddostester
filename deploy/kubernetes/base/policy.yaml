@@ -1,0 +1,206 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-default
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-dns
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: target-ingress
+spec:
+  podSelector:
+    matchLabels: { app: lab-target }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-agent }
+        - podSelector:
+            matchLabels: { app: lab-probe }
+        - podSelector:
+            matchLabels: { app: lab-control }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: probe-target
+spec:
+  podSelector:
+    matchLabels: { app: lab-probe }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-target }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-control
+spec:
+  podSelector:
+    matchLabels: { app: lab-postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-control }
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-services
+spec:
+  podSelector:
+    matchLabels: { app: lab-control }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-postgres }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-probe }
+      ports:
+        - { protocol: TCP, port: 8099 }
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-target }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: probe-control
+spec:
+  podSelector:
+    matchLabels: { app: lab-probe }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-control }
+      ports:
+        - { protocol: TCP, port: 8099 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-target
+spec:
+  podSelector:
+    matchLabels: { app: lab-agent }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-target }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fleet-agents
+spec:
+  podSelector:
+    matchLabels: { app: lab-fleet }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-agent }
+      ports: [{ protocol: TCP, port: 8443 }]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-postgres }
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-coordinator
+spec:
+  podSelector:
+    matchLabels: { app: lab-agent }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-fleet }
+      ports: [{ protocol: TCP, port: 8443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-fleet
+spec:
+  podSelector:
+    matchLabels: { app: lab-postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-fleet }
+      ports: [{ protocol: TCP, port: 5432 }]
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: target-receipts
+spec:
+  podSelector:
+    matchLabels: { app: lab-target }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: lab-control }
+      ports: [{ protocol: TCP, port: 9101 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-receipts
+spec:
+  podSelector:
+    matchLabels: { app: lab-control }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: lab-target }
+      ports: [{ protocol: TCP, port: 9101 }]

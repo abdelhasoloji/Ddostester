@@ -136,7 +136,7 @@ describe('Command Center', () => {
     expect(document.querySelector('.alert-sev-warning')?.textContent?.trim()).toBe('warning');
     expect(document.querySelector('.alert-sev-info')?.textContent?.trim()).toBe('info');
     await waitFor(() => expect(getRun).toHaveBeenCalledWith('run1'));
-    await waitFor(() => expect(screen.getByText(/Protection absorption/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Generator outcomes/)).toBeInTheDocument());
   });
 
   it('routes the CISO to pending approvals', () => {
@@ -262,8 +262,8 @@ describe('Run Theater', () => {
         }),
       });
     });
-    expect(screen.getByText('Absorbed by edge')).toBeInTheDocument();
-    expect(screen.getByText('Reached origin')).toBeInTheDocument();
+    expect(screen.getByText('Generator failures')).toBeInTheDocument();
+    expect(screen.getByText('Successful responses')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument(); // 800/1000 offered → 80% absorbed
   });
 
@@ -305,10 +305,12 @@ describe('Run Theater', () => {
     });
     renderWithRouter(<RunTheaterPage />);
     expect(esInstances.length).toBeGreaterThan(0);
+    const close = vi.spyOn(esInstances[0], 'close');
     // No data ever arrived, then the connection drops.
     act(() => esInstances[0].onerror?.());
     expect(screen.getByText(/Live updates interrupted/)).toBeInTheDocument();
     expect(screen.queryByText(/Starting run…/)).not.toBeInTheDocument();
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('keeps the suite surface between steps (recovery gate), not "no run"', async () => {

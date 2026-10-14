@@ -23,6 +23,7 @@ export interface TargetRoutesCtx {
   /** The env allowlist base — a host already permanently allowlisted needs no onboarding. */
   envAllowlist: string[];
   actorOf: (req: FastifyRequest) => string;
+  selfAuthorize?: (req: FastifyRequest) => boolean;
 }
 
 interface CreateBody {
@@ -168,7 +169,9 @@ export function registerTargetRoutes(app: FastifyInstance, ctx: TargetRoutesCtx)
       const t = await store.getTarget((req.params as { id: string }).id);
       if (!t) return reply.code(404).send({ error: 'target not found' });
       try {
-        const next = authorizeTarget(t, actorOf(req));
+        const next = authorizeTarget(t, actorOf(req), undefined, {
+          singleUser: ctx.selfAuthorize?.(req),
+        });
         await store.saveTarget(next);
         await audit(req, 'target.authorize', `${t.host}: authorized (allowlist +1)`);
         return next;

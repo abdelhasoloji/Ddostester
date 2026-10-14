@@ -22,7 +22,7 @@ test('serves the SPA, authenticates and reaches the campaigns view', async ({ pa
 
 test('rejects invalid credentials', async ({ page }) => {
   await page.goto('/');
-  await page.locator('input[autocomplete="username"]').fill('off@wedos');
+  await page.locator('input[autocomplete="username"]').fill('abdelha@wedos');
   await page.locator('input[type="password"]').fill('wrong-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByText(/invalid credentials/i)).toBeVisible();

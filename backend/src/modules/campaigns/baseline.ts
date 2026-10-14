@@ -1,3 +1,13 @@
+import {
+  summarizeProbeQuality,
+  type ProbeQuality,
+  type ProbeQualitySummary,
+} from '../probe/quality.js';
+import { remoteProbeQualityReasons } from '../reports/confidence.js';
+import { sampleRemoteProbe } from '../probe/remote.js';
+import type { RemoteProbeConfig } from '../../config/limits.js';
+import { readBoundedBody } from '../../util/http-body.js';
+import { IO_LIMITS } from '../../config/limits.js';
 import { percentile } from '../../engine/stats.js';
 
 /**
@@ -9,6 +19,18 @@ import { percentile } from '../../engine/stats.js';
  */
 
 export interface BaselineMetrics {
+  durationSec?: number;
+  samplesMs?: number[];
+  stable?: boolean;
+  functionalAssertionMeasured?: boolean;
+  quality?: ProbeQualitySummary;
+  observation?: {
+    vantage: 'remote';
+    expectedSamples: number;
+    receivedSamples: number;
+    missingSamples: number;
+    complete: boolean;
+  };
   /** Number of pre-load probe samples taken. */
   samples: number;
   /** Nominal availability (%) with no generated load. */
@@ -44,25 +66,39 @@ export async function captureBaseline(
   count = 3,
   intervalMs = 1000,
   timeoutMs = 5000,
+  remote?: RemoteProbeConfig,
+  retainSamples = false,
 ): Promise<BaselineMetrics> {
+  const began = performance.now();
   const lat: number[] = [];
   let ok = 0;
+  let received = 0;
+  const diagnostics: ProbeQuality[] = [];
   for (let i = 0; i < count; i++) {
     if (signal?.aborted) break;
     const t0 = performance.now();
     const ac = new AbortController();
+    const combined = signal ? AbortSignal.any([signal, ac.signal]) : ac.signal;
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     let ttfbMs = 0;
     try {
-      const res = await fetch(url, { signal: ac.signal });
-      // TTFB (time to response headers), measured BEFORE draining the body —
-      // consistent with the live Probe, so the under-load-vs-baseline latency
-      // delta compares like with like and isn't skewed by response size.
-      ttfbMs = performance.now() - t0;
-      if (res.ok) ok++;
-      await res.arrayBuffer().catch(() => undefined);
+      if (remote) {
+        const sample = await sampleRemoteProbe(remote, url, timeoutMs, combined);
+        received++;
+        if (sample.quality) diagnostics.push(sample.quality);
+        ttfbMs = sample.latencyMs;
+        if (sample.ok) ok++;
+      } else {
+        const res = await fetch(url, { signal: combined, redirect: 'manual' });
+        // TTFB (time to response headers), measured BEFORE draining the body —
+        // consistent with the live Probe, so the under-load-vs-baseline latency
+        // delta compares like with like and isn't skewed by response size.
+        ttfbMs = performance.now() - t0;
+        if (res.ok) ok++;
+        await readBoundedBody(res.body, IO_LIMITS.responseBytes, false);
+      }
     } catch {
-      /* target unavailable → counts against availability */
+      /* Missing remote observation is not an attributed target outage. */
       ttfbMs = performance.now() - t0; // time to failure
     } finally {
       clearTimeout(timer);
@@ -73,6 +109,25 @@ export async function captureBaseline(
   const n = lat.length || 1;
   const sorted = [...lat].sort((a, b) => a - b);
   return {
+    ...(retainSamples
+      ? {
+          durationSec: (performance.now() - began) / 1000,
+          samplesMs: lat,
+          functionalAssertionMeasured: false,
+        }
+      : {}),
+    ...(remote
+      ? {
+          observation: {
+            vantage: 'remote' as const,
+            expectedSamples: count,
+            receivedSamples: received,
+            missingSamples: Math.max(0, count - received),
+            complete: count > 0 && received === count && lat.length === count,
+          },
+        }
+      : {}),
+    ...(remote ? { quality: summarizeProbeQuality(diagnostics, lat.length) } : {}),
     samples: lat.length,
     availabilityPct: Number(((ok / n) * 100).toFixed(1)),
     latencyMs: { p50: percentile(sorted, 50), p95: percentile(sorted, 95) },
@@ -83,7 +138,13 @@ export async function captureBaseline(
 export function computeBaselineDelta(
   baseline: BaselineMetrics,
   underLoad: UnderLoad,
-): BaselineDelta {
+): BaselineDelta | undefined {
+  if (
+    baseline.samples === 0 ||
+    baseline.observation?.complete === false ||
+    (baseline.quality && remoteProbeQualityReasons(baseline.quality).length)
+  )
+    return undefined;
   return {
     latencyP50DeltaMs: Number((underLoad.latencyMs.p50 - baseline.latencyMs.p50).toFixed(2)),
     latencyP95DeltaMs: Number((underLoad.latencyMs.p95 - baseline.latencyMs.p95).toFixed(2)),

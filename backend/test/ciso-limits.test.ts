@@ -15,14 +15,14 @@ async function login(app: FastifyInstance, email: string, pw: string): Promise<s
 }
 
 describe('Admin role (RBAC)', () => {
-  it('is the only role that can manage limits, and is not an operator/approver', () => {
+  it('is the only role that can manage limits, and can operate and approve', () => {
     expect(isRole('admin')).toBe(true);
     expect(can('admin', 'limits:manage')).toBe(true);
     expect(can('admin', 'user:manage')).toBe(true);
     // Administration, not operations: the admin cannot create/approve/execute.
-    expect(can('admin', 'campaign:create')).toBe(false);
-    expect(can('admin', 'campaign:approve')).toBe(false);
-    expect(can('admin', 'campaign:execute')).toBe(false);
+    expect(can('admin', 'campaign:create')).toBe(true);
+    expect(can('admin', 'campaign:approve')).toBe(true);
+    expect(can('admin', 'campaign:execute')).toBe(true);
     // The admin can read and emergency-kill.
     expect(can('admin', 'campaign:read')).toBe(true);
     expect(can('admin', 'campaign:kill')).toBe(true);
@@ -45,7 +45,11 @@ describe('Admin-managed operational limits (PUT /api/limits)', () => {
       { email: 'ciso@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-1234') },
       { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('pw-engineer-123') },
     ]);
-    const auth = initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+    const auth = initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 's',
+      AUTH_USERS,
+    } as NodeJS.ProcessEnv);
     app = (
       await buildApp({
         store: new MemoryStore(),

@@ -1,7 +1,7 @@
 # Measurement — WRS, assessment methodology & the replay loop
 
 How ShieldTest turns a bounded run into a resilience score (WRS), the
-zeroBS-DRS-inspired assessment report it produces, the five-phase engagement
+DRS-inspired assessment report it produces, the five-phase engagement
 model the UI is organised around, and the tune-and-replay loop that closes a
 weakness. All of it is **inbound measurement** — it generates no attack traffic.
 
@@ -62,7 +62,7 @@ aggregate assessment.
 
 ## 2. Assessment methodology (bounded DRS)
 
-Inspired by the zeroBS **DDoS Resiliency Score (DRS)** stress-test methodology
+Inspired by the DRS **DDoS Resiliency Score (DRS)** stress-test methodology
 and report, adapted to ShieldTest's **bounded** model: keep the structure,
 scoring discipline and scenario taxonomy; drop everything that isn't a bounded,
 allowlisted, capped HTTP measurement (volumetric/amplification/spoofing stay out
@@ -98,7 +98,7 @@ axis), WRS-component and latency bars, score-by-grade and risk distributions, a
 WRS trend. Helpers: `backend/src/modules/reports/charts.ts`; chrome:
 `reports/layout.ts`; builders: `reports/{report,compliance}.ts`.
 
-**Before/after comparison** — the core zeroBS deliverable ("did protection
+**Before/after comparison** — the core DRS deliverable ("did protection
 improve?"): `GET /api/reports/compare?a=<runId>&b=<runId>` and the Reports-page
 card render two runs side by side with signed deltas (WRS, availability, probe
 p95, mitigation verdict, RiskLevel, TTD/TTM) and an Improved/Regressed headline
@@ -106,7 +106,7 @@ p95, mitigation verdict, RiskLevel, TTD/TTM) and an Improved/Regressed headline
 
 ### Scenario catalogue (L7 reproduced, bounded)
 
-Each zeroBS L7 scenario maps to a bounded ShieldTest playbook that keeps the
+Each DRS L7 scenario maps to a bounded ShieldTest playbook that keeps the
 **shape** and drops the **mechanism** (recorded per playbook in its
 `notReproduced` field). Examples: `get_flood`→steady GET; `random_flood`→invalid
 paths (404 / URL-allowlist, `threat-url-allowlist`); `post_flood`→bounded POST
@@ -118,7 +118,7 @@ threat-informed playbook carries a `drsLevel` (3–5) badge. **Volumetric L3/L4 
 class C** — documented in the report under "Volumetric / L3-L4 — class C, network
 bench", never emitted (see [boundary-and-lab.md](./boundary-and-lab.md)).
 
-Scoring vocabulary (zeroBS ↔ ShieldTest): DRS level → scenario tag (target-defined
+Scoring vocabulary (DRS ↔ ShieldTest): DRS level → scenario tag (target-defined
 ⇒ cap 4.5); Score → WRS + pass/fail vs SLO; RPS → `generator.actualRps` (≤ 2000);
 PPS/volumetric → n/a (out of scope).
 

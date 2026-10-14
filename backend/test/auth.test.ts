@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hashPassword, verifyPassword } from '../src/auth/passwords.js';
-import { signJwt, verifyJwt } from '../src/auth/jwt.js';
+import { SESSION_TTL_SECONDS, signJwt, verifyJwt } from '../src/auth/jwt.js';
 import { can } from '../src/auth/rbac.js';
 import { loadUsers } from '../src/auth/users.js';
 import { initAuth, login, identityFromRequest } from '../src/auth/guard.js';
@@ -19,6 +19,8 @@ describe('jwt', () => {
     const p = verifyJwt(t, 'secret');
     expect(p?.sub).toBe('a@wedos');
     expect(p?.role).toBe('ciso');
+    expect(p!.exp - p!.iat).toBe(SESSION_TTL_SECONDS);
+    expect(SESSION_TTL_SECONDS).toBe(3600);
   });
   it('rejects a bad signature', () => {
     const t = signJwt({ sub: 'a@wedos', role: 'ciso' }, 'secret');
@@ -51,7 +53,11 @@ describe('users + login', () => {
     expect(() => loadUsers('[{"email":"x","role":"root","passwordHash":"h"}]')).toThrow();
   });
   it('login + identity from the token', () => {
-    const state = initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv);
+    const state = initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 'sek',
+      AUTH_USERS: users,
+    } as NodeJS.ProcessEnv);
     expect(state.enabled).toBe(true);
     const res = login(state, 'off@wedos', 'pw1');
     expect(res?.role).toBe('ciso');
@@ -62,6 +68,6 @@ describe('users + login', () => {
     expect(login(state, 'off@wedos', 'bad')).toBeNull();
   });
   it('disabled without a secret', () => {
-    expect(initAuth({} as NodeJS.ProcessEnv).enabled).toBe(false);
+    expect(initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv).enabled).toBe(false);
   });
 });

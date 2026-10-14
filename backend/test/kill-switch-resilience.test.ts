@@ -36,7 +36,7 @@ describe('kill-switch resilience', () => {
     store = new MemoryStore();
     const built = await buildApp({
       store,
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: ['127.0.0.1', 'localhost'],
       logger: false,
       serveStatic: false,

@@ -220,8 +220,8 @@ describe('B. Allowlist matrix', () => {
     { value: 'http://LOCALHOST/', want: 201, spec: 'SPEC-ALLOW-3 (URL lowercases host)' },
     {
       value: 'http://user@127.0.0.1/',
-      want: 201,
-      spec: 'SPEC-ALLOW-1 (userinfo, host still 127.0.0.1)',
+      want: 400,
+      spec: 'SPEC-ALLOW-1 (embedded credentials forbidden)',
     },
     { value: 'http://evil.example.com/', want: 400, spec: 'SPEC-ALLOW-1' },
     { value: 'http://127.0.0.1.evil.com/', want: 400, spec: 'SPEC-ALLOW-3 (suffix trick)' },
@@ -831,7 +831,7 @@ describe('K. Read-token routes', () => {
     '/api/runs/nope/report',
     '/api/runs/nope/timeline.csv',
   ];
-  it('require a read token; accept it via header or query for any read role', async () => {
+  it('require a read token; accept headers for read roles and reject session JWTs in URLs', async () => {
     for (const u of routes) {
       const noTok = await hit(authed.app, 'GET', u);
       reg(
@@ -859,13 +859,13 @@ describe('K. Read-token routes', () => {
       const qry = await hit(authed.app, 'GET', `${u}${sep}token=${authed.tokens.ciso}`);
       reg(
         'RTOKEN',
-        `query token ${u}`,
+        `session JWT refused in query ${u}`,
         'SPEC-RBAC-2',
-        'not 401',
+        '401',
         String(qry.statusCode),
-        qry.statusCode !== 401,
+        qry.statusCode === 401,
       );
-      expect(qry.statusCode, `query ${u}`).not.toBe(401);
+      expect(qry.statusCode, `query ${u}`).toBe(401);
     }
   });
 });
@@ -1240,7 +1240,7 @@ describe('P. Exports & reports', () => {
       const csv = (r: { statusCode: number; headers: Record<string, unknown> }) =>
         r.statusCode === 200 && String(r.headers['content-type'] ?? '').includes('csv');
 
-      const report = await hit(authed.app, 'GET', `/api/runs/${runId}/report?token=${t}`);
+      const report = await hit(authed.app, 'GET', `/api/runs/${runId}/report`, { token: t });
       reg(
         'EXPORT',
         'run report HTML',
@@ -1251,7 +1251,9 @@ describe('P. Exports & reports', () => {
       );
       expect(html(report)).toBe(true);
 
-      const timeline = await hit(authed.app, 'GET', `/api/runs/${runId}/timeline.csv?token=${t}`);
+      const timeline = await hit(authed.app, 'GET', `/api/runs/${runId}/timeline.csv`, {
+        token: t,
+      });
       reg(
         'EXPORT',
         'run timeline CSV',
@@ -1262,11 +1264,11 @@ describe('P. Exports & reports', () => {
       );
       expect(csv(timeline)).toBe(true);
 
-      const runsCsv = await hit(authed.app, 'GET', `/api/runs.csv?token=${t}`);
+      const runsCsv = await hit(authed.app, 'GET', `/api/runs.csv`, { token: t });
       reg('EXPORT', 'runs.csv export', 'E5', '200 csv', String(runsCsv.statusCode), csv(runsCsv));
       expect(csv(runsCsv)).toBe(true);
 
-      const compliance = await hit(authed.app, 'GET', `/api/reports/compliance?token=${t}`);
+      const compliance = await hit(authed.app, 'GET', `/api/reports/compliance`, { token: t });
       reg(
         'EXPORT',
         'compliance report',
@@ -1445,7 +1447,7 @@ describe('R. Playbooks & suites', () => {
     );
     expect(sById.statusCode).toBe(200);
 
-    const sReport = await hit(authed.app, 'GET', `/api/suites/${sid}/report?token=${t}`);
+    const sReport = await hit(authed.app, 'GET', `/api/suites/${sid}/report`, { token: t });
     const repOk =
       sReport.statusCode === 200 &&
       String(sReport.headers['content-type'] ?? '').includes('text/html');

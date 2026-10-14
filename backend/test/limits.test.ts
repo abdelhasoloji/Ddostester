@@ -50,7 +50,7 @@ describe('caps are centralized in config/limits.ts', () => {
   it('/health exposes the immutable ceiling and the effective caps (ceiling when unset)', async () => {
     const { app } = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: ['127.0.0.1'],
       logger: false,
       serveStatic: false,

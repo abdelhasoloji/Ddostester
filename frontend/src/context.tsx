@@ -41,30 +41,30 @@ export type Perm =
   | 'assistantManage'
   | 'targetManage'
   | 'targetAuthorize';
-/**
- * Client-side UX gate only — the backend `MATRIX` in `backend/src/auth/rbac.ts`
- * is the authoritative enforcer (this just hides controls a role can't use).
- * These short aliases mirror the backend permissions (create ↔ campaign:create,
- * manage ↔ user:manage, limits ↔ limits:manage, bench ↔ bench:*). Keep the two
- * in step — `rbac-mirror.test.ts` locks this table so drift fails CI.
- */
-const PERMS: Record<Role, Perm[]> = {
-  // Operator: creates campaigns, launches approved ones, powers the assistant
-  // GPU pod ('assistantManage'), and registers/requests targets ('targetManage').
-  engineer: ['create', 'execute', 'kill', 'assistantManage', 'targetManage'],
-  // Validation/governance: the ONLY role that approves ('approve'), plus the
-  // dual-control sign-off ('cisoApprove'), the class-C bench ('bench'), and
-  // target authorization ('targetAuthorize' — grants/revokes allowlist entries).
-  ciso: ['approve', 'cisoApprove', 'kill', 'bench', 'targetAuthorize'],
-  // Platform administration: users ('manage') + operational limits ('limits');
-  // powers the assistant GPU pod and registers/requests targets.
-  admin: ['manage', 'limits', 'kill', 'assistantManage', 'targetManage'],
-  // Read-only (SOC/NOC).
-  viewer: [],
+/** Presentation aliases for capabilities supplied by /api/auth/me. */
+const CAPABILITY: Record<Perm, string> = {
+  create: 'campaign:create',
+  approve: 'campaign:approve',
+  cisoApprove: 'campaign:ciso-approve',
+  execute: 'campaign:execute',
+  kill: 'campaign:kill',
+  manage: 'user:manage',
+  limits: 'limits:manage',
+  bench: 'bench:read',
+  assistantManage: 'assistant:manage',
+  targetManage: 'target:manage',
+  targetAuthorize: 'target:authorize',
 };
-export function canDo(role: Role | null, perm: Perm, authRequired: boolean): boolean {
+export function canDo(
+  role: Role | null,
+  perm: Perm,
+  authRequired: boolean,
+  userMode: 'team' | 'single' = 'team',
+  capabilities: readonly string[] = [],
+): boolean {
+  void userMode;
   if (!authRequired) return true;
-  return role ? PERMS[role].includes(perm) : false;
+  return role !== null && capabilities.includes(CAPABILITY[perm]);
 }
 
 /** Human-readable role names, shared across the settings, account and identity UI. */
@@ -86,6 +86,7 @@ interface Ctx {
   allowed: string[];
   labTargets: string[];
   /** Effective operational caps the server enforces; from /health, DEFAULT_CAPS until loaded. */
+  drsWorkflow?: boolean;
   hardCaps: HardCaps;
   /** Immutable absolute ceiling; the CISO can never set an operational cap above it. */
   hardCapsCeiling: HardCaps;
@@ -104,6 +105,11 @@ interface Ctx {
   tlsInsecure: boolean;
   agents: AgentInfo[];
   authRequired: boolean;
+  userMode: 'team' | 'single';
+  capabilities: string[];
+  primaryAdminEmail: string | null;
+  approvalPolicy: 'confirmation' | 'dual_control';
+  revokeOwnSessions: () => Promise<void>;
   authChecked: boolean;
   identity: Identity | null;
   mustChangePassword: boolean;
@@ -197,6 +203,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [remoteProbe, setRemoteProbe] = useState(false);
   const [tlsInsecure, setTlsInsecure] = useState(false);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
+  const [primaryAdminEmail, setPrimaryAdminEmail] = useState<string | null>(null);
+  const [approvalPolicy, setApprovalPolicy] = useState<'confirmation' | 'dual_control'>(
+    'dual_control',
+  );
+  const [drsWorkflow, setDrsWorkflow] = useState(false);
+  const [userMode, setUserMode] = useState<'team' | 'single'>('team');
   const [authRequired, setAuthRequired] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -218,6 +231,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [draftTarget, setDraftTarget] = useState<DraftTarget | null>(null);
 
   const role = identity?.role ?? null;
+  const applyAccess = (r: {
+    capabilities?: string[];
+    primaryAdminEmail?: string;
+    approvalPolicy?: 'confirmation' | 'dual_control';
+  }) => {
+    setCapabilities(r.capabilities ?? []);
+    setPrimaryAdminEmail(r.primaryAdminEmail ?? null);
+    setApprovalPolicy(r.approvalPolicy ?? 'dual_control');
+  };
 
   const push = useCallback((kind: Toast['kind'], msg: string) => {
     const id = ++toastSeq;
@@ -251,6 +273,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyHealthPosture = useCallback((h: Awaited<ReturnType<typeof api.health>>) => {
+    setDrsWorkflow(h.drsWorkflow ?? false);
     setAllowed(h.allowedTargets);
     setLabTargets(h.labTargets ?? []);
     setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
@@ -264,6 +287,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRemoteProbe(h.remoteProbe ?? false);
     setTlsInsecure(h.tlsInsecure ?? false);
     setAuthRequired(h.authRequired);
+    setUserMode(h.userMode ?? 'team');
     // Seed the Grafana deep-link base from the server config when the browser
     // hasn't set one, so "Open in Grafana" works out of the box.
     if (h.metrics?.grafanaUrl && !getGrafanaBase()) setGrafanaBase(h.metrics.grafanaUrl);
@@ -295,6 +319,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (me.email && me.role) {
               setIdentity({ email: me.email, role: me.role });
               setMustChangePassword(!!me.mustChangePassword);
+              applyAccess(me);
             } else setToken(null);
           } catch {
             setToken(null);
@@ -309,6 +334,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => undefined);
   }, [applyHealthPosture]);
 
+  useEffect(() => {
+    const expired = () => {
+      setIdentity(null);
+      setCapabilities([]);
+      setCampaigns([]);
+      setMustChangePassword(false);
+    };
+    window.addEventListener('shieldtest:session-expired', expired);
+    return () => window.removeEventListener('shieldtest:session-expired', expired);
+  }, []);
   const ready = authChecked && (!authRequired || identity !== null);
   useEffect(() => {
     if (ready) {
@@ -354,6 +389,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(r.token);
     setIdentity({ email: r.email, role: r.role });
     setMustChangePassword(!!r.mustChangePassword);
+    applyAccess(r);
   };
   // Self-service password change. On success the server rotates the token (other
   // sessions are revoked) and clears any forced-change flag.
@@ -362,19 +398,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(r.token);
     setIdentity({ email: r.email, role: r.role });
     setMustChangePassword(false);
+    applyAccess(r);
+  };
+  const revokeOwnSessions = async () => {
+    const r = await api.revokeOwnSessions();
+    setToken(r.token);
+    applyAccess(r);
+    push('success', 'Other sessions revoked.');
   };
   const logout = () => {
     // Best-effort audit; the token is discarded regardless of the result.
     api.logout().catch(() => undefined);
     setToken(null);
     setIdentity(null);
+    setCapabilities([]);
     setMustChangePassword(false);
     setCampaigns([]);
   };
 
   const createCampaign = async (payload: Record<string, unknown>) => {
-    await api.createCampaign({ ...payload, createdBy: authRequired ? identity?.email : operator });
-    push('success', 'Campaign created — awaiting approval.');
+    await api.createCampaign({
+      ...payload,
+      ...(userMode === 'single' ? { scheduledAt: undefined, recurrence: undefined } : {}),
+      createdBy: authRequired ? identity?.email : operator,
+    });
+    push(
+      'success',
+      userMode === 'single'
+        ? 'Campaign created — review and confirm before running.'
+        : 'Campaign created — awaiting approval.',
+    );
     refresh();
   };
 
@@ -405,7 +458,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // view, so we no longer auto-open the card drawer here. The run request below
     // blocks until the campaign finishes.
     try {
-      const run = await api.execute(c.id);
+      const run = await (approvalPolicy === 'confirmation'
+        ? api.execute(c.id, true)
+        : api.execute(c.id));
       setRuns((r) => ({ ...r, [c.id]: run }));
       push(
         run.status === 'COMPLETED' ? 'success' : 'info',
@@ -524,6 +579,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     allowed,
     labTargets,
+    drsWorkflow,
     hardCaps,
     hardCapsCeiling,
     builtinCeilings,
@@ -536,6 +592,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     tlsInsecure,
     agents,
     authRequired,
+    userMode,
+    capabilities,
+    primaryAdminEmail,
+    approvalPolicy,
+    revokeOwnSessions,
     authChecked,
     identity,
     mustChangePassword,

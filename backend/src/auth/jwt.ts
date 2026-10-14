@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+/** New authenticated sessions require reauthentication after one hour. */
+export const SESSION_TTL_SECONDS = 3600;
+
 /** Minimal, self-contained HS256 JWT (no dependency). */
 export interface JwtPayload {
   sub: string; // email
@@ -19,7 +22,7 @@ function sign(data: string, secret: string): string {
 export function signJwt(
   payload: Omit<JwtPayload, 'iat' | 'exp'>,
   secret: string,
-  ttlSec = 8 * 3600,
+  ttlSec = SESSION_TTL_SECONDS,
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const full: JwtPayload = { ...payload, iat: now, exp: now + ttlSec };
@@ -39,7 +42,24 @@ export function verifyJwt(token: string, secret: string): JwtPayload | null {
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString()) as JwtPayload;
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    const metadata = JSON.parse(Buffer.from(header, 'base64url').toString());
+    if (metadata.alg !== 'HS256' || metadata.typ !== 'JWT') return null;
+    if (
+      !payload ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub ||
+      typeof payload.role !== 'string' ||
+      !Number.isInteger(payload.exp) ||
+      !Number.isInteger(payload.iat)
+    )
+      return null;
+    if (payload.ver !== undefined && (!Number.isInteger(payload.ver) || payload.ver < 0))
+      return null;
+    if (
+      payload.exp <= Math.floor(Date.now() / 1000) ||
+      payload.iat > Math.floor(Date.now() / 1000) + 30
+    )
+      return null;
     return payload;
   } catch {
     return null;

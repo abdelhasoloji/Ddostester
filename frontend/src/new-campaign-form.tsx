@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp, canDo } from './context.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
+import { api, type FleetDevice } from './api.js';
 import type { Preset } from './presets.js';
 import {
   buildAcceptance,
+  buildIoTProfile,
   buildAssertion,
   buildScenario,
   emptyForm,
@@ -28,7 +30,79 @@ export function NewCampaignForm({
   // server's enforcement can never drift. Used only for inline hints; the
   // backend enforces the caps regardless.
   const caps = app.hardCaps;
-  const [form, setForm] = useState({ ...emptyForm, ...initial });
+  const [form, setForm] = useState({
+    ...emptyForm,
+    ...(app.agentName?.includes('fleet') && initial?.agent === undefined
+      ? { agent: 'builtin' }
+      : {}),
+    ...initial,
+  });
+  const [fleetDevices, setFleetDevices] = useState<FleetDevice[]>([]);
+  const [fleetError, setFleetError] = useState('');
+  const [generatorChanged, setGeneratorChanged] = useState(false);
+  const [fleetOrigins, setFleetOrigins] = useState<string[]>([]);
+  const [fleetSite, setFleetSite] = useState('');
+  const [fleetPage, setFleetPage] = useState(1);
+  const [fleetTotal, setFleetTotal] = useState(0);
+  const [fleetSites, setFleetSites] = useState<{ id: string; devices: number; online: number }[]>(
+    [],
+  );
+  const [fleetVisible, setFleetVisible] = useState<string[]>([]);
+  const [fleetPolicyCaps, setFleetPolicyCaps] = useState<{
+    maxRps: number;
+    maxConcurrency: number;
+    maxDurationSec: number;
+  }>();
+  useEffect(() => {
+    if (form.agent !== 'fleet') return;
+    let live = true;
+    void (async () => {
+      try {
+        const result = await api.fleetOverview();
+        if (!Array.isArray(result.devices) || !Array.isArray(result.origins))
+          throw new Error('Fleet policy unavailable');
+        if (!live) return;
+        let devices: FleetDevice[] = result.devices.filter((d) => d.group === 'VPS Lab');
+        if (app.drsWorkflow) {
+          const [page, sites] = await Promise.all([
+            api.fleetDevices({ page: fleetPage, pageSize: 100, siteId: fleetSite }),
+            api.fleetSites(),
+          ]);
+          if (!live) return;
+          devices = page.devices;
+          setFleetTotal(page.total ?? devices.length);
+          setFleetSites(sites.sites);
+          setFleetVisible(devices.map((d) => d.id));
+        }
+        setFleetDevices((old) =>
+          app.drsWorkflow
+            ? [...new Map([...old, ...devices].map((d) => [d.id, d])).values()]
+            : devices,
+        );
+        setFleetOrigins(result.origins);
+        setFleetPolicyCaps(result.caps);
+        setFleetError('');
+        setForm((f) =>
+          f.fleetDeviceIds.length
+            ? f
+            : {
+                ...f,
+                fleetDeviceIds: devices
+                  .filter(
+                    (d) => d.connection === 'online' && d.agentVersion === 'fleet-mission-agent/v1',
+                  )
+                  .slice(0, 3)
+                  .map((d) => d.id),
+              },
+        );
+      } catch (e) {
+        if (live) setFleetError((e as Error).message);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [form.agent, app.drsWorkflow, fleetSite, fleetPage]);
   const [attested, setAttested] = useState(false);
   const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
 
@@ -94,14 +168,45 @@ export function NewCampaignForm({
     setForm((f) => ({
       ...f,
       agent: id,
-      profile: a && !a.multiPhase && f.profile !== 'constant' ? 'constant' : f.profile,
+      fleetDeviceIds: id === 'fleet' ? f.fleetDeviceIds : [],
+      ...(id === 'fleet'
+        ? {
+            vector: 'http-get' as const,
+            maxRps: f.maxRps,
+            concurrency: f.concurrency,
+            maxDurationSec: f.maxDurationSec,
+            endpoints: '',
+            flow: '',
+            body: '',
+            copiedHeaders: {},
+            iotProfile: '',
+            cacheBust: false,
+            noKeepAlive: false,
+            calibrate: false,
+            scheduledAt: '',
+            recurrenceMin: '',
+            userAgents: '',
+            dataset: '',
+            assertStatus: '',
+            assertBody: '',
+            parallelism: 1,
+            copiedScenario: [],
+            profile: 'constant',
+          }
+        : {}),
+      profile: id === 'fleet' || (a && !a.multiPhase) ? 'constant' : f.profile,
     }));
     setAppliedPreset(null);
+    setGeneratorChanged(true);
   };
 
   const targetAllowed = (() => {
     const h = hostOf(form.target);
-    return h !== null && app.allowed.includes(h);
+    return (
+      h !== null &&
+      app.allowed.includes(h) &&
+      (form.agent !== 'fleet' || fleetOrigins.includes(new URL(form.target).origin))
+    );
   })();
   const probeAllowed = (() => {
     const h = hostOf(form.probeUrl);
@@ -119,9 +224,64 @@ export function NewCampaignForm({
     form.concurrency >= 1 &&
     form.concurrency <= caps.maxConcurrency &&
     form.maxDurationSec >= 1 &&
-    form.maxDurationSec <= caps.maxDurationSec;
+    form.maxDurationSec <= caps.maxDurationSec &&
+    (form.agent !== 'fleet' ||
+      (form.fleetDeviceIds.length >= 1 &&
+        form.fleetDeviceIds.length <= 3 &&
+        !fleetError &&
+        form.fleetDeviceIds.every((id) =>
+          fleetDevices.some(
+            (d) =>
+              d.id === id &&
+              d.connection === 'online' &&
+              d.agentVersion === 'fleet-mission-agent/v1',
+          ),
+        ) &&
+        form.maxRps >= form.fleetDeviceIds.length &&
+        form.maxRps <= 15 &&
+        form.concurrency >= form.fleetDeviceIds.length &&
+        form.concurrency <= 6 &&
+        form.maxDurationSec >= 10 &&
+        form.maxDurationSec <= 60));
   const identityOk = app.authRequired ? app.identity !== null : app.operator.trim() !== '';
-  const canCreate = canDo(app.role, 'create', app.authRequired);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
+  const iotValid = (() => {
+    if (!form.iotProfile) return true;
+    try {
+      buildIoTProfile(form);
+      return (
+        form.agent === 'builtin' &&
+        form.vector === 'http-post' &&
+        new URL(form.probeUrl).origin === targetOrigin &&
+        !form.body &&
+        !form.flow &&
+        !form.endpoints &&
+        !form.dataset &&
+        !form.cacheBust
+      );
+    } catch {
+      return false;
+    }
+  })();
+  const fleetCompatible =
+    form.agent !== 'fleet' ||
+    (form.vector === 'http-get' &&
+      form.profile === 'constant' &&
+      !form.body &&
+      !form.flow &&
+      !form.endpoints &&
+      !form.iotProfile &&
+      !form.dataset &&
+      !form.userAgents &&
+      !form.assertStatus &&
+      !form.assertBody &&
+      !form.cacheBust &&
+      !form.noKeepAlive &&
+      !form.calibrate &&
+      form.parallelism === 1 &&
+      !form.scheduledAt &&
+      !form.recurrenceMin &&
+      Object.keys(form.copiedHeaders).length === 0);
   const formValid =
     form.name.trim() !== '' &&
     identityOk &&
@@ -129,6 +289,11 @@ export function NewCampaignForm({
     probeAllowed &&
     referenceAllowed &&
     capsOk &&
+    (!app.drsWorkflow ||
+      (form.agent === 'fleet' &&
+        /^(cra-l7-get-flood|drs-3\.00\.00-[1-7]51002)$/.test(form.drsProfileId))) &&
+    fleetCompatible &&
+    iotValid &&
     attested &&
     canCreate;
 
@@ -137,6 +302,10 @@ export function NewCampaignForm({
     if (!formValid) return;
     try {
       await app.createCampaign({
+        drsProfileId: form.drsProfileId || undefined,
+        drsMode: app.drsWorkflow
+          ? (form.drsMode as 'engine-validation' | 'synthetic-lab' | 'measured')
+          : undefined,
         name: form.name,
         target: form.target,
         probeUrl: form.probeUrl,
@@ -144,6 +313,7 @@ export function NewCampaignForm({
         probeVantage: form.probeVantage === 'remote' ? 'remote' : undefined,
         vector: form.vector,
         body: form.vector === 'http-post' ? form.body : undefined,
+        headers: Object.keys(form.copiedHeaders).length ? form.copiedHeaders : undefined,
         maxRps: Number(form.maxRps),
         concurrency: Number(form.concurrency),
         maxDurationSec: Number(form.maxDurationSec),
@@ -152,8 +322,13 @@ export function NewCampaignForm({
         parallelism: Number(form.parallelism) > 1 ? Number(form.parallelism) : undefined,
         calibrate: form.calibrate || undefined,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
-        scenario: buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
+        scenario:
+          form.profile === 'copied'
+            ? form.copiedScenario
+            : buildScenario(form.profile, Number(form.maxRps), Number(form.maxDurationSec)),
         agent: form.agent || undefined,
+        fleetDeviceIds: form.agent === 'fleet' ? form.fleetDeviceIds : undefined,
+        iotProfile: buildIoTProfile(form),
         recurrence: form.recurrenceMin ? { intervalMin: Number(form.recurrenceMin) } : undefined,
         flow:
           flowSupported && form.flow.trim()
@@ -197,20 +372,51 @@ export function NewCampaignForm({
           </button>
         )}
       </div>
-      <div className="presets-row">
-        <span className="presets-label">Start from a preset:</span>
-        {PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`chip${appliedPreset === p.id ? ' chip-active' : ''}`}
-            title={p.when}
-            onClick={() => applyPreset(p)}
+      {!fleetCompatible && (
+        <p role="alert">
+          Fleet supports a single constant GET without advanced local options or scheduling. Review
+          the configuration or choose Local generator.
+        </p>
+      )}
+      {app.drsWorkflow && (
+        <label>
+          Campaign mode
+          <select
+            value={form.drsMode}
+            onChange={(e) => setForm({ ...form, drsMode: e.target.value })}
           >
-            <span aria-hidden="true">{p.icon}</span> {p.name}
-          </button>
-        ))}
-      </div>
+            <option value="engine-validation">Engine validation · simulated events only</option>
+            <option value="synthetic-lab">Synthetic laboratory · experimental measurement</option>
+            <option value="measured">Measured evaluation · independent evidence required</option>
+          </select>
+          <span className="hint">
+            After creation, configure and freeze the plan in DRS assessment. Mode changes create a
+            new revision.
+          </span>
+        </label>
+      )}
+      {app.drsWorkflow && (
+        <p className="hint">
+          Referenced DRS profile: {form.drsProfileId}. Fleet execution only; explicit confirmation
+          required.
+        </p>
+      )}
+      {!app.drsWorkflow && (
+        <div className="presets-row">
+          <span className="presets-label">Start from a preset:</span>
+          {PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`chip${appliedPreset === p.id ? ' chip-active' : ''}`}
+              title={p.when}
+              onClick={() => applyPreset(p)}
+            >
+              <span aria-hidden="true">{p.icon}</span> {p.name}
+            </button>
+          ))}
+        </div>
+      )}
       <form className="grid" onSubmit={submit}>
         <div className="field">
           <label>Name</label>
@@ -227,7 +433,9 @@ export function NewCampaignForm({
             onChange={(e) => setForm({ ...form, vector: e.target.value })}
           >
             <option value="http-get">http-get</option>
-            <option value="http-post">http-post</option>
+            <option value="http-post" disabled={form.agent === 'fleet'}>
+              http-post
+            </option>
           </select>
         </div>
         <div className="field">
@@ -334,7 +542,11 @@ export function NewCampaignForm({
               setAppliedPreset(null);
             }}
           />
-          <span className="hint">cap {caps.maxRps}</span>
+          <span className="hint">
+            Shared cap{' '}
+            {form.agent === 'fleet' ? (fleetPolicyCaps?.maxRps ?? 'loading') : caps.maxRps}{' '}
+            requests/s
+          </span>
         </div>
         <div className="field">
           <label>Concurrency</label>
@@ -346,7 +558,13 @@ export function NewCampaignForm({
               setAppliedPreset(null);
             }}
           />
-          <span className="hint">1–{caps.maxConcurrency}</span>
+          <span className="hint">
+            1–
+            {form.agent === 'fleet'
+              ? (fleetPolicyCaps?.maxConcurrency ?? 'loading')
+              : caps.maxConcurrency}{' '}
+            concurrent requests, shared across agents
+          </span>
         </div>
         <div className="field">
           <label>Max duration (s)</label>
@@ -458,6 +676,17 @@ export function NewCampaignForm({
           <div className="grid">
             <div className="field">
               <label>Load profile</label>
+              {form.profile === 'copied' && (
+                <p className="hint">
+                  Original phases retained: {JSON.stringify(form.copiedScenario)}. Choose Constant,
+                  Ramp-up or Waves to replace them.
+                </p>
+              )}
+              {Object.keys(form.copiedHeaders).length > 0 && (
+                <p className="hint">
+                  Copied request headers retained: {Object.keys(form.copiedHeaders).join(', ')}.
+                </p>
+              )}
               <select
                 value={form.profile}
                 onChange={(e) => {
@@ -466,6 +695,11 @@ export function NewCampaignForm({
                 }}
               >
                 <option value="constant">Constant</option>
+                {form.copiedScenario.length > 0 && (
+                  <option value="copied" disabled={!multiPhaseOk}>
+                    Copied scenario (original phases)
+                  </option>
+                )}
                 <option value="ramp" disabled={!multiPhaseOk}>
                   Ramp-up (25→50→100%)
                 </option>
@@ -478,46 +712,225 @@ export function NewCampaignForm({
               )}
             </div>
             <div className="field">
-              <label>Load engine</label>
-              <select value={form.agent} onChange={(e) => setAgent(e.target.value)}>
-                <option value="">Server default ({app.agentName || 'builtin-http'})</option>
-                {app.agents.map((a) => (
-                  <option key={a.id} value={a.id} disabled={!a.available}>
-                    {a.name}
-                    {a.available ? '' : ' — not installed'}
-                    {a.multiPhase ? '' : ' (constant only)'}
-                  </option>
-                ))}
-              </select>
-              {selectedAgent && <span className="hint">{selectedAgent.description}</span>}
-            </div>
-            <div className="field">
-              <label>Schedule (optional)</label>
-              <input
-                type="datetime-local"
-                value={form.scheduledAt}
-                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-              />
-              <span className="hint">auto-run once approved</span>
-            </div>
-            <div className="field">
-              <label>Repeat every (optional)</label>
+              <label htmlFor="campaign-generator">Generator</label>
               <select
-                value={form.recurrenceMin}
-                onChange={(e) => setForm({ ...form, recurrenceMin: e.target.value })}
+                disabled={app.drsWorkflow}
+                id="campaign-generator"
+                value={form.agent === 'fleet' ? 'fleet' : 'local'}
+                onChange={(e) => setAgent(e.target.value === 'fleet' ? 'fleet' : 'builtin')}
               >
-                <option value="">No repeat (single run)</option>
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="60">1 hour</option>
-                <option value="180">3 hours</option>
-                <option value="360">6 hours</option>
-                <option value="720">12 hours</option>
+                <option value="local">Local generator</option>
+                <option
+                  value="fleet"
+                  disabled={!app.agents.some((a) => a.id === 'fleet' && a.available)}
+                >
+                  IoT Fleet
+                </option>
               </select>
-              <span className="hint">re-runs within the 24 h approval window</span>
+              <p className="hint">
+                Both modes generate simulated HTTP traffic. The target, independent probe,
+                confirmation, stop control and report use the same campaign workflow.
+              </p>
+              {generatorChanged && (
+                <p role="status" className="hint">
+                  Generator changed. Review the scenario and total budget before creating this
+                  campaign. Fleet uses bounded constant GET; incompatible options are cleared.
+                </p>
+              )}
+              {form.agent !== 'fleet' && (
+                <details>
+                  <summary>Advanced local engine</summary>
+                  <label htmlFor="campaign-local-engine">Local engine</label>
+                  <select
+                    id="campaign-local-engine"
+                    value={form.agent}
+                    onChange={(e) => setAgent(e.target.value)}
+                  >
+                    {!app.agentName?.includes('fleet') && (
+                      <option value="">Server default ({app.agentName || 'builtin-http'})</option>
+                    )}
+                    {app.agents
+                      .filter((a) => a.id !== 'fleet')
+                      .map((a) => (
+                        <option key={a.id} value={a.id} disabled={!a.available}>
+                          {a.name}
+                          {a.available ? '' : ' — not installed'}
+                          {a.multiPhase ? '' : ' (constant only)'}
+                        </option>
+                      ))}
+                  </select>
+                </details>
+              )}
+              {selectedAgent && <span className="hint">{selectedAgent.description}</span>}
+              {form.agent === 'fleet' && (
+                <p className="hint">
+                  Uses the selected VPS Lab bots and the campaign target/probe URLs. This increment
+                  supports a single GET; choosing Fleet resets unsupported load options. The total
+                  budget is shared, not multiplied per bot. Your existing budget is retained for
+                  review.
+                  {fleetPolicyCaps &&
+                    ` Fleet ceilings: ${fleetPolicyCaps.maxRps} requests/s total, ${fleetPolicyCaps.maxConcurrency} concurrent requests, ${fleetPolicyCaps.maxDurationSec}s.`}
+                </p>
+              )}
+              {form.agent === 'fleet' && (
+                <p className="hint">
+                  Fleet target origins: {fleetOrigins.join(', ') || 'none available'}. Application
+                  allowlisting alone does not enable an origin for agents.
+                </p>
+              )}
+              {form.agent === 'fleet' && (
+                <fieldset>
+                  <legend>Campaign agents — select one to three</legend>
+                  {fleetError && <p role="alert">Inventory unavailable: {fleetError}</p>}
+                  {app.drsWorkflow && (
+                    <div className="fleet-toolbar">
+                      <label>
+                        Site{' '}
+                        <select
+                          value={fleetSite}
+                          onChange={(e) => {
+                            setFleetSite(e.target.value);
+                            setFleetPage(1);
+                          }}
+                        >
+                          <option value="">All sites</option>
+                          {fleetSites.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.id} · {s.online}/{s.devices} online
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={fleetPage === 1}
+                        onClick={() => setFleetPage((p) => p - 1)}
+                      >
+                        Previous agents
+                      </button>
+                      <span>
+                        Page {fleetPage} · {fleetTotal} agents · {form.fleetDeviceIds.length}{' '}
+                        selected
+                      </span>
+                      <button
+                        type="button"
+                        disabled={fleetPage * 100 >= fleetTotal}
+                        onClick={() => setFleetPage((p) => p + 1)}
+                      >
+                        Next agents
+                      </button>
+                    </div>
+                  )}
+                  {fleetDevices
+                    .filter((d) => !app.drsWorkflow || fleetVisible.includes(d.id))
+                    .map((d) => (
+                      <label key={d.id}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Use ${d.name}`}
+                          checked={form.fleetDeviceIds.includes(d.id)}
+                          disabled={
+                            d.connection !== 'online' || d.agentVersion !== 'fleet-mission-agent/v1'
+                          }
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              fleetDeviceIds: e.target.checked
+                                ? [...f.fleetDeviceIds, d.id]
+                                : f.fleetDeviceIds.filter((id) => id !== d.id),
+                            }))
+                          }
+                        />{' '}
+                        {d.name} — {d.siteId ?? 'vps-lab'} · {d.privateIp} · {d.connection}
+                      </label>
+                    ))}
+                </fieldset>
+              )}
             </div>
+            {app.approvalPolicy !== 'confirmation' && (
+              <>
+                <div className="field">
+                  <label>Schedule (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={form.scheduledAt}
+                    onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+                  />
+                  <span className="hint">auto-run once approved</span>
+                </div>
+                <div className="field">
+                  <label>Repeat every (optional)</label>
+                  <select
+                    value={form.recurrenceMin}
+                    onChange={(e) => setForm({ ...form, recurrenceMin: e.target.value })}
+                  >
+                    <option value="">No repeat (single run)</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="180">3 hours</option>
+                    <option value="360">6 hours</option>
+                    <option value="720">12 hours</option>
+                  </select>
+                  <span className="hint">re-runs within the 24 h approval window</span>
+                </div>
+              </>
+            )}
           </div>
         </details>
+        <div className="field" style={{ gridColumn: '1 / -1' }}>
+          <label htmlFor="iot-profile">Synthetic device journey</label>
+          <select
+            id="iot-profile"
+            value={form.iotProfile}
+            onChange={(e) => {
+              const id = e.target.value;
+              setForm({
+                ...form,
+                iotProfile: id,
+                ...(id ? { agent: 'builtin', vector: 'http-post' } : {}),
+              });
+              setAppliedPreset(null);
+            }}
+          >
+            <option value="">Custom HTTP campaign</option>
+            <option value="sensor-heartbeat/v1">Sensor heartbeat v1 (builtin)</option>
+          </select>
+          {form.iotProfile && (
+            <>
+              <label htmlFor="iot-seed">Reproducibility seed</label>
+              <input
+                id="iot-seed"
+                type="number"
+                min="0"
+                max="4294967295"
+                step="1"
+                value={form.iotSeed}
+                onChange={(e) => setForm({ ...form, iotSeed: e.target.value })}
+              />
+              <label htmlFor="iot-device">Device index</label>
+              <input
+                id="iot-device"
+                type="number"
+                min="0"
+                max="999"
+                step="1"
+                value={form.iotDeviceIndex}
+                onChange={(e) => setForm({ ...form, iotDeviceIndex: e.target.value })}
+              />
+              <span className="hint">
+                Health GET, then a small telemetry POST with deterministic pauses. Target and probe
+                must share an origin. Budgets remain unchanged.
+              </span>
+              {!iotValid && (
+                <span role="alert">
+                  Use builtin / HTTP POST, valid seed and index, matching origins, and clear custom
+                  body, flow, endpoints, dataset and cache-busting.
+                </span>
+              )}
+            </>
+          )}
+        </div>
         {form.vector === 'http-post' && (
           <div className="field" style={{ gridColumn: '1 / -1' }}>
             <label>Request body (POST)</label>
@@ -712,7 +1125,7 @@ export function NewCampaignForm({
           </p>
         )}
         <button type="submit" className="btn btn-primary btn-block" disabled={!formValid}>
-          Submit for approval
+          {app.approvalPolicy === 'confirmation' ? 'Create campaign' : 'Submit for approval'}
         </button>
       </form>
     </section>

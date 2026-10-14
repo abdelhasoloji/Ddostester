@@ -8,14 +8,32 @@ import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { ProtectedTarget } from '../modules/targets/model.js';
-import type { Store } from './types.js';
+import type { Store, AccountPolicy, UserTransaction } from './types.js';
+import type { FleetDevice } from '../modules/fleet/devices.js';
 
 export class MemoryStore implements Store {
+  private fleetDevices = new Map<string, FleetDevice>();
+  async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
+    const device = this.fleetDevices.get(id);
+    return device ? structuredClone(device) : undefined;
+  }
+  async listFleetDevices(): Promise<FleetDevice[]> {
+    return structuredClone([...this.fleetDevices.values()]);
+  }
+  async saveFleetDevice(device: FleetDevice): Promise<void> {
+    this.fleetDevices.set(device.id, structuredClone(device));
+  }
+  async deleteFleetDevice(id: string): Promise<void> {
+    this.fleetDevices.delete(id);
+  }
   readonly backend = 'memory' as const;
   private campaigns = new Map<string, Campaign>();
   private runs = new Map<string, CampaignRun>();
   private audit: AuditEntry[] = [];
   private users = new Map<string, User>();
+  private accountPolicy: AccountPolicy | undefined;
+  private transactional = false;
+  private userLock: Promise<void> = Promise.resolve();
   private playbooks = new Map<string, Playbook>();
   private targets = new Map<string, ProtectedTarget>();
   private limits: OperationalLimits | undefined;
@@ -23,6 +41,9 @@ export class MemoryStore implements Store {
   private benchCoverage: BenchCoverage[] = [];
 
   async init(): Promise<void> {}
+  async acquireRuntimeLease(): Promise<boolean> {
+    return true;
+  }
   async healthy(): Promise<boolean> {
     return true;
   }
@@ -66,9 +87,12 @@ export class MemoryStore implements Store {
     return this.runs.get(runId);
   }
   async listRuns(campaignId?: string): Promise<CampaignRun[]> {
-    return [...this.runs.values()].filter((r) => !campaignId || r.campaignId === campaignId);
+    return [...this.runs.values()]
+      .reverse()
+      .filter((r) => !campaignId || r.campaignId === campaignId);
   }
   async saveAudit(e: AuditEntry): Promise<void> {
+    if (!this.transactional) return this.transaction((tx) => tx.saveAudit(e));
     const prev = this.audit.length
       ? (this.audit[this.audit.length - 1].hash ?? AUDIT_GENESIS)
       : AUDIT_GENESIS;
@@ -92,8 +116,69 @@ export class MemoryStore implements Store {
     const u = this.users.get(email.toLowerCase());
     return u ? withCanonicalRole(u) : undefined;
   }
+  async getAccountPolicy(): Promise<AccountPolicy | undefined> {
+    return this.accountPolicy ? { ...this.accountPolicy } : undefined;
+  }
+  async setAccountPolicy(policy: AccountPolicy): Promise<void> {
+    this.accountPolicy = { ...policy };
+  }
+  async transaction<T>(fn: (tx: Store) => Promise<T>): Promise<T> {
+    if (this.transactional) return fn(this);
+    const previous = this.userLock;
+    let release!: () => void;
+    this.userLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    const tx = Object.create(this) as MemoryStore;
+    tx.transactional = true;
+    for (const key of [
+      'campaigns',
+      'fleetDevices',
+      'runs',
+      'audit',
+      'users',
+      'accountPolicy',
+      'playbooks',
+      'targets',
+      'limits',
+      'benchRuns',
+      'benchCoverage',
+    ] as const) {
+      (tx as unknown as Record<string, unknown>)[key] = structuredClone(this[key]);
+    }
+    try {
+      const result = await fn(tx);
+      for (const key of [
+        'campaigns',
+        'fleetDevices',
+        'runs',
+        'audit',
+        'users',
+        'accountPolicy',
+        'playbooks',
+        'targets',
+        'limits',
+        'benchRuns',
+        'benchCoverage',
+      ] as const) {
+        (this as unknown as Record<string, unknown>)[key] = tx[key];
+      }
+      return result;
+    } finally {
+      release();
+    }
+  }
+  async transactionUsers<T>(fn: (tx: UserTransaction) => Promise<T>): Promise<T> {
+    return this.transaction((tx) => fn(tx));
+  }
   async saveUser(u: User): Promise<void> {
     this.users.set(u.email.toLowerCase(), u);
+  }
+  async saveUsersAtomically(users: User[]): Promise<void> {
+    const next = new Map(this.users);
+    for (const u of users) next.set(u.email.toLowerCase(), { ...u });
+    this.users = next;
   }
   async deleteUser(email: string): Promise<void> {
     this.users.delete(email.toLowerCase());

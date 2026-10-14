@@ -511,9 +511,9 @@ describe('DRS levels & the expanded threat catalogue', () => {
     }
   });
 
-  it('the new scenarios cite the zeroBS reference they approximate', () => {
+  it('the new scenarios cite the DRS reference they approximate', () => {
     for (const id of NEW_IDS) {
-      expect(getPlaybook(id)!.threat!.reference, id).toMatch(/zeroBS/);
+      expect(getPlaybook(id)!.threat!.reference, id).toMatch(/DRS/);
     }
   });
 
@@ -588,7 +588,7 @@ describe('DRS levels & the expanded threat catalogue', () => {
   });
 });
 
-describe('zeroBS L7 single-line playbooks (P26-20371)', () => {
+describe('DRS L7 single-line playbooks (P26-20371)', () => {
   const singles = PLAYBOOKS.filter((p) => p.id.startsWith('cra-l7-'));
   const target = {
     target: 'https://staging.example.com/',
@@ -602,7 +602,7 @@ describe('zeroBS L7 single-line playbooks (P26-20371)', () => {
     expect(singles).toHaveLength(parent.steps.length);
     for (const p of singles) {
       expect(p.steps).toHaveLength(1);
-      expect(p.category).toBe('zeroBS L7 lines (P26-20371)');
+      expect(p.category).toBe('DRS L7 lines (P26-20371)');
     }
     // ids are unique across the whole library.
     expect(new Set(PLAYBOOKS.map((p) => p.id)).size).toBe(PLAYBOOKS.length);

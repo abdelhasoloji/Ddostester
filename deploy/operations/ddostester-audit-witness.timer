@@ -1,0 +1,9 @@
+[Unit]
+Description=Record independent Ddostester audit checkpoints
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=5min
+RandomizedDelaySec=15s
+Persistent=true
+[Install]
+WantedBy=timers.target

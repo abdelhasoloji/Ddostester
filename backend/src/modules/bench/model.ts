@@ -59,7 +59,7 @@ export interface BenchRun {
 }
 
 /**
- * zeroBS DRS **Volumetric** matrix (report P25-20300), reproduced as the bench
+ * DRS **Volumetric** matrix (report P25-20300), reproduced as the bench
  * catalogue so the CISO sees a 1:1 mapping with the stress-test report. Each
  * vector carries its DRS level and whether this bench can faithfully realize it:
  *

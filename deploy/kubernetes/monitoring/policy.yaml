@@ -1,0 +1,75 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-monitoring-scrape
+spec:
+  podSelector:
+    matchLabels:
+      app: lab-prometheus
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: lab-control
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-control-monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: lab-control
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: lab-prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-prometheus-grafana
+spec:
+  podSelector:
+    matchLabels:
+      app: lab-prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: lab-grafana
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lab-grafana-prometheus
+spec:
+  podSelector:
+    matchLabels:
+      app: lab-grafana
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: lab-prometheus
+      ports:
+        - protocol: TCP
+          port: 9090

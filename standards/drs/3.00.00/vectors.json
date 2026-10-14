@@ -1,0 +1,3923 @@
+[
+  {
+    "internal_id": "drs-3.00.00-111001",
+    "source_vector_id": "111001",
+    "source_section": "4.3",
+    "source_page": 17,
+    "level": 1,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_pps": "25K"
+    },
+    "service_requirements": {
+      "max_out": "6h",
+      "max_latency": "10s",
+      "max_bots": "10",
+      "persistence": "1 hour"
+    },
+    "source_text": "| 111001 | SYN Flood | vol_pps=25K, max_out=6h, max_latency=10s, |\n| | | max_bots=10, persistence=1 hour |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-151002",
+    "source_vector_id": "151002",
+    "source_section": "4.3",
+    "source_page": 17,
+    "level": 1,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "500"
+    },
+    "service_requirements": {
+      "max_out": "6h",
+      "max_latency": "10s",
+      "max_bots": "10",
+      "persistence": "1 hour"
+    },
+    "source_text": "| 151002 | HTTP/S GET Flood | vol_tps=500, max_out=6h, max_latency=10s, |\n| | | max_bots=10, persistence=1 hour |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["151002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-211001",
+    "source_vector_id": "211001",
+    "source_section": "4.3",
+    "source_page": 17,
+    "level": 2,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_pps": "250K"
+    },
+    "service_requirements": {
+      "max_out": "4h",
+      "max_latency": "5s",
+      "max_bots": "50",
+      "persistence": "12 hours"
+    },
+    "source_text": "| 211001 | SYN Flood | vol_pps=250K, ip_spoofing, max_out=4h, |\n| | | max_latency=5s, max_bots=50, persistence=12 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-251002",
+    "source_vector_id": "251002",
+    "source_section": "4.3",
+    "source_page": 17,
+    "level": 2,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5K"
+    },
+    "service_requirements": {
+      "max_out": "4h",
+      "max_latency": "5s",
+      "max_bots": "50",
+      "persistence": "12 hours"
+    },
+    "source_text": "| 251002 | HTTP/S GET Flood | vol_tps=5K, max_out=4h, max_latency=5s, |\n| | | max_bots=50, persistence=12 hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["251002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-222003",
+    "source_vector_id": "222003",
+    "source_section": "4.3",
+    "source_page": 17,
+    "level": 2,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "1G"
+    },
+    "service_requirements": {
+      "max_out": "4h",
+      "max_latency": "5s",
+      "max_bots": "50",
+      "persistence": "12 hours"
+    },
+    "source_text": "| 222003 | UDP Flood | vol_bps=1G, ip_spoofing, max_out=4h, |\n| | | max_latency=5s, max_bots=50, persistence=12 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-311001",
+    "source_vector_id": "311001",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_pps": "2M"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 311001 | SYN Flood | vol_pps=2M, ip_spoofing, max_out=1h, |\n| | | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-351002",
+    "source_vector_id": "351002",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "50K"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 351002 | HTTP/S GET Flood | vol_tps=50K, max_out=1h, max_latency=3s, |\n| | | max_bots=500, persistence=24 hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["351002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-322003",
+    "source_vector_id": "322003",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "10G"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 322003 | UDP Flood | vol_bps=10G, ip_spoofing, max_out=1h, |\n| | | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-313004",
+    "source_vector_id": "313004",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "network-tcp",
+    "name": "TCP RST Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "10G"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 313004 | TCP RST Flood | vol_bps=10G, ip_spoofing, max_out=1h, |\n| | | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "13004",
+    "source_type_definition": {
+      "source_type_id": "13004",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP RST Flood",
+      "description": "A flood of RST packets.",
+      "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-333005",
+    "source_vector_id": "333005",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "network-other",
+    "name": "ICMP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "10G"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 333005 | ICMP Flood | vol_bps=10G, ip_spoofing, max_out=1h, |\n| | | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "33005",
+    "source_type_definition": {
+      "source_type_id": "33005",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "ICMP Flood",
+      "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+      "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-323006",
+    "source_vector_id": "323006",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "network-udp",
+    "name": "NTP Reflection Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "10G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 323006 | NTP Reflection | vol_bps=10G, max_out=10m, max_latency=2s, |\n| | Flood | max_bots=1K, persistence=7 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["323006-outage", "323006-bots", "323006-latency", "323006-persistence"],
+    "source_type_id": "23006",
+    "source_type_definition": {
+      "source_type_id": "23006",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "NTP Reflection Flood",
+      "description": "An NTP Reflected flood the using MONLIST argument",
+      "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-353007",
+    "source_vector_id": "353007",
+    "source_section": "4.3",
+    "source_page": 18,
+    "level": 3,
+    "family": "low-and-slow",
+    "name": "API Unformatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "50K"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 353007 | API Unformatted | vol_tps=50K, max_out=1h, max_latency=3s, |\n| | Flood | max_bots=500, persistence=24 hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["353007-type-id"],
+    "source_type_id": "53007",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-411001",
+    "source_vector_id": "411001",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_pps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 411001 | SYN Flood | vol_pps=25M, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-451002",
+    "source_vector_id": "451002",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": ["url_rand"],
+    "load_requirements": {
+      "vol_tps": "200K"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 451002 | HTTP/S GET Flood | vol_tps=200K, url_rand, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["451002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-422003",
+    "source_vector_id": "422003",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 422003 | UDP Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-413004",
+    "source_vector_id": "413004",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "TCP RST Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 413004 | TCP RST Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "13004",
+    "source_type_definition": {
+      "source_type_id": "13004",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP RST Flood",
+      "description": "A flood of RST packets.",
+      "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-433005",
+    "source_vector_id": "433005",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-other",
+    "name": "ICMP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 433005 | ICMP Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "33005",
+    "source_type_definition": {
+      "source_type_id": "33005",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "ICMP Flood",
+      "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+      "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-423006",
+    "source_vector_id": "423006",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-udp",
+    "name": "NTP Reflection Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 423006 | NTP Reflection | vol_bps=100G, max_out=10m, max_latency=2s, |\n| | Flood | max_bots=1K, persistence=7 days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "23006",
+    "source_type_definition": {
+      "source_type_id": "23006",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "NTP Reflection Flood",
+      "description": "An NTP Reflected flood the using MONLIST argument",
+      "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-414007",
+    "source_vector_id": "414007",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "TCP PSH+ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 414007 | TCP PSH+ACK Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14007",
+    "source_type_definition": {
+      "source_type_id": "14007",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP PSH+ACK Flood",
+      "description": "A flood of PSH+ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14007 TCP PSH+ACK Flood\nA flood of PSH+ACK packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-414008",
+    "source_vector_id": "414008",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "TCP SYN+ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 414008 | TCP SYN+ACK Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14008",
+    "source_type_definition": {
+      "source_type_id": "14008",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP SYN+ACK Flood",
+      "description": "A SYN+ACK flood targeting the handshake process to destabilize network connections.",
+      "source_text": "14008 TCP SYN+ACK Flood\nA SYN+ACK flood targeting the handshake process to\ndestabilize network connections."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-414009",
+    "source_vector_id": "414009",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "TCP ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 414009 | TCP ACK Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14009",
+    "source_type_definition": {
+      "source_type_id": "14009",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP ACK Flood",
+      "description": "A flood of ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14009 TCP ACK Flood\nA flood of ACK packets. The data size SHOULD be small\nor zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-414010",
+    "source_vector_id": "414010",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-tcp",
+    "name": "TCP FIN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 414010 | TCP FIN Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14010",
+    "source_type_definition": {
+      "source_type_id": "14010",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP FIN Flood",
+      "description": "A flood of TCP FIN packets. The data size SHOULD be small or zero.",
+      "source_text": "14010 TCP FIN Flood\nA flood of TCP FIN packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-454011",
+    "source_vector_id": "454011",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "low-and-slow",
+    "name": "DNS Query Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_tps": "200K"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 454011 | DNS Query Flood | vol_tps=200K, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "54011",
+    "source_type_definition": {
+      "source_type_id": "54011",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Query Flood",
+      "description": "A flood of DNS queries designed to overwhelm DNS servers with excessive requests.",
+      "source_text": "54011 DNS Query Flood\nA flood of DNS queries designed to overwhelm DNS servers\nwith excessive requests."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-424012",
+    "source_vector_id": "424012",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-udp",
+    "name": "UDP Multi-vector Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "10G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 424012 | UDP Multi-vector | vol_bps=10G, ip_spoofing, max_out=10m, |\n| | Flood | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24012",
+    "source_type_definition": {
+      "source_type_id": "24012",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "UDP Multi-vector Flood",
+      "description": "A combined attack using various UDP-based vectors to target different network vulnerabilities.",
+      "source_text": "24012 UDP Multi-vector Flood\nA combined attack using various UDP-based vectors to\ntarget different network vulnerabilities."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-424013",
+    "source_vector_id": "424013",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "network-udp",
+    "name": "DNS Garbage Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "100G"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1K",
+      "persistence": "7 days"
+    },
+    "source_text": "| 424013 | DNS Garbage Flood | vol_bps=100G, ip_spoofing, max_out=10m, |\n| | | max_latency=2s, max_bots=1K, persistence=7 |\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24013",
+    "source_type_definition": {
+      "source_type_id": "24013",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Garbage Flood",
+      "description": "A flood of UDP packets. DST Port must be 53. The data is garbage (not proper DNS request or reply). Data size SHOULD be large.",
+      "source_text": "24013 DNS Garbage Flood\nA flood of UDP packets. DST Port must be 53. The data\nis garbage (not proper DNS request or reply). Data size\nSHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-453014",
+    "source_vector_id": "453014",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "low-and-slow",
+    "name": "API Unformatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "200K"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1k",
+      "persistence": "7 days"
+    },
+    "source_text": "| 453014 | API Unformatted | vol_tps=200K, max_out=10m, max_latency=2s, |\n| | Flood | max_bots=1k, persistence=7 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["453014-type-id"],
+    "source_type_id": "53014",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-454015",
+    "source_vector_id": "454015",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "low-and-slow",
+    "name": "API Formatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "200K"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "1k",
+      "persistence": "7 days"
+    },
+    "source_text": "| 454015 | API Formatted | vol_tps=200K, max_out=10m, max_latency=2s, |\n| | Flood | max_bots=1k, persistence=7 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["454015-type-id"],
+    "source_type_id": "54015",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-454016",
+    "source_vector_id": "454016",
+    "source_section": "4.3",
+    "source_page": 19,
+    "level": 4,
+    "family": "low-and-slow",
+    "name": "pulsewave/’Hit&Run’ Floods Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "200K"
+    },
+    "service_requirements": {
+      "max_out": "10m",
+      "max_latency": "2s",
+      "max_bots": "500",
+      "persistence": "7 days"
+    },
+    "source_text": "| 454016 | pulsewave/’Hit&Run’| vol_tps=200K, max_out=10m, max_latency=2s, |\n| | Floods | max_bots=1k, persistence=7 days |\n| | Flood | max_latency=2s, max_bots=500, persistence=7 |\n| | | days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["454016-bots", "454016-type-id"],
+    "source_type_id": "54016",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-511001",
+    "source_vector_id": "511001",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_pps": "125M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 511001 | SYN Flood | vol_pps=125M, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-551002",
+    "source_vector_id": "551002",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": ["url_rand"],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 551002 | HTTP/S GET Flood | vol_tps=1M, url_rand, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["551002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-522003",
+    "source_vector_id": "522003",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 522003 | UDP Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-513004",
+    "source_vector_id": "513004",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "TCP RST Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 513004 | TCP RST Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "13004",
+    "source_type_definition": {
+      "source_type_id": "13004",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP RST Flood",
+      "description": "A flood of RST packets.",
+      "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-533005",
+    "source_vector_id": "533005",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-other",
+    "name": "ICMP Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 533005 | ICMP Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "33005",
+    "source_type_definition": {
+      "source_type_id": "33005",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "ICMP Flood",
+      "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+      "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-523006",
+    "source_vector_id": "523006",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-udp",
+    "name": "NTP Reflection Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 523006 | NTP Reflection | vol_bps=500G, max_out=5m, max_latency=1.5s, |\n| | Flood | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "23006",
+    "source_type_definition": {
+      "source_type_id": "23006",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "NTP Reflection Flood",
+      "description": "An NTP Reflected flood the using MONLIST argument",
+      "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-514007",
+    "source_vector_id": "514007",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "TCP PSH+ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 514007 | TCP PSH+ACK Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14007",
+    "source_type_definition": {
+      "source_type_id": "14007",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP PSH+ACK Flood",
+      "description": "A flood of PSH+ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14007 TCP PSH+ACK Flood\nA flood of PSH+ACK packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-514008",
+    "source_vector_id": "514008",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "TCP SYN+ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 514008 | TCP SYN+ACK Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14008",
+    "source_type_definition": {
+      "source_type_id": "14008",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP SYN+ACK Flood",
+      "description": "A SYN+ACK flood targeting the handshake process to destabilize network connections.",
+      "source_text": "14008 TCP SYN+ACK Flood\nA SYN+ACK flood targeting the handshake process to\ndestabilize network connections."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-514009",
+    "source_vector_id": "514009",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "TCP ACK Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 514009 | TCP ACK Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14009",
+    "source_type_definition": {
+      "source_type_id": "14009",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP ACK Flood",
+      "description": "A flood of ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14009 TCP ACK Flood\nA flood of ACK packets. The data size SHOULD be small\nor zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-514010",
+    "source_vector_id": "514010",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-tcp",
+    "name": "TCP FIN Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 514010 | TCP FIN Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14010",
+    "source_type_definition": {
+      "source_type_id": "14010",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP FIN Flood",
+      "description": "A flood of TCP FIN packets. The data size SHOULD be small or zero.",
+      "source_text": "14010 TCP FIN Flood\nA flood of TCP FIN packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-554011",
+    "source_vector_id": "554011",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "DNS Query Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 554011 | DNS Query Flood | vol_tps=1M, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "54011",
+    "source_type_definition": {
+      "source_type_id": "54011",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Query Flood",
+      "description": "A flood of DNS queries designed to overwhelm DNS servers with excessive requests.",
+      "source_text": "54011 DNS Query Flood\nA flood of DNS queries designed to overwhelm DNS servers\nwith excessive requests."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-524012",
+    "source_vector_id": "524012",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-udp",
+    "name": "UDP Multi-vector Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 524012 | UDP Multi-vector | vol_bps=500G, ip_spoofing, max_out=1h, |\n| | Flood | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["524012-outage", "524012-bots", "524012-latency", "524012-persistence"],
+    "source_type_id": "24012",
+    "source_type_definition": {
+      "source_type_id": "24012",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "UDP Multi-vector Flood",
+      "description": "A combined attack using various UDP-based vectors to target different network vulnerabilities.",
+      "source_text": "24012 UDP Multi-vector Flood\nA combined attack using various UDP-based vectors to\ntarget different network vulnerabilities."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-524013",
+    "source_vector_id": "524013",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "network-udp",
+    "name": "DNS Garbage Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 524013 | DNS Garbage Flood | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24013",
+    "source_type_definition": {
+      "source_type_id": "24013",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Garbage Flood",
+      "description": "A flood of UDP packets. DST Port must be 53. The data is garbage (not proper DNS request or reply). Data size SHOULD be large.",
+      "source_text": "24013 DNS Garbage Flood\nA flood of UDP packets. DST Port must be 53. The data\nis garbage (not proper DNS request or reply). Data size\nSHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555014",
+    "source_vector_id": "555014",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTP Flood Cookie Support",
+    "required_properties": ["url_rand"],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555014 | HTTP Flood Cookie | vol_tps=1M, url_rand, max_out=5m, |\n| | Support | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["555014-family"],
+    "source_type_id": "55014",
+    "source_type_definition": {
+      "source_type_id": "55014",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Flood Cookie Support",
+      "description": "An HTTP Flood in which the attack tool is able to support cookie and respond to an HTTP 302 Redirect response.",
+      "source_text": "55014 HTTP/S Flood Cookie Support\nAn HTTP Flood in which the attack tool is able to support\ncookie and respond to an HTTP 302 Redirect response."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555015",
+    "source_vector_id": "555015",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTP Search Page Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555015 | HTTP Search Page | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Flood | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["555015-family"],
+    "source_type_id": "55015",
+    "source_type_definition": {
+      "source_type_id": "55015",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Search Page Flood",
+      "description": "An HTTP flood targeted at one or more search functions in the attacked website.",
+      "source_text": "55015 HTTP/S Search Page Flood\nAn HTTP flood targeted at one or more search functions\nin the attacked website."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555016",
+    "source_vector_id": "555016",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTP Login Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555016 | HTTP Login Flood | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["555016-family"],
+    "source_type_id": "55016",
+    "source_type_definition": {
+      "source_type_id": "55016",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Login Flood",
+      "description": "An HTTP flood aimed at login pages, designed to exploit resource-intensive processes.",
+      "source_text": "55016 HTTP/S Login Flood\nAn HTTP flood aimed at login pages, designed to exploit\nresource-intensive processes."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-585017",
+    "source_vector_id": "585017",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "unresolved",
+    "name": "HTTP Large File Download",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 585017 | HTTP Large File | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Download | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["585017-family"],
+    "source_type_id": "85017",
+    "source_type_definition": {
+      "source_type_id": "85017",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Large File Download Flood",
+      "description": "A targeted attack on large file downloads to consume significant bandwidth and server resources.",
+      "source_text": "85017 HTTP/S Large File Download Flood\nA targeted attack on large file downloads to consume\nsignificant bandwidth and server resources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555018",
+    "source_vector_id": "555018",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "DNS Recursive Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555018 | DNS Recursive | vol_tps=1M, ip_spoofing, max_out=5m, |\n| | Flood | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "55018",
+    "source_type_definition": {
+      "source_type_id": "55018",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Recursive Flood",
+      "description": "A flood on DNS packet in which the subdomain is ever changing (1000.ddostarget.com, 1001.ddostarget.com)",
+      "source_text": "55018 DNS Recursive Flood\nA flood on DNS packet in which the subdomain is ever\nchanging (1000.ddostarget.com, 1001.ddostarget.com)"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-585019",
+    "source_vector_id": "585019",
+    "source_section": "4.3",
+    "source_page": 20,
+    "level": 5,
+    "family": "unresolved",
+    "name": "SLOW POST (HTTP)",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 585019 | SLOW POST (HTTP) | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["585019-family"],
+    "source_type_id": "85019",
+    "source_type_definition": {
+      "source_type_id": "85019",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/S Slow POST",
+      "description": "Slow Post is an HTTP/S based low-and-slow DDoS attack using POST request with large Content-Length, however the attacker send the data byte-by-byte keep the connection ever open.",
+      "source_text": "85019 HTTP/S Slow POST\nSlow Post is an HTTP/S based low-and-slow DDoS attack\nusing POST request with large Content-Length, however\nthe attacker send the data byte-by-byte keep the\nconnection ever open."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-585020",
+    "source_vector_id": "585020",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "unresolved",
+    "name": "SSL Renegotiation",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 585020 | SSL Renegotiation | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["585020-family"],
+    "source_type_id": "85020",
+    "source_type_definition": {
+      "source_type_id": "85020",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "SSL Renegotiation",
+      "description": "A low-and-slow HTTPS based attack. Using the SSL- Renegotiation option the attack causes the server to renegotiate the SSL that consumes large compute power.",
+      "source_text": "85020 SSL Renegotiation\nA low-and-slow HTTPS based attack. Using the SSL-\nRenegotiation option the attack causes the server to\nrenegotiate the SSL that consumes large compute power."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-535021",
+    "source_vector_id": "535021",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "network-other",
+    "name": "IPSEC Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 535021 | IPSEC Flood | vol_bps=500G, max_out=5m, max_latency=1.5s, |\n| | | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "35021",
+    "source_type_definition": {
+      "source_type_id": "35021",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "IPSEC Flood",
+      "description": "A flood targeting IPSEC protocols and ports, aimed at disrupting secure communication channels.",
+      "source_text": "35021 IPSEC Flood\nA flood targeting IPSEC protocols and ports, aimed at\ndisrupting secure communication channels."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-585022",
+    "source_vector_id": "585022",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "unresolved",
+    "name": "HTTP/2.0 Continuation flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 585022 | HTTP/2.0 | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Continuation flood | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["585022-family"],
+    "source_type_id": "85022",
+    "source_type_definition": {
+      "source_type_id": "85022",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/2.0 Continuation Flood",
+      "description": "An attack using HTTP/2.0 continuation frames to exhaust server processing capacities by sending fragmented headers.",
+      "source_text": "85022 HTTP/2.0 Continuation Flood\nAn attack using HTTP/2.0 continuation frames to exhaust\nserver processing capacities by sending fragmented\nheaders."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-585023",
+    "source_vector_id": "585023",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "unresolved",
+    "name": "Rapid Reset",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 585023 | Rapid Reset | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["585023-family"],
+    "source_type_id": "85023",
+    "source_type_definition": {
+      "source_type_id": "85023",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Rapid Reset",
+      "description": "A flood involving rapid resets of HTTP/2.0 connections, designed to destabilize communication and exhaust system resources.",
+      "source_text": "85023 Rapid Reset\nA flood involving rapid resets of HTTP/2.0 connections,\ndesigned to destabilize communication and exhaust system\nresources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-525024",
+    "source_vector_id": "525024",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "network-udp",
+    "name": "Multi-protocol Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "500G"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 525024 | Multi-protocol | vol_bps=500G, ip_spoofing, max_out=5m, |\n| | Flood | max_latency=1.5s, max_bots=5K, persistence=30|\n| | | days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "25024",
+    "source_type_definition": {
+      "source_type_id": "25024",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Multi-protocol Flood",
+      "description": "A complex flood that utilizes multiple protocols including ICMP, UDP, and TCP to achieve widespread network disruption.",
+      "source_text": "25024 Multi-protocol Flood\nA complex flood that utilizes multiple protocols\nincluding ICMP, UDP, and TCP to achieve widespread\nnetwork disruption."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555025",
+    "source_vector_id": "555025",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood Headless Browse",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555025 | HTTPS Flood | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Headless Browse | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["555025-family"],
+    "source_type_id": "55025",
+    "source_type_definition": {
+      "source_type_id": "55025",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood Headless Browse",
+      "description": "An HTTP/S flood in the attacking client is a headless browser and therefore encompasses all the technologies and libraries of a normal browser and can pass multiple standard DDoS mitigation challenges.",
+      "source_text": "55025 HTTPS Flood Headless Browse\nAn HTTP/S flood in the attacking client is a headless\nbrowser and therefore encompasses all the technologies\nand libraries of a normal browser and can pass multiple\nstandard DDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-555026",
+    "source_vector_id": "555026",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood JS Support",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5K",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555026 | HTTPS Flood JS | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Support | max_bots=5K, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["555026-family"],
+    "source_type_id": "55026",
+    "source_type_definition": {
+      "source_type_id": "55026",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood JavaScript Support",
+      "description": "An HTTP/S flood in the attacking client is able to process JavaScript (JS) and therefore pass standard JS DDoS mitigation challenges.",
+      "source_text": "55026 HTTPS Flood JavaScript Support\nAn HTTP/S flood in the attacking client is able to\nprocess JavaScript (JS) and therefore pass standard JS\nDDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-553027",
+    "source_vector_id": "553027",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "API Unformatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 553027 | API Unformatted | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Flood | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["553027-type-id"],
+    "source_type_id": "53027",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-554028",
+    "source_vector_id": "554028",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "API Formatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 554028 | API Formatted | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Flood | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["554028-type-id"],
+    "source_type_id": "54028",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-555029",
+    "source_vector_id": "555029",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "API Authenticated Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 555029 | API Authenticated | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Flood | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "55029",
+    "source_type_definition": {
+      "source_type_id": "55029",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "API Authenticated Request Flood",
+      "description": "A flood targeting protected API endpoints utilizing valid authorization tokens (such as JWT or OAuth), successfully bypassing basic API gateway security filters and forcing backend applications to process resource-intensive database updates.",
+      "source_text": "55029 API Authenticated Request Flood\nA flood targeting protected API endpoints utilizing\nvalid authorization tokens (such as JWT or OAuth),\nsuccessfully bypassing basic API gateway security\nfilters and forcing backend applications to process\nresource-intensive database updates."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-554030",
+    "source_vector_id": "554030",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "low-and-slow",
+    "name": "pulsewave/’Hit&Run’ Floods Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 554030 | pulsewave/’Hit&Run’| vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Floods | max_bots=5k, persistence=30 days |\n| | Flood | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["554030-type-id"],
+    "source_type_id": "54030",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-565032",
+    "source_vector_id": "565032",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "non-http",
+    "name": "Non-HTTP/S Application Floods",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "1M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_latency": "1.5s",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 565032 | Non-HTTP/S | vol_tps=1M, max_out=5m, max_latency=1.5s, |\n| | Application Floods | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["565032-family", "565032-type-id"],
+    "source_type_id": "65032",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-545033",
+    "source_vector_id": "545033",
+    "source_section": "4.3",
+    "source_page": 21,
+    "level": 5,
+    "family": "http",
+    "name": "Fragmented Network Floods",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_pps": "125M"
+    },
+    "service_requirements": {
+      "max_out": "5m",
+      "max_bots": "5k",
+      "persistence": "30 days"
+    },
+    "source_text": "| 545033 | Fragmented | vol_pps=125M, ip_spoofing, max_out=5m, |\n| | Network Floods | max_bots=5k, persistence=30 days |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["545033-missing-max_latency", "545033-type-id"],
+    "source_type_id": "45033",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-611001",
+    "source_vector_id": "611001",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_pps": "250M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 611001 | SYN Flood | vol_pps=250M, ip_spoofing, direct_ip, |\n| | | max_out=1m, max_latency=1s, max_bots=50K, |\n| | | persistence=6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-651002",
+    "source_vector_id": "651002",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 651002 | HTTP/S GET Flood | vol_tps=5M, url_rand, direct_ip, max_out=1m, |\n| | | max_latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["651002-family"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-622003",
+    "source_vector_id": "622003",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 622003 | UDP Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-613004",
+    "source_vector_id": "613004",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "TCP RST Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 613004 | TCP RST Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "13004",
+    "source_type_definition": {
+      "source_type_id": "13004",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP RST Flood",
+      "description": "A flood of RST packets.",
+      "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-633005",
+    "source_vector_id": "633005",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-other",
+    "name": "ICMP Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 633005 | ICMP Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "33005",
+    "source_type_definition": {
+      "source_type_id": "33005",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "ICMP Flood",
+      "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+      "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-623006",
+    "source_vector_id": "623006",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-udp",
+    "name": "NTP Reflection Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 623006 | NTP Reflection | vol_bps=1T, direct_ip, max_out=1m, max |\n| | Flood | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "23006",
+    "source_type_definition": {
+      "source_type_id": "23006",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "NTP Reflection Flood",
+      "description": "An NTP Reflected flood the using MONLIST argument",
+      "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-614007",
+    "source_vector_id": "614007",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "TCP PSH+ACK Flood",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 614007 | TCP PSH+ACK Flood | vol_tps=5M, url_rand, direct_ip, max_out=1m, |\n| | | max_latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14007",
+    "source_type_definition": {
+      "source_type_id": "14007",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP PSH+ACK Flood",
+      "description": "A flood of PSH+ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14007 TCP PSH+ACK Flood\nA flood of PSH+ACK packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-614008",
+    "source_vector_id": "614008",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "TCP SYN+ACK Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 614008 | TCP SYN+ACK Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14008",
+    "source_type_definition": {
+      "source_type_id": "14008",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP SYN+ACK Flood",
+      "description": "A SYN+ACK flood targeting the handshake process to destabilize network connections.",
+      "source_text": "14008 TCP SYN+ACK Flood\nA SYN+ACK flood targeting the handshake process to\ndestabilize network connections."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-614009",
+    "source_vector_id": "614009",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "TCP ACK Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 614009 | TCP ACK Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14009",
+    "source_type_definition": {
+      "source_type_id": "14009",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP ACK Flood",
+      "description": "A flood of ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14009 TCP ACK Flood\nA flood of ACK packets. The data size SHOULD be small\nor zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-614010",
+    "source_vector_id": "614010",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-tcp",
+    "name": "TCP FIN Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 614010 | TCP FIN Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "14010",
+    "source_type_definition": {
+      "source_type_id": "14010",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP FIN Flood",
+      "description": "A flood of TCP FIN packets. The data size SHOULD be small or zero.",
+      "source_text": "14010 TCP FIN Flood\nA flood of TCP FIN packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-654011",
+    "source_vector_id": "654011",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "DNS Query Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 654011 | DNS Query Flood | vol_tps=5M, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "54011",
+    "source_type_definition": {
+      "source_type_id": "54011",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Query Flood",
+      "description": "A flood of DNS queries designed to overwhelm DNS servers with excessive requests.",
+      "source_text": "54011 DNS Query Flood\nA flood of DNS queries designed to overwhelm DNS servers\nwith excessive requests."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-624012",
+    "source_vector_id": "624012",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-udp",
+    "name": "UDP Multi-vector Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 624012 | UDP Multi-vector | vol_bps=1T, direct_ip, max_out=1m, max |\n| | Flood | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24012",
+    "source_type_definition": {
+      "source_type_id": "24012",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "UDP Multi-vector Flood",
+      "description": "A combined attack using various UDP-based vectors to target different network vulnerabilities.",
+      "source_text": "24012 UDP Multi-vector Flood\nA combined attack using various UDP-based vectors to\ntarget different network vulnerabilities."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-624013",
+    "source_vector_id": "624013",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "network-udp",
+    "name": "DNS Garbage Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 624013 | DNS Garbage Flood | vol_bps=1T, ip_spoofing, direct_ip, max_out=1|\n| | | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24013",
+    "source_type_definition": {
+      "source_type_id": "24013",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Garbage Flood",
+      "description": "A flood of UDP packets. DST Port must be 53. The data is garbage (not proper DNS request or reply). Data size SHOULD be large.",
+      "source_text": "24013 DNS Garbage Flood\nA flood of UDP packets. DST Port must be 53. The data\nis garbage (not proper DNS request or reply). Data size\nSHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655014",
+    "source_vector_id": "655014",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTP Flood Cookie Support",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 655014 | HTTP Flood Cookie | vol_tps=5M, url_rand, direct_ip, max_out=1m, |\n| | Support | max_latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["655014-family"],
+    "source_type_id": "55014",
+    "source_type_definition": {
+      "source_type_id": "55014",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Flood Cookie Support",
+      "description": "An HTTP Flood in which the attack tool is able to support cookie and respond to an HTTP 302 Redirect response.",
+      "source_text": "55014 HTTP/S Flood Cookie Support\nAn HTTP Flood in which the attack tool is able to support\ncookie and respond to an HTTP 302 Redirect response."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655015",
+    "source_vector_id": "655015",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTP Search Page Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 655015 | HTTP Search Page | vol_tps=5M, direct_ip, max_out=1m, max |\n| | Flood | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["655015-family"],
+    "source_type_id": "55015",
+    "source_type_definition": {
+      "source_type_id": "55015",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Search Page Flood",
+      "description": "An HTTP flood targeted at one or more search functions in the attacked website.",
+      "source_text": "55015 HTTP/S Search Page Flood\nAn HTTP flood targeted at one or more search functions\nin the attacked website."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655016",
+    "source_vector_id": "655016",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTP Login Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 655016 | HTTP Login Flood | vol_tps=5M, direct_ip, max_out=1m, max |\n| | | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["655016-family"],
+    "source_type_id": "55016",
+    "source_type_definition": {
+      "source_type_id": "55016",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Login Flood",
+      "description": "An HTTP flood aimed at login pages, designed to exploit resource-intensive processes.",
+      "source_text": "55016 HTTP/S Login Flood\nAn HTTP flood aimed at login pages, designed to exploit\nresource-intensive processes."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-685017",
+    "source_vector_id": "685017",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "unresolved",
+    "name": "HTTP Large File Download",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 685017 | HTTP Large File | vol_tps=5M, direct_ip, max_out=1m, max |\n| | Download | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["685017-family"],
+    "source_type_id": "85017",
+    "source_type_definition": {
+      "source_type_id": "85017",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Large File Download Flood",
+      "description": "A targeted attack on large file downloads to consume significant bandwidth and server resources.",
+      "source_text": "85017 HTTP/S Large File Download Flood\nA targeted attack on large file downloads to consume\nsignificant bandwidth and server resources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655018",
+    "source_vector_id": "655018",
+    "source_section": "4.3",
+    "source_page": 22,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "DNS Recursive Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1 m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 655018 | DNS Recursive | vol_tps=5M, ip_spoofing, direct_ip, max_out=1|\n| | Flood | m, max_latency=1s, max_bots=50K, persistence=|\n| | | 6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "55018",
+    "source_type_definition": {
+      "source_type_id": "55018",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Recursive Flood",
+      "description": "A flood on DNS packet in which the subdomain is ever changing (1000.ddostarget.com, 1001.ddostarget.com)",
+      "source_text": "55018 DNS Recursive Flood\nA flood on DNS packet in which the subdomain is ever\nchanging (1000.ddostarget.com, 1001.ddostarget.com)"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-685019",
+    "source_vector_id": "685019",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "unresolved",
+    "name": "Slow Post (HTTP)",
+    "required_properties": ["no_fingerprint", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 685019 | Slow Post (HTTP) | vol_tps=5M, no_fingerprint, direct_ip, max |\n| | | out=1m, max_latency=1s, max_bots=50K, |\n| | | persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["685019-family"],
+    "source_type_id": "85019",
+    "source_type_definition": {
+      "source_type_id": "85019",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/S Slow POST",
+      "description": "Slow Post is an HTTP/S based low-and-slow DDoS attack using POST request with large Content-Length, however the attacker send the data byte-by-byte keep the connection ever open.",
+      "source_text": "85019 HTTP/S Slow POST\nSlow Post is an HTTP/S based low-and-slow DDoS attack\nusing POST request with large Content-Length, however\nthe attacker send the data byte-by-byte keep the\nconnection ever open."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-685020",
+    "source_vector_id": "685020",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "unresolved",
+    "name": "SSL Renegotiation",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 685020 | SSL Renegotiation | vol_tps=5M, direct_ip, max_out=1m, max |\n| | | latency=1s, max_bots=50K, persistence=6 |\n| | | months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["685020-family"],
+    "source_type_id": "85020",
+    "source_type_definition": {
+      "source_type_id": "85020",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "SSL Renegotiation",
+      "description": "A low-and-slow HTTPS based attack. Using the SSL- Renegotiation option the attack causes the server to renegotiate the SSL that consumes large compute power.",
+      "source_text": "85020 SSL Renegotiation\nA low-and-slow HTTPS based attack. Using the SSL-\nRenegotiation option the attack causes the server to\nrenegotiate the SSL that consumes large compute power."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-635021",
+    "source_vector_id": "635021",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "network-other",
+    "name": "IPSEC Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 635021 | IPSEC Flood | vol_bps=1T, max_out=1m, max_latency=1s, |\n| | | max_bots=50K, persistence=6 months |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "35021",
+    "source_type_definition": {
+      "source_type_id": "35021",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "IPSEC Flood",
+      "description": "A flood targeting IPSEC protocols and ports, aimed at disrupting secure communication channels.",
+      "source_text": "35021 IPSEC Flood\nA flood targeting IPSEC protocols and ports, aimed at\ndisrupting secure communication channels."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-685022",
+    "source_vector_id": "685022",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "unresolved",
+    "name": "HTTP/2.0 Continuation flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 685022 | HTTP/2.0 | vol_tps=5M, max_out=1m, max_latency=1s, |\n| | Continuation flood | max_bots=50K, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["685022-family"],
+    "source_type_id": "85022",
+    "source_type_definition": {
+      "source_type_id": "85022",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/2.0 Continuation Flood",
+      "description": "An attack using HTTP/2.0 continuation frames to exhaust server processing capacities by sending fragmented headers.",
+      "source_text": "85022 HTTP/2.0 Continuation Flood\nAn attack using HTTP/2.0 continuation frames to exhaust\nserver processing capacities by sending fragmented\nheaders."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-685023",
+    "source_vector_id": "685023",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "unresolved",
+    "name": "Rapid Reset",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "1s",
+      "max_bots": "50K",
+      "persistence": "6 months"
+    },
+    "source_text": "| 685023 | Rapid Reset | vol_tps=5M, max_out=1m, max_latency=1s, |\n| | | max_bots=50K, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["685023-family"],
+    "source_type_id": "85023",
+    "source_type_definition": {
+      "source_type_id": "85023",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Rapid Reset",
+      "description": "A flood involving rapid resets of HTTP/2.0 connections, designed to destabilize communication and exhaust system resources.",
+      "source_text": "85023 Rapid Reset\nA flood involving rapid resets of HTTP/2.0 connections,\ndesigned to destabilize communication and exhaust system\nresources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-625024",
+    "source_vector_id": "625024",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "network-udp",
+    "name": "Multi-protocol Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1h",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 625024 | Multi-protocol | vol_bps=1T, ip_spoofing, max_out=1h, |\n| | Flood | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["625024-outage", "625024-bots", "625024-latency", "625024-persistence"],
+    "source_type_id": "25024",
+    "source_type_definition": {
+      "source_type_id": "25024",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Multi-protocol Flood",
+      "description": "A complex flood that utilizes multiple protocols including ICMP, UDP, and TCP to achieve widespread network disruption.",
+      "source_text": "25024 Multi-protocol Flood\nA complex flood that utilizes multiple protocols\nincluding ICMP, UDP, and TCP to achieve widespread\nnetwork disruption."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655025",
+    "source_vector_id": "655025",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood Headless Browse",
+    "required_properties": ["url_rand", "no_fingerprint", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 655025 | HTTPS Flood | vol_tps=5M, url_rand, no_fingerprint, |\n| | Headless Browse | direct_ip, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": [
+      "655025-family",
+      "655025-outage",
+      "655025-bots",
+      "655025-latency",
+      "655025-persistence"
+    ],
+    "source_type_id": "55025",
+    "source_type_definition": {
+      "source_type_id": "55025",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood Headless Browse",
+      "description": "An HTTP/S flood in the attacking client is a headless browser and therefore encompasses all the technologies and libraries of a normal browser and can pass multiple standard DDoS mitigation challenges.",
+      "source_text": "55025 HTTPS Flood Headless Browse\nAn HTTP/S flood in the attacking client is a headless\nbrowser and therefore encompasses all the technologies\nand libraries of a normal browser and can pass multiple\nstandard DDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-655026",
+    "source_vector_id": "655026",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood JS Support",
+    "required_properties": ["url_rand", "no_fingerprint", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 655026 | HTTPS Flood JS | vol_tps=5M, url_rand, no_fingerprint, |\n| | Support | direct_ip, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": [
+      "655026-family",
+      "655026-outage",
+      "655026-bots",
+      "655026-latency",
+      "655026-persistence"
+    ],
+    "source_type_id": "55026",
+    "source_type_definition": {
+      "source_type_id": "55026",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood JavaScript Support",
+      "description": "An HTTP/S flood in the attacking client is able to process JavaScript (JS) and therefore pass standard JS DDoS mitigation challenges.",
+      "source_text": "55026 HTTPS Flood JavaScript Support\nAn HTTP/S flood in the attacking client is able to\nprocess JavaScript (JS) and therefore pass standard JS\nDDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-656027",
+    "source_vector_id": "656027",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "Multi-Vector Flood",
+    "required_properties": ["ip_spoofing"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "3s",
+      "max_bots": "500",
+      "persistence": "24 hours"
+    },
+    "source_text": "| 656027 | Multi-Vector | vol_bps=1T, ip_spoofing, max_out=1m, |\n| | Flood | max_latency=3s, max_bots=500, persistence=24 |\n| | | hours |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["656027-bots", "656027-latency", "656027-persistence"],
+    "source_type_id": "56027",
+    "source_type_definition": {
+      "source_type_id": "56027",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Multi-Vector Flood",
+      "description": "A sophisticated attack that layers multiple types of flooding to target various aspects of network infrastructure simultaneously, aiming to exploit different vulnerabilities within the network stack. This flood operates across both application layer (Layer 7) and network/transport layers (Layers 3/4).",
+      "source_text": "56027 Multi-Vector Flood\nA sophisticated attack that layers multiple types of\nflooding to target various aspects of network\ninfrastructure simultaneously, aiming to exploit\ndifferent vulnerabilities within the network stack. This\nflood operates across both application layer (Layer 7)\nand network/transport layers (Layers 3/4)."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-626028",
+    "source_vector_id": "626028",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "network-udp",
+    "name": "UDP Amplification Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "1T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 626028 | UDP Amplification | vol_bps=1T, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["626028-outage", "626028-bots", "626028-latency", "626028-persistence"],
+    "source_type_id": "26028",
+    "source_type_definition": {
+      "source_type_id": "26028",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "UDP Amplification Flood",
+      "description": "A UDP amplification attack that significantly increases the volume of incoming traffic to the victim by exploiting public-facing services.",
+      "source_text": "26028 UDP Amplification Flood\nA UDP amplification attack that significantly increases\nthe volume of incoming traffic to the victim by\nexploiting public-facing services."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-653029",
+    "source_vector_id": "653029",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "API Unformatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 653029 | API Unformatted | vol_tps=5M, max_out=1m, max_latency=0.5s, |\n| | Flood | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["653029-bots", "653029-latency", "653029-type-id"],
+    "source_type_id": "53029",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-654030",
+    "source_vector_id": "654030",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "API Formatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s max_bots=1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 654030 | API Formatted | vol_tps=5M, max_out=1m, max_latency=0.5s |\n| | Flood | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["654030-missing-max_bots", "654030-type-id"],
+    "source_type_id": "54030",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-655031",
+    "source_vector_id": "655031",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "API Authenticated Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s max_bots=1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 655031 | API Authenticated | vol_tps=5M, max_out=1m, max_latency=0.5s |\n| | Flood | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["655031-missing-max_bots", "655031-type-id"],
+    "source_type_id": "55031",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-654032",
+    "source_vector_id": "654032",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "low-and-slow",
+    "name": "pulsewave/’Hit&Run’ Floods Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s max_bots=1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 654032 | pulsewave/’Hit&Run’| vol_tps=5M, max_out=1m, max_latency=0.5s |\n| | Floods | max_bots=1M, persistence=6 months |\n| | Flood | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["654032-missing-max_bots", "654032-type-id"],
+    "source_type_id": "54032",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-665034",
+    "source_vector_id": "665034",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "non-http",
+    "name": "Non-HTTP/S Application Floods",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s max_bots=1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 665034 | Non-HTTP/S | vol_tps=5M, max_out=1m, max_latency=0.5s |\n| | Application Floods | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["665034-family", "665034-missing-max_bots", "665034-type-id"],
+    "source_type_id": "65034",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-645035",
+    "source_vector_id": "645035",
+    "source_section": "4.3",
+    "source_page": 23,
+    "level": 6,
+    "family": "http",
+    "name": "Fragmented Network Floods",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5M"
+    },
+    "service_requirements": {
+      "max_out": "1m",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "6 months"
+    },
+    "source_text": "| 645035 | Fragmented | vol_tps=5M, max_out=1m, max_latency=0.5s, |\n| | Network Floods | max_bots=1M, persistence=6 months |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["645035-bots", "645035-latency", "645035-type-id"],
+    "source_type_id": "45035",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-711001",
+    "source_vector_id": "711001",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "SYN Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_pps": "1B"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 711001 | SYN Flood | vol_pps=1B, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["711001-outage"],
+    "source_type_id": "11001",
+    "source_type_definition": {
+      "source_type_id": "11001",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "SYN Flood",
+      "description": "A flood of TCP SYN packets, data size should be 0.",
+      "source_text": "11001 SYN Flood\nA flood of TCP SYN packets, data size should be 0."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-751002",
+    "source_vector_id": "751002",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTP/S GET Flood",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 751002 | HTTP/S GET Flood | vol_tps=25M, url_rand, direct_ip, max_out=10s|\n| | | , max_latency=0.5s, max_bots=1M, persistence=|\n| | | 1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["751002-family", "751002-outage"],
+    "source_type_id": "51002",
+    "source_type_definition": {
+      "source_type_id": "51002",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "HTTP/S GET Flood",
+      "description": "A flood of HTTP or HTTPS requests, designed to overwhelm web servers.",
+      "source_text": "51002 HTTP/S GET Flood\nA flood of HTTP or HTTPS requests, designed to overwhelm\nweb servers."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-722003",
+    "source_vector_id": "722003",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-udp",
+    "name": "UDP Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 722003 | UDP Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["722003-outage"],
+    "source_type_id": "22003",
+    "source_type_definition": {
+      "source_type_id": "22003",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "UDP Flood",
+      "description": "A flood of UDP packets, data size should be large or maximal, potentially targeting port 80 or 443.",
+      "source_text": "22003 UDP Flood\nA flood of UDP packets, data size should be large or\nmaximal, potentially targeting port 80 or 443."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-713004",
+    "source_vector_id": "713004",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "TCP RST Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 713004 | TCP RST Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["713004-outage"],
+    "source_type_id": "13004",
+    "source_type_definition": {
+      "source_type_id": "13004",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP RST Flood",
+      "description": "A flood of RST packets.",
+      "source_text": "13004 TCP RST Flood\nA flood of RST packets."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-733005",
+    "source_vector_id": "733005",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-other",
+    "name": "ICMP Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 733005 | ICMP Flood | vol_bps=5T, ip_spoofing, direct_ip,, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["733005-outage"],
+    "source_type_id": "33005",
+    "source_type_definition": {
+      "source_type_id": "33005",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "ICMP Flood",
+      "description": "A flood of ICMP ping packets. Data size SHOULD be large.",
+      "source_text": "33005 ICMP Flood\nA flood of ICMP ping packets. Data size SHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-723006",
+    "source_vector_id": "723006",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-udp",
+    "name": "NTP Reflection Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 723006 | NTP Reflection | vol_bps=5T, ip_spoofing, direct_ip, |\n| | Flood | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["723006-outage"],
+    "source_type_id": "23006",
+    "source_type_definition": {
+      "source_type_id": "23006",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "NTP Reflection Flood",
+      "description": "An NTP Reflected flood the using MONLIST argument",
+      "source_text": "23006 NTP Reflection Flood\nAn NTP Reflected flood the using MONLIST argument"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-714007",
+    "source_vector_id": "714007",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "TCP PSH+ACK Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 714007 | TCP PSH+ACK Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["714007-outage"],
+    "source_type_id": "14007",
+    "source_type_definition": {
+      "source_type_id": "14007",
+      "source_section": "4.2",
+      "source_page": 13,
+      "name": "TCP PSH+ACK Flood",
+      "description": "A flood of PSH+ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14007 TCP PSH+ACK Flood\nA flood of PSH+ACK packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-714008",
+    "source_vector_id": "714008",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "TCP SYN+ACK Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 714008 | TCP SYN+ACK Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["714008-outage"],
+    "source_type_id": "14008",
+    "source_type_definition": {
+      "source_type_id": "14008",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP SYN+ACK Flood",
+      "description": "A SYN+ACK flood targeting the handshake process to destabilize network connections.",
+      "source_text": "14008 TCP SYN+ACK Flood\nA SYN+ACK flood targeting the handshake process to\ndestabilize network connections."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-714009",
+    "source_vector_id": "714009",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "TCP ACK Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 714009 | TCP ACK Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["714009-outage"],
+    "source_type_id": "14009",
+    "source_type_definition": {
+      "source_type_id": "14009",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP ACK Flood",
+      "description": "A flood of ACK packets. The data size SHOULD be small or zero.",
+      "source_text": "14009 TCP ACK Flood\nA flood of ACK packets. The data size SHOULD be small\nor zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-714010",
+    "source_vector_id": "714010",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "TCP FIN Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 714010 | TCP FIN Flood | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["714010-outage"],
+    "source_type_id": "14010",
+    "source_type_definition": {
+      "source_type_id": "14010",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "TCP FIN Flood",
+      "description": "A flood of TCP FIN packets. The data size SHOULD be small or zero.",
+      "source_text": "14010 TCP FIN Flood\nA flood of TCP FIN packets. The data size SHOULD be\nsmall or zero."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-754011",
+    "source_vector_id": "754011",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "DNS Query Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 754011 | DNS Query Flood | vol_tps=25M, ip_spoofing, direct_ip, max_out=|\n| | | 10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["754011-outage"],
+    "source_type_id": "54011",
+    "source_type_definition": {
+      "source_type_id": "54011",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Query Flood",
+      "description": "A flood of DNS queries designed to overwhelm DNS servers with excessive requests.",
+      "source_text": "54011 DNS Query Flood\nA flood of DNS queries designed to overwhelm DNS servers\nwith excessive requests."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-724012",
+    "source_vector_id": "724012",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-udp",
+    "name": "UDP Multi-vector",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 724012 | UDP Multi-vector | vol_bps=5T, ip_spoofing, direct_ip, |\n| | | max_out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["724012-outage"],
+    "source_type_id": "24012",
+    "source_type_definition": {
+      "source_type_id": "24012",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "UDP Multi-vector Flood",
+      "description": "A combined attack using various UDP-based vectors to target different network vulnerabilities.",
+      "source_text": "24012 UDP Multi-vector Flood\nA combined attack using various UDP-based vectors to\ntarget different network vulnerabilities."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-724013",
+    "source_vector_id": "724013",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "network-udp",
+    "name": "DNS Garbage Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "1 0s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 724013 | DNS Garbage Flood | vol_bps=5T, ip_spoofing, direct_ip, max_out=1|\n| | | 0s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "line-preserved",
+    "ambiguity_ids": [],
+    "source_type_id": "24013",
+    "source_type_definition": {
+      "source_type_id": "24013",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Garbage Flood",
+      "description": "A flood of UDP packets. DST Port must be 53. The data is garbage (not proper DNS request or reply). Data size SHOULD be large.",
+      "source_text": "24013 DNS Garbage Flood\nA flood of UDP packets. DST Port must be 53. The data\nis garbage (not proper DNS request or reply). Data size\nSHOULD be large."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755014",
+    "source_vector_id": "755014",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTP Flood Cookie Support",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755014 | HTTP Flood Cookie | vol_tps=25M, direct_ip, max_out=10s, max |\n| | Support | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755014-family", "755014-outage"],
+    "source_type_id": "55014",
+    "source_type_definition": {
+      "source_type_id": "55014",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Flood Cookie Support",
+      "description": "An HTTP Flood in which the attack tool is able to support cookie and respond to an HTTP 302 Redirect response.",
+      "source_text": "55014 HTTP/S Flood Cookie Support\nAn HTTP Flood in which the attack tool is able to support\ncookie and respond to an HTTP 302 Redirect response."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755015",
+    "source_vector_id": "755015",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTP Search Page Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755015 | HTTP Search Page | vol_tps=25M, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755015-family", "755015-outage"],
+    "source_type_id": "55015",
+    "source_type_definition": {
+      "source_type_id": "55015",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Search Page Flood",
+      "description": "An HTTP flood targeted at one or more search functions in the attacked website.",
+      "source_text": "55015 HTTP/S Search Page Flood\nAn HTTP flood targeted at one or more search functions\nin the attacked website."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755016",
+    "source_vector_id": "755016",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTP Login Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755016 | HTTP Login Flood | vol_tps=25M, direct_ip, max_out=10s, max |\n| | | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755016-family", "755016-outage"],
+    "source_type_id": "55016",
+    "source_type_definition": {
+      "source_type_id": "55016",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Login Flood",
+      "description": "An HTTP flood aimed at login pages, designed to exploit resource-intensive processes.",
+      "source_text": "55016 HTTP/S Login Flood\nAn HTTP flood aimed at login pages, designed to exploit\nresource-intensive processes."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-785017",
+    "source_vector_id": "785017",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "unresolved",
+    "name": "HTTP Large File Download",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 785017 | HTTP Large File | vol_tps=25M, direct_ip, max_out=10s, max |\n| | Download | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["785017-family", "785017-outage"],
+    "source_type_id": "85017",
+    "source_type_definition": {
+      "source_type_id": "85017",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "HTTP/S Large File Download Flood",
+      "description": "A targeted attack on large file downloads to consume significant bandwidth and server resources.",
+      "source_text": "85017 HTTP/S Large File Download Flood\nA targeted attack on large file downloads to consume\nsignificant bandwidth and server resources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755018",
+    "source_vector_id": "755018",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "DNS Recursive Flood",
+    "required_properties": ["ip_spoofing", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755018 | DNS Recursive | vol_tps=25M, ip_spoofing, direct_ip, max_out=|\n| | Flood | 10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755018-outage"],
+    "source_type_id": "55018",
+    "source_type_definition": {
+      "source_type_id": "55018",
+      "source_section": "4.2",
+      "source_page": 14,
+      "name": "DNS Recursive Flood",
+      "description": "A flood on DNS packet in which the subdomain is ever changing (1000.ddostarget.com, 1001.ddostarget.com)",
+      "source_text": "55018 DNS Recursive Flood\nA flood on DNS packet in which the subdomain is ever\nchanging (1000.ddostarget.com, 1001.ddostarget.com)"
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-785019",
+    "source_vector_id": "785019",
+    "source_section": "4.3",
+    "source_page": 24,
+    "level": 7,
+    "family": "unresolved",
+    "name": "Slow Post (HTTP)",
+    "required_properties": ["no_fingerprint", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 785019 | Slow Post (HTTP) | vol_tps=25M, no_fingerprint, direct_ip, max |\n| | | out=10s, max_latency=0.5s, max_bots=1M, |\n| | | persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["785019-family", "785019-outage"],
+    "source_type_id": "85019",
+    "source_type_definition": {
+      "source_type_id": "85019",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/S Slow POST",
+      "description": "Slow Post is an HTTP/S based low-and-slow DDoS attack using POST request with large Content-Length, however the attacker send the data byte-by-byte keep the connection ever open.",
+      "source_text": "85019 HTTP/S Slow POST\nSlow Post is an HTTP/S based low-and-slow DDoS attack\nusing POST request with large Content-Length, however\nthe attacker send the data byte-by-byte keep the\nconnection ever open."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-785020",
+    "source_vector_id": "785020",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "unresolved",
+    "name": "SSL Renegotiation",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 785020 | SSL Renegotiation | vol_tps=25M, direct_ip, max_out=10s, max |\n| | | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["785020-family", "785020-outage"],
+    "source_type_id": "85020",
+    "source_type_definition": {
+      "source_type_id": "85020",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "SSL Renegotiation",
+      "description": "A low-and-slow HTTPS based attack. Using the SSL- Renegotiation option the attack causes the server to renegotiate the SSL that consumes large compute power.",
+      "source_text": "85020 SSL Renegotiation\nA low-and-slow HTTPS based attack. Using the SSL-\nRenegotiation option the attack causes the server to\nrenegotiate the SSL that consumes large compute power."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-735021",
+    "source_vector_id": "735021",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "network-other",
+    "name": "IPSEC Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 735021 | IPSEC Flood | vol_bps=5T, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["735021-outage"],
+    "source_type_id": "35021",
+    "source_type_definition": {
+      "source_type_id": "35021",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "IPSEC Flood",
+      "description": "A flood targeting IPSEC protocols and ports, aimed at disrupting secure communication channels.",
+      "source_text": "35021 IPSEC Flood\nA flood targeting IPSEC protocols and ports, aimed at\ndisrupting secure communication channels."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-785022",
+    "source_vector_id": "785022",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "unresolved",
+    "name": "HTTP/2.0 Continuation flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 785022 | HTTP/2.0 | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | Continuation flood | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["785022-family", "785022-outage"],
+    "source_type_id": "85022",
+    "source_type_definition": {
+      "source_type_id": "85022",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTP/2.0 Continuation Flood",
+      "description": "An attack using HTTP/2.0 continuation frames to exhaust server processing capacities by sending fragmented headers.",
+      "source_text": "85022 HTTP/2.0 Continuation Flood\nAn attack using HTTP/2.0 continuation frames to exhaust\nserver processing capacities by sending fragmented\nheaders."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-785023",
+    "source_vector_id": "785023",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "unresolved",
+    "name": "Rapid Reset",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 785023 | Rapid Reset | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["785023-family", "785023-outage"],
+    "source_type_id": "85023",
+    "source_type_definition": {
+      "source_type_id": "85023",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Rapid Reset",
+      "description": "A flood involving rapid resets of HTTP/2.0 connections, designed to destabilize communication and exhaust system resources.",
+      "source_text": "85023 Rapid Reset\nA flood involving rapid resets of HTTP/2.0 connections,\ndesigned to destabilize communication and exhaust system\nresources."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-725024",
+    "source_vector_id": "725024",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "network-udp",
+    "name": "Multi-protocol Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 725024 | Multi-protocol | vol_bps=5T, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["725024-outage"],
+    "source_type_id": "25024",
+    "source_type_definition": {
+      "source_type_id": "25024",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Multi-protocol Flood",
+      "description": "A complex flood that utilizes multiple protocols including ICMP, UDP, and TCP to achieve widespread network disruption.",
+      "source_text": "25024 Multi-protocol Flood\nA complex flood that utilizes multiple protocols\nincluding ICMP, UDP, and TCP to achieve widespread\nnetwork disruption."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755025",
+    "source_vector_id": "755025",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood Headless Browse",
+    "required_properties": ["url_rand", "no_fingerprint", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755025 | HTTPS Flood | vol_tps=25M, url_rand, no_fingerprint, |\n| | Headless Browse | direct_ip, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755025-family", "755025-outage"],
+    "source_type_id": "55025",
+    "source_type_definition": {
+      "source_type_id": "55025",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood Headless Browse",
+      "description": "An HTTP/S flood in the attacking client is a headless browser and therefore encompasses all the technologies and libraries of a normal browser and can pass multiple standard DDoS mitigation challenges.",
+      "source_text": "55025 HTTPS Flood Headless Browse\nAn HTTP/S flood in the attacking client is a headless\nbrowser and therefore encompasses all the technologies\nand libraries of a normal browser and can pass multiple\nstandard DDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-755026",
+    "source_vector_id": "755026",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "HTTPS Flood JS Support",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755026 | HTTPS Flood JS | vol_tps=25M, url_rand, direct_ip, max_out=10s|\n| | Support | , max_latency=0.5s, max_bots=1M, persistence=|\n| | | 1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755026-family", "755026-outage"],
+    "source_type_id": "55026",
+    "source_type_definition": {
+      "source_type_id": "55026",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "HTTPS Flood JavaScript Support",
+      "description": "An HTTP/S flood in the attacking client is able to process JavaScript (JS) and therefore pass standard JS DDoS mitigation challenges.",
+      "source_text": "55026 HTTPS Flood JavaScript Support\nAn HTTP/S flood in the attacking client is able to\nprocess JavaScript (JS) and therefore pass standard JS\nDDoS mitigation challenges."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-756027",
+    "source_vector_id": "756027",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "Multi-Vector Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 756027 | Multi-Vector | vol_bps=5T, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["756027-outage"],
+    "source_type_id": "56027",
+    "source_type_definition": {
+      "source_type_id": "56027",
+      "source_section": "4.2",
+      "source_page": 15,
+      "name": "Multi-Vector Flood",
+      "description": "A sophisticated attack that layers multiple types of flooding to target various aspects of network infrastructure simultaneously, aiming to exploit different vulnerabilities within the network stack. This flood operates across both application layer (Layer 7) and network/transport layers (Layers 3/4).",
+      "source_text": "56027 Multi-Vector Flood\nA sophisticated attack that layers multiple types of\nflooding to target various aspects of network\ninfrastructure simultaneously, aiming to exploit\ndifferent vulnerabilities within the network stack. This\nflood operates across both application layer (Layer 7)\nand network/transport layers (Layers 3/4)."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-726028",
+    "source_vector_id": "726028",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "network-udp",
+    "name": "UDP Amplification Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 726028 | UDP Amplification | vol_bps=5T, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["726028-outage"],
+    "source_type_id": "26028",
+    "source_type_definition": {
+      "source_type_id": "26028",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "UDP Amplification Flood",
+      "description": "A UDP amplification attack that significantly increases the volume of incoming traffic to the victim by exploiting public-facing services.",
+      "source_text": "26028 UDP Amplification Flood\nA UDP amplification attack that significantly increases\nthe volume of incoming traffic to the victim by\nexploiting public-facing services."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-757029",
+    "source_vector_id": "757029",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "QUIC HTTP/3 Flood",
+    "required_properties": ["url_rand", "direct_ip"],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 757029 | QUIC HTTP/3 Flood | vol_tps=25M, url_rand, direct_ip, max_out=10s|\n| | | , max_latency=0.5s, max_bots=1M, persistence=|\n| | | 1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["757029-family", "757029-outage"],
+    "source_type_id": "57029",
+    "source_type_definition": {
+      "source_type_id": "57029",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "QUIC HTTP/3 Flood",
+      "description": "A flood utilizing the QUIC protocol and HTTP/3, designed to maximize efficiency and impact through high-speed, multiplexed connections.",
+      "source_text": "57029 QUIC HTTP/3 Flood\nA flood utilizing the QUIC protocol and HTTP/3, designed\nto maximize efficiency and impact through high-speed,\nmultiplexed connections."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-717030",
+    "source_vector_id": "717030",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "Large Payload SYN Flood",
+    "required_properties": ["direct_ip"],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 717030 | Large Payload SYN | vol_bps=5T, direct_ip, max_out=10s, max |\n| | Flood | latency=0.5s, max_bots=1M, persistence=1 year|",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["717030-outage"],
+    "source_type_id": "17030",
+    "source_type_definition": {
+      "source_type_id": "17030",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "Large Payload SYN Flood",
+      "description": "A flood of TCP SYN packets with very large payloads, designed to overwhelm network equipment and processing capabilities. Also known as Tsunami Flood.",
+      "source_text": "17030 Large Payload SYN Flood\nA flood of TCP SYN packets with very large payloads,\ndesigned to overwhelm network equipment and processing\ncapabilities. Also known as Tsunami Flood."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-717031",
+    "source_vector_id": "717031",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "network-tcp",
+    "name": "GRE Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 717031 | GRE Flood | vol_bps=5T, max_out=10s, max_latency=0.5s, |\n| | | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["717031-outage"],
+    "source_type_id": "17031",
+    "source_type_definition": {
+      "source_type_id": "17031",
+      "source_section": "4.2",
+      "source_page": 16,
+      "name": "GRE Flood",
+      "description": "A flood using Generic Routing Encapsulation (GRE) protocols and ports, aimed at disrupting network communication channels.",
+      "source_text": "17031 GRE Flood\nA flood using Generic Routing Encapsulation (GRE)\nprotocols and ports, aimed at disrupting network\ncommunication channels."
+    }
+  },
+  {
+    "internal_id": "drs-3.00.00-753032",
+    "source_vector_id": "753032",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "API Unformatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 753032 | API Unformatted | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | Flood | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["753032-outage", "753032-type-id"],
+    "source_type_id": "53032",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-754033",
+    "source_vector_id": "754033",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "API Formatted Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 754033 | API Formatted | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | Flood | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["754033-outage", "754033-type-id"],
+    "source_type_id": "54033",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-755034",
+    "source_vector_id": "755034",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "API Authenticated Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 755034 | API Authenticated | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | Flood | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["755034-outage", "755034-type-id"],
+    "source_type_id": "55034",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-754035",
+    "source_vector_id": "754035",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "low-and-slow",
+    "name": "pulsewave/’Hit&Run’ Floods Flood",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 754035 | pulsewave/’Hit&Run’| vol_tps=5T, max_out=10s, max_latency=0.5s, |\n| | Floods | max_bots=1M, persistence=1 year |\n| | Flood | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["754035-outage", "754035-type-id"],
+    "source_type_id": "54035",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-765037",
+    "source_vector_id": "765037",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "non-http",
+    "name": "Non-HTTP/S Application Floods",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_tps": "25M"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 765037 | Non-HTTP/S | vol_tps=25M, max_out=10s, max_latency=0.5s, |\n| | Application Floods | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["765037-family", "765037-outage", "765037-type-id"],
+    "source_type_id": "65037",
+    "source_type_definition": null
+  },
+  {
+    "internal_id": "drs-3.00.00-745038",
+    "source_vector_id": "745038",
+    "source_section": "4.3",
+    "source_page": 25,
+    "level": 7,
+    "family": "http",
+    "name": "Fragmented Network Floods",
+    "required_properties": [],
+    "load_requirements": {
+      "vol_bps": "5T"
+    },
+    "service_requirements": {
+      "max_out": "10s",
+      "max_latency": "0.5s",
+      "max_bots": "1M",
+      "persistence": "1 year"
+    },
+    "source_text": "| 745038 | Fragmented | vol_bps=5T, max_out=10s, max_latency=0.5s, |\n| | Network Floods | max_bots=1M, persistence=1 year |",
+    "interpretation_status": "review-required",
+    "ambiguity_ids": ["745038-outage", "745038-type-id"],
+    "source_type_id": "45038",
+    "source_type_definition": null
+  }
+]

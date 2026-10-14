@@ -1,3 +1,7 @@
+import { latencyHistogram } from './stats.js';
+import { LATENCY_BUCKETS_MS } from '../config/limits.js';
+import { readBoundedBody } from '../util/http-body.js';
+import { IO_LIMITS } from '../config/limits.js';
 import { randomUUID } from 'node:crypto';
 import { Agent, fetch as pooledFetch } from 'undici';
 import type { LoadTestConfig, LoadTestResult, WeightedEndpoint } from './types.js';
@@ -53,10 +57,11 @@ export function buildEndpointPicker(
  * Effective arrival rate for engines that count ITERATIONS rather than requests:
  * a flow of N steps run at `iterations/s` produces N·iterations/s requests, so
  * the iteration rate is capped at maxRps/N to keep the total request rate ≤
- * maxRps. Always ≥ 1.
+ * maxRps. May be zero when a one-second window cannot fit a whole flow.
+ * Integer-only schedulers must widen their time unit rather than raise the cap.
  */
 export function iterationRate(maxRps: number, stepCount: number): number {
-  return Math.max(1, Math.floor(maxRps / Math.max(1, stepCount)));
+  return Math.max(0, Math.floor(maxRps / Math.max(1, stepCount)));
 }
 
 /**
@@ -79,19 +84,25 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     throw new InvalidConfigError('Only http and https are supported.');
   }
+  if (parsed.username || parsed.password)
+    throw new Error('Embedded destination credentials are forbidden');
   if (!allowedHosts.includes(parsed.hostname)) {
     throw new TargetNotAllowedError(
       `Target "${parsed.hostname}" is not in the ALLOWED_TARGETS allowlist. ` +
         `Only add hosts you own or are authorized to test.`,
     );
   }
-  if (config.concurrency < 1 || config.concurrency > 1000) {
+  if (
+    !Number.isSafeInteger(config.concurrency) ||
+    config.concurrency < 1 ||
+    config.concurrency > 1000
+  ) {
     throw new InvalidConfigError('concurrency must be between 1 and 1000.');
   }
-  if (config.durationSec < 1 || config.durationSec > 3600) {
+  if (!Number.isFinite(config.durationSec) || config.durationSec < 1 || config.durationSec > 3600) {
     throw new InvalidConfigError('durationSec must be between 1 and 3600.');
   }
-  if (!(config.maxRps > 0)) {
+  if (!Number.isFinite(config.maxRps) || !(config.maxRps > 0)) {
     throw new InvalidConfigError('maxRps must be > 0 (mandatory safety cap).');
   }
   if (config.phases) {
@@ -99,8 +110,10 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       throw new InvalidConfigError('A scenario must have between 1 and 12 phases.');
     }
     for (const p of config.phases) {
-      if (!(p.maxRps > 0)) throw new InvalidConfigError('Each phase must have maxRps > 0.');
-      if (p.durationSec < 1) throw new InvalidConfigError('Each phase must last ≥ 1 s.');
+      if (!Number.isFinite(p.maxRps) || !(p.maxRps > 0))
+        throw new InvalidConfigError('Each phase must have finite maxRps > 0.');
+      if (!Number.isFinite(p.durationSec) || p.durationSec < 1)
+        throw new InvalidConfigError('Each phase must last a finite ≥ 1 s.');
     }
   }
   if (config.flow) {
@@ -120,6 +133,8 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       if (!['http:', 'https:'].includes(stepUrl.protocol)) {
         throw new InvalidConfigError('Flow step: only http and https are supported.');
       }
+      if (stepUrl.username || stepUrl.password)
+        throw new Error('Embedded destination credentials are forbidden');
       if (!allowedHosts.includes(stepUrl.hostname)) {
         throw new TargetNotAllowedError(
           `Flow step host "${stepUrl.hostname}" is not in the ALLOWED_TARGETS allowlist.`,
@@ -151,6 +166,8 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
       if (!['http:', 'https:'].includes(u.protocol)) {
         throw new InvalidConfigError('Endpoint: only http and https are supported.');
       }
+      if (u.username || u.password)
+        throw new Error('Embedded destination credentials are forbidden');
       if (!allowedHosts.includes(u.hostname)) {
         throw new TargetNotAllowedError(
           `Endpoint host "${u.hostname}" is not in the ALLOWED_TARGETS allowlist.`,
@@ -191,6 +208,7 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
  * throttling).
  */
 export interface LoadProgress {
+  runId?: string;
   sent: number;
   successful: number;
   failed: number;
@@ -243,6 +261,7 @@ export async function runLoadTest(
 
   const id = randomUUID();
   const startedAt = new Date();
+  const startedMonotonic = performance.now();
   const timeoutMs = config.timeoutMs ?? 10_000;
   // A DEDICATED HTTP connection pool for the generator, isolated from Node's
   // global `fetch` pool. Without it a high-concurrency flood saturates the global
@@ -263,12 +282,12 @@ export async function runLoadTest(
   // The absolute per-run cap always wins — this is what stops a scenario whose
   // phases overshoot from running "in the void" past its stated duration.
   const totalMs = Math.min(phasesMs, config.durationSec * 1000);
-  const deadline = startedAt.getTime() + totalMs;
-  const shouldStop = (): boolean => Date.now() >= deadline || killSignal?.aborted === true;
+  const deadline = startedMonotonic + totalMs;
+  const shouldStop = (): boolean => performance.now() >= deadline || killSignal?.aborted === true;
 
   /** Rate allowed at the current instant based on the ongoing phase. */
   function currentMaxRps(): number {
-    let t = Date.now() - startedAt.getTime();
+    let t = performance.now() - startedMonotonic;
     for (const p of phases) {
       if (t < p.durationSec * 1000) return p.maxRps;
       t -= p.durationSec * 1000;
@@ -299,21 +318,38 @@ export async function runLoadTest(
   };
 
   // Throttle: never exceed maxRps requests per second (global).
-  let windowStart = Date.now();
+  let windowStart = performance.now();
   let windowCount = 0;
+  let lastPermit: number | undefined;
 
   async function reserveSlot(): Promise<boolean> {
     while (!shouldStop()) {
-      const now = Date.now();
+      const now = performance.now();
+      const rate = currentMaxRps();
+      if (!Number.isInteger(rate)) {
+        // Integer counters must not round a fractional cap up to the next request.
+        const due = (lastPermit ?? startedMonotonic) + 1000 / rate;
+        if (now >= due) {
+          lastPermit = now;
+          return true;
+        }
+        await new Promise((r) =>
+          setTimeout(r, Math.max(1, Math.min(100, due - now, deadline - now))),
+        );
+        continue;
+      }
       if (now - windowStart >= 1000) {
         windowStart = now;
         windowCount = 0;
       }
-      if (windowCount < currentMaxRps()) {
+      if (windowCount < rate) {
         windowCount++;
+        lastPermit = now;
         return true;
       }
-      await new Promise((r) => setTimeout(r, Math.max(1, 1000 - (now - windowStart))));
+      await new Promise((r) =>
+        setTimeout(r, Math.max(1, Math.min(1000 - (now - windowStart), deadline - now))),
+      );
     }
     return false;
   }
@@ -327,6 +363,7 @@ export async function runLoadTest(
     headers: Record<string, string> | undefined,
     wantBody = false,
   ): Promise<{ bodyText: string; headers: Record<string, string> } | null> {
+    if (shouldStop() || config.requestPermit?.() === false) return null;
     const t0 = performance.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -364,17 +401,29 @@ export async function runLoadTest(
         // the global fetch pool the rest of the process shares.
         dispatcher,
       });
-      latencies.push(performance.now() - t0);
+      const latency = performance.now() - t0;
+      // Read the body once when a correlation extract or a body assertion needs it.
+      const needText = wantBody || assertion?.bodyContains != null;
+      let text = '';
+      if (needText)
+        text = new TextDecoder().decode(
+          await readBoundedBody(
+            res.body as unknown as ReadableStream<Uint8Array>,
+            IO_LIMITS.responseBytes,
+          ),
+        );
+      else
+        await readBoundedBody(
+          res.body as unknown as ReadableStream<Uint8Array>,
+          IO_LIMITS.responseBytes,
+          false,
+        ); // drain to free the connection
+      latencies.push(latency);
       sent++;
       const bucket = `${Math.floor(res.status / 100)}xx`;
       statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
       if (res.ok) successful++;
       else failed++;
-      // Read the body once when a correlation extract or a body assertion needs it.
-      const needText = wantBody || assertion?.bodyContains != null;
-      let text = '';
-      if (needText) text = await res.text().catch(() => '');
-      else await res.arrayBuffer().catch(() => undefined); // drain to free the connection
       if (assertion) {
         assertionsChecked++;
         const statusOk = assertion.status == null || res.status === assertion.status;
@@ -402,9 +451,14 @@ export async function runLoadTest(
 
   // Think-time between steps: bounded, and responsive to the kill switch.
   async function think(ms: number): Promise<void> {
-    const deadlineMs = Date.now() + ms;
-    while (Date.now() < deadlineMs && !shouldStop()) {
-      await new Promise((r) => setTimeout(r, Math.min(200, deadlineMs - Date.now())));
+    const deadlineMs = performance.now() + ms;
+    while (performance.now() < deadlineMs && !shouldStop()) {
+      await new Promise((r) =>
+        setTimeout(
+          r,
+          Math.max(1, Math.min(200, deadlineMs - performance.now(), deadline - performance.now())),
+        ),
+      );
     }
   }
 
@@ -473,6 +527,7 @@ export async function runLoadTest(
       // and the timer is unref'd so it never keeps the process alive.
       const snap = [...latencies].sort((a, b) => a - b);
       onProgress({
+        runId: id,
         sent,
         successful,
         failed,
@@ -499,7 +554,7 @@ export async function runLoadTest(
     // stranding the worker in `await fetch()` indefinitely. When that happens we
     // abandon the stuck workers and settle the run with the metrics gathered so
     // far; their sockets are reclaimed as the process continues.
-    const graceMs = Math.max(0, deadline - Date.now()) + 15_000;
+    const graceMs = Math.max(0, deadline - performance.now()) + 15_000;
     const backstop = new Promise<void>((resolve) => {
       const finish = (): void => {
         abandoned = true;
@@ -540,7 +595,7 @@ export async function runLoadTest(
 
   const finishedAt = new Date();
   const sorted = [...latencies].sort((a, b) => a - b);
-  const elapsedSec = (finishedAt.getTime() - startedAt.getTime()) / 1000;
+  const elapsedSec = (performance.now() - startedMonotonic) / 1000;
   const mean = sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
 
   return {
@@ -549,6 +604,7 @@ export async function runLoadTest(
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     totalRequests: sent,
+    latencyHistogram: latencyHistogram(latencies, LATENCY_BUCKETS_MS),
     successful,
     failed,
     statusCounts,

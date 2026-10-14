@@ -5,6 +5,10 @@ import {
 } from '../src/modules/reports/confidence.js';
 
 describe('computeConfidence', () => {
+  it('withholds clean measurement confidence when attempts lack finalized outcomes', () => {
+    expect(computeConfidence({ unfinalizedRequests: 1 }).degraded).toBe(true);
+    expect(computeConfidence({ unfinalizedRequests: 0 }).degraded).toBe(false);
+  });
   it('is clean when the generator was healthy', () => {
     const c = computeConfidence({ hardStopped: false, peakEventLoopLagMs: 5 });
     expect(c.degraded).toBe(false);

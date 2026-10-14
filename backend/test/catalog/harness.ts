@@ -32,7 +32,11 @@ export async function buildAuthedApp(): Promise<AuthedApp> {
       passwordHash: hashPassword(u.pw),
     })),
   );
-  const auth = initAuth({ AUTH_JWT_SECRET: 'catalog-secret', AUTH_USERS } as NodeJS.ProcessEnv);
+  const auth = initAuth({
+    USER_MODE: 'team',
+    AUTH_JWT_SECRET: 'catalog-secret',
+    AUTH_USERS,
+  } as NodeJS.ProcessEnv);
   const built = await buildApp({
     store: new MemoryStore(),
     auth,
@@ -54,7 +58,7 @@ export async function buildAuthedApp(): Promise<AuthedApp> {
 
 /** App with auth disabled (dev mode): every action is open. */
 export async function buildOpenApp(): Promise<FastifyInstance> {
-  const auth = initAuth({} as NodeJS.ProcessEnv);
+  const auth = initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv);
   const built = await buildApp({
     store: new MemoryStore(),
     auth,

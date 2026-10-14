@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lab-orchestrator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lab-jobs
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, get, list, delete]
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: ['']
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: lab-jobs
+subjects:
+  - kind: ServiceAccount
+    name: lab-orchestrator
+    namespace: ddostester-lab
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: lab-jobs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-policy
+data:
+  policy.json: |
+    {"allowedHosts":["lab-target"],"allowedPorts":[8080],"caps":{"maxRps":15,"maxConcurrency":6,"maxDurationSec":60}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-fleet
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: lab-fleet }
+  template:
+    metadata:
+      labels: { app: lab-fleet }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: fleet
+          image: ddostester-lab-control:local
+          imagePullPolicy: Never
+          command: [node, backend/dist/cli/fleet-server.js]
+          env:
+            - name: FLEET_BIND
+              valueFrom:
+                fieldRef: { fieldPath: status.podIP }
+            - { name: FLEET_PORT, value: '8443' }
+            - { name: FLEET_AGENT_IDS, value: 'one,two,three' }
+            - { name: FLEET_TLS_KEY, value: /etc/fleet-identity/tls.key }
+            - { name: FLEET_TLS_CERT, value: /etc/fleet-identity/tls.crt }
+            - { name: FLEET_TLS_CA, value: /etc/fleet-identity/ca.crt }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: lab-identities, key: database-url }
+          ports: [{ containerPort: 8443 }]
+          readinessProbe:
+            tcpSocket: { port: 8443 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          volumeMounts:
+            - { name: identity, mountPath: /etc/fleet-identity, readOnly: true }
+      volumes:
+        - name: identity
+          secret: { secretName: fleet-server, defaultMode: 288 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-fleet
+spec:
+  selector: { app: lab-fleet }
+  ports: [{ port: 8443, targetPort: 8443 }]

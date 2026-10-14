@@ -1,3 +1,8 @@
+import { captureDrsBaseline } from '../drs/baseline.js';
+import type { RecoveryResult } from './recovery.js';
+import { getBuildInfo } from '../../version.js';
+import { assertDestination } from '../../util/destination.js';
+import { validateConfig } from '../../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../../engine/types.js';
 import type { LoadProgress } from '../../engine/loadTest.js';
 import { KillSwitch, Probe } from '../probe/probe.js';
@@ -7,7 +12,7 @@ import type { EdgeErrorSignal } from '../posture/edge-error.js';
 import { computeWrs } from '../wrs/scoring.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import { BuiltinHttpAgent } from '../../agents/builtin.js';
-import type { AttackAgent } from '../../agents/types.js';
+import type { AttackAgent, PreparedLoadRun } from '../../agents/types.js';
 import { noopProtectionProvider } from '../protection/provider.js';
 import type { ProtectionProvider } from '../protection/types.js';
 import { evaluateAcceptance } from './acceptance.js';
@@ -51,6 +56,7 @@ export interface RunSample {
 const MAX_RUN_SAMPLES = 1000;
 
 export interface CampaignRun {
+  drsAssessment?: ReturnType<typeof import('../drs/report.js').drsReport>;
   runId: string;
   campaignId: string;
   status: 'COMPLETED' | 'KILLED_AUTO' | 'KILLED_MANUAL';
@@ -71,14 +77,9 @@ export interface CampaignRun {
   engine?: string;
   generator: LoadTestResult;
   probe: ProbeMetrics;
-  /**
-   * The legit probe read the target as unavailable while the generator was
-   * getting a strong majority of successful responses from it — i.e. the probe
-   * lost the connection race to the flood, not a target outage (PF1). When true,
-   * the WRS availability was derived from the generator's success ratio, not the
-   * probe's, and the run was NOT auto-killed on the false unavailability.
-   */
+  /** Probe/generator disagreement; raw probe metrics remain authoritative. */
   probeContended?: boolean;
+  measurementPolicy?: 'independent-probe-v1';
   wrs: WrsBreakdown;
   /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
   posture?: PostureReport;
@@ -106,6 +107,8 @@ export interface CampaignRun {
   protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
   /** Nominal metrics captured before the ramp (legitimate traffic only). */
   baseline?: BaselineMetrics;
+  /** Verified suite recovery before this step, not a post-run recovery measurement. */
+  recoveryBeforeRun?: RecoveryResult;
   /** Under-load degradation vs. the baseline. */
   baselineDelta?: BaselineDelta;
   /** Host-side counters of the target during the run (when a source is configured). */
@@ -221,74 +224,14 @@ export async function executeCampaign(
   captureBaselineFn: CaptureBaseline = captureBaseline,
   telemetry: TargetTelemetryProvider = noopTargetTelemetryProvider,
 ): Promise<CampaignRun> {
-  // EPIC B2: capture the nominal baseline (legitimate traffic only) BEFORE the
-  // ramp and before the timeout starts, so it doesn't eat into the load window.
-  const baseline = await captureBaselineFn(campaign.probeUrl, killSwitch.signal).catch(
-    () => undefined,
-  );
-
-  const genConfig: LoadTestConfig = {
-    url: campaign.target,
-    method: campaign.vector === 'http-post' ? 'POST' : 'GET',
-    headers: {
-      // Mandatory traffic tagging (TSD §5.2): every request is traceable.
-      'X-WEDOS-TEST': `${campaign.id}:${Date.now()}`,
-      ...campaign.headers,
-    },
-    body: campaign.vector === 'http-post' ? campaign.body : undefined,
-    concurrency: campaign.concurrency,
-    durationSec: campaign.maxDurationSec,
-    maxRps: campaign.maxRps,
-    phases: campaign.scenario,
-    flow: campaign.flow,
-    endpoints: campaign.endpoints,
-    userAgents: campaign.userAgents,
-    dataset: campaign.dataset,
-    assertion: campaign.assertion,
-    cacheBust: campaign.cacheBust,
-    noKeepAlive: campaign.noKeepAlive,
-    parallelism: campaign.parallelism,
-    slowloris: campaign.vector === 'http-slowloris',
-    authorized: campaign.authorized,
-  };
-
-  // Closed-loop rate calibration (GEN-1): before the graded run, fire a short
-  // burst on the SAME engine + target to measure the rate the generator can
-  // actually deliver here, then grade at that rate instead of an aspirational one
-  // it would silently under-deliver (which the assessment marks INCONCLUSIVE).
-  // Slow-connection vectors trickle by design, so they are never calibrated.
-  // Calibration only ever LOWERS the offered rate — the graded run's shape is
-  // preserved, just scaled to a deliverable amplitude.
-  let calibration: CalibrationResult | undefined;
-  if (campaign.calibrate && !genConfig.slowloris && !killSwitch.signal.aborted) {
-    const requestedPeak = peakRps(genConfig.maxRps, genConfig.phases);
-    const delivered = await measureDeliverableRate(
-      agent,
-      genConfig,
-      allowedHosts,
-      killSwitch.signal,
-    );
-    calibration = calibratedRate(requestedPeak, delivered);
-    if (calibration.calibrated) {
-      const factor = calibration.appliedRps / calibration.requestedRps;
-      genConfig.maxRps = Math.max(1, Math.round(genConfig.maxRps * factor));
-      if (genConfig.phases?.length) genConfig.phases = scaleScenario(genConfig.phases, factor);
-    }
-  }
-
-  // Kill switch level 3: absolute time-based timeout. Armed AFTER calibration so
-  // the pre-flight burst never eats into the graded run's duration budget.
-  const timeoutTimer = setTimeout(
-    () => killSwitch.trigger('TIMEOUT'),
-    campaign.maxDurationSec * 1000,
-  );
-
-  // Probe/kill-switch thresholds are centralised and env-tunable (config/limits).
-  const probeLimits = probeLimitsFromEnv();
-  // Remote probe vantage (per-campaign): when the campaign asks to probe from the
-  // configured read-only agent (e.g. VPS2 over the tailnet), resolve it from env
-  // and FAIL CLOSED if none is configured — never silently fall back to the local
-  // source IP, since avoiding the generator's IP is the whole point.
+  const frozenMode = campaign.drsDocument?.revisions.find(
+    (r) => r.number === campaign.drsDocument?.currentRevision,
+  )?.plan.mode;
+  if (campaign.drsMode === 'engine-validation' || frozenMode === 'engine-validation')
+    throw new Error('Simulation campaigns cannot use physical generators');
+  assertDestination(campaign.target, allowedHosts);
+  assertDestination(campaign.probeUrl, allowedHosts);
+  if (campaign.referenceUrl) assertDestination(campaign.referenceUrl, allowedHosts);
   let remoteProbe: { agentUrl: string; token: string } | undefined;
   if (campaign.probeVantage === 'remote') {
     const cfg = remoteProbeFromEnv();
@@ -300,319 +243,418 @@ export async function executeCampaign(
     }
     remoteProbe = cfg;
   }
-  const probe = new Probe(
-    campaign.probeUrl,
-    killSwitch,
-    probeLimits.intervalMs,
-    probeLimits.timeoutMs,
-    probeLimits,
-    remoteProbe,
-  );
-  // Corroboration signal for the probe's auto-kill: true while the load
-  // generator is currently landing successful responses on the same target — in
-  // which case a probe "unavailable" is contention (the probe losing the race to
-  // the flood), NOT a target outage, so the probe must not auto-kill on it.
-  // Updated once a second in the ticker below from the generator's success delta.
-  let genRecentlyOk = false;
-  probe.watchGenerator(() => genRecentlyOk);
+  const genConfig: LoadTestConfig = {
+    fleetDeviceIds: campaign.fleetDeviceIds ? [...campaign.fleetDeviceIds] : undefined,
+    execution: {
+      engine: agent.name,
+      runtime: process.version,
+      sourceRef: getBuildInfo().commit,
+      probeUrl: campaign.probeUrl,
+      probeVantage: campaign.probeVantage ?? 'local',
+    },
+    iotProfile: campaign.iotProfile ? { ...campaign.iotProfile } : undefined,
+    url: campaign.target,
+    method: campaign.vector === 'http-post' ? 'POST' : 'GET',
+    headers: {
+      // Mandatory traffic tagging (TSD §5.2): every request is traceable.
+      ...Object.fromEntries(
+        Object.entries(campaign.headers ?? {}).filter(
+          ([name]) => name.toLowerCase() !== 'x-wedos-test',
+        ),
+      ),
+      'X-WEDOS-TEST': `${campaign.id}:${Date.now()}`,
+    },
+    body: campaign.vector === 'http-post' ? campaign.body : undefined,
+    concurrency: campaign.concurrency,
+    durationSec: campaign.maxDurationSec,
+    maxRps: campaign.maxRps,
+    phases: campaign.scenario,
+    flow: campaign.flow ? structuredClone(campaign.flow) : undefined,
+    endpoints: campaign.endpoints,
+    userAgents: campaign.userAgents,
+    dataset: campaign.dataset,
+    assertion: campaign.assertion,
+    cacheBust: campaign.cacheBust,
+    noKeepAlive: campaign.noKeepAlive,
+    parallelism: campaign.parallelism,
+    slowloris: campaign.vector === 'http-slowloris',
+    authorized: campaign.authorized,
+  };
 
-  // Optional independent reference vantage (I2): polled in parallel with its OWN
-  // kill switch so its availability never stops the run — it only informs
-  // outage attribution at settle. Stopped as soon as the run ends.
-  const referenceKill = new KillSwitch();
-  const referenceProbe = campaign.referenceUrl
-    ? new Probe(
-        campaign.referenceUrl,
-        referenceKill,
-        probeLimits.intervalMs,
-        probeLimits.timeoutMs,
-        probeLimits,
-      )
-    : undefined;
-
-  // Emit live progress once a second for EVERY engine: elapsed time plus a live
-  // probe snapshot. The generator's own counters (only reported by the built-in
-  // engine) are merged in when available; external engines still get the
-  // elapsed bar and the probe health so a run is never a silent black box.
-  let gen: LoadProgress | undefined;
-  let lastGenOk = 0;
-  const timeline: RunSample[] = [];
-  // EPIC B1: host-side counters of the target, pulled once a second when a
-  // telemetry source is configured, on the same clock as the timeline.
-  const targetSeries: TargetSample[] = [];
-  let telemetryInFlight = false;
-  const startedMs = Date.now();
-  // Live per-run Prometheus gauges (labelled by target host) so Prometheus/Grafana
-  // and the app's Prometheus-backed panels show the run as it happens. Set each
-  // tick, retired in the `finally` so a finished run leaves no stale flat line.
-  let liveHost = campaign.target;
+  validateConfig(genConfig, allowedHosts);
+  let prepared: PreparedLoadRun | undefined;
   try {
-    liveHost = new URL(campaign.target).hostname;
-  } catch {
-    /* keep the raw value */
-  }
-  const liveLabels = { target: liveHost };
-  const ticker = setInterval(() => {
-    if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
-      telemetryInFlight = true;
-      void telemetry
-        .sample({ campaignId: campaign.id, target: campaign.target })
-        .then((s) => {
-          if (s) targetSeries.push(s);
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          telemetryInFlight = false;
-        });
-    }
-    const pm = probe.metrics();
-    // Generator health this tick: did it land new successful responses? If so the
-    // target is provably serving, so the probe must not auto-kill on a contended
-    // "unavailable" (see probe.watchGenerator). Stops being true the moment the
-    // generator's successes stall (the target genuinely went down).
-    const okNow = gen?.successful ?? 0;
-    genRecentlyOk = okNow - lastGenOk >= 5;
-    lastGenOk = okNow;
-    const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
-    // Live per-run gauges → Prometheus (scraped) → Grafana + the app's native
-    // panels. Same values the live progress carries: offered rps, reached-origin
-    // rps (successful / elapsed), and the edge-absorbed ratio (failed / sent).
-    const sent = gen?.sent ?? 0;
-    metrics.setGauge(
-      'shieldtest_run_live_offered_rps',
-      'Live offered request rate of the in-flight run',
-      gen?.actualRps ?? 0,
-      liveLabels,
-    );
-    metrics.setGauge(
-      'shieldtest_run_live_origin_rps',
-      'Live rate of requests that reached the origin (successful/elapsed)',
-      elapsedSec > 0 ? (gen?.successful ?? 0) / elapsedSec : 0,
-      liveLabels,
-    );
-    metrics.setGauge(
-      'shieldtest_run_live_absorbed_ratio',
-      'Live share of offered requests absorbed by the edge (failed/sent)',
-      sent > 0 ? (gen?.failed ?? 0) / sent : 0,
-      liveLabels,
-    );
-    metrics.setGauge(
-      'shieldtest_run_live_probe_avail_pct',
-      'Live availability seen by the legitimate probe (%)',
-      pm.samples ? (pm.available / pm.samples) * 100 : 100,
-      liveLabels,
-    );
-    // Capture the per-second series (persisted with the run) for EVERY engine,
-    // independently of whether a live consumer is attached.
-    if (timeline.length < MAX_RUN_SAMPLES) {
-      timeline.push({
-        t: elapsedSec,
-        rps: gen?.actualRps ?? 0,
-        sent: gen?.sent ?? 0,
-        failed: gen?.failed ?? 0,
-        probe5xx: pm.errorRate5xx,
-        availPct: pm.samples ? Number(((pm.available / pm.samples) * 100).toFixed(1)) : 100,
-      });
-    }
-    onProgress?.({
-      sent: gen?.sent ?? 0,
-      successful: gen?.successful ?? 0,
-      failed: gen?.failed ?? 0,
-      actualRps: gen?.actualRps ?? 0,
-      elapsedSec,
-      // Forward the engine's live latency/status snapshot when the built-in
-      // generator reports them (external engines leave them undefined).
-      latencyMs: gen?.latencyMs,
-      statusCounts: gen?.statusCounts,
-      // Rolling window (last 60s) of the per-second series for a live sparkline.
-      // The full series is still persisted with the finished run.
-      timeline: timeline.slice(-60),
-      // Probe health streamed live: its own latency percentiles and the
-      // graduated verdict, so the operator sees a 'degraded' target before any
-      // hard auto-kill — not only after the run settles.
-      probe: {
-        samples: pm.samples,
-        available: pm.available,
-        errorRate5xx: pm.errorRate5xx,
-        latencyMs: pm.latencyMs,
-        health: pm.health,
-      },
+    // EPIC B2: capture the nominal baseline (legitimate traffic only) BEFORE the
+    // ramp and before the timeout starts, so it doesn't eat into the load window.
+    const drsPlan = campaign.drsDocument?.revisions.find(
+      (r) => r.number === campaign.drsDocument?.currentRevision,
+    )?.plan;
+    let baseline = await (
+      drsPlan
+        ? captureDrsBaseline(campaign.probeUrl, drsPlan, killSwitch.signal, remoteProbe)
+        : captureBaselineFn === captureBaseline
+          ? captureBaseline(campaign.probeUrl, killSwitch.signal, 3, 1000, 5000, remoteProbe)
+          : captureBaselineFn(campaign.probeUrl, killSwitch.signal)
+    ).catch((err) => {
+      if (drsPlan) throw err;
+      return undefined;
     });
-  }, 1000);
-  if (typeof ticker.unref === 'function') ticker.unref();
 
-  let generator: LoadTestResult;
-  try {
-    // Hard wall-clock bound: the probe (and thus this Promise.all) must always
-    // terminate near the cap, even if the kill switch never fires — a run can
-    // never hang open past maxDurationSec + a small grace. The load engine
-    // self-bounds on the same clock via its own deadline.
-    const probeHardDeadlineMs = startedMs + campaign.maxDurationSec * 1000 + 20_000;
-    // The reference probe runs alongside but is NOT awaited by the run's
-    // completion — it's stopped in the finally so it can't hold the run open.
-    const referenceDone = referenceProbe?.run(probeHardDeadlineMs);
-    [generator] = await Promise.all([
-      agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
-        gen = p;
-      }),
-      probe.run(probeHardDeadlineMs),
-    ]);
-    referenceKill.trigger('KILLED_MANUAL'); // stop the reference probe now the run has ended
-    await referenceDone?.catch(() => undefined);
-  } finally {
-    clearTimeout(timeoutTimer);
-    clearInterval(ticker);
-    // Retire the live per-run gauges so a finished run never lingers as a stale
-    // flat line in Prometheus/Grafana or the app's native panels.
-    metrics.clearGauge('shieldtest_run_live_offered_rps', liveLabels);
-    metrics.clearGauge('shieldtest_run_live_origin_rps', liveLabels);
-    metrics.clearGauge('shieldtest_run_live_absorbed_ratio', liveLabels);
-    metrics.clearGauge('shieldtest_run_live_probe_avail_pct', liveLabels);
-  }
+    // Closed-loop rate calibration (GEN-1): before the graded run, fire a short
+    // burst on the SAME engine + target to measure the rate the generator can
+    // actually deliver here, then grade at that rate instead of an aspirational one
+    // it would silently under-deliver (which the assessment marks INCONCLUSIVE).
+    // Slow-connection vectors trickle by design, so they are never calibrated.
+    // Calibration only ever LOWERS the offered rate — the graded run's shape is
+    // preserved, just scaled to a deliverable amplitude.
+    let calibration: CalibrationResult | undefined;
+    if (campaign.calibrate && !genConfig.slowloris && !killSwitch.signal.aborted) {
+      const requestedPeak = peakRps(genConfig.maxRps, genConfig.phases);
+      const delivered = await measureDeliverableRate(
+        agent,
+        genConfig,
+        allowedHosts,
+        killSwitch.signal,
+      );
+      calibration = calibratedRate(requestedPeak, delivered);
+      if (calibration.calibrated) {
+        const factor = calibration.appliedRps / calibration.requestedRps;
+        genConfig.maxRps =
+          genConfig.maxRps === requestedPeak ? calibration.appliedRps : genConfig.maxRps * factor;
+        if (genConfig.phases?.length) genConfig.phases = scaleScenario(genConfig.phases, factor);
+      }
+    }
 
-  const probeMetrics = probe.metrics();
-  const referenceMetrics = referenceProbe?.metrics();
+    if (agent.prepare) {
+      prepared = await agent.prepare(genConfig, allowedHosts, killSwitch.signal);
+      // Refresh after a cold runtime startup; preflight must not age the nominal baseline.
+      const refreshed = await (
+        captureBaselineFn === captureBaseline
+          ? captureBaseline(campaign.probeUrl, killSwitch.signal, 3, 1000, 5000, remoteProbe)
+          : captureBaselineFn(campaign.probeUrl, killSwitch.signal)
+      ).catch(() => undefined);
+      if (drsPlan) {
+        if (!refreshed || refreshed.availabilityPct < 100)
+          throw Error('Target health changed after the frozen DRS baseline');
+      } else baseline = refreshed;
+      if (killSwitch.signal.aborted) throw new Error('Campaign cancelled during preparation.');
+    }
 
-  // Probe-contention correction (PF1): the probe can read the target as
-  // (near-)unavailable while the generator got a strong majority of successful
-  // responses from the SAME target — the target WAS serving and the probe just
-  // lost the connection race to the flood. In that case the probe's availability
-  // is a false negative, so use the generator's own success ratio (a valid
-  // measure of the target's availability under load) as the availability truth.
-  const genTotal = generator.totalRequests;
-  const genSuccessRatio = genTotal > 0 ? generator.successful / genTotal : 0;
-  const rawProbeAvail = probeMetrics.samples ? probeMetrics.available / probeMetrics.samples : 1;
-  const probeContended =
-    probeMetrics.samples > 0 && rawProbeAvail < 0.2 && genTotal >= 100 && genSuccessRatio >= 0.8;
-  // Detection/mitigation: with no protection integration, we derive
-  // conservative estimates from the probe's measurements. These values can be
-  // replaced by the real timings reported by WEDOS Protection.
-  const availabilityRatio = probeContended ? genSuccessRatio : rawProbeAvail;
-  // Real detection/mitigation timings from the protection layer, when a source
-  // is configured; otherwise conservative estimates (WRS marked as estimated).
-  const measured = await protection
-    .measure({
-      campaignId: campaign.id,
-      target: campaign.target,
-      startedAt: new Date(startedMs).toISOString(),
-      finishedAt: new Date().toISOString(),
-    })
-    .catch(() => null);
-  // When no protection source reports real timings, fall back to conservative
-  // named estimates (config/limits) — worse ones when the probe had to auto-kill.
-  const estimate =
-    killSwitch.reason === 'KILLED_AUTO' ? ESTIMATED_TIMINGS.autoKill : ESTIMATED_TIMINGS.held;
-  const wrs = computeWrs({
-    detectionTimeSec: measured ? measured.detectionTimeSec : estimate.detectionTimeSec,
-    mitigationTimeSec: measured ? measured.mitigationTimeSec : estimate.mitigationTimeSec,
-    // Under probe contention, the generator's own success counts are the truthful
-    // legitimate-availability signal (the probe's are a false negative).
-    legitimateSuccessful: probeContended ? generator.successful : probeMetrics.successful,
-    legitimateTotal: probeContended ? genTotal : probeMetrics.samples,
-    adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),
-  });
-  // Estimated unless a protection source reported the real timings.
-  wrs.estimated = !measured;
+    // Kill switch level 3: absolute time-based timeout. Armed AFTER calibration so
+    // the pre-flight burst never eats into the graded run's duration budget.
+    const timeoutTimer = setTimeout(
+      () => killSwitch.trigger('TIMEOUT'),
+      campaign.maxDurationSec * 1000,
+    );
 
-  const status: CampaignRun['status'] =
-    killSwitch.reason === 'KILLED_MANUAL'
-      ? 'KILLED_MANUAL'
-      : killSwitch.reason === 'KILLED_AUTO'
-        ? 'KILLED_AUTO'
-        : 'COMPLETED';
-
-  // Explain a kill so the UI never shows a bare status with no cause. The
-  // auto-kill trips after ≥30 s of consecutive probe unavailability; report the
-  // measured availability that drove it.
-  const availPct = probeMetrics.samples
-    ? Number(((probeMetrics.available / probeMetrics.samples) * 100).toFixed(1))
-    : 100;
-
-  // Outage attribution from the independent reference vantage (I2), when set.
-  // The target is attributed the impact when it fared clearly worse than the
-  // reference; if both fell together the measurement is inconclusive.
-  const ATTRIBUTION_MARGIN_PCT = 20;
-  const reference =
-    referenceMetrics && campaign.referenceUrl
-      ? (() => {
-          const refAvailPct = referenceMetrics.samples
-            ? Number(((referenceMetrics.available / referenceMetrics.samples) * 100).toFixed(1))
-            : 100;
-          return {
-            url: campaign.referenceUrl,
-            samples: referenceMetrics.samples,
-            available: referenceMetrics.available,
-            availPct: refAvailPct,
-            targetAttributed: refAvailPct - availPct >= ATTRIBUTION_MARGIN_PCT,
-          };
-        })()
+    // Probe/kill-switch thresholds are centralised and env-tunable (config/limits).
+    const probeLimits = probeLimitsFromEnv();
+    // Remote probe vantage (per-campaign): when the campaign asks to probe from the
+    // configured read-only agent (e.g. VPS2 over the tailnet), resolve it from env
+    // and FAIL CLOSED if none is configured — never silently fall back to the local
+    // source IP, since avoiding the generator's IP is the whole point.
+    const probe = new Probe(
+      campaign.probeUrl,
+      killSwitch,
+      probeLimits.intervalMs,
+      probeLimits.timeoutMs,
+      probeLimits,
+      remoteProbe,
+    );
+    // Optional independent reference vantage (I2): polled in parallel with its OWN
+    // kill switch so its availability never stops the run — it only informs
+    // outage attribution at settle. Stopped as soon as the run ends.
+    const referenceKill = new KillSwitch();
+    const referenceProbe = campaign.referenceUrl
+      ? new Probe(
+          campaign.referenceUrl,
+          referenceKill,
+          probeLimits.intervalMs,
+          probeLimits.timeoutMs,
+          probeLimits,
+        )
       : undefined;
 
-  let statusDetail: string | undefined =
-    status === 'KILLED_AUTO'
-      ? `Auto-killed: the legitimate probe found the target unavailable for ≥30 s ` +
-        `(availability ${availPct}% over ${probeMetrics.samples} checks). The kill ` +
-        `switch stopped the run to protect the target.`
-      : status === 'KILLED_MANUAL'
-        ? `Manually stopped by an operator during the run.`
-        : undefined;
-  // Fold the reference verdict into the explanation for a kill, so an operator
-  // reading the status knows whether to trust it as target-specific.
-  if (statusDetail && reference) {
-    statusDetail += reference.targetAttributed
-      ? ` The independent reference vantage stayed reachable (${reference.availPct}% available), corroborating that the impact was target-specific.`
-      : ` Note: the independent reference vantage was also unreachable (${reference.availPct}% available), so this may be a network-side or local-egress issue rather than the target — treat the verdict as inconclusive.`;
-  }
+    // Emit live progress once a second for EVERY engine: elapsed time plus a live
+    // probe snapshot. The generator's own counters (only reported by the built-in
+    // engine) are merged in when available; external engines still get the
+    // elapsed bar and the probe health so a run is never a silent black box.
+    let gen: LoadProgress | undefined;
 
-  const underLoadAvailPct = probeMetrics.samples
-    ? (probeMetrics.available / probeMetrics.samples) * 100
-    : 100;
-  const baselineDelta = baseline
-    ? computeBaselineDelta(baseline, {
-        availabilityPct: underLoadAvailPct,
-        latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
+    const timeline: RunSample[] = [];
+    // EPIC B1: host-side counters of the target, pulled once a second when a
+    // telemetry source is configured, on the same clock as the timeline.
+    const targetSeries: TargetSample[] = [];
+    let telemetryInFlight = false;
+    const startedMs = Date.now();
+    // Live per-run Prometheus gauges (labelled by target host) so Prometheus/Grafana
+    // and the app's Prometheus-backed panels show the run as it happens. Set each
+    // tick, retired in the `finally` so a finished run leaves no stale flat line.
+    let liveHost = campaign.target;
+    try {
+      liveHost = new URL(campaign.target).hostname;
+    } catch {
+      /* keep the raw value */
+    }
+    const liveLabels = { target: liveHost };
+    const ticker = setInterval(() => {
+      if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
+        telemetryInFlight = true;
+        void telemetry
+          .sample({ campaignId: campaign.id, target: campaign.target, runId: gen?.runId })
+          .then((s) => {
+            if (s) targetSeries.push(s);
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            telemetryInFlight = false;
+          });
+      }
+      const pm = probe.metrics();
+      const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
+      // Live per-run gauges → Prometheus (scraped) → Grafana + the app's native
+      // panels. Same values the live progress carries: offered rps, reached-origin
+      // rps (successful / elapsed), and the generator failure ratio (failed / sent).
+      const sent = gen?.sent ?? 0;
+      metrics.setGauge(
+        'shieldtest_run_live_offered_rps',
+        'Live offered request rate of the in-flight run',
+        gen?.actualRps ?? 0,
+        liveLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_live_successful_rps',
+        'Live rate of requests that returned successful HTTP responses (successful/elapsed)',
+        elapsedSec > 0 ? (gen?.successful ?? 0) / elapsedSec : 0,
+        liveLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_live_failed_ratio',
+        'Live share of offered requests failed at the generator (failed/sent)',
+        sent > 0 ? (gen?.failed ?? 0) / sent : 0,
+        liveLabels,
+      );
+      metrics.setGauge(
+        'shieldtest_run_live_probe_avail_pct',
+        'Live availability seen by the legitimate probe (%)',
+        pm.samples ? (pm.available / pm.samples) * 100 : 100,
+        liveLabels,
+      );
+      // Capture the per-second series (persisted with the run) for EVERY engine,
+      // independently of whether a live consumer is attached.
+      if (timeline.length < MAX_RUN_SAMPLES) {
+        timeline.push({
+          t: elapsedSec,
+          rps: gen?.actualRps ?? 0,
+          sent: gen?.sent ?? 0,
+          failed: gen?.failed ?? 0,
+          probe5xx: pm.errorRate5xx,
+          availPct: pm.samples ? Number(((pm.available / pm.samples) * 100).toFixed(1)) : 100,
+        });
+      }
+      onProgress?.({
+        sent: gen?.sent ?? 0,
+        successful: gen?.successful ?? 0,
+        failed: gen?.failed ?? 0,
+        actualRps: gen?.actualRps ?? 0,
+        elapsedSec,
+        // Forward the engine's live latency/status snapshot when the built-in
+        // generator reports them (external engines leave them undefined).
+        latencyMs: gen?.latencyMs,
+        statusCounts: gen?.statusCounts,
+        // Rolling window (last 60s) of the per-second series for a live sparkline.
+        // The full series is still persisted with the finished run.
+        timeline: timeline.slice(-60),
+        // Probe health streamed live: its own latency percentiles and the
+        // graduated verdict, so the operator sees a 'degraded' target before any
+        // hard auto-kill — not only after the run settles.
+        probe: {
+          samples: pm.samples,
+          available: pm.available,
+          errorRate5xx: pm.errorRate5xx,
+          latencyMs: pm.latencyMs,
+          health: pm.health,
+        },
+      });
+    }, 1000);
+    if (typeof ticker.unref === 'function') ticker.unref();
+
+    let generator: LoadTestResult;
+    try {
+      // Hard wall-clock bound: the probe (and thus this Promise.all) must always
+      // terminate near the cap, even if the kill switch never fires — a run can
+      // never hang open past maxDurationSec + a small grace. The load engine
+      // self-bounds on the same clock via its own deadline.
+      const probeHardDeadlineMs = startedMs + campaign.maxDurationSec * 1000 + 20_000;
+      // The reference probe runs alongside but is NOT awaited by the run's
+      // completion — it's stopped in the finally so it can't hold the run open.
+      const referenceDone = referenceProbe?.run(probeHardDeadlineMs);
+      [generator] = await Promise.all([
+        prepared
+          ? prepared.run((p) => {
+              gen = p;
+            })
+          : agent.run(genConfig, allowedHosts, killSwitch.signal, (p) => {
+              gen = p;
+            }),
+        probe.run(probeHardDeadlineMs),
+      ]);
+      referenceKill.trigger('KILLED_MANUAL'); // stop the reference probe now the run has ended
+      await referenceDone?.catch(() => undefined);
+    } finally {
+      clearTimeout(timeoutTimer);
+      clearInterval(ticker);
+      // Retire the live per-run gauges so a finished run never lingers as a stale
+      // flat line in Prometheus/Grafana or the app's native panels.
+      metrics.clearGauge('shieldtest_run_live_offered_rps', liveLabels);
+      metrics.clearGauge('shieldtest_run_live_successful_rps', liveLabels);
+      metrics.clearGauge('shieldtest_run_live_failed_ratio', liveLabels);
+      metrics.clearGauge('shieldtest_run_live_probe_avail_pct', liveLabels);
+    }
+
+    const probeMetrics = probe.metrics();
+    const referenceMetrics = referenceProbe?.metrics();
+
+    // Disagreement is diagnostic uncertainty, never grounds to replace probe measurements.
+    const genTotal = generator.totalRequests;
+    const genSuccessRatio = genTotal > 0 ? generator.successful / genTotal : 0;
+    const rawProbeAvail = probeMetrics.samples ? probeMetrics.available / probeMetrics.samples : 1;
+    const probeContended =
+      probeMetrics.samples > 0 && rawProbeAvail < 0.2 && genTotal >= 100 && genSuccessRatio >= 0.8;
+    // Detection/mitigation: with no protection integration, we derive
+    // conservative estimates from the probe's measurements. These values can be
+    // replaced by the real timings reported by WEDOS Protection.
+    const availabilityRatio = rawProbeAvail;
+    // Real detection/mitigation timings from the protection layer, when a source
+    // is configured; otherwise conservative estimates (WRS marked as estimated).
+    // The legacy lab timing connector returns an uncorrelated latest class-C result.
+    // Until Fleet has a campaign-scoped protection connector, keep its timings estimated.
+    const measured = await (agent.name === 'iot-fleet' ? noopProtectionProvider : protection)
+      .measure({
+        campaignId: campaign.id,
+        target: campaign.target,
+        startedAt: new Date(startedMs).toISOString(),
+        finishedAt: new Date().toISOString(),
       })
-    : undefined;
+      .catch(() => null);
+    // When no protection source reports real timings, fall back to conservative
+    // named estimates (config/limits) — worse ones when the probe had to auto-kill.
+    const estimate =
+      killSwitch.reason === 'KILLED_AUTO' ? ESTIMATED_TIMINGS.autoKill : ESTIMATED_TIMINGS.held;
+    const wrs = computeWrs({
+      detectionTimeSec: measured ? measured.detectionTimeSec : estimate.detectionTimeSec,
+      mitigationTimeSec: measured ? measured.mitigationTimeSec : estimate.mitigationTimeSec,
+      // Independent probe measurements remain authoritative.
+      legitimateSuccessful: probeMetrics.successful,
+      legitimateTotal: probeMetrics.samples,
+      adjacentImpactScore: Math.round((1 - availabilityRatio) * 100),
+    });
+    // Estimated unless a protection source reported the real timings.
+    wrs.estimated = !measured || probeContended;
 
-  const total = generator.totalRequests;
-  const checked = generator.assertionsChecked ?? 0;
-  const acceptance =
-    evaluateAcceptance(campaign.acceptance, {
-      p95Ms: generator.latencyMs.p95,
-      errorRatePct: total > 0 ? (generator.failed / total) * 100 : 0,
-      availabilityPct: probeMetrics.samples
-        ? (probeMetrics.available / probeMetrics.samples) * 100
-        : 100,
-      wrs: wrs.wrs,
-      assertionFailurePct: checked > 0 ? ((generator.assertionFailures ?? 0) / checked) * 100 : 0,
-    }) ?? undefined;
+    const status: CampaignRun['status'] =
+      killSwitch.reason === 'KILLED_MANUAL'
+        ? 'KILLED_MANUAL'
+        : killSwitch.reason === 'KILLED_AUTO'
+          ? 'KILLED_AUTO'
+          : 'COMPLETED';
 
-  return {
-    runId: generator.id,
-    campaignId: campaign.id,
-    status,
-    statusDetail,
-    generator,
-    probe: probeMetrics,
-    probeContended,
-    breakingPoint: detectBreakingPoint(timeline),
-    wrs,
-    posture: probe.posture(),
-    edgeErrors: probe.edgeErrors().length ? probe.edgeErrors() : undefined,
-    acceptance,
-    timeline,
-    protectionSource: measured?.source,
-    protection: measured
-      ? {
-          source: measured.source,
-          detectionTimeSec: measured.detectionTimeSec,
-          mitigationTimeSec: measured.mitigationTimeSec,
-        }
-      : undefined,
-    baseline,
-    baselineDelta,
-    targetTelemetry: targetSeries.length ? targetSeries : undefined,
-    reference,
-    calibration,
-  };
+    // Explain a kill so the UI never shows a bare status with no cause. The
+    // auto-kill trips after ≥30 s of consecutive probe unavailability; report the
+    // measured availability that drove it.
+    const availPct = probeMetrics.samples
+      ? Number(((probeMetrics.available / probeMetrics.samples) * 100).toFixed(1))
+      : 100;
+
+    // Outage attribution from the independent reference vantage (I2), when set.
+    // The target is attributed the impact when it fared clearly worse than the
+    // reference; if both fell together the measurement is inconclusive.
+    const ATTRIBUTION_MARGIN_PCT = 20;
+    const reference =
+      referenceMetrics && campaign.referenceUrl
+        ? (() => {
+            const refAvailPct = referenceMetrics.samples
+              ? Number(((referenceMetrics.available / referenceMetrics.samples) * 100).toFixed(1))
+              : 100;
+            return {
+              url: campaign.referenceUrl,
+              samples: referenceMetrics.samples,
+              available: referenceMetrics.available,
+              availPct: refAvailPct,
+              targetAttributed: refAvailPct - availPct >= ATTRIBUTION_MARGIN_PCT,
+            };
+          })()
+        : undefined;
+
+    let statusDetail: string | undefined =
+      status === 'KILLED_AUTO'
+        ? `Auto-killed: the legitimate probe found the target unavailable for ≥30 s ` +
+          `(availability ${availPct}% over ${probeMetrics.samples} checks). The kill ` +
+          `switch stopped the run to protect the target.`
+        : status === 'KILLED_MANUAL'
+          ? `Manually stopped by an operator during the run.`
+          : undefined;
+    // Fold the reference verdict into the explanation for a kill, so an operator
+    // reading the status knows whether to trust it as target-specific.
+    if (statusDetail && reference) {
+      statusDetail += reference.targetAttributed
+        ? ` The independent reference vantage stayed reachable (${reference.availPct}% available), corroborating that the impact was target-specific.`
+        : ` Note: the independent reference vantage was also unreachable (${reference.availPct}% available), so this may be a network-side or local-egress issue rather than the target — treat the verdict as inconclusive.`;
+    }
+
+    const underLoadAvailPct = probeMetrics.samples
+      ? (probeMetrics.available / probeMetrics.samples) * 100
+      : 100;
+    const baselineDelta = baseline
+      ? computeBaselineDelta(baseline, {
+          availabilityPct: underLoadAvailPct,
+          latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
+        })
+      : undefined;
+
+    const total = generator.totalRequests;
+    const checked = generator.assertionsChecked ?? 0;
+    const acceptance =
+      evaluateAcceptance(campaign.acceptance, {
+        p95Ms: generator.latencyMs.p95,
+        errorRatePct: total > 0 ? (generator.failed / total) * 100 : 0,
+        availabilityPct: probeMetrics.samples
+          ? (probeMetrics.available / probeMetrics.samples) * 100
+          : 100,
+        wrs: wrs.wrs,
+        assertionFailurePct: checked > 0 ? ((generator.assertionFailures ?? 0) / checked) * 100 : 0,
+      }) ?? undefined;
+
+    return {
+      runId: generator.id,
+      campaignId: campaign.id,
+      status,
+      statusDetail,
+      generator,
+      probe: probeMetrics,
+      probeContended,
+      measurementPolicy: 'independent-probe-v1',
+      breakingPoint: detectBreakingPoint(timeline),
+      wrs,
+      posture: probe.posture(),
+      edgeErrors: probe.edgeErrors().length ? probe.edgeErrors() : undefined,
+      acceptance,
+      timeline,
+      protectionSource: measured?.source,
+      protection: measured
+        ? {
+            source: measured.source,
+            detectionTimeSec: measured.detectionTimeSec,
+            mitigationTimeSec: measured.mitigationTimeSec,
+          }
+        : undefined,
+      baseline,
+      baselineDelta,
+      targetTelemetry: targetSeries.length ? targetSeries : undefined,
+      reference,
+      calibration,
+    };
+  } finally {
+    await prepared?.dispose();
+  }
 }

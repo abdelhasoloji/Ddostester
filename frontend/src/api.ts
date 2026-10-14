@@ -1,5 +1,32 @@
 import { lsGet, lsSet, lsRemove } from './storage.js';
 
+export interface FleetDeviceInput {
+  siteId?: string;
+  agentId: string;
+  name: string;
+  group: string;
+  profile: 'sensor' | 'camera' | 'gateway' | 'generic';
+  privateIp: string;
+  notes: string;
+}
+export interface FleetDevice extends FleetDeviceInput {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  connection?: 'unenrolled' | 'awaiting' | 'online' | 'offline' | 'revoked' | 'expired';
+  lastSeenAt?: string | null;
+  agentVersion?: string | null;
+  enrollmentExpiresAt?: string | null;
+}
+export interface FleetEnrollment {
+  schema: 'ddostester.fleet.enrollment/v1';
+  deviceId: string;
+  agentId: string;
+  privateIp: string;
+  token: string;
+  expiresAt: string;
+}
+
 export type CampaignStatus =
   | 'PENDING_APPROVAL'
   | 'APPROVED'
@@ -19,8 +46,32 @@ export interface WrsBreakdown {
   level: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F';
   estimated?: boolean;
 }
+export interface DurableFleetEvidence {
+  sha256: string;
+  content: {
+    schema: 'ddostester.fleet.persisted-evidence/v1';
+    runId: string;
+    campaignId: string;
+    state: string;
+    counterCoverage: { reportedAgents: number; expectedAgents: number | null };
+    shards: {
+      agentId: string;
+      state: string;
+      result: null | { podIp?: string; generator?: { totalRequests?: number } | null };
+    }[];
+    wrs: null;
+    probe: null;
+  };
+}
 
 export interface Campaign {
+  drsMode?: 'engine-validation' | 'synthetic-lab' | 'measured';
+  drsDocument?: DrsCampaignView['document'];
+  drsProfileId?: string;
+  body?: string;
+  headers?: Record<string, string>;
+  fleetDeviceIds?: string[];
+  iotProfile?: { id: 'sensor-heartbeat/v1'; seed: number; deviceIndex: number };
   id: string;
   name: string;
   target: string;
@@ -203,6 +254,24 @@ export interface RunAssessment {
   configuredRps: number;
 }
 
+export interface FleetStatus {
+  configured: boolean;
+  available: boolean;
+  image?: string | null;
+  observedAt?: string;
+  run?: { runId: string; state: string; controlLeaseExpired: boolean } | null;
+  agents?: {
+    agentId: string;
+    state: string;
+    attemptId: string;
+    leaseExpired: boolean;
+    leaseUntil: number;
+    budget: { maxRps: number; concurrency: number; durationSec: number };
+    progress: { sent: number; successful: number; failed: number } | null;
+    progressAt: number | null;
+  }[];
+}
+
 export interface CampaignRun {
   runId: string;
   campaignId: string;
@@ -216,6 +285,7 @@ export interface CampaignRun {
       while the generator was serving it) — availability was taken from the
       generator's success ratio, not the probe's, and no false auto-kill fired. */
   probeContended?: boolean;
+  measurementPolicy?: 'independent-probe-v1';
   /** Breaking point: the offered rps at which the target started failing en masse,
       and the highest rps it sustained cleanly. */
   breakingPoint?: {
@@ -226,11 +296,65 @@ export interface CampaignRun {
     sustainedRps: number;
   };
   generator: {
+    startedAt?: string;
+    finishedAt?: string;
+    fleet?: {
+      receiverEvidence?: {
+        matched: boolean;
+        totalReceipts: number;
+        successfulReceipts: number;
+        sourceIps: string[];
+        provenance: string;
+        recordedAt: string;
+        agents: { agentId: string; receipts: number; successful: number; matched: boolean }[];
+      };
+      startup?: {
+        schema: 'ddostester.fleet.startup/v1';
+        scope: 'generator-timestamps-relative-to-parent';
+        reportedAgents: number;
+        expectedAgents: number;
+        firstGeneratorStartDelayMs: number | null;
+        lastGeneratorStartDelayMs: number | null;
+        agents: { agentId: string; generatorStartDelayMs: number | null }[];
+      };
+      counterCoverage?: {
+        reportedAgents: number;
+        expectedAgents: number;
+        scope: 'received-final-results-only';
+      };
+      measurementComplete: boolean;
+      shards: {
+        agentId: string;
+        state: string;
+        attemptId: string;
+        leaseUntil: number;
+        assignmentHash?: string;
+        budget?: { maxRps: number; concurrency: number; durationSec: number };
+        result?: {
+          generator?: unknown;
+          podIp?: string;
+          podUid?: string;
+          reason?: string;
+          resources?: {
+            processRssBytesAtFinish: number;
+            processCpuUserUsec: number;
+            processCpuSystemUsec: number;
+            cgroupThrottledUsecDelta: number | null;
+            elapsedMs: number;
+          };
+        };
+      }[];
+    };
     totalRequests: number;
+    finalizedRequests?: number;
+    unfinalizedRequests?: number;
     successful: number;
     failed: number;
     actualRps: number;
     latencyMs: { min: number; max: number; mean: number; p50: number; p95: number; p99: number };
+    latencySampleCount?: number;
+    latencyMethod?:
+      'native-combined-results' | 'common-histogram-upper-bounds' | 'native-rounded-response-times';
     statusCounts: Record<string, number>;
     errors: Record<string, number>;
     assertionsChecked?: number;
@@ -238,6 +362,15 @@ export interface CampaignRun {
     hardStopped?: boolean;
   };
   probe: {
+    quality?: {
+      measuredSamples: number;
+      totalSamples: number;
+      peakEventLoopDelayMs: number | null;
+      peakRecentEventLoopDelayMs?: number | null;
+      eventLoopMeasuredSamples?: number;
+      peakThrottledFraction: number | null;
+      latest?: { cpuUserUsec: number; cpuSystemUsec: number; rssBytes: number; sampledAt: string };
+    };
     samples: number;
     available: number;
     errorRate5xx: number;
@@ -249,7 +382,32 @@ export interface CampaignRun {
   timeline?: RunSample[];
   protectionSource?: string;
   protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
-  baseline?: { samples: number; availabilityPct: number; latencyMs: { p50: number; p95: number } };
+  baseline?: {
+    quality?: CampaignRun['probe']['quality'];
+    samples: number;
+    availabilityPct: number;
+    latencyMs: { p50: number; p95: number };
+    observation?: {
+      vantage: 'remote';
+      expectedSamples: number;
+      receivedSamples: number;
+      missingSamples: number;
+      complete: boolean;
+    };
+  };
+  recoveryBeforeRun?: {
+    available: boolean;
+    verified?: boolean;
+    waitedMs: number;
+    checks: number;
+    quality?: CampaignRun['probe']['quality'];
+    observation?: {
+      vantage: 'remote';
+      receivedSamples: number;
+      missingSamples: number;
+      complete: boolean;
+    };
+  };
   baselineDelta?: {
     latencyP50DeltaMs: number;
     latencyP95DeltaMs: number;
@@ -365,6 +523,7 @@ export interface ImpactEntry {
   autoKilled: boolean;
   wrs: number;
   severity: number;
+  uncertain?: boolean;
 }
 
 /** In-app alert derived from run history (GET /api/alerts). */
@@ -448,8 +607,16 @@ function authHeaders(base: Record<string, string> = {}): Record<string, string> 
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401) setToken(null);
-    throw new Error((data as { error?: string }).error ?? res.statusText);
+    if (res.status === 401) {
+      setToken(null);
+      window.dispatchEvent(new Event('shieldtest:session-expired'));
+    }
+    const failure = data as { error?: string; diagnosticId?: string };
+    const reference =
+      typeof failure.diagnosticId === 'string' && /^[a-f0-9-]{36}$/i.test(failure.diagnosticId)
+        ? ` (reference ${failure.diagnosticId})`
+        : '';
+    throw new Error((failure.error ?? res.statusText) + reference);
   }
   return data as T;
 }
@@ -489,7 +656,7 @@ export interface LimitsInfo {
 }
 
 // --- Network bench (class C) — governed record-and-dispatch ----------------
-// The catalogue mirrors the zeroBS DRS Volumetric matrix (report P25-20300):
+// The catalogue mirrors the DRS Volumetric matrix (report P25-20300):
 // each vector carries its DRS level and whether this bench can reproduce it.
 export interface BenchScenario {
   id: string;
@@ -609,41 +776,41 @@ export interface IngestResult {
   records: BenchCoverage[];
 }
 
-/** Report URL for a browser link (token in the query if auth is enabled). */
+/** Report URL for a browser link (HttpOnly read cookie when auth is enabled). */
 export function reportUrl(runId: string): string {
   const u = `/api/runs/${runId}/report`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
-/** CSV export of all runs' aggregated metrics (token in the query if auth on). */
+/** CSV export of all runs' aggregated metrics (HttpOnly read cookie when auth is enabled). */
 export function runsCsvUrl(): string {
   const u = `/api/runs.csv`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 /** CSV export of one run's per-second timeline. */
 export function runTimelineCsvUrl(runId: string): string {
   const u = `/api/runs/${runId}/timeline.csv`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 /** URL of the downloadable, self-verifiable audit export (entries + hashes). */
 export function auditExportUrl(): string {
   const u = `/api/audit/export`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 /** URL of the aggregated compliance report (DORA/NIS2). */
 export function complianceUrl(): string {
   const u = `/api/reports/compliance`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
-/** URL of the before/after comparison of two runs (token in the query if auth on). */
+/** URL of the before/after comparison of two runs (HttpOnly read cookie when auth is enabled). */
 export function compareUrl(runIdA: string, runIdB: string): string {
   const q = `a=${encodeURIComponent(runIdA)}&b=${encodeURIComponent(runIdB)}`;
   const u = `/api/reports/compare?${q}`;
-  return token ? `${u}&token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 /** Recon-seeding summary returned when a suite is instantiated. */
@@ -681,7 +848,8 @@ export interface RunComparison {
   wrsDelta: number;
   levelBefore: string;
   levelAfter: string;
-  verdict: 'improved' | 'regressed' | 'unchanged';
+  verdict: 'improved' | 'regressed' | 'unchanged' | 'inconclusive';
+  comparability?: { schema: string; comparable: boolean; reasons: string[] };
   headline: string;
   metrics: MetricDelta[];
   remainingRemediations: {
@@ -695,14 +863,14 @@ export interface RunComparison {
 /** URL of an assessment suite's consolidated HTML report. */
 export function suiteReportUrl(suiteId: string): string {
   const u = `/api/suites/${suiteId}/report`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 /** URL of the before/after comparison of two suites (tune-and-replay loop). */
 export function suiteCompareUrl(suiteIdA: string, suiteIdB: string): string {
   const q = `a=${encodeURIComponent(suiteIdA)}&b=${encodeURIComponent(suiteIdB)}`;
   const u = `/api/reports/suite-compare?${q}`;
-  return token ? `${u}&token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 // ── Grafana deep-linking ──────────────────────────────────────────────────
@@ -762,7 +930,7 @@ export function grafanaRunUrl(
 /** URL of a campaign's real-time progress SSE stream (EventSource). */
 export function streamUrl(campaignId: string): string {
   const u = `/api/campaigns/${campaignId}/stream`;
-  return token ? `${u}?token=${encodeURIComponent(token)}` : u;
+  return u;
 }
 
 export interface LiveProgressData {
@@ -874,7 +1042,31 @@ export interface MitigationValidation {
   note: string;
 }
 
+export interface AccessContract {
+  capabilities?: string[];
+  contractVersion?: number;
+  primaryAdminEmail?: string;
+  approvalPolicy?: 'confirmation' | 'dual_control';
+  userMode?: 'team' | 'single';
+}
+
 export const api = {
+  drsValidation: (maxLevel = 1) => post<Campaign>('/api/drs/validations', { maxLevel }),
+  drsReference: () => get<DrsReferenceView>('/api/drs/reference'),
+  drsCampaign: (id: string) => get<DrsCampaignView>(`/api/campaigns/${encodeURIComponent(id)}/drs`),
+  drsAction: (id: string, action: string, body: unknown) =>
+    post<unknown>(
+      `/api/campaigns/${encodeURIComponent(id)}/drs/${encodeURIComponent(action)}`,
+      body,
+    ),
+  drsReport: (id: string, revision: number) =>
+    get<DrsReportView>(
+      `/api/campaigns/${encodeURIComponent(id)}/drs/report.json?revision=${revision}`,
+    ),
+  fleetEvidenceForCampaign: (campaignId: string) =>
+    get<DurableFleetEvidence>(
+      `/api/fleet/campaigns/${encodeURIComponent(campaignId)}/evidence.json`,
+    ),
   health: () =>
     fetch('/health').then((r) =>
       json<{
@@ -886,6 +1078,8 @@ export const api = {
         labTargets?: string[];
         storage: string;
         authRequired: boolean;
+        userMode?: 'team' | 'single';
+        drsWorkflow?: boolean;
         agent?: string;
         notifications?: string[];
         protection?: boolean;
@@ -897,23 +1091,30 @@ export const api = {
       }>(r),
     ),
   login: (email: string, password: string) =>
-    post<{ token: string; email: string; role: Role; mustChangePassword?: boolean }>(
-      '/api/auth/login',
-      { email, password },
-    ),
+    post<
+      AccessContract & { token: string; email: string; role: Role; mustChangePassword?: boolean }
+    >('/api/auth/login', { email, password }),
   me: () =>
-    get<{ email: string | null; role: Role | null; mustChangePassword?: boolean }>('/api/auth/me'),
+    get<AccessContract & { email: string | null; role: Role | null; mustChangePassword?: boolean }>(
+      '/api/auth/me',
+    ),
+  revokeOwnSessions: () =>
+    post<AccessContract & { token: string; email: string; role: Role }>(
+      '/api/auth/sessions/revoke',
+    ),
+  revokeUserSessions: (email: string) =>
+    post<{ revoked: boolean }>(`/api/users/${encodeURIComponent(email)}/sessions/revoke`),
   logout: () => post<{ ok: boolean }>('/api/auth/logout'),
   changePassword: (currentPassword: string, newPassword: string) =>
-    post<{ token: string; email: string; role: Role; mustChangePassword: boolean }>(
-      '/api/auth/password',
-      { currentPassword, newPassword },
-    ),
+    post<
+      AccessContract & { token: string; email: string; role: Role; mustChangePassword: boolean }
+    >('/api/auth/password', { currentPassword, newPassword }),
   listCampaigns: () => get<Campaign[]>('/api/campaigns'),
   createCampaign: (body: unknown) => post<Campaign>('/api/campaigns', body),
   approve: (id: string, body: unknown) => post<Campaign>(`/api/campaigns/${id}/approval`, body),
   cisoApprove: (id: string) => post<Campaign>(`/api/campaigns/${id}/ciso-approval`),
-  execute: (id: string) => post<CampaignRun>(`/api/campaigns/${id}/execute`),
+  execute: (id: string, confirmed = false) =>
+    post<CampaignRun>(`/api/campaigns/${id}/execute`, confirmed ? { confirmed: true } : undefined),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   cancelCampaign: (id: string, reason?: string) =>
     post<Campaign>(`/api/campaigns/${id}/cancel`, reason ? { reason } : undefined),
@@ -930,6 +1131,7 @@ export const api = {
       scope,
     }),
   getRun: (runId: string) => get<CampaignRun>(`/api/runs/${runId}`),
+  listRuns: () => get<CampaignRun[]>('/api/runs'),
   audit: (limit = 100) => get<AuditEntry[]>(`/api/audit?limit=${limit}`),
   alerts: (limit = 50) => get<Alert[]>(`/api/alerts?limit=${limit}`),
   impact: (limit = 20) => get<{ impact: ImpactEntry[] }>(`/api/impact?limit=${limit}`),
@@ -958,8 +1160,56 @@ export const api = {
   wrsHistory: () => get<WrsSeries[]>('/api/wrs/history'),
   runMitigation: (runId: string) => get<MitigationValidation>(`/api/runs/${runId}/mitigation`),
   agents: () => get<{ default: string; agents: AgentInfo[] }>('/api/agents'),
+  validateAssistantProposal: (proposal: Record<string, unknown>) =>
+    post<{ requiresOperatorReview: true }>('/api/assistant/proposals/validate', proposal),
   assistantStatus: () =>
     get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),
+  fleetMissions: () => get<FleetMissionStatus>('/api/fleet/missions'),
+  fleetOverview: () => get<FleetOverview>('/api/fleet/overview'),
+  fleetCampaign: (id: string) =>
+    get<FleetCampaignObservation>(`/api/fleet/campaigns/${encodeURIComponent(id)}`),
+  launchFleetMission: (body: {
+    deviceIds: string[];
+    maxRps: number;
+    concurrency: number;
+    durationSec: number;
+    confirmed: true;
+  }) => post('/api/fleet/missions', body),
+  stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
+  drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  fleetSites: () =>
+    get<{
+      sites: { id: string; devices: number; online: number }[];
+      devices: number;
+      limits: { maxDevices: number; maxSites: number; pageSize: number };
+    }>('/api/fleet/sites'),
+  fleetDevices: (options?: {
+    page?: number;
+    pageSize?: number;
+    siteId?: string;
+    search?: string;
+  }) =>
+    get<{ devices: FleetDevice[]; total?: number; page?: number; pageSize?: number }>(
+      '/api/fleet/devices' +
+        (options
+          ? '?' +
+            new URLSearchParams(
+              Object.entries(options)
+                .filter(([, v]) => v !== undefined && v !== '')
+                .map(([k, v]) => [k, String(v)]),
+            )
+          : ''),
+    ),
+  enrollFleetDevice: (id: string) =>
+    post<FleetEnrollment>(`/api/fleet/devices/${encodeURIComponent(id)}/enrollment`),
+  revokeFleetDevice: (id: string) =>
+    del<FleetDevice>(`/api/fleet/devices/${encodeURIComponent(id)}/enrollment`),
+  saveFleetDevice: (body: FleetDeviceInput, id?: string) =>
+    id
+      ? put<FleetDevice>(`/api/fleet/devices/${encodeURIComponent(id)}`, body)
+      : post<FleetDevice>('/api/fleet/devices', body),
+  removeFleetDevice: (id: string) => del<void>(`/api/fleet/devices/${encodeURIComponent(id)}`),
+  fleetStatus: () => get<FleetStatus>('/api/fleet/status'),
   assistantPod: () => get<PodStatus>('/api/assistant/pod'),
   assistantPodStart: () => post<PodStatus>('/api/assistant/pod/start'),
   assistantPodStop: () => post<PodStatus>('/api/assistant/pod/stop'),
@@ -1036,8 +1286,11 @@ export const api = {
     post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
       reason,
     }),
-  runSuite: (id: string) =>
-    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`),
+  runSuite: (id: string, confirmed = false) =>
+    post<{ suiteId: string; steps: number; started: boolean }>(
+      `/api/suites/${id}/run`,
+      confirmed ? { confirmed: true } : undefined,
+    ),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
   resumeSuite: (id: string) =>
     post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
@@ -1344,6 +1597,7 @@ export interface SuiteSummary {
 }
 
 export interface ManagedUser {
+  isOwner?: boolean;
   email: string;
   role: Role;
   source: 'env' | 'store';
@@ -1351,4 +1605,133 @@ export interface ManagedUser {
   mustChangePassword?: boolean;
   createdAt?: string;
   lastLoginAt?: string;
+}
+
+export interface FleetMissionStatus {
+  enabled: boolean;
+  target: string;
+  caps: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
+  missions: {
+    id: string;
+    createdAt: string;
+    maxRps: number;
+    durationSec: number;
+    snapshot: {
+      state: string;
+      shards: {
+        agentId: string;
+        state: string;
+        progress?: { sent: number; successful: number; failed: number };
+        result?: {
+          reason?: string;
+          generator?: { totalRequests: number; successful: number; failed: number };
+        };
+      }[];
+    } | null;
+  }[];
+}
+export interface FleetCampaignObservation {
+  campaignId: string;
+  mission:
+    | (FleetMissionStatus['missions'][number] & {
+        target: string;
+        agentSites?: Record<string, string>;
+      })
+    | null;
+}
+export interface AgentGeneratorMeasurement {
+  totalRequests: number;
+  successful: number;
+  failed: number;
+  actualRps?: number;
+  latencyMs?: { p95: number };
+  errors?: Record<string, number>;
+}
+export interface FleetOverview {
+  inventoryCount?: number;
+  origins: string[];
+  enabled: boolean;
+  observedAt: string;
+  group: string;
+  caps: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
+  devices: (FleetDevice & { missionCapable: boolean; supportedMethods: string[] })[];
+  missions: {
+    id: string;
+    campaignId: string;
+    name: string;
+    target: string;
+    createdAt: string;
+    deadline: number;
+    deviceIds: string[];
+    snapshot: FleetMissionStatus['missions'][number]['snapshot'];
+  }[];
+}
+
+export interface DrsCatalog {
+  version: string;
+  reference: string;
+  provenance: string;
+  scope: string;
+  executionCaps: {
+    maxAgents: number;
+    maxRps: number;
+    maxConcurrency: number;
+    maxDurationSec: number;
+  };
+  inventoryCaps: { maxDevices: number; maxSites: number; pageSize: number };
+  profiles: {
+    id: string;
+    name: string;
+    level?: number;
+    summary: string;
+    supported: boolean;
+    status: string;
+    reason: string;
+  }[];
+}
+
+export interface DrsReferenceView {
+  manifest: { version: string; catalogue_sha256: string; vector_count: number };
+  ambiguities: { id: string; review_status: string }[];
+}
+export interface DrsRevisionView {
+  number: number;
+  id: string;
+  state: string;
+  plan: Record<string, unknown>;
+  planHash?: string;
+  finalizedAt?: string;
+  proofs: { id: string; hash: string; provenance: string }[];
+  trace: { state: string; at: string; detail: string }[];
+  reference: {
+    standardVersion: string;
+    engineVersion: string;
+    catalogueHash: string;
+    interpretationProfile: string;
+  };
+}
+export interface DrsCampaignView {
+  document: { currentRevision: number; revisions: DrsRevisionView[] } | null;
+  defaultPlan: Record<string, unknown>;
+}
+export interface DrsReportView {
+  assessment: {
+    label: string;
+    status: string;
+    score: number | null;
+    terminalLevel: number | null;
+    terminalOutcome: string;
+    reservations: string[];
+    levels: {
+      level: number;
+      total: number;
+      passed: number;
+      failed: number;
+      inconclusive: number;
+      excluded: number;
+      outcome: string;
+    }[];
+  };
+  reference: DrsRevisionView['reference'];
+  revision: number;
 }

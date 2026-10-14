@@ -1,0 +1,13 @@
+[Unit]
+Description=Publish verified backup and audit witness freshness
+[Service]
+Type=oneshot
+User=root
+UMask=0022
+ExecStart=/usr/bin/node /usr/local/lib/ddostester-operations/freshness.mjs
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/prometheus/node-exporter
+TimeoutStartSec=45

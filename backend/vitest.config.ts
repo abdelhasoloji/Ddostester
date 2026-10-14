@@ -10,7 +10,7 @@ export default defineConfig({
     // there is no shared mutable state across test files (no localStorage/db;
     // each builds its own in-memory store and binds ephemeral ports).
     pool: 'forks',
-    poolOptions: { forks: { minForks: 4, maxForks: 8 } },
+    maxWorkers: 8,
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'html', 'lcov'],

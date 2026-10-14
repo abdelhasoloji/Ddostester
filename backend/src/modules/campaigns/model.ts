@@ -66,6 +66,12 @@ export type CampaignStatus =
   | 'CANCELLED';
 
 export interface CampaignInput {
+  drsMode?: import('../drs/model.js').DrsMode;
+  drsProfileId?: string;
+  /** Explicit enrolled device selection; absent preserves the three-agent group default. */
+  fleetDeviceIds?: string[];
+  /** Optional deterministic synthetic HTTP sensor journey, compiled before approval. */
+  iotProfile?: import('../../engine/iot-profile.js').IoTProfile;
   name: string;
   description?: string;
   /** Target URL (must be in the allowlist). */
@@ -211,6 +217,7 @@ export interface Recurrence {
 }
 
 export interface Campaign extends CampaignInput {
+  drsDocument?: import('../drs/model.js').DrsDocument;
   id: string;
   status: CampaignStatus;
   createdAt: string;

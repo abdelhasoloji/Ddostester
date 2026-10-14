@@ -51,7 +51,7 @@ test('recon-first create: profiling a target proposes a seeded campaign', async 
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('button', { name: /New campaign/ }).click();
-  await expect(page.getByRole('heading', { name: 'New campaign — recon first' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profile a target to begin' })).toBeVisible();
   // Default target is off-allowlist; profile the allowlisted self target.
   await page.locator('.recon-first input').first().fill(SELF);
   await page.getByRole('button', { name: /Profile target/ }).click();
@@ -65,8 +65,7 @@ test('plan: fill target, Infer from evidence and Analyze gaps', async ({ page })
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('tab', { name: 'Plan' }).click();
-  const target = page.locator('input').first();
-  if (await target.count()) await target.fill(SELF);
+  await page.getByRole('textbox', { name: 'Target', exact: true }).fill(SELF);
   await page.getByRole('button', { name: /Infer from evidence/ }).click();
   await noError(page);
   await page.getByRole('button', { name: /Analyze gaps/ }).click();
@@ -79,8 +78,8 @@ test('guide: "Use this configuration" queues a preset into the launch form', asy
   await login(page, 'engineer');
   await goTo(page, 'Campaigns');
   await page.getByRole('tab', { name: 'How it works' }).click();
-  const use = page.getByRole('button', { name: /Use this configuration/ }).first();
-  if (!(await use.count())) return; // guide has no preset buttons in this build
+  const use = page.getByRole('button', { name: /Use this preset/ }).first();
+  await expect(use).toBeVisible();
   await use.click();
   // The launch form opens seeded and STAYS: the seeded NewCampaignForm must
   // persist, not flash and fall through to the recon target-picker. (Regression:
@@ -90,17 +89,16 @@ test('guide: "Use this configuration" queues a preset into the launch form', asy
   });
   await page.waitForTimeout(500); // let any effect-driven unmount settle
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'New campaign — recon first' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Profile a target to begin' })).toHaveCount(0);
   await noError(page);
 });
 
 test('command center: in-body quick links navigate', async ({ page }) => {
   await login(page, 'engineer');
   await goTo(page, 'Command Center');
-  const reports = page.getByRole('link', { name: /View reports|Results/ }).first();
-  if (await reports.count()) {
-    await reports.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Results' })).toBeVisible();
-  }
+  const runs = page.locator('main').getByRole('link', { name: /Runs in flight/ });
+  await expect(runs).toBeVisible();
+  await runs.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Run Theater' })).toBeVisible();
   await noError(page);
 });

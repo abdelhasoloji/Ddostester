@@ -175,11 +175,16 @@ export function authorizeTarget(
   t: ProtectedTarget,
   by: string,
   now = new Date().toISOString(),
+  opts: { singleUser?: boolean } = {},
 ): ProtectedTarget {
   if (t.authStatus !== 'requested') {
     throw new TargetError('only a target with a pending authorization request can be authorized');
   }
-  if (t.authRequestedBy && by === t.authRequestedBy) {
+  if (
+    !opts.singleUser &&
+    t.authRequestedBy &&
+    by.toLowerCase() === t.authRequestedBy.toLowerCase()
+  ) {
     throw new TargetError('separation of duties: the authorizer must differ from the requester');
   }
   return {

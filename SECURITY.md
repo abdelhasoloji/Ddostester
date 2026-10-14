@@ -6,7 +6,8 @@ infrastructure the organization owns or holds a written authorization to test.
 ## Acceptable use
 
 - Targets listed in the `ALLOWED_TARGETS` allowlist.
-- Campaigns approved by a role distinct from the author (Security Officer).
+- Team/profile workflows require distinct author, approver and executor.
+- In single mode, the unique owner explicitly confirms each launch.
 - Rate and duration within the `HARD_CAPS` limits.
 
 ## Prohibited use
@@ -37,3 +38,14 @@ See [docs/boundary-and-lab.md](./docs/boundary-and-lab.md).
 ## Reporting
 
 Report any abuse or vulnerability through the WEDOS internal security channel.
+
+## Unique administrator with managed profiles
+
+The administrator has all application capabilities. USER_MODE=single selects the default
+personal workflow: the owner explicitly confirms every launch; team mode retains separation
+of duties. The persisted owner defaults to abdelha@wedos; other profiles remain manageable
+and retain their status/password. A second admin and owner demotion/deletion are forbidden.
+Run the versioned migration explicitly before the first new-version startup; ordinary startup
+only verifies policy. Capabilities are returned by /api/auth/me and enforced by the API.
+Allowlist, immutable caps, kill switch and audit remain mandatory. No campaign is required
+for account/deployment validation. See [migration and operation](docs/single-user.md).

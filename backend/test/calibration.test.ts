@@ -47,7 +47,7 @@ describe('calibratedRate (closed-loop rate calibration, GEN-1)', () => {
     expect(r.appliedRps).toBe(500);
   });
 
-  it('applied is always ≥1 and ≤ requested', () => {
+  it('applied is always positive and ≤ requested', () => {
     for (const [req, del] of [
       [800, 1],
       [1000, 650],
@@ -55,9 +55,19 @@ describe('calibratedRate (closed-loop rate calibration, GEN-1)', () => {
       [200, 200],
     ] as const) {
       const r = calibratedRate(req, del);
-      expect(r.appliedRps).toBeGreaterThanOrEqual(1);
+      expect(r.appliedRps).toBeGreaterThan(0);
       expect(r.appliedRps).toBeLessThanOrEqual(req);
     }
+  });
+
+  it('preserves fractional requests and lowers measured sub-one delivery', () => {
+    expect(calibratedRate(0.5, 0).appliedRps).toBe(0.5);
+    expect(calibratedRate(0.5, 0.5).appliedRps).toBe(0.5);
+    expect(calibratedRate(0.5, 0.2).appliedRps).toBeCloseTo(0.19);
+    expect(calibratedRate(1, 0.2).appliedRps).toBeCloseTo(0.19);
+    expect(calibratedRate(1.5, 0).requestedRps).toBe(1.5);
+    expect(() => calibratedRate(Infinity, 1)).toThrow('Invalid');
+    expect(calibratedRate(0.5, NaN).appliedRps).toBe(0.5);
   });
 
   it('the keep threshold is the documented 0.9', () => {
@@ -83,9 +93,11 @@ describe('scaleScenario (preserve shape at a deliverable amplitude)', () => {
     expect(scaled[1].maxRps / scaled[0].maxRps).toBeCloseTo(1000 / 200, 5);
   });
 
-  it('floors each phase at 1 rps and never rounds above the original', () => {
+  it('preserves fractional phases and never raises them above the original', () => {
     const scaled = scaleScenario([{ maxRps: 3, durationSec: 10 }], 0.05);
-    expect(scaled[0].maxRps).toBe(1);
+    expect(scaled[0].maxRps).toBeCloseTo(0.15);
+    expect(scaleScenario([{ maxRps: 0.5, durationSec: 10 }], 0.4)[0].maxRps).toBeCloseTo(0.2);
+    expect(() => scaleScenario([{ maxRps: 0.5, durationSec: 10 }], NaN)).toThrow('Invalid');
     const noUp = scaleScenario([{ maxRps: 100, durationSec: 10 }], 1);
     expect(noUp[0].maxRps).toBe(100);
     const clamped = scaleScenario([{ maxRps: 100, durationSec: 10 }], 5);

@@ -1,0 +1,15 @@
+{
+  "schema": "ddostester.lab.tools/v1",
+  "k3d": {
+    "version": "5.9.0",
+    "linuxAmd64Url": "https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64",
+    "linuxAmd64Sha256": "06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0",
+    "toolsImage": "ghcr.io/k3d-io/k3d-tools:5.9.0@sha256:c57abce697e66feeb826922718738fe186b47779312d49d4e51e6fb9b8a6f34d"
+  },
+  "k3s": {
+    "version": "1.37.1+k3s1",
+    "image": "docker.io/rancher/k3s:v1.37.1-k3s1@sha256:ca7f37d993d82ef0dcdcfecb2e0e2618ea541dbaffc620c8cedebe01a82acd0d",
+    "amd64Manifest": "sha256:8d298cb81ca94e875d31e804e5aa10b56355d1d7d95d7e1ef8a8d9239f15ada0"
+  },
+  "clusterConfigSha256": "144e9960cb1fb39faccbc4f68dcac7cf79367bd46f826eb413fbaf368ca4d5b2"
+}

@@ -9,38 +9,69 @@ import { runProcess, binaryAvailable, withTempDir } from './proc.js';
 import { emptyResult, type ResultMeta } from './results.js';
 import { percentile } from '../engine/stats.js';
 import { htmlEscape as xmlEsc } from '../util/text.js';
+import { parseMeasurementCsv } from './csv-measurements.js';
 
 /**
  * Adapter to Apache JMeter (headless), operated by the team. Bounded HTTP load:
- * rate capped via a (shared) Constant Throughput Timer. Multi-phase scenarios
+ * rate capped via a shared monotonic request timer. Multi-phase scenarios
  * are delegated to k6/vegeta.
  */
 
 /** Builds a JMeter test plan (.jmx) — bounded HTTP load. Pure function. */
 export function buildJmxPlan(config: LoadTestConfig): string {
-  const throughputPerMin = config.maxRps * 60; // Constant Throughput Timer = req/min
-  const headerRows = Object.entries(config.headers ?? {})
-    .map(
-      ([k, v]) => `<elementProp name="" elementType="Header">
+  const pacing = `<JSR223Timer guiclass="TestBeanGUI" testclass="JSR223Timer" testname="shared-request-pacing" enabled="true">
+    <stringProp name="scriptLanguage">groovy</stringProp>
+    <stringProp name="cacheKey">true</stringProp>
+    <stringProp name="script">${xmlEsc(`
+def lock = props.computeIfAbsent('ddostester.lock') { new java.util.concurrent.locks.ReentrantLock() }
+lock.lockInterruptibly()
+try {
+    long now = System.nanoTime()
+    if (!props.containsKey('ddostester.deadline.nano')) {
+        long remaining = props.get('ddostester.deadline_ms') == null ? ${config.durationSec * 1000}L : props.get('ddostester.deadline_ms').toLong() - System.currentTimeMillis()
+        props.put('ddostester.deadline.nano', now + Math.max(0L, remaining) * 1000000L)
+    }
+    long deadline = props.get('ddostester.deadline.nano')
+    long due = props.get('ddostester.next.nano') ?: now
+    if (due >= deadline) { ctx.getThread().stop(); return 0L }
+    if (due > now) java.util.concurrent.TimeUnit.NANOSECONDS.sleep(due - now)
+    now = System.nanoTime()
+    if (now >= deadline) { ctx.getThread().stop(); return 0L }
+    props.put('ddostester.next.nano', now + ${Math.ceil(1e9 / config.maxRps)}L)
+    long started = (props.get('ddostester.started') ?: 0L) + 1L
+    props.put('ddostester.started', started)
+    if (props.get('ddostester.starts_file') != null) new File(props.get('ddostester.starts_file')).text = started.toString()
+} catch (Exception failure) { ctx.getThread().stop(); throw failure } finally { lock.unlock() }
+return 0L
+`)}</stringProp>
+  </JSR223Timer><hashTree/>`;
+  const renderHeaders = (headers: Record<string, string>): string =>
+    Object.entries(headers)
+      .map(
+        ([k, v]) => `<elementProp name="" elementType="Header">
   <stringProp name="Header.name">${xmlEsc(k)}</stringProp>
   <stringProp name="Header.value">${xmlEsc(v)}</stringProp>
 </elementProp>`,
-    )
-    .join('\n');
+      )
+      .join('\n');
 
-  // A flow is a sequence of samplers; a single request is a 1-step flow. The
-  // SHARED Constant Throughput Timer (calcMode 3) caps the TOTAL samples/min
-  // across all samplers, so the request rate stays ≤ maxRps regardless of the
-  // number of steps.
+  // Each HTTP sampler shares one pacing lock; non-HTTP pauses do not spend slots.
   const steps = config.flow?.length
     ? config.flow
     : [{ method: config.method ?? 'GET', url: config.url, body: config.body, thinkMs: undefined }];
 
   const sampler = (
-    step: { method: string; url: string; body?: string; thinkMs?: number },
+    step: {
+      method: string;
+      url: string;
+      body?: string;
+      thinkMs?: number;
+      headers?: Record<string, string>;
+    },
     i: number,
   ): string => {
     const su = new URL(step.url);
+    const headerRows = renderHeaders({ ...config.headers, ...step.headers });
     const method = step.method.toUpperCase();
     const port = su.port || (su.protocol === 'https:' ? '443' : '80');
     const path = su.pathname + su.search;
@@ -50,9 +81,11 @@ export function buildJmxPlan(config: LoadTestConfig): string {
         : '';
     const think = step.thinkMs
       ? `
-          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="think" enabled="true">
-            <stringProp name="ConstantTimer.delay">${step.thinkMs}</stringProp>
-          </ConstantTimer>
+          <TestAction guiclass="TestActionGui" testclass="TestAction" testname="think-after-request" enabled="true">
+            <intProp name="ActionProcessor.action">1</intProp>
+            <intProp name="ActionProcessor.target">0</intProp>
+            <stringProp name="ActionProcessor.duration">${step.thinkMs}</stringProp>
+          </TestAction>
           <hashTree/>`
       : '';
     return `        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="step-${i + 1}" enabled="true">
@@ -61,6 +94,10 @@ export function buildJmxPlan(config: LoadTestConfig): string {
           <stringProp name="HTTPSampler.protocol">${su.protocol.replace(':', '')}</stringProp>
           <stringProp name="HTTPSampler.path">${xmlEsc(path)}</stringProp>
           <stringProp name="HTTPSampler.method">${method}</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <stringProp name="HTTPSampler.connect_timeout">${config.timeoutMs ?? 10_000}</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">${config.timeoutMs ?? 10_000}</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">${body ? 'true' : 'false'}</boolProp>
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
             <collectionProp name="Arguments.arguments">${
@@ -71,11 +108,19 @@ export function buildJmxPlan(config: LoadTestConfig): string {
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
+          ${pacing}
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="2xx-only" enabled="true">
+            <collectionProp name="Asserion.test_strings"><stringProp name="status">2[0-9][0-9]</stringProp></collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
           <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="headers" enabled="true">
             <collectionProp name="HeaderManager.headers">${headerRows}</collectionProp>
           </HeaderManager>
-          <hashTree/>${think}
-        </hashTree>`;
+          <hashTree/>
+        </hashTree>${think}`;
   };
 
   const samplers = steps.map(sampler).join('\n');
@@ -91,10 +136,10 @@ export function buildJmxPlan(config: LoadTestConfig): string {
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="tg" enabled="true">
-        <stringProp name="ThreadGroup.num_threads">${config.concurrency}</stringProp>
+        <stringProp name="ThreadGroup.num_threads">\${__groovy(props.get('ddostester.deadline_ms') == null || props.get('ddostester.deadline_ms').toLong() - System.currentTimeMillis() >= 1000 ? ${config.concurrency} : 0)}</stringProp>
         <stringProp name="ThreadGroup.ramp_time">1</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
-        <stringProp name="ThreadGroup.duration">${config.durationSec}</stringProp>
+        <stringProp name="ThreadGroup.duration">\${__groovy(props.get('ddostester.deadline_ms') == null ? ${config.durationSec} : (props.get('ddostester.deadline_ms').toLong() - System.currentTimeMillis() >= 1000 ? ((props.get('ddostester.deadline_ms').toLong() - System.currentTimeMillis()) / 1000).longValue() : 1))}</stringProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
           <boolProp name="LoopController.continue_forever">true</boolProp>
@@ -103,11 +148,6 @@ export function buildJmxPlan(config: LoadTestConfig): string {
       </ThreadGroup>
       <hashTree>
 ${samplers}
-        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="rate" enabled="true">
-          <doubleProp><name>throughput</name><value>${throughputPerMin}</value></doubleProp>
-          <intProp name="calcMode">3</intProp>
-        </ConstantThroughputTimer>
-        <hashTree/>
       </hashTree>
     </hashTree>
   </hashTree>
@@ -117,24 +157,32 @@ ${samplers}
 
 /** Parses a JMeter JTL file (CSV) → LoadTestResult. Pure function. */
 export function parseJtl(csv: string, meta: ResultMeta): LoadTestResult {
-  const lines = csv.trim().split('\n').filter(Boolean);
-  if (lines.length < 2) return emptyResult(meta);
-  const header = lines[0].split(',');
+  const lines = parseMeasurementCsv(csv);
+  if (lines.length < 2) throw new AgentError('JMeter did not produce request measurements.');
+  const header = lines[0];
   const iElapsed = header.indexOf('elapsed');
   const iSuccess = header.indexOf('success');
   const iCode = header.indexOf('responseCode');
+  if ([iElapsed, iSuccess, iCode].some((index) => index < 0))
+    throw new AgentError('Missing JMeter measurement columns.');
   const latencies: number[] = [];
   const statusCounts: Record<string, number> = {};
   let failed = 0;
   let total = 0;
-  for (const line of lines.slice(1)) {
-    const f = line.split(',');
+  for (const f of lines.slice(1)) {
+    if (
+      f.length !== header.length ||
+      !/^\d+$/.test(f[iElapsed]) ||
+      !['true', 'false'].includes(f[iSuccess])
+    )
+      throw new AgentError('Malformed JMeter request measurement.');
     total++;
     const el = Number(f[iElapsed]);
-    if (Number.isFinite(el)) latencies.push(el);
+    if (!Number.isSafeInteger(el)) throw new AgentError('Invalid JMeter latency measurement.');
+    latencies.push(el);
     if (f[iSuccess] !== 'true') failed++;
     const code = f[iCode] ?? '';
-    if (code) {
+    if (/^[1-5][0-9]{2}$/.test(code)) {
       const bucket = `${code[0]}xx`;
       statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
     }
@@ -151,6 +199,7 @@ export function parseJtl(csv: string, meta: ResultMeta): LoadTestResult {
     successful: total - failed,
     failed,
     statusCounts,
+    latencySampleCount: latencies.length,
     latencyMs: {
       min: latencies[0] ?? 0,
       max: latencies[latencies.length - 1] ?? 0,
@@ -164,6 +213,31 @@ export function parseJtl(csv: string, meta: ResultMeta): LoadTestResult {
   };
 }
 
+/** Keep pre-I/O attempt evidence even when an interrupted tool never flushed its JTL. */
+export function combineJMeterMeasurements(
+  csv: string,
+  started: number,
+  meta: ResultMeta,
+  elapsedMs: number,
+): LoadTestResult {
+  if (
+    !Number.isSafeInteger(started) ||
+    started <= 0 ||
+    !Number.isFinite(elapsedMs) ||
+    elapsedMs <= 0
+  )
+    throw new AgentError('Invalid JMeter attempt evidence.');
+  const hasRows = csv.trim().split('\n').filter(Boolean).length > 1;
+  const result = hasRows ? parseJtl(csv, meta) : { ...emptyResult(meta), latencySampleCount: 0 };
+  if (started < result.totalRequests) throw new AgentError('Invalid JMeter attempt counters.');
+  result.finalizedRequests = result.totalRequests;
+  result.unfinalizedRequests = started - result.totalRequests;
+  result.totalRequests = started;
+  result.failed = started - result.successful;
+  result.actualRps = started / (elapsedMs / 1000);
+  return result;
+}
+
 export class JMeterAgent implements AttackAgent {
   readonly name = 'jmeter';
   readonly multiPhase = false;
@@ -175,7 +249,9 @@ export class JMeterAgent implements AttackAgent {
   constructor(private readonly bin = process.env.JMETER_BIN ?? 'jmeter') {}
 
   available(): Promise<boolean> {
-    return binaryAvailable(this.bin, '--version');
+    return withTempDir('jmeter-version', (dir) =>
+      binaryAvailable(this.bin, ['--version', '-j', join(dir, 'version.log')]),
+    );
   }
 
   async run(
@@ -196,20 +272,43 @@ export class JMeterAgent implements AttackAgent {
       );
     }
     const startedAt = new Date().toISOString();
+    const began = performance.now();
     return withTempDir('jmeter', async (dir) => {
       const plan = join(dir, 'plan.jmx');
       const jtl = join(dir, 'results.jtl');
+      const starts = join(dir, 'started.txt');
       await writeFile(plan, buildJmxPlan(config), 'utf8');
-      await runProcess(this.bin, ['-n', '-t', plan, '-l', jtl, '-j', join(dir, 'jmeter.log')], {
-        killSignal,
-      });
+      await runProcess(
+        this.bin,
+        [
+          '-n',
+          '-t',
+          plan,
+          '-l',
+          jtl,
+          '-j',
+          join(dir, 'jmeter.log'),
+          `-Jddostester.deadline_ms=${Date.now() + config.durationSec * 1000}`,
+          `-Jddostester.starts_file=${starts}`,
+        ],
+        {
+          killSignal,
+          timeoutMs: config.durationSec * 1000,
+        },
+      );
       const csv = await readFile(jtl, 'utf8').catch(() => '');
-      return parseJtl(csv, {
-        id: randomUUID(),
-        config,
-        startedAt,
-        finishedAt: new Date().toISOString(),
-      });
+      const started = Number(await readFile(starts, 'utf8').catch(() => 'invalid'));
+      return combineJMeterMeasurements(
+        csv,
+        started,
+        {
+          id: randomUUID(),
+          config,
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        },
+        performance.now() - began,
+      );
     });
   }
 }

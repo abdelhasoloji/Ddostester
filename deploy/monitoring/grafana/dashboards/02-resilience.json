@@ -103,7 +103,7 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Absorbed % by target / vector",
+      "title": "Generator failures % by target / vector",
       "description": "Share of offered load the edge absorbed. A drop here on a target that used to absorb well is a protection regression.",
       "datasource": {
         "type": "prometheus",
@@ -121,7 +121,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_absorbed_ratio_last{target=~\"$target\"}*100",
+          "expr": "shieldtest_run_failed_ratio_last{target=~\"$target\"}*100",
           "legendFormat": "{{target}} / {{vector}}",
           "refId": "A"
         }
@@ -279,7 +279,7 @@
     {
       "id": 12,
       "type": "timeseries",
-      "title": "Reached-origin vs Offered RPS (leak-through)",
+      "title": "Successful-response vs Offered RPS (HTTP successes)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -297,8 +297,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_origin_rps_last{target=~\"$target\"}",
-          "legendFormat": "reached origin {{target}}",
+          "expr": "shieldtest_run_successful_rps_last{target=~\"$target\"}",
+          "legendFormat": "successful responses {{target}}",
           "refId": "A"
         },
         {

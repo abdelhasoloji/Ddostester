@@ -63,8 +63,8 @@ describe('buildZones', () => {
   it('parses the highest DRS reached from campaign names', () => {
     const [z] = buildZones(
       [
-        campaign('a', { name: 'zeroBS L7 — GET-Flood (DRS3)' }),
-        campaign('b', { name: 'zeroBS L7 — MultiVector (DRS5)' }),
+        campaign('a', { name: 'DRS L7 — GET-Flood (DRS3)' }),
+        campaign('b', { name: 'DRS L7 — MultiVector (DRS5)' }),
       ],
       [],
     );

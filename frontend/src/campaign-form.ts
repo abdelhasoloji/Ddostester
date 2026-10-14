@@ -1,4 +1,4 @@
-import type { RequestStep, WeightedEndpoint } from './api.js';
+import type { Campaign, RequestStep, WeightedEndpoint } from './api.js';
 import type { Preset } from './presets.js';
 
 /**
@@ -10,6 +10,9 @@ import type { Preset } from './presets.js';
 
 /** Default state of the new-campaign form. */
 export const emptyForm = {
+  drsMode: 'synthetic-lab',
+  drsProfileId: '',
+  fleetDeviceIds: [] as string[],
   name: '',
   target: 'http://127.0.0.1:8080/health',
   probeUrl: 'http://127.0.0.1:8080/health',
@@ -22,8 +25,13 @@ export const emptyForm = {
   scheduledAt: '',
   recurrenceMin: '',
   profile: 'constant',
+  copiedScenario: [] as { maxRps: number; durationSec: number }[],
   agent: '',
+  iotProfile: '',
+  iotSeed: '42',
+  iotDeviceIndex: '0',
   body: '',
+  copiedHeaders: {} as Record<string, string>,
   flow: '',
   flowAdvanced: false,
   sloP95: '',
@@ -45,6 +53,28 @@ export const emptyForm = {
 /** The new-campaign form's field shape — the seed type shared by the recon-first
  *  flow, presets, and the post-run replay suggestion. */
 export type CampaignFormSeed = typeof emptyForm;
+
+export function buildIoTProfile(
+  f: Pick<CampaignFormSeed, 'iotProfile' | 'iotSeed' | 'iotDeviceIndex'>,
+) {
+  if (!f.iotProfile) return undefined;
+  if (
+    f.iotProfile !== 'sensor-heartbeat/v1' ||
+    !/^[0-9]+$/.test(f.iotSeed) ||
+    !/^[0-9]+$/.test(f.iotDeviceIndex)
+  )
+    throw new Error('Invalid synthetic sensor parameters');
+  const seed = Number(f.iotSeed);
+  const deviceIndex = Number(f.iotDeviceIndex);
+  if (
+    !Number.isSafeInteger(seed) ||
+    seed > 0xffffffff ||
+    !Number.isSafeInteger(deviceIndex) ||
+    deviceIndex > 999
+  )
+    throw new Error('Synthetic sensor seed or device index is out of range');
+  return { id: 'sensor-heartbeat/v1' as const, seed, deviceIndex };
+}
 
 /**
  * Turns a preset into a form seed (shape + recommended engine, never a target),
@@ -70,6 +100,21 @@ export function presetSeed(
 
 /** Parses the feeder editor (CSV: header line, then rows) into dataset rows. */
 export function parseDataset(raw: string): Record<string, string>[] | undefined {
+  if (raw.trim().startsWith('[')) {
+    const rows: unknown = JSON.parse(raw);
+    if (
+      !Array.isArray(rows) ||
+      rows.some(
+        (r) =>
+          !r ||
+          typeof r !== 'object' ||
+          Array.isArray(r) ||
+          Object.values(r).some((v) => typeof v !== 'string'),
+      )
+    )
+      throw new Error('Dataset JSON must contain objects with string values.');
+    return rows as Record<string, string>[];
+  }
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -88,6 +133,15 @@ export function parseDataset(raw: string): Record<string, string>[] | undefined 
 
 /** Parses the endpoint-mix editor: one per line, "[METHOD] url [weight]". */
 export function parseEndpoints(raw: string): WeightedEndpoint[] | undefined {
+  if (raw.trim().startsWith('[')) {
+    const endpoints: unknown = JSON.parse(raw);
+    if (
+      !Array.isArray(endpoints) ||
+      endpoints.some((e) => !e || typeof e !== 'object' || typeof e.url !== 'string')
+    )
+      throw new Error('Endpoint JSON must contain URL objects.');
+    return endpoints as WeightedEndpoint[];
+  }
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -216,4 +270,46 @@ export function buildScenario(profile: string, maxRps: number, durationSec: numb
       { maxRps: pct(100), durationSec: third },
     ];
   return undefined;
+}
+
+/** Copy configuration only: approvals, scheduling and run state never carry over. */
+export function duplicateCampaignSeed(c: Campaign): Partial<CampaignFormSeed> {
+  return {
+    drsProfileId: c.drsProfileId ?? '',
+    drsMode: c.drsMode ?? 'synthetic-lab',
+    name: `${c.name} · copy`,
+    target: c.target,
+    probeUrl: c.probeUrl,
+    referenceUrl: c.referenceUrl ?? '',
+    probeVantage: c.probeVantage ?? 'local',
+    body: c.body ?? '',
+    copiedHeaders: { ...(c.headers ?? {}) },
+    vector: c.vector,
+    agent: c.agent ?? '',
+    fleetDeviceIds: [...(c.fleetDeviceIds ?? [])],
+    maxRps: c.maxRps,
+    concurrency: c.concurrency,
+    maxDurationSec: c.maxDurationSec,
+    profile: c.scenario?.length ? 'copied' : 'constant',
+    copiedScenario: c.scenario?.map((phase) => ({ ...phase })) ?? [],
+    flow: c.flow?.length ? JSON.stringify(c.flow, null, 2) : '',
+    flowAdvanced: !!c.flow?.length,
+    endpoints: c.endpoints ? JSON.stringify(c.endpoints, null, 2) : '',
+    userAgents: c.userAgents?.join('\n') ?? '',
+    dataset: c.dataset ? JSON.stringify(c.dataset) : '',
+    cacheBust: !!c.cacheBust,
+    noKeepAlive: !!c.noKeepAlive,
+    parallelism: c.parallelism ?? 1,
+    calibrate: !!c.calibrate,
+    assertStatus: c.assertion?.status?.toString() ?? '',
+    assertBody: c.assertion?.bodyContains ?? '',
+    sloP95: c.acceptance?.maxP95Ms?.toString() ?? '',
+    sloErr: c.acceptance?.maxErrorRatePct?.toString() ?? '',
+    sloAvail: c.acceptance?.minAvailabilityPct?.toString() ?? '',
+    sloWrs: c.acceptance?.minWrs?.toString() ?? '',
+    sloAssert: c.acceptance?.maxAssertionFailurePct?.toString() ?? '',
+    iotProfile: c.iotProfile?.id ?? '',
+    iotSeed: String(c.iotProfile?.seed ?? 42),
+    iotDeviceIndex: String(c.iotProfile?.deviceIndex ?? 0),
+  };
 }

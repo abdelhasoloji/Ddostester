@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactElement } from 'react';
+import { api } from './api.js';
 import { makeApp } from './test-utils.js';
 
 // ExecuteModal now uses useNavigate to jump to Run Theater on launch, so renders
@@ -21,6 +22,39 @@ beforeEach(() => {
 });
 
 describe('NewCampaignForm', () => {
+  it('submits a seeded sensor draft with explicit engine and unchanged budgets after attestation', async () => {
+    render(<NewCampaignForm initial={{ name: 'Sensor draft', maxRps: 2, concurrency: 1 }} />);
+    fireEvent.change(screen.getByLabelText('Synthetic device journey'), {
+      target: { value: 'sensor-heartbeat/v1' },
+    });
+    fireEvent.change(screen.getByLabelText('Device index'), { target: { value: '7' } });
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    const payload = (currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload).toMatchObject({
+      agent: 'builtin',
+      vector: 'http-post',
+      maxRps: 2,
+      concurrency: 1,
+      iotProfile: { id: 'sensor-heartbeat/v1', seed: 42, deviceIndex: 7 },
+    });
+    expect(payload.flow).toBeUndefined();
+  });
+
+  it('preserves a conflicting body and blocks the sensor draft instead of discarding it', () => {
+    render(<NewCampaignForm initial={{ name: 'Existing draft', body: 'keep this body' }} />);
+    fireEvent.change(screen.getByLabelText('Synthetic device journey'), {
+      target: { value: 'sensor-heartbeat/v1' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    expect(screen.getByDisplayValue('keep this body')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('clear custom body');
+    expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+    expect(currentApp.createCampaign).not.toHaveBeenCalled();
+  });
+
   it('renders the built-in-only realism fields (endpoint mix, UA rotation, feeder)', () => {
     render(<NewCampaignForm />);
     expect(screen.getByRole('heading', { name: 'New campaign' })).toBeInTheDocument();
@@ -234,4 +268,158 @@ describe('modals', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(currentApp.setApproveFor).toHaveBeenCalledWith(null);
   });
+});
+
+it('offers two generator modes and requires review after switching a complex draft to Fleet', () => {
+  currentApp = makeApp({
+    agents: [
+      ...makeApp().agents,
+      {
+        id: 'fleet',
+        name: 'iot-fleet',
+        available: true,
+        multiPhase: false,
+        flowCapable: false,
+        description: 'Fleet',
+      },
+    ],
+  });
+  render(
+    <NewCampaignForm
+      initial={{
+        name: 'Copy',
+        target: 'http://127.0.0.1:8080/health',
+        probeUrl: 'http://127.0.0.1:8080/health',
+        profile: 'wave',
+        vector: 'http-post',
+        body: 'retain until review',
+        userAgents: 'custom',
+        dataset: 'a\n1',
+        recurrenceMin: '60',
+        parallelism: 2,
+      }}
+    />,
+  );
+  expect(screen.getByLabelText('Generator')).toHaveValue('local');
+  fireEvent.change(screen.getByLabelText('Generator'), { target: { value: 'fleet' } });
+  expect(screen.getByRole('status')).toHaveTextContent('Review the scenario and total budget');
+  expect(screen.queryByLabelText('Local engine')).not.toBeInTheDocument();
+  expect(currentApp.createCampaign).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Generator'), { target: { value: 'local' } });
+  expect(screen.getByLabelText('Local engine')).toHaveValue('builtin');
+  expect(screen.queryByDisplayValue('retain until review')).not.toBeInTheDocument();
+});
+
+it('submits duplicated phases and structured data unchanged after a fresh attestation', async () => {
+  const phases = [
+    { maxRps: 1, durationSec: 7 },
+    { maxRps: 3, durationSec: 13 },
+  ];
+  const endpoints = [{ method: 'GET', url: 'http://127.0.0.1:8080/health', weight: 2 }];
+  const dataset = [{ value: 'with,comma' }];
+  render(
+    <NewCampaignForm
+      initial={{
+        name: 'Duplicate',
+        agent: 'builtin',
+        maxRps: 3,
+        concurrency: 2,
+        maxDurationSec: 20,
+        profile: 'copied',
+        copiedScenario: phases,
+        endpoints: JSON.stringify(endpoints),
+        dataset: JSON.stringify(dataset),
+      }}
+    />,
+  );
+  expect(screen.getByRole('button', { name: /Submit for approval/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Submit for approval/ }));
+  await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+  expect((currentApp.createCampaign as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({
+    scenario: phases,
+    endpoints,
+    dataset,
+  });
+});
+
+it('creates only a marked DRS Fleet draft with explicit agents from different sites', async () => {
+  currentApp = makeApp({
+    drsWorkflow: true,
+    role: 'admin',
+    userMode: 'single',
+    agents: [
+      {
+        id: 'fleet',
+        name: 'iot-fleet',
+        available: true,
+        multiPhase: false,
+        flowCapable: false,
+        description: 'Fleet',
+      },
+    ],
+  });
+  const devices = ['one', 'two'].map((id, i) => ({
+    id,
+    agentId: id,
+    name: id,
+    siteId: 'site-' + i,
+    group: 'Remote site',
+    profile: 'sensor' as const,
+    privateIp: '10.0.0.1',
+    notes: '',
+    createdAt: '',
+    updatedAt: '',
+    connection: 'online' as const,
+    agentVersion: 'fleet-mission-agent/v1',
+  }));
+  vi.spyOn(api, 'fleetOverview').mockResolvedValue({
+    enabled: true,
+    origins: ['http://127.0.0.1:8080'],
+    observedAt: new Date().toISOString(),
+    group: 'VPS Lab',
+    caps: { maxRps: 15, maxConcurrency: 6, maxDurationSec: 60 },
+    devices: [],
+    missions: [],
+  });
+  vi.spyOn(api, 'fleetDevices').mockResolvedValue({ devices, total: 2 });
+  vi.spyOn(api, 'fleetSites').mockResolvedValue({
+    sites: [
+      { id: 'site-0', devices: 1, online: 1 },
+      { id: 'site-1', devices: 1, online: 1 },
+    ],
+    devices: 2,
+    limits: { maxDevices: 5000, maxSites: 100, pageSize: 100 },
+  });
+  try {
+    render(
+      <NewCampaignForm
+        initial={{
+          name: 'DRS GET',
+          drsProfileId: 'cra-l7-get-flood',
+          agent: 'fleet',
+          fleetDeviceIds: ['one', 'two'],
+          maxRps: 3,
+          concurrency: 3,
+          maxDurationSec: 20,
+        }}
+      />,
+    );
+    await waitFor(() => expect(screen.getByLabelText('Use one')).toBeInTheDocument());
+    expect(screen.getByLabelText('Generator')).toBeDisabled();
+    expect(screen.queryByText('Start from a preset:')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: /attest/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create campaign' }));
+    await waitFor(() => expect(currentApp.createCampaign).toHaveBeenCalledTimes(1));
+    expect(currentApp.createCampaign).toHaveBeenCalledWith(
+      expect.objectContaining({
+        drsProfileId: 'cra-l7-get-flood',
+        agent: 'fleet',
+        fleetDeviceIds: ['one', 'two'],
+        maxRps: 3,
+      }),
+    );
+  } finally {
+    vi.restoreAllMocks();
+  }
 });

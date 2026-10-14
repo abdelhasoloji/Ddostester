@@ -6,17 +6,38 @@ import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { ProtectedTarget } from '../modules/targets/model.js';
+import type { FleetDevice } from '../modules/fleet/devices.js';
 
 /**
  * Persistence layer. Two implementations: memory (dev/tests) and PostgreSQL
  * (production). Campaigns and runs are persisted; active kill switches (runtime
  * objects) live in a separate registry (runtime/kills).
  */
+export interface AccountPolicy {
+  schemaVersion: 1;
+  primaryAdminEmail: string;
+}
+export type UserTransaction = Pick<
+  Store,
+  | 'listUsers'
+  | 'getUser'
+  | 'saveUser'
+  | 'deleteUser'
+  | 'saveAudit'
+  | 'getAccountPolicy'
+  | 'setAccountPolicy'
+>;
+
 export interface Store {
+  listFleetDevices(): Promise<FleetDevice[]>;
+  getFleetDevice(id: string): Promise<FleetDevice | undefined>;
+  saveFleetDevice(device: FleetDevice): Promise<void>;
+  deleteFleetDevice(id: string): Promise<void>;
   readonly backend: 'memory' | 'postgres';
   init(): Promise<void>;
   /** Lightweight connectivity check for readiness probes. */
   healthy(): Promise<boolean>;
+  acquireRuntimeLease(): Promise<boolean>;
   /**
    * Deletes runs, audit entries and WRS samples older than `olderThanDays`
    * (data retention). Campaigns are kept. Returns the number of rows removed.
@@ -50,6 +71,12 @@ export interface Store {
   listUsers(): Promise<User[]>;
   getUser(email: string): Promise<User | undefined>;
   saveUser(u: User): Promise<void>;
+  getAccountPolicy(): Promise<AccountPolicy | undefined>;
+  setAccountPolicy(policy: AccountPolicy): Promise<void>;
+  transaction<T>(fn: (tx: Store) => Promise<T>): Promise<T>;
+  transactionUsers<T>(fn: (tx: UserTransaction) => Promise<T>): Promise<T>;
+  /** Atomic account migration; never deletes historical identities. */
+  saveUsersAtomically(users: User[]): Promise<void>;
   deleteUser(email: string): Promise<void>;
   /** Records a successful login timestamp without touching credentials. */
   recordLogin(email: string, at: string): Promise<void>;

@@ -3,6 +3,25 @@ import { renderCompareHtml, compareRuns } from '../src/modules/reports/compare.j
 import type { Campaign } from '../src/modules/campaigns/model.js';
 import type { CampaignRun } from '../src/modules/campaigns/runner.js';
 
+// Hypothetical complete evidence for positive comparison tests. These fixtures
+// do not certify any real runtime or target.
+function knownConfig() {
+  return {
+    url: 'https://bank.cz/',
+    concurrency: 2,
+    durationSec: 10,
+    maxRps: 100,
+    authorized: true,
+    execution: {
+      engine: 'builtin-http',
+      runtime: 'v22.23.3',
+      sourceRef: 'snapshot:' + 'a'.repeat(64),
+      probeUrl: 'https://bank.cz/health',
+      probeVantage: 'local' as const,
+    },
+  };
+}
+
 function campaign(id: string, name: string, target: string): Campaign {
   return { id, name, target } as unknown as Campaign;
 }
@@ -22,13 +41,15 @@ function run(
     runId: `${campaignId}-run`,
     campaignId,
     status: o.status ?? 'COMPLETED',
-    wrs: { wrs: o.wrs, level: o.level, estimated: !o.protection },
+    wrs: { wrs: o.wrs, level: o.level, estimated: false },
+    confidence: { degraded: false, reasons: [] },
+    assessment: { verdict: 'held' },
     probe: {
       samples: o.samples,
       available: o.available,
       latencyMs: { p50: 0, p95: o.p95, p99: 0 },
     },
-    generator: { actualRps: 100, finishedAt: new Date().toISOString() },
+    generator: { config: knownConfig(), actualRps: 100, finishedAt: new Date().toISOString() },
     protection: o.protection,
   } as unknown as CampaignRun;
 }
@@ -103,13 +124,16 @@ function rich(
     runId: `${campaignId}-run`,
     campaignId,
     status: o.status ?? 'COMPLETED',
-    wrs: { wrs: o.wrs, level: o.level, estimated: true },
+    wrs: { wrs: o.wrs, level: o.level, estimated: false },
+    confidence: { degraded: false, reasons: [] },
+    assessment: { verdict: 'held' },
     probe: {
       samples: o.samples,
       available: o.available,
       latencyMs: { p50: 0, p95: o.p95, p99: 0 },
     },
     generator: {
+      config: knownConfig(),
       actualRps: 100,
       finishedAt: new Date().toISOString(),
       statusCounts: o.fivexx === undefined ? undefined : { '5xx': o.fivexx, '2xx': 10 },
@@ -121,6 +145,76 @@ function rich(
 describe('compareRuns (structured Mitigation Proof)', () => {
   const cA = campaign('c1', 'bank.cz — before mitigation', 'https://bank.cz/');
   const cB = campaign('c2', 'bank.cz — after mitigation', 'https://bank.cz/');
+
+  it('withholds improvement for changed profiles, budgets, unknown or degraded evidence', () => {
+    const before = rich('c1', { wrs: 40, level: 'D', available: 100, samples: 100, p95: 50 });
+    const after = rich('c2', { wrs: 95, level: 'A', available: 100, samples: 100, p95: 30 });
+    const variants = [
+      () => {
+        after.generator.config.maxRps = 1;
+      },
+      () => {
+        after.generator.config.iotProfile = { id: 'sensor-heartbeat/v1', seed: 42, deviceIndex: 0 };
+      },
+      () => {
+        after.generator.config.execution = undefined;
+      },
+      () => {
+        after.generator.config.execution!.sourceRef = 'dev';
+      },
+      () => {
+        after.generator.config.execution!.engine = 'k6';
+      },
+      () => {
+        after.generator.config.execution!.runtime = 'v24.19.0';
+      },
+      () => {
+        after.generator.config.execution!.probeUrl = 'https://bank.cz/other-health';
+      },
+      () => {
+        after.status = 'KILLED_MANUAL';
+      },
+      () => {
+        after.confidence!.degraded = true;
+      },
+      () => {
+        after.wrs.estimated = true;
+      },
+      () => {
+        after.wrs.wrs = NaN;
+      },
+      () => {
+        after.assessment = undefined;
+      },
+    ];
+    const original = structuredClone(after);
+    for (const change of variants) {
+      Object.assign(after, structuredClone(original));
+      change();
+      const cmp = compareRuns({ campaign: cA, run: before }, { campaign: cB, run: after });
+      expect(cmp.verdict).toBe('inconclusive');
+      expect(cmp.comparability.reasons.length).toBeGreaterThan(0);
+      expect(cmp.metrics.every((metric) => metric.improved === null)).toBe(true);
+      const html = renderCompareHtml({ campaign: cA, run: before }, { campaign: cB, run: after });
+      expect(html).toContain('Comparison inconclusive');
+      expect(html).not.toContain('Improved (');
+      expect(html).toContain('(descriptive)');
+    }
+  });
+
+  it('ignores per-run trace tags but compares functional headers and runtime versions', () => {
+    const before = rich('c1', { wrs: 40, level: 'D', available: 100, samples: 100, p95: 50 });
+    const after = rich('c2', { wrs: 95, level: 'A', available: 100, samples: 100, p95: 30 });
+    before.generator.config.headers = { 'X-WEDOS-TEST': 'run-one' };
+    after.generator.config.headers = { 'X-WEDOS-TEST': 'run-two' };
+    expect(compareRuns({ campaign: cA, run: before }, { campaign: cB, run: after }).verdict).toBe(
+      'improved',
+    );
+    after.generator.config.headers['content-type'] = 'application/json';
+    expect(compareRuns({ campaign: cA, run: before }, { campaign: cB, run: after }).verdict).toBe(
+      'inconclusive',
+    );
+  });
 
   it('verdicts "improved" and computes per-metric deltas incl. origin 5xx', () => {
     const cmp = compareRuns(

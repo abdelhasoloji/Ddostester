@@ -1,0 +1,27 @@
+groups:
+  - name: ddostester-operations
+    rules:
+      - alert: DdostesterBackupStale
+        expr: time() - ddostester_backup_completed_timestamp_seconds > 108000 or absent(ddostester_backup_completed_timestamp_seconds)
+        for: 5m
+        labels: { severity: critical, source: shieldtest }
+        annotations:
+          summary: Encrypted database backup missing or older than 30 hours
+      - alert: DdostesterReplicaStale
+        expr: time() - ddostester_backup_replicated_timestamp_seconds > 108000 or absent(ddostester_backup_replicated_timestamp_seconds)
+        for: 5m
+        labels: { severity: critical, source: shieldtest }
+        annotations:
+          summary: Verified off-host backup replica missing or older than 30 hours
+      - alert: DdostesterAuditWitnessStale
+        expr: time() - ddostester_audit_witness_verified_timestamp_seconds > 900 or absent(ddostester_audit_witness_verified_timestamp_seconds)
+        for: 2m
+        labels: { severity: critical, source: shieldtest }
+        annotations:
+          summary: Signed audit witness invalid or older than 15 minutes
+      - alert: DdostesterOperationsMetricsStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*ddostester-operations.prom"} > 180 or absent(node_textfile_mtime_seconds{file=~".*ddostester-operations.prom"})
+        for: 2m
+        labels: { severity: warning, source: shieldtest }
+        annotations:
+          summary: Backup and witness freshness collector stopped publishing

@@ -1,5 +1,7 @@
 import type { Campaign, TargetRequirement } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
+import { fleetCounterCoverage } from '../fleet/summary.js';
+import { renderFleetMeasurementHtml } from './fleet-measurement.js';
 import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
@@ -7,7 +9,7 @@ import { riskLevel } from './compliance.js';
 import { computeAbsorption, normalizeErrorMap } from './absorption.js';
 import { describeEdgeError } from '../posture/edge-error.js';
 import { scenarioMeanRps } from '../campaigns/calibration.js';
-import { computeConfidence } from './confidence.js';
+import { fleetCpuContention, computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
@@ -94,6 +96,10 @@ export function requiresApplicabilityHtml(campaign: Campaign, run: CampaignRun):
 
 export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): string {
   const g = run.generator;
+  const iotProfile = g.config?.iotProfile;
+  const counterCoverage = g.fleet ? fleetCounterCoverage(g.fleet.shards) : undefined;
+  const partialCounters =
+    counterCoverage && counterCoverage.reportedAgents < counterCoverage.expectedAgents;
   const w = run.wrs;
   const tl = run.timeline ?? [];
   const tt = run.targetTelemetry?.length ? summarizeTargetTelemetry(run.targetTelemetry) : null;
@@ -134,7 +140,14 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       failed: g.failed,
       durationSec: durSec,
     });
-  const confidence = run.confidence ?? computeConfidence({ hardStopped: g.hardStopped });
+  const confidence =
+    run.confidence ??
+    computeConfidence({
+      unfinalizedRequests: g.unfinalizedRequests,
+      hardStopped: g.hardStopped,
+      fleetIncomplete: g.fleet?.measurementComplete === false,
+      fleetCpuContention: fleetCpuContention(g.fleet?.shards),
+    });
 
   // The faithful verdict — the SAME assessment engine the suite report and the
   // detail page use, so all three tell one story. Prefer the stored assessment;
@@ -142,7 +155,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const assessment =
     run.assessment ??
     assessVector(
-      { ...run, absorption },
+      { ...run, absorption, confidence },
       {
         shape: campaign.name,
         drs: /DRS\s*([0-9])/i.exec(campaign.name)?.[1] ?? '—',
@@ -157,7 +170,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for <b>${durSec}s</b> against ` +
     `<b>${esc(hostOf(campaign.target))}</b>, the run scored <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
     `<b>${assessment.verdict}</b>, RiskLevel <b>${risk.label}</b>. ${esc(assessment.observation)}` +
-    (run.baselineDelta
+    (run.baselineDelta && run.baseline?.observation?.complete !== false
       ? ` Under load, p95 latency shifted by ${run.baselineDelta.latencyP95DeltaMs} ms vs the pre-load baseline.`
       : '');
 
@@ -210,14 +223,17 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
 
   // Latency percentiles (ms), single hue.
   const latMax = Math.max(g.latencyMs.p99, run.probe.latencyMs.p99, 1) * 1.1;
-  const genLat = hbarsSvg(
-    [
-      { label: 'p50', value: g.latencyMs.p50, display: `${g.latencyMs.p50} ms` },
-      { label: 'p95', value: g.latencyMs.p95, display: `${g.latencyMs.p95} ms` },
-      { label: 'p99', value: g.latencyMs.p99, display: `${g.latencyMs.p99} ms` },
-    ],
-    { max: latMax },
-  );
+  const genLat =
+    g.latencySampleCount === 0
+      ? '<p class="muted">Generator latency unknown — no finalized latency samples.</p>'
+      : hbarsSvg(
+          [
+            { label: 'p50', value: g.latencyMs.p50, display: `${g.latencyMs.p50} ms` },
+            { label: 'p95', value: g.latencyMs.p95, display: `${g.latencyMs.p95} ms` },
+            { label: 'p99', value: g.latencyMs.p99, display: `${g.latencyMs.p99} ms` },
+          ],
+          { max: latMax },
+        );
   const probeLat = hbarsSvg(
     [
       { label: 'p50', value: run.probe.latencyMs.p50, display: `${run.probe.latencyMs.p50} ms` },
@@ -237,11 +253,18 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       `Run ${run.runId.slice(0, 8)} · generated ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC`,
     ) +
     `<p class="lead">${summary}</p>` +
+    (iotProfile
+      ? `<h2>Synthetic IoT profile</h2><p>Profile ${esc(iotProfile.id)} · seed ${esc(String(iotProfile.seed))} · device index ${esc(String(iotProfile.deviceIndex))}. Deterministic HTTP identity, payload and think-time; request timing and response outcomes are not reproducible firmware or network emulation.</p>`
+      : '') +
     (kill ? `<div class="callout kill">🛑 ${esc(run.statusDetail ?? run.status)}</div>` : '') +
     (confidence.degraded
       ? `<div class="callout warn">⚠ <b>Measurement degraded — this WRS may be understated.</b> ${esc(confidence.reasons.join(' '))}</div>`
       : '') +
     verdictCallout +
+    renderFleetMeasurementHtml(run) +
+    (g.fleet
+      ? `<h2>Fleet evidence</h2><p>Measurement: ${g.fleet.measurementComplete ? 'complete' : 'incomplete'}. Percentiles use merged histogram bucket upper bounds; agent p95 values are not averaged.</p><table><thead><tr><th>Agent</th><th>State</th><th>Private pod IP</th><th>Pod UID</th></tr></thead><tbody>${g.fleet.shards.map((s) => `<tr><td>${esc(s.agentId)}</td><td>${esc(s.state)}</td><td>${esc(String(s.result?.podIp ?? 'unknown'))}</td><td>${esc(String(s.result?.podUid ?? 'unknown'))}</td></tr>`).join('')}</tbody></table>`
+      : '') +
     `<h2>At a glance</h2>
 <div class="scorecard">
   <div>${gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: scoreColor(w.wrs) })}
@@ -253,25 +276,25 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       ${statCard('Configured load', `${configuredRps} req/s`, false)}
       ${statCard('Achieved peak', `${peakRps} req/s`, false)}
       ${statCard('Duration', `${durSec}s`)}
-      ${statCard('Requests (ok)', `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
+      ${statCard(partialCounters ? 'Reported requests (partial)' : 'Requests (ok)', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
     </div>
   </div>
 </div>` +
     `<h2>Protection absorption</h2>
-<p class="muted">How much of the offered load the target's edge absorbed (rate-limited / tarpitted / 4xx) versus let through to origin.</p>
+<p class="muted">Generator observations${partialCounters ? ' from received final agent reports only; missing agents have unknown counters and fractions' : ''}. Successful responses may come from cache or edge; failures do not by themselves prove protection absorption.</p>
 <div class="grid cards">
   ${statCard('Configured', `${absorption.configuredRps} req/s`, false)}
-  ${statCard('Offered (sent)', `${absorption.achievedRps.toFixed(1)} req/s`, false)}
-  ${statCard('Reached origin', `${absorption.originRps.toFixed(1)} req/s`, false)}
-  ${statCard('Absorbed by edge', `${absorption.absorbedPct}%`, absorption.absorbedPct >= 20)}
+  ${statCard(partialCounters ? 'Reported sent (partial)' : 'Offered (sent)', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${absorption.achievedRps.toFixed(1)} req/s`, false)}
+  ${statCard(partialCounters ? 'Reported successes (partial)' : 'Successful responses', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${absorption.originRps.toFixed(1)} req/s`, false)}
+  ${statCard(partialCounters ? 'Reported failure fraction (partial)' : 'Generator failures', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${absorption.absorbedPct}%`, absorption.absorbedPct >= 20)}
 </div>
-<p class="muted" style="margin-top:.6rem">By mechanism — how the edge said "no", and whether we were even able to offer the configured rate:</p>
+<p class="muted" style="margin-top:.6rem">Observed HTTP failures, transport failures and offered-rate shortfall:</p>
 <div class="grid cards">
-  ${statCard('Rejected (4xx/5xx)', `${(absorption.rejectedRatio * 100).toFixed(1)}%`, false)}
-  ${statCard('Tarpitted (held/abort)', `${(absorption.tarpitRatio * 100).toFixed(1)}%`, absorption.tarpitRatio >= 0.2)}
+  ${statCard('HTTP failures (4xx/5xx)', `${(absorption.rejectedRatio * 100).toFixed(1)}%`, false)}
+  ${statCard('Transport failures (timeout/abort)', `${(absorption.tarpitRatio * 100).toFixed(1)}%`, absorption.tarpitRatio >= 0.2)}
   ${statCard('Offered shortfall', `${(absorption.offeredShortfall * 100).toFixed(1)}%`, false)}
 </div>
-<p class="muted" style="font-size:.82rem">Rejected = the edge answered refusing (a fast "no"). Tarpitted = it held the connection until timeout (a slow "no" that costs the attacker most). Offered shortfall = we couldn't sustain the configured rate (latency/backpressure) — not the edge rejecting traffic.</p>${
+<p class="muted" style="font-size:.82rem">HTTP failures and transport failures identify outcomes, not their cause. Edge absorption and origin impact require corroborating telemetry. Offered shortfall indicates generator under-delivery.</p>${
       run.edgeCorroboration
         ? `<div class="callout ${run.edgeCorroboration.agrees ? 'info' : 'warn'}"><b>Bilateral corroboration (${esc(run.edgeCorroboration.source)}):</b> we inferred <b>${Math.round(run.edgeCorroboration.ourAbsorbedRatio * 100)}%</b> absorbed; the edge itself reports <b>${Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}%</b> — ${
             run.edgeCorroboration.agrees
@@ -317,7 +340,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   <div class="figure"><div class="cap">Load generator latency</div>${genLat}</div>
   <div class="figure"><div class="cap">Legitimate probe latency</div>${probeLat}</div>
 </div>` +
-    (run.baselineDelta
+    (run.baseline?.observation?.complete === false
+      ? `<div class="callout warn"><b>Remote baseline incomplete.</b> ${run.baseline.observation.receivedSamples}/${run.baseline.observation.expectedSamples} observations received; target availability and comparison remain uncertain.</div>`
+      : '') +
+    (run.baselineDelta && run.baseline?.observation?.complete !== false
       ? `<div class="callout ${run.baselineDelta.availabilityDeltaPct < 0 || run.baselineDelta.latencyP95DeltaMs > 0 ? 'warn' : 'info'}">
     <b>Degradation under load vs baseline:</b> Δ p50 ${run.baselineDelta.latencyP50DeltaMs} ms · Δ p95 ${run.baselineDelta.latencyP95DeltaMs} ms · Δ availability ${run.baselineDelta.availabilityDeltaPct} pts
     ${run.baseline ? `<span class="muted">(baseline: ${run.baseline.availabilityPct}% avail, p50 ${run.baseline.latencyMs.p50} ms / p95 ${run.baseline.latencyMs.p95} ms over ${run.baseline.samples} samples).</span>` : ''}</div>`
@@ -332,11 +358,16 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     remediationsHtml(deriveRemediations(campaign, run)) +
     `<h2>Run detail</h2>
 <table class="kvs">
+ ${campaign.drsProfileId ? `<tr><th>DRS profile</th><td>${esc(campaign.drsProfileId)} · bounded Fleet functional measurement, not a DRS certification</td></tr>` : ''}
+ <tr><th>DRS assessment</th><td>${run.drsAssessment ? `${esc(run.drsAssessment.assessment.label)} · ${esc(run.drsAssessment.assessment.status)} · ${run.drsAssessment.assessment.score ?? 'No usable score'} · standard ${esc(run.drsAssessment.reference.standardVersion)} · revision ${run.drsAssessment.revision}` : 'NOT_EVALUATED — no independent frozen DRS evidence archive. WRS is a separate diagnostic.'}</td></tr>
  <tr><th>Campaign</th><td>${esc(campaign.name)} <span class="muted">(${campaign.id})</span></td></tr>
  <tr><th>Target</th><td>${esc(campaign.target)}</td></tr>
  <tr><th>Vector</th><td>${campaign.vector} (bounded application HTTP)</td></tr>
  <tr><th>Author / Approver</th><td>${esc(campaign.createdBy)} / ${esc(campaign.approvedBy ?? '—')}</td></tr>
- <tr><th>Requests (success / fail)</th><td>${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')})</td></tr>
+ <tr><th>${partialCounters ? 'Reported requests (partial)' : 'Requests (success / fail)'}</th><td>${partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')})`}</td></tr>
+ ${g.latencyMethod ? `<tr><th>Generator latency aggregation</th><td>${esc(g.latencyMethod)} — ${g.latencyMethod === 'native-rounded-response-times' ? 'native final statistics with rounded response-time buckets' : 'combined observations or histogram upper bounds; phase percentiles are not averaged'}</td></tr>` : ''}
+ ${g.finalizedRequests === undefined ? '' : `<tr><th>Finalized / unfinalized HTTP outcomes</th><td>${g.finalizedRequests} / ${g.unfinalizedRequests ?? 'unknown'} — unfinalized attempts have no inferred target receipt or HTTP status</td></tr>`}
+ ${counterCoverage ? `<tr><th>Generator counter coverage</th><td>${counterCoverage.reportedAgents}/${counterCoverage.expectedAgents} final reports. Missing counters are unknown; target receipts are independent evidence.</td></tr>` : ''}
  ${
    g.failed > 0
      ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} rejected by the edge (4xx/5xx) · ${noResponse.toLocaleString('en-US')} no response (rate-limited / timed out)${
@@ -348,11 +379,30 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
        }</td></tr>`
      : ''
  }
- <tr><th>Configured / achieved rate</th><td>${configuredRps} req/s configured · ${g.actualRps} req/s effective · ${peakRps} req/s peak</td></tr>
+ <tr><th>${partialCounters ? 'Configured / reported rate (partial)' : 'Configured / achieved rate'}</th><td>${configuredRps} req/s configured · ${partialCounters && !counterCoverage.reportedAgents ? 'unknown reported rate' : `${g.actualRps} req/s ${partialCounters ? 'reported' : 'effective'}`} · ${peakRps} req/s observed peak</td></tr>
+ ${
+   run.baseline?.quality
+     ? `<tr><th>Baseline diagnostic coverage</th><td>${esc(String(run.baseline.quality.measuredSamples))}/${esc(String(run.baseline.quality.totalSamples))} measurements</td></tr>
+ <tr><th>Baseline recent process-window event-loop delay peak</th><td>${run.baseline.quality.peakRecentEventLoopDelayMs == null ? 'unknown' : esc(String(run.baseline.quality.peakRecentEventLoopDelayMs)) + ' ms'}</td></tr>
+ <tr><th>Baseline cgroup throttled fraction peak</th><td>${run.baseline.quality.peakThrottledFraction == null ? 'unknown' : esc(String(run.baseline.quality.peakThrottledFraction))}</td></tr>`
+     : ''
+ }
+ ${run.recoveryBeforeRun ? `<tr><th>Recovery before suite step</th><td>${run.recoveryBeforeRun.available && run.recoveryBeforeRun.verified !== false ? 'available' : 'unverified or unavailable'}; ${esc(String(run.recoveryBeforeRun.checks))} checks; ${esc(String(run.recoveryBeforeRun.waitedMs))} ms</td></tr>` : ''}
+ ${g.fleet?.startup ? `<tr><th>Fleet generator-start delay</th><td>${g.fleet.startup.firstGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.firstGeneratorStartDelayMs))} to ${g.fleet.startup.lastGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.lastGeneratorStartDelayMs))} ms; ${g.fleet.startup.reportedAgents}/${g.fleet.startup.expectedAgents} timestamp observations. Global throughput includes startup; these timestamps do not prove first target arrival.</td></tr>` : ''}
  <tr><th>Probe availability</th><td>${run.probe.available}/${run.probe.samples} samples · ${run.probe.errorRate5xx}% 5xx</td></tr>
+ ${
+   run.probe.quality
+     ? `<tr><th>Probe diagnostic coverage</th><td>${esc(String(run.probe.quality.measuredSamples))}/${esc(String(run.probe.quality.totalSamples))} measurements</td></tr>
+ <tr><th>Probe event-loop delay peak</th><td>${run.probe.quality.peakEventLoopDelayMs === null ? 'unknown' : esc(String(run.probe.quality.peakEventLoopDelayMs)) + ' ms'}</td></tr>
+ <tr><th>Probe event-loop diagnostic coverage</th><td>${run.probe.quality.eventLoopMeasuredSamples === undefined ? 'unknown' : esc(String(run.probe.quality.eventLoopMeasuredSamples)) + '/' + esc(String(run.probe.quality.totalSamples))}</td></tr>
+ <tr><th>Probe recent process-window event-loop delay peak</th><td>${run.probe.quality.peakRecentEventLoopDelayMs == null ? 'unknown' : esc(String(run.probe.quality.peakRecentEventLoopDelayMs)) + ' ms'}</td></tr>
+ <tr><th>Probe cgroup throttled fraction peak</th><td>${run.probe.quality.peakThrottledFraction === null ? 'unknown' : esc(String(run.probe.quality.peakThrottledFraction))}</td></tr>
+ <tr><th>Diagnostic scope</th><td>Probe process/cgroup during measurement; overlapping intervals are not independent costs.</td></tr>`
+     : ''
+ }
 </table>` +
     (tt
-      ? `<h3>Target host telemetry (peak under load)</h3><table class="kvs"><tr><th>Samples</th><td>${tt.samples}</td></tr>${ttRow('CPU', tt.cpuPctMax, '%')}${ttRow('Conntrack', tt.conntrackMax, '')}${ttRow('NIC RX', tt.nicRxMbpsMax, ' Mbit/s')}${ttRow('NIC TX', tt.nicTxMbpsMax, ' Mbit/s')}</table><p class="muted">Host-side counters pulled from the target's metrics endpoint during the run (inbound measurement only).</p>`
+      ? `<h3>Target host telemetry (peak under load)</h3><table class="kvs"><tr><th>Samples</th><td>${tt.samples}</td></tr>${ttRow('Tagged requests received at target', tt.receivedRequestsMax, '')}${ttRow('CPU', tt.cpuPctMax, '%')}${ttRow('Conntrack', tt.conntrackMax, '')}${ttRow('NIC RX', tt.nicRxMbpsMax, ' Mbit/s')}${ttRow('NIC TX', tt.nicTxMbpsMax, ' Mbit/s')}</table><p class="muted">Target-side observations pulled during the run. Missing CPU/NIC fields are unknown, not zero. Receipt completeness: ${tt.receiptComplete === undefined ? 'not provided' : tt.receiptComplete ? 'complete' : 'incomplete'}. Private sources: ${esc((tt.sourceIps ?? []).join(', ') || 'not provided')}.</p>`
       : '') +
     (run.posture
       ? `<h3>Protection posture (inferred)</h3><table class="kvs">

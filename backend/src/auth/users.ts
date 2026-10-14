@@ -44,7 +44,7 @@ export function loadUsers(raw: string | undefined): Map<string, User> {
   for (const u of arr as User[]) {
     const role = canonicalRole(u.role);
     if (!u.email || !u.passwordHash || !role) {
-      throw new Error(`AUTH_USERS: invalid entry (${JSON.stringify(u)}).`);
+      throw new Error('AUTH_USERS: invalid account entry.');
     }
     // Canonicalise the legacy `officer` id to `admin` so pre-overhaul users work.
     map.set(u.email.toLowerCase(), { ...u, role });

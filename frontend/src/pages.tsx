@@ -1,6 +1,8 @@
+import { DrsCatalogPanel } from './drs-catalog.js';
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { AssistantChat } from './assistant-chat.js';
+import { FleetOperations } from './fleet-operations.js';
 import { lsGet, lsSet } from './storage.js';
 import {
   api,
@@ -70,7 +72,7 @@ import type { Theme } from './theme.js';
 const roleDescription: Record<Role, string> = {
   engineer: 'Create campaigns and launch an approved one (and stop runs).',
   ciso: 'Validate (approve) campaigns, co-sign under dual control, and govern the class-C bench.',
-  admin: 'Administer the platform — manage users and the operational limits.',
+  admin: 'Manage accounts, targets, campaigns, execution, reports and operational limits.',
   viewer: 'Read-only access to campaigns, results and assurance.',
 };
 
@@ -91,7 +93,9 @@ const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
   { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
+  { to: '/fleet', label: 'Fleet', icon: '🤖' },
   { to: '/theater', label: 'Run Theater', icon: '🎬' },
+  { to: '/reports', label: 'Results', icon: '📊' },
   { to: '/assistant', label: 'Assistant', icon: '💬' },
   // Prepare retired from the spine; the audit log now lives in Settings.
   { to: '/settings', label: 'Settings', icon: '⚙' },
@@ -418,6 +422,7 @@ export function CommandCenterPage() {
         </a>
       </div>
       <RoleFocus />
+      <FleetOperations compact />
 
       {alerts.length > 0 && (
         <div id="cc-alerts" className="card" style={{ marginTop: '1rem' }}>
@@ -473,11 +478,9 @@ export function CommandCenterPage() {
       {impact.length > 0 && (
         <div className="card" style={{ marginTop: '1rem' }}>
           <div className="card-head">
-            <div className="section-title">
-              💥 Steps that floored the target · what actually hurt
-            </div>
+            <div className="section-title">💥 Observed probe degradation</div>
             <AiSupportButton
-              title="Steps that floored the target"
+              title="Observed probe degradation"
               context="the Command Center list of the test steps that broke the target — vector, breaking RPS, availability and whether it was auto-killed."
             />
           </div>
@@ -493,6 +496,7 @@ export function CommandCenterPage() {
                 >
                   <span className="impact-name">{shortStepName(im.name)}</span>
                   <span className="impact-chips">
+                    {im.uncertain && <span className="impact-chip">uncertain attribution</span>}
                     {im.breakingRps != null && (
                       <span className="impact-chip broke">broke @ {im.breakingRps} rps</span>
                     )}
@@ -934,8 +938,8 @@ export function SuiteRunBanner() {
   const app = useApp();
   // Two-step flow: a CISO approves, an engineer runs. Both can drive a live
   // sequence's pause/cancel controls.
-  const canApprove = canDo(app.role, 'approve', app.authRequired);
-  const canExec = canDo(app.role, 'execute', app.authRequired);
+  const canApprove = canDo(app.role, 'approve', app.authRequired, app.userMode, app.capabilities);
+  const canExec = canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
   const canRun = canApprove || canExec;
   const [busy, setBusy] = useState<string | null>(null);
   const [sequences, setSequences] = useState<Record<string, SuiteSequenceState>>({});
@@ -1023,7 +1027,27 @@ export function SuiteRunBanner() {
                         onClick={() =>
                           act(
                             g.suiteId,
-                            () => api.runSuite(g.suiteId),
+                            () => {
+                              if (
+                                app.approvalPolicy === 'confirmation' &&
+                                !window.confirm(
+                                  `Run ${g.suiteName}?\n${g.members
+                                    .filter(
+                                      (m) =>
+                                        m.status === 'APPROVED' || m.status === 'PENDING_APPROVAL',
+                                    )
+                                    .map(
+                                      (m) =>
+                                        `${m.target}: ${m.maxRps} RPS, ${m.concurrency} concurrent, ${m.maxDurationSec}s`,
+                                    )
+                                    .join('\n')}`,
+                                )
+                              )
+                                return Promise.resolve();
+                              return app.approvalPolicy === 'confirmation'
+                                ? api.runSuite(g.suiteId, true)
+                                : api.runSuite(g.suiteId);
+                            },
                             'Assessment started — approved steps run in order.',
                           )
                         }
@@ -1206,7 +1230,10 @@ function SuiteStepRow({
   // stalled suite is never a dead end. Hidden while the sequence is live (the
   // backend refuses a manual run then anyway).
   const canRelaunch =
-    m.status === 'APPROVED' && !suiteRunning && canDo(app.role, 'execute', app.authRequired);
+    (m.status === 'APPROVED' ||
+      (app.approvalPolicy === 'confirmation' && m.status === 'PENDING_APPROVAL')) &&
+    !suiteRunning &&
+    canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
   return (
     <div className={`suite-step-row ${SUITE_STEP_CLASS[m.status] ?? ''}`}>
       <button className="ssr-main" onClick={() => app.openDetail(m)} title="Open step details">
@@ -1220,17 +1247,20 @@ function SuiteStepRow({
         {canRelaunch && (
           <button
             className="btn btn-sm btn-primary"
-            onClick={() => app.execute(m)}
+            onClick={() =>
+              app.approvalPolicy === 'confirmation' ? app.setConfirmExec(m) : app.execute(m)
+            }
             title="Launch this approved step (the sequence stopped — run the remaining step)"
           >
             ▶ Run step
           </button>
         )}
-        {m.status === 'RUNNING' && canDo(app.role, 'kill', app.authRequired) && (
-          <button className="btn btn-sm btn-danger" onClick={() => app.kill(m)}>
-            Kill
-          </button>
-        )}
+        {m.status === 'RUNNING' &&
+          canDo(app.role, 'kill', app.authRequired, app.userMode, app.capabilities) && (
+            <button className="btn btn-sm btn-danger" onClick={() => app.kill(m)}>
+              Kill
+            </button>
+          )}
         {m.runId && (
           <a
             className="btn btn-sm btn-ghost"
@@ -1248,10 +1278,10 @@ function SuiteStepRow({
 
 function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const app = useApp();
-  const canArchive = canDo(app.role, 'create', app.authRequired);
+  const canArchive = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
   // Two-step flow: a CISO approves the scenario, then an engineer runs it.
-  const canApprove = canDo(app.role, 'approve', app.authRequired);
-  const canExec = canDo(app.role, 'execute', app.authRequired);
+  const canApprove = canDo(app.role, 'approve', app.authRequired, app.userMode, app.capabilities);
+  const canExec = canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
   const t = useMemo(() => suiteTiming(g.members), [g.members]);
   const agg = useMemo(() => suiteWrs(g.members), [g.members]);
   const active = g.remaining > 0;
@@ -1266,6 +1296,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   // counterpart to a single campaign's Approve/Reject, so both offer the same
   // governance actions.
   const [decideOpen, setDecideOpen] = useState(false);
+  const [confirmRun, setConfirmRun] = useState(false);
   const [reason, setReason] = useState('');
   const closeDecide = () => {
     setDecideOpen(false);
@@ -1296,7 +1327,13 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
     closeDecide();
   };
   const runScenario = () =>
-    act(() => api.runSuite(g.suiteId), 'Assessment started — approved steps run in order.');
+    act(
+      () =>
+        app.approvalPolicy === 'confirmation'
+          ? api.runSuite(g.suiteId, true)
+          : api.runSuite(g.suiteId),
+      'Assessment started — confirmed steps run in order.',
+    );
 
   return (
     <div className={`suite-group${allArchived ? ' is-archived' : ''}`}>
@@ -1321,7 +1358,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           </span>
         )}
         <div className="suite-group-actions">
-          {canApprove && g.pending > 0 && !sequencing && (
+          {app.approvalPolicy !== 'confirmation' && canApprove && g.pending > 0 && !sequencing && (
             <button
               className="btn btn-sm btn-primary"
               disabled={localBusy}
@@ -1331,16 +1368,23 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               {localBusy ? <span className="spin" /> : null}Approve / Reject ({g.pending})
             </button>
           )}
-          {canExec && g.pending === 0 && approvedRemaining > 0 && !sequencing && (
-            <button
-              className="btn btn-sm btn-primary"
-              disabled={localBusy}
-              onClick={runScenario}
-              title="Run the approved steps of the assessment in order"
-            >
-              {localBusy ? <span className="spin" /> : null}▶ Run assessment ({approvedRemaining})
-            </button>
-          )}
+          {canExec &&
+            (app.approvalPolicy === 'confirmation'
+              ? g.remaining > 0
+              : g.pending === 0 && approvedRemaining > 0) &&
+            !sequencing && (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={localBusy}
+                onClick={() =>
+                  app.approvalPolicy === 'confirmation' ? setConfirmRun(true) : runScenario()
+                }
+                title="Run the approved steps of the assessment in order"
+              >
+                {localBusy ? <span className="spin" /> : null}▶ Run assessment (
+                {app.approvalPolicy === 'confirmation' ? g.remaining : approvedRemaining})
+              </button>
+            )}
           {g.done > 0 && (
             <a
               className="btn btn-sm btn-ghost"
@@ -1411,6 +1455,36 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
           }))}
         />
       )}
+      {confirmRun && (
+        <Modal label="Confirm assessment" onClose={() => setConfirmRun(false)}>
+          <h3>Confirm assessment — {g.suiteName}</h3>
+          <p>Run the following steps in order. The kill switch stays available.</p>
+          <ul>
+            {g.members
+              .filter((m) => m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED')
+              .map((m) => (
+                <li key={m.id}>
+                  {m.target}: {m.maxRps} RPS, {m.concurrency} concurrent, {m.maxDurationSec}s
+                </li>
+              ))}
+          </ul>
+          <div className="btn-row">
+            <button className="btn" onClick={() => setConfirmRun(false)}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={localBusy}
+              onClick={() => {
+                setConfirmRun(false);
+                void runScenario();
+              }}
+            >
+              Run now
+            </button>
+          </div>
+        </Modal>
+      )}
       {decideOpen && (
         <Modal label="Approve or reject assessment" onClose={closeDecide}>
           <h3>Approve or reject — {g.suiteName}</h3>
@@ -1446,9 +1520,11 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
 /** The "Launch" surface of the Campaigns workspace: the guided wizard (or the
  *  classic form when a preset is queued from the guide). */
 export function CampaignLaunch() {
+  const [launchParams] = useSearchParams();
+  const fleetLaunch = launchParams.get('engine') === 'fleet';
   const app = useApp();
-  const canCreate = canDo(app.role, 'create', app.authRequired);
-  const [showForm, setShowForm] = useState(false);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
+  const [showForm, setShowForm] = useState(fleetLaunch);
   // Open the form automatically when a preset is queued from the guide, or a
   // replay seed is queued from a completed run's conclusions.
   useEffect(() => {
@@ -1473,6 +1549,13 @@ export function CampaignLaunch() {
   // form through the same `initial` prop — no in-form effect, no self-clearing.
   const seed =
     app.draftCampaign ?? (app.draftPreset ? presetSeed(app.draftPreset, app.agents) : null);
+  if (app.drsWorkflow && !seed?.drsProfileId)
+    return (
+      <DrsCatalogPanel
+        target={launchParams.get('target') ?? ''}
+        deviceIds={launchParams.get('devices')?.split(',').filter(Boolean)}
+      />
+    );
   return (
     <>
       {!showForm && (
@@ -1488,10 +1571,15 @@ export function CampaignLaunch() {
       )}
       {showForm &&
         (seed ? (
-          <NewCampaignForm initial={seed} onDone={closeForm} />
+          <NewCampaignForm key={JSON.stringify(seed)} initial={seed} onDone={closeForm} />
         ) : (
           // The single recon-first creation flow.
-          <ReconFirstCreate onDone={closeForm} />
+          <ReconFirstCreate
+            onDone={closeForm}
+            preferredAgent={fleetLaunch ? 'fleet' : undefined}
+            preferredDevices={launchParams.get('devices')?.split(',').filter(Boolean)}
+            initialTarget={launchParams.get('target') ?? undefined}
+          />
         ))}
     </>
   );
@@ -1673,6 +1761,7 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
             <SortTh k="status" label="Status" />
             <SortTh k="wrs" label="WRS" cls="ct-num" />
             <th className="ct-th">Target</th>
+            <th className="ct-th">Execution</th>
             <SortTh k="created" label="Created" cls="ct-created" />
           </tr>
         </thead>
@@ -1727,13 +1816,24 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
                     )}
                   </td>
                   <td className="ct-target" title={r.target}>
-                    {hostOf(r.target) ?? r.target}
+                    {r.campaign?.drsMode === 'engine-validation'
+                      ? 'Virtual scope'
+                      : (hostOf(r.target) ?? r.target)}
+                  </td>
+                  <td>
+                    {r.campaign?.drsMode === 'engine-validation'
+                      ? 'Simulation · no traffic'
+                      : r.campaign?.agent === 'fleet'
+                        ? `${r.campaign.drsProfileId ? 'DRS · ' : ''}IoT Fleet · ${r.campaign.fleetDeviceIds?.length ?? 3} agents`
+                        : r.kind === 'suite'
+                          ? 'Assessment suite'
+                          : `Local generator · ${r.campaign?.agent || 'server default'}`}
                   </td>
                   <td className="ct-created">{fmtRowDate(r.createdMs)}</td>
                 </tr>
                 {isOpen && (
                   <tr className="ct-detail">
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       {r.kind === 'suite' && r.suite ? (
                         <SuiteGroupCard g={r.suite} />
                       ) : r.campaign ? (
@@ -2155,7 +2255,10 @@ export function GapPlannerSection() {
                 </div>
                 <button
                   className="btn btn-primary"
-                  disabled={creating || !canDo(app.role, 'create', app.authRequired)}
+                  disabled={
+                    creating ||
+                    !canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities)
+                  }
                   onClick={createFromPlan}
                 >
                   {creating
@@ -2346,7 +2449,11 @@ export function AccountPage() {
             {app.authRequired && id ? (
               <>
                 <span className={`role-chip role-${id.role}`}>{roleLabel[id.role]}</span>
-                <p className="hint account-role-desc">{roleDescription[id.role]}</p>
+                <p className="hint account-role-desc">
+                  {app.approvalPolicy === 'confirmation'
+                    ? 'Owner administrator — manage accounts, targets, campaigns, reports and operational limits.'
+                    : roleDescription[id.role]}
+                </p>
               </>
             ) : (
               <p className="hint">Dev mode — authentication is disabled on this control plane.</p>
@@ -2366,6 +2473,14 @@ export function AccountPage() {
               Change your password — this signs out your other active sessions.
             </p>
             <ChangePasswordForm />
+            <button
+              className="btn"
+              onClick={() =>
+                void app.revokeOwnSessions().catch((err: Error) => app.push('error', err.message))
+              }
+            >
+              Revoke other sessions
+            </button>
           </section>
         ) : (
           <section className="card">

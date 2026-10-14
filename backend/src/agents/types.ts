@@ -14,6 +14,12 @@ import type { LoadProgress } from '../engine/loadTest.js';
 /** Operational agent error (e.g. external tool unavailable) → 503. */
 export class AgentError extends Error {}
 
+/** Prepared without target traffic; run starts the bounded measurement window once. */
+export interface PreparedLoadRun {
+  run(onProgress?: (p: LoadProgress) => void): Promise<LoadTestResult>;
+  dispose(): Promise<void>;
+}
+
 export interface AttackAgent {
   readonly name: string;
   /** Whether the agent supports bounded multi-phase scenarios (ramp/waves). */
@@ -31,6 +37,12 @@ export interface AttackAgent {
   readonly description: string;
   /** Whether the agent is usable in the current environment. */
   available(): Promise<boolean>;
+  /** Optional cancellable preflight (compilation/runtime readiness), before the load probe. */
+  prepare?(
+    config: LoadTestConfig,
+    allowedHosts: string[],
+    killSignal?: AbortSignal,
+  ): Promise<PreparedLoadRun>;
   run(
     config: LoadTestConfig,
     allowedHosts: string[],

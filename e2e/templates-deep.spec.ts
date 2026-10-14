@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login, goTo } from './helpers.js';
+import { login, goTo, SELF } from './helpers.js';
 
 // Deep coverage of the Templates tab controls the other specs don't drive: the
 // custom-template create → save → expand → delete lifecycle, the single-template
@@ -66,8 +66,7 @@ test('templates: custom-template delete Cancel keeps the template', async ({ pag
 test('templates: launch a single template against an allowlisted target', async ({ page }) => {
   await login(page, 'engineer');
   await openTemplates(page);
-  // Pick an allowlisted target via the launch-bar chip.
-  await page.locator('.tpl-launchbar .allowed-chips .chip-xs').first().click();
+  await page.locator('.tpl-launchbar').getByRole('textbox').fill(SELF);
   // Expand the first template row and launch it.
   const row = page.locator('details.tpl-row').first();
   await row.locator('summary').click();
@@ -96,7 +95,7 @@ test('templates: compose basket — select two, remove one via its chip ×, name
   await login(page, 'engineer');
   await openTemplates(page);
   // Need an allowlisted target for the compose button to enable.
-  await page.locator('.tpl-launchbar .allowed-chips .chip-xs').first().click();
+  await page.locator('.tpl-launchbar').getByRole('textbox').fill(SELF);
   const boxes = page.locator('input[aria-label^="Select "]');
   await boxes.nth(0).check();
   await boxes.nth(1).check();

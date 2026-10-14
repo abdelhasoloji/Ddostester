@@ -20,7 +20,7 @@ describe('buildK6Script', () => {
     expect(s).toContain("executor: 'constant-arrival-rate'");
     expect(s).toContain('rate: 50');
     expect(s).toContain("duration: '10s'");
-    expect(s).toContain('http.request("GET", "http://127.0.0.1/health"');
+    expect(s).toContain('_request("GET", "http://127.0.0.1/health"');
     expect(s).toContain('X-WEDOS-TEST');
   });
   it('spreads over a recon-seeded endpoint set (random pick per iteration)', () => {
@@ -33,7 +33,7 @@ describe('buildK6Script', () => {
     expect(s).toContain('http://127.0.0.1/login');
     expect(s).toContain('http://127.0.0.1/api/reset');
     expect(s).toContain('Math.random()');
-    expect(s).toContain('http.request("POST"');
+    expect(s).toContain('_request("POST"');
     expect(s).not.toContain('"http://127.0.0.1/health"'); // root not used with endpoints
   });
   it('generates ramping phases when a scenario is given', () => {
@@ -50,14 +50,14 @@ describe('buildK6Script', () => {
   });
   it('sends a body for POST', () => {
     const s = buildK6Script({ ...cfg, method: 'POST', body: '{"a":1}' });
-    expect(s).toContain('http.request("POST", "http://127.0.0.1/health"');
+    expect(s).toContain('_request("POST", "http://127.0.0.1/health"');
     expect(s).toContain('{\\"a\\":1}');
   });
 
   it('wraps the URL in the _cb() cache-buster when cacheBust is set', () => {
     const s = buildK6Script({ ...cfg, cacheBust: true });
     expect(s).toContain('const _cb ='); // helper injected
-    expect(s).toContain('http.request("GET", _cb("http://127.0.0.1/health")');
+    expect(s).toContain('_request("GET", _cb("http://127.0.0.1/health")');
   });
   it('has no cache-buster when the flag is off', () => {
     const s = buildK6Script(cfg);
@@ -118,14 +118,48 @@ describe('buildK6Script', () => {
     });
     // 60 rps / 3 steps = 20 iterations/s → ~60 requests/s total.
     expect(s).toContain('rate: 20');
-    expect(s).toContain('http.request("GET", "http://127.0.0.1/a"');
-    expect(s).toContain('http.request("POST", "http://127.0.0.1/b"');
+    expect(s).toContain('_request("GET", "http://127.0.0.1/a"');
+    expect(s).toContain('_request("POST", "http://127.0.0.1/b"');
     expect(s).toContain('sleep(0.500)');
     expect(s).toContain("import { sleep } from 'k6'");
   });
 });
 
 describe('parseK6Summary', () => {
+  it('counts started attempts even when deadline interruption omits an HTTP completion', () => {
+    const result = parseK6Summary(
+      {
+        metrics: {
+          ddostester_requests_started: { count: 7, rate: 2 },
+          ddostester_requests_successful: { count: 5 },
+          http_reqs: { count: 6, rate: 1.8 },
+          http_req_failed: { value: 1 / 6 },
+        },
+      },
+      { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' },
+    );
+    expect(result.totalRequests).toBe(7);
+    expect(result.successful).toBe(5);
+    expect(result.failed).toBe(2);
+    expect(result.finalizedRequests).toBe(6);
+    expect(result.unfinalizedRequests).toBe(1);
+    expect(result.actualRps).toBe(2);
+  });
+
+  it('rejects successful counters exceeding started attempts', () => {
+    expect(() =>
+      parseK6Summary(
+        {
+          metrics: {
+            ddostester_requests_started: { count: 1 },
+            ddostester_requests_successful: { count: 2 },
+          },
+        },
+        { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' },
+      ),
+    ).toThrow();
+  });
+
   it('maps k6 metrics into a LoadTestResult', () => {
     const summary = {
       metrics: {

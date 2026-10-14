@@ -1,0 +1,39 @@
+rule_files:
+  - lab.rules.yml
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: 'up{job="lab-control",instance="lab-control:8080"}'
+        values: '1+0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabControlScrapeUnavailable
+        exp_alerts: []
+  - interval: 15s
+    input_series:
+      - series: 'up{job="lab-control",instance="lab-control:8080"}'
+        values: '0+0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabControlScrapeUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: lab-control
+              instance: lab-control:8080
+              severity: warning
+              environment: private-kubernetes-lab
+            exp_annotations:
+              summary: Dedicated lab control metrics unavailable for at least one minute
+  - interval: 15s
+    input_series: []
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabControlScrapeUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: lab-control
+              severity: warning
+              environment: private-kubernetes-lab
+            exp_annotations:
+              summary: Dedicated lab control metrics unavailable for at least one minute

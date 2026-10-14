@@ -24,22 +24,22 @@ describe('wrsClass', () => {
 
 describe('protectionBadgeTitle (E12 — vector-aware)', () => {
   const eng = { sent: 100, failed: 40, statusCounts: {}, probe: { samples: 10, available: 10 } };
-  it('frames a flood as request absorption', () => {
+  it('describes request failures without inferring edge absorption', () => {
     const t = protectionBadgeTitle(false, 40, eng as never, 'http-get');
-    expect(t).toMatch(/absorbing 40% of the offered load/);
-    expect(t).toMatch(/requests never reached/);
+    expect(t).toMatch(/Generator failures: 40%/);
+    expect(t).toMatch(/require corroborating telemetry/);
     expect(t).not.toMatch(/connections/);
   });
   it('frames slowloris as connections shed, not requests', () => {
     const t = protectionBadgeTitle(false, 40, eng as never, 'http-slowloris');
-    expect(t).toMatch(/shedding slow connections/);
-    expect(t).toMatch(/40 of 100 opened connections dropped/);
-    expect(t).toMatch(/correct defense against a slow-header attack/);
-    expect(t).not.toMatch(/requests never reached/);
+    expect(t).toMatch(/Slow connections/);
+    expect(t).toMatch(/100 opened, 40 closed/);
+    expect(t).toMatch(/Independent probe availability: 100%/);
+    expect(t).not.toMatch(/Generator failures/);
   });
   it('slowloris low-shed message talks about held connections', () => {
     const t = protectionBadgeTitle(false, 5, { ...eng, failed: 5 } as never, 'http-slowloris');
-    expect(t).toMatch(/holding 95 of 100 slow connections/);
+    expect(t).toMatch(/100 opened, 5 closed/);
   });
 });
 
@@ -123,8 +123,8 @@ describe('protectionBadgeTitle — target overwhelmed', () => {
       } as never,
       'http-get',
     );
-    expect(t).toMatch(/Target overwhelmed/);
-    expect(t).toMatch(/origin failing under load/);
+    expect(t).toMatch(/Independent probe availability: 0%/);
+    expect(t).toMatch(/HTTP 5xx: 100/);
     expect(t).not.toMatch(/protection working/);
   });
 
@@ -140,8 +140,8 @@ describe('protectionBadgeTitle — target overwhelmed', () => {
       } as never,
       'http-get',
     );
-    expect(t).toMatch(/Origin overwhelmed/);
-    expect(t).toMatch(/never by\s+5xx|not an edge/i);
+    expect(t).toMatch(/HTTP 5xx: 680/);
+    expect(t).toMatch(/require corroborating telemetry/i);
     expect(t).not.toMatch(/Protection engaging/);
   });
 });

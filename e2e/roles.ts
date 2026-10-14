@@ -2,7 +2,7 @@
 // playwright.config.ts (AUTH_USERS); keep the two in sync.
 export const ROLES = {
   engineer: { email: 'eng@wedos', password: 'engineer-pass' },
-  officer: { email: 'off@wedos', password: 'officer-pass' }, // → admin (user mgmt, limits)
+  admin: { email: 'abdelha@wedos', password: 'officer-pass' }, // isolated test owner
   ciso: { email: 'ciso@wedos', password: 'ciso-pass' }, // the approver
   viewer: { email: 'view@wedos', password: 'viewer-pass' },
 } as const;

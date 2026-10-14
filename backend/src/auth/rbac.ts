@@ -2,7 +2,7 @@
  * Roles. Four effective roles with clean separation of duties:
  *  - engineer : creates a campaign AND launches (executes) an approved one.
  *  - ciso     : views + VALIDATES (approves) campaigns; governs the class-C bench.
- *  - admin    : views + ADMINISTERS the platform (users, operational limits).
+ *  - admin    : has all capabilities; workflow policy still governs each launch.
  *  - viewer   : views only.
  *
  * `officer` is a legacy alias kept for backward compatibility — existing users
@@ -49,10 +49,7 @@ export type Permission =
   // must differ from the requester (enforced in targets/model.ts).
   | 'target:authorize';
 
-// Authoritative permission matrix — enforced on every request by `can()`. The
-// frontend keeps a UX-only mirror (`PERMS` in frontend/src/context.tsx) that
-// hides controls; it is not a security boundary. Keep the two in step
-// (frontend/src/rbac-mirror.test.ts locks them together).
+// Authoritative API permission matrix. The frontend consumes issued capabilities.
 const MATRIX: Record<Role, Permission[]> = {
   // Operator: creates campaigns and launches approved ones. Does NOT approve
   // (separation of duties — the CISO validates).
@@ -77,24 +74,37 @@ const MATRIX: Record<Role, Permission[]> = {
     'bench:attest',
     'target:authorize',
   ],
-  // Platform administration: manages users and the operational limits. NOT an
-  // operator and NOT an approver (separation of administration from operations
-  // and validation).
+  // Complete administrator capabilities; approval/confirmation policy is enforced separately.
   admin: [
     'campaign:read',
+    'campaign:create',
+    'campaign:approve',
+    'campaign:ciso-approve',
+    'campaign:execute',
     'campaign:kill',
     'user:manage',
     'limits:manage',
+    'bench:read',
+    'bench:dispatch',
+    'bench:attest',
     'assistant:manage',
     'target:manage',
+    'target:authorize',
   ],
   // Read-only (SOC/NOC).
   viewer: ['campaign:read'],
 };
 
-export function can(role: Role, perm: Permission): boolean {
+export function can(role: Role, perm: Permission, userMode: 'team' | 'single' = 'team'): boolean {
+  void userMode;
   return MATRIX[role]?.includes(perm) ?? false;
 }
+
+/** Capabilities returned to clients; the API remains the enforcement boundary. */
+export function permissionsFor(role: Role): Permission[] {
+  return [...MATRIX[role]];
+}
+export const ACCESS_CONTRACT_VERSION = 1;
 
 export function isRole(x: string): x is Role {
   return (ROLES as readonly string[]).includes(x);

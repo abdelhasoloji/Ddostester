@@ -22,7 +22,7 @@ describe('API — auth disabled', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: allowed,
       logger: false,
       serveStatic: false,
@@ -159,7 +159,7 @@ describe('API — concurrency guard', () => {
   it('rejects execution with 429 when at the concurrent-run cap', async () => {
     const { app } = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: allowed,
       logger: false,
       serveStatic: false,
@@ -200,7 +200,11 @@ describe('API — auth + RBAC enabled', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv),
+      auth: initAuth({
+        USER_MODE: 'team',
+        AUTH_JWT_SECRET: 'sek',
+        AUTH_USERS: users,
+      } as NodeJS.ProcessEnv),
       allowedTargets: allowed,
       logger: false,
       serveStatic: false,
@@ -288,7 +292,11 @@ describe('API — user management (admin only)', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({ AUTH_JWT_SECRET: 'sek', AUTH_USERS: users } as NodeJS.ProcessEnv),
+      auth: initAuth({
+        USER_MODE: 'team',
+        AUTH_JWT_SECRET: 'sek',
+        AUTH_USERS: users,
+      } as NodeJS.ProcessEnv),
       allowedTargets: allowed,
       logger: false,
       serveStatic: false,

@@ -37,3 +37,11 @@ describe('reconcileOrphanedRuns', () => {
     expect((await store.getCampaign('pend'))?.status).toBe('PENDING_APPROVAL');
   });
 });
+
+it('never makes an interrupted fleet eligible for automatic replay', async () => {
+  const store = new MemoryStore();
+  await store.saveCampaign({ ...campaign('fleet', 'RUNNING'), agent: 'fleet' });
+  await reconcileOrphanedRuns(store);
+  expect((await store.getCampaign('fleet'))?.status).toBe('CANCELLED');
+  expect((await store.listAuditChain()).some((e) => e.action === 'campaign.reconcile')).toBe(true);
+});

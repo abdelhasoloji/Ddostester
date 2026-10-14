@@ -75,7 +75,7 @@ ws["A1"] = "WEDOS ShieldTest — Project CMDB"
 ws["A1"].font = title_font
 rows = [
     ("Purpose", "Single source of truth for everything that must be preserved for the ShieldTest engagement: hosts, network, repos, endpoints, env, and a secrets REGISTRY (names/locations only — never values)."),
-    ("Project", "WEDOS ShieldTest — DDoS-resilience control plane. Engagement: rehearse the zeroBS L7 playbook (P26-20371) against the authorized target bank.cz and tune WEDOS mitigation rules."),
+    ("Project", "WEDOS ShieldTest — DDoS-resilience control plane. Engagement: rehearse the DRS L7 playbook (P26-20371) against the authorized target bank.cz and tune WEDOS mitigation rules."),
     ("Security boundary", "Bounded, allowlisted, authorized, capped HTTP only. No exploit / amplification / spoofing / evasion. Class-C volumetric on the isolated lab runner only. Never hit ENISA production."),
     ("5-phase model", "Recon -> Plan -> Execute -> Measure -> Report (bounded analogues for phases 3-4). See docs/measurement.md."),
     ("SECRETS RULE", "This workbook stores NO secret values. The 'Secrets Registry' sheet lists what exists and where it is kept (password manager). Rotate the WEDOS root passwords after first login."),
@@ -246,7 +246,7 @@ sheet(
         ["Target", "bank.cz (authorized external/internal test target)"],
         ["Allowlist", "ALLOWED_TARGETS=bank.cz"],
         ["Protection under test", "WEDOS (scrubbing / edge)"],
-        ["Reference playbook", "zeroBS Playbook P26-20371 (ENISA/CRA portal, DRS v3, L7)"],
+        ["Reference playbook", "DRS Playbook P26-20371 (ENISA/CRA portal, DRS v3, L7)"],
         ["ShieldTest playbook", "pretest-cra-l7 — 12 bounded L7 steps, DRS 3->5 (coverage 12/14)"],
         ["Out of model (attested)", "HPACK bomb, WAF-cracker, credential brute-force, L3/4 handshake (bench)"],
         ["DRS target cap", "4.5 (customer-defined targets capped)"],

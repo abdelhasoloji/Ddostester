@@ -58,15 +58,15 @@ describe('url builders', () => {
     expect(streamUrl('c1')).toBe('/api/campaigns/c1/stream');
     expect(auditExportUrl()).toBe('/api/audit/export');
   });
-  it('append the encoded token when authenticated', () => {
+  it('never expose the session token in a browser URL', () => {
     setToken('t k'); // a space exercises encodeURIComponent
-    expect(reportUrl('r1')).toBe('/api/runs/r1/report?token=t%20k');
-    expect(runsCsvUrl()).toBe('/api/runs.csv?token=t%20k');
-    expect(runTimelineCsvUrl('r1')).toBe('/api/runs/r1/timeline.csv?token=t%20k');
-    expect(complianceUrl()).toBe('/api/reports/compliance?token=t%20k');
-    expect(suiteReportUrl('s1')).toBe('/api/suites/s1/report?token=t%20k');
-    expect(streamUrl('c1')).toBe('/api/campaigns/c1/stream?token=t%20k');
-    expect(auditExportUrl()).toBe('/api/audit/export?token=t%20k');
+    expect(reportUrl('r1')).toBe('/api/runs/r1/report');
+    expect(runsCsvUrl()).toBe('/api/runs.csv');
+    expect(runTimelineCsvUrl('r1')).toBe('/api/runs/r1/timeline.csv');
+    expect(complianceUrl()).toBe('/api/reports/compliance');
+    expect(suiteReportUrl('s1')).toBe('/api/suites/s1/report');
+    expect(streamUrl('c1')).toBe('/api/campaigns/c1/stream');
+    expect(auditExportUrl()).toBe('/api/audit/export');
   });
 });
 

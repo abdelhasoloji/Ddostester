@@ -180,7 +180,7 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
                     <div className="preset-est">
                       ≈ {formatCount(estimatedRequests(p.maxRps, p.maxDurationSec, p.profile))}{' '}
                       requests · engine <b>{p.recommendedAgent}</b>
-                      {eng && !eng.available ? ' (not installed → default)' : ''}
+                      {eng && !eng.available ? ' (unavailable — execution blocked)' : ''}
                     </div>
                     <button className="btn btn-primary btn-sm" onClick={() => use(p)}>
                       Use this preset →

@@ -96,7 +96,7 @@ describe('canDo', () => {
     expect(canDo(null, 'approve', false)).toBe(true);
   });
   it('enforces the role matrix when auth is on', () => {
-    expect(canDo('ciso', 'approve', true)).toBe(true);
+    expect(canDo('ciso', 'approve', true, 'team', ['campaign:approve'])).toBe(true);
     expect(canDo('engineer', 'approve', true)).toBe(false);
     expect(canDo('viewer', 'create', true)).toBe(false);
     expect(canDo(null, 'kill', true)).toBe(false);

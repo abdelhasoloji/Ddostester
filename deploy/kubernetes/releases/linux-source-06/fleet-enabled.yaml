@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-control
+spec:
+  template:
+    spec:
+      containers:
+        - name: control
+          env:
+            - { name: FLEET_ENABLED, value: '1' }
+            - { name: FLEET_AGENT_IMAGE, value: UNRESOLVED_AGENT_IMAGE }

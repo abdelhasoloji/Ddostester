@@ -85,7 +85,7 @@ describe('renderSuiteReportHtml', () => {
     ]);
     const html = renderSuiteReportHtml(s);
     expect(html).toContain('L7 resilience'); // report title (target-named, no "Pre-test")
-    expect(html).toContain('DDoS resilience assessment'); // zeroBS-style cover
+    expect(html).toContain('DDoS resilience assessment'); // DRS-style cover
     expect(html).toContain('staging.example.com');
     expect(html).toContain('75'); // avg of 90 and 60
     expect(html).toContain('worst C'); // worst level

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-control
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: lab-control }
+  template:
+    metadata:
+      labels: { app: lab-control }
+    spec:
+      serviceAccountName: lab-orchestrator
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: control
+          image: ddostester-lab-control:local
+          imagePullPolicy: Never
+          env:
+            - name: HOST
+              valueFrom:
+                fieldRef: { fieldPath: status.podIP }
+            - { name: PORT, value: '8080' }
+            - { name: USER_MODE, value: single }
+            - { name: SINGLE_USER_EMAIL, value: abdelha@wedos }
+            - { name: SCHEDULER, value: 'off' }
+            - { name: TARGET_TELEMETRY_METRICS_URL, value: 'http://lab-target:9101/metrics.json' }
+            - { name: PROBE_INTERVAL_MS, value: '1000' }
+            - { name: ALLOWED_TARGETS, value: lab-target }
+            - { name: PROBE_AGENT_URL, value: 'http://lab-probe:8099/probe' }
+            - name: PROBE_AGENT_TOKEN
+              valueFrom:
+                secretKeyRef: { name: probe-identity, key: token }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: lab-identities, key: database-url }
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: lab-identities, key: signing-secret }
+          ports: [{ containerPort: 8080 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: '1', memory: 1Gi }
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+        - name: loopback-access
+          image: ddostester-lab-control:local
+          imagePullPolicy: Never
+          command: [node, backend/dist/cli/loopback-proxy.js]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef: { fieldPath: status.podIP }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-control
+spec:
+  selector: { app: lab-control }
+  ports: [{ port: 8080, targetPort: 8080 }]

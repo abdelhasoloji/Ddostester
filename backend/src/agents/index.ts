@@ -1,3 +1,5 @@
+import { FleetHttpAgent } from './fleet.js';
+import { PersistentFleetHttpAgent } from './persistent-fleet.js';
 import { BuiltinHttpAgent } from './builtin.js';
 import { K6Agent } from './k6.js';
 import { VegetaAgent } from './vegeta.js';
@@ -5,6 +7,7 @@ import { LocustAgent } from './locust.js';
 import { JMeterAgent } from './jmeter.js';
 import { GatlingAgent } from './gatling.js';
 import type { AttackAgent } from './types.js';
+import { AgentError } from './types.js';
 
 export type { AttackAgent } from './types.js';
 
@@ -18,19 +21,41 @@ const FACTORIES: Record<string, () => AttackAgent> = {
   gatling: () => new GatlingAgent(),
 };
 
+if (process.env.FLEET_ENABLED === '1') FACTORIES.fleet = () => new FleetHttpAgent();
+if (process.env.FLEET_MISSIONS_ENABLED === '1')
+  FACTORIES.fleet = () => new PersistentFleetHttpAgent();
+
 /** Available load agent ids (all bounded HTTP load). */
 export const AGENTS: string[] = Object.keys(FACTORIES);
 
 /** Resolves an agent by id (e.g. 'k6'); undefined if unknown. */
 export function createAgent(id: string | undefined): AttackAgent | undefined {
   if (!id) return undefined;
+  if (id.toLowerCase() === 'fleet')
+    return process.env.FLEET_MISSIONS_ENABLED === '1'
+      ? new PersistentFleetHttpAgent()
+      : new FleetHttpAgent();
   const factory = FACTORIES[id.toLowerCase()];
   return factory ? factory() : undefined;
 }
 
 /** Selects the load agent based on AGENT (builtin by default). */
 export function selectAgent(env = process.env): AttackAgent {
-  return createAgent(env.AGENT ?? 'builtin') ?? new BuiltinHttpAgent();
+  const selected = createAgent(env.AGENT ?? 'builtin');
+  if (!selected) throw new AgentError('Configured agent is unknown');
+  return selected;
+}
+
+/** Explicit selections are never substituted with the server's default engine. */
+export async function resolveCampaignAgent(
+  id: string | undefined,
+  fallback: AttackAgent,
+): Promise<AttackAgent> {
+  const selected = id ? createAgent(id) : fallback;
+  if (!selected) throw new AgentError('Requested campaign agent is unknown');
+  if (!(await selected.available()))
+    throw new AgentError('Requested campaign agent is unavailable');
+  return selected;
 }
 
 export interface AgentInfo {

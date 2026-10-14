@@ -1,0 +1,22 @@
+[Unit]
+Description=Encrypted daily Ddostester database backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/etc/ddostester-backup.env
+StateDirectory=ddostester-backups
+StateDirectoryMode=0700
+RuntimeDirectory=ddostester-backup
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/flock -n /run/ddostester-backup/cycle.lock /usr/bin/node /usr/local/lib/ddostester-operations/backup-cycle.mjs
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/ddostester-backups /run/ddostester-backup
+TimeoutStartSec=660
+

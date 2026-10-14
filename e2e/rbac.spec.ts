@@ -20,12 +20,10 @@ test('engineer can create but cannot approve (C1)', async ({ page }) => {
   );
 });
 
-test('an admin (officer) has no create action — separation of administration (C2)', async ({
-  page,
-}) => {
-  await login(page, 'officer'); // officer → admin: manages users/limits, not campaigns
+test('the unique admin can create campaigns (C2)', async ({ page }) => {
+  await login(page, 'admin');
   await goTo(page, 'Campaigns');
-  await expect(page.getByRole('button', { name: /New campaign/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /New campaign/ })).toBeVisible();
 });
 
 test('a CISO approves an engineer-authored campaign — author ≠ approver (C3)', async ({

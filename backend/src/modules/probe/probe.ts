@@ -1,3 +1,5 @@
+import { probeChallenge, validateProbeFreshness, validateRemoteSample } from './remote.js';
+import { summarizeProbeQuality, type ProbeQuality } from './quality.js';
 /**
  * PROBE — legitimate probe (TSD §5.3). Measures the availability and latency of
  * an endpoint during a campaign, and drives the KILL SWITCH:
@@ -13,15 +15,17 @@
  */
 
 import { fetch as pooledFetch, Agent } from 'undici';
+import { readBoundedBody } from '../../util/http-body.js';
 import { analyzePosture } from '../posture/analyze.js';
 import type { PostureReport } from '../posture/analyze.js';
 import { detectEdgeError } from '../posture/edge-error.js';
 import type { EdgeErrorSignal } from '../posture/edge-error.js';
 import { percentile } from '../../engine/stats.js';
-import { PROBE_LIMITS } from '../../config/limits.js';
+import { PROBE_LIMITS, IO_LIMITS } from '../../config/limits.js';
 import type { ProbeLimits } from '../../config/limits.js';
 
 export interface ProbeSample {
+  quality?: ProbeQuality;
   at: number;
   ok: boolean;
   status: number;
@@ -33,6 +37,15 @@ export interface ProbeSample {
 export type ProbeHealth = 'ok' | 'degraded' | 'critical';
 
 export interface ProbeMetrics {
+  quality?: {
+    latest?: ProbeQuality;
+    measuredSamples: number;
+    totalSamples: number;
+    peakEventLoopDelayMs: number | null;
+    peakRecentEventLoopDelayMs?: number | null;
+    eventLoopMeasuredSamples?: number;
+    peakThrottledFraction: number | null;
+  };
   samples: number;
   available: number;
   errorRate5xx: number;
@@ -101,19 +114,9 @@ export class Probe {
    */
   readonly dispatcher = new Agent({ connections: 4 });
 
-  /**
-   * Optional corroboration hook: returns true when the LOAD GENERATOR is
-   * currently getting successful responses from the SAME target. When it is, a
-   * probe reading of "unavailable" is not a target outage — it is the probe's
-   * handful of connections losing the race to the flood at the target (observed
-   * live: a target serving 6000+ 2xx while the 4-connection probe read 0/4, which
-   * auto-killed the run and scored it WRS 41 D). In that state we must NOT
-   * auto-kill on availability — the target is provably up. Set by the runner.
-   */
-  private generatorSucceeding?: () => boolean;
-  /** Wire the live generator-health signal (see `generatorSucceeding`). */
-  watchGenerator(fn: () => boolean): void {
-    this.generatorSucceeding = fn;
+  /** Optional diagnostic hook; it NEVER affects safety thresholds. */
+  watchGenerator(_fn: () => boolean): void {
+    /* Backward-compatible no-op. */
   }
 
   constructor(
@@ -185,6 +188,7 @@ export class Probe {
     let ok = false;
     let status = 0;
     let latencyMs = 0;
+    let quality: ProbeQuality | undefined;
     try {
       const r = this.remote
         ? await this.acquireRemote(ac.signal, t0)
@@ -192,6 +196,7 @@ export class Probe {
       ok = r.ok;
       status = r.status;
       latencyMs = r.latencyMs;
+      quality = 'quality' in r ? (r.quality as ProbeQuality | undefined) : undefined;
       this.captureHeadersOnChange(status, r.headers);
       // On an ERROR status, decode a bounded slice to detect an edge-served error
       // page (origin buckling behind a healthy edge, a rate-limit or a challenge).
@@ -203,7 +208,13 @@ export class Probe {
     } finally {
       clearTimeout(timer);
     }
-    const sample: ProbeSample = { at: Date.now(), ok, status, latencyMs };
+    const sample: ProbeSample = {
+      at: Date.now(),
+      ok,
+      status,
+      latencyMs,
+      ...(quality ? { quality } : {}),
+    };
     this.samples.push(sample);
     this.evaluateAutoKill(sample);
   }
@@ -221,12 +232,22 @@ export class Probe {
   }> {
     // Dedicated dispatcher (see `dispatcher` field) so a saturated generator pool
     // can never starve the probe.
-    const res = await pooledFetch(this.url, { signal, dispatcher: this.dispatcher });
+    const res = await pooledFetch(this.url, {
+      signal,
+      dispatcher: this.dispatcher,
+      redirect: 'manual',
+    });
     // TTFB: measured the moment response headers arrive, BEFORE draining the body
     // — a measure of the server's responsiveness, not of the response size.
     const latencyMs = performance.now() - t0;
     // Drain the body (not timed) to release the socket.
-    const body = await res.arrayBuffer().catch(() => undefined);
+    const bytes = await readBoundedBody(
+      res.body as unknown as ReadableStream<Uint8Array>,
+      IO_LIMITS.responseBytes,
+      res.status >= 400,
+      MAX_EDGE_BODY_BYTES,
+    );
+    const body = bytes.buffer as ArrayBuffer;
     return {
       ok: res.ok,
       status: res.status,
@@ -250,32 +271,46 @@ export class Probe {
     ok: boolean;
     status: number;
     latencyMs: number;
+    quality?: ProbeQuality;
     headers?: Headers;
     body?: ArrayBuffer;
   }> {
     const remote = this.remote!;
+    const challenge = probeChallenge();
     const res = await pooledFetch(remote.agentUrl, {
       method: 'POST',
+      redirect: 'error',
       signal,
       dispatcher: this.dispatcher,
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${remote.token}`,
       },
-      body: JSON.stringify({ url: this.url, timeoutMs: this.timeoutMs }),
+      body: JSON.stringify({
+        url: this.url,
+        timeoutMs: this.timeoutMs,
+        schema: challenge.schema,
+        requestId: challenge.requestId,
+      }),
     });
     if (!res.ok) {
-      await res.arrayBuffer().catch(() => undefined);
+      await res.body?.cancel().catch(() => undefined);
       return { ok: false, status: 0, latencyMs: performance.now() - t0 };
     }
-    const j = (await res.json().catch(() => null)) as {
+    const j = JSON.parse(
+      new TextDecoder().decode(
+        await readBoundedBody(res.body as unknown as ReadableStream<Uint8Array>, 64 * 1024),
+      ),
+    ) as {
       ok?: boolean;
       status?: number;
       latencyMs?: number;
       headers?: Record<string, string>;
       bodySlice?: string;
     } | null;
-    if (!j) return { ok: false, status: 0, latencyMs: performance.now() - t0 };
+    validateProbeFreshness(j, challenge);
+    const verified = validateRemoteSample(j, this.timeoutMs);
+    if (!j) throw new Error('Invalid remote probe sample');
     const headers = j.headers ? new Headers(j.headers) : undefined;
     let body: ArrayBuffer | undefined;
     if (j.bodySlice) {
@@ -283,9 +318,7 @@ export class Probe {
       body = u8.buffer.slice(0, u8.byteLength);
     }
     return {
-      ok: !!j.ok,
-      status: typeof j.status === 'number' ? j.status : 0,
-      latencyMs: typeof j.latencyMs === 'number' ? j.latencyMs : performance.now() - t0,
+      ...verified,
       headers,
       body,
     };
@@ -353,16 +386,10 @@ export class Probe {
   }
 
   private evaluateAutoKill(sample: ProbeSample): void {
-    // Corroboration (PF1): if the load generator is concurrently getting
-    // successful responses from the same target, the target is provably UP — a
-    // probe "unavailable" here is the probe losing the connection race to the
-    // flood, not an outage. In that state NO auto-kill fires (it would stop a run
-    // the target is coping with and score it as a failure) and the
-    // consecutive-unavailable timer is not allowed to accrue. Samples are still
-    // recorded for reporting; only the KILL is suppressed.
-    const genOk = this.generatorSucceeding?.() ?? false;
+    // Generator outcomes never override independent safety thresholds.
+
     // Level 1a — consecutive unavailability.
-    if (sample.ok || genOk) {
+    if (sample.ok) {
       this.unavailableSince = null;
     } else {
       this.unavailableSince ??= sample.at;
@@ -371,7 +398,7 @@ export class Probe {
         return;
       }
     }
-    if (genOk) return; // target provably serving — never kill on availability/latency
+
     // Levels 1b / 1c — windowed availability, and opt-in windowed latency. Only
     // once a full window of history exists and it holds enough samples.
     const w = this.windowStats(sample.at);
@@ -404,7 +431,13 @@ export class Probe {
     const server5xx = this.samples.filter((s) => s.status >= 500).length;
     const lat = this.samples.map((s) => s.latencyMs).sort((a, b) => a - b);
     const w = this.windowStats(Date.now());
+    const quality = this.samples.flatMap((sample) => (sample.quality ? [sample.quality] : []));
     return {
+      ...(this.remote
+        ? {
+            quality: summarizeProbeQuality(quality, total),
+          }
+        : {}),
       samples: total,
       available,
       errorRate5xx: total ? Number(((server5xx / total) * 100).toFixed(2)) : 0,

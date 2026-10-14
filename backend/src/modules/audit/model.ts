@@ -4,6 +4,8 @@ export interface AuditEntry {
   at: string; // ISO
   actor: string; // authenticated email, or 'dev' if auth is disabled
   action:
+    | 'store.mutate'
+    | 'campaign.reconcile'
     | 'campaign.create'
     | 'campaign.approve'
     | 'campaign.ciso_approve'
@@ -14,13 +16,17 @@ export interface AuditEntry {
     | 'campaign.cancel'
     | 'campaign.archive'
     | 'campaign.purge'
+    | 'user.single_mode'
+    | 'campaign.confirm'
     | 'user.upsert'
     | 'user.delete'
     | 'user.status'
     | 'password.change'
     | 'password.reset'
+    | 'user.owner.recovered'
     | 'auth.login'
     | 'auth.logout'
+    | 'auth.sessions_revoke'
     | 'auth.login_locked'
     | 'playbook.upsert'
     | 'playbook.delete'

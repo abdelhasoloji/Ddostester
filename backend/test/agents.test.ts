@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import { latencyHistogram } from '../src/engine/stats.js';
+import { LATENCY_BUCKETS_MS } from '../src/config/limits.js';
 import {
   buildVegetaTarget,
   parseVegetaReport,
   mergeResults,
   VegetaLiveMeter,
+  phaseRemainingSec,
+  splitRate,
+  vegetaRateSpec,
+  vegetaEmissionWindowSec,
+  vegetaAttackArgs,
 } from '../src/agents/vegeta.js';
-import { buildLocustfile, parseLocustStats } from '../src/agents/locust.js';
+import { buildLocustfile, parseLocustFinal, parseLocustStats } from '../src/agents/locust.js';
 import { selectAgent, AGENTS } from '../src/agents/index.js';
 import type { LoadTestConfig } from '../src/engine/types.js';
 
@@ -26,12 +33,31 @@ const meta = {
 };
 
 describe('vegeta', () => {
+  it('skips sub-millisecond windows and never passes the unlimited zero duration', () => {
+    expect(vegetaEmissionWindowSec(2.0005, 0.5)).toBe(0);
+    expect(vegetaEmissionWindowSec(5, 0.5)).toBe(3);
+    expect(() => vegetaAttackArgs(cfg, 1, 0, '/tmp/targets')).toThrow('zero means unlimited');
+  });
+  it('preserves fractional aggregate rates rather than rounding them up', () => {
+    expect(splitRate(0.5, 2)).toEqual([0.5]);
+    expect(splitRate(15.4, 2).reduce((sum, rate) => sum + rate, 0)).toBeCloseTo(15.4);
+    expect(vegetaRateSpec(0.5)).toBe('1/2000000000ns');
+    expect(vegetaRateSpec(2)).toBe('2/1s');
+    expect(() => vegetaRateSpec(0)).toThrow();
+    expect(() => vegetaRateSpec(Infinity)).toThrow();
+  });
+  it('consumes draining and parsing time within the original phase windows', () => {
+    expect(phaseRemainingSec(1000, 1, 1000)).toBe(1);
+    expect(phaseRemainingSec(1000, 3, 2600)).toBeCloseTo(1.4);
+    expect(phaseRemainingSec(1000, 3, 4100)).toBe(0);
+    expect(phaseRemainingSec(1000, 3, 3999.9999)).toBe(0);
+  });
   it('builds the target with method, url and headers', () => {
     const t = buildVegetaTarget(cfg);
     expect(t).toContain('GET http://127.0.0.1/health');
     expect(t).toContain('X-WEDOS-TEST: abc');
   });
-  it('bounds attack memory (-max-body 0, -timeout) and sizes workers to the RATE', async () => {
+  it('bounds attack memory (-max-body 0, -timeout) and preserves the configured concurrency budget', async () => {
     const { vegetaAttackArgs } = await import('../src/agents/vegeta.js');
     const args = vegetaAttackArgs(
       { ...cfg, concurrency: 80, timeoutMs: 8000 },
@@ -41,10 +67,8 @@ describe('vegeta', () => {
     );
     expect(args).toContain('-max-body');
     expect(args[args.indexOf('-max-body') + 1]).toBe('0');
-    // Workers must sustain the rate against a slow target (≈ rate × timeout),
-    // NOT the campaign concurrency — capping at concurrency (80) throttled
-    // vegeta to ~10 rps on slow endpoints. 400 rps × 8 s = 3200.
-    expect(args[args.indexOf('-max-workers') + 1]).toBe('3200');
+    // Slow targets must under-deliver rather than exceed the concurrency budget.
+    expect(args[args.indexOf('-max-workers') + 1]).toBe('80');
     expect(args[args.indexOf('-timeout') + 1]).toBe('8s');
     expect(args).toContain('-rate');
     expect(args[args.indexOf('-rate') + 1]).toBe('400/1s');
@@ -62,7 +86,7 @@ describe('vegeta', () => {
       60,
       '/t/f.txt',
     );
-    expect(high[high.indexOf('-max-workers') + 1]).toBe('20000');
+    expect(high[high.indexOf('-max-workers') + 1]).toBe('10');
   });
 
   it('emits one target block per endpoint (recon-seeded surface)', () => {
@@ -200,17 +224,52 @@ describe('vegeta', () => {
       },
       meta,
     );
+    expect(() => mergeResults([a, b], meta)).toThrow('common histograms');
+    a.latencyHistogram = latencyHistogram(Array(100).fill(5), LATENCY_BUCKETS_MS);
+    b.latencyHistogram = latencyHistogram(Array(300).fill(20), LATENCY_BUCKETS_MS);
     const m = mergeResults([a, b], meta);
     expect(m.totalRequests).toBe(400);
     expect(m.failed).toBe(30);
+    expect(m.latencyMs.p95).toBe(25);
+    expect(m.latencyMethod).toBe('common-histogram-upper-bounds');
   });
 });
 
 describe('locust', () => {
+  it('retains unfinished attempts without inventing their HTTP outcomes', () => {
+    const report = {
+      schema: 'locust.final/v1',
+      started: 6,
+      finalized: 4,
+      failures: 1,
+      statusCounts: { '200': 3, '503': 1 },
+      latencyMs: { min: 1, max: 20, mean: 10, p50: 10, p95: 20, p99: 20 },
+    };
+    const result = parseLocustFinal(JSON.stringify(report), meta, 4000);
+    expect(result.totalRequests).toBe(6);
+    expect(result.finalizedRequests).toBe(4);
+    expect(result.unfinalizedRequests).toBe(2);
+    expect(result.successful).toBe(3);
+    expect(result.failed).toBe(3);
+    expect(result.statusCounts).toEqual({ '200': 3, '503': 1 });
+    expect(result.actualRps).toBe(1.5);
+    expect(() =>
+      parseLocustFinal(JSON.stringify({ ...report, finalized: 7 }), meta, 4000),
+    ).toThrow();
+    expect(() => parseLocustFinal('', meta, 4000)).toThrow();
+  });
+  it.each([
+    '',
+    'Name,Request Count,Failure Count\n',
+    'Name,Request Count,Failure Count\nAggregated,NaN,0',
+    'Name,Request Count,Failure Count\nAggregated,1,2',
+  ])('rejects absent or contradictory measurements instead of a zero result: %s', (csv) => {
+    expect(() => parseLocustStats(csv, meta)).toThrow();
+  });
   it('generates a bounded locustfile (constant_pacing)', () => {
     const f = buildLocustfile(cfg);
-    expect(f).toContain('constant_pacing(');
-    expect(f).toContain('self.client.request("GET", "/health"');
+    expect(f).toContain('_interval = ');
+    expect(f).toContain('self.send_one("GET", "/health"');
   });
   it('parse la ligne Aggregated du CSV', () => {
     const csv = [

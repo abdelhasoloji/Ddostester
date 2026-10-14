@@ -14,11 +14,11 @@ stack runs on VPS 2. Deploy topology is in [operations.md](./operations.md).
 Organised by **who is asking what**; each plane is one Grafana dashboard (folder
 `ShieldTest`) deep-linked from the matching app surface.
 
-| Plane                                           | Question                                     | Dashboard                                                                                                                           | Anchored in                  |
-| ----------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| **1 · Run & Absorption** (tactical/live)        | "What's happening **now** on this run?"      | `shieldtest-run` — offered / reached-origin RPS, absorbed %, legit-probe uptime, updated every tick; live gauges retired at run end | **Run Theater**              |
-| **2 · Resilience** (product signal/historical)  | "Are we getting **more resilient**?"         | `shieldtest-resilience` — WRS over time by target/vector, absorption trend, leak-through, targets below threshold                   | **Results**                  |
-| **3 · Platform Health** (instrument health/SRE) | "Is the **measurement itself** trustworthy?" | `shieldtest-platform` — API rate/error/latency by route, event-loop lag, memory, uptime                                             | **Settings → Observability** |
+| Plane                                           | Question                                     | Dashboard                                                                                                                                         | Anchored in                  |
+| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **1 · Run & Absorption** (tactical/live)        | "What's happening **now** on this run?"      | `shieldtest-run` — offered / successful-response RPS, generator failure %, legit-probe uptime, updated every tick; live gauges retired at run end | **Run Theater**              |
+| **2 · Resilience** (product signal/historical)  | "Are we getting **more resilient**?"         | `shieldtest-resilience` — WRS over time by target/vector, absorption trend, leak-through, targets below threshold                                 | **Results**                  |
+| **3 · Platform Health** (instrument health/SRE) | "Is the **measurement itself** trustworthy?" | `shieldtest-platform` — API rate/error/latency by route, event-loop lag, memory, uptime                                                           | **Settings → Observability** |
 
 A degraded control plane invalidates measurements, so Plane 3 guards the other
 two. Prometheus reaches the control plane through the existing VPS 2 → VPS 1 SSH
@@ -38,8 +38,8 @@ diagnosable:
 | `shieldtest_http_request_duration_ms{method,route}`                     | summary | API latency                                                        |
 | `shieldtest_runs_in_flight`                                             | gauge   | runs currently executing                                           |
 | `shieldtest_runs_completed_total{status,engine}`                        | counter | runs by terminal status                                            |
-| `shieldtest_run_{configured,achieved,origin}_rps_last{target,vector}`   | gauge   | asked-for / offered / reached-origin RPS                           |
-| `shieldtest_run_absorbed_ratio_last{target,vector}`                     | gauge   | fraction the edge absorbed (the test↔protection loop)              |
+| `shieldtest_run_{configured,achieved,origin}_rps_last{target,vector}`   | gauge   | asked-for / offered / successful-response RPS                      |
+| `shieldtest_run_failed_ratio_last{target,vector}`                       | gauge   | fraction the edge absorbed (the test↔protection loop)              |
 | `shieldtest_run_{rejected,tarpit,offered_shortfall}_ratio_last`         | gauge   | edge rejected (fast no) / tarpitted (slow no) / backpressure       |
 | `shieldtest_loadtest_hard_stopped_total{target,engine}`                 | counter | runs force-settled by the hard backstop (tarpit / pool exhaustion) |
 | `shieldtest_eventloop_lag_ms` / `_p99_ms`                               | gauge   | event-loop delay (measurement confidence)                          |
@@ -124,3 +124,5 @@ logged, never propagated). Configure via `NOTIFY_SLACK_WEBHOOK_URL`,
 `NOTIFY_WEBHOOK_URL`, optional `NOTIFY_EVENTS` / `NOTIFY_TIMEOUT_MS`. `/health`
 returns sink **names** only (never URLs). Verify: **Settings → Notifications →
 Send test**, or `POST /api/notify/test`.
+
+Generator successes do not prove origin delivery; generator failures do not prove edge absorption. Use corroborated target/edge telemetry for attribution. Legacy JSON fields remain readable for historical reports.

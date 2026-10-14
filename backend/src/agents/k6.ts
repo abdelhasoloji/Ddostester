@@ -38,26 +38,39 @@ function k6Interp(s: string): string {
 
 /** k6 params object for a flow step: base headers merged with the step's own,
  *  both interpolated for `{{vars}}`. Returns a JS object-literal expression. */
-function k6StepParams(baseHeaders: Record<string, string>, stepHeaders?: Record<string, string>) {
+function k6StepParams(
+  baseHeaders: Record<string, string>,
+  stepHeaders: Record<string, string> | undefined,
+  timeoutMs: number,
+) {
   const entries = { ...baseHeaders, ...(stepHeaders ?? {}) };
   const props = Object.entries(entries)
     .map(([k, v]) => `${JSON.stringify(k)}: ${k6Interp(v)}`)
     .join(', ');
-  return `{ headers: { ${props} } }`;
+  return `{ headers: { ${props} }, timeout: '${timeoutMs}ms' }`;
 }
 
 /** One k6 request statement for a method/url/body. When cacheBust is set the URL
  *  expression is wrapped in the in-script `_cb()` helper (defined in the script). */
-function k6Call(method: string, url: string, body: string | undefined, cacheBust = false): string {
+function k6Call(
+  method: string,
+  url: string,
+  body: string | undefined,
+  cacheBust = false,
+  params = 'params',
+): string {
   const u = cacheBust ? `_cb(${JSON.stringify(url)})` : JSON.stringify(url);
   const b = body != null ? JSON.stringify(body) : 'null';
   return method === 'GET' || method === 'HEAD'
-    ? `http.request(${JSON.stringify(method)}, ${u}, null, params)`
-    : `http.request(${JSON.stringify(method)}, ${u}, ${b}, params)`;
+    ? `_request(${JSON.stringify(method)}, ${u}, null, ${params})`
+    : `_request(${JSON.stringify(method)}, ${u}, ${b}, ${params})`;
 }
 
 /** Builds the k6 script (bounded HTTP load) from the config. Pure function. */
 export function buildK6Script(config: LoadTestConfig): string {
+  const timeoutMs = config.timeoutMs ?? 10_000;
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000)
+    throw new AgentError('k6 timeoutMs must be within [1, 60000]');
   const method = (config.method ?? 'GET').toUpperCase();
   const baseHeaders = config.headers ?? {};
   const headers = JSON.stringify(baseHeaders);
@@ -71,28 +84,44 @@ export function buildK6Script(config: LoadTestConfig): string {
   // When a flow runs N requests per iteration, cap the ITERATION rate at
   // maxRps/N so the total request rate stays ≤ maxRps.
   const div = flow ? flow.length : 1;
-  const rate = (rps: number): number => (flow ? iterationRate(rps, div) : rps);
+  const requestedRates = [config.maxRps, ...(config.phases?.map((p) => p.maxRps) ?? [])];
+  if (requestedRates.some((rps) => !Number.isFinite(rps) || rps <= 0))
+    throw new AgentError('k6 requires a finite positive rate');
+  const minimumRps = Math.min(...requestedRates);
+  // k6 requires integer arrivals per timeUnit. Widen the shared unit for low
+  // rates rather than scheduling at least one whole journey every second.
+  const timeUnitSec = Math.max(1, Math.ceil(div / minimumRps));
+  if (!Number.isSafeInteger(timeUnitSec))
+    throw new AgentError('k6 rate requires an unsupported scheduling period');
+  const rate = (rps: number): number => {
+    const iterations = iterationRate(rps * timeUnitSec, div);
+    if (!Number.isSafeInteger(iterations) || iterations < 1)
+      throw new AgentError('k6 rate requires an unsupported arrival count');
+    return iterations;
+  };
 
   const scenario = config.phases?.length
     ? `{
       executor: 'ramping-arrival-rate',
+      gracefulStop: '0s',
       startRate: ${rate(config.phases[0].maxRps)},
-      timeUnit: '1s',
+      timeUnit: '${timeUnitSec}s',
       preAllocatedVUs: ${vus},
       maxVUs: ${vus},
       stages: [${config.phases.map((p) => `{ target: ${rate(p.maxRps)}, duration: '${p.durationSec}s' }`).join(', ')}],
     }`
     : `{
       executor: 'constant-arrival-rate',
+      gracefulStop: '0s',
       rate: ${rate(config.maxRps)},
-      timeUnit: '1s',
+      timeUnit: '${timeUnitSec}s',
       duration: '${config.durationSec}s',
       preAllocatedVUs: ${vus},
       maxVUs: ${vus},
     }`;
 
   const needsSleep = flow?.some((s) => s.thinkMs) ?? false;
-  const imports = `import http from 'k6/http';${needsSleep ? "\nimport { sleep } from 'k6';" : ''}`;
+  const imports = `import http from 'k6/http';\nimport { Counter } from 'k6/metrics';${needsSleep ? "\nimport { sleep } from 'k6';" : ''}`;
 
   let bodyFn: string;
   if (flow && correlated) {
@@ -104,12 +133,10 @@ export function buildK6Script(config: LoadTestConfig): string {
       const urlExpr = cacheBust ? `_cb(${k6Interp(s.url)})` : k6Interp(s.url);
       const bodyExpr =
         m === 'GET' || m === 'HEAD' ? 'null' : s.body != null ? k6Interp(s.body) : 'null';
-      const paramsExpr = k6StepParams(baseHeaders, s.headers);
+      const paramsExpr = k6StepParams(baseHeaders, s.headers, timeoutMs);
       const needsResp = !!s.extract;
       const lhs = needsResp ? `  const _r${i} = ` : '  ';
-      lines.push(
-        `${lhs}http.request(${JSON.stringify(m)}, ${urlExpr}, ${bodyExpr}, ${paramsExpr});`,
-      );
+      lines.push(`${lhs}_request(${JSON.stringify(m)}, ${urlExpr}, ${bodyExpr}, ${paramsExpr});`);
       if (s.extract) {
         lines.push(
           `  vars[${JSON.stringify(s.extract.name)}] = _extract(_r${i}, ${JSON.stringify(s.extract.from)}, ${JSON.stringify(s.extract.expr)});`,
@@ -121,7 +148,13 @@ export function buildK6Script(config: LoadTestConfig): string {
   } else if (flow) {
     bodyFn = flow
       .map((s) => {
-        const call = `  ${k6Call(s.method.toUpperCase(), s.url, s.body, cacheBust)};`;
+        const call = `  ${k6Call(
+          s.method.toUpperCase(),
+          s.url,
+          s.body,
+          cacheBust,
+          k6StepParams(baseHeaders, s.headers, timeoutMs),
+        )};`;
         return s.thinkMs ? `${call}\n  sleep(${(s.thinkMs / 1000).toFixed(3)});` : call;
       })
       .join('\n');
@@ -134,7 +167,7 @@ export function buildK6Script(config: LoadTestConfig): string {
         ? JSON.stringify(config.body)
         : 'null';
     const pick = '_eps[Math.floor(Math.random() * _eps.length)]';
-    bodyFn = `  const _eps = ${urls};\n  http.request(${JSON.stringify(method)}, ${cacheBust ? `_cb(${pick})` : pick}, ${b}, params);`;
+    bodyFn = `  const _eps = ${urls};\n  _request(${JSON.stringify(method)}, ${cacheBust ? `_cb(${pick})` : pick}, ${b}, params);`;
   } else {
     bodyFn = `  ${k6Call(method, config.url, config.body, cacheBust)};`;
   }
@@ -160,11 +193,21 @@ export function buildK6Script(config: LoadTestConfig): string {
 
   return `${imports}
 ${cbHelper}${extractHelper}export const options = {
+  maxRedirects: 0,
   discardResponseBodies: ${correlated ? 'false' : 'true'},${config.noKeepAlive ? '\n  noConnectionReuse: true,' : ''}
   summaryTrendStats: ['min', 'med', 'avg', 'p(95)', 'p(99)', 'max'],
   scenarios: { load: ${scenario} },
 };
-const params = { headers: ${headers} };
+const params = { headers: ${headers}, timeout: '${timeoutMs}ms' };
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }));
+const _attempted = new Counter('ddostester_requests_started');
+const _successful = new Counter('ddostester_requests_successful');
+function _request(method, url, body, params) {
+  _attempted.add(1);
+  const response = http.request(method, url, body, params);
+  if (response.status >= 200 && response.status <= 299) _successful.add(1);
+  return response;
+}
 export default function () {
 ${bodyFn}
 }
@@ -181,6 +224,8 @@ interface K6Trend {
 }
 interface K6Summary {
   metrics?: {
+    ddostester_requests_started?: { count?: number; rate?: number };
+    ddostester_requests_successful?: { count?: number };
     http_reqs?: { count?: number; rate?: number };
     http_req_failed?: { value?: number };
     http_req_duration?: K6Trend;
@@ -190,9 +235,27 @@ interface K6Summary {
 /** Converts the k6 summary (--summary-export) into a LoadTestResult. Pure function. */
 export function parseK6Summary(summary: K6Summary, meta: ResultMeta): LoadTestResult {
   const m = summary.metrics ?? {};
-  const total = Math.round(m.http_reqs?.count ?? 0);
+  const attempts = m.ddostester_requests_started;
+  const total = Math.round(attempts?.count ?? m.http_reqs?.count ?? 0);
   const failRate = m.http_req_failed?.value ?? 0;
-  const failed = Math.round(total * failRate);
+  const successful = attempts
+    ? Math.round(m.ddostester_requests_successful?.count ?? 0)
+    : total - Math.round(total * failRate);
+  if (
+    !Number.isSafeInteger(total) ||
+    total < 0 ||
+    !Number.isSafeInteger(successful) ||
+    successful < 0 ||
+    successful > total
+  )
+    throw new AgentError('k6 summary counters are invalid');
+  const failed = total - successful;
+  const finalized = attempts ? Math.round(m.http_reqs?.count ?? 0) : undefined;
+  if (
+    finalized !== undefined &&
+    (!Number.isSafeInteger(finalized) || finalized < successful || finalized > total)
+  )
+    throw new AgentError('k6 finalized counters are invalid');
   const d = m.http_req_duration ?? {};
   const r2 = (n: number | undefined): number => Number((n ?? 0).toFixed(2));
 
@@ -202,6 +265,9 @@ export function parseK6Summary(summary: K6Summary, meta: ResultMeta): LoadTestRe
     startedAt: meta.startedAt,
     finishedAt: meta.finishedAt,
     totalRequests: total,
+    finalizedRequests: finalized,
+    latencySampleCount: finalized,
+    unfinalizedRequests: finalized === undefined ? undefined : total - finalized,
     successful: total - failed,
     failed,
     statusCounts: {},
@@ -213,7 +279,7 @@ export function parseK6Summary(summary: K6Summary, meta: ResultMeta): LoadTestRe
       p95: r2(d['p(95)']),
       p99: r2(d['p(99)']),
     },
-    actualRps: r2(m.http_reqs?.rate),
+    actualRps: r2(attempts?.rate ?? m.http_reqs?.rate),
     errors: {},
   };
 }

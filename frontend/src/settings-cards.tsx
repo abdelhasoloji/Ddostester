@@ -10,7 +10,8 @@ export function PurgeCard() {
   const [scope, setScope] = useState<'settled' | 'all'>('settled');
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const show = app.authRequired && canDo(app.role, 'manage', app.authRequired);
+  const show =
+    app.authRequired && canDo(app.role, 'manage', app.authRequired, app.userMode, app.capabilities);
   if (!show) return null;
 
   const purge = async () => {
@@ -85,7 +86,9 @@ export function UsersCard() {
   const [busy, setBusy] = useState(false);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPw, setResetPw] = useState('');
-  const show = app.authRequired && canDo(app.role, 'manage', app.authRequired);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'disabled'>('all');
+  const show =
+    app.authRequired && canDo(app.role, 'manage', app.authRequired, app.userMode, app.capabilities);
 
   const load = () => {
     api
@@ -158,6 +161,9 @@ export function UsersCard() {
   };
 
   const me = app.identity?.email;
+  const visibleUsers = users?.filter(
+    (user) => statusFilter === 'all' || (user.status ?? 'active') === statusFilter,
+  );
   return (
     <div className="card">
       <div className="card-head">
@@ -168,16 +174,36 @@ export function UsersCard() {
         />
       </div>
       <p className="hint" style={{ marginBottom: '.75rem' }}>
-        Manage runtime users. Users defined in <code>AUTH_USERS</code> (env) are the immutable root
-        and are shown as <b>env</b>; they can&apos;t be edited here. Every change is audited.
+        Manage accounts, profiles and sessions.{' '}
+        {app.primaryAdminEmail
+          ? `Owner: ${app.primaryAdminEmail} — the only administrator.`
+          : 'Legacy env accounts must be imported before editing.'}{' '}
+        Every change is audited.
       </p>
+      <p className="hint">
+        Viewers read results; engineers prepare and launch authorized tests; CISO approves in team
+        mode. The owner manages accounts and, in single mode, confirms their own authorized tests.
+        Disabling an account revokes its sessions.
+      </p>
+      <label>
+        Account status{' '}
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+        >
+          <option value="all">All accounts</option>
+          <option value="active">Active accounts</option>
+          <option value="disabled">Disabled accounts</option>
+        </select>
+      </label>
       {users === null ? (
         <span className="hint">Loading…</span>
       ) : (
         <div className="engines" style={{ marginBottom: '1rem' }}>
-          {users.map((u) => {
+          {visibleUsers?.length === 0 && <p className="hint">No accounts match this status.</p>}
+          {visibleUsers?.map((u) => {
             const disabled = (u.status ?? 'active') === 'disabled';
-            const editable = u.source === 'store' && u.email !== me;
+            const editable = u.source === 'store' && u.email !== me && !u.isOwner;
             return (
               <div key={u.email} className="engine-row" style={{ flexWrap: 'wrap', gap: '.4rem' }}>
                 <span className="engine-name" style={disabled ? { opacity: 0.55 } : undefined}>
@@ -194,7 +220,9 @@ export function UsersCard() {
                     <option value="viewer">SOC / NOC (read only)</option>
                     <option value="engineer">Security Engineer (create + launch)</option>
                     <option value="ciso">CISO (approves)</option>
-                    <option value="admin">Administrator (platform)</option>
+                    {!app.primaryAdminEmail && (
+                      <option value="admin">Administrator (all features)</option>
+                    )}
                   </select>
                 ) : (
                   <span className="engine-badge ok">{roleLabel[u.role]}</span>
@@ -202,6 +230,7 @@ export function UsersCard() {
                 <span className={`engine-badge ${u.source === 'env' ? 'no' : 'ok'}`}>
                   {u.source}
                 </span>
+                {u.isOwner && <span className="engine-badge ok">owner</span>}
                 {disabled && (
                   <span className="engine-badge no" title="Deactivated — cannot sign in">
                     disabled
@@ -232,6 +261,19 @@ export function UsersCard() {
                       }}
                     >
                       Reset password
+                    </button>
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      onClick={async () => {
+                        try {
+                          await api.revokeUserSessions(u.email);
+                          app.push('success', `Sessions revoked for ${u.email}.`);
+                        } catch (err) {
+                          app.push('error', (err as Error).message);
+                        }
+                      }}
+                    >
+                      Revoke sessions
                     </button>
                     <button className="btn btn-sm btn-ghost" onClick={() => toggleStatus(u)}>
                       {disabled ? 'Reactivate' : 'Deactivate'}
@@ -299,7 +341,7 @@ export function UsersCard() {
             <option value="viewer">SOC / NOC (read only)</option>
             <option value="engineer">Security Engineer (create + launch)</option>
             <option value="ciso">CISO (approves)</option>
-            <option value="admin">Administrator (platform)</option>
+            {!app.primaryAdminEmail && <option value="admin">Administrator (all features)</option>}
           </select>
         </div>
         <div className="field">
@@ -334,7 +376,7 @@ export function UsersCard() {
 export function LimitsCard() {
   const app = useApp();
   const ceiling = app.hardCapsCeiling;
-  const canEdit = canDo(app.role, 'limits', app.authRequired);
+  const canEdit = canDo(app.role, 'limits', app.authRequired, app.userMode, app.capabilities);
   const [form, setForm] = useState<HardCaps>(app.hardCaps);
   const [busy, setBusy] = useState(false);
   // Keep the form in sync with the server's effective caps once /health loads.
@@ -415,7 +457,7 @@ export function NotificationsCard() {
   const configured = app.notifications.length > 0;
   // Testing notification delivery is platform administration (settings), so it's
   // gated on the admin's manage capability.
-  const canTest = canDo(app.role, 'manage', app.authRequired);
+  const canTest = canDo(app.role, 'manage', app.authRequired, app.userMode, app.capabilities);
   const sendTest = async () => {
     setTesting(true);
     try {

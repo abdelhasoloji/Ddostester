@@ -1603,7 +1603,7 @@ input.invalid {
 }
 .nav-link.active {
   background: color-mix(in srgb, var(--brand) 12%, transparent);
-  color: var(--brand);
+  color: var(--text);
 }
 /* An accent rail that grows in on the active item. */
 .nav-link.active::before {
@@ -1641,7 +1641,7 @@ input.invalid {
 }
 .nav-link-primary.active {
   background: color-mix(in srgb, var(--brand) 15%, transparent);
-  color: var(--brand);
+  color: var(--text);
 }
 
 /* Collapsible "More" group — everything non-campaign, one click away. */
@@ -3700,7 +3700,7 @@ table.remediations td {
   background: var(--success);
 }
 
-/* Gap planner — zeroBS ladder view */
+/* Gap planner — DRS ladder view */
 .gap-tier {
   font-weight: 700;
   color: var(--brand);
@@ -6400,6 +6400,27 @@ table.remediations td {
   }
 }
 
+/* Preserve the single-column mobile shell when the dock is hidden. */
+@media (max-width: 720px) {
+  .shell.dock-open,
+  .shell.dock-min {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar-foot {
+    flex-wrap: wrap;
+    max-width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* Full snapshot references must remain readable within the navigation width. */
+.sidebar-foot .version-tag {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* ── Assistant: conversation history panel (assistant/history) ── */
 .assistant-head-actions {
   display: flex;
@@ -6887,4 +6908,330 @@ table.remediations td {
 .ai-support-btn:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 1px;
+}
+
+/* Fleet evidence stays readable without widening the page on mobile. */
+.fleet-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: 0.75rem;
+}
+.fleet-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+.fleet-summary > span {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+.fleet-summary b {
+  font-size: 1.5rem;
+}
+.fleet-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+.fleet-table th,
+.fleet-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.fleet-table caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+  color: var(--muted);
+}
+.fleet-identities {
+  overflow-wrap: anywhere;
+}
+.fleet-table-scroll:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.fleet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.fleet-toolbar label,
+.fleet-form-grid label {
+  display: grid;
+  gap: 0.4rem;
+}
+.fleet-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Campaign bot counter uses the same observation as its detailed agent table. */
+.fleet-bot-counter {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 0 1rem;
+}
+.fleet-bot-ring {
+  width: 122px;
+  height: 122px;
+  flex: 0 0 122px;
+  border-radius: 50%;
+  padding: 7px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+.fleet-bot-ring > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  background: var(--surface);
+  border-radius: 50%;
+}
+.fleet-bot-ring span {
+  font-size: 1.5rem;
+}
+.fleet-bot-ring strong {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.fleet-bot-ring small {
+  font-size: 1rem;
+  color: var(--muted);
+}
+.fleet-bot-overview {
+  min-width: 0;
+}
+.fleet-bot-overview h3 {
+  margin: 0.35rem 0;
+}
+.fleet-bot-headline {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+}
+.fleet-bot-headline strong {
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+.fleet-bot-headline > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.fleet-bot-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.fleet-bot-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: var(--surface-2);
+  font-size: 0.75rem;
+}
+.fleet-bot-state i,
+.fleet-bot-icon i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.state-running {
+  --bot-color: var(--brand);
+}
+.state-succeeded {
+  --bot-color: var(--success);
+}
+.state-pending,
+.state-stopped {
+  --bot-color: var(--muted);
+}
+.state-failed,
+.state-lost {
+  --bot-color: var(--danger);
+}
+.fleet-bot-state i {
+  background: var(--bot-color, var(--muted));
+}
+.fleet-bot-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.7rem;
+  padding: 0;
+  margin: 0.25rem 0 1rem;
+  list-style: none;
+}
+.fleet-bot-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: linear-gradient(
+    130deg,
+    color-mix(in srgb, var(--bot-color, var(--muted)) 7%, var(--surface)),
+    var(--surface)
+  );
+}
+.fleet-bot-tile b,
+.fleet-bot-tile small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.fleet-bot-tile b {
+  font-size: 0.85rem;
+}
+.fleet-bot-tile small {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.fleet-bot-icon {
+  position: relative;
+  font-size: 1.5rem;
+  flex: 0 0 auto;
+}
+.fleet-bot-icon i {
+  position: absolute;
+  right: -2px;
+  bottom: 0;
+  background: var(--bot-color, var(--muted));
+  outline: 2px solid var(--surface);
+}
+.fleet-bot-tile.state-running .fleet-bot-icon i {
+  animation: fleet-bot-pulse 1.8s ease-out infinite;
+}
+@keyframes fleet-bot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+@media (max-width: 540px) {
+  .fleet-bot-counter {
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+  .fleet-bot-ring {
+    width: 92px;
+    height: 92px;
+    flex-basis: 92px;
+    padding: 5px;
+  }
+  .fleet-bot-ring strong {
+    font-size: 1.6rem;
+  }
+  .fleet-bot-ring span {
+    font-size: 1.2rem;
+  }
+  .fleet-bot-states {
+    gap: 0.3rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-bot-tile.state-running .fleet-bot-icon i {
+    animation: none;
+  }
+}
+
+.drs-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+}
+.drs-catalog-grid h3 {
+  margin-top: 0.75rem;
+}
+.drs-catalog-grid article {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.drs-catalog-grid article button {
+  margin-top: auto;
+}
+
+/* Compact campaign count keeps the original theater charts in focus. */
+.fleet-live-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+.fleet-live-count strong {
+  color: var(--brand);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.fleet-live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.fleet-live-dot.is-active {
+  background: var(--brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+
+@media (max-width: 600px) {
+  .theater-head {
+    flex-wrap: wrap;
+  }
+  .theater-head > div {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}
+
+.drs-assessment-workspace .row,
+.drs-catalog-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1rem 0;
+}
+.drs-assessment-workspace .row > label {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.drs-assessment-workspace textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+}
+.drs-assessment-workspace details {
+  margin: 1rem 0;
+}
+.drs-catalog-controls label {
+  margin: 0;
+}
+.drs-assessment-workspace .hint {
+  overflow-wrap: anywhere;
 }

@@ -33,7 +33,7 @@ concurrency:
 jobs:
   deploy:
     # Deploy only when the triggering CI passed, or when dispatched manually.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository) }}
     # Pinned to the VPS 1 runner (label `vps1`) so deploys land on the
     # production control plane and nowhere else. Register it with
     # deploy/provision/host-runner.sh.
@@ -43,6 +43,7 @@ jobs:
       - name: Update and restart the service
         env:
           DEPLOY_BRANCH: ${{ github.event.inputs.ref || 'main' }}
+          DEPLOY_EXPECTED_COMMIT: ${{ github.event.workflow_run.head_sha || '' }}
           # Deployment model on the server: 'systemd' (default) or 'docker'.
           # Set the repository variable DEPLOY_MODE=docker to deploy via
           # Docker Compose (the api image serves API + UI).
@@ -55,4 +56,4 @@ jobs:
             exit 1
           fi
           echo "Deploying '$DEPLOY_BRANCH' into $REPO"
-          DEPLOY_BRANCH="$DEPLOY_BRANCH" bash "$REPO/deploy/update.sh"
+          DEPLOY_EXPECTED_COMMIT="$DEPLOY_EXPECTED_COMMIT" DEPLOY_BRANCH="$DEPLOY_BRANCH" bash "$REPO/deploy/update.sh"

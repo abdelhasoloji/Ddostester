@@ -25,7 +25,7 @@ describe('POST /api/suites/compose', () => {
   beforeAll(async () => {
     const built = await buildApp({
       store: new MemoryStore(),
-      auth: initAuth({} as NodeJS.ProcessEnv),
+      auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
       allowedTargets: allowed,
       logger: false,
       serveStatic: false,

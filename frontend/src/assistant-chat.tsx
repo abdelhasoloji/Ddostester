@@ -51,6 +51,7 @@ import {
 interface Msg {
   role: 'user' | 'assistant';
   content: string;
+  provenance?: { model: string; reservedUnits: number; persistence: string };
   /** True for a synthesized turn (proactive event or a manual "suggest"). */
   auto?: boolean;
   /** Friendly one-liner shown in place of the raw prompt for `auto` turns. */
@@ -187,7 +188,13 @@ export function AssistantChat({
   onCollapse?: () => void;
 }) {
   const app = useApp();
-  const canManage = canDo(app.role, 'assistantManage', app.authRequired);
+  const canManage = canDo(
+    app.role,
+    'assistantManage',
+    app.authRequired,
+    app.userMode,
+    app.capabilities,
+  );
 
   const [status, setStatus] = useState<Status>('checking');
   const [model, setModel] = useState('qwen');
@@ -575,8 +582,30 @@ export function AssistantChat({
                 setMessages((prev) => {
                   const next = prev.slice();
                   next[next.length - 1] = {
+                    ...next[next.length - 1],
                     role: 'assistant',
                     content: next[next.length - 1].content + j.content,
+                  };
+                  return next;
+                });
+              } else if (
+                event === 'provenance' &&
+                j.budget?.schemaVersion === 'ddostester.assistant.budget/v1' &&
+                typeof j.model === 'string' &&
+                j.model.length <= 120 &&
+                Number.isSafeInteger(j.budget.reservedUnits) &&
+                j.budget.reservedUnits > 0 &&
+                ['postgres', 'process'].includes(j.budget.persistence)
+              ) {
+                setMessages((prev) => {
+                  const next = prev.slice();
+                  next[next.length - 1] = {
+                    ...next[next.length - 1],
+                    provenance: {
+                      model: j.model,
+                      reservedUnits: j.budget.reservedUnits,
+                      persistence: j.budget.persistence,
+                    },
                   };
                   return next;
                 });
@@ -1175,7 +1204,7 @@ export function AssistantChat({
                 return (
                   <div key={i} className="assistant-msg assistant-msg-assistant">
                     <div className="assistant-msg-head">
-                      <span className="assistant-msg-role">{model}</span>
+                      <span className="assistant-msg-role">{m.provenance?.model ?? model}</span>
                       {m.content !== '' && (
                         <button
                           type="button"
@@ -1188,6 +1217,15 @@ export function AssistantChat({
                         </button>
                       )}
                     </div>
+                    {m.provenance && (
+                      <p className="hint">
+                        {m.provenance.reservedUnits.toLocaleString()} budget units reserved · usage
+                        and cost unavailable
+                        {m.provenance.persistence === 'process'
+                          ? ' · budget resets on server restart'
+                          : ''}
+                      </p>
+                    )}
                     {text && (
                       <div
                         className="assistant-msg-body md"

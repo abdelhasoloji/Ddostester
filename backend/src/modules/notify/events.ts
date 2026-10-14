@@ -1,3 +1,4 @@
+import { remoteProbeQualityReasons } from '../reports/confidence.js';
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { computeBaselineDelta } from '../campaigns/baseline.js';
@@ -26,11 +27,18 @@ export interface BaselineDriftVerdict {
 export function detectBaselineDrift(
   prev: BaselineMetrics,
   curr: BaselineMetrics,
-): BaselineDriftVerdict {
+): BaselineDriftVerdict | undefined {
   const d = computeBaselineDelta(prev, {
     availabilityPct: curr.availabilityPct,
     latencyMs: curr.latencyMs,
   });
+  if (
+    !d ||
+    curr.samples === 0 ||
+    curr.observation?.complete === false ||
+    (curr.quality && remoteProbeQualityReasons(curr.quality).length)
+  )
+    return undefined;
   const reasons: string[] = [];
   if (d.availabilityDeltaPct <= -DRIFT_AVAIL_DROP_PTS) {
     reasons.push(
@@ -112,7 +120,10 @@ export function buildRunNotifications(
       severity: auto ? 'critical' : 'warning',
       title: `🛑 Campaign ${auto ? 'auto-killed' : 'stopped'} — ${campaign.name}`,
       text: auto
-        ? `“${campaign.name}” hit the automatic kill switch against ${host} (target unavailable).`
+        ? run.baseline?.observation?.complete === false ||
+          Boolean(run.baseline?.quality && remoteProbeQualityReasons(run.baseline.quality).length)
+          ? `“${campaign.name}” hit the automatic safety stop against ${host} with an uncertain remote baseline; target availability requires independent verification.`
+          : `“${campaign.name}” hit the automatic kill switch against ${host} (target unavailable).`
         : `“${campaign.name}” was stopped manually against ${host}.`,
       at,
       campaignId: campaign.id,
@@ -122,7 +133,7 @@ export function buildRunNotifications(
 
   if (previousBaseline && run.baseline) {
     const drift = detectBaselineDrift(previousBaseline, run.baseline);
-    if (drift.drifted) {
+    if (drift?.drifted) {
       events.push({
         kind: 'baseline.drift',
         severity: 'warning',

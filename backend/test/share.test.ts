@@ -14,7 +14,11 @@ describe('POST /api/share (read-only share links)', () => {
     const AUTH_USERS = JSON.stringify([
       { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-123') },
     ]);
-    const auth = initAuth({ AUTH_JWT_SECRET: 'testsecret', AUTH_USERS } as NodeJS.ProcessEnv);
+    const auth = initAuth({
+      USER_MODE: 'team',
+      AUTH_JWT_SECRET: 'testsecret',
+      AUTH_USERS,
+    } as NodeJS.ProcessEnv);
     const built = await buildApp({
       store: new MemoryStore(),
       auth,

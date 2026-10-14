@@ -462,6 +462,8 @@ export function RunTheaterPage() {
                 name={current.name}
                 target={current.target}
                 vector={current.vector}
+                fleet={current.agent === 'fleet'}
+                fleetDeviceCount={current.fleetDeviceIds?.length}
                 onKill={() => app.kill(current)}
                 // Gate on the kill-specific flag, never `busy`: the blocking
                 // execute() holds `busy` for the whole run, which would keep the

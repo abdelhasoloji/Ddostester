@@ -20,7 +20,7 @@ function buildAuth() {
     { email: 'eng@wedos', role: 'engineer', passwordHash: hashPassword('pw-engineer-1') },
     { email: 'off@wedos', role: 'ciso', passwordHash: hashPassword('pw-ciso-12') },
   ]);
-  return initAuth({ AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
+  return initAuth({ USER_MODE: 'team', AUTH_JWT_SECRET: 's', AUTH_USERS } as NodeJS.ProcessEnv);
 }
 
 async function login(app: FastifyInstance, email: string, pw: string): Promise<string> {
@@ -101,5 +101,12 @@ describe('suite recovery gate (between waves)', () => {
     // The gate fired before the 2nd wave and recorded the target as available.
     const audit = JSON.stringify((await as(off, 'GET', '/api/audit')).json());
     expect(audit).toContain('suite.gate');
+    const runs = (await as(off, 'GET', '/api/runs')).json() as {
+      campaignId: string;
+      recoveryBeforeRun?: { available: boolean; checks: number };
+    }[];
+    const next = runs.find((result) => result.campaignId === inst.json().campaigns[1].id);
+    expect(next?.recoveryBeforeRun?.available).toBe(true);
+    expect(next?.recoveryBeforeRun?.checks).toBeGreaterThan(0);
   }, 40000);
 });
