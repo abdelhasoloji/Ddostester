@@ -1,51 +1,7 @@
 # Contributing
 
-The whole workflow is one command. If it passes, CI passes.
+Read [AGENTS.md](AGENTS.md), the [current setup](docs/current-setup.md) and [roadmap](docs/roadmap.md). Preserve local work; update behavioral documentation with code changes. Standard reference/profile changes require versioning and traceable interpretation, not edits to pinned files.
 
-## Setup (once)
+Use `.nvmrc`, `npm ci` and the [verification gates](docs/testing.md). `npm run verify` runs lint, typecheck, tests and build; the tracked pre-push hook runs the fast subset. CI also checks coverage, dependencies and PostgreSQL/recovery contracts. Required live evidence cannot be replaced with mocks.
 
-```bash
-nvm use            # picks the Node version from .nvmrc (>= 22)
-npm install        # installs workspaces AND enables the git hooks
-```
-
-`npm install` runs the `prepare` script, which points git at `.githooks/`.
-No husky, no extra tooling — just tracked hooks.
-
-## Daily loop
-
-```bash
-npm run dev:api    # backend on :8080 (terminal 1)
-npm run dev:web    # frontend on :5173, proxies /api to :8080 (terminal 2)
-```
-
-## Before you push
-
-```bash
-npm run verify     # lint + typecheck + test + build — exactly what CI runs
-```
-
-You don't have to remember it: the **pre-push hook** runs `verify:fast`
-(lint + typecheck + test) automatically, so a red branch never reaches the
-remote. Real emergency? `git push --no-verify` (CI still guards `main`).
-
-## The single source of truth for "green"
-
-| Where         | Command                                          |
-| ------------- | ------------------------------------------------ |
-| Local, full   | `npm run verify`                                 |
-| Pre-push hook | `npm run verify:fast`                            |
-| CI            | the same discrete steps + `npm ci` + `npm audit` |
-
-There is only one definition of green. Change it in `package.json` and every
-surface follows.
-
-## Branch protection (repo admins, one-time)
-
-On GitHub → Settings → Branches → protect `main`:
-
-- Require the **CI** status check to pass before merging.
-- Require branches to be up to date before merging.
-- Disallow direct pushes (PRs only); prefer a linear history.
-
-That turns the local hook (advisory) into an enforced gate no one can bypass.
+Describe the concrete resulting behavior, validation and remaining external dependencies in commits/PRs. Keep credentials and private artifacts outside Git. Public/private authorized HTTP targets are supported through the actual admission policy; avoid documentation that incorrectly bans supported workflows or claims unimplemented integrations.

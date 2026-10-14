@@ -122,4 +122,4 @@ verify a real versioned request, then upgrade the control plane. A new control
 plane paired with an old probe refuses its responses instead of trusting them.
 Historical stored samples remain readable; they are not retroactively validated
 or rescored. The private Linux source-06 lab has been upgraded probe-first and its v2
-transport checked. Production build 451 is unchanged.
+transport checked. The deployed control-plane checkpoint is documented separately in `docs/current-setup.md`; this probe recipe does not establish a newer remote-probe deployment.

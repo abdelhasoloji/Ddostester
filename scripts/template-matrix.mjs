@@ -54,8 +54,8 @@ const mint = (sub, role) => {
   const p = b64(JSON.stringify({ sub, role, ver: 0, iat: now, exp: now + 3600 }));
   return `${h}.${p}.${createHmac('sha256', SECRET).update(`${h}.${p}`).digest('base64url')}`;
 };
-const ENG = mint('claude-engineer@wedos', 'engineer');
-const CISO = mint('claude-ciso@wedos', 'ciso');
+const ENG = mint('benchmark-engineer@wedos', 'engineer');
+const CISO = mint('benchmark-ciso@wedos', 'ciso');
 const call = (path, token, opts = {}) =>
   fetch(API + path, {
     ...opts,

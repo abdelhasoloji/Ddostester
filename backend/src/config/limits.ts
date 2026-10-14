@@ -18,7 +18,7 @@
  *      audit trail), never a convenience tweak.
  *   2. `HARD_CAPS` is enforced server-side and is non-bypassable via the API
  *      (defense in depth). It is never weakened per-campaign, per-playbook or
- *      per-request. See docs/safeguards.md and drs-validation-policy.md §2.
+ *      per-request. See docs/security-and-governance.md and docs/drs-engine.md.
  *   3. Add new bounds here, not scattered across modules. If you need a limit,
  *      define it in this file and import it.
  */
@@ -41,7 +41,7 @@ export const HARD_CAPS = Object.freeze({
 export type HardCaps = { maxRps: number; maxConcurrency: number; maxDurationSec: number };
 
 /**
- * Operational limits: the caps ShieldTest actually enforces, which a CISO may
+ * Operational limits: the caps ShieldTest actually enforces, which an administrator may
  * tighten (or raise back up to the ceiling) from the UI. They are NEVER allowed
  * to exceed `HARD_CAPS` — that frozen ceiling is the absolute safety boundary,
  * immutable from any interface, so a UI edit or a compromised account can never

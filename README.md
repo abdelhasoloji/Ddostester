@@ -1,181 +1,50 @@
-# WEDOS ShieldTest — Control Plane
+# ShieldTester
 
-Internal **resilience testing** platform (control plane) inspired by the TSD
-_WEDOS ShieldTest v1.0_. It orchestrates, governs, measures and scores load-test
-campaigns against infrastructure **that the organization owns or holds a written
-authorization to test**.
+ShieldTester is the resilience-testing application in this private `Ddostester` repository. It prepares governed campaigns, orchestrates simulated IoT clients, collects evidence and produces versioned DRS reports. The companion [shieldtest-lab](https://github.com/abdelhasoloji/shieldtest-lab) is an isolated synthetic network bench.
 
-> ⚠️ **Deliberately defensive scope.** This repository implements the _control
-> plane_: campaign management, approval workflow, measurement probe, kill
-> switch, WRS scoring and reports. The **only load vector** provided is a
-> **bounded application HTTP generator** (GET/POST) subject to an allowlist and a
-> rate cap. See [“What is NOT implemented”](#what-is-not-implemented).
+## Current product
 
-## Features
+| Mode                 | Purpose                                                               | Meaning of the result                                                             |
+| -------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Engine validation    | Virtual events; no target traffic                                     | Simulation score only                                                             |
+| Synthetic laboratory | Bounded traffic in an authorized laboratory                           | Experimental evidence, with represented and missing dimensions                    |
+| Measured evaluation  | Independent generator, protection-entry, user and origin measurements | DRS interpretation-profile result; missing evidence stays partial or inconclusive |
 
-- **CAM** — campaigns + approval workflow (separation of duties, 24 h validity).
-- **GEN** — bounded HTTP generator (allowlist + RPS cap), the only vector.
-- **PROBE** — legitimate probe + 3-level kill switch (auto / manual / time-based).
-- **WRS** — resilience scoring + **per-target history & regression detection**.
-- **RPT** — HTML campaign report + **aggregated compliance report (DORA/NIS2)**.
-- **Auth + RBAC** — JWT, engineer / admin / viewer / ciso capabilities,
-  PostgreSQL-managed profiles and one persisted administrator.
-- **Two-layer caps** — a frozen, immutable `HARD_CAPS` ceiling; the **CISO** role
-  sets the effective operational limits from the UI, always clamped ≤ the ceiling
-  and audited (`config/limits.ts`, `PUT /api/limits`).
-- **Persistence** — PostgreSQL (memory fallback).
-- **Scheduler** — scheduled + recurring campaign execution (CAM-01).
-- **Playbooks** — one-click curated assessment sequences (bounded, still governed).
-- **Audit** — persistent audit log of every action.
-- **Monitoring** — Prometheus `/metrics` endpoint.
-- **Notifications** — opt-in Slack / webhook alerts on completion, kill and WRS regression.
+The immutable DRS 3.00.00 catalogue contains 131 vector rows. Seven GET rows expose bounded laboratory approximations; the other rows are reference/simulation only. Full-standard physical adapters are not enabled. Measured dispatch awaits qualified instrumentation and capacity.
 
-## Architecture
+The registry supports 5,000 devices across 100 sites. Current physical Fleet execution is limited to **3 agents, 15 requests/s shared, concurrency 6 and 10–60 seconds**. Registry capacity is not concurrent traffic capacity. Three persistent agents are provisioned on the Linux VPS; their distinct private IPs share one public egress IP.
 
-```
-Frontend (React/Vite)  ──►  API (Fastify/TS)  ──►  PostgreSQL (or memory)
-   login + RBAC              ├─ Auth (JWT) + RBAC
-   dashboard + WRS chart     ├─ CAM  campaigns + approval
-                             ├─ GEN  bounded HTTP generator (allowlist + RPS cap)
-                             ├─ PROBE probe + kill switch (auto/manual/time-based)
-                             ├─ WRS  scoring + history + regressions
-                             ├─ RPT  campaign report + DORA/NIS2 compliance
-                             ├─ Scheduler  scheduled execution (CAM-01)
-                             ├─ Audit  persistent log
-                             └─ /metrics  Prometheus
+Production last observed on 14 October 2026: **build 463**, PostgreSQL, single-user workflow, sole administrator `abdelha@wedos`. Kusa and the infrastructure multisite cluster remain pending. See [verified setup](docs/current-setup.md).
+
+## Development
+
+Use the Node version in `.nvmrc` (minimum 22.19), npm workspaces and PostgreSQL for the default single workflow.
+
+```sh
+npm ci
+cp .env.example .env
+# Configure protected authentication, database and a local authorized allowlist.
+npm run build
+# On initial installation, preview and explicitly apply the account migration:
+node backend/dist/cli/migrate-users.js
+node backend/dist/cli/migrate-users.js --apply
+npm run dev:api
+# In another terminal:
+npm run dev:web
 ```
 
-## Safeguards
+Follow [account setup](docs/single-user.md) before starting single mode. Secrets, CA keys and client bundles stay outside Git. Fixtures can use team-mode memory storage; that is not the production setup.
 
-- **Mandatory allowlist** (`ALLOWED_TARGETS`): any target or probe outside the
-  list is rejected. Only `http`/`https` are accepted.
-- **Authorization attestation**: a campaign requires `authorized: true`.
-- **Hard, non-bypassable caps** (`HARD_CAPS`): `maxRps ≤ 2000`,
-  `concurrency ≤ 500`, `duration ≤ 900 s` (absolute time-based timeout = 15 min).
-- **Approval workflow**: PENDING_APPROVAL → APPROVED/REJECTED, separation of
-  duties (approver ≠ author), 24 h validity, rejection with a reason.
-- **3-level kill switch**: auto (unavailable > 30 s), manual (SOC/NOC), time-based.
-- **Traffic tagging**: every request carries the `X-WEDOS-TEST` header.
-
-## Getting started
-
-```bash
-npm install
-cp .env.example .env          # set ALLOWED_TARGETS
-npm run dev:api               # API on :8080
-npm run dev:web               # UI on :5173 (proxy /api → :8080)
-npm test                      # backend tests
-# Default single mode requires DATABASE_URL, strong auth and explicit account migration.
-# Memory storage is available only for legacy team-mode development/tests.
+```sh
+npm run lint
+npm run typecheck
+npm run test -w backend -- --maxWorkers=2
+npm run test -w frontend -- --maxWorkers=2
+npm run build
 ```
 
-Server deployment (Ubuntu, Node ≥ 22.19, systemd) — a single service serving the API
-**and** the UI, on loopback:
-
-```bash
-bash deploy/setup.sh              # build + service + health check
-# remote access, without public exposure:
-ssh -L 8080:127.0.0.1:8080 user@server   # then http://localhost:8080
-```
-
-Docker (self-contained: builds the API image — backend + UI — plus PostgreSQL,
-bound to `127.0.0.1:8080`):
-
-```bash
-POSTGRES_PASSWORD=change-me docker compose up -d --build   # core: db + api
-```
-
-Optional profiles: `--profile monitoring` (Prometheus + Grafana; set
-`GRAFANA_PASSWORD`), `--profile proxy` (TLS/mTLS reverse proxy).
-
-**Continuous deployment:** once the server runs a self-hosted GitHub Actions
-runner, every push to `main` that passes CI deploys itself — no manual commands.
-See [docs/operations.md](./docs/operations.md).
-
-## API
-
-| Method | Route                         | Purpose                              |
-| ------ | ----------------------------- | ------------------------------------ |
-| GET    | `/health`                     | status + allowed targets             |
-| POST   | `/api/campaigns`              | create a campaign (PENDING_APPROVAL) |
-| GET    | `/api/campaigns`              | list                                 |
-| POST   | `/api/campaigns/:id/approval` | approve / reject                     |
-| POST   | `/api/campaigns/:id/execute`  | execute an approved campaign         |
-| POST   | `/api/campaigns/:id/kill`     | manual kill switch                   |
-| GET    | `/api/runs/:runId`            | run result + WRS                     |
-| GET    | `/api/runs/:runId/report`     | HTML report                          |
-| POST   | `/api/notify/test`            | send a test notification             |
-
-## WRS — WEDOS Resiliency Score
-
-`WRS = 0.20·D + 0.30·M + 0.30·A + 0.20·C` (TSD §5.4), a pure, tested function
-(`backend/src/modules/wrs/scoring.ts`). It generates no traffic: it aggregates
-measured metrics.
-
-## What is NOT implemented
-
-By design, the **control plane** (the deployed product) **includes no attack
-vector**. The following are therefore **absent** from it:
-
-- L3/L4 volumetric vectors: UDP/ICMP/SYN/ACK/RST flood, fragmentation,
-  GRE/DTLS flood, DNS/NTP/SSDP/CLDAP reflection/amplification.
-- L7 exhaustion vectors: Slowloris, RUDY, cache-bypass, brute-force,
-  WebSocket flood, GraphQL abuse, XML bomb, “browser botnet”.
-- Any traffic generation at an unbounded rate or toward a target outside the
-  allowlist.
-
-The control-plane generator is limited to lawful, capped and traceable
-application HTTP requests, suitable for measuring the resilience of a service
-you operate.
-
-A **closed synthetic network lab** that models UDP-amplification traffic shape
-for **defensive measurement** — with no source-IP spoofing, no real reflector
-protocols, hard caps, and an isolated `internal` Docker network with no published
-host ports — lives in a **separate repository**,
-[`abdelhasoloji/shieldtest-lab`](https://github.com/abdelhasoloji/shieldtest-lab),
-so the boundary is **structural**: this control plane contains no attack vector
-at all. See [“Isolated synthetic UDP network lab”](#isolated-synthetic-udp-network-lab)
-and [docs/security-and-governance.md](./docs/security-and-governance.md).
+Start with **Campaigns → DRS assessment → New engine validation · no traffic** to test the product without dispatching agents. Explicit approval and target attestation remain required for physical campaigns.
 
 ## Documentation
 
-Full documentation — a grouped index — in [`docs/`](./docs/README.md). Topic hubs:
-[overview](./docs/overview.md) ·
-[architecture](./docs/architecture.md) ·
-[security & governance](./docs/security-and-governance.md) ·
-[boundary & lab](./docs/boundary-and-lab.md) ·
-[measurement (WRS)](./docs/measurement.md) ·
-[operations (deploy/CI)](./docs/operations.md) ·
-[observability](./docs/observability.md) ·
-[usage](./docs/usage.md) ·
-[API](./docs/api.md) ·
-[roadmap / status](./docs/roadmap.md).
-
-## License
-
-MIT — see [LICENSE](./LICENSE).
-
-## Isolated synthetic UDP network lab
-
-A closed Docker lab that reproduces UDP amplification traffic shape without
-source-IP spoofing or public protocol reflectors — a **measurement model, not an
-amplifier** — lives in its **own repository**:
-
-> **https://github.com/abdelhasoloji/shieldtest-lab**
-
-It was extracted so the boundary is **structural, not conventional**: this
-control plane performs only bounded, allowlisted HTTP and contains no
-amplification/spoofing/UDP code at all. The two connect only through a read-only,
-governed verdict contract (see [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md)).
-See [`docs/boundary-and-lab.md`](docs/boundary-and-lab.md) for the split and the pointer.
-
-## Unique administrator with managed profiles
-
-The administrator has all application capabilities. USER_MODE=single selects the default
-personal workflow: the owner explicitly confirms every launch; team mode retains separation
-of duties. The persisted owner defaults to abdelha@wedos; other profiles remain manageable
-and retain their status/password. A second admin and owner demotion/deletion are forbidden.
-Run the versioned migration explicitly before the first new-version startup; ordinary startup
-only verifies policy. Capabilities are returned by /api/auth/me and enforced by the API.
-Allowlist, immutable caps, kill switch and audit remain mandatory. No campaign is required
-for account/deployment validation. See [migration and operation](docs/single-user.md).
+[Documentation index](docs/README.md) · [DRS engine](docs/drs-engine.md) · [Architecture](docs/architecture.md) · [Fleet](docs/fleet-management.md) · [Operations](docs/operations.md) · [Remaining work](docs/roadmap.md) · [Contributor rules](AGENTS.md).

@@ -1,43 +1,7 @@
-# Composant : Frontend (React / Vite)
+# Frontend
 
-**Sources** : `frontend/` (React + Vite), servi par l'API en production.
+React/Vite assets are served statically by the API in production. Development uses the workspace dev server and API proxy. Check API and UI build identity independently on release promotion; repository main does not identify a deployed bundle by itself.
 
-## Rôle
+Campaigns includes the versioned catalogue and DRS assessment workspace: modes, draft revisions, freeze/capacity, explicit software fixtures, evidence and reports. Fleet manages site-paged inventory/enrollment, selected agents, missions and detailed evidence. Run Theater keeps campaign graphs and a compact dynamic active/assigned bot count; unknown telemetry is not zero activity.
 
-Interface web (React) du plan de contrôle : gestion des campagnes, approbations,
-rapports, WRS, administration. En production elle est **buildée en statique** et
-servie par le serveur API ; en développement elle tourne sur son propre serveur
-Vite.
-
-## Modes
-
-| Mode                  | Commande                                         | Écoute                  | Source                                                |
-| --------------------- | ------------------------------------------------ | ----------------------- | ----------------------------------------------------- |
-| Développement         | `npm run dev -w frontend` (`vite`)               | `http://localhost:5173` | `frontend/package.json`, `frontend/vite.config.ts:48` |
-| Production (statique) | `npm run build -w frontend` puis servi par l'API | via l'API `:8080`       | `frontend/package.json`, `app.ts:245-266`             |
-| Preview               | `npm run preview -w frontend`                    | serveur Vite de preview | `frontend/package.json`                               |
-
-## Service statique par l'API
-
-Quand `frontend/dist` existe, l'API l'enregistre via `fastify-static`
-(`app.ts:245-252`). Repli SPA : toute route qui n'est ni `/api` ni `/metrics`
-renvoie `index.html` (deep links react-router) ; `/api`/`/metrics` inconnus
-renvoient `404` (`app.ts:253-266`).
-
-## Proxy de dev
-
-En dev, Vite proxifie `/api` et `/health` vers l'API sur `http://localhost:8080`
-(`frontend/vite.config.ts:49`), donc le frontend `:5173` parle au backend `:8080`
-sans configuration CORS.
-
-## Source de vérité des plafonds
-
-Le frontend **ne code pas en dur** les plafonds : il lit `hardCaps` /
-`hardCapsCeiling` depuis `/health` (`app.ts:762-764`, `config/limits.ts`), donc
-l'UI reflète toujours l'application côté serveur.
-
-## Déploiement
-
-En Compose, un service `proxy` (Caddy) peut fronter l'ensemble en TLS/mTLS
-(`docker-compose.yml:95-100`, `deploy/proxy/Caddyfile`). Détails :
-`docs/operations.md`, `docs/operations.md`.
+Capabilities and effective limits come from the server. Viewer and expired sessions cannot gain writes through UI labels. Simulation is labelled no-traffic; archived campaigns remain readable. Disabled physical catalogue rows do not fall back locally. See [usage](../usage.md), [Fleet](../fleet-management.md) and [current setup](../current-setup.md).

@@ -1,0 +1,45 @@
+{
+  "observed_at": "2026-10-14",
+  "product": "ShieldTester",
+  "production": {
+    "host": "31.31.74.228",
+    "build": "463",
+    "storage": "postgres",
+    "user_mode": "single",
+    "administrator": "abdelha@wedos"
+  },
+  "http_lab": {
+    "host": "31.31.74.187",
+    "runtime": "k3d/K3s",
+    "namespace": "ddostester-lab",
+    "kubernetes": "v1.37.1+k3s1",
+    "agents": 3,
+    "private_ips": ["10.247.0.71", "10.247.0.72", "10.247.0.73"],
+    "public_egress_sources": 1
+  },
+  "execution_limits": {
+    "agents": 3,
+    "shared_rps": 15,
+    "concurrency": 6,
+    "duration_seconds": [10, 60]
+  },
+  "registry_limits": {
+    "devices": 5000,
+    "sites": 100
+  },
+  "drs": {
+    "version": "3.00.00",
+    "vector_rows": 131,
+    "types": 37,
+    "engine": "shieldtester-drs/1",
+    "profile": "strict-conservative/1"
+  },
+  "pending": [
+    "Kusa contract",
+    "infrastructure cluster",
+    "independent entry/origin collectors",
+    "functional journeys",
+    "physical capacity qualification"
+  ],
+  "source": "../current-setup.md"
+}

@@ -1,90 +1,36 @@
 # Architecture
 
-## Overview
-
-WEDOS ShieldTest (control plane) is a full-stack application:
-
-- **Backend** — Fastify/TypeScript REST API. It also serves the built UI
-  (same origin → a single service, a single tunnel).
-- **Frontend** — React/Vite SPA (campaign dashboard).
-
-```
-Browser (via SSH tunnel)
-        │
-        ▼
-┌─────────────────────────────────────────────┐
-│  Fastify backend (127.0.0.1:8080)            │
-│                                              │
-│  Static UI    ──  /            (frontend/dist)│
-│                                              │
-│  API                                         │
-│   ├─ CAM    campaigns + approval workflow     │
-│   ├─ GEN    bounded HTTP generator           │
-│   ├─ PROBE  legitimate probe + kill switch   │
-│   ├─ WRS    resilience scoring (pure)        │
-│   └─ RPT    HTML report                       │
-└─────────────────────────────────────────────┘
-        │ bounded HTTP requests + probe
-        ▼
-   Authorized target (allowlist ALLOWED_TARGETS)
+```mermaid
+flowchart LR
+ UI[React UI] --> API[Fastify control plane]
+ API --> DB[(PostgreSQL and audit)]
+ API --> DRS[Versioned DRS plans and scoring]
+ DRS --> E[Evidence archive and reports]
+ API --> F[Persistent Fleet orchestration]
+ F --> A[Three bounded HTTP agents]
+ A --> T[Authorized dedicated target]
+ P[Independent user probe] --> T
+ P --> E
+ C[Entry and origin collectors: pending qualification] -.-> E
+ B[Isolated synthetic bench] -->|Governed artifacts| API
 ```
 
-## Backend modules
+The deployed control plane is Node/TypeScript ESM, Fastify, PostgreSQL and static React/Vite assets. `backend/src/app.ts` composes routes and injected dependencies; `server.ts` configures runtime services, policy and shutdown. `frontend/src/context.tsx` uses server capabilities rather than a second role matrix.
 
-| Module     | File                                                  | Purpose                                                                                                                                          |
-| ---------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CAM        | `backend/src/modules/campaigns/{model,service}.ts`    | Creation, validation, approval workflow, hard caps                                                                                               |
-| Runner     | `backend/src/modules/campaigns/runner.ts`             | Orchestrates generator + probe + kill switch, aggregates metrics, computes WRS                                                                   |
-| GEN        | `backend/src/engine/loadTest.ts`                      | Bounded HTTP generator (allowlist, RPS cap, phases, kill switch)                                                                                 |
-| Scenarios  | `backend/src/engine/loadTest.ts` (phases)             | Bounded multi-phase profiles: ramp-up, waves (GEN-03)                                                                                            |
-| PROBE      | `backend/src/modules/probe/probe.ts`                  | Availability/latency probe + 3-level kill switch                                                                                                 |
-| WRS        | `backend/src/modules/wrs/{scoring,history}.ts`        | Scoring (pure function) + per-target history & regressions (WRS-03)                                                                              |
-| RPT        | `backend/src/modules/reports/{report,compliance}.ts`  | Campaign report + DORA/NIS2 compliance report (HTML/PDF)                                                                                         |
-| Metrics    | `backend/src/modules/metrics/prometheus.ts`           | Prometheus `/metrics` exposition                                                                                                                 |
-| Store      | `backend/src/store/`                                  | Persistence: PostgreSQL (`DATABASE_URL`) or memory (fallback)                                                                                    |
-| App        | `backend/src/app.ts`                                  | `buildApp()` factory: routes + logic (testable via inject), token-free logs                                                                      |
-| Server     | `backend/src/server.ts`                               | Entry point: store, auth, scheduler, listen                                                                                                      |
-| Scheduler  | `backend/src/modules/campaigns/scheduler.ts`          | Scheduled execution of approved campaigns (CAM-01)                                                                                               |
-| Auth       | `backend/src/auth/`                                   | JWT + RBAC (engineer/officer/viewer/ciso)                                                                                                        |
-| Limits     | `backend/src/config/limits.ts`                        | Frozen `HARD_CAPS` ceiling + CISO-set operational caps (`PUT /api/limits`)                                                                       |
-| Audit      | `backend/src/modules/audit/`                          | Persistent audit log                                                                                                                             |
-| Bench (C)  | `backend/src/modules/bench/model.ts`                  | Governed class-C dispatch: run requests/verdicts, coverage methods, attestation checklists, external import — **no attack vector, records only** |
-| Playbooks  | `backend/src/modules/playbooks/{playbooks,suites}.ts` | Curated + custom assessment playbooks and consolidated suites                                                                                    |
-| Notify     | `backend/src/modules/notify/`                         | Notification events + sinks (webhook/Slack), opt-in                                                                                              |
-| Posture    | `backend/src/modules/posture/analyze.ts`              | Target posture fingerprint (WAF/CDN/rate-limit/LB signals)                                                                                       |
-| Protection | `backend/src/modules/protection/`                     | Protection-provider hook for real detection/mitigation timing (default no-op)                                                                    |
-| Telemetry  | `backend/src/modules/target-telemetry/`               | Target host telemetry correlated to the run (default no-op)                                                                                      |
-| Users      | `backend/src/modules/users/service.ts`                | Runtime user management (officer); env users immutable                                                                                           |
-| Util       | `backend/src/util/{text,net,run-metrics}.ts`          | Shared dependency-free helpers: `htmlEscape`, `hostOf`, `availabilityPct` (single source of truth across the report/notify modules)              |
+## Reused components
 
-## Campaign flow
+- `modules/campaigns/`: campaign persistence, approvals, scheduling, bounded dispatch, stop and historical results.
+- `modules/drs/`: immutable reference, catalogue, plan revisions, orchestrator ports, baseline, evidence validation, scoring and JSON/HTML reports.
+- `modules/fleet/` and `agents/persistent-fleet.ts`: inventory, identities, missions, progress, shared budgets and archived receipts.
+- `modules/probe/`: independent HTTP observation and quality diagnostics. Functional journeys still need collectors.
+- `modules/reports/`, `modules/wrs/`, metrics and audit: diagnostics, exports, operational history and provenance; WRS stays separate from DRS.
+- `store/`: transactional persistence and migrations; memory fixtures are development-only for legacy team mode.
+- `modules/assistant/`: capability-governed context and proposals; it cannot bypass approval, target or rate policy. Kusa is not a qualified provider yet.
 
-```
-1. Creation           POST /api/campaigns          → PENDING_APPROVAL
-   (validation: allowlist, attestation, HARD_CAPS caps)
-2. Approval           POST /api/campaigns/:id/approval → APPROVED / REJECTED
-   (separation of duties, 24 h validity, rejection with reason)
-3. Execution          POST /api/campaigns/:id/execute → RUNNING
-   ├─ bounded HTTP generator ─┐
-   ├─ legitimate probe        ├─ in parallel, under the kill switch
-   └─ kill switch (3 levels)  ─┘
-   → COMPLETED / KILLED_AUTO / KILLED_MANUAL
-4. Scoring            WRS computed from the measured metrics
-5. Report             GET /api/runs/:runId/report  → HTML
-```
+## Execution boundaries
 
-## Kill switch (3 levels)
+Persistent missions operate on already provisioned agents; a Fleet inventory entry is not a Kubernetes deployment. The older Job coordinator is a separate adapter, disabled on production. Kubernetes manifests are in `deploy/kubernetes/`; the synthetic network bench belongs to the companion repository.
 
-1. **Auto** — the probe detects consecutive unavailability > 30 s.
-2. **Manual** — `POST /api/campaigns/:id/kill` (SOC/NOC button).
-3. **Time-based** — absolute timeout = `maxDurationSec` (capped at 900 s / 15 min).
+A plan revision freezes scope, instrumentation, budgets and standard hash. Generator and collector ports are separate. The state machine, stop acknowledgments and recovery prevent silent progression when proof is missing. See [DRS engine](drs-engine.md) and [Fleet contract](fleet-missions.md).
 
-The kill switch propagates an `AbortSignal`: generator and probe stop immediately.
-
-## Technical stack
-
-- Node ≥ 22, TypeScript strict, ESM.
-- Fastify 5, `@fastify/static`, `@fastify/cors`.
-- React 18, Vite 7.
-- Persistence: PostgreSQL via `pg` (memory fallback), schema auto-created.
-- Tests: Vitest.
+[Current topology](current-setup.md) records deployed versions independently from repository history. Images, API build identity, UI assets and evidence hashes must be checked before promotion.

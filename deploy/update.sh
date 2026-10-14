@@ -46,6 +46,14 @@ HAD_DROPIN=0
 if sudo -n test -f "$DROPIN"; then sudo -n cat "$DROPIN" > "$BACKUP"; HAD_DROPIN=1; fi
 OVERRIDE="$(mktemp)"
 printf '[Service]\nWorkingDirectory=%s/backend\nExecStart=\nExecStart=/usr/bin/node %s/backend/dist/server.js\n' "$RELEASE" "$RELEASE" > "$OVERRIDE"
+# Keep service-level runtime overrides (for example persistent Fleet enablement)
+# separate from the changing release paths, including continued directives.
+if [ "$HAD_DROPIN" = 1 ]; then
+  awk '
+    /^[[:space:]]*Environment(File)?=/ { keep = 1 }
+    keep { print; keep = ($0 ~ /\\$/) }
+  ' "$BACKUP" >> "$OVERRIDE"
+fi
 sudo -n mkdir -p "$(dirname "$DROPIN")"
 sudo -n install -m 644 "$OVERRIDE" "$DROPIN"
 rollback() {

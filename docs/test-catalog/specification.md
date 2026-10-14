@@ -1,5 +1,7 @@
 # Specification reference for the functional test catalog
 
+This is a test/reference artifact, not today’s deployment or physical DRS qualification. Use [current verification](../testing.md) and workspace configuration for current gates. Historical result counts do not replace a fresh run.
+
 Every expected result in the catalog is argued against a numbered rule here. Rules
 are drawn from the code and the project's stated safeguards (`SECURITY.md`,
 `docs/security-and-governance.md`, `docs/security-and-governance.md`, `backend/src/auth/rbac.ts`,

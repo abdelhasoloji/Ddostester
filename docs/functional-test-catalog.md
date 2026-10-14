@@ -1,5 +1,7 @@
 # Functional test catalog (UI journeys, expected results, gap verdicts)
 
+This is a test/reference artifact, not today’s deployment or physical DRS qualification. Use [current verification](testing.md) and workspace configuration for current gates. Historical result counts do not replace a fresh run.
+
 A broad-spectrum functional catalog for the ShieldTest interface. Each row is a
 user journey deduced from the app's real behaviour, an **expected result**, and a
 **verdict** written to be self-critical:
@@ -110,11 +112,11 @@ the run — **and nothing else that explains it**. The run object carries the pr
 metrics (`available/samples`, `errorRate5xx`) and a timeline, but no `reason`
 string tying the kill to its cause.
 
-**What the UI shows:** the status label `KILLED_AUTO → "Auto-killed"` (`ui.tsx:34`).
+**What the UI shows:** the status label `KILLED_AUTO → "Auto-killed"` (`ui.tsx`).
 No tooltip, no sentence, no highlight of the probe availability drop.
 
 **Where the "why" actually lives:** only in the notification body
-(`notify/events.ts:122`: _"hit the automatic kill switch ... (target
+(`notify/events.ts`: _"hit the automatic kill switch ... (target
 unavailable)"_), which requires `NOTIFY_*` to be configured.
 
 **Expected result (what "coherent" would be):** a killed run should state, in the
@@ -137,7 +139,7 @@ explanation."
 
 | ID  | Journey                                       | Expected result                                                       | Verdict                                                   |
 | --- | --------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
-| E1  | Reports with no runs yet                      | Empty state: "No campaign has run yet — no report available"          | ✅ (pages.tsx:445)                                        |
+| E1  | Reports with no runs yet                      | Empty state: "No campaign has run yet — no report available"          | ✅ (pages.tsx)                                            |
 | E2  | Open a completed run's report                 | Shows WRS, probe availability, latency percentiles, posture, timeline | ❓                                                        |
 | E3  | Open a **killed** run's report                | Report opens and clearly marks it as killed **with the reason**       | ✅ (fixed via `statusDetail`; shown in the detail drawer) |
 | E4  | WRS marked "estimated" (no protection source) | Badge/label says estimated; not presented as measured                 | ✅ (wrs.estimated) — ❓ UI label                          |
@@ -154,7 +156,7 @@ explanation."
 | --- | -------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
 | F1  | Open Audit                             | Chronological, append-only event list                        | ❓                                                  |
 | F2  | Verify integrity (intact chain)        | "Verified/OK" — hash chain consistent                        | ✅ (endpoint) — ❓ UI copy                          |
-| F3  | Verify integrity (tampered)            | Clearly flags tampering and where ("broken at #n (reason)")  | ✅ (pages.tsx:511/516)                              |
+| F3  | Verify integrity (tampered)            | Clearly flags tampering and where ("broken at #n (reason)")  | ✅ (pages.tsx/516)                                  |
 | F4  | Export audit                           | Downloads the audit trail                                    | ❓                                                  |
 | F5  | A killed campaign's lifecycle in audit | create → approve → run → **killed (with cause)** all present | ⚠️ verify the kill event carries the cause in audit |
 

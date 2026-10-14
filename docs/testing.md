@@ -1,55 +1,27 @@
-# Testing
+# Verification
 
-The test suite is a pyramid: a wide base of fast unit/property tests, a middle
-of API-integration and store-contract tests, and a thin browser E2E on top —
-plus a cross-cutting safeguards suite that makes the security boundary
-executable.
+## Local gates
 
-## Layers
-
-| Layer           | Where                                                        | What it covers                                                                     |
-| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Unit (pure)     | `backend/test/*`, `frontend/src/*.test.ts`                   | scoring, parsing, validation, form helpers                                         |
-| Property-based  | `backend/test/invariants.test.ts`                            | WRS ∈ [0,100] & level, rate/picker invariants (fast-check)                         |
-| **Safeguards**  | `backend/test/safeguards.test.ts`                            | no input bypasses caps / allowlist / authorization / separation of duties (fuzzed) |
-| API integration | `backend/test/integration.test.ts`, `rbac.test.ts`           | Fastify routes, RBAC matrix, concurrency guard                                     |
-| Store contract  | `backend/test/store-contract.test.ts`                        | memory **and** postgres behave identically                                         |
-| Component       | `frontend/src/ui-components.test.tsx`                        | badges, RunDetails, CampaignCard RBAC gating (Testing Library)                     |
-| Client unit     | `frontend/src/{api,theme}.test.ts`                           | api fetch wrappers (URLs/verbs/auth/errors), theme persistence                     |
-| Context/actions | `frontend/src/context.test.tsx`                              | AppProvider bootstrap, login/logout, campaign actions, toasts                      |
-| Page/form       | `frontend/src/{app,login,pages,pages-interactions}.test.tsx` | gate states, sign-in, user management, notify test, playbook launch                |
-| E2E (browser)   | `e2e/critical-path.spec.ts`                                  | the built SPA serves, login works, reaches the API (Playwright)                    |
-
-## Running
-
-```bash
-npm test                 # all unit/integration (fast) — part of `npm run verify`
-npm run test:coverage    # same, with v8 coverage + enforced thresholds (what CI runs)
-npm run test:e2e         # builds, then the Playwright browser smoke (separate CI job)
+```sh
+npm run lint
+npm run typecheck
+npm run test -w backend -- --maxWorkers=2
+npm run test -w frontend -- --maxWorkers=2
+npm run build
 ```
 
-### Postgres store contract
+The tracked pre-push hook runs lint/typecheck/tests. CI additionally enforces workspace coverage thresholds from the Vitest configurations, dependency audit, PostgreSQL and recovery gates. Use those configuration files as authority rather than copied threshold tables.
 
-Skipped unless a disposable database is provided:
+## Meaningful contracts
 
-```bash
-DATABASE_URL_TEST=postgresql://user:pass@127.0.0.1:5432/shieldtest_test npm test -w backend
-```
+Backend tests cover target/origin admission, budgets, identity/capability policy, transactional audit, evidence integrity, scoring terminal rules, retries/history, simulation isolation, Fleet stop/progress and registry pagination. Frontend tests cover the assessment workspace, modes, explicit selection, unknown live telemetry and compact counts. DRS fixtures validate the software contract, not physical protection capacity.
 
-It runs the real migrations and SQL against that database.
+PostgreSQL tests require `DATABASE_URL_TEST` pointing to a disposable isolated database. CI uses `REQUIRE_POSTGRES_TESTS=1` so missing setup fails instead of silently skipping. `npm run test:postgres -w backend` and recovery recipes must never target production. Keep database credentials out of shell transcripts and Git.
 
-## Coverage thresholds
+Browser tests use local identified fixtures and their intended config. Render Kubernetes/Compose manifests before applying anything; a render does not prove CNI enforcement or live stop semantics. Native tool recipes are documented separately under `scripts/conformance/`.
 
-Enforced per workspace in `vitest.config.ts` (CI fails below the floor):
+## Last product checkpoint
 
-- **backend**: lines/statements 73, branches 79, functions 84 (external-tool
-  `run()` paths are integration-only; the floor rises as unit coverage grows).
-- **frontend**: lines/statements 80, functions 58, branches 66 (api/context/
-  theme/App/Login unit + page/form/interaction tests; rising as more of the UI
-  gets covered — `ui.tsx`'s large campaign form is the current low point).
+Build 463 was verified with local backend/frontend suites, PostgreSQL and encrypted restore, native VPS candidate gates, local visual assessment/report/mobile checks and API/UI identity checks. It included one software-only campaign with reproducible simulation score 1, no physical campaign traffic. [Current setup](current-setup.md) describes that deployed checkpoint. New source changes require fresh gates and are not implicitly deployed.
 
-## Deliberately not adopted
-
-- **Mutation testing (Stryker)**: high run cost for marginal added signal once
-  property + safeguards tests are in place. Revisit if a regression slips past
-  the current suite.
+Remaining physical qualification includes entry/origin collectors, functional journeys, Kusa and scaled infrastructure execution. See [roadmap](roadmap.md).

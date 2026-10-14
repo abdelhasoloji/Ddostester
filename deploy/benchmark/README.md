@@ -4,7 +4,7 @@ The deliberately-**unprotected** HTTP origin the control plane's scenarios run
 against to produce a baseline — the "before" a protected WEDOS edge is measured
 against. This directory is **infrastructure-as-code for the target**, not attack
 code: the control plane still implements no attack vector (see the repo's
-`CLAUDE.md` boundary), and every endpoint here is a bounded victim app.
+`AGENTS.md` boundary), and every endpoint here is a bounded victim app.
 
 ## What it exposes
 

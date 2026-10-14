@@ -18,3 +18,6 @@ shieldtest-pki/
 # Playwright
 test-results/
 playwright-report/
+
+# Workstation metadata
+.DS_Store
