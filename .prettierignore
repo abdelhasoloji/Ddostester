@@ -9,4 +9,4 @@ package-lock.json
 docs/test-catalog/results.md
 
 # ephemeral agent worktrees
-\.agent-worktrees/
+.agent-worktrees/

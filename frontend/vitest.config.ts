@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    maxWorkers: 2,
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
     // uPlot draws to a real canvas; under jsdom its spline renderer throws

@@ -10,7 +10,7 @@ npm run test -w frontend -- --maxWorkers=2
 npm run build
 ```
 
-The tracked pre-push hook runs lint/typecheck/tests. CI additionally enforces workspace coverage thresholds from the Vitest configurations, dependency audit, PostgreSQL and recovery gates. Use those configuration files as authority rather than copied threshold tables.
+Workspace configs default to two workers to limit contention without loosening test timeouts. The tracked pre-push hook runs lint/typecheck/tests. CI additionally enforces workspace coverage thresholds from the Vitest configurations, dependency audit, PostgreSQL and recovery gates. Use those configuration files as authority rather than copied threshold tables.
 
 ## Meaningful contracts
 
