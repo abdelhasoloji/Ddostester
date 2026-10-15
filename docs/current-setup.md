@@ -1,4 +1,4 @@
-# Current setup — observed 14 October 2026
+# Current setup — observed 15 October 2026
 
 This is a dated deployment observation, not a promise that an IP, Pod or release remains unchanged. Check `/health`, service identity and Kubernetes state before an operation. Private credentials and evidence live outside both repositories.
 
@@ -11,7 +11,7 @@ This is a dated deployment observation, not a promise that an IP, Pod or release
 | Mac workstation | Source, development, kind laboratory manifests and private release/evidence archives                      | Local development and isolated tests; no current parity claim with Linux                  |
 | `46.28.109.92`  | Dedicated authorized HTTP test target for earlier diagnostics                                             | Admission requires application allowlist, approved origins and worker/network policy      |
 
-The production service is active at `/home/shieldtest/ddostester-releases/drs-engine-bbd4293fb91e/backend`, build 463, source archive SHA-256 `bbd4293fb91e57abda167478b44ab7d9ade4f07f39f730d68e98c17c4799ed2e`. Health reports PostgreSQL, single mode, `single_admin`, DRS workflow enabled, built-in HTTP default. Protection-provider configuration is enabled; target telemetry and remote-probe flags are false. A configured protection provider is not proof of independent DRS protection-entry measurement.
+The production service is active at `/home/shieldtest/ddostester-releases/release-1e3a6f1.HJiE4P/backend`, Git build 455, commit `1e3a6f13429fedb7e219469fa25cbf72f90ddd8c`, verified at 01:51 UTC on 15 October. The earlier archive build 463 used a different counter; compare full source identities rather than treating these two numbering schemes as chronological. Health reports PostgreSQL, single mode, `single_admin`, DRS workflow enabled, built-in HTTP default. Protection-provider configuration is enabled; target telemetry and remote-probe flags are false. A configured protection provider is not proof of independent DRS protection-entry measurement.
 
 The application has 11 preserved accounts and one administrator, `abdelha@wedos`. There are 281 archived historical campaigns, one retained Fleet draft and one completed offline simulation from the build-463 verification. These counts are the delivery checkpoint, not live counters.
 
@@ -31,7 +31,7 @@ All three Pods were Running. Pod readiness does not establish application authen
 
 Ten Pods were present: control, coordinator, database, target, probe, Prometheus, Grafana and three IoT agents. Quota `lab-budget`: Pods 10/16, CPU requests 1125m/4, memory requests 1440Mi/6Gi, CPU limits 5250m/8, memory limits 4352Mi/10Gi, batch Jobs 0/3; NodePort and LoadBalancer Services 0/0. Free Pod slots do not authorize more active agents or demonstrate throughput. Each agent requests 50m CPU/128Mi and is limited to 250m/256Mi.
 
-The source-06 Linux image layer is provenance for the existing HTTP lab, not the production build-463 image. The complete rendered release layer has not been applied wholesale. Auxiliary images and private Secrets/PVCs must be preserved when updating it.
+The source-06 Linux image layer is provenance for the existing HTTP lab, not the production API/UI release. The complete rendered release layer has not been applied wholesale. Auxiliary images and private Secrets/PVCs must be preserved when updating it.
 
 ## Separate synthetic network bench
 
@@ -43,4 +43,10 @@ Kusa endpoints, infrastructure-cluster admission, site agents, independently qua
 
 ## Follow-up observation — 15 October 2026
 
-The control API still reports build 463. The native systemd service currently runs with `User=root`; this is separate from the restricted Kubernetes workload identities. Moving the native API to an unprivileged service account remains work requiring runtime-file/PKI permission and rollback validation. The deployment source checkout `/home/shieldtest/ddostester` was clean at `d98db08`; the active service continues to use its immutable release directory. No claim of a newer deployment is made by this observation.
+The earlier observation reported archive build 463; the later delivery above now serves the exact Git commit. The native systemd service currently runs with `User=root`; this is separate from the restricted Kubernetes workload identities. Moving the native API to an unprivileged service account remains work requiring runtime-file/PKI permission and rollback validation. The deployment source checkout `/home/shieldtest/ddostester` was clean at `d98db08`; the active service continues to use its immutable release directory. No claim of a newer deployment is made by this observation.
+
+## Delivery verification — 15 October 2026
+
+[CI for the deployed code](https://github.com/abdelhasoloji/Ddostester/actions/runs/38666811959) passed all four jobs: quality, frontend, backend coverage and PostgreSQL/recovery. The VPS independently passed lint, typecheck, 1,200 backend tests, 455 frontend tests and build. Promotion verified readiness, the full API commit and hashes of every served UI asset. Account and inventory digests, the sole administrator, 283 campaign records and runtime policy were preserved; no campaign was running. All three existing agents resumed fresh authenticated heartbeats and were online after restart. No physical campaign or Kubernetes agent-image rollout was performed. The standalone heartbeat-client fix is in source; this delivery does not claim new agent binaries.
+
+Automatic deployment remains blocked by the runner's release-directory permissions. This delivery used an operator promotion of the exact green CI commit, with the native gates and existing runner privilege restrictions retained. The previous release and encrypted backup are retained outside Git.
