@@ -74,3 +74,5 @@ The [RL300 product roadmap](rl300-product-roadmap.md) defines the complete imple
 ## Passive development PoP prototype
 
 SSH inventory is available for `ac02` (KVM/x86_64). The [three-Pod passive prototype](../deploy/pop-qualification/README.md) is prepared and checked locally, but cannot be applied using the current account because no Kubernetes context is configured. It is separate from the current Fleet workers and contains no generator. Actual cluster admission, node-label placement, network-policy enforcement and live telemetry acceptance remain pending. Do not install a second cluster or treat the SSH account as a cluster identity.
+
+The application now includes a dated passive-PoP status panel: prepared/staged evidence, pending access, unknown live Pod count and pending acceptance. It exposes no deployment or traffic controls. Publication/promotion must still be distinguished from source readiness.

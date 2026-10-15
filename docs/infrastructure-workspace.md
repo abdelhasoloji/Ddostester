@@ -57,3 +57,9 @@ Local verification is distinct from production delivery. Migration and UI change
 ## Local delivery evidence
 
 The [checkpoint](infrastructure-workspace-checkpoint.json) pins the tested application/image source and verification outcomes. The PostgreSQL CI selection includes `test/infrastructure.test.ts`; the authenticated recovery gate additionally compares every infrastructure revision and evidence row after restoring the encrypted archive into a separate disposable database. An archive authentication failure is still rejected before database access. None of these local checks promotes a production release.
+
+## Passive PoP prototype status
+
+The Fleet infrastructure view also presents `passivePrototype` from the existing read-only workspace endpoint. It is explicitly the dated 15 October operator checkpoint: preparation and SSH artifact staging are recorded, Kubernetes access is pending, deployed Pod count is unknown, and live acceptance is pending. `observedReadyPods: null` is displayed as Unknown, never as zero or the expected replica count. The x86_64/KVM observation on ac02 is distinct from the earlier RL300 study.
+
+The panel includes proposed resource reservations and the exact staged artifact hash/path. It has no deploy, migration, enrollment or traffic action. It does not collect Pod state remotely or update from Refresh; Refresh reads the application checkpoint, not Kubernetes. Replacing this dated checkpoint with a verified collector is future work once scoped cluster access is available.

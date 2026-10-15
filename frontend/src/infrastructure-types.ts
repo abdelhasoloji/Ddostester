@@ -43,7 +43,30 @@ export interface InfrastructureRecord<T> {
   hash: string;
   payload: T;
 }
+export interface PassivePrototypeCheckpoint {
+  schema: string;
+  observedOn: string;
+  observationKind: 'dated-checkpoint';
+  liveObservationAvailable: false;
+  lastRecordedStatus: string;
+  host: { name: string; managementAddress: string; architecture: string; virtualization: string };
+  namespace: string;
+  expectedPods: number;
+  observedReadyPods: number | null;
+  trafficGeneration: false;
+  fleetEnrollment: false;
+  resources: {
+    requestCpuMillicores: number;
+    requestMemoryMiB: number;
+    limitCpuMillicores: number;
+    limitMemoryMiB: number;
+  };
+  steps: { id: string; status: string; detail: string }[];
+  artifact: { sha256: string; stagedPath: string };
+  scope: string;
+}
 export interface InfrastructureWorkspace {
+  passivePrototype?: PassivePrototypeCheckpoint;
   hosts: InfrastructureRecord<InfrastructureHost>[];
   evidence: InfrastructureRecord<InfrastructureEvidenceInput>[];
   qualification: {

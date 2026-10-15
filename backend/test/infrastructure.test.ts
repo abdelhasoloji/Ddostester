@@ -344,6 +344,13 @@ for (const backend of ['memory', 'postgres'] as const) {
           ),
         ).toBe(true);
         expect(result.readiness.fullPhysicalVectorsQualified).toBe(0);
+        expect(result.passivePrototype).toMatchObject({
+          lastRecordedStatus: 'artifact-staged',
+          observedReadyPods: null,
+          liveObservationAvailable: false,
+          trafficGeneration: false,
+          host: { architecture: 'amd64' },
+        });
         expect(result.readiness).not.toHaveProperty('score');
         expect(result.readiness.catalogueHash).toMatch(/^[a-f0-9]{64}$/);
         expect((await app.inject({ url: base + '?hosts=a,a', headers: viewer })).statusCode).toBe(

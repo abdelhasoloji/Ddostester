@@ -1,3 +1,4 @@
+import { passivePrototypeCheckpoint } from '../modules/infrastructure/passive-prototype.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
 import type { Permission } from '../auth/rbac.js';
@@ -50,6 +51,7 @@ export function registerInfrastructureRoutes(
       return {
         hosts,
         evidence,
+        passivePrototype: passivePrototypeCheckpoint(),
         qualification: qualification(hosts, evidence, selected),
         limits: INFRASTRUCTURE_LIMITS,
         readiness: {

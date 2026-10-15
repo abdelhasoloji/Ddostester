@@ -1,3 +1,4 @@
+import { PassivePrototypePanel } from './passive-prototype-panel.js';
 import { useRef, useState, useEffect } from 'react';
 import { api } from './api.js';
 import type {
@@ -148,6 +149,9 @@ export function InfrastructureWorkspacePanel({ editable }: { editable: boolean }
           {busy && <p role="status">Loading or saving infrastructure…</p>}
           {data && (
             <>
+              {data.passivePrototype && (
+                <PassivePrototypePanel checkpoint={data.passivePrototype} />
+              )}
               <h3>Physical hosts</h3>
               <p>
                 {data.hosts.length} hosts recorded. Unknown specifications remain empty. No host is
