@@ -37,6 +37,8 @@ The [infrastructure study](rl300-arm64-infrastructure-study.md) remains the desi
 - Lot 6: management/data interface and address metadata are captured by lot 2. Actual VPN/CNI/NIC configuration is pending Martin's specifications; no manifest or routing guess applied.
 - Lot 7: read-only levels 1–5 readiness and per-vector reference/adapter/ambiguity gaps implemented in Fleet. No new physical vector adapter, measured qualification or campaign verdict is inferred from inventory.
 - Lot 8: [two-host preparation dossier](rl300-two-host-preparation.json) delivered; real pilot not executed. Hosts, access, collector evidence and execution window remain missing. No 16-server or throughput decision.
-- Lot 9: local verification and source handoff only. No push, remote CI dispatch, production migration, promotion or deployment. Production build 466 remains the last recorded observation; this turn did not re-observe it remotely.
+- Lot 9: local verification, encrypted backup/authenticated recovery of accounts, audit and infrastructure history on disposable PostgreSQL, and source handoff. No push, remote CI dispatch, production migration, promotion or deployment. Production build 466 remains the last recorded observation; this turn did not re-observe it remotely.
 
 See the [workspace contract](infrastructure-workspace.md) for the API, UI, exact statuses and operational limits. The remaining physical integration and execution work is not marked complete.
+
+Verification: [local checkpoint](infrastructure-workspace-checkpoint.json), including 1,274 passing backend tests, 467 passing frontend tests, unchanged coverage floors, lint/typecheck/build, local browser checks, exact ARM64 image/API/UI identity and recovery evidence. These are local results, not a remote CI or production release receipt.

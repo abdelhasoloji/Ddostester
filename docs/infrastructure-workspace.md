@@ -53,3 +53,7 @@ Reads use `campaign:read`; writes use `user:manage`, matching the Fleet inventor
 Martin still needs to provide the actual host/OS/runtime/NIC/interface inventory, VPN access and routing details, address allocation and independently observed egress. The [two-host preparation dossier](rl300-two-host-preparation.json) records these as pending. This increment does not contain a new distributed traffic engine or deployment configuration.
 
 Local verification is distinct from production delivery. Migration and UI changes are in source only until an explicitly identified release is promoted through the existing [operations process](operations.md). The previous production checkpoint remains unchanged by local tests.
+
+## Local delivery evidence
+
+The [checkpoint](infrastructure-workspace-checkpoint.json) pins the tested application/image source and verification outcomes. The PostgreSQL CI selection includes `test/infrastructure.test.ts`; the authenticated recovery gate additionally compares every infrastructure revision and evidence row after restoring the encrypted archive into a separate disposable database. An archive authentication failure is still rejected before database access. None of these local checks promotes a production release.

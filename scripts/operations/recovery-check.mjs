@@ -92,6 +92,14 @@ try {
       throw new Error('Recovered audit differs');
     if (!originalAudit.length)
       throw new Error('Recovery gate requires an audit-bearing fixture database');
+    const infrastructureSql =
+      'SELECT kind,id,revision,data FROM infrastructure_revisions_v1 ORDER BY kind,id,revision';
+    const originalInfrastructure = (await pool.query(infrastructureSql)).rows;
+    const recoveredInfrastructure = (await recovered.query(infrastructureSql)).rows;
+    if (!originalInfrastructure.length)
+      throw new Error('Recovery gate requires an infrastructure-history fixture');
+    if (JSON.stringify(originalInfrastructure) !== JSON.stringify(recoveredInfrastructure))
+      throw new Error('Recovered infrastructure history or evidence differs');
   } finally {
     await recovered.end();
   }
@@ -122,6 +130,7 @@ try {
       authenticatedAtomicRecovery: true,
       accountsAndSessionsPreserved: true,
       auditPreserved: true,
+      infrastructureHistoryAndEvidencePreserved: true,
       tamperRejectedBeforeDatabaseAccess: true,
     }),
   );

@@ -1,0 +1,100 @@
+{
+  "schema": "shieldtester.arm64-image-smoke/v1",
+  "observedAt": "2026-10-15T20:21:35.228Z",
+  "sourceCommit": "b4078b872d8e15df2cc3d21b52405da2b09c06c2",
+  "imageId": "sha256:76451e7c260eb5ab5fc57cbda8fe867fab27304311a99d54e700991a5e3403cc",
+  "dockerEngine": "linux/aarch64",
+  "runtime": {
+    "platform": "linux",
+    "arch": "arm64",
+    "node": "v22.23.3"
+  },
+  "apiReady": true,
+  "servedUiAssetsVerified": true,
+  "workerModulesImported": true,
+  "isolatedFixture": {
+    "userMode": "team",
+    "storage": "memory",
+    "network": "none",
+    "publishedPorts": 0
+  },
+  "campaignsStarted": 0,
+  "productionModeQualified": false,
+  "hpeHardwareQualified": false,
+  "containerRemoved": true,
+  "environmentScope": "Local Mac development and Linux ARM64 Docker VM; no HPE or VPS access",
+  "checks": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "backendFrontendBuild": "passed",
+    "frontendCoverage": {
+      "testsPassed": 467,
+      "filesPassed": 59,
+      "statementsPct": 80.53,
+      "branchesPct": 71.81,
+      "functionsPct": 74.65,
+      "linesPct": 82.46,
+      "thresholds": "passed"
+    },
+    "postgresTargetedContracts": {
+      "testsPassed": 45,
+      "filesPassed": 3,
+      "scope": "Infrastructure APIs, store contract and existing bounded Fleet PostgreSQL invariants; disposable PostgreSQL 16"
+    },
+    "arm64HelperTests": {
+      "testsPassed": 2
+    },
+    "browser": {
+      "engine": "Chromium 153.0.8010.12 (existing local executable)",
+      "localHostSave": "passed",
+      "missingPilotGates": "passed",
+      "externalRequests": "blocked",
+      "fixtureServer": "stopped"
+    },
+    "backendCoverage": {
+      "testsPassed": 1274,
+      "testsSkipped": 4,
+      "filesPassed": 156,
+      "statementsPct": 84.58,
+      "branchesPct": 79.84,
+      "functionsPct": 86.73,
+      "linesPct": 86.52,
+      "thresholds": "passed",
+      "durationSec": 291.15,
+      "runs": 1,
+      "database": "disposable PostgreSQL 16"
+    },
+    "recoveryGate": {
+      "encryptedBackup": true,
+      "authenticatedAtomicRecovery": true,
+      "accountsAndSessionsPreserved": true,
+      "auditPreserved": true,
+      "infrastructureHistoryAndEvidencePreserved": true,
+      "tamperRejectedBeforeDatabaseAccess": true,
+      "script": "scripts/operations/recovery-check.mjs",
+      "scriptSha256": "befc263488ccca50cdb918fed4e0a30b986399899c448ad5d135eac4f462bf07"
+    }
+  },
+  "storageMigration": {
+    "number": 9,
+    "productionApplied": false,
+    "disposablePostgresApplied": true
+  },
+  "productionChanged": false,
+  "publication": "Local source commit only; no push, deployment or registry publication",
+  "remaining": [
+    "Martin hardware/NIC/address/runtime inputs",
+    "Actual VPN/data routing integration",
+    "Independent clock, ingress, origin and functional-journey evidence",
+    "Physical cause of historical noisy baseline",
+    "Native two-HPE qualification and approved pilot window",
+    "Measured capacity decision",
+    "GitHub ARM64 execution and production release qualification"
+  ],
+  "verificationCompletedAt": "2026-10-15T20:23:44.662903+00:00",
+  "cleanup": {
+    "arm64SmokeContainer": "removed",
+    "localUiServer": "stopped",
+    "postgresFixture": "stopped and removed"
+  }
+}
