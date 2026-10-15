@@ -259,3 +259,12 @@ it('scopes DRS Grafana links to an immutable revision', () => {
   expect(url.searchParams.get('var-campaign')).toBe('campaign-a');
   expect(url.searchParams.get('var-revision')).toBe('revision-b');
 });
+
+it('requests an asynchronous start with explicit confirmation and no retry', async () => {
+  const f = stubFetch({ campaignId: 'c1', statusUrl: '/api/campaigns/c1' });
+  await expect(api.startExecution('c1', true)).resolves.toMatchObject({ campaignId: 'c1' });
+  expect(f).toHaveBeenCalledTimes(1);
+  const [url, opts] = lastCall(f);
+  expect(url).toBe('/api/campaigns/c1/execute');
+  expect(JSON.parse(opts?.body as string)).toEqual({ background: true, confirmed: true });
+});

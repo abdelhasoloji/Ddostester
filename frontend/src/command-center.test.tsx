@@ -430,3 +430,27 @@ describe('Run Theater', () => {
     expect(screen.getByText('/search')).toBeInTheDocument();
   });
 });
+
+it('shows a persisted baseline failure after reconnect instead of opening a stale running stream', () => {
+  currentApp = makeApp({
+    campaigns: [
+      {
+        ...scoredCampaign,
+        status: 'APPROVED',
+        statusDetail:
+          'Last run failed (reference test); DRS baseline unstable; CV 0.25 / 0.1; no injection',
+      },
+    ],
+  });
+  render(
+    <MemoryRouter initialEntries={['/theater?run=c1']}>
+      <RunTheaterPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('alert')).toHaveTextContent('DRS baseline unstable');
+  expect(screen.getByRole('link', { name: 'Review the DRS report' })).toHaveAttribute(
+    'href',
+    '/campaigns?tab=evidence&campaign=c1',
+  );
+  expect(esInstances).toHaveLength(0);
+});

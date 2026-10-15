@@ -366,7 +366,10 @@ export function RunTheaterPage() {
   // Keep the theater self-refreshing while there's a live/launching run to watch,
   // even if the global "any running" poll has paused (it stops the instant no
   // campaign reads RUNNING — which happens in the launch→baseline gap).
-  const watching = standalone.length > 0 || hasSuite;
+  const watching =
+    standalone.some(
+      (c) => !(c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed')),
+    ) || hasSuite;
   const refresh = app.refresh;
   useEffect(() => {
     if (!watching) return;
@@ -469,20 +472,31 @@ export function RunTheaterPage() {
           )}
           {standalone.length > 0 && current && (
             <div className="card">
-              <RunTheater
-                campaignId={current.id}
-                name={current.name}
-                target={current.target}
-                vector={current.vector}
-                fleet={current.agent === 'fleet'}
-                fleetDeviceCount={current.fleetDeviceIds?.length}
-                onKill={() => app.kill(current)}
-                // Gate on the kill-specific flag, never `busy`: the blocking
-                // execute() holds `busy` for the whole run, which would keep the
-                // kill switch disabled ("Killing…") throughout — the same bug the
-                // card's kill button fixed.
-                killing={app.killing[current.id]}
-              />
+              {current.status === 'APPROVED' &&
+              current.statusDetail?.startsWith('Last run failed') ? (
+                <div role="alert">
+                  <h2>Execution stopped before a usable result</h2>
+                  <p>{current.statusDetail}</p>
+                  <Link to={`/campaigns?tab=evidence&campaign=${encodeURIComponent(current.id)}`}>
+                    Review the DRS report
+                  </Link>
+                </div>
+              ) : (
+                <RunTheater
+                  campaignId={current.id}
+                  name={current.name}
+                  target={current.target}
+                  vector={current.vector}
+                  fleet={current.agent === 'fleet'}
+                  fleetDeviceCount={current.fleetDeviceIds?.length}
+                  onKill={() => app.kill(current)}
+                  // Gate on the kill-specific flag, never `busy`: the blocking
+                  // execute() holds `busy` for the whole run, which would keep the
+                  // kill switch disabled ("Killing…") throughout — the same bug the
+                  // card's kill button fixed.
+                  killing={app.killing[current.id]}
+                />
+              )}
             </div>
           )}
         </>

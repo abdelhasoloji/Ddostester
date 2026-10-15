@@ -311,6 +311,9 @@ export const DRS_EVIDENCE_LIMITS = Object.freeze({
   maxArchiveBytes: 8388608,
   baselineMinSec: 300,
   baselineMaxSec: 600,
+  baselineIntervalMs: 1000,
+  baselineRequestTimeoutMs: 5000,
+  baselineExtensionSamples: 5,
   maxObservationSec: 21600,
   capacityTimeoutMs: 10000,
 });

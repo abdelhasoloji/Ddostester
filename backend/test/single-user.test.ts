@@ -1,3 +1,4 @@
+import { DrsBaselineError } from '../src/modules/drs/baseline.js';
 import { currentRevision } from '../src/modules/drs/workflow.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -566,4 +567,103 @@ describe('single administrator API', () => {
       await vi.waitFor(() => expect(executeCampaign).toHaveBeenCalledOnce());
     },
   );
+});
+
+it('acknowledges a background execution after durable RUNNING admission and retains failure diagnostics independently', async () => {
+  await start();
+  const c = await create({ drsMode: 'synthetic-lab' });
+  const revision = currentRevision(c.drsDocument);
+  expect(
+    (
+      await app!.inject({
+        method: 'POST',
+        url: `/api/campaigns/${c.id}/drs/freeze`,
+        headers: headers(),
+        payload: { revisionId: revision.id },
+      })
+    ).statusCode,
+  ).toBe(200);
+  let rejectRun!: (error: Error) => void;
+  vi.mocked(executeCampaign).mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectRun = reject;
+      }),
+  );
+  const unconfirmed = await app!.inject({
+    method: 'POST',
+    url: `/api/campaigns/${c.id}/execute`,
+    headers: headers(),
+    payload: { background: true },
+  });
+  expect(unconfirmed.statusCode).toBe(400);
+  const started = await app!.inject({
+    method: 'POST',
+    url: `/api/campaigns/${c.id}/execute`,
+    headers: headers(),
+    payload: { background: true, confirmed: true },
+  });
+  expect(started.statusCode).toBe(202);
+  expect(started.headers.location).toBe(`/api/campaigns/${c.id}`);
+  expect((await store.getCampaign(c.id))?.status).toBe('RUNNING');
+  await vi.waitFor(() => expect(rejectRun).toBeTypeOf('function'));
+  const duplicate = await app!.inject({
+    method: 'POST',
+    url: `/api/campaigns/${c.id}/execute`,
+    headers: headers(),
+    payload: { background: true, confirmed: true },
+  });
+  expect(duplicate.statusCode).toBe(409);
+  expect(vi.mocked(executeCampaign)).toHaveBeenCalledTimes(1);
+  expect(
+    (await app!.inject({ method: 'POST', url: `/api/campaigns/${c.id}/kill`, headers: headers() }))
+      .statusCode,
+  ).toBe(200);
+  const diagnostic = {
+    reason: 'unhealthy' as const,
+    elapsedSec: 300,
+    observedDurationSec: 300,
+    samples: 2,
+    samplesMs: [5, 15],
+    availabilityPct: 50,
+    meanMs: 10,
+    coefficientOfVariation: 0.5,
+    tolerance: 0.1,
+    minimumSec: 300,
+  };
+  rejectRun(new DrsBaselineError(diagnostic));
+  await vi.waitFor(async () => expect((await store.getCampaign(c.id))?.status).toBe('APPROVED'));
+  const restored = await store.getCampaign(c.id);
+  expect(restored?.statusDetail).toContain('baseline unhealthy');
+  const finalRevision = currentRevision(restored!.drsDocument);
+  expect(finalRevision.id).toBe(revision.id);
+  expect(finalRevision.baselineDiagnostic).toEqual(diagnostic);
+  expect(finalRevision.finalizedAt).toBeTruthy();
+  const report = await app!.inject({
+    url: `/api/campaigns/${c.id}/drs/report.json?revision=1`,
+    headers: headers(),
+  });
+  expect(report.json()).toMatchObject({
+    baselineDiagnostic: diagnostic,
+    assessment: { status: 'INDETERMINATE', score: null },
+  });
+  const html = await app!.inject({
+    url: `/api/campaigns/${c.id}/drs/report.html?revision=1`,
+    headers: headers(),
+  });
+  expect(html.body).toContain('unhealthy');
+});
+
+it('does not acknowledge background execution when the frozen-plan guard fails', async () => {
+  await start();
+  const c = await create({ drsMode: 'synthetic-lab' });
+  const response = await app!.inject({
+    method: 'POST',
+    url: `/api/campaigns/${c.id}/execute`,
+    headers: headers(),
+    payload: { background: true, confirmed: true },
+  });
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error).toContain('frozen');
+  expect(vi.mocked(executeCampaign)).not.toHaveBeenCalled();
 });

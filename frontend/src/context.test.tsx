@@ -15,7 +15,7 @@ const fakeApi = {
   changePassword: vi.fn(),
   createCampaign: vi.fn(),
   approve: vi.fn(),
-  execute: vi.fn(),
+  startExecution: vi.fn(),
   kill: vi.fn(),
   getRun: vi.fn(),
 };
@@ -86,7 +86,7 @@ beforeEach(() => {
   fakeApi.login.mockResolvedValue({ token: 'tok', email: 'off@wedos', role: 'ciso' });
   fakeApi.createCampaign.mockResolvedValue({});
   fakeApi.approve.mockResolvedValue({});
-  fakeApi.execute.mockResolvedValue({ status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } });
+  fakeApi.startExecution.mockResolvedValue({ campaignId: 'c1', statusUrl: '/api/campaigns/c1' });
   fakeApi.kill.mockResolvedValue({ status: 'KILLED_MANUAL' });
   fakeApi.getRun.mockResolvedValue({ runId: 'r1' });
 });
@@ -208,20 +208,20 @@ describe('campaign actions', () => {
     expect('createdBy' in payload).toBe(true);
   });
 
-  it('execute records the run and toasts', async () => {
+  it('acknowledges execution without waiting for its final result', async () => {
     await mountReady();
     fireEvent.click(screen.getByText('execute'));
-    await waitFor(() => expect(fakeApi.execute).toHaveBeenCalledWith('c1'));
+    await waitFor(() => expect(fakeApi.startExecution).toHaveBeenCalledWith('c1', false));
   });
 
   it('does NOT open the card drawer on launch (the launcher routes to Run Theater instead)', async () => {
     // The live view now lives in Run Theater; ExecuteModal navigates there, so
     // context.execute must not steal focus by expanding the card drawer.
     let finish!: (v: unknown) => void;
-    fakeApi.execute.mockReturnValue(new Promise((r) => (finish = r)));
+    fakeApi.startExecution.mockReturnValue(new Promise((r) => (finish = r)));
     await mountReady();
     fireEvent.click(screen.getByText('execute'));
-    await waitFor(() => expect(fakeApi.execute).toHaveBeenCalledWith('c1'));
+    await waitFor(() => expect(fakeApi.startExecution).toHaveBeenCalledWith('c1', false));
     // Drawer stays closed while the run is in flight.
     expect(screen.getByTestId('expanded').textContent).toBe('');
     finish({ status: 'COMPLETED', wrs: { wrs: 90, level: 'A' } });
@@ -230,7 +230,7 @@ describe('campaign actions', () => {
   });
 
   it('execute surfaces an error as a toast', async () => {
-    fakeApi.execute.mockRejectedValue(new Error('cap exceeded'));
+    fakeApi.startExecution.mockRejectedValue(new Error('cap exceeded'));
     await mountReady();
     fireEvent.click(screen.getByText('execute'));
     await waitFor(() => expect(screen.getByTestId('toasts').textContent).toBe('1'));

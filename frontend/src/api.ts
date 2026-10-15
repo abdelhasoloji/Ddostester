@@ -1124,6 +1124,11 @@ export const api = {
   cisoApprove: (id: string) => post<Campaign>(`/api/campaigns/${id}/ciso-approval`),
   execute: (id: string, confirmed = false) =>
     post<CampaignRun>(`/api/campaigns/${id}/execute`, confirmed ? { confirmed: true } : undefined),
+  startExecution: (id: string, confirmed = false) =>
+    post<{ campaignId: string; statusUrl: string }>(`/api/campaigns/${id}/execute`, {
+      background: true,
+      ...(confirmed ? { confirmed: true } : {}),
+    }),
   kill: (id: string) => post<{ status: string }>(`/api/campaigns/${id}/kill`),
   cancelCampaign: (id: string, reason?: string) =>
     post<Campaign>(`/api/campaigns/${id}/cancel`, reason ? { reason } : undefined),

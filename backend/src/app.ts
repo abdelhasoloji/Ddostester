@@ -1,3 +1,4 @@
+import { DrsBaselineError } from './modules/drs/baseline.js';
 import { transition as transitionDrs, finalize as finalizeDrs } from './modules/drs/workflow.js';
 import { runAttachment } from './modules/drs/attachments.js';
 import { assessDrs } from './modules/drs/scoring.js';
@@ -523,12 +524,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   }
 
   const failureReferences = new WeakMap<object, string>();
+  const backgroundExecutions = new Set<string>();
   function fail(err: unknown, reply: FastifyReply) {
     if (err instanceof CampaignError) return reply.code(400).send({ error: err.message });
     if (err instanceof AgentError) return reply.code(503).send({ error: err.message });
     const diagnosticId =
       (err && typeof err === 'object' ? failureReferences.get(err) : undefined) ?? randomUUID();
     app.log.error({ err, diagnosticId });
+    if (err instanceof DrsBaselineError)
+      return reply.code(422).send({
+        error: err.message,
+        code: 'baseline_rejected',
+        diagnosticId,
+        baselineDiagnostic: err.diagnostic,
+      });
     return reply.code(500).send({ error: 'internal error', diagnosticId });
   }
 
@@ -575,6 +584,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     c: Campaign,
     actor: string,
     recoveryBeforeRun?: RecoveryResult,
+    onStarted?: () => void,
   ): Promise<CampaignRun> {
     if (kills.isStopping()) throw new CampaignError('Control plane is shutting down');
     assertExecutable(c);
@@ -662,6 +672,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     const liveLabels = { target: new URL(c.target).hostname, vector: c.vector };
+    let countedInFlight = false;
     try {
       await auditAs(
         actor,
@@ -669,7 +680,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         c.id,
         'Execution intent persisted before transport preparation',
       );
-      await store.saveCampaign(transition(c, 'RUNNING'));
+      c = { ...transition(c, 'RUNNING'), statusDetail: undefined };
+      await store.saveCampaign(c);
+      onStarted?.();
       let runAgent = await resolveCampaignAgent(c.agent, agent);
       // Measurement fidelity: the in-process built-in generator caps out ~150 rps
       // and silently under-delivers above it. When a high-rate simple flood would
@@ -782,6 +795,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
       const runStartedMs = Date.now();
       metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', 1);
+      countedInFlight = true;
       app.log.info(
         {
           evt: 'run.start',
@@ -826,7 +840,6 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // report and the campaign drawer (no more guessing built-in vs external).
       run.engine = runAgent.name;
       const runDurationSec = (Date.now() - runStartedMs) / 1000;
-      metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', -1);
       metrics.inc('shieldtest_runs_completed_total', 'Runs by terminal status', {
         status: run.status,
         engine: runAgent.name,
@@ -1136,19 +1149,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         (r) => r.number === c.drsDocument?.currentRevision,
       );
       if (revision?.planHash && !revision.finalizedAt) {
+        if (reported instanceof DrsBaselineError) revision.baselineDiagnostic = reported.diagnostic;
         transitionDrs(
           revision,
           'EVIDENCE_VALIDATION',
-          `Physical execution interrupted (reference ${diagnosticId}); no unobserved scenario counts as success`,
+          `Physical execution interrupted (reference ${diagnosticId}); ${reported instanceof DrsBaselineError ? reported.message : 'no unobserved scenario counts as success'}`,
         );
         finalizeDrs(revision);
       }
       await store.saveCampaign({
         ...transition(c, 'APPROVED'),
-        statusDetail: `Last run failed (reference ${diagnosticId}); review before retrying.`,
+        statusDetail: `Last run failed (reference ${diagnosticId}); ${reported instanceof DrsBaselineError ? reported.message : 'review before retrying.'}`,
       });
       throw reported;
     } finally {
+      if (countedInFlight)
+        metrics.addGauge('shieldtest_runs_in_flight', 'Campaign runs currently executing', -1);
       liveProgress.clear(c.id);
       kills.clear(c.id);
       // Retire the live per-run gauges — the run is over; its summary lives in
@@ -2721,6 +2737,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       let c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campaign not found' });
+      if (backgroundExecutions.has(c.id))
+        return reply.code(409).send({ error: 'This campaign already has an execution in flight.' });
       // A step whose suite sequence is running is driven by the sequencer — a
       // manual run here would put two steps in flight at once. Refuse it.
       if (c.suiteId && suiteRuns.has(c.suiteId)) {
@@ -2784,6 +2802,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         });
       }
       try {
+        if ((req.body as { background?: unknown } | undefined)?.background === true) {
+          if (backgroundExecutions.size >= maxConcurrentRuns)
+            return reply.code(429).send({ error: 'Concurrent execution budget exhausted.' });
+          const campaign = c;
+          backgroundExecutions.add(c.id);
+          // Resolve only after validation, the kill registration and RUNNING persistence.
+          // Consume later rejection: runCampaign retains the diagnostic/report in storage.
+          await new Promise<void>((resolve, reject) => {
+            void runCampaign(campaign, req.authUser?.email ?? 'dev', undefined, resolve)
+              .catch(reject)
+              .finally(() => backgroundExecutions.delete(campaign.id));
+          });
+          const statusUrl = `/api/campaigns/${c.id}`;
+          return reply
+            .code(202)
+            .header('Location', statusUrl)
+            .send({ campaignId: c.id, statusUrl });
+        }
         const run = await runCampaign(c, req.authUser?.email ?? 'dev');
         return reply.code(201).send(run);
       } catch (err) {

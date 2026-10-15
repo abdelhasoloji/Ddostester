@@ -68,6 +68,7 @@ export async function captureBaseline(
   timeoutMs = 5000,
   remote?: RemoteProbeConfig,
   retainSamples = false,
+  fixedCadence = false,
 ): Promise<BaselineMetrics> {
   const began = performance.now();
   const lat: number[] = [];
@@ -104,7 +105,18 @@ export async function captureBaseline(
       clearTimeout(timer);
     }
     lat.push(ttfbMs);
-    if (i < count - 1 && !signal?.aborted) await new Promise((r) => setTimeout(r, intervalMs));
+    if (i < count - 1 && !signal?.aborted) {
+      const delay = fixedCadence ? Math.max(0, t0 + intervalMs - performance.now()) : intervalMs;
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          clearTimeout(timer);
+          signal?.removeEventListener('abort', finish);
+          resolve();
+        };
+        const timer = setTimeout(finish, delay);
+        signal?.addEventListener('abort', finish, { once: true });
+      });
+    }
   }
   const n = lat.length || 1;
   const sorted = [...lat].sort((a, b) => a - b);

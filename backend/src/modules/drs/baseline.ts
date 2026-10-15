@@ -1,8 +1,29 @@
 import { captureBaseline, type BaselineMetrics } from '../campaigns/baseline.js';
 import { DRS_EVIDENCE_LIMITS, type RemoteProbeConfig } from '../../config/limits.js';
 import type { DrsPlan } from './model.js';
-import { ensure } from './model.js';
-/** Independent low-rate HTTP health reference. No generator or functional-journey claim. */
+import { DrsError } from './model.js';
+
+export interface DrsBaselineDiagnostic {
+  reason: 'unhealthy' | 'unstable' | 'incomplete' | 'cancelled' | 'deadline';
+  elapsedSec: number;
+  observedDurationSec: number;
+  samples: number;
+  samplesMs: number[];
+  availabilityPct: number;
+  meanMs: number | null;
+  coefficientOfVariation: number | null;
+  tolerance: number;
+  minimumSec: number;
+}
+export class DrsBaselineError extends DrsError {
+  constructor(readonly diagnostic: DrsBaselineDiagnostic) {
+    super(
+      `DRS baseline ${diagnostic.reason}; ${diagnostic.samples} samples, ${diagnostic.observedDurationSec.toFixed(1)}s, CV ${diagnostic.coefficientOfVariation?.toFixed(4) ?? 'unknown'} / ${diagnostic.tolerance}; no injection`,
+    );
+  }
+}
+
+/** Independent low-rate HTTP health reference. No functional-journey claim. */
 export async function captureDrsBaseline(
   url: string,
   plan: DrsPlan,
@@ -10,57 +31,72 @@ export async function captureDrsBaseline(
   remote?: RemoteProbeConfig,
   capture = captureBaseline,
 ): Promise<BaselineMetrics> {
-  const signal = AbortSignal.any([
-    parent,
-    AbortSignal.timeout(DRS_EVIDENCE_LIMITS.baselineMaxSec * 1000),
-  ]);
+  const timeout = AbortSignal.timeout(DRS_EVIDENCE_LIMITS.baselineMaxSec * 1000);
+  const signal = AbortSignal.any([parent, timeout]);
   const began = performance.now();
-  let result = await capture(
-    url,
-    signal,
-    Math.ceil(plan.baselineMinSec) + 1,
-    1000,
-    5000,
-    remote,
-    true,
-  );
-  const stable = (r: BaselineMetrics) => {
-    const a = r.samplesMs ?? [];
-    if (!a.length) return false;
-    const mean = a.reduce((s, x) => s + x, 0) / a.length;
-    const cv = Math.sqrt(a.reduce((s, x) => s + (x - mean) ** 2, 0) / a.length) / (mean || 1);
-    return cv <= plan.baselineStabilityTolerance;
+  const interval = DRS_EVIDENCE_LIMITS.baselineIntervalMs;
+  const requestTimeout = DRS_EVIDENCE_LIMITS.baselineRequestTimeoutMs;
+  const sample = (count: number) =>
+    capture(url, signal, count, interval, requestTimeout, remote, true, true);
+  let result = await sample(Math.ceil((plan.baselineMinSec * 1000) / interval) + 1);
+  const diagnostic = (reason: DrsBaselineDiagnostic['reason']): DrsBaselineDiagnostic => {
+    const samplesMs = (result.samplesMs ?? []).slice(0, DRS_EVIDENCE_LIMITS.maxSamples);
+    const meanMs = samplesMs.length
+      ? samplesMs.reduce((s, x) => s + x, 0) / samplesMs.length
+      : null;
+    return {
+      reason,
+      elapsedSec: (performance.now() - began) / 1000,
+      observedDurationSec: result.durationSec ?? 0,
+      samples: result.samples,
+      samplesMs,
+      availabilityPct: result.availabilityPct,
+      meanMs,
+      coefficientOfVariation:
+        meanMs === null
+          ? null
+          : Math.sqrt(samplesMs.reduce((s, x) => s + (x - meanMs) ** 2, 0) / samplesMs.length) /
+            (meanMs || 1),
+      tolerance: plan.baselineStabilityTolerance,
+      minimumSec: plan.baselineMinSec,
+    };
   };
-  ensure(result.availabilityPct === 100, 'DRS baseline target is unhealthy; no injection');
-  if (!stable(result) && !signal.aborted) {
-    const remaining = Math.floor(
-      DRS_EVIDENCE_LIMITS.baselineMaxSec - (performance.now() - began) / 1000,
+  const stable = () => {
+    const cv = diagnostic('unstable').coefficientOfVariation;
+    return cv !== null && cv <= plan.baselineStabilityTolerance;
+  };
+  // Check convergence in small bounded batches. Reserve one complete request timeout;
+  // do not schedule a batch that can only end after the absolute observation deadline.
+  while (!signal.aborted && result.availabilityPct === 100 && !stable()) {
+    const remainingMs = DRS_EVIDENCE_LIMITS.baselineMaxSec * 1000 - (performance.now() - began);
+    const count = Math.min(
+      DRS_EVIDENCE_LIMITS.baselineExtensionSamples,
+      Math.floor((remainingMs - requestTimeout) / Math.max(interval, requestTimeout)),
+      DRS_EVIDENCE_LIMITS.maxSamples - result.samples,
     );
-    if (remaining > 0) {
-      const extra = await capture(
-        url,
-        signal,
-        Math.min(remaining, Math.ceil(plan.baselineMinSec)),
-        1000,
-        5000,
-        remote,
-        true,
-      );
-      result = {
-        ...result,
-        samples: result.samples + extra.samples,
-        samplesMs: [...(result.samplesMs ?? []), ...(extra.samplesMs ?? [])],
-        availabilityPct: Math.min(result.availabilityPct, extra.availabilityPct),
-        durationSec: (result.durationSec ?? 0) + (extra.durationSec ?? 0),
-      };
-    }
+    if (count < 1) break;
+    const extra = await sample(count);
+    result = {
+      ...result,
+      samples: result.samples + extra.samples,
+      samplesMs: [...(result.samplesMs ?? []), ...(extra.samplesMs ?? [])],
+      availabilityPct: Math.min(result.availabilityPct, extra.availabilityPct),
+      durationSec: (performance.now() - began) / 1000,
+    };
+    // A broken/empty collector must not spin while pretending observation progressed.
+    if (!extra.samples || (extra.durationSec ?? 0) <= 0) break;
   }
-  ensure(
-    !signal.aborted &&
-      result.availabilityPct === 100 &&
-      (result.durationSec ?? 0) >= plan.baselineMinSec &&
-      stable(result),
-    'DRS baseline remains unstable, incomplete or cancelled; no injection',
-  );
+  const reason = parent.aborted
+    ? 'cancelled'
+    : timeout.aborted
+      ? 'deadline'
+      : result.availabilityPct !== 100
+        ? 'unhealthy'
+        : (result.durationSec ?? 0) < plan.baselineMinSec || !result.samplesMs?.length
+          ? 'incomplete'
+          : !stable()
+            ? 'unstable'
+            : null;
+  if (reason) throw new DrsBaselineError(diagnostic(reason));
   return { ...result, stable: true, functionalAssertionMeasured: false };
 }

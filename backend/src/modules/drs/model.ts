@@ -123,6 +123,7 @@ export interface DrsProof {
   data: DrsEvidence;
 }
 export interface DrsRevision {
+  baselineDiagnostic?: import('./baseline.js').DrsBaselineDiagnostic;
   attachments?: import('./attachments.js').DrsAttachment[];
   number: number;
   id: string;

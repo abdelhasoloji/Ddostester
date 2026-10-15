@@ -454,18 +454,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConfirmExec(null);
     setBusyFor(c.id, true);
     setCampaigns((list) => list.map((x) => (x.id === c.id ? { ...x, status: 'RUNNING' } : x)));
-    // The launcher (ExecuteModal) sends the operator to Run Theater for the live
-    // view, so we no longer auto-open the card drawer here. The run request below
-    // blocks until the campaign finishes.
+    // Start acknowledgement is independent of the baseline/exposure duration.
+    // RUNNING is persisted before acknowledgement; normal polling/stream reconnects
+    // recover the result even if this browser leaves or its connection is lost.
     try {
-      const run = await (approvalPolicy === 'confirmation'
-        ? api.execute(c.id, true)
-        : api.execute(c.id));
-      setRuns((r) => ({ ...r, [c.id]: run }));
-      push(
-        run.status === 'COMPLETED' ? 'success' : 'info',
-        `Run ${run.status} — WRS ${run.wrs.wrs} (${run.wrs.level}).`,
-      );
+      await api.startExecution(c.id, approvalPolicy === 'confirmation');
+      push('info', 'Campaign started — follow baseline and execution in Run Theater.');
       refresh();
       loadHistory();
     } catch (err) {
