@@ -36,7 +36,7 @@ RELEASE="$(mktemp -d "$RELEASES/release-${SHORT}.XXXXXX")"
 git archive "$REV" | tar -x -C "$RELEASE"
 cd "$RELEASE"
 npm ci --ignore-scripts
-SHIELDTEST_COMMIT="$SHORT" SHIELDTEST_BUILD="$BUILD" npm run verify
+SHIELDTEST_COMMIT="$REV" SHIELDTEST_BUILD="$BUILD" npm run verify
 node scripts/release-manifest.mjs
 # The service may run under a different, unprivileged account. No runtime secrets are copied.
 chmod -R a+rX "$RELEASE"
