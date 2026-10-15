@@ -36,8 +36,8 @@ export async function captureDrsBaseline(
   const began = performance.now();
   const interval = DRS_EVIDENCE_LIMITS.baselineIntervalMs;
   const requestTimeout = DRS_EVIDENCE_LIMITS.baselineRequestTimeoutMs;
-  const sample = (count: number) =>
-    capture(url, signal, count, interval, requestTimeout, remote, true, true);
+  const sample = (count: number, waitBefore = false) =>
+    capture(url, signal, count, interval, requestTimeout, remote, true, true, waitBefore);
   let result = await sample(Math.ceil((plan.baselineMinSec * 1000) / interval) + 1);
   const diagnostic = (reason: DrsBaselineDiagnostic['reason']): DrsBaselineDiagnostic => {
     const samplesMs = (result.samplesMs ?? []).slice(0, DRS_EVIDENCE_LIMITS.maxSamples);
@@ -75,7 +75,7 @@ export async function captureDrsBaseline(
       DRS_EVIDENCE_LIMITS.maxSamples - result.samples,
     );
     if (count < 1) break;
-    const extra = await sample(count);
+    const extra = await sample(count, true);
     result = {
       ...result,
       samples: result.samples + extra.samples,

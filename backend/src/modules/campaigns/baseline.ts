@@ -69,12 +69,29 @@ export async function captureBaseline(
   remote?: RemoteProbeConfig,
   retainSamples = false,
   fixedCadence = false,
+  waitBefore = false,
 ): Promise<BaselineMetrics> {
   const began = performance.now();
   const lat: number[] = [];
   let ok = 0;
   let received = 0;
   const diagnostics: ProbeQuality[] = [];
+  const pause = (ms: number) =>
+    new Promise<void>((resolve) => {
+      if (signal?.aborted) {
+        resolve();
+        return;
+      }
+      const finish = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, ms);
+      signal?.addEventListener('abort', finish, { once: true });
+    });
+  // Preserve the low-rate boundary between consecutive DRS observation batches.
+  if (waitBefore) await pause(intervalMs);
   for (let i = 0; i < count; i++) {
     if (signal?.aborted) break;
     const t0 = performance.now();
@@ -107,15 +124,7 @@ export async function captureBaseline(
     lat.push(ttfbMs);
     if (i < count - 1 && !signal?.aborted) {
       const delay = fixedCadence ? Math.max(0, t0 + intervalMs - performance.now()) : intervalMs;
-      await new Promise<void>((resolve) => {
-        const finish = () => {
-          clearTimeout(timer);
-          signal?.removeEventListener('abort', finish);
-          resolve();
-        };
-        const timer = setTimeout(finish, delay);
-        signal?.addEventListener('abort', finish, { once: true });
-      });
+      await pause(delay);
     }
   }
   const n = lat.length || 1;

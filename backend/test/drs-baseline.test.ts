@@ -1,3 +1,4 @@
+import { captureBaseline } from '../src/modules/campaigns/baseline.js';
 import { executeCampaign } from '../src/modules/campaigns/runner.js';
 import { KillSwitch } from '../src/modules/probe/probe.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
@@ -172,6 +173,45 @@ it('distinguishes cancellation from instability without making a probe request',
       coefficientOfVariation: null,
     });
     expect(fetch).not.toHaveBeenCalled();
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+it('separates consecutive observation batches instead of emitting two adjacent probes', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+  const starts: number[] = [];
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    starts.push(performance.now());
+    return new Response('healthy');
+  });
+  try {
+    const first = captureBaseline(
+      'http://lab-target/',
+      undefined,
+      2,
+      1000,
+      5000,
+      undefined,
+      true,
+      true,
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    await first;
+    const next = captureBaseline(
+      'http://lab-target/',
+      undefined,
+      2,
+      1000,
+      5000,
+      undefined,
+      true,
+      true,
+      true,
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    await next;
+    expect(starts).toEqual([0, 1000, 2000, 3000]);
   } finally {
     fetch.mockRestore();
   }
