@@ -27,5 +27,5 @@ The [infrastructure study](rl300-arm64-infrastructure-study.md) remains the desi
 ## Progress
 
 - Study: delivered locally in commit `0e22f53`; source/registry evidence is retained separately from native execution.
-- Lot 1: in progress in this turn. Its local acceptance receipt and exact source identity will be recorded after execution. No later lot has started.
+- Lot 1: delivered locally. Image built from `3bfa5091b76620d5391422148224d87faabe079c`; Linux ARM64 startup, API/UI asset identity, worker imports and cleanup passed. Two targeted tests and repository lint passed. See the [receipt](arm64-lot1-checkpoint.json) and [runbook](arm64-qualification.md). Manual CI is prepared but has not run; HPE hardware and production mode are not qualified. No push, deployment or campaign. No later lot has started.
 - Lots 2–9: planned, not started. The operator response from Martin remains pending; no production count is approved.
