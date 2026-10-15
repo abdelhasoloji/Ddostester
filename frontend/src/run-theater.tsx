@@ -340,10 +340,9 @@ export function RunTheaterPage() {
   // focuses that run; otherwise the operator's manual pick wins, then the first.
   const [params] = useSearchParams();
   const focusRun = params.get('run');
-  // Right after a launch the run spends a few seconds in baseline capture, still
-  // APPROVED server-side, so it wouldn't appear in `running` yet. Surface the
-  // focused run as long as it isn't terminal, so the launch→theater redirect
-  // never lands on an empty stage (RunTheater streams live progress by id).
+  // The client's campaign snapshot can lag the durable RUNNING acknowledgement.
+  // Keep a focused, non-terminal campaign visible across the launch redirect;
+  // the progress stream and refresh recover the current server state.
   const focusCampaign =
     focusRun && !runningStandalone.some((c) => c.id === focusRun)
       ? app.campaigns.find((c) => c.id === focusRun && !TERMINAL_STATUSES.has(c.status))

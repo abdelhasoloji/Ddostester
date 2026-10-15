@@ -471,8 +471,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const kill = async (c: Campaign) => {
-    // Guard on a kill-specific flag, never on `busy`: a running campaign's blocking
-    // execute holds `busy`, and the kill switch must stay live throughout the run.
+    // Admission and refresh activity must never disable the independent stop control.
     setKillingFor(c.id, true);
     try {
       await api.kill(c.id);

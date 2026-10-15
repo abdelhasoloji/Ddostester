@@ -776,7 +776,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         }
       };
       // Seed a zeroed progress record immediately: the run opens with a baseline
-      // capture (awaited, a few seconds) during which the engine emits no
+      // capture (up to ten minutes for DRS) during which the engine emits no
       // progress. Without this seed the live stream would find no record and tell
       // the UI the run is "done", stranding the progress view on "Starting run…".
       // Cleared in the finally below; onProgress overwrites it once load begins.

@@ -1,6 +1,6 @@
 # Current implementation and remaining work
 
-Reconciled against source and build 463 on 14 October 2026. This is the status authority; older plans and audits are not deployment claims.
+Reconciled against source and verified build 466 on 15 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -55,8 +55,10 @@ Source adds archived transition timestamps and a separate read-only Fleet monito
 
 Build 463 fixes stored-plan confirmation and is verified deployed. The private three-agent / shared 3 RPS / 30-second acceptance attempt stopped at the baseline guard before any mission. Its final report remains indeterminate; live participation and natural stop are unqualified. See the [dated setup receipt](current-setup.md#private-fleet-acceptance--15-october-2026-11431154-utc).
 
-Next: retain bounded baseline diagnostics on failure (samples, elapsed time, stability calculation and cancellation reason); investigate the actual refusal without relaxing the frozen tolerance; make long execution acknowledgement/reconnection survive the baseline interval. Then create a fresh current-version plan revision and repeat the same authorized private acceptance. Only a successful bounded run can validate the live counter, target receipts and natural stop. Agent-loss and emergency-stop rehearsals remain separate unperformed checks.
+Baseline diagnostics and nonblocking start acknowledgement are delivered in build 465. Revision 2 confirms 100% availability but CV 1.240138 against the frozen 0.1 tolerance; no mission was created. Next: qualify the probe/target measurement chain and a representative functional reference, including latency precision, timing noise and resource contention. The short existing-probe precheck is also dispersed and is not a qualified replacement. Preserve the tolerance, failed revisions and raw distributions. Only a successful bounded run can validate live participation, target receipts and natural stop. Agent-loss and emergency-stop rehearsals remain unperformed.
 
 ## Baseline and launch reliability follow-up
 
 Source now retains explicit baseline refusal diagnostics, bounds extension batches before the absolute deadline and uses start-to-start probe cadence. The frontend uses nonblocking execution acknowledgement and follows persisted state; baseline persistence retains RUNNING. Tests cover cadence, convergence without dropped samples, deadline reserve, cancellation, confirmation, duplicate admission, kill availability and archived report diagnostics. Source/test success alone does not close private Fleet acceptance; deployment and the same bounded recipe must still be observed.
+
+Build 466 is verified deployed after green CI/native gates and exact API/UI identity checks. It additionally spaces probes across extension batch boundaries; the build-465 observed sample count is retained with its cadence limitation. All 284 campaigns, account/settings digests and three agent identities are preserved. The private recipe's explicit instability diagnostic, rather than transport timeout or generic internal error, is delivered. Physical Fleet acceptance remains open: qualify the reference/measurement chain before repeating; do not reinterpret missing traffic or a null score as success. See the [delivery and recipe receipt](drs-baseline-checkpoint.json).
