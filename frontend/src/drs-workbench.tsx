@@ -1,3 +1,4 @@
+import { ClientPrototype } from './client-prototype.js';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from './api.js';
@@ -301,6 +302,7 @@ export function ClientWorkspacePage() {
                 </dl>
               )}
             </section>
+            <ClientPrototype key={client.id} client={client} />
             <div className="workbench-two-col">
               <section className="card">
                 <h2>Infrastructure</h2>
@@ -315,8 +317,9 @@ export function ClientWorkspacePage() {
               <section className="card">
                 <h2>Evidence and report</h2>
                 <p>
-                  No assessment evidence is bound to this client workspace. A global or another
-                  client's score cannot establish its DRS level.
+                  Prototype reports are linked to this client below their simulation label. No
+                  measured assessment evidence is bound yet; another client's score cannot establish
+                  its DRS level.
                 </p>
                 <span className="workbench-tag">Not evaluated</span>
               </section>

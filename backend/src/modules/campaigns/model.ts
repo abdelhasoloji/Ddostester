@@ -217,6 +217,13 @@ export interface Recurrence {
 }
 
 export interface Campaign extends CampaignInput {
+  /** Server-captured client scope for an offline prototype; never a target grant. */
+  clientWorkspace?: {
+    id: string;
+    revision: number;
+    hash: string | null;
+    profile: import('../infrastructure/clients.js').ClientProfile;
+  };
   drsDocument?: import('../drs/model.js').DrsDocument;
   id: string;
   status: CampaignStatus;

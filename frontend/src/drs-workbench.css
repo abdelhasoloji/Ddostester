@@ -289,3 +289,44 @@
     transform: none;
   }
 }
+
+.client-prototype {
+  margin-top: 1.5rem;
+}
+.client-prototype > label {
+  display: block;
+  margin: 1rem 0;
+}
+.client-prototype select {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.4rem;
+}
+.client-prototype h3 {
+  margin-top: 1.5rem;
+}
+.prototype-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.prototype-stages span {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.65rem 1rem;
+}
+.prototype-details {
+  margin: 1rem 0;
+}
+.prototype-details summary {
+  cursor: pointer;
+  padding: 0.6rem 0;
+}
+.prototype-details > ol,
+.prototype-details > ul {
+  max-height: 20rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}

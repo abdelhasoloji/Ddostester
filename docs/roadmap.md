@@ -84,3 +84,7 @@ The [simplified workspace](client-first-workspace.md) is implemented in source: 
 ## Client-first workspace delivery — 15 October 2026, 22:09 UTC
 
 Build 475 is verified deployed with the fixed three-client register, audited profile revisions, simplified navigation and infrastructure qualification workspace. Accounts, campaign history, Fleet identities and operational policies are preserved; encrypted isolated recovery passed. See [deployment receipt](client-workspace-deployment-checkpoint.json). The next work requires ENISA's exact scope and Kubernetes access/allocation, then qualification of the second PoP, independent probe and measured evidence. The passive PoP artifact remains staged only; no campaign or worker migration was performed in this delivery.
+
+## Testable client journey increment
+
+The source adds client-bound offline prototype campaigns: create, freeze, explicit simulation confirmation, persisted Run Theater journal, final report and JSON download. Healthy/outage/saturation/gap fixtures exercise verdicts through level 5 without network traffic. A server-captured client scope snapshot accompanies the report; measured client scores remain unevaluated. This closes the planning-screen dead end for application usability testing. Physical Fleet acceptance, independent collectors, ENISA scope and PoP access remain separate prerequisites. Verify the served release before claiming this increment deployed.

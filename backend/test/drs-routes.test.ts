@@ -219,3 +219,66 @@ it('creates a standalone software validation with no target attestation, Fleet o
     vi.restoreAllMocks();
   }
 });
+
+it('binds prototype reports to a server-captured client scope and rejects unknown clients without granting traffic access', async () => {
+  const store = new MemoryStore();
+  const { app } = await buildApp({
+    store,
+    allowedTargets: [],
+    logger: false,
+    serveStatic: false,
+    auth: initAuth({ USER_MODE: 'team' } as NodeJS.ProcessEnv),
+  });
+  try {
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/api/drs/validations',
+      payload: { clientId: 'fourth-client', maxLevel: 5 },
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(await store.listCampaigns()).toHaveLength(0);
+    for (const fixture of ['healthy', 'service-outage', 'generator-saturation', 'telemetry-gap']) {
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/drs/validations',
+        payload: { clientId: 'bank-cz', maxLevel: 5 },
+      });
+      expect(created.statusCode).toBe(201);
+      const c = created.json();
+      expect(c.clientWorkspace).toMatchObject({
+        id: 'bank-cz',
+        revision: 0,
+        profile: { name: 'bank.cz' },
+      });
+      expect(c.target).toBe('simulation://fixture');
+      expect(c.authorized).toBe(false);
+      const prefix = '/api/campaigns/' + c.id + '/drs/';
+      const revisionId = c.drsDocument.revisions[0].id;
+      for (const action of ['freeze', 'simulate', 'finalize']) {
+        const result = await app.inject({
+          method: 'POST',
+          url: prefix + action,
+          payload: { revisionId, fixture, confirmed: true },
+        });
+        expect(result.statusCode, result.body).toBe(200);
+      }
+      const report = (await app.inject({ url: prefix + 'report.json' })).json();
+      expect(report.clientWorkspace).toEqual(c.clientWorkspace);
+      expect(report.plan.mode).toBe('engine-validation');
+      expect(report.plan.maxLevel).toBe(5);
+      expect(
+        report.proofs.every((p: { provenance: string }) => p.provenance === 'simulation'),
+      ).toBe(true);
+      // Reference ambiguities can keep a level-5 simulation indeterminate.
+      expect(report.assessment.label).toMatch(/simulation/i);
+      if (['generator-saturation', 'telemetry-gap'].includes(fixture))
+        expect(report.assessment.score).toBeNull();
+      if (fixture === 'service-outage') expect(report.assessment.score).not.toBe(5);
+      expect((await app.inject({ url: prefix + 'report.html' })).body).toContain('bank.cz');
+      expect((await store.getCampaign(c.id))?.status).toBe('COMPLETED');
+    }
+    expect(await store.listRuns()).toHaveLength(0);
+  } finally {
+    await app.close();
+  }
+});

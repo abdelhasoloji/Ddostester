@@ -77,6 +77,7 @@ export interface DurableFleetEvidence {
 }
 
 export interface Campaign {
+  clientWorkspace?: { id: string; revision: number; hash: string | null; profile: ClientProfile };
   drsMode?: 'engine-validation' | 'synthetic-lab' | 'measured';
   drsDocument?: DrsCampaignView['document'];
   drsProfileId?: string;
@@ -1072,7 +1073,8 @@ export interface AccessContract {
 }
 
 export const api = {
-  drsValidation: (maxLevel = 1) => post<Campaign>('/api/drs/validations', { maxLevel }),
+  drsValidation: (maxLevel = 1, clientId?: string) =>
+    post<Campaign>('/api/drs/validations', { maxLevel, ...(clientId ? { clientId } : {}) }),
   drsReference: () => get<DrsReferenceView>('/api/drs/reference'),
   drsCampaign: (id: string) => get<DrsCampaignView>(`/api/campaigns/${encodeURIComponent(id)}/drs`),
   drsAction: (id: string, action: string, body: unknown) =>
@@ -1764,10 +1766,12 @@ export interface DrsRevisionView {
   };
 }
 export interface DrsCampaignView {
+  clientWorkspace?: Campaign['clientWorkspace'] | null;
   document: { currentRevision: number; revisions: DrsRevisionView[] } | null;
   defaultPlan: Record<string, unknown>;
 }
 export interface DrsReportView {
+  clientWorkspace?: Campaign['clientWorkspace'] | null;
   baselineDiagnostic?: BaselineDiagnosticView | null;
   assessment: {
     label: string;

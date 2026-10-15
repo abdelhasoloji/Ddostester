@@ -23,7 +23,7 @@ Administrators can edit metadata through `PUT /api/workspace/clients/:id` with `
 
 Migration 10 extends the existing infrastructure revision table's kind constraint to include client metadata. It does not rewrite accounts, targets, campaigns, previous evidence or infrastructure history. The existing encrypted full-database recovery comparison includes client rows because it checks all revision kinds.
 
-This increment does not bind historical reports to a client by guessing from a hostname. Client detail shows evidence as unbound until a proper association exists. The global archive is explicitly global. It also does not deploy the prototype, move workers or change any traffic limits.
+Historical reports are not bound to a client by guessing from a hostname. New offline prototype campaigns carry a server-captured client scope snapshot, while measured evidence remains unbound. The global archive is explicitly global. It also does not deploy the prototype, move workers or change any traffic limits.
 
 ## Infrastructure presentation
 
@@ -34,3 +34,13 @@ The earlier interface remains available for legacy mode and via `/overview-legac
 ## Deployment checkpoint
 
 Build 475 was verified deployed on 15 October 2026 at 22:09 UTC, from commit `5d316ed70d493a239d4e844300bd17fb0dd4d54f`. See the [sanitized deployment receipt](client-workspace-deployment-checkpoint.json) and [current setup](current-setup.md). The passive PoP prototype remains staged, not applied.
+
+## Testable application prototype
+
+Open **Clients → a client → New prototype campaign**, then **Freeze prototype plan → confirm simulation → Run simulated assessment → Generate final report**. The embedded Run Theater shows persisted state, proof count and a compact progression; the complete timestamped journal is expandable. Choose healthy service, service outage, generator saturation or missing telemetry before simulation. The target level is 5; unresolved reference conditions may still produce a partial or indeterminate simulation report.
+
+Campaigns and reports remain available through the saved selector and `?prototype=<campaign-id>` after a reload. JSON download includes the frozen plan, evidence, interpretation reservations and client snapshot. These are virtual engine events, with no physical agents, target authorization or network traffic. Client cards retain **Not evaluated** for measured resilience.
+
+`POST /api/drs/validations` optionally accepts `clientId` from the fixed three-client register. The server captures the current client revision, hash and profile inside the campaign transaction and audits its association digest. Caller-supplied scope cannot replace that snapshot. GET assessment and JSON/HTML reports return this context. Unknown client IDs are rejected before storage. No migration is needed: campaign JSON already stores the association. Existing unbound validations remain supported.
+
+Source implementation and local browser checks are distinct from the deployment checkpoint above; promotion requires the existing release gate.
