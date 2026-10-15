@@ -1,3 +1,8 @@
+import type {
+  ClientWorkspaceList,
+  ClientWorkspace,
+  ClientProfile,
+} from './client-workspace-types.js';
 import type { BaselineDiagnosticView } from './drs-baseline-diagnostic.js';
 import type {
   InfrastructureHost,
@@ -1198,6 +1203,14 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  clientWorkspaces: () => get<ClientWorkspaceList>('/api/workspace/clients'),
+  saveClientWorkspace: (id: string, expectedRevision: number, profile: ClientProfile) =>
+    put<ClientWorkspace>('/api/workspace/clients/' + encodeURIComponent(id), {
+      expectedRevision,
+      profile,
+    }),
+  clientWorkspaceHistory: (id: string) =>
+    get<{ revisions: unknown[] }>('/api/workspace/clients/' + encodeURIComponent(id) + '/history'),
   infrastructure: (hosts: string[] = []) =>
     get<InfrastructureWorkspace>(
       '/api/fleet/infrastructure' +

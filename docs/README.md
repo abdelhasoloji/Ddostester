@@ -23,3 +23,5 @@ Infrastructure planning: [RL300 ARM64 / DRS level-5 study](rl300-arm64-infrastru
 Product adaptation: [RL300 roadmap](rl300-product-roadmap.md), [infrastructure workspace and evidence contract](infrastructure-workspace.md), [two-host preparation dossier](rl300-two-host-preparation.json). Local source changes are distinct from the current deployed release.
 
 PoP preparation: [passive three-Pod qualification prototype](../deploy/pop-qualification/README.md), with local checks and explicit cluster-access prerequisites. Not deployed and not a Fleet worker migration.
+
+Interface: [client-first DRS workspace](client-first-workspace.md) — the fixed three authorized clients, two-PoP pilot, independent probe and secondary technical tools.

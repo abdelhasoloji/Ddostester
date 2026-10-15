@@ -1,3 +1,4 @@
+import type { ClientProfile } from './clients.js';
 import { isIP } from 'node:net';
 import { INFRASTRUCTURE_LIMITS } from '../../config/limits.js';
 import { digest } from '../drs/reference.js';
@@ -39,7 +40,7 @@ export interface InfrastructureEvidence {
   content: string;
 }
 export interface InfrastructureRevision {
-  kind: 'host' | 'evidence';
+  kind: 'host' | 'evidence' | 'client';
   id: string;
   revision: number;
   schemaVersion: 1;
@@ -47,7 +48,7 @@ export interface InfrastructureRevision {
   actor: string;
   previousHash: string | null;
   hash: string;
-  payload: HostProfile | InfrastructureEvidence;
+  payload: HostProfile | InfrastructureEvidence | ClientProfile;
 }
 export class InfrastructureError extends Error {
   constructor(

@@ -244,6 +244,11 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       PRIMARY KEY (kind,id,revision)
     );`,
   },
+  {
+    id: 10,
+    sql: `ALTER TABLE infrastructure_revisions_v1 DROP CONSTRAINT infrastructure_revisions_v1_kind_check;
+      ALTER TABLE infrastructure_revisions_v1 ADD CONSTRAINT infrastructure_revisions_v1_kind_check CHECK (kind IN ('host','evidence','client'));`,
+  },
 ];
 
 /** settings key for the CISO-managed operational limits. */

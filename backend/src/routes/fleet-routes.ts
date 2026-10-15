@@ -1,3 +1,4 @@
+import { registerClientWorkspaceRoutes } from './client-workspace-routes.js';
 import { registerInfrastructureRoutes } from './infrastructure-routes.js';
 import { drsWorkflow } from '../modules/drs/catalog.js';
 import { FLEET_INVENTORY_LIMITS } from '../config/limits.js';
@@ -16,6 +17,7 @@ export function registerFleetRoutes(
 ) {
   registerFleetEnrollmentRoutes(app, store, guard);
   registerInfrastructureRoutes(app, store, guard);
+  registerClientWorkspaceRoutes(app, store, guard);
   const siteOf = (d: { siteId?: string }) => d.siteId ?? 'vps-lab';
   app.get('/api/fleet/sites', { preHandler: guard('campaign:read') }, async () => {
     const devices = await store.listFleetDevices();

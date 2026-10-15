@@ -327,6 +327,7 @@ export const DRS_MONITORING_LIMITS = Object.freeze({
 
 /** Read-only infrastructure study and operator evidence storage; no execution authority. */
 export const INFRASTRUCTURE_LIMITS = Object.freeze({
+  maxClients: 3,
   maxHosts: 100,
   maxEvidence: 512,
   maxRevisions: 64,
