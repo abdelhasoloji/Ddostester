@@ -39,6 +39,21 @@ scrape_configs:
     static_configs:
       - targets: ['127.0.0.1:8080']
         labels: { host: vps1, role: control-plane }
+  - job_name: shieldtest-drs-timeline
+    metrics_path: /metrics/drs-timeline
+    sample_limit: 2500
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['127.0.0.1:8080']
+        labels: { host: vps1, role: control-plane }
+  - job_name: shieldtest-fleet-live
+    metrics_path: /metrics/fleet
+    scrape_interval: 5s
+    scrape_timeout: 3s
+    sample_limit: 200
+    static_configs:
+      - targets: ['127.0.0.1:8080']
+        labels: { host: vps1, role: control-plane }
   # This host (VPS 2 — the isolated lab runner).
   - job_name: node-vps2
     static_configs:

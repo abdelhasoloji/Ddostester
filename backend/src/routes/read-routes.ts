@@ -1,3 +1,4 @@
+import { renderDrsTimeline } from '../modules/metrics/drs-detail.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import type { Store } from '../store/index.js';
 import type { Permission } from '../auth/rbac.js';
@@ -282,6 +283,10 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
       if (!run) return reply.code(404).send({ error: 'run not found' });
       return validateMitigation({ timeline: run.timeline, protection: run.protection });
     },
+  );
+
+  app.get('/metrics/drs-timeline', async (_req, reply) =>
+    reply.type('text/plain; version=0.0.4').send(renderDrsTimeline(await store.listCampaigns())),
   );
 
   app.get('/metrics', async (_req, reply) => {

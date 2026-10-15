@@ -314,3 +314,10 @@ export const DRS_EVIDENCE_LIMITS = Object.freeze({
   maxObservationSec: 21600,
   capacityTimeoutMs: 10000,
 });
+
+/** Monitoring cardinality/freshness budgets; these never authorize execution capacity. */
+export const DRS_MONITORING_LIMITS = Object.freeze({
+  maxTimelineEvents: 2000,
+  maxFleetMissions: 32,
+  maxProgressAgeMs: 6000,
+});

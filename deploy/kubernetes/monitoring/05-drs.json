@@ -2,7 +2,7 @@
   "uid": "shieldtest-drs",
   "title": "ShieldTester \u00b7 DRS campaign evidence",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "refresh": "15s",
   "time": {
@@ -174,6 +174,198 @@
         {
           "refId": "A",
           "expr": "shieldtest_drs_vectors{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Workflow event timestamps \u2014 simulation is not exposure",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_transition_timestamp_seconds{campaign_id=\"$campaign\",revision_id=\"$revision\"} * 1000",
+          "instant": true,
+          "format": "table",
+          "legendFormat": "{{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Agents reporting execution \u2014 partial if coverage incomplete",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_fleet_live_agents_reporting{campaign_id=\"$campaign\",revision_id=\"$revision\"} and on(campaign_id,revision_id,run_id,mode,job,instance) (time() - shieldtest_fleet_live_observed_timestamp_seconds{campaign_id=\"$campaign\",revision_id=\"$revision\"} < 20)",
+          "instant": false,
+          "format": "time_series",
+          "legendFormat": "{{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Agents with unknown execution state",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_fleet_live_agents_unknown{campaign_id=\"$campaign\",revision_id=\"$revision\"} and on(campaign_id,revision_id,run_id,mode,job,instance) (time() - shieldtest_fleet_live_observed_timestamp_seconds{campaign_id=\"$campaign\",revision_id=\"$revision\"} < 20)",
+          "instant": false,
+          "format": "time_series",
+          "legendFormat": "{{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Fleet coverage complete (1) / incomplete (0)",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_fleet_live_coverage_complete{campaign_id=\"$campaign\",revision_id=\"$revision\"} and on(campaign_id,revision_id,run_id,mode,job,instance) (time() - shieldtest_fleet_live_observed_timestamp_seconds{campaign_id=\"$campaign\",revision_id=\"$revision\"} < 20)",
+          "instant": true,
+          "format": "table",
+          "legendFormat": "{{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Global timeline / mission omissions \u2014 nonzero means partial export",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"shieldtest_drs_timeline_omitted_events|shieldtest_fleet_live_omitted_missions\"}",
+          "instant": true,
+          "format": "table",
+          "legendFormat": "{{run_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Detailed collectors \u2014 absence remains unknown",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=~\"shieldtest-drs-timeline|shieldtest-fleet-live\"}",
           "instant": true,
           "format": "table"
         }

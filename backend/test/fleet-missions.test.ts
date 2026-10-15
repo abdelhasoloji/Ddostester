@@ -1,3 +1,10 @@
+import {
+  defaultPlan,
+  createRevision,
+  currentRevision,
+  freeze,
+} from '../src/modules/drs/workflow.js';
+import type { Campaign } from '../src/modules/campaigns/model.js';
 import Fastify from 'fastify';
 import pg from 'pg';
 import { randomBytes, createHash } from 'node:crypto';
@@ -214,6 +221,30 @@ const url = process.env.DATABASE_URL_TEST;
     ).toBe(true);
   });
   it('executes the campaign adapter through the same durable assignments and enrolled agent API', async () => {
+    const campaign: Campaign = {
+      id: 'parent-campaign',
+      name: 'DRS metrics fixture',
+      status: 'APPROVED',
+      createdBy: 'fixture',
+      createdAt: new Date().toISOString(),
+      target: 'http://lab-target:8080/',
+      probeUrl: 'http://lab-target:8080/',
+      authorized: true,
+      agent: 'fleet',
+      vector: 'http-get',
+      maxRps: 3,
+      concurrency: 3,
+      maxDurationSec: 20,
+    };
+    campaign.drsDocument = createRevision(
+      undefined,
+      defaultPlan(campaign, 'synthetic-lab'),
+      'fixture',
+    );
+    const revision = currentRevision(campaign.drsDocument);
+    freeze(revision, campaign);
+    await store.saveCampaign(campaign);
+
     // Remove only this test's previous run so its deliberately reserved envelope cannot overlap.
     await pool.query('DELETE FROM fleet_missions_v1 WHERE id=$1', [id]);
     await pool.query('DELETE FROM fleet_shards_v1 WHERE run_id=$1', [id]);
@@ -263,6 +294,11 @@ const url = process.env.DATABASE_URL_TEST;
     }
     expect(assignment.campaignId).toBe('parent-campaign');
     id = assignment.runId;
+    const monitoring = await app.inject({ url: '/metrics/fleet' });
+    expect(monitoring.statusCode).toBe(200);
+    expect(monitoring.body).toContain(`revision_id="${revision.id}"`);
+    expect(monitoring.body).toMatch(/agents_unknown\{[^\n]+\} 3/);
+    expect(monitoring.body).toContain('mode="synthetic-lab"');
     const assignments = [assignment];
     for (let i = 1; i < 3; i++)
       assignments.push(

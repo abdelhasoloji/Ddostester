@@ -46,3 +46,7 @@ The source monitoring overlay bridges the existing HTTP target receipt log into 
 ## DRS Grafana assessment projection
 
 The source now includes a campaign/revision-scoped DRS dashboard, authoritative assessment metrics and a Run Theater deep link. Missing scores and integrity failures cannot become zero-valued success. Deployment identity must be checked separately. The full correlated exposure/recovery timeline and live Fleet count in Grafana remain subsequent work; this increment does not qualify physical DRS collection.
+
+## DRS workflow archive and Fleet monitoring follow-up
+
+Source adds archived transition timestamps and a separate read-only Fleet monitoring endpoint. New missions retain the frozen revision; old unbound missions are omitted explicitly. Fresh reported participation and unknown agents are distinct, and missing collector data is not zero-filled. Unit tests and disposable PostgreSQL checks cover this projection and its read-only behavior. Current setup still distinguishes the previously observed release from subsequent operator delivery receipts; no physical exposure/recovery qualification or Fleet capacity increase follows from these panels.

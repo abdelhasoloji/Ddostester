@@ -1,3 +1,4 @@
+import { renderFleetMonitoring, collectFleetMonitoring } from '../modules/metrics/drs-detail.js';
 import { drsWorkflow } from '../modules/drs/catalog.js';
 import { FLEET_INVENTORY_LIMITS } from '../config/limits.js';
 import { KillSwitch } from '../modules/probe/probe.js';
@@ -77,6 +78,10 @@ export async function registerFleetMissionRoutes(
     maxDurationSec: Math.min(FLEET_LIMITS.maxDurationSec, caps().maxDurationSec),
   });
   const policy = () => ({ allowedHosts: ['lab-target'], allowedPorts: [8080], caps: envelope() });
+  app.get('/metrics/fleet', async (_req, reply) => {
+    if (!enabled) return reply.type('text/plain; version=0.0.4').send(renderFleetMonitoring([]));
+    return reply.type('text/plain; version=0.0.4').send(await collectFleetMonitoring(database));
+  });
   if (!enabled) {
     app.get('/api/fleet/missions', { preHandler: guard('campaign:read') }, async () => ({
       enabled: false,
@@ -186,8 +191,13 @@ export async function registerFleetMissionRoutes(
         )
       )
         throw new AgentError('All selected Fleet agents must be enrolled and online');
+      const campaign = await store.getCampaign(campaignId);
+      const revision = campaign?.drsDocument?.revisions.find(
+        (r) => r.number === campaign.drsDocument?.currentRevision,
+      );
       const id = randomUUID();
       const data = {
+        ...(revision?.planHash ? { drsRevisionId: revision.id, drsMode: revision.plan.mode } : {}),
         id,
         campaignId,
         actor,

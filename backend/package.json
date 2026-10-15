@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "hash-password": "node scripts/hash-password.mjs",
-    "test:postgres": "vitest run test/fleet-missions.test.ts test/store-contract.test.ts test/postgres-guarantees.test.ts test/fleet-postgres.test.ts test/owner-recovery.test.ts test/assistant-token-budget.test.ts --maxWorkers=1"
+    "test:postgres": "vitest run test/fleet-missions.test.ts test/store-contract.test.ts test/postgres-guarantees.test.ts test/fleet-postgres.test.ts test/drs-monitoring-postgres.test.ts test/owner-recovery.test.ts test/assistant-token-budget.test.ts --maxWorkers=1"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
