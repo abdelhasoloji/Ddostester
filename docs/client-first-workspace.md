@@ -43,7 +43,7 @@ Campaigns and reports remain available through the saved selector and `?prototyp
 
 `POST /api/drs/validations` optionally accepts `clientId` from the fixed three-client register. The server captures the current client revision, hash and profile inside the campaign transaction and audits its association digest. Caller-supplied scope cannot replace that snapshot. GET assessment and JSON/HTML reports return this context. Unknown client IDs are rejected before storage. No migration is needed: campaign JSON already stores the association. Existing unbound validations remain supported.
 
-Source implementation and local browser checks are distinct from the deployment checkpoint above; promotion requires the existing release gate.
+This prototype is verified deployed as build 478. See the [prototype deployment receipt](client-prototype-deployment-checkpoint.json). The earlier build-475 checkpoint describes the initial planning interface.
 
 ### Concise guidance
 
