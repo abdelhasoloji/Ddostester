@@ -643,10 +643,14 @@ export function GrafanaLink({
   plane,
   label,
   target,
+  campaignId,
+  revisionId,
 }: {
   plane: GrafanaPlane;
   label: string;
   target?: string;
+  campaignId?: string;
+  revisionId?: string;
 }) {
   const base = getGrafanaBase();
   if (!base) return null;
@@ -654,7 +658,7 @@ export function GrafanaLink({
     <div className="page-actions">
       <a
         className="btn btn-sm btn-ghost"
-        href={grafanaDashUrl(base, plane, { target })}
+        href={grafanaDashUrl(base, plane, { target, campaignId, revisionId })}
         target="_blank"
         rel="noreferrer"
         title="Open the ShieldTest Grafana dashboard for this view"

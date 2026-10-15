@@ -246,3 +246,16 @@ describe('Grafana deep-linking', () => {
     expect(u.searchParams.get('refresh')).toBeNull();
   });
 });
+
+// DRS links retain frozen campaign/revision identity instead of filtering only by host.
+it('scopes DRS Grafana links to an immutable revision', () => {
+  const url = new URL(
+    grafanaDashUrl('https://grafana.example', 'drs', {
+      campaignId: 'campaign-a',
+      revisionId: 'revision-b',
+    }),
+  );
+  expect(url.pathname).toBe('/d/shieldtest-drs');
+  expect(url.searchParams.get('var-campaign')).toBe('campaign-a');
+  expect(url.searchParams.get('var-revision')).toBe('revision-b');
+});

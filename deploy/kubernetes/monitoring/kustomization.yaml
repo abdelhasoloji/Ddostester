@@ -19,3 +19,4 @@ configMapGenerator:
       - 02-resilience.json
       - 03-fleet.json
       - 04-receipts.json
+      - 05-drs.json

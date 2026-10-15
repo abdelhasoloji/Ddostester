@@ -1,3 +1,4 @@
+import { assessDrs } from '../drs/scoring.js';
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 
@@ -36,7 +37,7 @@ export function renderMetrics(campaigns: Campaign[], runsCount: number): string 
   for (const [target, wrs] of lastWrs) {
     lines.push(`shieldtest_wrs_last{target="${escapeLabel(target)}"} ${wrs}`);
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + renderDrsMetrics(campaigns);
 }
 
 /** Final received fleet evidence, one latest run per target; gaps are never zero-filled. */
@@ -97,6 +98,74 @@ export function renderFleetMetrics(runs: CampaignRun[]): string {
     }
     if (Number.isSafeInteger(run.generator.totalRequests) && run.generator.totalRequests >= 0)
       emit('reported_requests', run.generator.totalRequests);
+  }
+  return lines.join('\n') + '\n';
+}
+
+/** Frozen DRS revisions: assessment stays authoritative; missing scores remain absent. */
+export function renderDrsMetrics(campaigns: Campaign[]): string {
+  const lines: string[] = [];
+  const definitions: Record<string, string> = {
+    revision_info: 'Frozen reference and current workflow phase for each stored DRS revision',
+    assessment_available: 'Whether the application could verify and assess this frozen revision',
+    assessment_info: 'Application assessment status; simulation is never measured resilience',
+    score: 'Application score when available; inspect mode and assessment status',
+    vectors: 'Application vector coverage by level; excluded is a subset of unknown',
+  };
+  for (const [suffix, description] of Object.entries(definitions)) {
+    lines.push(`# HELP shieldtest_drs_${suffix} ${description}`);
+    lines.push(`# TYPE shieldtest_drs_${suffix} gauge`);
+  }
+  const labels = (values: Record<string, string>) =>
+    Object.entries(values)
+      .map(([key, value]) => `${key}="${escapeLabel(value)}"`)
+      .join(',');
+  for (const campaign of campaigns) {
+    for (const revision of campaign.drsDocument?.revisions ?? []) {
+      const base = {
+        campaign_id: campaign.id,
+        revision: String(revision.number),
+        revision_id: revision.id,
+        mode: revision.plan.mode,
+      };
+      const emit = (name: string, value: number, extra: Record<string, string> = {}) => {
+        if (Number.isFinite(value))
+          lines.push(`shieldtest_drs_${name}{${labels({ ...base, ...extra })}} ${value}`);
+      };
+      emit('revision_info', 1, {
+        state: revision.state,
+        standard: revision.reference.standardVersion,
+        catalogue_hash: revision.reference.catalogueHash,
+        engine: revision.reference.engineVersion,
+        interpretation: revision.reference.interpretationProfile,
+        plan_hash: revision.planHash ?? '',
+      });
+      if (!revision.planHash) continue;
+      try {
+        const assessment = assessDrs(revision);
+        emit('assessment_available', 1);
+        emit('assessment_info', 1, {
+          status: assessment.status,
+          outcome: assessment.terminalOutcome,
+          terminal_level: String(assessment.terminalLevel ?? ''),
+          finalized: String(Boolean(revision.finalizedAt)),
+        });
+        if (assessment.score !== null) emit('score', assessment.score);
+        for (const level of assessment.levels) {
+          for (const [coverage, value] of Object.entries({
+            total: level.total,
+            passed: level.passed,
+            failed: level.failed,
+            unknown: level.inconclusive,
+            excluded: level.excluded,
+          }))
+            emit('vectors', value, { level: String(level.level), coverage });
+        }
+      } catch {
+        // Integrity failures stay visible without making unrelated metrics unavailable.
+        emit('assessment_available', 0);
+      }
+    }
   }
   return lines.join('\n') + '\n';
 }

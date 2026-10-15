@@ -1,0 +1,189 @@
+{
+  "uid": "shieldtest-drs",
+  "title": "ShieldTester \u00b7 DRS campaign evidence",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": ["shieldtest", "drs"],
+  "description": "Application assessments by campaign and immutable revision. Simulation scores have no measured resilience value. Missing data remains unknown. Source must be the authoritative campaign control plane.",
+  "templating": {
+    "list": [
+      {
+        "name": "campaign",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(shieldtest_drs_revision_info, campaign_id)",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false
+      },
+      {
+        "name": "revision",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(shieldtest_drs_revision_info{campaign_id=\"$campaign\"}, revision_id)",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Mode, reference and workflow phase",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_revision_info{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Evidence assessment available (0 = integrity failure)",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_assessment_available{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Assessment status and terminal level",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_assessment_info{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Application score \u2014 inspect mode and finalization",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_score{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Coverage per level \u2014 excluded is included in unknown",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shieldtest_drs_vectors{campaign_id=\"$campaign\",revision_id=\"$revision\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      }
+    }
+  ]
+}

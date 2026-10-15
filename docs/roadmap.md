@@ -42,3 +42,7 @@ The reliability increment and suite-preparation correction were delivered as com
 ## Monitoring increment — target receipts
 
 The source monitoring overlay bridges the existing HTTP target receipt log into Prometheus and adds a dashboard with campaign/run/source identity and explicit collector gaps. Six standalone exporter tests cover actual log ingestion, absence, partial writes, inode replacement, log gaps and bounded cardinality; CI runs them as a required quality step. Scrape/alert configuration has a separate promtool recipe. This closes a lab instrumentation gap, not the independent protection-entry/Kusa or measured-DRS qualification gap. A rollout must preserve PVCs and archive the target's previous ephemeral receipts before replacing its telemetry image.
+
+## DRS Grafana assessment projection
+
+The source now includes a campaign/revision-scoped DRS dashboard, authoritative assessment metrics and a Run Theater deep link. Missing scores and integrity failures cannot become zero-valued success. Deployment identity must be checked separately. The full correlated exposure/recovery timeline and live Fleet count in Grafana remain subsequent work; this increment does not qualify physical DRS collection.

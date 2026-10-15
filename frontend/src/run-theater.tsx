@@ -382,6 +382,10 @@ export function RunTheaterPage() {
   }, [finishedCampaign, finishedRun, fetchRunFn]);
 
   const grafanaTarget = suiteMembers[0]?.target ?? current?.target;
+  const grafanaCampaign = current ?? finishedCampaign;
+  const grafanaRevision = grafanaCampaign?.drsDocument?.revisions.find(
+    (revision) => revision.number === grafanaCampaign.drsDocument?.currentRevision,
+  );
 
   return (
     <>
@@ -394,6 +398,14 @@ export function RunTheaterPage() {
           plane="run"
           label="Open this run in Grafana"
           target={hostOf(grafanaTarget) ?? grafanaTarget}
+        />
+      )}
+      {grafanaRevision && (
+        <GrafanaLink
+          plane="drs"
+          label="Open this DRS campaign in Grafana"
+          campaignId={grafanaCampaign?.id}
+          revisionId={grafanaRevision.id}
         />
       )}
       {!hasSuite && standalone.length === 0 && finishedCampaign ? (

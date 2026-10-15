@@ -883,6 +883,7 @@ const GRAFANA_BASE_KEY = 'shieldtest.grafana.base';
 /** The provisioned ShieldTest dashboards (uids), by observability plane. */
 export const GRAFANA_DASHBOARDS = {
   run: 'shieldtest-run',
+  drs: 'shieldtest-drs',
   resilience: 'shieldtest-resilience',
   platform: 'shieldtest-platform',
 } as const;
@@ -909,13 +910,21 @@ export function setGrafanaBase(url: string): void {
 export function grafanaDashUrl(
   base: string,
   plane: GrafanaPlane,
-  opts: { target?: string; fromMs?: number; toMs?: number } = {},
+  opts: {
+    target?: string;
+    campaignId?: string;
+    revisionId?: string;
+    fromMs?: number;
+    toMs?: number;
+  } = {},
 ): string {
   const p = new URLSearchParams();
   p.set('from', opts.fromMs ? String(opts.fromMs) : 'now-15m');
   p.set('to', opts.toMs ? String(opts.toMs) : 'now');
   if (!opts.toMs) p.set('refresh', '5s');
   if (opts.target) p.set('var-target', opts.target);
+  if (opts.campaignId) p.set('var-campaign', opts.campaignId);
+  if (opts.revisionId) p.set('var-revision', opts.revisionId);
   return `${base.replace(/\/+$/, '')}/d/${GRAFANA_DASHBOARDS[plane]}?${p.toString()}`;
 }
 
