@@ -50,3 +50,9 @@ The source now includes a campaign/revision-scoped DRS dashboard, authoritative 
 ## DRS workflow archive and Fleet monitoring follow-up
 
 Source adds archived transition timestamps and a separate read-only Fleet monitoring endpoint. New missions retain the frozen revision; old unbound missions are omitted explicitly. Fresh reported participation and unknown agents are distinct, and missing collector data is not zero-filled. Unit tests and disposable PostgreSQL checks cover this projection and its read-only behavior. Current setup still distinguishes the previously observed release from subsequent operator delivery receipts; no physical exposure/recovery qualification or Fleet capacity increase follows from these panels.
+
+## Fleet acceptance finding — 15 October 2026
+
+Build 463 fixes stored-plan confirmation and is verified deployed. The private three-agent / shared 3 RPS / 30-second acceptance attempt stopped at the baseline guard before any mission. Its final report remains indeterminate; live participation and natural stop are unqualified. See the [dated setup receipt](current-setup.md#private-fleet-acceptance--15-october-2026-11431154-utc).
+
+Next: retain bounded baseline diagnostics on failure (samples, elapsed time, stability calculation and cancellation reason); investigate the actual refusal without relaxing the frozen tolerance; make long execution acknowledgement/reconnection survive the baseline interval. Then create a fresh current-version plan revision and repeat the same authorized private acceptance. Only a successful bounded run can validate the live counter, target receipts and natural stop. Agent-loss and emergency-stop rehearsals remain separate unperformed checks.
