@@ -18,3 +18,4 @@ configMapGenerator:
       - 01-run.json
       - 02-resilience.json
       - 03-fleet.json
+      - 04-receipts.json

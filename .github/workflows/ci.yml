@@ -36,6 +36,7 @@ jobs:
       - run: npm run typecheck
       - run: node --test scripts/operations/witness/proof.test.mjs
       - run: node --test scripts/operations/deploy-bootstrap.test.mjs
+      - run: node --test deploy/benchmark/telemetry/metrics.test.mjs
       - run: npm audit --audit-level=high
 
   # Frontend tests (with coverage thresholds) + build.

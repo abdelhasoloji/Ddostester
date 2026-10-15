@@ -113,7 +113,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "Absorption decomposition \u2014 last settled run (%)",
-      "description": "How the offered load was absorbed: fast rejects vs tarpitting vs load the generator itself never managed to offer.",
+      "description": "Generator-side request failures, slow responses and offered-load shortfall. These observations do not establish edge absorption or origin receipt.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -131,7 +131,7 @@
             "uid": "prometheus"
           },
           "expr": "shieldtest_run_failed_ratio_last{target=~\"$target\"}*100",
-          "legendFormat": "absorbed",
+          "legendFormat": "generator failures",
           "refId": "A"
         },
         {

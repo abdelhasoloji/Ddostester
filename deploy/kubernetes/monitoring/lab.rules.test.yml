@@ -37,3 +37,38 @@ tests:
               environment: private-kubernetes-lab
             exp_annotations:
               summary: Dedicated lab control metrics unavailable for at least one minute
+  - interval: 15s
+    input_series:
+      - series: 'up{job="lab-target-receipts",instance="lab-target:9101"}'
+        values: '1+0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabTargetReceiptsScrapeUnavailable
+        exp_alerts: []
+  - interval: 15s
+    input_series:
+      - series: 'up{job="lab-target-receipts",instance="lab-target:9101"}'
+        values: '0+0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabTargetReceiptsScrapeUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: lab-target-receipts
+              instance: lab-target:9101
+              severity: warning
+              environment: private-kubernetes-lab
+            exp_annotations:
+              summary: HTTP target receipt metrics unavailable for at least one minute
+  - interval: 15s
+    input_series: []
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LabTargetReceiptsScrapeUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: lab-target-receipts
+              severity: warning
+              environment: private-kubernetes-lab
+            exp_annotations:
+              summary: HTTP target receipt metrics unavailable for at least one minute

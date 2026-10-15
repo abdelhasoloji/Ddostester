@@ -9,3 +9,11 @@ groups:
           environment: private-kubernetes-lab
         annotations:
           summary: Dedicated lab control metrics unavailable for at least one minute
+      - alert: LabTargetReceiptsScrapeUnavailable
+        expr: up{job="lab-target-receipts"} == 0 or absent(up{job="lab-target-receipts"})
+        for: 1m
+        labels:
+          severity: warning
+          environment: private-kubernetes-lab
+        annotations:
+          summary: HTTP target receipt metrics unavailable for at least one minute

@@ -22,3 +22,11 @@ scrape_configs:
     static_configs:
       - targets:
           - 127.0.0.1:9090
+  - job_name: lab-target-receipts
+    scrape_interval: 5s
+    scrape_timeout: 3s
+    sample_limit: 5000
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - lab-target:9101

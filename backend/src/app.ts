@@ -749,7 +749,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         );
         metrics.setGauge(
           'shieldtest_run_live_failed_ratio',
-          'Live absorbed ratio (failed/sent) of the in-flight run',
+          'Live generator failure ratio (failed/sent); no edge attribution',
           absorbed,
           liveLabels,
         );

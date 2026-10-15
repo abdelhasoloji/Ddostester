@@ -38,7 +38,7 @@ export const SERIES_CATALOG: Record<string, SeriesDef> = {
     ],
   },
   run_absorbed: {
-    title: 'Absorbed by edge (%)',
+    title: 'Generator failures (%)',
     unit: 'percent',
     needsTarget: true,
     lines: [

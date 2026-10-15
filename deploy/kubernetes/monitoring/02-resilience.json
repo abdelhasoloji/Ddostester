@@ -104,7 +104,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "Generator failures % by target / vector",
-      "description": "Share of offered load the edge absorbed. A drop here on a target that used to absorb well is a protection regression.",
+      "description": "Generator-side failure ratio. Edge absorption and protection regressions require independent entry and origin telemetry; failures alone cannot establish either.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

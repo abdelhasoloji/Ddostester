@@ -36,7 +36,7 @@ async function get(origin, path, authorization) {
 }
 const targets = await get(prometheus, '/api/v1/targets');
 assert.equal(targets.status, 'success');
-for (const job of ['lab-control', 'lab-prometheus']) {
+for (const job of ['lab-control', 'lab-prometheus', 'lab-target-receipts']) {
   const matching = targets.data.activeTargets.filter((target) => target.labels.job === job);
   assert.equal(matching.length, 1, `Target count for ${job}`);
   assert.equal(matching[0].health, 'up', `Scrape for ${job}`);
@@ -57,7 +57,12 @@ assert.equal(user.login, 'lab-admin');
 const datasource = await get(grafana, '/api/datasources/uid/prometheus', auth);
 assert.equal(datasource.type, 'prometheus');
 assert.equal(datasource.url, 'http://lab-prometheus:9090');
-for (const uid of ['shieldtest-run', 'shieldtest-resilience']) {
+for (const uid of [
+  'shieldtest-run',
+  'shieldtest-resilience',
+  'shieldtest-fleet',
+  'shieldtest-http-receipts',
+]) {
   const dashboard = await get(grafana, `/api/dashboards/uid/${uid}`, auth);
   assert.equal(dashboard.dashboard.uid, uid);
   assert.ok(dashboard.dashboard.panels.length > 0);
@@ -65,12 +70,12 @@ for (const uid of ['shieldtest-run', 'shieldtest-resilience']) {
 console.log(
   JSON.stringify({
     kind: 'private-lab-monitoring-proof',
-    scrapeTargetsUp: 2,
+    scrapeTargetsUp: 3,
     controlUp: true,
     grafanaDatabaseHealthy: true,
     anonymousRejected: true,
     adminAuthenticated: true,
     provisionedDatasource: true,
-    provisionedDashboards: 2,
+    provisionedDashboards: 4,
   }),
 );
