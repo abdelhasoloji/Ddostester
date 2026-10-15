@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-10-15T10:53:43.306562+00:00",
+  "applicationCommit": "fa87aa55b2228877468c1f7d35d240d72b1997a1",
+  "build": "461",
+  "release": "/home/shieldtest/ddostester-releases/release-fa87aa5.1kvK5B/backend",
+  "ci": "https://github.com/abdelhasoloji/Ddostester/actions/runs/38722149755",
+  "ciJobsPassed": 4,
+  "disposablePostgresTestsPassed": 50,
+  "encryptedRecoveryCheckPassed": true,
+  "accountsPreserved": true,
+  "campaignsPreserved": true,
+  "settingsPreserved": true,
+  "accounts": 11,
+  "campaigns": 283,
+  "onlineAgents": 3,
+  "detailedEndpoints": {
+    "/metrics/drs-timeline": {
+      "samples": 17
+    },
+    "/metrics/fleet": {
+      "samples": 1
+    }
+  },
+  "nativePrometheusJobsHealthy": 5,
+  "nativeGrafanaPanels": 11,
+  "campaignsLaunched": 0,
+  "physicalFleetParticipationQualified": false,
+  "limits": [
+    "Workflow events are archived control-plane times, not physical exposure/recovery intervals",
+    "Existing timeline observations are from engine-validation simulation",
+    "No physical Fleet campaign was launched to qualify the new live counter",
+    "Legacy missions without frozen revision metadata remain unbound",
+    "The separate Kubernetes control image does not yet emit these new detailed metrics"
+  ]
+}
