@@ -62,6 +62,7 @@ for (const uid of [
   'shieldtest-resilience',
   'shieldtest-fleet',
   'shieldtest-http-receipts',
+  'shieldtest-drs',
 ]) {
   const dashboard = await get(grafana, `/api/dashboards/uid/${uid}`, auth);
   assert.equal(dashboard.dashboard.uid, uid);

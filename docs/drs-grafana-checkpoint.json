@@ -1,0 +1,44 @@
+{
+  "observedAt": "2026-10-15T09:26:26.371Z",
+  "applicationCommit": "088e5f88f4f7b1466a117e00916d7e03618e4de0",
+  "build": "459",
+  "ci": "https://github.com/abdelhasoloji/Ddostester/actions/runs/38711651207",
+  "ciJobsPassed": 4,
+  "accountsPreserved": true,
+  "campaignsPreserved": true,
+  "settingsPreserved": true,
+  "accountCount": 11,
+  "campaignCount": 283,
+  "onlineAgents": 3,
+  "reportComparisons": [
+    {
+      "campaignId": "ff87194b-5e50-4b32-b148-4881ba3f83ef",
+      "revisionId": "749df255-37ce-4887-b946-9fbe7e91a226",
+      "revision": 1,
+      "mode": "engine-validation",
+      "status": "COMPLETE",
+      "score": 1
+    }
+  ],
+  "monitoring": {
+    "commit": "088e5f88f4f7b1466a117e00916d7e03618e4de0",
+    "nativeDashboard": "shieldtest-drs",
+    "nativeStorage": "Grafana 13 unified resource",
+    "kubernetesDashboard": "shieldtest-drs",
+    "panels": 5,
+    "nativeRevisionSeries": 1,
+    "nativeSource": "shieldtest-control-plane",
+    "simulationScoreVerified": 1,
+    "kubernetesDashboards": 5,
+    "healthyLabScrapes": 3,
+    "unrelatedPodsPreserved": 9,
+    "pvcsPreserved": true,
+    "campaignsLaunched": 0
+  },
+  "limits": [
+    "Existing evidence comparison is engine-validation simulation, not measured resilience",
+    "Kubernetes Prometheus still observes the separate local control plane",
+    "Physical exposure/recovery timelines and live Fleet count are not part of this increment"
+  ],
+  "verificationNote": "Native Grafana 13 uses unified resource storage; the operator verifier was adapted from the obsolete legacy dashboard table. No rollback of healthy workloads was needed."
+}
