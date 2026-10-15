@@ -1,0 +1,54 @@
+name: ARM64 qualification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: arm64-qualification-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ddostester_test
+          POSTGRES_PASSWORD: disposable_ci_only
+          POSTGRES_DB: ddostester_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ddostester_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgres://ddostester_test:disposable_ci_only@127.0.0.1:5432/ddostester_test
+      REQUIRE_POSTGRES_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Require native Linux ARM64
+        run: |
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = aarch64
+          node -e "if(process.platform!=='linux'||process.arch!=='arm64')process.exit(1)"
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: node --test scripts/operations/arm64-image-smoke.test.mjs
+      - run: npm run verify
+      - name: Build the ARM64 image locally
+        run: >-
+          docker build --platform linux/arm64 -f backend/Dockerfile
+          --build-arg SHIELDTEST_COMMIT="$GITHUB_SHA"
+          --build-arg SHIELDTEST_BUILD="arm64-$GITHUB_RUN_ID"
+          -t shieldtester-arm64:qualification .
+      - name: Verify isolated startup, worker modules and API/UI identity
+        run: node scripts/operations/arm64-image-smoke.mjs shieldtester-arm64:qualification "$GITHUB_SHA" arm64-qualification.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: arm64-qualification-${{ github.sha }}
+          path: arm64-qualification.json
+          if-no-files-found: error

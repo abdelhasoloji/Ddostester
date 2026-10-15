@@ -66,3 +66,7 @@ Build 466 is verified deployed after green CI/native gates and exact API/UI iden
 ## Proposed RL300 infrastructure — study only
 
 The declared estate is 20 ARM64 Ampere Altra Max RL300 servers (128 cores/1 TB RAM each), VPN management and separate direct test egress, with DRS 3.0 level 5 as an objective. The first infrastructure qualification stage is two servers under unchanged authorization/budget/stop policies. Native HPE execution, NIC/public-address mapping, complete physical DRS coverage and production sizing remain unqualified. No 16-server count is approved. See the [study](rl300-arm64-infrastructure-study.md) and [reproducible evidence anchors](rl300-arm64-evidence.json).
+
+## Controlled product adaptation lots
+
+The [RL300 product roadmap](rl300-product-roadmap.md) defines the complete implementation/qualification/release sequence. Execute one lot, return results and control to the user, then wait for the next instruction. No automatic continuation, deployment or repeated campaign is authorized by that roadmap. Existing authorization, ceilings and autonomous stops remain unchanged.
