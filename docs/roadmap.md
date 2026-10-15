@@ -70,3 +70,7 @@ The declared estate is 20 ARM64 Ampere Altra Max RL300 servers (128 cores/1 TB R
 ## Controlled product adaptation lots
 
 The [RL300 product roadmap](rl300-product-roadmap.md) defines the complete implementation/qualification/release sequence. The latest user instruction authorizes consecutive available development lots. Blocked hardware work is recorded without repeated attempts. See its progress table for implemented, partial and pending work; local development does not imply production promotion. Existing authorization, ceilings and autonomous stops remain unchanged.
+
+## Passive development PoP prototype
+
+SSH inventory is available for `ac02` (KVM/x86_64). The [three-Pod passive prototype](../deploy/pop-qualification/README.md) is prepared and checked locally, but cannot be applied using the current account because no Kubernetes context is configured. It is separate from the current Fleet workers and contains no generator. Actual cluster admission, node-label placement, network-policy enforcement and live telemetry acceptance remain pending. Do not install a second cluster or treat the SSH account as a cluster identity.

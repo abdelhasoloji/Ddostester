@@ -21,3 +21,5 @@ Older audit and planning URLs now direct readers to the current contract. Their 
 Infrastructure planning: [RL300 ARM64 / DRS level-5 study](rl300-arm64-infrastructure-study.md), with [source and registry evidence](rl300-arm64-evidence.json). This is a proposal for two-server qualification, not an observed deployment or a validated server count.
 
 Product adaptation: [RL300 roadmap](rl300-product-roadmap.md), [infrastructure workspace and evidence contract](infrastructure-workspace.md), [two-host preparation dossier](rl300-two-host-preparation.json). Local source changes are distinct from the current deployed release.
+
+PoP preparation: [passive three-Pod qualification prototype](../deploy/pop-qualification/README.md), with local checks and explicit cluster-access prerequisites. Not deployed and not a Fleet worker migration.
