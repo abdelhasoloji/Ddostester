@@ -1,3 +1,4 @@
+import { currentRevision } from '../src/modules/drs/workflow.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
@@ -53,12 +54,12 @@ async function start() {
   token = login.json().token;
   return built;
 }
-async function create() {
+async function create(extra: Record<string, unknown> = {}) {
   const result = await app!.inject({
     method: 'POST',
     url: '/api/campaigns',
     headers: headers(),
-    payload: campaign,
+    payload: { ...campaign, ...extra },
   });
   expect(result.statusCode).toBe(201);
   return result.json();
@@ -371,6 +372,56 @@ describe('single administrator API', () => {
     expect(await store.getUser('viewer@lab.test')).toEqual(before);
     audit.mockRestore();
   });
+  it('executes a stored frozen DRS revision through confirmation without accepting client evidence', async () => {
+    await start();
+    const created = await app!.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: headers(),
+      payload: { ...campaign, drsMode: 'synthetic-lab' },
+    });
+    expect(created.statusCode).toBe(201);
+    const c = created.json();
+    const revision = currentRevision(c.drsDocument);
+    const frozen = await app!.inject({
+      method: 'POST',
+      url: `/api/campaigns/${c.id}/drs/freeze`,
+      headers: headers(),
+      payload: { revisionId: revision.id },
+    });
+    expect(frozen.statusCode).toBe(200);
+    const stored = currentRevision((await store.getCampaign(c.id))!.drsDocument);
+    const unconfirmed = await app!.inject({
+      method: 'POST',
+      url: `/api/campaigns/${c.id}/execute`,
+      headers: headers(),
+    });
+    expect(unconfirmed.json().code).toBe('confirmation_required');
+    const confirmed = await app!.inject({
+      method: 'POST',
+      url: `/api/campaigns/${c.id}/execute`,
+      headers: headers(),
+      payload: { confirmed: true },
+    });
+    expect(confirmed.statusCode).toBe(503);
+    expect(executeCampaign).toHaveBeenCalledOnce();
+    const received = vi.mocked(executeCampaign).mock.calls[0][0];
+    expect(received.drsDocument?.revisions[0].id).toBe(stored.id);
+    expect(received.drsDocument?.revisions[0].planHash).toBe(stored.planHash);
+    expect(
+      (await store.listAudit()).some(
+        (a) => a.action === 'campaign.confirm' && a.campaignId === c.id,
+      ),
+    ).toBe(true);
+    const injected = await app!.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: headers(),
+      payload: { ...campaign, drsDocument: c.drsDocument },
+    });
+    expect(injected.statusCode).toBe(400);
+    expect(injected.json().error).toMatch(/audited DRS workflow/);
+  });
   it('requires explicit confirmation and launches a pending self-authored campaign through the mocked runner', async () => {
     await start();
     const c = await create();
@@ -393,6 +444,41 @@ describe('single administrator API', () => {
     expect(executeCampaign).toHaveBeenCalledOnce();
     expect((await store.listAudit()).some((a) => a.action === 'campaign.confirm')).toBe(true);
   });
+  it.each(['draft', 'corrupt', 'simulation'])(
+    'does not dispatch an invalid stored DRS plan (%s)',
+    async (kind) => {
+      await start();
+      const c = await create({
+        drsMode: kind === 'simulation' ? 'engine-validation' : 'synthetic-lab',
+      });
+      if (kind !== 'draft') {
+        const revision = currentRevision(c.drsDocument);
+        expect(
+          (
+            await app!.inject({
+              method: 'POST',
+              url: `/api/campaigns/${c.id}/drs/freeze`,
+              headers: headers(),
+              payload: { revisionId: revision.id },
+            })
+          ).statusCode,
+        ).toBe(200);
+      }
+      if (kind === 'corrupt') {
+        const stored = (await store.getCampaign(c.id))!;
+        currentRevision(stored.drsDocument).planHash = 'corrupt';
+        await store.saveCampaign(stored);
+      }
+      const result = await app!.inject({
+        method: 'POST',
+        url: `/api/campaigns/${c.id}/execute`,
+        headers: headers(),
+        payload: { confirmed: true },
+      });
+      expect(result.statusCode).toBeGreaterThanOrEqual(400);
+      expect(executeCampaign).not.toHaveBeenCalled();
+    },
+  );
   it('still enforces immutable caps and current operational limits before launch', async () => {
     await start();
     const c = await create();
@@ -443,24 +529,41 @@ describe('single administrator API', () => {
     expect(allowed.statusCode).toBe(200);
     expect(allowed.json().authorizedBy).toBe(email);
   });
-  it('requires confirmation for suites and validates all steps before changing them', async () => {
-    await start();
-    const c = await create();
-    await store.saveCampaign({ ...c, suiteId: 'suite-one', suiteOrder: 0 });
-    const r = await app!.inject({
-      method: 'POST',
-      url: '/api/suites/suite-one/run',
-      headers: headers(),
-    });
-    expect(r.json().code).toBe('confirmation_required');
-    expect(executeCampaign).not.toHaveBeenCalled();
-    const confirmed = await app!.inject({
-      method: 'POST',
-      url: '/api/suites/suite-one/run',
-      headers: headers(),
-      payload: { confirmed: true },
-    });
-    expect(confirmed.statusCode).toBe(202);
-    await vi.waitFor(() => expect(executeCampaign).toHaveBeenCalledOnce());
-  });
+  it.each([false, true])(
+    'requires suite confirmation and validates stored steps (DRS=%s)',
+    async (drs) => {
+      await start();
+      const c = await create(drs ? { drsMode: 'synthetic-lab' } : {});
+      if (drs) {
+        const revision = currentRevision(c.drsDocument);
+        const frozen = await app!.inject({
+          method: 'POST',
+          url: `/api/campaigns/${c.id}/drs/freeze`,
+          headers: headers(),
+          payload: { revisionId: revision.id },
+        });
+        expect(frozen.statusCode).toBe(200);
+      }
+      await store.saveCampaign({
+        ...(await store.getCampaign(c.id))!,
+        suiteId: 'suite-one',
+        suiteOrder: 0,
+      });
+      const r = await app!.inject({
+        method: 'POST',
+        url: '/api/suites/suite-one/run',
+        headers: headers(),
+      });
+      expect(r.json().code).toBe('confirmation_required');
+      expect(executeCampaign).not.toHaveBeenCalled();
+      const confirmed = await app!.inject({
+        method: 'POST',
+        url: '/api/suites/suite-one/run',
+        headers: headers(),
+        payload: { confirmed: true },
+      });
+      expect(confirmed.statusCode).toBe(202);
+      await vi.waitFor(() => expect(executeCampaign).toHaveBeenCalledOnce());
+    },
+  );
 });

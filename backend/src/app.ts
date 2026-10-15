@@ -2738,7 +2738,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
               code: 'confirmation_required',
             });
           }
-          createCampaign(c, await effectiveAllowlist(), agentChoices(), effectiveCaps);
+          // Authoring rejects client-supplied evidence; this document came from storage.
+          const executionInput = { ...c };
+          delete executionInput.drsDocument;
+          createCampaign(executionInput, await effectiveAllowlist(), agentChoices(), effectiveCaps);
           if (c.status === 'PENDING_APPROVAL') {
             c = approveCampaign(
               c,
@@ -2883,7 +2886,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       try {
         for (const m of members) {
           if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
-            createCampaign(m, await effectiveAllowlist(), agentChoices(), effectiveCaps);
+            const executionInput = { ...m };
+            delete executionInput.drsDocument;
+            createCampaign(
+              executionInput,
+              await effectiveAllowlist(),
+              agentChoices(),
+              effectiveCaps,
+            );
             if (m.status === 'APPROVED') assertExecutable(m);
           }
         }
