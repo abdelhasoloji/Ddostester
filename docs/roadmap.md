@@ -26,3 +26,11 @@ Reconciled against source and build 463 on 14 October 2026. This is the status a
 These are dependencies and planned increments, not scheduled autonomous campaigns. No feature completion or registry fixture establishes certification, Internet distribution or maximum throughput.
 
 See [DRS contract](drs-engine.md), [setup](current-setup.md) and [handoff](infrastructure-handoff.md).
+
+## Reliability increment — 15 October 2026
+
+Source changes retain the existing coverage floors and include PostgreSQL contracts in backend coverage. Behavioral tests cover Fleet admission and revocation, exact multisite selection, DRS evidence/revision failures, conservative telemetry continuity and assistant confirmation/error handling. Form labels are associated with their controls. The heartbeat client avoids a near-deadline extra emission; target receipt resets/gaps cannot remain labelled complete.
+
+This increment does not enable full-standard physical adapters, connect Kusa, provision a new site or raise Fleet execution limits. Production identity and remote CI results must be checked separately from local source/test results. The next external prerequisite remains the actual protection-entry/origin endpoint and Kusa contract.
+
+Native deployment follow-up: the currently observed systemd API process runs as root. Prepare and qualify a migration to an unprivileged runtime account, including protected file/PKI access and rollback; do not confuse this with the Kubernetes Pod restrictions already present.

@@ -299,3 +299,163 @@ it('archives missing latency distributions as unknown, without fabricating a zer
   const p = r.proofs.at(-1)!;
   expect(qualify(drsReference().vectors[0], p, r).result).toBe('NOT_EVALUATED');
 });
+
+it('never passes collector proof with missing services, interrupted windows, uncalibrated load or incomplete recovery', () => {
+  const r = revision();
+  simulate(r, 'fixture', 'healthy');
+  const vector = drsReference().vectors[1];
+  const base = r.proofs[1];
+  const changes: [string, (data: typeof base.data) => void][] = [
+    [
+      'Missing functional evidence',
+      (e) => {
+        e.serviceIds = [];
+        e.legitimate_transaction_success = [];
+      },
+    ],
+    [
+      'Service not healthy at baseline',
+      (e) => {
+        e.baseline_transaction_success = [];
+      },
+    ],
+    [
+      'Service not healthy at baseline',
+      (e) => {
+        e.baseline_transaction_success[0].assertionEvaluated = false;
+      },
+    ],
+    [
+      'Service not healthy at baseline',
+      (e) => {
+        e.baseline_transaction_success[0].assertionVerified = false;
+      },
+    ],
+    [
+      'Service not healthy at baseline',
+      (e) => {
+        e.baseline_transaction_success[0].total = 0;
+      },
+    ],
+    [
+      'Service not healthy at baseline',
+      (e) => {
+        e.baseline_transaction_success[0].successful = 0;
+      },
+    ],
+    [
+      'Baseline distribution unstable',
+      (e) => {
+        e.latency_baseline.samplesMs = [0, 10000];
+      },
+    ],
+    [
+      'Exposure below frozen plan',
+      (e) => {
+        e.finishedAt = new Date(Date.parse(e.startedAt) + 1000).toISOString();
+      },
+    ],
+    [
+      'Injection point',
+      (e) => {
+        e.injection_point = 'after-protection-unreviewed';
+      },
+    ],
+    [
+      'Under-load latency distribution coverage insufficient',
+      (e) => {
+        e.latency_during_test.samplesMs = [];
+      },
+    ],
+    [
+      'Missing entry instrumentation',
+      (e) => {
+        e.points = e.points.filter(
+          (p) => p.sourceId !== r.plan.sources.find((s) => s.role === 'entry')!.id,
+        );
+      },
+    ],
+    [
+      'Incomplete',
+      (e) => {
+        e.points[0].startedAt = new Date(Date.parse(e.startedAt) + 5000).toISOString();
+      },
+    ],
+    [
+      'Incomplete',
+      (e) => {
+        e.points[0].finishedAt = new Date(Date.parse(e.finishedAt) - 5000).toISOString();
+      },
+    ],
+    [
+      'Insufficient',
+      (e) => {
+        e.points[0].sampleCount = 0;
+      },
+    ],
+    [
+      'load below standard',
+      (e) => {
+        for (const p of e.points) p.load = undefined;
+      },
+    ],
+    [
+      'Requested load below standard',
+      (e) => {
+        e.requested_load.value = 0;
+      },
+    ],
+    [
+      'Unrepresented dimensions',
+      (e) => {
+        e.unrepresented_dimensions = ['unknown entry coverage'];
+      },
+    ],
+    [
+      'Calibration evidence missing',
+      (e) => {
+        e.calibration_evidence = [];
+      },
+    ],
+    [
+      'Combined exposure not established',
+      (e) => {
+        e.jointExposureId = null;
+      },
+    ],
+    [
+      'Recovery observation outside',
+      (e) => {
+        e.recovery_timestamp = new Date(
+          Date.parse(e.finishedAt) + (r.plan.recoveryTimeoutSec + 1) * 1000,
+        ).toISOString();
+      },
+    ],
+  ];
+  for (const [reason, change] of changes) {
+    const proof = structuredClone(base);
+    change(proof.data);
+    const verdict = qualify(vector, proof, r);
+    expect(verdict.result, reason).toBe('NOT_EVALUATED');
+    expect(
+      verdict.reasons.some((x) => x.includes(reason)),
+      reason,
+    ).toBe(true);
+  }
+});
+it('keeps overlapping outages within their tolerance and fails an observed extra-latency breach', () => {
+  const r = revision();
+  simulate(r, 'fixture', 'healthy');
+  for (const kind of ['outage', 'latency']) {
+    const proof = structuredClone(r.proofs[1]);
+    if (kind === 'outage')
+      proof.data.outage_intervals = [
+        { start: proof.data.startedAt, end: proof.data.finishedAt },
+        { start: proof.data.startedAt, end: proof.data.finishedAt },
+      ];
+    else proof.data.latency_during_test.meanMs = 1_000_000;
+    expect(qualify(drsReference().vectors[1], proof, r).result).toBe(
+      kind === 'latency' ? 'FAIL' : 'PASS',
+    );
+  }
+});

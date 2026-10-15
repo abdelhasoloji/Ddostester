@@ -35,6 +35,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: node --test scripts/operations/witness/proof.test.mjs
+      - run: node --test scripts/operations/deploy-bootstrap.test.mjs
       - run: npm audit --audit-level=high
 
   # Frontend tests (with coverage thresholds) + build.
@@ -54,11 +55,29 @@ jobs:
   # Backend tests (with coverage thresholds) + build. The catalog's bounded
   # end-to-end runs (CATALOG_E2E), whose real per-run durations dominated CI,
   # are NOT run here — they moved to the nightly E2E workflow. Unit coverage
-  # alone clears every threshold, so the gate is unchanged; only the slow
-  # integration runs left the per-push path.
+  # and PostgreSQL coverage must meet the existing thresholds; only the slow
+  # integration runs left the per-push path. PostgreSQL contract tests now
+  # contribute to the same coverage gate; the separate recovery job remains.
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ddostester_test
+          POSTGRES_PASSWORD: disposable_ci_only
+          POSTGRES_DB: ddostester_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ddostester_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgres://ddostester_test:disposable_ci_only@127.0.0.1:5432/ddostester_test
+      REQUIRE_POSTGRES_TESTS: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -66,7 +85,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
-      - run: npm run test:coverage -w backend
+      - run: npm run test:coverage -w backend -- --maxWorkers=1
       - run: npm run build -w backend
 
   postgres:

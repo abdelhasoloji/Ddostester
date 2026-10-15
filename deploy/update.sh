@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build and promote an immutable release. Never reset a checkout or rewrite secrets.
 set -euo pipefail
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="${DEPLOY_SOURCE_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPO_DIR="$(cd "$REPO_DIR" && pwd)"
 SERVICE="${DEPLOY_SERVICE:-ddostester}"
 BRANCH="${DEPLOY_BRANCH:-main}"
 MODE="${DEPLOY_MODE:-systemd}"

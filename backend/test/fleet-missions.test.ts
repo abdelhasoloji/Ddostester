@@ -322,4 +322,175 @@ const url = process.env.DATABASE_URL_TEST;
         .mission.snapshot.shards.every((s: { state: string }) => s.state === 'STOPPED'),
     ).toBe(true);
   });
+  it('rejects malformed and revoked worker messages without treating them as progress', async () => {
+    const path = '/api/fleet/devices/mission-test-1/mission/';
+    const headers = { authorization: 'Bearer ' + tokens[1] };
+    for (const authorization of [undefined, 'Bearer invalid', 'Bearer ' + 'a'.repeat(64)]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: path + 'claim',
+        headers: authorization ? { authorization } : {},
+        payload: {},
+      });
+      expect(response.statusCode).toBe(401);
+    }
+    for (const payload of [[], 'invalid']) {
+      expect(
+        (
+          await app.inject({
+            method: 'POST',
+            url: path + 'claim',
+            headers: { ...headers, 'content-type': 'application/json' },
+            payload: JSON.stringify(payload),
+          })
+        ).statusCode,
+      ).toBe(400);
+    }
+    expect(
+      (await app.inject({ method: 'POST', url: path + 'renew', headers, payload: {} })).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: path + 'renew',
+          headers,
+          payload: { runId: 'not-a-mission', attemptId: 'unknown' },
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: path + 'unknown',
+          headers,
+          payload: { runId: id, attemptId: 'unknown' },
+        })
+      ).statusCode,
+    ).toBe(404);
+    const d = (await store.getFleetDevice('mission-test-1'))!;
+    await store.saveFleetDevice({ ...d, enrollmentRevoked: true });
+    expect(
+      (await app.inject({ method: 'POST', url: path + 'claim', headers, payload: {} })).statusCode,
+    ).toBe(401);
+    await store.saveFleetDevice({ ...d, credential: { ...d.credential!, expiresAt: 1 } });
+    expect(
+      (await app.inject({ method: 'POST', url: path + 'claim', headers, payload: {} })).statusCode,
+    ).toBe(401);
+    await store.saveFleetDevice(d);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/fleet/missions/not-found/stop',
+          headers: userHeaders,
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+  it('rejects unsafe legacy input and refuses legacy dispatch under the DRS catalogue', async () => {
+    const body = {
+      deviceIds: ['mission-test-1'],
+      maxRps: 1,
+      concurrency: 1,
+      durationSec: 10,
+      confirmed: true,
+    };
+    for (const patch of [
+      { arbitrary: true },
+      { deviceIds: [] },
+      { deviceIds: ['mission-test-1', 'mission-test-1'] },
+      { deviceIds: [1] },
+      { maxRps: 0 },
+      { maxRps: 16 },
+      { maxRps: 1.5 },
+      { concurrency: 0 },
+      { concurrency: 7 },
+      { durationSec: 9 },
+      { durationSec: 61 },
+    ]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/fleet/missions',
+        headers: userHeaders,
+        payload: { ...body, ...patch },
+      });
+      expect(response.statusCode).toBe(400);
+    }
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/fleet/missions',
+          headers: userHeaders,
+          payload: { ...body, deviceIds: ['unregistered'] },
+        })
+      ).statusCode,
+    ).toBe(409);
+    vi.stubEnv('CAMPAIGN_CATALOG', 'drs-fleet');
+    try {
+      expect(
+        (
+          await app.inject({
+            method: 'POST',
+            url: '/api/fleet/missions',
+            headers: userHeaders,
+            payload: body,
+          })
+        ).statusCode,
+      ).toBe(409);
+      const overview = (
+        await app.inject({ url: '/api/fleet/overview', headers: userHeaders })
+      ).json();
+      expect(overview.group).toBe('*');
+      expect(overview.origins).toEqual(['http://lab-target:8080']);
+    } finally {
+      vi.stubEnv('CAMPAIGN_CATALOG', 'legacy');
+    }
+  });
+  it('refuses campaign assignment without a current owner session, exact enrolled identities or admitted origin', async () => {
+    const agent = new PersistentFleetHttpAgent();
+    const config = {
+      url: 'http://lab-target:8080/',
+      authorized: true,
+      maxRps: 3,
+      concurrency: 3,
+      durationSec: 10,
+      headers: { 'X-WEDOS-TEST': 'rejection-fixture:trace' },
+      fleetDeviceIds: ['mission-test-0', 'mission-test-1', 'mission-test-2'],
+    };
+    await expect(agent.run(config, ['lab-target'])).rejects.toThrow('interactive campaign session');
+    const session = <T>(f: () => T) =>
+      mutationActor.run('abdelha@wedos', () =>
+        mutationSessionVersion.run(0, () => mutationSessionExpiresAt.run(Date.now() + 60000, f)),
+      );
+    await expect(
+      session(() => agent.run({ ...config, url: 'http://lab-target:8081/' }, ['lab-target'])),
+    ).rejects.toThrow('origin');
+    await expect(
+      session(() => agent.run({ ...config, fleetDeviceIds: ['missing'] }, ['lab-target'])),
+    ).rejects.toThrow('enrolled and online');
+    const d = (await store.getFleetDevice('mission-test-1'))!;
+    await store.saveFleetDevice({
+      ...d,
+      heartbeat: { ...d.heartbeat!, version: 'inventory-heartbeat/v1' },
+    });
+    await expect(session(() => agent.run(config, ['lab-target']))).rejects.toThrow(
+      'enrolled and online',
+    );
+    await store.saveFleetDevice(d);
+    const owner = (await store.getUser('abdelha@wedos'))!;
+    for (const patch of [
+      { status: 'disabled' as const },
+      { mustChangePassword: true },
+      { tokenVersion: 1 },
+    ]) {
+      await store.saveUser({ ...owner, ...patch });
+      await expect(session(() => agent.run(config, ['lab-target']))).rejects.toThrow(
+        'owner session',
+      );
+    }
+    await store.saveUser(owner);
+  });
 });

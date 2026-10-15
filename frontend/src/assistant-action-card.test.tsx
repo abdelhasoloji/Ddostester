@@ -208,3 +208,98 @@ describe('AssistantActionCard — limits & navigate', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/theater');
   });
 });
+
+it('routes single-admin launches through explicit confirmation instead of executing an assistant proposal', async () => {
+  currentApp = makeApp({
+    role: 'admin',
+    userMode: 'single',
+    authRequired: true,
+    identity: { email: 'abdelha@wedos' },
+  });
+  fakeApi.createCampaign.mockResolvedValue({ id: 'single-fixture', status: 'PENDING_APPROVAL' });
+  render(<AssistantActionCard action={campaignAction()} />);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Create campaign' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Run now' }));
+  expect(currentApp.setConfirmExec).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'single-fixture' }),
+  );
+  expect(fakeApi.execute).not.toHaveBeenCalled();
+});
+it('retains approval and co-sign failures and permits a manual stop after an ambiguous launch error', async () => {
+  currentApp = makeApp({ requireCisoApproval: true });
+  fakeApi.createCampaign.mockResolvedValue({ id: 'error-fixture', status: 'PENDING_APPROVAL' });
+  fakeApi.approve
+    .mockRejectedValueOnce(Error('Approval unavailable'))
+    .mockResolvedValue({ id: 'error-fixture', status: 'APPROVED' });
+  fakeApi.cisoApprove
+    .mockRejectedValueOnce(Error('Co-sign unavailable'))
+    .mockResolvedValue({ id: 'error-fixture', status: 'APPROVED', cisoApprovedBy: 'fixture-ciso' });
+  fakeApi.execute.mockRejectedValue(Error('Launch response lost'));
+  fakeApi.listCampaigns.mockResolvedValue([{ id: 'error-fixture', status: 'RUNNING' }]);
+  fakeApi.kill
+    .mockRejectedValueOnce(Error('Stop response lost'))
+    .mockResolvedValue({ status: 'STOPPING' });
+  render(<AssistantActionCard action={campaignAction()} />);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+  await screen.findByText(/Approval unavailable/);
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+  fireEvent.click(await screen.findByRole('button', { name: /CISO sign-off/ }));
+  await screen.findByText(/Co-sign unavailable/);
+  fireEvent.click(screen.getByRole('button', { name: /CISO sign-off/ }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Run now' }));
+  await screen.findByText(/Launch response lost/);
+  fireEvent.click(await screen.findByRole('button', { name: 'Kill switch' }));
+  await screen.findByText(/Stop response lost/);
+  fireEvent.click(screen.getByRole('button', { name: 'Kill switch' }));
+  await waitFor(() =>
+    expect(currentApp.push).toHaveBeenCalledWith('info', 'Kill switch triggered.'),
+  );
+  expect(fakeApi.listCampaigns).toHaveBeenCalled();
+});
+it('does not authorize a target or mark limits applied after a rejected request', async () => {
+  const target: AssistantAction = {
+    kind: 'target',
+    title: 'New target',
+    draft: { host: 'fixture.internal' },
+    rows: [],
+    rationale: '',
+  };
+  fakeApi.registerTarget
+    .mockRejectedValueOnce(Error('Registration unavailable'))
+    .mockResolvedValue({ id: 'target-fixture', authStatus: 'pending' });
+  fakeApi.authorizeTarget
+    .mockRejectedValueOnce(Error('Authorization unavailable'))
+    .mockResolvedValue({ id: 'target-fixture', authStatus: 'authorized' });
+  const view = render(<AssistantActionCard action={target} />);
+  fireEvent.change(screen.getByPlaceholderText('Written authorization reference / note'), {
+    target: { value: 'fixture-authority' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Register target' }));
+  await screen.findByText(/Registration unavailable/);
+  expect(fakeApi.authorizeTarget).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Register target' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Authorize (CISO)' }));
+  await screen.findByText(/Authorization unavailable/);
+  expect(screen.queryByText(/Registered and authorized/)).not.toBeInTheDocument();
+  view.unmount();
+  fakeApi.setLimits.mockRejectedValue(Error('Limits update rejected'));
+  render(
+    <AssistantActionCard
+      action={{
+        kind: 'limits',
+        title: 'Limits fixture',
+        caps: { maxRps: 10, maxConcurrency: 3, maxDurationSec: 10 },
+        over: [],
+        rows: [],
+        rationale: '',
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Apply limits' }));
+  await screen.findByText(/Limits update rejected/);
+  expect(screen.queryByText('✓ Applied.')).not.toBeInTheDocument();
+  expect(currentApp.applyEffectiveCaps).not.toHaveBeenCalled();
+});

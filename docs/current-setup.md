@@ -40,3 +40,7 @@ The source-06 Linux image layer is provenance for the existing HTTP lab, not the
 ## Qualification gaps
 
 Kusa endpoints, infrastructure-cluster admission, site agents, independently qualified protection-entry/origin collectors, functional user journeys, calibration and source diversity remain to be connected or demonstrated. No measured full-standard DRS capacity or 5,000-agent execution has been established. See [roadmap](roadmap.md).
+
+## Follow-up observation — 15 October 2026
+
+The control API still reports build 463. The native systemd service currently runs with `User=root`; this is separate from the restricted Kubernetes workload identities. Moving the native API to an unprivileged service account remains work requiring runtime-file/PKI permission and rollback validation. The deployment source checkout `/home/shieldtest/ddostester` was clean at `d98db08`; the active service continues to use its immutable release directory. No claim of a newer deployment is made by this observation.

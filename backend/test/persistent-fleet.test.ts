@@ -96,4 +96,32 @@ describe('enrolled Fleet campaign engine', () => {
       ).rejects.toThrow();
     expect(start).not.toHaveBeenCalled();
   });
+
+  it('does not let a closing application unbind the newer authoritative driver', async () => {
+    const old = bindPersistentFleet({ start: vi.fn(), stop: vi.fn(), snapshot: vi.fn() });
+    const start = vi.fn().mockRejectedValue(Error('New driver refused assignment'));
+    unbind = bindPersistentFleet({ start, stop: vi.fn(), snapshot: vi.fn() });
+    old();
+    const agent = new PersistentFleetHttpAgent();
+    expect(await agent.available()).toBe(true);
+    await expect(agent.run(config, ['target.test'])).rejects.toThrow(
+      'New driver refused assignment',
+    );
+    expect(start).toHaveBeenCalledOnce();
+    unbind();
+    expect(await agent.available()).toBe(false);
+    await expect(agent.run(config, ['target.test'])).rejects.toThrow('unavailable');
+  });
+  it('stops after missing durable evidence and never returns a successful result for it', async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    unbind = bindPersistentFleet({
+      start: async () => 'missing-run',
+      stop,
+      snapshot: async () => null,
+    });
+    await expect(new PersistentFleetHttpAgent().run(config, ['target.test'])).rejects.toThrow(
+      'disappeared',
+    );
+    expect(stop).toHaveBeenCalledWith('missing-run');
+  });
 });

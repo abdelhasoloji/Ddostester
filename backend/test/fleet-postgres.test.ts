@@ -213,4 +213,30 @@ if (process.env.REQUIRE_POSTGRES_TESTS === '1' && !url)
       ),
     ).rejects.toThrow(/Aggregate/);
   });
+  it('does not grant a lease, receipt or reservation for an unknown durable run', async () => {
+    const missing = randomUUID();
+    expect(await coordinator.snapshot(missing)).toBeNull();
+    expect(await coordinator.claim(missing, 'one')).toBeNull();
+    expect(await coordinator.renewControl(missing)).toBe(false);
+    expect(await coordinator.heartbeat(missing, 'one', 'missing-attempt', 1)).toBeNull();
+    expect(await coordinator.finish(missing, 'one', 'missing-attempt', 'SUCCEEDED', {})).toBe(
+      false,
+    );
+    await coordinator.stop(missing);
+    expect(await coordinator.snapshot(missing)).toBeNull();
+    await expect(
+      coordinator.plan(
+        {
+          runId: missing,
+          campaignId: randomUUID(),
+          agentIds: ['one', 'one'],
+          target: 'http://target.test:8080/',
+          maxRps: 3,
+          concurrency: 3,
+          durationSec: 10,
+        },
+        policy,
+      ),
+    ).rejects.toThrow('Duplicate agents');
+  });
 });

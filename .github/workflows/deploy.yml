@@ -55,5 +55,27 @@ jobs:
             echo "::error::Service repo not found at $REPO. Set DDOSTESTER_DIR on the runner, or clone the repo there."
             exit 1
           fi
-          echo "Deploying '$DEPLOY_BRANCH' into $REPO"
-          DEPLOY_EXPECTED_COMMIT="$DEPLOY_EXPECTED_COMMIT" DEPLOY_BRANCH="$DEPLOY_BRANCH" bash "$REPO/deploy/update.sh"
+          if [ -n "$(git -C "$REPO" status --porcelain)" ]; then
+            echo "::error::Deployment checkout contains local work; use a clean checkout."
+            exit 1
+          fi
+          git check-ref-format --branch "$DEPLOY_BRANCH" >/dev/null
+          FETCH_REF="$DEPLOY_BRANCH"
+          if [ -n "$DEPLOY_EXPECTED_COMMIT" ]; then
+            if [[ ! "$DEPLOY_EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Expected commit must be a full SHA."
+              exit 1
+            fi
+            FETCH_REF="$DEPLOY_EXPECTED_COMMIT"
+          fi
+          git -C "$REPO" fetch origin "$FETCH_REF"
+          VERIFIED_COMMIT="$(git -C "$REPO" rev-parse --verify 'FETCH_HEAD^{commit}')"
+          if [ -n "$DEPLOY_EXPECTED_COMMIT" ] && [ "$VERIFIED_COMMIT" != "$DEPLOY_EXPECTED_COMMIT" ]; then
+            echo "::error::Fetched commit differs from successful CI."
+            exit 1
+          fi
+          BOOTSTRAP="$(mktemp)"
+          trap 'rm -f "$BOOTSTRAP"' EXIT
+          git -C "$REPO" show "$VERIFIED_COMMIT:deploy/update.sh" > "$BOOTSTRAP"
+          echo "Deploying verified commit $VERIFIED_COMMIT"
+          DEPLOY_SOURCE_REPO="$REPO" DEPLOY_EXPECTED_COMMIT="$VERIFIED_COMMIT" DEPLOY_BRANCH="$DEPLOY_BRANCH" bash "$BOOTSTRAP"

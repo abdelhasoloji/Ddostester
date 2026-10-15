@@ -75,7 +75,10 @@ const send = () =>
       agentId: config.agentId,
       privateIp: config.privateIp,
       sequence,
-      version: process.env.FLEET_MISSION_RUNTIME === '1' ? 'fleet-mission-agent/v1' : 'inventory-heartbeat/v1',
+      version:
+        process.env.FLEET_MISSION_RUNTIME === '1'
+          ? 'fleet-mission-agent/v1'
+          : 'inventory-heartbeat/v1',
       uptimeSec: (performance.now() - started) / 1000,
     });
     const request = (endpoint.protocol === 'https:' ? httpsRequest : httpRequest)(
@@ -119,7 +122,24 @@ const send = () =>
     request.end(body);
   });
 let failures = 0;
-while (!stopped && performance.now() - started < seconds * 1000) {
+const deadline = started + seconds * 1000;
+let nextHeartbeatAt = started;
+while (!stopped) {
+  const now = performance.now();
+  if (now >= deadline) break;
+  const waitMs = Math.min(deadline, nextHeartbeatAt) - now;
+  if (waitMs > 0) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, Math.ceil(waitMs));
+      wake = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+    // Timers can wake early; recheck both the deadline and next emission time.
+    continue;
+  }
+  nextHeartbeatAt = now + 5000;
   if (!Number.isSafeInteger(++sequence)) throw new Error('Sequence exhausted');
   await writeFile(stateFile, JSON.stringify({ credentialHash, sequence }), {
     mode: 0o600,
@@ -139,14 +159,5 @@ while (!stopped && performance.now() - started < seconds * 1000) {
     if (/Enrollment rejected|three attempts/.test(error.message) || ++failures >= 3) throw error;
     console.error('Heartbeat unavailable; retrying.');
   }
-  const remaining = seconds * 1000 - (performance.now() - started);
-  if (remaining > 0 && !stopped)
-    await new Promise((resolve) => {
-      const timer = setTimeout(resolve, Math.min(5000, remaining));
-      wake = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-    });
 }
 console.log('Heartbeat client stopped.');

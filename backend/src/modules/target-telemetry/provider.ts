@@ -183,8 +183,12 @@ export function summarizeTargetTelemetry(series: TargetSample[]): TargetTelemetr
       ? {
           receivedRequestsMax: peak((s) => s.receivedRequests),
           receiptComplete: series.some((s) => s.receiptComplete !== undefined)
-            ? series.every((s) => s.receiptComplete === true) &&
-              new Set(series.map((s) => s.targetPodUid).filter(Boolean)).size <= 1
+            ? series.every(
+                (s, i) =>
+                  s.receiptComplete === true &&
+                  s.receivedRequests !== undefined &&
+                  (i === 0 || s.receivedRequests >= (series[i - 1].receivedRequests ?? Infinity)),
+              ) && new Set(series.map((s) => s.targetPodUid).filter(Boolean)).size <= 1
             : undefined,
           sourceIps: [...new Set(series.flatMap((s) => s.sourceIps ?? []))],
         }

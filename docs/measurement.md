@@ -19,3 +19,7 @@ The full level denominator is retained. Score is `level - 1 + successful_vectors
 One Gbit/s actually received remains one Gbit/s regardless of a declared synthetic factor. Virtual clients, private Pod IPs behind NAT and one public egress must be reported separately. Injection after a protection does not evaluate that bypassed protection. Existing run/bench attachments are diagnostic and never automatically PASS a DRS vector.
 
 See [current instrumentation gaps](current-setup.md), [comparability](run-comparison.md) and [companion bench boundary](boundary-and-lab.md).
+
+## Receipt continuity
+
+A target receipt summary is incomplete if the received-request counter decreases, a counter sample is missing, a sample declares incomplete receipts, or observed target Pod identity changes. The raw maximum is retained as a diagnostic and is not interpreted as a complete received-request total after a reset. This continuity check does not establish independent DRS measurement or calibration.

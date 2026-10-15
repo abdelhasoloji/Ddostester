@@ -10,7 +10,7 @@ npm run test -w frontend -- --maxWorkers=2
 npm run build
 ```
 
-Workspace configs default to two workers to limit contention without loosening test timeouts. The tracked pre-push hook runs lint/typecheck/tests. CI additionally enforces workspace coverage thresholds from the Vitest configurations, dependency audit, PostgreSQL and recovery gates. Use those configuration files as authority rather than copied threshold tables.
+Workspace configs default to two workers to limit contention without loosening test timeouts. The tracked pre-push hook runs lint/typecheck/tests. CI additionally enforces workspace coverage thresholds from the Vitest configurations, dependency audit, PostgreSQL and recovery gates. The backend coverage job now has its own disposable PostgreSQL service and runs serially, so database-backed contracts contribute to the same coverage report. The separate PostgreSQL/recovery job remains required. Use those configuration files as authority rather than copied threshold tables.
 
 ## Meaningful contracts
 
@@ -25,3 +25,17 @@ Browser tests use local identified fixtures and their intended config. Render Ku
 Build 463 was verified with local backend/frontend suites, PostgreSQL and encrypted restore, native VPS candidate gates, local visual assessment/report/mobile checks and API/UI identity checks. It included one software-only campaign with reproducible simulation score 1, no physical campaign traffic. [Current setup](current-setup.md) describes that deployed checkpoint. New source changes require fresh gates and are not implicitly deployed.
 
 Remaining physical qualification includes entry/origin collectors, functional journeys, Kusa and scaled infrastructure execution. See [roadmap](roadmap.md).
+
+## Reliability increment — 15 October 2026
+
+The previous main CI passed its assertions but failed backend function/branch and frontend statement/line coverage thresholds, so deployment was skipped. The repair retains those thresholds and adds behavioral coverage rather than excluding runtime code.
+
+New contracts exercise inventory create/edit/removal failures, read-only access, site paging and retained exact agent selection, explicit enrollment rotation/revocation, stale DRS revisions, evidence import errors and reproducible exports. Assistant tests cover explicit single-admin confirmation, stop after ambiguous launch response, power-operation failures and bounded attachments. All external operations in these tests are inert fixtures or loopback-only services.
+
+Target telemetry must mark counter resets, missing counter samples or target changes incomplete while preserving raw maxima. The standalone heartbeat client's monotonic schedule rechecks both its next emission and lifetime after a timer wake, preventing an extra near-deadline heartbeat. Existing isolated real-client restart tests exercise this behavior.
+
+Local verification and GitHub CI are separate receipts; inspect the run for the exact pushed commit before claiming deployment. Collector endpoints, Kusa and physical infrastructure capacity remain external qualification dependencies.
+
+The deployment bootstrap regression test (`node --test scripts/operations/deploy-bootstrap.test.mjs`) uses a temporary local Git origin and an older clone. It proves the workflow executes the exact CI commit script and refuses dirty source without altering HEAD or local files. No service is restarted in this test.
+
+Local verification receipt for this increment: 1,222 backend tests passed with PostgreSQL (four explicit conditional skips), 455 frontend tests passed; backend coverage 83.96% statements / 79.13% branches / 85.88% functions / 85.88% lines, frontend 80.33% statements / 71.54% branches / 74.62% functions / 82.31% lines. Lint, typecheck, build and the isolated deployment-bootstrap test passed. These local results do not substitute for the remote commit-specific CI or production identity check.

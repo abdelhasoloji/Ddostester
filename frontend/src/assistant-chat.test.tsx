@@ -297,3 +297,77 @@ describe('AssistantChat — floating companion & pod control', () => {
     await waitFor(() => expect(fakeApi.assistantPodStart).toHaveBeenCalled());
   });
 });
+
+it('retains pod failures and requires operator permission before retrying power controls', async () => {
+  currentApp = makeApp({ role: 'admin', authRequired: false });
+  fakeApi.assistantStatus.mockResolvedValue({ configured: true, model: 'qwen', podManaged: true });
+  fakeApi.assistantPod = vi
+    .fn()
+    .mockResolvedValue({ configured: true, state: 'RUNNING', uptimeSec: 120 });
+  fakeApi.assistantPodStop
+    .mockRejectedValueOnce(Error('Stop unavailable'))
+    .mockResolvedValue({ state: 'STOPPED' });
+  fakeApi.assistantPodStart
+    .mockRejectedValueOnce(Error('Start unavailable'))
+    .mockResolvedValue({ state: 'RUNNING' });
+  render(<AssistantChat variant="page" />);
+  fireEvent.click(await screen.findByRole('button', { name: /Qwen on, click to power off/ }));
+  await screen.findByText(/Stop unavailable/);
+  fireEvent.click(screen.getByRole('button', { name: /Qwen on, click to power off/ }));
+  await screen.findByRole('button', { name: /Qwen off, click to power on/ });
+  fakeApi.assistantPod.mockResolvedValue({ configured: true, state: 'STOPPED' });
+  fireEvent.click(screen.getByRole('button', { name: /Qwen off, click to power on/ }));
+  await screen.findByText(/Start unavailable/);
+  fireEvent.click(screen.getByRole('button', { name: /Qwen off, click to power on/ }));
+  await screen.findByRole('button', { name: /Qwen on, click to power off/ });
+  expect(fakeApi.assistantPodStop).toHaveBeenCalledTimes(2);
+});
+it('adds bounded text attachments, removes them and sends retained content only', async () => {
+  mockFetch('Attachment reviewed');
+  render(<AssistantChat variant="page" />);
+  await waitReady();
+  const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+  const choose = (files: File[]) => {
+    fireEvent.click(screen.getByRole('button', { name: 'Joindre un fichier' }));
+    const picker = click.mock.instances.at(-1) as HTMLInputElement;
+    Object.defineProperty(picker, 'files', { configurable: true, value: files });
+    fireEvent.change(picker);
+  };
+  const file = (name: string, text: string) => {
+    const f = new File([text], name, { type: 'text/plain' });
+    Object.defineProperty(f, 'text', { value: async () => text });
+    return f;
+  };
+  choose([file('discard.txt', 'discarded fixture')]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Retirer discard.txt' }));
+  choose(Array.from({ length: 7 }, (_, i) => file(`retained-${i}.txt`, `fixture ${i}`)));
+  await screen.findByRole('button', { name: 'Retirer retained-0.txt' });
+  expect(screen.getByText(/surplus ignoré/)).toBeInTheDocument();
+  choose([file('extra.txt', 'must not be sent')]);
+  await screen.findByText('⚠ Maximum 6 pièces jointes.');
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await screen.findByText('Attachment reviewed');
+  const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+  expect(body.messages[0].content).toContain('retained-0.txt');
+  expect(body.messages[0].content).not.toContain('discarded fixture');
+  expect(body.messages[0].content).not.toContain('must not be sent');
+  expect(screen.queryByRole('button', { name: 'Retirer retained-0.txt' })).not.toBeInTheDocument();
+  click.mockRestore();
+});
+it('shows server generation errors and handles HTTP failure without inventing an assistant answer', async () => {
+  global.fetch = vi
+    .fn()
+    .mockResolvedValueOnce({ ok: false, status: 503 })
+    .mockResolvedValue(
+      sse(['event: error\ndata: {"message":"Evidence endpoint unavailable"}\n\n']),
+    );
+  render(<AssistantChat variant="page" />);
+  const box = await waitReady();
+  fireEvent.change(box, { target: { value: 'Inspect evidence' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await screen.findByText(/Assistant is not configured on the server\./);
+  fireEvent.change(box, { target: { value: 'Retry evidence read' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await screen.findByText(/Evidence endpoint unavailable/);
+  expect(screen.queryByText('Attachment reviewed')).not.toBeInTheDocument();
+});

@@ -419,16 +419,18 @@ export function NewCampaignForm({
       )}
       <form className="grid" onSubmit={submit}>
         <div className="field">
-          <label>Name</label>
+          <label htmlFor="campaign-name">Name</label>
           <input
+            id="campaign-name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
         </div>
         <div className="field">
-          <label>Vector</label>
+          <label htmlFor="campaign-vector">Vector</label>
           <select
+            id="campaign-vector"
             value={form.vector}
             onChange={(e) => setForm({ ...form, vector: e.target.value })}
           >
@@ -439,9 +441,10 @@ export function NewCampaignForm({
           </select>
         </div>
         <div className="field">
-          <label>Target (URL)</label>
+          <label htmlFor="campaign-target">Target (URL)</label>
           <input
             className={form.target && !targetAllowed ? 'invalid' : ''}
+            id="campaign-target"
             value={form.target}
             onChange={(e) => setForm({ ...form, target: e.target.value })}
           />
@@ -468,9 +471,10 @@ export function NewCampaignForm({
           )}
         </div>
         <div className="field">
-          <label>Probe (URL)</label>
+          <label htmlFor="campaign-probe">Probe (URL)</label>
           <input
             className={form.probeUrl && !probeAllowed ? 'invalid' : ''}
+            id="campaign-probe"
             value={form.probeUrl}
             onChange={(e) => setForm({ ...form, probeUrl: e.target.value })}
           />
@@ -497,9 +501,10 @@ export function NewCampaignForm({
           )}
         </div>
         <div className="field">
-          <label>Reference vantage (URL, optional)</label>
+          <label htmlFor="campaign-reference">Reference vantage (URL, optional)</label>
           <input
             className={form.referenceUrl && !referenceAllowed ? 'invalid' : ''}
+            id="campaign-reference"
             value={form.referenceUrl}
             placeholder="independent canary — e.g. a known-good health URL"
             onChange={(e) => setForm({ ...form, referenceUrl: e.target.value })}
@@ -533,9 +538,10 @@ export function NewCampaignForm({
           </div>
         )}
         <div className="field">
-          <label>Max RPS</label>
+          <label htmlFor="campaign-rps">Max RPS</label>
           <input
             type="number"
+            id="campaign-rps"
             value={form.maxRps}
             onChange={(e) => {
               setForm({ ...form, maxRps: Number(e.target.value) });
@@ -549,9 +555,10 @@ export function NewCampaignForm({
           </span>
         </div>
         <div className="field">
-          <label>Concurrency</label>
+          <label htmlFor="campaign-concurrency">Concurrency</label>
           <input
             type="number"
+            id="campaign-concurrency"
             value={form.concurrency}
             onChange={(e) => {
               setForm({ ...form, concurrency: Number(e.target.value) });
@@ -567,9 +574,10 @@ export function NewCampaignForm({
           </span>
         </div>
         <div className="field">
-          <label>Max duration (s)</label>
+          <label htmlFor="campaign-duration">Max duration (s)</label>
           <input
             type="number"
+            id="campaign-duration"
             value={form.maxDurationSec}
             onChange={(e) => {
               setForm({ ...form, maxDurationSec: Number(e.target.value) });
@@ -675,7 +683,7 @@ export function NewCampaignForm({
           <summary>Load shape &amp; scheduling</summary>
           <div className="grid">
             <div className="field">
-              <label>Load profile</label>
+              <label htmlFor="campaign-profile">Load profile</label>
               {form.profile === 'copied' && (
                 <p className="hint">
                   Original phases retained: {JSON.stringify(form.copiedScenario)}. Choose Constant,
@@ -688,6 +696,7 @@ export function NewCampaignForm({
                 </p>
               )}
               <select
+                id="campaign-profile"
                 value={form.profile}
                 onChange={(e) => {
                   setForm({ ...form, profile: e.target.value });

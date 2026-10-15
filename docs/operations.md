@@ -25,6 +25,8 @@ The Linux lab currently runs K3s in k3d; use the bundled client inside its serve
 
 `.github/workflows/ci.yml` defines quality/audit, frontend and backend coverage/build, required PostgreSQL and recovery checks. E2E and SLO workflows have their own explicit triggers/fixtures. `.github/workflows/deploy.yml` follows successful main push CI or manual dispatch on the self-hosted `vps1` runner.
 
+The deploy workflow refuses local source changes, fetches the exact successful CI commit and extracts its versioned deployment script before executing it. It does not trust the older script present in the server checkout or reset that checkout.
+
 `deploy/update.sh` requires a clean source checkout, fetches the expected commit, archives an immutable release, installs dependencies, runs verification and creates a release manifest. It promotes through a systemd drop-in only after verification, then checks API/UI readiness and source identity. Failure restores the previous service definition. It does not reset dirty source work or rewrite runtime secrets. Automatic promotion currently supports systemd; versioned containers require their own verified procedure.
 
 Production's build-463 drop-in includes Fleet/catalogue environment overrides. The promotion script retains existing Environment/EnvironmentFile directives, including continuations, while replacing release paths. An updated WorkingDirectory alone does not establish equivalent configuration. Do not overwrite protected Secrets, account state, PVCs or the source-06 laboratory provenance with a production release.
