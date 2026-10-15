@@ -17,3 +17,5 @@ Current product and setup, reconciled on 14 October 2026. The source and `/healt
 | Contributor instructions                          | [AGENTS.md](../AGENTS.md), [CONTRIBUTING.md](../CONTRIBUTING.md)                                                                                      |
 
 Older audit and planning URLs now direct readers to the current contract. Their original content remains in Git history and the requested pre-refresh backup branch. Generated CMDB spreadsheets and line-number inventories from the former deployment are superseded by the current setup and code references.
+
+Infrastructure planning: [RL300 ARM64 / DRS level-5 study](rl300-arm64-infrastructure-study.md), with [source and registry evidence](rl300-arm64-evidence.json). This is a proposal for two-server qualification, not an observed deployment or a validated server count.

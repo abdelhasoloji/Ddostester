@@ -1,6 +1,6 @@
 # Infrastructure and Kusa handoff
 
-The current application can register 5,000 devices/100 sites; it does not execute that many workers. Begin infrastructure qualification with one site of 50 registered workers while retaining the application's existing physical execution ceilings until a reviewed capacity profile is implemented and measured.
+The current application can register 5,000 devices/100 sites; it does not execute that many workers. The RL300 infrastructure study starts with two ARM64 servers under the existing execution ceilings. A later site-inventory stage of 50 workers does not authorize 50 active generators. See the [RL300/DRS level-5 study](rl300-arm64-infrastructure-study.md) and its [source/registry evidence](rl300-arm64-evidence.json); the number 16 is unvalidated until measured qualification supports a reviewed capacity decision.
 
 Request a versioned Kubernetes access contract: dedicated namespace, least-privilege service account, supported API/client versions, CNI/NetworkPolicy enforcement, node/Pod/service CIDRs, quotas/limits, image registry/digests, PVC/backup policy and operator ownership. Keep kubeconfig tokens and certificate keys outside Git.
 
