@@ -30,3 +30,7 @@ This increment does not bind historical reports to a client by guessing from a h
 The first PoP uses only the API's dated ac02 preparation checkpoint, including x86_64/KVM and an unknown observed Ready count. The second PoP and external probe remain unassigned. A read failure keeps deployment state unknown. Full inventory, attestations and artifact provenance sit inside the technical details rather than dominating the main page.
 
 The earlier interface remains available for legacy mode and via `/overview-legacy`. Source changes are not a production deployment; follow the release procedure and verify served API/UI identity before claiming delivery.
+
+## Deployment checkpoint
+
+Build 475 was verified deployed on 15 October 2026 at 22:09 UTC, from commit `5d316ed70d493a239d4e844300bd17fb0dd4d54f`. See the [sanitized deployment receipt](client-workspace-deployment-checkpoint.json) and [current setup](current-setup.md). The passive PoP prototype remains staged, not applied.

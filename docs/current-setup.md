@@ -122,3 +122,13 @@ Containerd and kubelet are active, and Cilium interfaces are present. The user's
 A [passive qualification prototype](../deploy/pop-qualification/README.md) is prepared locally: three proposed telemetry Pods, no traffic generator, Fleet enrollment or external collector. Local rendering and isolated-container samples are not a live deployment. The existing three Fleet workers are unchanged; no second cluster was installed on the PoP.
 
 The rendered passive manifest is staged, not applied, in a new private directory under `/home/at264/shieldtest-qualification.huqRvtZK/`. The local and remote artifact hashes match; see the prototype checkpoint for provenance. No remote service, package, Kubernetes resource or Fleet workload was changed.
+
+## Client-first workspace deployed — 15 October 2026, 22:09 UTC
+
+Build **475**, commit `5d316ed70d493a239d4e844300bd17fb0dd4d54f`, is verified deployed on the application VPS. All four CI jobs and the native verification gate passed; served API/UI identity and external HTTPS health match. PostgreSQL readiness and migrations 9–10 are confirmed. This supersedes the earlier build-466 application checkpoint.
+
+The interface presents Overview, Clients, Infrastructure and Evidence archive, with exactly bank.cz, ENISA preproduction and the test VPS. Metadata edits are audited revisions; client identity does not grant a URL permission. The two-PoP pilot plus independent probe remains a planning hypothesis. ENISA's hostname remains unspecified.
+
+Before promotion, an encrypted database backup was authenticated and restored into an isolated disposable database. After promotion, fingerprints for all 11 users, 284 campaigns, settings and three Fleet identities remain identical; the previous audit prefix and sole-administrator policy are preserved. Runtime target policy and traffic ceilings are unchanged. Previous immutable release and service definitions are retained for rollback. See the [sanitized receipt](client-workspace-deployment-checkpoint.json).
+
+No campaign was started, no worker moved and no PoP manifest applied. The new API's authentication guard was checked in production; authenticated client editing was verified locally with PostgreSQL, not through an impersonated production session. Deployment used the exact green feature-branch commit; PR #218 remains unmerged.

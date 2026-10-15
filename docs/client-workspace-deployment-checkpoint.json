@@ -1,0 +1,48 @@
+{
+  "deployedAt": "2026-10-15T22:09:18.598Z",
+  "commit": "5d316ed70d493a239d4e844300bd17fb0dd4d54f",
+  "build": 475,
+  "host": "31.31.74.228",
+  "release": "/home/shieldtest/ddostester-releases/release-5d316ed7.c9Klzv",
+  "previousCommit": "8cec20c1ae59bb27135ec0e9fbfeb063a6985081",
+  "verification": {
+    "ciRun": 38808601418,
+    "allFourCiJobsPassed": true,
+    "nativeVerifyPassed": true,
+    "servedApiAndUiIdentityPassed": true,
+    "httpsHealth": "ok",
+    "ready": true,
+    "storage": "postgres",
+    "userMode": "single",
+    "migrations": [9, 10],
+    "unauthenticatedClientRouteStatus": 401
+  },
+  "preservation": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "settingsUnchanged": true,
+    "allFourFingerprintsUnchanged": true,
+    "auditPrefixPreserved": true,
+    "soleAdminPreserved": true,
+    "targetAndTrafficPoliciesUnchanged": true,
+    "runningCampaigns": 0
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRecoveryPassed": true,
+    "archiveSha256": "9d69259432192039a74b558d5b27bac48ae037f1af8d32a1e7e0d3d362a61870"
+  },
+  "scope": {
+    "applicationPromoted": true,
+    "podsMoved": false,
+    "campaignStarted": false,
+    "productionAuthenticatedBrowserSessionTested": false
+  },
+  "remaining": [
+    "ENISA target hostname and exact governed scopes",
+    "Kubernetes context/namespace and infrastructure allocation",
+    "Independent probe and second PoP qualification",
+    "Measured DRS level-5 evidence and capacity qualification"
+  ]
+}

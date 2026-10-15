@@ -80,3 +80,7 @@ The application now includes a dated passive-PoP status panel: prepared/staged e
 ## Client-first interface
 
 The [simplified workspace](client-first-workspace.md) is implemented in source: overview, three authorized client scopes, pilot infrastructure and the evidence archive. Technical routes and stop controls are preserved. Migration 10 adds versioned client metadata; no fourth client or identity replacement is accepted. Client/report association and live PoP collection remain unimplemented rather than inferred. Production promotion is separate from this source increment.
+
+## Client-first workspace delivery — 15 October 2026, 22:09 UTC
+
+Build 475 is verified deployed with the fixed three-client register, audited profile revisions, simplified navigation and infrastructure qualification workspace. Accounts, campaign history, Fleet identities and operational policies are preserved; encrypted isolated recovery passed. See [deployment receipt](client-workspace-deployment-checkpoint.json). The next work requires ENISA's exact scope and Kubernetes access/allocation, then qualification of the second PoP, independent probe and measured evidence. The passive PoP artifact remains staged only; no campaign or worker migration was performed in this delivery.
