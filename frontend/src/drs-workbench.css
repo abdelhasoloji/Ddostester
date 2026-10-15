@@ -330,3 +330,61 @@
   overflow: auto;
   overflow-wrap: anywhere;
 }
+
+.help-tip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.help-tip > button {
+  border: 0;
+  padding: 0.2rem 0.35rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: help;
+  font: inherit;
+}
+.help-tip > [role='tooltip'] {
+  position: absolute;
+  z-index: 100;
+  bottom: calc(100% + 0.4rem);
+  right: 0;
+  width: min(19rem, 70vw);
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface, #fff);
+  color: var(--text);
+  box-shadow: 0 0.3rem 1rem #0002;
+  line-height: 1.5;
+  text-align: left;
+}
+.help-tip > [role='tooltip'][hidden] {
+  display: none;
+}
+.client-prototype table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+}
+.client-prototype th,
+.client-prototype td {
+  padding: 0.6rem 0.35rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+@media (max-width: 650px) {
+  .help-tip > [role='tooltip'] {
+    position: fixed;
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    width: calc(100vw - 3rem);
+  }
+}

@@ -95,7 +95,7 @@ it('resumes a saved prototype, freezes it, confirms simulation and generates the
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Generate final report' }));
   await screen.findByRole('button', { name: 'Download prototype report' });
-  expect(screen.getByText(/measured client score: not evaluated/)).toBeInTheDocument();
+  expect(screen.getByText('Simulation score: 5')).toBeInTheDocument();
   expect(api.drsReport).toHaveBeenCalledWith('campaign', 1);
 });
 it('rejects a saved campaign from another client instead of showing its evidence', async () => {

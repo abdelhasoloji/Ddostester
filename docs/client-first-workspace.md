@@ -44,3 +44,7 @@ Campaigns and reports remain available through the saved selector and `?prototyp
 `POST /api/drs/validations` optionally accepts `clientId` from the fixed three-client register. The server captures the current client revision, hash and profile inside the campaign transaction and audits its association digest. Caller-supplied scope cannot replace that snapshot. GET assessment and JSON/HTML reports return this context. Unknown client IDs are rejected before storage. No migration is needed: campaign JSON already stores the association. Existing unbound validations remain supported.
 
 Source implementation and local browser checks are distinct from the deployment checkpoint above; promotion requires the existing release gate.
+
+### Concise guidance
+
+Keep primary screens focused on actions, state and results. Contextual `ⓘ` help opens on hover, keyboard focus or touch; Escape or loss of focus closes it. Technical journals and reservations remain collapsed. The simulation label, confirmation and result status stay visible. Mobile help is pinned inside the viewport.

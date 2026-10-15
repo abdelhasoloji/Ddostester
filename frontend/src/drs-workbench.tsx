@@ -1,3 +1,4 @@
+import { HelpTip } from './help-tip.js';
 import { ClientPrototype } from './client-prototype.js';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -82,11 +83,7 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
     <div className="drs-workbench">
       <PageHead
         title={clientsOnly ? 'Clients' : 'DRS workspace'}
-        sub={
-          clientsOnly
-            ? 'The three authorized clients. Define and follow each perimeter separately.'
-            : 'Prepare the clients, qualify the pilot, then collect evidence.'
-        }
+        sub={clientsOnly ? 'Three authorized clients' : 'Clients · infrastructure · assessments'}
       />
       {!clientsOnly && (
         <>
@@ -96,7 +93,13 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
               <h2>
                 DRS <strong>5</strong>
               </h2>
-              <p>A measured resilience objective. No level has been established for this pilot.</p>
+              <p>
+                Qualification pending{' '}
+                <HelpTip label="DRS objective">
+                  DRS 5 is the assessment objective. The pilot has no measured level or qualified
+                  capacity yet.
+                </HelpTip>
+              </p>
             </div>
             <div className="workbench-pilot">
               <b>2 PoPs</b>
@@ -134,9 +137,7 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
             Refresh clients
           </button>
         </div>
-        <p className="hint">
-          The three authorized clients. Scope and evidence stay specific to each client.
-        </p>
+
         {state.error ? (
           <p role="alert">Client workspaces unavailable: {state.error}</p>
         ) : state.data ? (
@@ -151,8 +152,11 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
             <span className="workbench-eyebrow">Next infrastructure milestone</span>
             <h2>Reserve the pilot and its independent probe</h2>
             <p>
-              ac02 is the first observed host. The second PoP and the probe remain to be assigned.
-              Kubernetes access and reserved resources are pending.
+              ac02 identified · second site and probe pending{' '}
+              <HelpTip label="Pilot prerequisites">
+                Kubernetes access, reserved resources, an independent second site and probe are
+                required before qualification.
+              </HelpTip>
             </p>
           </div>
           <Link className="btn btn-primary" to="/infrastructure">
@@ -198,7 +202,7 @@ export function ClientWorkspacePage() {
       </Link>
       <PageHead
         title={client?.profile.name ?? 'Client workspace'}
-        sub="Scope and preparation · objective DRS 5"
+        sub="Assessment workspace · DRS 5"
       />
       {state.error && <p role="alert">{state.error}</p>}
       {message && <p role="status">{message}</p>}
@@ -229,8 +233,11 @@ export function ClientWorkspacePage() {
                 )}
               </div>
               <p className="hint">
-                Client identity is fixed. Target scope and campaign history remain managed
-                separately.
+                Authorized client{' '}
+                <HelpTip label="Client scope">
+                  Client identity is fixed. The client record does not grant permission to execute
+                  traffic against a specific URL.
+                </HelpTip>
               </p>
               {draft ? (
                 <form
@@ -307,8 +314,11 @@ export function ClientWorkspacePage() {
               <section className="card">
                 <h2>Infrastructure</h2>
                 <p>
-                  Shared two-PoP pilot, plus an independent probe. Client-specific placement and
-                  collection are not yet qualified.
+                  2 PoPs + independent probe{' '}
+                  <HelpTip label="Client infrastructure">
+                    Shared pilot hypothesis. Client placement, collection and measured capacity
+                    remain to qualify.
+                  </HelpTip>
                 </p>
                 <Link className="btn btn-secondary" to="/infrastructure">
                   Review pilot prerequisites
@@ -317,9 +327,11 @@ export function ClientWorkspacePage() {
               <section className="card">
                 <h2>Evidence and report</h2>
                 <p>
-                  Prototype reports are linked to this client below their simulation label. No
-                  measured assessment evidence is bound yet; another client's score cannot establish
-                  its DRS level.
+                  Measured assessment pending{' '}
+                  <HelpTip label="Measured evidence">
+                    Prototype reports contain virtual events and do not establish a measured client
+                    resilience level.
+                  </HelpTip>
                 </p>
                 <span className="workbench-tag">Not evaluated</span>
               </section>
@@ -386,7 +398,7 @@ export function PilotInfrastructurePage() {
     <div className="drs-workbench">
       <PageHead
         title="Pilot infrastructure"
-        sub="Two PoPs and one independent probe · a qualification starting point, not a DRS 5 sizing guarantee"
+        sub="2 PoPs + independent probe · qualification pending"
       />
       {error && (
         <p role="alert">
@@ -417,23 +429,36 @@ export function PilotInfrastructurePage() {
           <span className="workbench-eyebrow">PoP 02</span>
           <h2>Site to assign</h2>
           <span className="workbench-tag">Pending infrastructure</span>
-          <p>Independent location and network path to document.</p>
-          <p>No server, public source or capacity is assumed.</p>
+          <p>
+            Location and network path pending{' '}
+            <HelpTip label="Second site">
+              An independent site, assigned server, source addresses and measured capacity are
+              required.
+            </HelpTip>
+          </p>
         </section>
         <section className="card">
           <span className="workbench-eyebrow">Independent measurement</span>
           <h2>External probe</h2>
           <span className="workbench-tag">To provision</span>
-          <p>Separate resources and observation path from the pilot node.</p>
-          <p>Clock quality, functional reference and collector continuity remain to qualify.</p>
+          <p>
+            Independent observation{' '}
+            <HelpTip label="Probe prerequisites">
+              Separate resources and path, qualified clock, functional reference and continuous
+              collection.
+            </HelpTip>
+          </p>
         </section>
       </div>
       <section className="workbench-next">
         <div>
           <h2>Next handoff to infrastructure</h2>
           <p>
-            Provide the intended Kubernetes context and namespace, confirm the ac02 node label and
-            resource reservation, then identify the second site and independent probe.
+            Kubernetes access and reserved resources{' '}
+            <HelpTip label="Infrastructure handoff">
+              Provide the context, namespace and ac02 node label. Confirm resources, the second site
+              and independent probe.
+            </HelpTip>
           </p>
         </div>
       </section>

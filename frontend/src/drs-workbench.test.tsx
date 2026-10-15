@@ -138,7 +138,7 @@ it('keeps client evidence unbound and hides editing from readers', async () => {
   client();
   await screen.findByRole('heading', { name: 'bank.cz' });
   expect(screen.queryByRole('button', { name: 'Edit client scope' })).not.toBeInTheDocument();
-  expect(screen.getByText(/No measured assessment evidence is bound/)).toBeInTheDocument();
+  expect(screen.getByText(/Measured assessment pending/)).toBeInTheDocument();
 });
 it('does not replace a failed portfolio read with fabricated clients', async () => {
   vi.mocked(api.clientWorkspaces).mockRejectedValueOnce(Error('Offline'));

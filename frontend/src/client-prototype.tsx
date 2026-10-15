@@ -1,3 +1,4 @@
+import { HelpTip } from './help-tip.js';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, type DrsCampaignView, type DrsReportView } from './api.js';
@@ -114,7 +115,13 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
       <div className="workbench-heading">
         <div>
           <span className="workbench-tag">Simulation · no traffic</span>
-          <h2>Test the complete assessment journey</h2>
+          <h2>
+            Prototype campaign{' '}
+            <HelpTip label="Prototype mode">
+              Virtual events test the full workflow through DRS level 5. No traffic or measured
+              resilience score.
+            </HelpTip>
+          </h2>
         </div>
         <button
           className="btn btn-primary"
@@ -124,11 +131,6 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
           New prototype campaign
         </button>
       </div>
-      <p>
-        Create a client campaign, freeze its plan, follow Run Theater and download the report.
-        Virtual events exercise the DRS engine through level 5; they do not measure this client's
-        resilience.
-      </p>
       <label>
         Saved prototype campaigns
         <select
@@ -154,11 +156,17 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
       {selected && !view && !error && <p role="status">Loading saved prototype…</p>}
       {revision && (
         <>
-          <h3>1. Campaign plan</h3>
+          <h3>
+            1. Plan{' '}
+            <HelpTip label="Frozen scope">
+              The saved client scope is captured at creation. Freezing retains the plan used for the
+              report.
+            </HelpTip>
+          </h3>
           <p>
             DRS {revision.reference.standardVersion} · maximum level{' '}
             {String(revision.plan.maxLevel)} · client scope revision{' '}
-            {view?.clientWorkspace?.revision}. No physical target or agent is selected.
+            {view?.clientWorkspace?.revision}.
           </p>
           <p>
             Scope snapshot:{' '}
@@ -173,10 +181,14 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
               Freeze prototype plan
             </button>
           )}
-          <h3>2. Run Theater · simulated events</h3>
+          <h3>
+            2. Run Theater{' '}
+            <HelpTip label="Simulation timeline">
+              Persisted engine events, not real-time network traffic. Physical agents are not used.
+            </HelpTip>
+          </h3>
           <p role="status">
-            State: <b>{revision.state}</b> · {revision.proofs.length} archived proofs · physical
-            agents: not used
+            State: <b>{revision.state}</b> · {revision.proofs.length} proofs
           </p>
           <div className="prototype-stages" aria-label="Prototype execution timeline">
             <span>Plan {revision.planHash ? 'frozen' : 'draft'}</span>
@@ -219,7 +231,7 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
                   disabled={busy}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />
-                I confirm this is a simulation, with no traffic and no measured DRS score.
+                Confirm simulation · no traffic
               </label>
               <button
                 className="btn btn-primary"
@@ -241,14 +253,17 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
           )}
           {report && (
             <section aria-label="Prototype report">
-              <h3>3. Final report · simulation</h3>
+              <h3>
+                3. Report{' '}
+                <HelpTip label="Simulation result">
+                  A simulation score is not a measured client score. Missing proof or unresolved
+                  reference conditions can make it partial or indeterminate.
+                </HelpTip>
+              </h3>
               <p>
-                <b>{report.assessment.label}</b> · {report.assessment.status}
+                <b>{report.assessment.status}</b> · simulation
               </p>
-              <p>
-                Simulation score: {report.assessment.score ?? 'Indeterminate'} · measured client
-                score: not evaluated.
-              </p>
+              <p>Simulation score: {report.assessment.score ?? 'Indeterminate'}</p>
               <table>
                 <caption>Coverage by level</caption>
                 <thead>
@@ -286,7 +301,6 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
                 Download prototype report
               </button>
               <p>
-                The saved campaign and report remain available here after reloading.{' '}
                 <Link to={'/campaigns?tab=evidence&campaign=' + encodeURIComponent(selected)}>
                   Open technical evidence
                 </Link>
