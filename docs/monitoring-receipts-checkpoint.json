@@ -1,0 +1,24 @@
+{
+  "commit": "bb30ccf08d5f87e22da6404c70f55e09581322dc",
+  "image": "docker.io/library/ddostester-lab-telemetry@sha256:49dc59b6b065834d2d49e5f74fc86a8bafcfab764884c61d5818dcfd72cf8fcd",
+  "imageID": "docker.io/library/ddostester-lab-telemetry@sha256:49dc59b6b065834d2d49e5f74fc86a8bafcfab764884c61d5818dcfd72cf8fcd",
+  "targetPodUid": "bec4fc55-d674-417d-a568-a03f100aa018",
+  "healthyScrapes": 3,
+  "dashboards": 4,
+  "pvcsPreserved": true,
+  "unrelatedPodsPreserved": 7,
+  "historyPointsPreserved": 39,
+  "collectorReadAgeSeconds": 4.346999883651733,
+  "campaignsLaunched": 0,
+  "centralDeploymentChanged": false,
+  "observedAt": "2026-10-15T06:32:47.306697+00:00",
+  "ciUrl": "https://github.com/abdelhasoloji/Ddostester/actions/runs/38691185808",
+  "anonymousHttpStatus": 401,
+  "physicalAssessmentPerformed": false,
+  "knownRemaining": [
+    "Independent functional user journey and probe selection",
+    "Protection-entry/origin qualification and Kusa",
+    "Legacy live-series run identity and multisite capacity",
+    "Central API/UI rollout is separate from this lab deployment"
+  ]
+}
