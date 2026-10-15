@@ -69,4 +69,4 @@ The declared estate is 20 ARM64 Ampere Altra Max RL300 servers (128 cores/1 TB R
 
 ## Controlled product adaptation lots
 
-The [RL300 product roadmap](rl300-product-roadmap.md) defines the complete implementation/qualification/release sequence. Execute one lot, return results and control to the user, then wait for the next instruction. No automatic continuation, deployment or repeated campaign is authorized by that roadmap. Existing authorization, ceilings and autonomous stops remain unchanged.
+The [RL300 product roadmap](rl300-product-roadmap.md) defines the complete implementation/qualification/release sequence. The latest user instruction authorizes consecutive available development lots. Blocked hardware work is recorded without repeated attempts. See its progress table for implemented, partial and pending work; local development does not imply production promotion. Existing authorization, ceilings and autonomous stops remain unchanged.

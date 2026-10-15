@@ -1,3 +1,4 @@
+import type { InfrastructureRevision } from '../modules/infrastructure/model.js';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
@@ -29,6 +30,12 @@ export type UserTransaction = Pick<
 >;
 
 export interface Store {
+  listInfrastructure(kind: InfrastructureRevision['kind']): Promise<InfrastructureRevision[]>;
+  infrastructureHistory(
+    kind: InfrastructureRevision['kind'],
+    id: string,
+  ): Promise<InfrastructureRevision[]>;
+  appendInfrastructure(record: InfrastructureRevision): Promise<void>;
   listFleetDevices(): Promise<FleetDevice[]>;
   getFleetDevice(id: string): Promise<FleetDevice | undefined>;
   saveFleetDevice(device: FleetDevice): Promise<void>;
