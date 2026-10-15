@@ -39,3 +39,9 @@ Local verification and GitHub CI are separate receipts; inspect the run for the 
 The deployment bootstrap regression test (`node --test scripts/operations/deploy-bootstrap.test.mjs`) uses a temporary local Git origin and an older clone. It proves the workflow executes the exact CI commit script and refuses dirty source without altering HEAD or local files. No service is restarted in this test.
 
 Local verification receipt for this increment: 1,222 backend tests passed with PostgreSQL (four explicit conditional skips), 455 frontend tests passed; backend coverage 83.96% statements / 79.13% branches / 85.88% functions / 85.88% lines, frontend 80.33% statements / 71.54% branches / 74.62% functions / 82.31% lines. Lint, typecheck, build and the isolated deployment-bootstrap test passed. These local results do not substitute for the remote commit-specific CI or production identity check.
+
+## Native template preparation regression
+
+Installed engines made the VPS gate expose duplicate tool discovery during legacy suite preparation: the same request probed every engine before preparing the suite and again before reconnaissance. Local/CI hosts without those binaries masked the delay. Instantiation and composition now share one discovery result with recon, and validate both destinations before probing tools. Regression tests assert one discovery, recon fallback and pending approval; unauthorized targets, probes, protocols and embedded credentials perform neither discovery nor recon. Test timeouts and execution ceilings are unchanged.
+
+The first operator promotion of the reliability increment stopped at this native test gate, before changing the service. Automatic deployment also exposed an existing permissions mismatch: the runner cannot create immutable release directories. Keep the runner's limited sudo policy; an operator promotion still requires the exact green CI commit, the complete native gate, backup and preservation/identity checks.

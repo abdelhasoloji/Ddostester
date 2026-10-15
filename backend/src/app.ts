@@ -107,6 +107,7 @@ import type { Permission, Role } from './auth/rbac.js';
 import { BuiltinHttpAgent } from './agents/builtin.js';
 import { createAgent, describeAgents, agentChoices, resolveCampaignAgent } from './agents/index.js';
 import { runRecon } from './modules/recon/fetch.js';
+import { assertDestination } from './util/destination.js';
 import { reconPostureSnapshot } from './modules/recon/recon.js';
 import { recommendActions } from './modules/recon/actions.js';
 import { AgentError, type AttackAgent } from './agents/types.js';
@@ -1514,9 +1515,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // can never hang on a slow or unreachable target (it just falls back to the
   // template paths). Kept short so a launch stays responsive.
   const RECON_SEED_TIMEOUT_MS = 8000;
-  async function reconSeed(target: string, probeUrl: string): Promise<ReconSeedResult> {
+  async function reconSeed(
+    target: string,
+    probeUrl: string,
+    engines: readonly { available: boolean }[],
+  ): Promise<ReconSeedResult> {
     try {
-      const availN = (await describeAgents()).filter((a) => a.available).length;
+      const availN = engines.filter((a) => a.available).length;
       const recon = await Promise.race([
         runRecon(
           target,
@@ -1553,6 +1558,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       };
     } catch (err) {
       return { summary: { seeded: false, error: (err as Error).message } };
+    }
+  }
+
+  async function validateSuiteDestinations(target: string, probeUrl: string): Promise<void> {
+    const allowed = await effectiveAllowlist();
+    try {
+      assertDestination(target, allowed);
+      assertDestination(probeUrl, allowed);
+    } catch (err) {
+      throw new CampaignError((err as Error).message);
     }
   }
 
@@ -2342,6 +2357,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       };
       if (!body.target) return reply.code(400).send({ error: 'target is required' });
       try {
+        await validateSuiteDestinations(body.target, body.probeUrl || body.target);
         const engines = (await describeAgents()).map((a) => ({
           id: a.id,
           available: a.available,
@@ -2349,7 +2365,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         // Systematic recon: seed the suite's endpoints from the target's real
         // published surface so path-based lines can't flood non-existent paths
         // (404). Best-effort and non-blocking (see reconSeed).
-        const seed = await reconSeed(body.target, body.probeUrl || body.target);
+        const seed = await reconSeed(body.target, body.probeUrl || body.target, engines);
         const inputs = buildSuiteCampaigns(
           pb,
           {
@@ -2428,12 +2444,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const name =
       body.name?.trim() || `Composite — ${playbooks.map((p) => p.name).join(' + ')}`.slice(0, 120);
     try {
+      await validateSuiteDestinations(body.target, body.probeUrl || body.target);
       const engines = (await describeAgents()).map((a) => ({
         id: a.id,
         available: a.available,
       }));
       // Systematic recon-seeding (same as single-playbook instantiation).
-      const seed = await reconSeed(body.target, body.probeUrl || body.target);
+      const seed = await reconSeed(body.target, body.probeUrl || body.target, engines);
       const inputs = buildCompositeSuite(
         playbooks,
         name,

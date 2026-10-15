@@ -34,3 +34,5 @@ Source changes retain the existing coverage floors and include PostgreSQL contra
 This increment does not enable full-standard physical adapters, connect Kusa, provision a new site or raise Fleet execution limits. Production identity and remote CI results must be checked separately from local source/test results. The next external prerequisite remains the actual protection-entry/origin endpoint and Kusa contract.
 
 Native deployment follow-up: the currently observed systemd API process runs as root. Prepare and qualify a migration to an unprivileged runtime account, including protected file/PKI access and rollback; do not confuse this with the Kubernetes Pod restrictions already present.
+
+Deployment verification exposed duplicate engine discovery on installed-tool hosts. Suite preparation now reuses its discovery result and rejects invalid destinations first; this affects the retained legacy API, not the DRS-only catalogue policy. Production promotion remains conditional on the native gate and exact API/UI identity. The runner's release-directory permission mismatch remains an automation follow-up rather than a reason to grant unrestricted sudo.
