@@ -1,0 +1,61 @@
+{
+  "deployedAt": "2026-10-16T04:16:37.144Z",
+  "build": 480,
+  "commit": "1aed92d391d0b6e06e2df49649e70fac7f0251a9",
+  "previousBuild": 478,
+  "release": "/home/shieldtest/ddostester-releases/release-1aed92d3.c2KUak",
+  "ci": {
+    "run": 38848754716,
+    "allFourJobsPassed": true
+  },
+  "nativeVerifyPassed": true,
+  "servedApiAndUiIdentityPassed": true,
+  "externalHttpsHealth": "ok",
+  "ready": true,
+  "preservation": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "settingsUnchanged": true,
+    "allFourFingerprintsUnchanged": true,
+    "fullAuditPrefixDigestUnchanged": true,
+    "infrastructureRevisionDigestUnchanged": true,
+    "soleAdminPreserved": true,
+    "targetAndTrafficPoliciesUnchanged": true
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRecoveryPassed": true,
+    "archiveSha256": "dc8db8df9019f913e543aaa5d5670e897f01319ab20519e941f315728cd3f953"
+  },
+  "features": [
+    "Client-filtered prototype archive",
+    "Explicit loading/read-failure states",
+    "Archived prototype read-only controls",
+    "Authenticated standalone HTML download",
+    "Collapsed technical exports in DRS mode",
+    "Mobile report action remains visible",
+    "Assistant dock hidden on the primary evidence archive"
+  ],
+  "verification": {
+    "localBackendPassed": 1240,
+    "localFrontendPassed": 484,
+    "browser": "isolated Chrome desktop/mobile",
+    "clientFilterPassed": true,
+    "archiveReportResumePassed": true,
+    "reloadResumePassed": true,
+    "jsonAndHtmlDownloadPassed": true,
+    "mobileOverflow": false,
+    "productionAuthenticatedBrowserSessionTested": false
+  },
+  "externalExecution": {
+    "campaignStarted": false,
+    "podsMoved": false,
+    "trafficGenerated": false
+  },
+  "remaining": [
+    "Physical Fleet acceptance and independent measurement qualification",
+    "Infrastructure Kubernetes access and resource allocation",
+    "ENISA exact target scope"
+  ]
+}

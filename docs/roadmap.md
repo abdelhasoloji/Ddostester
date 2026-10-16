@@ -1,6 +1,6 @@
 # Current implementation and remaining work
 
-Reconciled against source and verified build 466 on 15 October 2026. This is the status authority; older plans and audits are not deployment claims.
+Reconciled against source and verified build 480 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -96,3 +96,7 @@ Build 478 is verified deployed after exact-SHA CI and native gates. The complete
 ## Client archive and readable export
 
 Source adds client-filtered prototype history in Evidence archive, explicit loading/failure states, read-only archived assessments and authenticated standalone HTML export alongside JSON. Local verification and the deployed release must be recorded separately. The next physical dependencies remain unchanged: cluster allocation/access and independent measurement qualification.
+
+### Client archive delivery checkpoint
+
+Build 480 is verified deployed after all CI/native gates. Client-filtered prototype history, read-only archived assessments, authenticated HTML/JSON exports and compact desktop/mobile navigation are delivered. Data and policy preservation are verified. Physical Fleet acceptance and independent collection remain open. See [delivery receipt](client-archive-deployment-checkpoint.json).
