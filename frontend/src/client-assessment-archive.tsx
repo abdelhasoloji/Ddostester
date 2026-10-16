@@ -1,3 +1,4 @@
+import { AssessmentComparison } from './assessment-comparison.js';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type Campaign } from './api.js';
@@ -119,6 +120,9 @@ export function ClientAssessmentArchive() {
         ) : (
           <p className="hint">No client assessments yet.</p>
         ))}
+      {campaigns && clientId && (
+        <AssessmentComparison key={clientId} clientId={clientId} campaigns={assessments} />
+      )}
     </section>
   );
 }

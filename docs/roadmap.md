@@ -100,3 +100,7 @@ Source adds client-filtered prototype history in Evidence archive, explicit load
 ### Client archive delivery checkpoint
 
 Build 480 is verified deployed after all CI/native gates. Client-filtered prototype history, read-only archived assessments, authenticated HTML/JSON exports and compact desktop/mobile navigation are delivered. Data and policy preservation are verified. Physical Fleet acceptance and independent collection remain open. See [delivery receipt](client-archive-deployment-checkpoint.json).
+
+## Client assessment comparison — source increment
+
+The read-only comparison increment is integrated in source: two finalized simulations of the same client scope and frozen plan, explicit compatibility checks, conservative partial/unknown results and a compact level table. Run the normal CI/native release gates before promotion. The production observation remains build 480; this source preparation is not a deployment or a physical Fleet qualification.

@@ -424,10 +424,10 @@
   display: none;
 }
 @media (max-width: 650px) {
-  .client-assessment-archive th:nth-child(2),
-  .client-assessment-archive td:nth-child(2),
-  .client-assessment-archive th:nth-child(4),
-  .client-assessment-archive td:nth-child(4) {
+  .client-assessment-archive .assessment-archive-scroll th:nth-child(2),
+  .client-assessment-archive .assessment-archive-scroll td:nth-child(2),
+  .client-assessment-archive .assessment-archive-scroll th:nth-child(4),
+  .client-assessment-archive .assessment-archive-scroll td:nth-child(4) {
     display: none;
   }
   .client-assessment-archive th,
@@ -440,4 +440,31 @@
     font-size: 0.72rem;
     margin-top: 0.35rem;
   }
+}
+
+.assessment-comparison {
+  margin-top: 1rem;
+}
+.assessment-comparison > summary {
+  cursor: pointer;
+  padding: 0.75rem 0;
+}
+.assessment-comparison-selectors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.assessment-comparison-selectors select {
+  display: block;
+  margin: 0.4rem 0 0;
+  width: 100%;
+}
+.assessment-comparison table {
+  table-layout: fixed;
+  font-size: 0.8rem;
+}
+.assessment-comparison td,
+.assessment-comparison th {
+  overflow-wrap: anywhere;
 }

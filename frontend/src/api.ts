@@ -1782,6 +1782,8 @@ export interface DrsCampaignView {
   defaultPlan: Record<string, unknown>;
 }
 export interface DrsReportView {
+  revisionId?: string;
+  planHash?: string;
   clientWorkspace?: Campaign['clientWorkspace'] | null;
   baselineDiagnostic?: BaselineDiagnosticView | null;
   assessment: {
