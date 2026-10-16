@@ -695,7 +695,8 @@ export function Layout() {
     (location.pathname === '/' ||
       location.pathname.startsWith('/clients') ||
       location.pathname === '/infrastructure' ||
-      location.pathname === '/reports');
+      location.pathname === '/reports' ||
+      location.pathname === '/campaigns');
   const showDock = !planningPage && !location.pathname.startsWith('/assistant');
   const shellClass = `shell${showDock ? (dockOpen ? ' dock-open' : ' dock-min') : ''}`;
   return (
@@ -1546,7 +1547,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
 /** The "Launch" surface of the Campaigns workspace: the guided wizard (or the
  *  classic form when a preset is queued from the guide). */
 export function CampaignLaunch() {
-  const [launchParams] = useSearchParams();
+  const [launchParams, setLaunchParams] = useSearchParams();
   const fleetLaunch = launchParams.get('engine') === 'fleet';
   const app = useApp();
   const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
@@ -1556,10 +1557,11 @@ export function CampaignLaunch() {
   useEffect(() => {
     if (app.draftPreset || app.draftCampaign) setShowForm(true);
   }, [app.draftPreset, app.draftCampaign]);
-  const closeForm = () => {
+  const closeForm = (created?: Campaign) => {
     app.clearDraftCampaign();
     app.clearDraftPreset();
     setShowForm(false);
+    if (app.drsWorkflow && created?.id) setLaunchParams({ tab: 'evidence', campaign: created.id });
   };
 
   if (!canCreate) {

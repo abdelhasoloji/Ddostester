@@ -34,3 +34,7 @@ A failed baseline retains `baselineDiagnostic` on the DRS revision and JSON/HTML
 ## Infrastructure study workspace
 
 The versioned host inventory and operator evidence endpoints under `/api/fleet/infrastructure` are described in the [workspace contract](infrastructure-workspace.md). They store metadata and attestations only; they do not grant campaign execution or hardware qualification.
+
+### Exact Fleet device observation
+
+`GET /api/fleet/devices/:id` requires `campaign:read`, returns the same credential-free inventory view as the device list and sets `Cache-Control: no-store`. The connection state is calculated at read time. Unknown IDs return 404. This read-only endpoint supports bounded checks of the exact campaign selection across inventory pages; it does not enroll agents, reserve capacity or dispatch a mission.

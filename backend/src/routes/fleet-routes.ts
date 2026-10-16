@@ -70,6 +70,16 @@ export function registerFleetRoutes(
       pageSize,
     };
   });
+  app.get<{ Params: { id: string } }>(
+    '/api/fleet/devices/:id',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      const device = await store.getFleetDevice(req.params.id);
+      if (!device) return reply.code(404).send({ error: 'Fleet device not found' });
+      return fleetDeviceView(device);
+    },
+  );
   const save = async (body: unknown, id?: string) => {
     const input = deviceInput.parse(body);
     return store.transaction(async (tx) => {

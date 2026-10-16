@@ -108,3 +108,7 @@ The read-only comparison increment is integrated in source: two finalized simula
 ## Internal test navigation — source increment
 
 The overview now prioritizes preparation of the internal WEDOS Fleet test, resume, Run Theater and reports. Infrastructure planning is collapsed; client scopes and simulations remain accessible. This changes navigation only, without starting traffic, changing admission or establishing measured DRS 5. See [workspace](client-first-workspace.md). Deployed as build 484 after exact-SHA CI and native verification; data and policy preservation passed.
+
+## Guided internal preparation and confirmation — source increment
+
+Compact Fleet preparation now leads to the exact saved campaign, reviewed/frozen plan and a read-only prelaunch check. Confirmation checks exact agent identities across inventory pages, current Fleet policy, target/probe scope and frozen budgets; expired or unavailable observations block launch. Existing server runtime/baseline and automatic report settlement are reused. Source tests cover unavailable agents, missing plans, reduced caps, expired checks and secret-free authenticated device lookup. Deployment pending. Independent measurement qualification and the historical unstable baseline remain open; no production campaign is authorized by this delivery.

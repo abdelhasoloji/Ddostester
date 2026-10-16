@@ -1203,6 +1203,7 @@ export const api = {
   assistantStatus: () =>
     get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),
   fleetMissions: () => get<FleetMissionStatus>('/api/fleet/missions'),
+  fleetDevice: (id: string) => get<FleetDevice>(`/api/fleet/devices/${encodeURIComponent(id)}`),
   fleetOverview: () => get<FleetOverview>('/api/fleet/overview'),
   fleetCampaign: (id: string) =>
     get<FleetCampaignObservation>(`/api/fleet/campaigns/${encodeURIComponent(id)}`),

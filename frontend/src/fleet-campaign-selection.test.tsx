@@ -174,3 +174,20 @@ it('clears incompatible local options when switching to Fleet while retaining th
   attest();
   expect(screen.getByRole('button', { name: 'Create campaign' })).toBeDisabled();
 });
+
+it('keeps the physical preparation short and respects reduced server limits', async () => {
+  const inventory = await api.fleetOverview();
+  vi.mocked(api.fleetOverview).mockResolvedValue({
+    ...inventory,
+    caps: { maxRps: 2, maxConcurrency: 6, maxDurationSec: 60 },
+  });
+  render(<NewCampaignForm initial={seed} />);
+  await screen.findByRole('checkbox', { name: 'Use one' });
+  expect(screen.queryByLabelText('Synthetic device journey')).not.toBeInTheDocument();
+  expect(screen.getByText('Choose agents').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText(/Shared limits/).closest('details')).not.toHaveAttribute('open');
+  attest();
+  expect(screen.getByRole('button', { name: 'Create campaign' })).toBeDisabled();
+  change('Max RPS', '2');
+  expect(screen.getByRole('button', { name: 'Create campaign' })).toBeEnabled();
+});
