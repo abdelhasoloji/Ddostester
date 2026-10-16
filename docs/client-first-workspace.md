@@ -67,6 +67,6 @@ Browser acceptance in an isolated memory fixture created and finalized two clien
 
 The overview prioritizes **Prepare internal test**, opening the existing Fleet DRS catalogue. The short path is target/profile selection, bounded configuration, explicit confirmation, Run Theater and report. Resume, live follow-up and reports are direct links. Infrastructure planning is collapsed; the three client workspaces remain available. No target is auto-authorized or preselected from client metadata.
 
-This is navigation simplification, not a new physical DRS adapter or a DRS 5 qualification. Existing permissions, shared budgets, preflight, baseline refusal, stop and evidence requirements remain enforced. Prototype simulations remain a separate client workflow. This source increment has not yet been deployed.
+This is navigation simplification, not a new physical DRS adapter or a DRS 5 qualification. Existing permissions, shared budgets, preflight, baseline refusal, stop and evidence requirements remain enforced. Prototype simulations remain a separate client workflow. This increment is deployed as build 484; see the [verified receipt](internal-test-deployment-checkpoint.json).
 
 The Fleet catalogue initially shows executable profiles only. The full reference catalogue remains available through an explicit checkbox; unsupported adapters remain disabled. Reference and inventory details are collapsed. An unavailable Fleet generator is stated explicitly. No campaign is created by entering this screen.

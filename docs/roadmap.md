@@ -1,6 +1,6 @@
 # Current implementation and remaining work
 
-Reconciled against source and verified build 482 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
+Reconciled against source and verified build 484 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -107,4 +107,4 @@ The read-only comparison increment is integrated in source: two finalized simula
 
 ## Internal test navigation — source increment
 
-The overview now prioritizes preparation of the internal WEDOS Fleet test, resume, Run Theater and reports. Infrastructure planning is collapsed; client scopes and simulations remain accessible. This changes navigation only, without starting traffic, changing admission or establishing measured DRS 5. See [workspace](client-first-workspace.md). Deployment pending.
+The overview now prioritizes preparation of the internal WEDOS Fleet test, resume, Run Theater and reports. Infrastructure planning is collapsed; client scopes and simulations remain accessible. This changes navigation only, without starting traffic, changing admission or establishing measured DRS 5. See [workspace](client-first-workspace.md). Deployed as build 484 after exact-SHA CI and native verification; data and policy preservation passed.
