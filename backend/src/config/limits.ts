@@ -336,3 +336,6 @@ export const INFRASTRUCTURE_LIMITS = Object.freeze({
   clockToleranceMs: 300_000,
   evidenceMaxAgeMs: 7 * 86_400_000,
 });
+
+/** Additional minimum quiet period between sequential, bounded DRS scenarios. */
+export const DRS_SEQUENCE_LIMITS = { maxIntervalSec: 3600 } as const;

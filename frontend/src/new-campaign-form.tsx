@@ -20,8 +20,10 @@ import {
 export function NewCampaignForm({
   onDone,
   initial,
+  onCreate,
 }: {
   onDone?: (campaign?: Campaign) => void;
+  onCreate?: (payload: Record<string, unknown>) => Promise<Campaign | void>;
   /** Seed values (e.g. carried over from the guided wizard's "Advanced" step). */
   initial?: Partial<typeof emptyForm>;
 }) {
@@ -310,7 +312,7 @@ export function NewCampaignForm({
     if (!formValid || submitting || fleetLoading) return;
     setSubmitting(true);
     try {
-      const created = await app.createCampaign({
+      const created = await (onCreate ?? app.createCampaign)({
         drsProfileId: form.drsProfileId || undefined,
         drsMode: app.drsWorkflow
           ? (form.drsMode as 'engine-validation' | 'synthetic-lab' | 'measured')
@@ -397,9 +399,9 @@ export function NewCampaignForm({
       },
     ];
     return (
-      <section className="card campaign-form" aria-label="Internal test preparation">
+      <section className="card campaign-form" aria-label="Campaign preparation">
         <div className="card-head">
-          <h2>Prepare internal test</h2>
+          <h2>Prepare campaign</h2>
           {onDone && (
             <button
               className="btn btn-ghost"
@@ -414,8 +416,8 @@ export function NewCampaignForm({
         <p className="hint">1 · Prepare → 2 · Freeze plan → 3 · Confirm and follow</p>
         {form.drsMode !== 'synthetic-lab' && (
           <p role="alert">
-            This path prepares a laboratory test. Open the assessment workspace for simulation or
-            measured evidence.
+            This path prepares a laboratory campaign. Open the assessment workspace for simulation
+            or measured evidence.
           </p>
         )}
         <form className="grid" onSubmit={submit}>
@@ -474,10 +476,11 @@ export function NewCampaignForm({
               <option value="fleet">IoT Fleet</option>
             </select>
             <span className="hint">
-              Laboratory HTTP test{' '}
-              <HelpTip label="Internal test result">
-                This bounded laboratory test is an experimental measurement. It does not establish a
-                measured DRS 5 level or certification. No traffic starts when this draft is created.
+              Laboratory HTTP campaign{' '}
+              <HelpTip label="Campaign result">
+                This bounded laboratory campaign is an experimental measurement. It does not
+                establish a measured DRS 5 level or certification. No traffic starts when this draft
+                is created.
               </HelpTip>
             </span>
           </div>
@@ -609,8 +612,8 @@ export function NewCampaignForm({
               onChange={(e) => setAttested(e.target.checked)}
             />
             <span>
-              I attest that I own the target or hold a <b>written authorization</b> to test it
-              (internal WEDOS / authorized scope).
+              I attest that I own the target or hold a <b>written authorization</b> to run this
+              campaign (internal WEDOS / authorized scope).
             </span>
           </label>
           <button
@@ -1391,8 +1394,8 @@ export function NewCampaignForm({
             onChange={(e) => setAttested(e.target.checked)}
           />
           <span>
-            I attest that I own the target or hold a <b>written authorization</b> to test it
-            (internal WEDOS / authorized scope).
+            I attest that I own the target or hold a <b>written authorization</b> to run this
+            campaign (internal WEDOS / authorized scope).
           </span>
         </label>
         {capsOk && (

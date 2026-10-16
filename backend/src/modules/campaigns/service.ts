@@ -72,6 +72,7 @@ export function createCampaign(
     !['engine-validation', 'synthetic-lab', 'measured'].includes(input.drsMode)
   )
     throw new CampaignError('Unknown DRS campaign mode');
+  if ('drsSequence' in input) throw new CampaignError('Sequence metadata is server managed');
   if ('drsDocument' in input)
     throw new CampaignError('DRS revisions and proofs must use the audited DRS workflow');
   if (drsWorkflow()) {

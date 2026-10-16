@@ -103,7 +103,7 @@ function show(c = campaign) {
 }
 it('checks configuration without dispatching and requires a separate explicit launch', async () => {
   show();
-  const start = screen.getByRole('button', { name: 'Start baseline and test' });
+  const start = screen.getByRole('button', { name: 'Start campaign' });
   expect(start).toBeDisabled();
   await waitFor(() => expect(start).toBeEnabled());
   expect(screen.getByRole('status')).toHaveTextContent('baseline health still to be qualified');
@@ -118,9 +118,9 @@ it('offers plan review when the revision is not frozen', async () => {
   delete draft.document!.revisions[0].planHash;
   vi.mocked(api.drsCampaign).mockResolvedValue(draft);
   show();
-  await screen.findByText('Save and freeze an active test plan.');
-  expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeDisabled();
-  expect(screen.getByRole('link', { name: 'Review test plan' })).toHaveAttribute(
+  await screen.findByText('Save and freeze an active campaign plan.');
+  expect(screen.getByRole('button', { name: 'Start campaign' })).toBeDisabled();
+  expect(screen.getByRole('link', { name: 'Review campaign plan' })).toHaveAttribute(
     'href',
     '/campaigns?tab=evidence&campaign=internal',
   );
@@ -144,43 +144,35 @@ it.each(['offline', 'budget', 'origin', 'measured', 'archived'] as const)(
     vi.mocked(api.fleetOverview).mockResolvedValue(inventory);
     show();
     await screen.findByRole('alert');
-    expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start campaign' })).toBeDisabled();
     expect(app.execute).not.toHaveBeenCalled();
   },
 );
 it('discards successful checks when a refresh fails', async () => {
   show();
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeEnabled(),
-  );
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Start campaign' })).toBeEnabled());
   vi.mocked(api.fleetOverview).mockRejectedValueOnce(Error('Inventory unavailable'));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh checks' }));
   await screen.findByText('Checks unavailable: Inventory unavailable');
-  expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Start campaign' })).toBeDisabled();
 });
 it('expires checks and requires a fresh observation before confirmation', async () => {
   show();
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeEnabled(),
-  );
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Start campaign' })).toBeEnabled());
   vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 16000);
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 1100));
   });
-  expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Start campaign' })).toBeDisabled();
   expect(screen.getByRole('alert')).toHaveTextContent('Checks expired');
   fireEvent.click(screen.getByRole('button', { name: 'Refresh checks' }));
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeEnabled(),
-  );
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Start campaign' })).toBeEnabled());
 });
 
 it('checks selected identities directly rather than substituting the first inventory page', async () => {
   vi.mocked(api.fleetOverview).mockResolvedValue({ ...fleet(), devices: [] });
   show();
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeEnabled(),
-  );
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Start campaign' })).toBeEnabled());
   expect(api.fleetDevice).toHaveBeenCalledWith('one');
 });
 
@@ -189,5 +181,5 @@ it('retains team approval and CISO gates before a physical launch', async () => 
   show();
   await screen.findByText('Approval is required before execution.');
   expect(screen.getByText('CISO sign-off is required before execution.')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Start baseline and test' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Start campaign' })).toBeDisabled();
 });

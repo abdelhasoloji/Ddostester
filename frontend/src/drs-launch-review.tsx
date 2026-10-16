@@ -59,7 +59,7 @@ export function DrsLaunchReview({ campaign }: { campaign: Campaign }) {
   if (snapshot) {
     if (snapshot.view.archived || campaign.archived) issues.push('Campaign is archived.');
     if (!revision?.planHash || revision.finalizedAt)
-      issues.push('Save and freeze an active test plan.');
+      issues.push('Save and freeze an active campaign plan.');
     if (revision?.plan.mode !== 'synthetic-lab' || campaign.drsMode !== 'synthetic-lab')
       issues.push(
         'Only bounded laboratory dispatch is available. Simulation and measured evaluation use separate workflows.',
@@ -128,12 +128,12 @@ export function DrsLaunchReview({ campaign }: { campaign: Campaign }) {
     canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
   return (
     <Modal
-      label="Confirm internal test"
+      label="Confirm campaign"
       onClose={() => {
         if (!busy) app.setConfirmExec(null);
       }}
     >
-      <h3>Confirm internal test</h3>
+      <h3>Confirm campaign</h3>
       <p className="modal-target">{campaign.target}</p>
       <p>
         <b>{ids.length} agents</b> · <b>{campaign.maxRps} req/s shared</b> ·{' '}
@@ -143,7 +143,7 @@ export function DrsLaunchReview({ campaign }: { campaign: Campaign }) {
         Baseline first · stop available throughout{' '}
         <HelpTip label="Launch checks">
           The checks below inspect the plan, permissions and fresh Fleet inventory without sending
-          test traffic. Runtime admission and baseline stability remain mandatory. They do not
+          campaign traffic. Runtime admission and baseline stability remain mandatory. They do not
           establish independent collector readiness or a measured DRS level.
         </HelpTip>
       </p>
@@ -171,7 +171,7 @@ export function DrsLaunchReview({ campaign }: { campaign: Campaign }) {
             to={'/campaigns?tab=evidence&campaign=' + encodeURIComponent(campaign.id)}
             onClick={() => app.setConfirmExec(null)}
           >
-            Review test plan
+            Review campaign plan
           </Link>
         )}
         <button className="btn" disabled={busy} onClick={() => app.setConfirmExec(null)}>
@@ -188,7 +188,7 @@ export function DrsLaunchReview({ campaign }: { campaign: Campaign }) {
             navigate('/theater?run=' + encodeURIComponent(campaign.id));
           }}
         >
-          Start baseline and test
+          Start campaign
         </button>
       </div>
     </Modal>

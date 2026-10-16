@@ -91,6 +91,7 @@ const SPINE_NAV = [
 ];
 
 const WORKSPACE_NAV = [
+  { to: '/campaigns', label: 'Campaigns', icon: '◈', end: false },
   { to: '/', label: 'Overview', icon: '◉', end: true },
   { to: '/clients', label: 'Clients', icon: '▦', end: false },
   { to: '/infrastructure', label: 'Infrastructure', icon: '▤', end: false },
@@ -1395,7 +1396,16 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               {localBusy ? <span className="spin" /> : null}Approve / Reject ({g.pending})
             </button>
           )}
+          {g.members[0]?.drsSequence && (
+            <Link
+              className="btn btn-sm btn-primary"
+              to={'/campaigns?tab=manager&suite=' + encodeURIComponent(g.suiteId)}
+            >
+              Manage campaign
+            </Link>
+          )}
           {canExec &&
+            !g.members[0]?.drsSequence &&
             (app.approvalPolicy === 'confirmation'
               ? g.remaining > 0
               : g.pending === 0 && approvedRemaining > 0) &&

@@ -81,7 +81,7 @@ it('freezes a new simulated revision and requires explicit confirmation before e
   await waitFor(() =>
     expect(screen.getByLabelText('Campaign mode')).toHaveValue('engine-validation'),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Save test plan' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save campaign plan' }));
   await waitFor(() => expect(action).toHaveBeenCalledWith('fixture', 'revisions', { plan }));
   fireEvent.click(screen.getByRole('button', { name: 'Freeze plan' }));
   await waitFor(() =>

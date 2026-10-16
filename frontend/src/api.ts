@@ -77,6 +77,13 @@ export interface DurableFleetEvidence {
 }
 
 export interface Campaign {
+  drsSequence?: {
+    schema: string;
+    targetLevel: number;
+    intervalSec: number;
+    catalogueHash: string;
+    planHash: string;
+  };
   clientWorkspace?: { id: string; revision: number; hash: string | null; profile: ClientProfile };
   drsMode?: 'engine-validation' | 'synthetic-lab' | 'measured';
   drsDocument?: DrsCampaignView['document'];
@@ -1183,10 +1190,19 @@ export const api = {
     ),
   metricsRange: (
     series: string,
-    opts: { target?: string; minutes?: number; step?: number; sinceSec?: number } = {},
+    opts: {
+      target?: string;
+      campaignId?: string;
+      revisionId?: string;
+      minutes?: number;
+      step?: number;
+      sinceSec?: number;
+    } = {},
   ) => {
     const p = new URLSearchParams({ series });
     if (opts.target) p.set('target', opts.target);
+    if (opts.campaignId) p.set('campaignId', opts.campaignId);
+    if (opts.revisionId) p.set('revisionId', opts.revisionId);
     if (opts.minutes) p.set('minutes', String(opts.minutes));
     if (opts.step) p.set('step', String(opts.step));
     // Scope the window to a run's elapsed span (Run Theater) so stale samples from
@@ -1204,6 +1220,19 @@ export const api = {
     get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),
   fleetMissions: () => get<FleetMissionStatus>('/api/fleet/missions'),
   fleetDevice: (id: string) => get<FleetDevice>(`/api/fleet/devices/${encodeURIComponent(id)}`),
+  drsSequencePlan: (targetLevel: number, intervalSec: number) =>
+    get<DrsSequencePlan>(
+      `/api/drs/sequences/plan?targetLevel=${targetLevel}&intervalSec=${intervalSec}`,
+    ),
+  savedDrsSequencePlan: (id: string) =>
+    get<DrsSequencePlan>(`/api/suites/${encodeURIComponent(id)}/drs/plan`),
+  createDrsSequence: (body: unknown) =>
+    post<{ suiteId: string; campaigns: Campaign[]; plan: DrsSequencePlan }>(
+      '/api/drs/sequences',
+      body,
+    ),
+  freezeDrsSequence: (id: string, planHash: string) =>
+    post(`/api/suites/${encodeURIComponent(id)}/drs/freeze`, { planHash }),
   fleetOverview: () => get<FleetOverview>('/api/fleet/overview'),
   fleetCampaign: (id: string) =>
     get<FleetCampaignObservation>(`/api/fleet/campaigns/${encodeURIComponent(id)}`),
@@ -1352,11 +1381,11 @@ export const api = {
     post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
       reason,
     }),
-  runSuite: (id: string, confirmed = false) =>
-    post<{ suiteId: string; steps: number; started: boolean }>(
-      `/api/suites/${id}/run`,
-      confirmed ? { confirmed: true } : undefined,
-    ),
+  runSuite: (id: string, confirmed = false, planHash?: string) =>
+    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`, {
+      ...(confirmed ? { confirmed: true } : {}),
+      ...(planHash ? { planHash } : {}),
+    }),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
   resumeSuite: (id: string) =>
     post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
@@ -1623,6 +1652,7 @@ export interface GapAnalysis {
 
 /** Live control state of an in-flight suite sequence (GET /api/suites/sequences). */
 export interface SuiteSequenceState {
+  intervalEndsAt?: number;
   paused: boolean;
   current?: string;
   started: number;
@@ -1806,4 +1836,24 @@ export interface DrsReportView {
   };
   reference: DrsRevisionView['reference'];
   revision: number;
+}
+
+export interface DrsSequencePlan {
+  schema: string;
+  targetLevel: number;
+  intervalSec: number;
+  catalogueHash: string;
+  planHash: string;
+  executable: number;
+  blocked: number;
+  measuredLevel: null;
+  rows: {
+    id: string;
+    name: string;
+    level: number;
+    supported: boolean;
+    reason: string;
+    sourceVectorId: string;
+    ambiguityCount: number;
+  }[];
 }

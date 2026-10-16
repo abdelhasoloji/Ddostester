@@ -98,11 +98,11 @@ it('offers an internal test preparation route without starting traffic or inferr
   expect(screen.getByRole('heading', { name: 'ENISA preproduction' })).toBeInTheDocument();
   expect(screen.getByText('46.28.109.92')).toBeInTheDocument();
   expect(screen.getByText(/2 PoPs/)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Prepare internal test' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Prepare campaign' })).toHaveAttribute(
     'href',
-    '/campaigns?tab=launch&engine=fleet',
+    '/campaigns?tab=manager',
   );
-  expect(screen.getByRole('link', { name: 'Follow running test →' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Follow running campaign →' })).toHaveAttribute(
     'href',
     '/theater',
   );

@@ -1,3 +1,4 @@
+import type { DrsSequenceBinding } from '../drs/sequence.js';
 import type { WrsBreakdown } from '../wrs/scoring.js';
 import type {
   ScenarioPhase,
@@ -217,6 +218,7 @@ export interface Recurrence {
 }
 
 export interface Campaign extends CampaignInput {
+  drsSequence?: DrsSequenceBinding;
   /** Server-captured client scope for an offline prototype; never a target grant. */
   clientWorkspace?: {
     id: string;

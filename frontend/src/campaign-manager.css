@@ -1,0 +1,78 @@
+.manager-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.manager-controls label {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+.manager-controls input,
+.manager-controls select {
+  max-width: 100%;
+}
+.campaign-chain {
+  padding-left: 1.4rem;
+  max-height: 26rem;
+  overflow: auto;
+}
+.campaign-chain li {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.6rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.campaign-chain li.is-running {
+  border-left: 3px solid var(--primary);
+  animation: campaign-pulse 1.8s ease-in-out infinite;
+}
+.campaign-chain b {
+  font-size: 0.8rem;
+}
+.campaign-telemetry {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+}
+.campaign-telemetry .card {
+  min-width: 0;
+  animation: campaign-enter 0.3s ease-out;
+}
+.campaign-telemetry h3 {
+  font-size: 1rem;
+}
+.campaign-live-indicator {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  background: var(--success, #10b981);
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  animation: campaign-pulse 1.8s ease-in-out infinite;
+}
+@keyframes campaign-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+@keyframes campaign-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .campaign-chain li.is-running,
+  .campaign-telemetry .card,
+  .campaign-live-indicator {
+    animation: none;
+  }
+}

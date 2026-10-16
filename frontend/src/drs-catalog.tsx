@@ -14,7 +14,7 @@ export function DrsCatalogPanel({
   const [error, setError] = useState('');
   const [level, setLevel] = useState('all');
   const [page, setPage] = useState(1);
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(true);
   useEffect(() => {
     let live = true;
     void api
@@ -42,17 +42,18 @@ export function DrsCatalogPanel({
   return (
     <section aria-label="DRS Fleet catalogue">
       <div className="card">
-        <h2>Choose a test profile</h2>
+        <h2>Choose a campaign profile</h2>
         <p>
-          Fleet · bounded HTTP test{' '}
-          <HelpTip label="Test scope">
-            Profiles below are executable laboratory approximations, not a measured DRS level. The
-            target, agents and shared limits are reviewed before explicit confirmation.
+          Fleet · bounded HTTP campaign{' '}
+          <HelpTip label="Campaign scope">
+            The full reference catalogue includes unavailable generators. Executable profiles are
+            bounded laboratory approximations, not a measured DRS level. The target, agents and
+            shared limits are reviewed before explicit confirmation.
           </HelpTip>
         </p>
         {!fleetAvailable && (
           <p role="status">
-            Fleet generator unavailable. Check Infrastructure before preparing a test.
+            Fleet generator unavailable. Check Infrastructure before preparing a campaign.
           </p>
         )}
         {!filtered.length && (
@@ -137,7 +138,7 @@ export function DrsCatalogPanel({
           <article className="card" key={p.id}>
             <span className={`engine-badge ${p.supported ? 'ok' : 'no'}`}>
               DRS {p.level ?? '—'} ·{' '}
-              {p.supported ? 'GET laboratory approximation' : 'Not executable'}
+              {p.supported ? 'GET laboratory approximation' : 'Generator missing'}
             </span>
             <h3>{p.name}</h3>
             <p className="hint">Reference level {p.level}; this is not a measured score.</p>

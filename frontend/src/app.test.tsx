@@ -107,7 +107,7 @@ it('prioritizes the internal WEDOS test and keeps technical tools secondary', as
     drsWorkflow: true,
   });
   render(<App />);
-  await screen.findByRole('heading', { name: 'Internal WEDOS test' });
+  await screen.findByRole('heading', { name: 'WEDOS campaigns' });
   expect(screen.getByRole('link', { name: 'Clients' })).toHaveAttribute('href', '/clients');
   expect(screen.getByRole('link', { name: 'Infrastructure' })).toHaveAttribute(
     'href',

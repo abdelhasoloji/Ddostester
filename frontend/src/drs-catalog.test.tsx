@@ -21,7 +21,7 @@ vi.mock('./context.js', async (original) => ({
   useApp: () => app,
 }));
 afterEach(() => vi.restoreAllMocks());
-it('offers only supported DRS Fleet configuration and disables unsupported profiles without local fallback', async () => {
+it('shows the full DRS reference by default and only permits supported Fleet configuration', async () => {
   vi.spyOn(api, 'drsCatalog').mockResolvedValue({
     version: 'v1',
     reference: 'DRS v3',
@@ -52,11 +52,12 @@ it('offers only supported DRS Fleet configuration and disables unsupported profi
   });
   render(<DrsCatalogPanel target="http://target.test/" deviceIds={['agent-1']} />);
   await waitFor(() => expect(screen.getByText('GET DRS3')).toBeInTheDocument());
-  expect(
-    screen.queryByRole('button', { name: 'Unsupported by current agents' }),
-  ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
+  expect(screen.getByRole('checkbox', { name: 'Show full catalogue' })).toBeChecked();
   expect(screen.getByRole('button', { name: 'Unsupported by current agents' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
+  expect(screen.queryByText('POST DRS4')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
+  expect(screen.getByText('POST DRS4')).toBeInTheDocument();
   expect(screen.getByText('Reference and capacity details').closest('details')).not.toHaveAttribute(
     'open',
   );

@@ -170,7 +170,7 @@ export function DrsAssessmentWorkspace() {
   return (
     <section className="drs-assessment-workspace" aria-label="DRS assessment workspace">
       <div className="card">
-        <h2>{isFleet ? 'Internal test plan' : 'DRS assessment'}</h2>
+        <h2>{isFleet ? 'Campaign plan' : 'DRS assessment'}</h2>
         {!isFleet && (
           <>
             <p>
@@ -214,7 +214,7 @@ export function DrsAssessmentWorkspace() {
       </div>
       {view && (
         <div className="card">
-          <h3>Review test plan</h3>
+          <h3>Review campaign plan</h3>
           {campaign?.agent === 'fleet' && (
             <p>
               <b>{campaign.target}</b> · {campaign.fleetDeviceIds?.length ?? 0} agents ·{' '}
@@ -222,7 +222,7 @@ export function DrsAssessmentWorkspace() {
             </p>
           )}
           <p className="hint">
-            Prepare → freeze → confirm → baseline → test → report{' '}
+            Prepare → freeze → confirm → baseline → execution → report{' '}
             <HelpTip label="Execution sequence">
               Freezing records the reviewed plan; it does not start traffic. The next confirmation
               starts server admission and at least five minutes of baseline observation. An unstable
@@ -324,7 +324,7 @@ export function DrsAssessmentWorkspace() {
               disabled={busy || !canCreate}
               onClick={() => void action('revisions')}
             >
-              {revision ? 'Create new revision' : 'Save test plan'}
+              {revision ? 'Create new revision' : 'Save campaign plan'}
             </button>
             <button
               className="btn btn-primary"
@@ -361,7 +361,7 @@ export function DrsAssessmentWorkspace() {
                 }
                 onClick={() => app.setConfirmExec(campaign)}
               >
-                Review and confirm test
+                Review and confirm campaign
               </button>
             )}
           {campaign?.status === 'RUNNING' && (
@@ -369,7 +369,7 @@ export function DrsAssessmentWorkspace() {
               className="btn btn-primary"
               to={'/theater?run=' + encodeURIComponent(campaign.id)}
             >
-              Follow test
+              Follow campaign
             </Link>
           )}
           {revision?.planHash && (

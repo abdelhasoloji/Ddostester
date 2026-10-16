@@ -38,3 +38,5 @@ The versioned host inventory and operator evidence endpoints under `/api/fleet/i
 ### Exact Fleet device observation
 
 `GET /api/fleet/devices/:id` requires `campaign:read`, returns the same credential-free inventory view as the device list and sets `Cache-Control: no-store`. The connection state is calculated at read time. Unknown IDs return 404. This read-only endpoint supports bounded checks of the exact campaign selection across inventory pages; it does not enroll agents, reserve capacity or dispatch a mission.
+
+DRS campaign chains, immutable target-level/interval configuration, collective freeze, scoped observability and partial reports are documented in [campaign management](drs-campaign-manager.md). Existing runtime admission and stop contracts remain authoritative.

@@ -25,3 +25,5 @@ Product adaptation: [RL300 roadmap](rl300-product-roadmap.md), [infrastructure w
 PoP preparation: [passive three-Pod qualification prototype](../deploy/pop-qualification/README.md), with local checks and explicit cluster-access prerequisites. Not deployed and not a Fleet worker migration.
 
 Interface: [client-first DRS workspace](client-first-workspace.md) — the fixed three authorized clients, two-PoP pilot, independent probe and secondary technical tools.
+
+Campaign operations: [DRS campaign manager and Run Theater](drs-campaign-manager.md) — reference chain, target score objective, configurable scenario intervals and Grafana-equivalent observations.

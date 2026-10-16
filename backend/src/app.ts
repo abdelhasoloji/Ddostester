@@ -1,3 +1,6 @@
+import { fleetDeviceView } from './modules/fleet/devices.js';
+import { registerDrsSequenceRoutes } from './routes/drs-sequence-routes.js';
+import { drsSequencePlan, waitForScenarioInterval } from './modules/drs/sequence.js';
 import { DrsBaselineError } from './modules/drs/baseline.js';
 import { transition as transitionDrs, finalize as finalizeDrs } from './modules/drs/workflow.js';
 import { runAttachment } from './modules/drs/attachments.js';
@@ -590,7 +593,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     assertExecutable(c);
     // Every actor (manual, suite and scheduler) uses current policy before any I/O.
     const currentCaps = clampToCeiling(await store.getLimits());
-    const { drsDocument, ...executionInput } = c;
+    const { drsDocument, drsSequence: _sequence, ...executionInput } = c;
     if (c.drsMode === 'engine-validation')
       throw new CampaignError('Engine validation never dispatches traffic; use DRS simulation');
     if (c.drsMode === 'measured')
@@ -1215,6 +1218,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     /** The gate's max wait (ms) before it gives up and skips — so the UI can show
      *  "waited Xs / max Ys" and count down to the skip. */
     gateMaxWaitMs?: number;
+    intervalEndsAt?: number;
   }
   const RECOVERY_MAX_WAIT_MS = 90_000;
   // Auto-pause the whole sequence after this many consecutive gate-skips for an
@@ -1278,6 +1282,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           continue;
         }
         if (c.status !== 'APPROVED') continue; // terminal / rejected → leave as-is
+        if (c.drsSequence && ctrl.started > 0) {
+          if (
+            !(await waitForScenarioInterval(ctrl, c.drsSequence.intervalSec, {
+              sleep: sleepMs,
+              now: Date.now,
+              isStopping: () => kills.isStopping(),
+            }))
+          )
+            break;
+        }
         // Recovery gate BETWEEN waves: once at least one step has run, don't start
         // the next wave until the target is reachable again (it may still be
         // recovering from the previous load). Bounded, so the suite never hangs;
@@ -1337,14 +1351,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             `recovery available after ${secs}s — proceeding; ${JSON.stringify(gate)}`,
           );
         }
-        if (ctrl.cancelled) break;
+        while (ctrl.paused && !ctrl.cancelled && !kills.isStopping()) await sleepMs(400);
+        if (ctrl.cancelled || kills.isStopping()) break;
+        const admitted = await store.getCampaign(c.id);
+        if (!admitted || admitted.status !== 'APPROVED' || admitted.archived) {
+          if (c.drsSequence) break;
+          continue;
+        }
         ctrl.current = c.id;
         ctrl.started += 1;
         try {
-          await runCampaign(c, actor, recoveryBeforeRun); // awaits the step's terminal state
+          const result = await runCampaign(admitted, actor, recoveryBeforeRun);
+          if (c.drsSequence && result.status !== 'COMPLETED') break;
         } catch (err) {
           // A failed/blocked step still advances the sequence.
           await auditAs(actor, 'suite.skip', c.id, `run error: ${(err as Error).message}`);
+          if (c.drsSequence) break;
         } finally {
           ctrl.current = undefined;
         }
@@ -2265,6 +2287,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     effectiveAllowlist,
   );
 
+  registerDrsSequenceRoutes(
+    app,
+    store,
+    guard,
+    effectiveAllowlist,
+    agentChoices,
+    () => effectiveCaps,
+  );
+
   app.get('/api/campaigns', { preHandler: guard('campaign:read') }, async () =>
     store.listCampaigns(),
   );
@@ -2759,6 +2790,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           // Authoring rejects client-supplied evidence; this document came from storage.
           const executionInput = { ...c };
           delete executionInput.drsDocument;
+          delete executionInput.drsSequence;
           createCampaign(executionInput, await effectiveAllowlist(), agentChoices(), effectiveCaps);
           if (c.status === 'PENDING_APPROVAL') {
             c = approveCampaign(
@@ -2910,6 +2942,51 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const suiteId = (req.params as { id: string }).id;
     const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
     if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+    if (members.some((m) => m.drsSequence)) {
+      const binding = members[0].drsSequence;
+      if (!binding || (req.body as { planHash?: string })?.planHash !== binding.planHash)
+        return reply
+          .code(409)
+          .send({ error: 'Review the campaign chain before confirming execution.' });
+      const expected = drsSequencePlan(binding.targetLevel, binding.intervalSec);
+      const profiles = expected.rows.filter((r) => r.supported);
+      const ordered = [...members].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
+      if (
+        ordered.some(
+          (m, i) =>
+            m.drsProfileId !== profiles[i]?.id ||
+            m.target !== members[0].target ||
+            m.probeUrl !== members[0].probeUrl,
+        )
+      )
+        return reply
+          .code(409)
+          .send({ error: 'Campaign chain differs from the frozen reference plan.' });
+      for (const id of members[0].fleetDeviceIds ?? []) {
+        const d = await store.getFleetDevice(id);
+        if (
+          !d ||
+          fleetDeviceView(d).connection !== 'online' ||
+          d.heartbeat?.version !== 'fleet-mission-agent/v1'
+        )
+          return reply.code(409).send({ error: 'A selected agent is no longer available.' });
+      }
+      if (
+        expected.planHash !== binding.planHash ||
+        members.length !== expected.executable ||
+        members.some(
+          (m) =>
+            m.drsSequence?.planHash !== binding.planHash ||
+            m.archived ||
+            !m.drsDocument?.revisions.find(
+              (r) => r.number === m.drsDocument?.currentRevision && r.planHash && !r.finalizedAt,
+            ),
+        )
+      )
+        return reply.code(409).send({
+          error: 'Freeze every active scenario and review campaign coverage before execution.',
+        });
+    }
     const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
     if (adminConfirmation(req)) {
       if ((req.body as { confirmed?: unknown } | undefined)?.confirmed !== true) {
@@ -2924,6 +3001,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
             const executionInput = { ...m };
             delete executionInput.drsDocument;
+            delete executionInput.drsSequence;
             createCampaign(
               executionInput,
               await effectiveAllowlist(),
@@ -3002,6 +3080,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         downSkips: number;
         gateStartedAt?: number;
         gateMaxWaitMs?: number;
+        intervalEndsAt?: number;
       }
     > = {};
     for (const [sid, ctrl] of suiteRuns) {
@@ -3014,6 +3093,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         downSkips: ctrl.downSkips,
         gateStartedAt: ctrl.gateStartedAt,
         gateMaxWaitMs: ctrl.gateMaxWaitMs,
+        intervalEndsAt: ctrl.intervalEndsAt,
       };
     }
     return { sequences };

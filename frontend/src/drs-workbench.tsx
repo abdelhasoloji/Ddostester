@@ -82,31 +82,31 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
   return (
     <div className="drs-workbench">
       <PageHead
-        title={clientsOnly ? 'Clients' : 'Internal WEDOS test'}
-        sub={clientsOnly ? 'Three authorized clients' : 'Prepare · run · review'}
+        title={clientsOnly ? 'Clients' : 'WEDOS campaigns'}
+        sub={clientsOnly ? 'Three authorized clients' : 'Prepare · execute · review'}
       />
       {!clientsOnly && (
         <>
-          <section className="workbench-hero" aria-label="Internal WEDOS test">
+          <section className="workbench-hero" aria-label="WEDOS campaigns">
             <div>
               <span className="workbench-eyebrow">WEDOS · internal assessment</span>
-              <h2>Prepare your DRS test</h2>
+              <h2>Prepare your DRS campaign</h2>
               <p>
                 Target → prepare → confirm → follow → report{' '}
-                <HelpTip label="Internal test workflow">
+                <HelpTip label="Campaign workflow">
                   Choose an authorized target and an executable Fleet profile, review the bounded
                   plan, then explicitly confirm execution. Preflight and baseline checks still
-                  apply. DRS 5 is the objective; current HTTP laboratory tests do not establish that
-                  level.
+                  apply. DRS 5 is the objective; current HTTP laboratory campaigns do not establish
+                  that level.
                 </HelpTip>
               </p>
-              <Link className="btn btn-primary" to="/campaigns?tab=launch&engine=fleet">
-                Prepare internal test
+              <Link className="btn btn-primary" to="/campaigns?tab=manager">
+                Prepare campaign
               </Link>
             </div>
             <div className="workbench-pilot">
               <Link to="/campaigns?tab=launch">Resume a campaign →</Link>
-              <Link to="/theater">Follow running test →</Link>
+              <Link to="/theater">Follow running campaign →</Link>
               <Link to="/reports">View reports →</Link>
             </div>
           </section>
