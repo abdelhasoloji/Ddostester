@@ -1,6 +1,6 @@
 # Current implementation and remaining work
 
-Reconciled against source and verified build 484 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
+Reconciled against source and verified build 486 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -111,4 +111,4 @@ The overview now prioritizes preparation of the internal WEDOS Fleet test, resum
 
 ## Guided internal preparation and confirmation — source increment
 
-Compact Fleet preparation now leads to the exact saved campaign, reviewed/frozen plan and a read-only prelaunch check. Confirmation checks exact agent identities across inventory pages, current Fleet policy, target/probe scope and frozen budgets; expired or unavailable observations block launch. Existing server runtime/baseline and automatic report settlement are reused. Source tests cover unavailable agents, missing plans, reduced caps, expired checks and secret-free authenticated device lookup. Deployment pending. Independent measurement qualification and the historical unstable baseline remain open; no production campaign is authorized by this delivery.
+Compact Fleet preparation now leads to the exact saved campaign, reviewed/frozen plan and a read-only prelaunch check. Confirmation checks exact agent identities across inventory pages, current Fleet policy, target/probe scope and frozen budgets; expired or unavailable observations block launch. Existing server runtime/baseline and automatic report settlement are reused. Source tests cover unavailable agents, missing plans, reduced caps, expired checks and secret-free authenticated device lookup. Deployed as build 486 after exact-SHA CI, native verification and data/policy preservation checks. Independent measurement qualification and the historical unstable baseline remain open; no production campaign is authorized by this delivery.
