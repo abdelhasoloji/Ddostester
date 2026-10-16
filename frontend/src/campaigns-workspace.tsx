@@ -64,8 +64,12 @@ export function CampaignsWorkspace() {
   return (
     <>
       <PageHead
-        title="Campaigns"
-        sub="Define, launch and track bounded resilience campaigns — guided, straight from a template, or from a recon-seeded replay plan."
+        title={app.drsWorkflow ? 'Internal test' : 'Campaigns'}
+        sub={
+          app.drsWorkflow
+            ? 'Choose a profile · review the target and limits · confirm'
+            : 'Define, launch and track bounded resilience campaigns.'
+        }
       />
       <SuiteRunBanner />
 

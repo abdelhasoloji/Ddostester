@@ -62,3 +62,11 @@ Selecting a client in Evidence archive exposes a collapsed **Compare assessments
 The compact table shows level outcomes and unknown counts for A and B. A numeric score change is shown only when both reports are COMPLETE with finite scores. Partial or missing scores remain indeterminate, and absent levels remain not evaluated. This compares simulations only, never measured resilience. Read failures and obsolete requests cannot produce an empty successful comparison. The prepared patch is integrated and verified deployed as build 482. See the [comparison delivery receipt](client-comparison-deployment-checkpoint.json).
 
 Browser acceptance in an isolated memory fixture created and finalized two client prototypes (healthy/outage), opened their comparison through Evidence archive and verified PASS/FAIL level changes with an indeterminate partial score. Desktop/mobile rendering passed, including all A/B/unknown columns and no horizontal overflow. The archive's mobile column-hiding rules are scoped to its own table so they cannot hide comparison columns. No external traffic was generated.
+
+## Internal WEDOS test entry point — 16 October 2026
+
+The overview prioritizes **Prepare internal test**, opening the existing Fleet DRS catalogue. The short path is target/profile selection, bounded configuration, explicit confirmation, Run Theater and report. Resume, live follow-up and reports are direct links. Infrastructure planning is collapsed; the three client workspaces remain available. No target is auto-authorized or preselected from client metadata.
+
+This is navigation simplification, not a new physical DRS adapter or a DRS 5 qualification. Existing permissions, shared budgets, preflight, baseline refusal, stop and evidence requirements remain enforced. Prototype simulations remain a separate client workflow. This source increment has not yet been deployed.
+
+The Fleet catalogue initially shows executable profiles only. The full reference catalogue remains available through an explicit checkbox; unsupported adapters remain disabled. Reference and inventory details are collapsed. An unavailable Fleet generator is stated explicitly. No campaign is created by entering this screen.

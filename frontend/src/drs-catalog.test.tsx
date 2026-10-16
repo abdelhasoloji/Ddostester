@@ -52,7 +52,14 @@ it('offers only supported DRS Fleet configuration and disables unsupported profi
   });
   render(<DrsCatalogPanel target="http://target.test/" deviceIds={['agent-1']} />);
   await waitFor(() => expect(screen.getByText('GET DRS3')).toBeInTheDocument());
+  expect(
+    screen.queryByRole('button', { name: 'Unsupported by current agents' }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
   expect(screen.getByRole('button', { name: 'Unsupported by current agents' })).toBeDisabled();
+  expect(screen.getByText('Reference and capacity details').closest('details')).not.toHaveAttribute(
+    'open',
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Configure Fleet campaign' }));
   expect(app.queueReplay).toHaveBeenCalledWith(
     expect.objectContaining({

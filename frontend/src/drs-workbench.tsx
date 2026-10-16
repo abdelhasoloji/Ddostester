@@ -82,53 +82,44 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
   return (
     <div className="drs-workbench">
       <PageHead
-        title={clientsOnly ? 'Clients' : 'DRS workspace'}
-        sub={clientsOnly ? 'Three authorized clients' : 'Clients · infrastructure · assessments'}
+        title={clientsOnly ? 'Clients' : 'Internal WEDOS test'}
+        sub={clientsOnly ? 'Three authorized clients' : 'Prepare · run · review'}
       />
       {!clientsOnly && (
         <>
-          <section className="workbench-hero">
+          <section className="workbench-hero" aria-label="Internal WEDOS test">
             <div>
-              <span className="workbench-eyebrow">Assessment objective</span>
-              <h2>
-                DRS <strong>5</strong>
-              </h2>
+              <span className="workbench-eyebrow">WEDOS · internal assessment</span>
+              <h2>Prepare your DRS test</h2>
               <p>
-                Qualification pending{' '}
-                <HelpTip label="DRS objective">
-                  DRS 5 is the assessment objective. The pilot has no measured level or qualified
-                  capacity yet.
+                Target → prepare → confirm → follow → report{' '}
+                <HelpTip label="Internal test workflow">
+                  Choose an authorized target and an executable Fleet profile, review the bounded
+                  plan, then explicitly confirm execution. Preflight and baseline checks still
+                  apply. DRS 5 is the objective; current HTTP laboratory tests do not establish that
+                  level.
                 </HelpTip>
               </p>
+              <Link className="btn btn-primary" to="/campaigns?tab=launch&engine=fleet">
+                Prepare internal test
+              </Link>
             </div>
             <div className="workbench-pilot">
-              <b>2 PoPs</b>
-              <span>pilot hypothesis</span>
-              <b>1 independent probe</b>
-              <span>outside the pilot node</span>
-              <Link to="/infrastructure">Review infrastructure →</Link>
+              <Link to="/campaigns?tab=launch">Resume a campaign →</Link>
+              <Link to="/theater">Follow running test →</Link>
+              <Link to="/reports">View reports →</Link>
             </div>
           </section>
-          <section className="workbench-process" aria-label="Assessment preparation stages">
-            {[
-              'Define scope',
-              'Qualify infrastructure',
-              'Validate measurements',
-              'Evaluate',
-              'Report',
-            ].map((step, i) => (
-              <div key={step}>
-                <span>{i + 1}</span>
-                <b>{step}</b>
-                <small>{i < 3 ? 'Preparation' : 'Not started'}</small>
-              </div>
-            ))}
-          </section>
+          <details className="card">
+            <summary>Infrastructure preparation · DRS 5 objective</summary>
+            <p>2 PoPs · 1 independent probe · qualification pending</p>
+            <Link to="/infrastructure">Review infrastructure →</Link>
+          </details>
         </>
       )}
       <section aria-label="Client workspaces">
         <div className="workbench-heading">
-          <h2>{clientsOnly ? 'Client portfolio' : 'Start with a client'}</h2>
+          <h2>{clientsOnly ? 'Client portfolio' : 'Client workspaces'}</h2>
           <button
             className="btn btn-sm btn-ghost"
             disabled={state.busy}
@@ -146,24 +137,6 @@ export function DrsWorkbenchHome({ clientsOnly = false }: { clientsOnly?: boolea
           <p role="status">Loading client workspaces…</p>
         )}
       </section>
-      {!clientsOnly && (
-        <section className="workbench-next">
-          <div>
-            <span className="workbench-eyebrow">Next infrastructure milestone</span>
-            <h2>Reserve the pilot and its independent probe</h2>
-            <p>
-              ac02 identified · second site and probe pending{' '}
-              <HelpTip label="Pilot prerequisites">
-                Kubernetes access, reserved resources, an independent second site and probe are
-                required before qualification.
-              </HelpTip>
-            </p>
-          </div>
-          <Link className="btn btn-primary" to="/infrastructure">
-            Open pilot plan
-          </Link>
-        </section>
-      )}
     </div>
   );
 }

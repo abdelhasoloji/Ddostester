@@ -104,3 +104,7 @@ Build 480 is verified deployed after all CI/native gates. Client-filtered protot
 ## Client assessment comparison
 
 The read-only comparison increment is integrated in source: two finalized simulations of the same client scope and frozen plan, explicit compatibility checks, conservative partial/unknown results and a compact level table. Build 482 is verified deployed after the normal CI/native release gates. Physical Fleet qualification remains open. See the [comparison delivery receipt](client-comparison-deployment-checkpoint.json).
+
+## Internal test navigation — source increment
+
+The overview now prioritizes preparation of the internal WEDOS Fleet test, resume, Run Theater and reports. Infrastructure planning is collapsed; client scopes and simulations remain accessible. This changes navigation only, without starting traffic, changing admission or establishing measured DRS 5. See [workspace](client-first-workspace.md). Deployment pending.

@@ -91,13 +91,25 @@ function client() {
     </MemoryRouter>,
   );
 }
-it('shows only the three authorized clients and the pilot hypothesis, without a measured level or launch control', async () => {
+it('offers an internal test preparation route without starting traffic or inferring target authorization', async () => {
   home();
   await screen.findByRole('heading', { name: 'bank.cz' });
   expect(screen.getAllByText('Authorized client')).toHaveLength(3);
   expect(screen.getByRole('heading', { name: 'ENISA preproduction' })).toBeInTheDocument();
   expect(screen.getByText('46.28.109.92')).toBeInTheDocument();
-  expect(screen.getByText('2 PoPs')).toBeInTheDocument();
+  expect(screen.getByText(/2 PoPs/)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Prepare internal test' })).toHaveAttribute(
+    'href',
+    '/campaigns?tab=launch&engine=fleet',
+  );
+  expect(screen.getByRole('link', { name: 'Follow running test →' })).toHaveAttribute(
+    'href',
+    '/theater',
+  );
+  expect(screen.getByRole('link', { name: 'View reports →' })).toHaveAttribute('href', '/reports');
+  expect(
+    screen.getByText('Infrastructure preparation · DRS 5 objective').closest('details'),
+  ).not.toHaveAttribute('open');
   expect(screen.getAllByText('Not evaluated')).toHaveLength(3);
   expect(
     screen.queryByRole('button', { name: /launch|execute|add client/i }),

@@ -100,14 +100,14 @@ describe('App gate', () => {
   });
 });
 
-it('uses the client-first navigation for DRS planning and keeps technical tools secondary', async () => {
+it('prioritizes the internal WEDOS test and keeps technical tools secondary', async () => {
   fakeApi.health.mockResolvedValue({
     allowedTargets: ['127.0.0.1'],
     authRequired: false,
     drsWorkflow: true,
   });
   render(<App />);
-  await screen.findByRole('heading', { name: 'DRS workspace' });
+  await screen.findByRole('heading', { name: 'Internal WEDOS test' });
   expect(screen.getByRole('link', { name: 'Clients' })).toHaveAttribute('href', '/clients');
   expect(screen.getByRole('link', { name: 'Infrastructure' })).toHaveAttribute(
     'href',

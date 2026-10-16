@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HelpTip } from './help-tip.js';
 import { api, type DrsCatalog } from './api.js';
 import { useApp, canDo } from './context.js';
 export function DrsCatalogPanel({
@@ -13,6 +14,7 @@ export function DrsCatalogPanel({
   const [error, setError] = useState('');
   const [level, setLevel] = useState('all');
   const [page, setPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
   useEffect(() => {
     let live = true;
     void api
@@ -29,7 +31,9 @@ export function DrsCatalogPanel({
   }, []);
   if (error) return <p role="alert">DRS catalogue unavailable: {error}</p>;
   if (!data) return <p>Loading DRS catalogue…</p>;
-  const filtered = data.profiles.filter((p) => level === 'all' || String(p.level) === level);
+  const filtered = data.profiles.filter(
+    (p) => (showAll || p.supported) && (level === 'all' || String(p.level) === level),
+  );
   const pages = Math.max(1, Math.ceil(filtered.length / 12));
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * 12, currentPage * 12);
@@ -38,37 +42,61 @@ export function DrsCatalogPanel({
   return (
     <section aria-label="DRS Fleet catalogue">
       <div className="card">
-        <h2>DRS · Fleet campaigns</h2>
+        <h2>Choose a test profile</h2>
         <p>
-          {data.reference} · {data.version}
+          Fleet · bounded HTTP test{' '}
+          <HelpTip label="Test scope">
+            Profiles below are executable laboratory approximations, not a measured DRS level. The
+            target, agents and shared limits are reviewed before explicit confirmation.
+          </HelpTip>
         </p>
-        <p>
-          Choose a standard reference and a bounded laboratory approximation. Local generators and
-          generic templates are retired.
-        </p>
-        <p className="hint">
-          {data.scope}. {data.provenance}.
-        </p>
-        <div className="fleet-summary">
-          <span>
-            <b>{data.inventoryCaps.maxDevices.toLocaleString()}</b>registry capacity
-          </span>
-          <span>
-            <b>{data.inventoryCaps.maxSites}</b>sites in inventory
-          </span>
-          <span>
-            <b>{data.executionCaps.maxAgents}</b>active agents maximum
-          </span>
-          <span>
-            <b>{data.executionCaps.maxRps}</b>requests/s shared ceiling
-          </span>
-        </div>
-        <p>
-          Inventory size never multiplies the traffic budget. Profiles unavailable to Fleet cannot
-          fall back to Vegeta or the local generator.
-        </p>
+        {!fleetAvailable && (
+          <p role="status">
+            Fleet generator unavailable. Check Infrastructure before preparing a test.
+          </p>
+        )}
+        {!filtered.length && (
+          <p role="status">
+            No executable profile at this level. Choose another level or show the full catalogue.
+          </p>
+        )}
+        <details>
+          <summary>Reference and capacity details</summary>
+          <p>
+            {data.reference} · {data.version}
+          </p>
+          <p className="hint">
+            {data.scope}. {data.provenance}.
+          </p>
+          <div className="fleet-summary">
+            <span>
+              <b>{data.inventoryCaps.maxDevices.toLocaleString()}</b>registry capacity
+            </span>
+            <span>
+              <b>{data.inventoryCaps.maxSites}</b>sites in inventory
+            </span>
+            <span>
+              <b>{data.executionCaps.maxAgents}</b>active agents maximum
+            </span>
+            <span>
+              <b>{data.executionCaps.maxRps}</b>requests/s shared ceiling
+            </span>
+          </div>
+          <p className="hint">Inventory size does not increase the shared traffic budget.</p>
+        </details>
       </div>
       <div className="drs-catalog-controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={showAll}
+            onChange={(e) => {
+              setShowAll(e.target.checked);
+              setPage(1);
+            }}
+          />
+          Show full catalogue
+        </label>
         <label>
           Reference level
           <select
