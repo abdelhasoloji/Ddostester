@@ -1,0 +1,69 @@
+{
+  "deployedAt": "2026-10-16T05:32:18.769Z",
+  "build": 482,
+  "commit": "9b8dbbb27e5266a2acdd8fb81295d9109b6e5817",
+  "previousBuild": 480,
+  "release": "/home/shieldtest/ddostester-releases/release-9b8dbbb2.jQvqiY",
+  "ci": {
+    "run": 38855276175,
+    "allFourJobsPassed": true
+  },
+  "nativeVerifyPassed": true,
+  "servedApiAndUiIdentityPassed": true,
+  "externalHttpsHealth": "ok",
+  "ready": true,
+  "preservation": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "settingsUnchanged": true,
+    "allFourFingerprintsUnchanged": true,
+    "fullAuditPrefixDigestUnchanged": true,
+    "infrastructureRevisionDigestUnchanged": true,
+    "soleAdminPreserved": true,
+    "targetAndTrafficPoliciesUnchanged": true
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRecoveryPassed": true,
+    "restoredAuditDigestMatched": true,
+    "restoredInfrastructureDigestMatched": true,
+    "archiveSha256": "3f8f2785293bb810ad4708f684adaf6779b39e16361594bee1a4789f66bbf29f"
+  },
+  "comparison": {
+    "mode": "engine-validation",
+    "readOnly": true,
+    "requires": [
+      "two distinct finalized assessments",
+      "same explicit authorized client",
+      "same client scope revision and hash",
+      "matching frozen plan and reference",
+      "report identity matches archived revision"
+    ],
+    "partialScoreDelta": null,
+    "missingLevelOutcome": "Not evaluated",
+    "archivedReportsSupported": true
+  },
+  "verification": {
+    "localBackendPassed": 1240,
+    "localFrontendPassed": 489,
+    "targetedTestsPassed": 12,
+    "browser": "isolated Chrome desktop/mobile",
+    "twoCompletePrototypeFlows": true,
+    "passFailChangesVisible": true,
+    "partialDeltaIndeterminate": true,
+    "mobileComparisonColumnsVisible": true,
+    "mobileOverflow": false,
+    "productionAuthenticatedBrowserSessionTested": false
+  },
+  "externalExecution": {
+    "campaignStarted": false,
+    "podsMoved": false,
+    "trafficGenerated": false
+  },
+  "remaining": [
+    "Physical Fleet acceptance and independent measurement qualification",
+    "Infrastructure Kubernetes access and allocation",
+    "ENISA exact target scope"
+  ]
+}

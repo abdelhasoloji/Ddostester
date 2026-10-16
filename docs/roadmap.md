@@ -1,6 +1,6 @@
 # Current implementation and remaining work
 
-Reconciled against source and verified build 480 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
+Reconciled against source and verified build 482 on 16 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -101,6 +101,6 @@ Source adds client-filtered prototype history in Evidence archive, explicit load
 
 Build 480 is verified deployed after all CI/native gates. Client-filtered prototype history, read-only archived assessments, authenticated HTML/JSON exports and compact desktop/mobile navigation are delivered. Data and policy preservation are verified. Physical Fleet acceptance and independent collection remain open. See [delivery receipt](client-archive-deployment-checkpoint.json).
 
-## Client assessment comparison — source increment
+## Client assessment comparison
 
-The read-only comparison increment is integrated in source: two finalized simulations of the same client scope and frozen plan, explicit compatibility checks, conservative partial/unknown results and a compact level table. Run the normal CI/native release gates before promotion. The production observation remains build 480; this source preparation is not a deployment or a physical Fleet qualification.
+The read-only comparison increment is integrated in source: two finalized simulations of the same client scope and frozen plan, explicit compatibility checks, conservative partial/unknown results and a compact level table. Build 482 is verified deployed after the normal CI/native release gates. Physical Fleet qualification remains open. See the [comparison delivery receipt](client-comparison-deployment-checkpoint.json).
