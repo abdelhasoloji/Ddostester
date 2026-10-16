@@ -694,7 +694,8 @@ export function Layout() {
     app.drsWorkflow &&
     (location.pathname === '/' ||
       location.pathname.startsWith('/clients') ||
-      location.pathname === '/infrastructure');
+      location.pathname === '/infrastructure' ||
+      location.pathname === '/reports');
   const showDock = !planningPage && !location.pathname.startsWith('/assistant');
   const shellClass = `shell${showDock ? (dockOpen ? ' dock-open' : ' dock-min') : ''}`;
   return (

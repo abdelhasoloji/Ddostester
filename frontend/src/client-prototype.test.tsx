@@ -157,3 +157,15 @@ it('shows an action failure without presenting a final report', async () => {
     screen.queryByRole('button', { name: 'Download prototype report' }),
   ).not.toBeInTheDocument();
 });
+
+it('keeps an archived draft read only while retaining its scope and history', async () => {
+  vi.spyOn(api, 'drsCampaign').mockResolvedValue({
+    archived: true,
+    clientWorkspace: client,
+    document: { currentRevision: 1, revisions: [revision] },
+    defaultPlan: revision.plan,
+  });
+  renderPrototype();
+  await screen.findByText('Archived · read only');
+  expect(screen.getByRole('button', { name: 'Freeze prototype plan' })).toBeDisabled();
+});

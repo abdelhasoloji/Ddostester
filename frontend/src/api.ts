@@ -1086,6 +1086,16 @@ export const api = {
     get<DrsReportView>(
       `/api/campaigns/${encodeURIComponent(id)}/drs/report.json?revision=${revision}`,
     ),
+  drsReportHtml: async (id: string, revision: number): Promise<string> => {
+    const res = await fetch(
+      `/api/campaigns/${encodeURIComponent(id)}/drs/report.html?revision=${revision}`,
+      { headers: authHeaders() },
+    );
+    if (!res.ok) await json<never>(res);
+    if (!res.headers.get('content-type')?.includes('text/html'))
+      throw new Error('HTML report unavailable');
+    return res.text();
+  },
   fleetEvidenceForCampaign: (campaignId: string) =>
     get<DurableFleetEvidence>(
       `/api/fleet/campaigns/${encodeURIComponent(campaignId)}/evidence.json`,
@@ -1766,6 +1776,7 @@ export interface DrsRevisionView {
   };
 }
 export interface DrsCampaignView {
+  archived?: boolean;
   clientWorkspace?: Campaign['clientWorkspace'] | null;
   document: { currentRevision: number; revisions: DrsRevisionView[] } | null;
   defaultPlan: Record<string, unknown>;

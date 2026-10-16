@@ -91,6 +91,7 @@ export function registerDrsRoutes(
     if (!c) return reply.code(404).send({ error: 'Campaign not found' });
     return {
       clientWorkspace: c.clientWorkspace ?? null,
+      archived: c.archived === true,
       document: c.drsDocument ?? null,
       defaultPlan: defaultPlan(c),
       execution: 'Evidence workflow; never dispatches traffic or bypasses campaign approval',

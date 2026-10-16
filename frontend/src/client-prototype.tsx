@@ -16,9 +16,14 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
   const [fixture, setFixture] = useState('healthy');
   const [confirmed, setConfirmed] = useState(false);
   const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
-  const canApprove = canDo(app.role, 'approve', app.authRequired, app.userMode, app.capabilities);
-  const canExecute = canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
-  const campaigns = app.campaigns.filter((c) => c.clientWorkspace?.id === client.id && !c.archived);
+  const readOnly = view?.archived === true;
+  const canApprove =
+    !readOnly && canDo(app.role, 'approve', app.authRequired, app.userMode, app.capabilities);
+  const canExecute =
+    !readOnly && canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
+  const campaigns = app.campaigns.filter(
+    (c) => c.clientWorkspace?.id === client.id && (!c.archived || c.id === selected),
+  );
   const revision = view?.document?.revisions.find(
     (r) => r.number === view.document?.currentRevision,
   );
@@ -59,10 +64,10 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
     setError('');
     try {
       const c = await api.drsValidation(5, client.id);
-      await app.refresh();
       const next = new URLSearchParams(params);
       next.set('prototype', c.id);
       setParams(next);
+      await app.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -90,18 +95,21 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
       setBusy(false);
     }
   }
-  async function download() {
+  async function download(format: 'json' | 'html' = 'json') {
     if (!revision) return;
     setBusy(true);
     setError('');
     try {
-      const full = await api.drsReport(selected, revision.number);
+      const content =
+        format === 'html'
+          ? await api.drsReportHtml(selected, revision.number)
+          : JSON.stringify(await api.drsReport(selected, revision.number), null, 2);
       const url = URL.createObjectURL(
-        new Blob([JSON.stringify(full, null, 2)], { type: 'application/json' }),
+        new Blob([content], { type: format === 'html' ? 'text/html' : 'application/json' }),
       );
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${client.id}-prototype-${selected}.json`;
+      link.download = `${client.id}-prototype-${selected}.${format}`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -154,6 +162,7 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
       </label>
       {error && <p role="alert">{error}</p>}
       {selected && !view && !error && <p role="status">Loading saved prototype…</p>}
+      {readOnly && <span className="workbench-tag">Archived · read only</span>}
       {revision && (
         <>
           <h3>
@@ -299,6 +308,13 @@ export function ClientPrototype({ client }: { client: ClientWorkspace }) {
               </details>
               <button className="btn btn-primary" disabled={busy} onClick={() => void download()}>
                 Download prototype report
+              </button>
+              <button
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={() => void download('html')}
+              >
+                Download HTML
               </button>
               <p>
                 <Link to={'/campaigns?tab=evidence&campaign=' + encodeURIComponent(selected)}>

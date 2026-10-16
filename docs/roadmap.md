@@ -92,3 +92,7 @@ The source adds client-bound offline prototype campaigns: create, freeze, explic
 ### Prototype delivery checkpoint
 
 Build 478 is verified deployed after exact-SHA CI and native gates. The complete client/prototype/Run Theater/report path is testable with concise guidance. Accounts, campaigns, Fleet identities, settings, historical audit and infrastructure revisions are preserved. The prototype emits virtual events only; the physical acceptance prerequisites above remain open. See [deployment receipt](client-prototype-deployment-checkpoint.json).
+
+## Client archive and readable export
+
+Source adds client-filtered prototype history in Evidence archive, explicit loading/failure states, read-only archived assessments and authenticated standalone HTML export alongside JSON. Local verification and the deployed release must be recorded separately. The next physical dependencies remain unchanged: cluster allocation/access and independent measurement qualification.

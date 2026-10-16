@@ -11,6 +11,7 @@ const writeText = vi.fn().mockResolvedValue(undefined);
 beforeEach(() => {
   app = makeApp();
   vi.spyOn(api, 'listRuns').mockResolvedValue([]);
+  vi.spyOn(api, 'listCampaigns').mockResolvedValue([]);
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
   writeText.mockClear();
 });
@@ -77,4 +78,14 @@ describe('retained results surface', () => {
     expect(url.pathname).toBe('/api/reports/compliance');
     expect(url.searchParams.get('token')).toBe('read-only-fixture');
   });
+});
+
+it('keeps technical exports collapsed in the client-first archive', async () => {
+  app = makeApp({ drsWorkflow: true });
+  render(<ReportsPage />);
+  await screen.findByText('No client assessments yet.');
+  expect(screen.getByRole('heading', { name: 'Evidence archive' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Open compliance report' })).not.toBeVisible();
+  fireEvent.click(screen.getByText('Run reports and technical exports'));
+  expect(screen.getByRole('link', { name: 'Open compliance report' })).toBeVisible();
 });

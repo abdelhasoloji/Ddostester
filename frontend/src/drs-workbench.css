@@ -388,3 +388,56 @@
     width: calc(100vw - 3rem);
   }
 }
+
+.client-assessment-archive > label {
+  display: block;
+  margin: 1rem 0;
+}
+.client-assessment-archive select {
+  margin-left: 0.75rem;
+  max-width: 100%;
+}
+.assessment-archive-scroll {
+  overflow-x: auto;
+}
+.client-assessment-archive table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.client-assessment-archive th,
+.client-assessment-archive td {
+  text-align: left;
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+.client-prototype [aria-label='Prototype report'] > button {
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+
+.assessment-technical-reports > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 1rem 0;
+}
+
+.archive-mobile-meta {
+  display: none;
+}
+@media (max-width: 650px) {
+  .client-assessment-archive th:nth-child(2),
+  .client-assessment-archive td:nth-child(2),
+  .client-assessment-archive th:nth-child(4),
+  .client-assessment-archive td:nth-child(4) {
+    display: none;
+  }
+  .client-assessment-archive th,
+  .client-assessment-archive td {
+    padding: 0.65rem 0.35rem;
+  }
+  .archive-mobile-meta {
+    display: block;
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin-top: 0.35rem;
+  }
+}

@@ -268,3 +268,31 @@ it('requests an asynchronous start with explicit confirmation and no retry', asy
   expect(url).toBe('/api/campaigns/c1/execute');
   expect(JSON.parse(opts?.body as string)).toEqual({ background: true, confirmed: true });
 });
+
+describe('authenticated DRS HTML reports', () => {
+  it('uses the authorization header and rejects non-report content', async () => {
+    setToken('private-fixture');
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response('<html>Report</html>', { headers: { 'content-type': 'text/html' } }),
+      );
+    globalThis.fetch = fetch;
+    expect(await api.drsReportHtml('a/b', 1)).toBe('<html>Report</html>');
+    expect(fetch).toHaveBeenCalledWith('/api/campaigns/a%2Fb/drs/report.html?revision=1', {
+      headers: { authorization: 'Bearer private-fixture' },
+    });
+    fetch.mockResolvedValueOnce(
+      new Response('{}', { headers: { 'content-type': 'application/json' } }),
+    );
+    await expect(api.drsReportHtml('campaign', 1)).rejects.toThrow('HTML report unavailable');
+    fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Session expired' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    await expect(api.drsReportHtml('campaign', 1)).rejects.toThrow('Session expired');
+    expect(getToken()).toBeNull();
+  });
+});

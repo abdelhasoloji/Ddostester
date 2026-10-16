@@ -48,3 +48,9 @@ This prototype is verified deployed as build 478. See the [prototype deployment 
 ### Concise guidance
 
 Keep primary screens focused on actions, state and results. Contextual `ⓘ` help opens on hover, keyboard focus or touch; Escape or loss of focus closes it. Technical journals and reservations remain collapsed. The simulation label, confirmation and result status stay visible. Mobile help is pinned inside the viewport.
+
+## Client evidence archive increment
+
+Evidence archive now includes a separate client-assessment table, filtered to explicit client-bound engine validations. Filter by one of the three authorized clients; open a finalized report or resume an active prototype. Archived prototypes remain visible and their assessment controls are read only. Unbound historical campaigns and physical runs are not guessed into a client. The table loads its own current campaign snapshot, exposes refresh and distinguishes load failures from an empty archive. Physical run reports and technical exports remain in a collapsed section in DRS mode; the assistant dock is hidden on this primary archive page. On mobile, date and simulation mode sit below the client name so the report action remains visible.
+
+Finalized prototypes support both JSON evidence and a standalone HTML report. HTML is fetched with the session Authorization header and downloaded as a file; no write token is added to a URL. Non-HTML responses and expired sessions are rejected. Creation navigates to the returned campaign immediately, independently of list refresh. This source increment requires a separate verified release; build 478 remains the preceding deployed checkpoint.
