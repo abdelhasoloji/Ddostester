@@ -177,12 +177,11 @@ function attackDetail(
       : !run
         ? 'Not measured'
         : va.configuredRps
-          ? `${va.achievedRps}/${va.expectedRps} req/s mean (${Math.round(va.deliveryRatio * 100)}% of expected mean; peak ${va.configuredRps} req/s)`
+          ? `${va.achievedRps}/${va.expectedRps} req/s mean (${Math.round(va.deliveryRatio * 100)}% of expected mean; configured peak ${va.configuredRps} req/s)`
           : `${va.achievedRps} req/s`;
-  const caveats =
-    va.caveats.length && va.verdict !== 'breached'
-      ? `<tr><th>Caveats</th><td class="v-partial">${va.caveats.map(esc).join(' ')}</td></tr>`
-      : '';
+  const caveats = va.caveats.length
+    ? `<tr><th>Caveats</th><td class="v-partial">${va.caveats.map(esc).join(' ')}</td></tr>`
+    : '';
   return `<h3>Attack ${nr} / ${esc(va.shape)}</h3>
 <table class="kvs">
  <tr><th>DRS level</th><td>${va.drs}</td></tr>
@@ -198,7 +197,7 @@ function glossary(): string {
   return `<h2>Glossary</h2>
 <h3>Verdict</h3>
 <table class="kvs">
- <tr><th class="v-held">held</th><td>Legitimate availability held (≥99%) at the delivered rate — a valid test the target passed.</td></tr>
+ <tr><th class="v-held">held</th><td>Legitimate availability held (≥99%) at the delivered rate — a diagnostic at the delivered load; continuous availability and a DRS score are not established.</td></tr>
  <tr><th class="v-partial">partial</th><td>Some legitimate impact — availability dipped below 99% while the target stayed up.</td></tr>
  <tr><th class="r-crit">breached</th><td>The run met the probe-failure or automatic-stop criteria; probe sample success does not directly measure outage duration. Completion and resilience verdict are separate; a breach does not imply an automatic kill.</td></tr>
  <tr><th class="v-aborted">inconclusive</th><td>The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted. <b>Not a pass.</b></td></tr>
@@ -253,16 +252,16 @@ export function renderSuiteReportHtml(
     ? `On <b>${date}</b>, WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against <b>${esc(host)}</b> (the live target) — <b>${suite.total}</b> attack vectors, up to <b>DRS ${sa.maxDrs}</b>. ` +
       `<b>${sa.held}/${suite.total}</b> vectors held at their delivered rate` +
       (sa.partial ? `, <b>${sa.partial}</b> caused partial impact` : '') +
-      (sa.breached ? `, <b>${sa.breached}</b> breached the target` : '') +
+      (sa.breached ? `, <b>${sa.breached}</b> met the probe-failure criteria` : '') +
       (sa.inconclusive
         ? `, and <b>${sa.inconclusive}</b> were inconclusive (under-delivered or degraded — not a valid test at the target rate)`
         : '') +
       `. Overall risk is <b>${sa.worstRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
       (sa.breached
-        ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} took the target unavailable — a business-impacting gap.`
+        ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} met the probe-failure criteria; these observations do not establish outage duration or business impact.`
         : sa.inconclusive
-          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so ${sa.inconclusive === 1 ? 'its' : 'their'} resilience is unproven — re-run on a stronger generator to confirm.`
-          : `Legitimate traffic held throughout.`)
+          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so ${sa.inconclusive === 1 ? 'its' : 'their'} resilience is unproven — qualify the generator, target protocol and instrumentation before repeating.`
+          : `Completed legitimate probe transactions held; intervals between observations remain unmeasured.`)
     : 'No scored attacks yet.';
 
   // Per-tier (DRS) worst-case verdict.
@@ -283,8 +282,18 @@ export function renderSuiteReportHtml(
   const resultRows = [...byDrs.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([drs, ss]) => {
-      const maxRps = Math.max(0, ...ss.map((s) => s.va.configuredRps || s.va.achievedRps));
-      const loadLabel = ss.some((s) => s.run) ? `${maxRps} req/s` : 'Not measured';
+      const requests = ss.filter((s) => s.run && !s.va.isSlowConnection);
+      const maxRps = Math.max(0, ...requests.map((s) => s.va.configuredRps || s.va.achievedRps));
+      const connections = ss.filter((s) => s.run && s.va.isSlowConnection);
+      const loadLabel =
+        [
+          requests.length ? `${maxRps} req/s configured` : '',
+          connections.length
+            ? `${Math.max(...connections.map((s) => s.run!.generator.totalRequests))} opened connections`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' / ') || 'Not measured';
       const tv = tierVerdict(ss);
       const inc = ss.filter((s) => s.va.verdict === 'inconclusive').length;
       const note = inc ? ` (${inc} inconclusive)` : '';
@@ -366,16 +375,16 @@ export function renderSuiteReportHtml(
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Vectors', String(suite.total))}
       ${statCard('Worst WRS', sa.worstWrs != null ? String(sa.worstWrs) : '—')}
-      ${statCard('Valid at target rate', `${sa.validAtRate}/${suite.total}`, sa.validAtRate === suite.total)}
+      ${statCard('Diagnostic eligible', `${sa.validAtRate}/${suite.total}`, sa.validAtRate === suite.total)}
       ${statCard('Breached', String(sa.breached), false)}
     </div>
   </div>
 </div>` +
-    `<h2>Results — protection level by DRS</h2>
+    `<p class="muted">DRS NOT_EVALUATED: these bounded reference scenarios do not establish a measured DRS level. WRS is a separate legacy diagnostic.</p><h2>Results — reference scenario groups</h2>
 <table class="kvs"><thead><tr><th>Threat scenario</th><th>Attacks</th><th>Max rate</th><th>RiskLevel</th><th>Verdict</th></tr></thead><tbody>${resultRows}</tbody></table>` +
     `<h2>Layer 7 summary</h2>
-<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (peak→mean)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
-<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = target went unavailable; <b>inconclusive</b> = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.</p>` +
+<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>Load (configured→mean)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
+<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = probe-failure or automatic-stop criteria met; <b>inconclusive</b> = under-delivered/degraded or insufficient evidence. ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.</p>` +
     applicabilityCaveats +
     `<h2>Details — per attack</h2>${details}` +
     glossary() +

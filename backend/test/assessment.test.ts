@@ -241,7 +241,7 @@ describe('assessVector — breach vs probe contention', () => {
       ctx({ status: 'KILLED_AUTO' }),
     );
     expect(va.verdict).toBe('breached');
-    expect(va.observation).toMatch(/Not mitigated/);
+    expect(va.observation).toMatch(/Automatic stop/);
   });
 
   it('an auto-kill under probe contention is inconclusive, not a breach', () => {
@@ -264,7 +264,7 @@ describe('assessVector — breach vs probe contention', () => {
     );
     expect(va.verdict).toBe('breached');
     expect(va.mechanism).toBe('tarpitted');
-    expect(va.observation).toMatch(/collapsed to 40%/);
+    expect(va.observation).toMatch(/40% of completed legitimate probe transactions succeeded/);
   });
 
   it('a mild availability dip (≥50%) stays partial, not breached', () => {

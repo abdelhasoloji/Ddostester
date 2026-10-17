@@ -93,6 +93,10 @@ describe('renderSuiteReportHtml', () => {
     expect(html).toContain('Layer 7 summary');
     expect(html).toContain('Verdict'); // verdict-driven summary
     expect(html).toContain('Glossary');
+    expect(html).toContain('DRS NOT_EVALUATED');
+    expect(html).toContain('Load (configured→mean)');
+    expect(html).not.toContain('took the target unavailable');
+    expect(html).not.toContain('Legitimate traffic held throughout');
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // steps + glossary rows
   });
 

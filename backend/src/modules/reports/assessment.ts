@@ -41,20 +41,14 @@ export type Mechanism =
 export type VectorVerdict =
   | 'held' // legitimate availability held; a valid test at the delivered rate
   | 'partial' // some legitimate impact (availability dipped) but the target stayed up
-  | 'breached' // the target went unavailable (a real, attributed auto-kill)
+  | 'breached' // probe-failure threshold or attributed automatic stop
   | 'inconclusive'; // the measurement can't prove resilience (under-delivered / degraded / contended / aborted)
 
 /** Below this fraction of the configured rate, a rate-based vector never reached its intensity. */
 export const DELIVERY_MIN = 0.7;
 /** At/below this absorbed fraction the origin effectively served the load itself. */
 const SERVED_ABSORB_MAX = 0.05;
-/**
- * Below this legitimate availability the target was unavailable for the MAJORITY of
- * the run — a real outage, not a dip. Such a run is `breached` even when it wasn't
- * auto-killed (it may have recovered enough by the end to complete): grading it
- * `partial` on the final/average availability alone understated an 800-rps flood
- * that held legit traffic at ~0% for ~80s and recovered to 40%.
- */
+/** Fewer than half of completed probe transactions succeeded; not an outage-duration measure. */
 const AVAIL_BREACH = 50;
 
 export interface VectorContext {
@@ -296,16 +290,16 @@ function buildObservation(x: {
   status: string;
 }): string {
   if (x.status === 'KILLED_AUTO' && x.verdict === 'breached') {
-    return `Not mitigated — the target went unavailable (${x.availPct}% legitimate availability). ${x.statusDetail ?? 'The safety kill-switch stopped the run.'}`;
+    return `Automatic stop — ${x.availPct}% of completed legitimate probe transactions succeeded. ${x.statusDetail ?? 'The safety kill-switch stopped the run.'}`;
   }
   if (x.verdict === 'breached') {
     // A completed run that nonetheless drove legitimate availability below the
-    // breach floor — the target was unavailable for the majority of the run.
+    // breach floor — most completed probe transactions failed.
     const mech = describeMechanism(x.mechanism, x.originRps, x.absorbedPct, x.isSlow);
     const tail = x.wrs != null ? ` WRS ${x.wrs} (${x.level}).` : '';
     return (
-      `Not held — legitimate availability collapsed to ${x.availPct}% (the target was unavailable for ` +
-      `the majority of completed probe transactions failed). ${mech}.${tail}`
+      `Not held — ${x.availPct}% of completed legitimate probe transactions succeeded; ` +
+      `the majority failed. These samples do not establish outage duration. ${mech}.${tail}`
     );
   }
   if (x.status === 'KILLED_MANUAL') {
