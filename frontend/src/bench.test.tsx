@@ -117,6 +117,7 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
 
   it('refreshes coverage with the terminal verdict without a page reload', async () => {
     const timer = vi.spyOn(globalThis, 'setInterval');
+    const clear = vi.spyOn(globalThis, 'clearInterval');
     fakeApi.benchRuns.mockResolvedValueOnce({
       runs: [{ id: 'pending', scenario: 'udp_dns_reflection', status: 'CLAIMED' }],
     });
@@ -145,8 +146,12 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
       expect(await screen.findByText('Measured lab')).toBeTruthy();
       expect(screen.getByText('Completed')).toBeTruthy();
       expect(fakeApi.benchCoverage).toHaveBeenCalledTimes(2);
+      const pollingIndex = timer.mock.calls.findIndex((call) => call[1] === 4000);
+      // A terminal run can precede its coverage write. Do not stop polling here.
+      expect(clear).not.toHaveBeenCalledWith(timer.mock.results[pollingIndex].value);
     } finally {
       timer.mockRestore();
+      clear.mockRestore();
     }
   });
 

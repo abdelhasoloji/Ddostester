@@ -136,17 +136,17 @@ export function BenchCard() {
     };
   }, [canBench]);
 
-  // Poll while a run is still in flight, so the runner's verdict lands in view.
-  const pending = runs.some((r) => r.status === 'REQUESTED' || r.status === 'CLAIMED');
+  // Keep polling while visible: coverage may be stored after the terminal run,
+  // and another operator/runner may enqueue work after this view becomes idle.
   useEffect(() => {
-    if (!canBench || !pending) return;
+    if (!canBench) return;
     const t = setInterval(async () => {
       // Coverage is recorded with the terminal verdict; fetch it after runs.
       await refreshRuns();
       await refreshCoverage();
     }, 4000);
     return () => clearInterval(t);
-  }, [canBench, pending]);
+  }, [canBench]);
 
   if (!canBench) return null;
 
