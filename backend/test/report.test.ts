@@ -419,3 +419,13 @@ it('keeps missing probe evidence unknown and distinguishes a mean rate from an i
   expect(html).toContain('maximum recorded mean (not instantaneous peak)');
   expect(html).not.toContain('Achieved peak');
 });
+
+it('describes a slow-header run in connection units throughout its summary', () => {
+  const c = campaign();
+  c.vector = 'http-slowloris';
+  const html = renderCampaignReportHtml(c, run());
+  expect(html).toContain('Under a bounded hold of up to');
+  expect(html).toContain('Connections opened');
+  expect(html).not.toContain('Under a bounded HTTP load configured');
+  expect(html).not.toContain('Mean offered request rate');
+});

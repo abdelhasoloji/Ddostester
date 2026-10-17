@@ -168,7 +168,9 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   // Management summary — led by the engine's verdict + faithful observation.
   const kill = run.status !== 'COMPLETED';
   const summary =
-    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for a configured <b>${campaign.maxDurationSec}s</b> against ` +
+    (slow
+      ? `Under a bounded hold of up to <b>${campaign.concurrency} connections</b> for a configured <b>${campaign.maxDurationSec}s</b> against `
+      : `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for a configured <b>${campaign.maxDurationSec}s</b> against `) +
     `<b>${esc(hostOf(campaign.target))}</b>, the run scored <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
     `<b>${assessment.verdict}</b>, RiskLevel <b>${risk.label}</b>. ${esc(assessment.observation)}` +
     (run.baselineDelta && run.baseline?.observation?.complete !== false

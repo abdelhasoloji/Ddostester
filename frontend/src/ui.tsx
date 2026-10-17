@@ -1330,6 +1330,8 @@ function EdgeErrorNote({ errors }: { errors: NonNullable<CampaignRun['edgeErrors
 
 export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
+  const slow =
+    run.assessment?.isSlowConnection || run.timeline?.some((s) => s.sampleUnit === 'connections');
   const reportedAgents =
     g.fleet?.counterCoverage?.reportedAgents ??
     g.fleet?.shards.filter((shard) => shard.result?.generator).length;
@@ -1340,10 +1342,26 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       {run.assessment && <RunVerdictLine a={run.assessment} />}
       {run.edgeErrors && run.edgeErrors.length > 0 && <EdgeErrorNote errors={run.edgeErrors} />}
       <div className="metrics">
-        <Metric label={partialCounters ? 'Reported requests (partial)' : 'Requests'}>
+        <Metric
+          label={
+            slow
+              ? 'Connections opened'
+              : partialCounters
+                ? 'Reported requests (partial)'
+                : 'Requests'
+          }
+        >
           {counterValue(g.totalRequests)}
         </Metric>
-        <Metric label={partialCounters ? 'Reported outcomes (partial)' : 'Success / failures'}>
+        <Metric
+          label={
+            slow
+              ? 'Held / closed at completion'
+              : partialCounters
+                ? 'Reported outcomes (partial)'
+                : 'Success / failures'
+          }
+        >
           {counterValue(g.successful)} / {counterValue(g.failed)}
         </Metric>
         {g.assertionsChecked ? (
@@ -1351,12 +1369,16 @@ export function RunDetails({ run }: { run: CampaignRun }) {
             {g.assertionFailures ?? 0} / {g.assertionsChecked}
           </Metric>
         ) : null}
-        <Metric label={partialCounters ? 'Reported RPS (partial)' : 'Actual RPS'}>
-          {counterValue(g.actualRps)}
-        </Metric>
-        <Metric label={partialCounters ? 'Reported latency p95 (partial)' : 'Latency p95'}>
-          {g.latencySampleCount === 0 ? 'unknown' : `${counterValue(g.latencyMs.p95)} ms`}
-        </Metric>
+        {!slow && (
+          <>
+            <Metric label={partialCounters ? 'Reported RPS (partial)' : 'Mean RPS'}>
+              {counterValue(g.actualRps)}
+            </Metric>
+            <Metric label={partialCounters ? 'Reported latency p95 (partial)' : 'Latency p95'}>
+              {g.latencySampleCount === 0 ? 'unknown' : `${counterValue(g.latencyMs.p95)} ms`}
+            </Metric>
+          </>
+        )}
         <Metric label="Probe 5xx">{run.probe.errorRate5xx}%</Metric>
         <Metric label="Probe availability">
           {run.probe.available}/{run.probe.samples}
@@ -1455,7 +1477,7 @@ export function RunDetails({ run }: { run: CampaignRun }) {
           csvHref={runTimelineCsvUrl(run.runId)}
         />
       )}
-      <AbsorptionWidget run={run} />
+      {!slow && <AbsorptionWidget run={run} />}
       <FleetEvidencePanel run={run} />
       <ProbeQualityPanel probe={run.probe} />
       {run.recoveryBeforeRun && (
