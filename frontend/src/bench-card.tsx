@@ -140,7 +140,11 @@ export function BenchCard() {
   const pending = runs.some((r) => r.status === 'REQUESTED' || r.status === 'CLAIMED');
   useEffect(() => {
     if (!canBench || !pending) return;
-    const t = setInterval(refreshRuns, 4000);
+    const t = setInterval(async () => {
+      // Coverage is recorded with the terminal verdict; fetch it after runs.
+      await refreshRuns();
+      await refreshCoverage();
+    }, 4000);
     return () => clearInterval(t);
   }, [canBench, pending]);
 

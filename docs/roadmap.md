@@ -1,5 +1,9 @@
 # Current implementation and remaining work
 
+## Synthetic reporting correction — 17 October 2026
+
+Source now refreshes bench coverage alongside polled run results, renders TCP opened/accepted/refused/peak/capacity counters in individual reports, and separates network evidence from HTTP WRS in aggregate conclusions. Empty HTTP periods no longer render a zero score; network saturation and unmitigated-baseline outcomes are counted without declaring targets clean. Bench evidence respects report period filters and adverse historical observations remain in the conclusion. No execution limits, accounts, generators or Pod definitions changed. Deployment and full-ladder acceptance are recorded separately after verification.
+
 ## Selected synthetic workflow — 17 October 2026
 
 Delivered as build 473 / `0e43cea`, with four green CI jobs, native release checks, encrypted recovery, matching API/UI identity and preservation checks. The three agents are online and their Pod UIDs are unchanged; the bench runner is active. The real campaign qualification remains isolated lab evidence, not a production browser run. [Deployment receipt](synthetic-bench-deployment-checkpoint.json).

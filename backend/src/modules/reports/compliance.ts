@@ -128,6 +128,24 @@ export function renderComplianceHtml(
     })
     .sort((a, b) => Date.parse(a.generator.finishedAt) - Date.parse(b.generator.finishedAt));
 
+  // Apply the same period to bench evidence. Preserve historical adverse outcomes
+  // in the conclusion even when a newer measurement covers the same vector.
+  const bench = opts.bench && {
+    ...opts.bench,
+    coverage: opts.bench.coverage.filter((c) => {
+      const t = Date.parse(c.at);
+      return t >= from && t <= to;
+    }),
+  };
+  const measuredBench = bench?.coverage.filter((c) => c.method === 'MEASURED_LAB') ?? [];
+  const saturated = measuredBench.filter((c) => c.outcome === 'STATE_TABLE_SATURATED').length;
+  const baselines = measuredBench.filter((c) => c.outcome === 'UNMITIGATED_BASELINE').length;
+  const benchSummary = measuredBench.length
+    ? `<p class="lead">Synthetic network bench: <b>${measuredBench.length}</b> retained laboratory observations; ` +
+      `<b>${saturated}</b> state-table saturation outcomes; <b>${baselines}</b> unmitigated baselines. ` +
+      `These observations do not establish a measured DRS score or successful protection.</p>`
+    : '';
+
   const total = inPeriod.length;
   const byStatus = new Map<string, number>();
   const byLevel = new Map<string, number>();
@@ -191,7 +209,9 @@ export function renderComplianceHtml(
       (anyEstimated
         ? `Some runs have estimated detection/mitigation (no protection source), so their score reflects measured availability.`
         : `Detection/mitigation timings were measured for these runs.`)
-    : `No bounded assessments were recorded in <b>${period}</b>.`;
+    : measuredBench.length
+      ? `No HTTP assessments were recorded in <b>${period}</b>. Network-bench evidence is summarized separately.`
+      : `No bounded assessments were recorded in <b>${period}</b>.`;
 
   // WRS-by-level distribution (single hue), ordered best→worst.
   const LEVEL_ORDER = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'];
@@ -270,7 +290,7 @@ export function renderComplianceHtml(
     })
     .join('');
 
-  const benchSection = benchCoverageSection(opts.bench);
+  const benchSection = benchCoverageSection(bench);
 
   // Post-test weaknesses + concrete remediations, ranked across the period.
   const remediations = aggregateRemediations(
@@ -289,7 +309,7 @@ export function renderComplianceHtml(
             `<tr><td>${pill(r.severity, SEVERITY_PILL[r.severity])}</td><td>${esc(r.weakness)}</td><td>${esc(r.remediation)}</td><td>${r.affected}</td></tr>`,
         )
         .join('')}</tbody></table>`
-    : `<h2>Weaknesses &amp; recommended remediations</h2><p class="muted">No weaknesses identified across the assessed runs — targets held cleanly.</p>`;
+    : `<h2>Weaknesses &amp; recommended remediations</h2><p class="muted">No additional HTTP remediations were derived. This does not establish that targets held cleanly; inspect the per-scenario verdicts and network-bench evidence.</p>`;
 
   return (
     docHead('Resilience assessment — WEDOS ShieldTest') +
@@ -297,11 +317,11 @@ export function renderComplianceHtml(
       'Resilience assessment',
       `Period ${period} · generated ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC`,
     ) +
-    `<p class="lead">${summary}</p>` +
+    `<p class="lead">${summary}</p>${benchSummary}` +
     `<h2>At a glance</h2>
 <div class="scorecard">
-  <div>${gaugeSvg(wrsAvgNum, { sub: 'avg WRS', color: scoreColor(wrsAvgNum) })}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Average across ${total} run${total === 1 ? '' : 's'}</div></div>
+  <div>${total ? gaugeSvg(wrsAvgNum, { sub: 'avg WRS', color: scoreColor(wrsAvgNum) }) : '<p>HTTP WRS: not evaluated</p>'}
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">HTTP average across ${total} run${total === 1 ? '' : 's'}</div></div>
   <div>
     <div class="pills">${pill(`${riskCount.Critical} Critical`, riskCount.Critical ? 'crit' : 'neutral')} ${pill(`${riskCount.Medium} Medium`, riskCount.Medium ? 'warn' : 'neutral')} ${pill(`${riskCount.Low} Low`, 'good')}</div>
     <div class="grid cards" style="margin-top:.7rem">
@@ -320,7 +340,8 @@ export function renderComplianceHtml(
  ${row('Runs assessed', total)}
  ${row('Targets', [...targets].map(esc).join(', ') || '—')}
  ${row('Load engines', [...engines].map(esc).join(', ') || '—')}
- ${row('Method', `Bounded HTTP (GET/POST), allowlisted, capped ≤ ${HARD_CAPS.maxRps} rps / ${HARD_CAPS.maxConcurrency} conc / ${HARD_CAPS.maxDurationSec} s`)}
+ ${row('HTTP method', `Bounded HTTP (GET/POST), allowlisted, capped ≤ ${HARD_CAPS.maxRps} rps / ${HARD_CAPS.maxConcurrency} conc / ${HARD_CAPS.maxDurationSec} s`)}
+ ${measuredBench.length ? row('Network method', 'Bounded synthetic UDP shapes and real TCP connection pressure on the isolated lab; no HTTP WRS applies') : ''}
  ${row('DRS note', 'DRS 3.00.00 is evaluated only from frozen independent evidence; no DRS score is inferred from WRS or reference-level labels')}
 </table>` +
     `<h2>Score &amp; risk distribution</h2>
@@ -363,8 +384,7 @@ ${benchSection}
  <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; effective rate the target sustained; a large gap means the protection rate-limited or tarpitted the flood. Volumetric PPS is out of scope.</td></tr>
 </table>
 
-<p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. Bounded HTTP generator —
-no volumetric, amplification or spoofing vector. WEDOS internal use.</p>` +
+<p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. HTTP observations and synthetic network-bench evidence are separate scopes; missing evidence is not a success. WEDOS internal use.</p>` +
     DOC_TAIL
   );
 }

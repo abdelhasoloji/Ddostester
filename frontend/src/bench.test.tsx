@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 let currentApp: ReturnType<typeof makeApp>;
@@ -113,6 +113,41 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
       '/api/bench/runs/b1/report',
     );
     expect(fakeApi.createBenchRun).not.toHaveBeenCalled();
+  });
+
+  it('refreshes coverage with the terminal verdict without a page reload', async () => {
+    const timer = vi.spyOn(globalThis, 'setInterval');
+    fakeApi.benchRuns.mockResolvedValueOnce({
+      runs: [{ id: 'pending', scenario: 'udp_dns_reflection', status: 'CLAIMED' }],
+    });
+    fakeApi.benchCoverage.mockResolvedValueOnce({ coverage: [] }).mockResolvedValueOnce({
+      coverage: [
+        {
+          id: 'live',
+          vector: 'udp_dns_reflection',
+          method: 'MEASURED_LAB',
+          outcome: 'UNMITIGATED_BASELINE',
+          summary: 'Live receiver evidence',
+          source: 'runner',
+          at: new Date().toISOString(),
+        },
+      ],
+    });
+    try {
+      renderWithRouter(<SettingsPage />);
+      await screen.findByText('Claimed');
+      await waitFor(() => expect(fakeApi.benchCoverage).toHaveBeenCalledTimes(1));
+      const tick = timer.mock.calls.find((call) => call[1] === 4000)?.[0];
+      expect(typeof tick).toBe('function');
+      await act(async () => {
+        await (tick as () => Promise<void>)();
+      });
+      expect(await screen.findByText('Measured lab')).toBeTruthy();
+      expect(screen.getByText('Completed')).toBeTruthy();
+      expect(fakeApi.benchCoverage).toHaveBeenCalledTimes(2);
+    } finally {
+      timer.mockRestore();
+    }
   });
 
   it('shows the CISO the DRS coverage matrix and a completed verdict', async () => {

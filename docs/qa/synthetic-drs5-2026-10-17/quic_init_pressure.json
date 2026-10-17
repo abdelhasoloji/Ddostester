@@ -1,0 +1,56 @@
+{
+  "scenario": "quic_init_pressure",
+  "generator": {
+    "sent": 1200,
+    "profile": "generic"
+  },
+  "generators": [
+    {
+      "profile": "generic",
+      "shape": "constant",
+      "factor": 1,
+      "packetFactor": 1,
+      "sent": 1200
+    }
+  ],
+  "perProfile": {
+    "generic": {
+      "requests": 1200,
+      "inputBytes": 111600,
+      "outputPackets": 1200,
+      "outputBytes": 111600
+    }
+  },
+  "reflector": {
+    "requests": 1200,
+    "bap": 1,
+    "packetAmplification": 1
+  },
+  "target": {
+    "packets": 1200,
+    "avgPps": 186.77,
+    "avgBps": 138957.2
+  },
+  "scrubber": null,
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "udp-amplification",
+    "scenario": "quic_init_pressure",
+    "labTarget": "lab-target.internal",
+    "profiles": ["generic"],
+    "amplificationFactor": 1,
+    "packetAmplification": 1,
+    "requests": 1200,
+    "target": {
+      "packets": 1200,
+      "avgPps": 186.77,
+      "avgBps": 138957.2
+    },
+    "mitigation": null,
+    "outcome": "UNMITIGATED_BASELINE",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:25:54.216Z"
+  }
+}

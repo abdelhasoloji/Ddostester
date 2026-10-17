@@ -1,0 +1,75 @@
+{
+  "default": "builtin-http",
+  "agents": [
+    {
+      "id": "builtin",
+      "name": "builtin-http",
+      "available": true,
+      "multiPhase": true,
+      "flowCapable": true,
+      "endpointCapable": true,
+      "correlationCapable": true,
+      "description": "Built-in bounded HTTP generator (no external tool required) — flows with correlation."
+    },
+    {
+      "id": "k6",
+      "name": "k6",
+      "available": true,
+      "multiPhase": true,
+      "flowCapable": true,
+      "endpointCapable": true,
+      "correlationCapable": true,
+      "description": "k6 (external) — arrival-rate load, ramping scenarios, and multi-step flows with correlation (authenticated journeys at high rate)."
+    },
+    {
+      "id": "vegeta",
+      "name": "vegeta",
+      "available": true,
+      "multiPhase": true,
+      "flowCapable": false,
+      "endpointCapable": true,
+      "correlationCapable": false,
+      "description": "Vegeta (external) — fixed-rate load, runs phases sequentially (no multi-step flows)."
+    },
+    {
+      "id": "locust",
+      "name": "locust",
+      "available": true,
+      "multiPhase": false,
+      "flowCapable": true,
+      "endpointCapable": false,
+      "correlationCapable": false,
+      "description": "Locust (external, headless) — shared request pacing, supports multi-step flows; use k6/vegeta for phases."
+    },
+    {
+      "id": "jmeter",
+      "name": "jmeter",
+      "available": true,
+      "multiPhase": false,
+      "flowCapable": true,
+      "endpointCapable": false,
+      "correlationCapable": false,
+      "description": "Apache JMeter (external, headless) — constant throughput, supports multi-step flows; heavy (JVM)."
+    },
+    {
+      "id": "gatling",
+      "name": "gatling",
+      "available": true,
+      "multiPhase": false,
+      "flowCapable": true,
+      "endpointCapable": false,
+      "correlationCapable": false,
+      "description": "Gatling (native HTTP) — bounded concurrency and request rate, supports multi-step flows; JVM preparation required."
+    },
+    {
+      "id": "fleet",
+      "name": "iot-fleet",
+      "available": true,
+      "multiPhase": false,
+      "flowCapable": false,
+      "endpointCapable": false,
+      "correlationCapable": false,
+      "description": "One to three enrolled VPS Lab agents; bounded GET, shared caps of 15 RPS, 6 workers, 60 seconds."
+    }
+  ]
+}

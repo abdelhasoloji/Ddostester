@@ -1,5 +1,9 @@
 # Current setup — observed 15 October 2026
 
+## Synthetic reporting correction — 17 October 2026
+
+Source now refreshes bench coverage alongside polled run results, renders TCP opened/accepted/refused/peak/capacity counters in individual reports, and separates network evidence from HTTP WRS in aggregate conclusions. Empty HTTP periods no longer render a zero score; network saturation and unmitigated-baseline outcomes are counted without declaring targets clean. Bench evidence respects report period filters and adverse historical observations remain in the conclusion. No execution limits, accounts, generators or Pod definitions changed. Deployment and full-ladder acceptance are recorded separately after verification.
+
 ## Synthetic bench replaces HTTP qualification — 17 October 2026
 
 Delivery verified at 11:41 UTC: API/UI build **473**, commit `0e43cea0b5055806f71dbf337365b8dc4279f9ce`, immutable release `/home/shieldtest/ddostester-releases/release-0e43cea.BKdKp8`. All four exact-source CI jobs, native verification and authenticated encrypted restore passed. HTTPS/mTLS and readiness passed; sole admin, 11 accounts, 289 campaigns, settings, audit and three online Fleet identities are preserved. All three Pod UIDs are unchanged. No production campaign was launched. See [deployment checkpoint](synthetic-bench-deployment-checkpoint.json). Browser visual acceptance remains the separate limitation described below.

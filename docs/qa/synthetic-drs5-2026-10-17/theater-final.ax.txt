@@ -1,0 +1,273 @@
+Browser tab: 23, Title: "WEDOS ShieldTest — Control Plane", URL: "http://127.0.0.1:18096/theater?mode=synthetic".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 47, 77, 90, 103, 116, 168, 220, 233, 246, 259, 272, 285, 298, 309
++			323 table
++				324 row
++					325 cell
++						326 text SCENARIO
++					327 cell
++						328 text STATUS
++					329 cell
++						330 text OUTCOME
++					331 cell
++						332 text AMPLIFICATION
++					333 cell
++						334 text COLLATERAL
++					335 cell
++						336 text RECEIVED PACKETS
++					337 cell
++						338 text RECEIVED MBIT/S
++					339 cell
++						340 text REQUESTED
++				341 row
++					342 cell
++						343 text pulsewave_l34
++					344 cell
++						345 text COMPLETED
++					346 cell
++						347 text UNMITIGATED BASELINE
++					348 cell
++						349 text 132.41×
++					350 cell
++						351 text —
++					352 cell
++						353 text 1452
++					354 cell
++						355 text 5.460
++					356 cell
++						357 text 17/10/2026 14:26:15  ·
++						358 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/d07ce49c-2371-4fe6-b190-e51be7a6ddc6/report
++				359 row
++					360 cell
++						361 text udp_multivector
++					362 cell
++						363 text COMPLETED
++					364 cell
++						365 text UNMITIGATED BASELINE
++					366 cell
++						367 text 168.27×
++					368 cell
++						369 text —
++					370 cell
++						371 text 1951
++					372 cell
++						373 text 10.179
++					374 cell
++						375 text 17/10/2026 14:26:09  ·
++						376 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/6256c045-2338-4508-bb09-f7936257d87a/report
++				377 row
++					378 cell
++						379 text udp_memcached_reflection
++					380 cell
++						381 text COMPLETED
++					382 cell
++						383 text UNMITIGATED BASELINE
++					384 cell
++						385 text 500×
++					386 cell
++						387 text —
++					388 cell
++						389 text 780
++					390 cell
++						391 text 4.761
++					392 cell
++						393 text 17/10/2026 14:26:02  ·
++						394 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/50d22498-b35a-4237-9e1e-dc09e43adc87/report
++				395 row
++					396 cell
++						397 text tcp_conn_drain
++					398 cell
++						399 text COMPLETED
++					400 cell
++						401 text STATE TABLE SATURATED
++					402 cell
++						403 text 57.26% sat
++					404 cell
++						405 text —
++					406 cell
++						407 text —
++					408 cell
++						409 text —
++					410 cell
++						411 text 17/10/2026 14:25:54  ·
++						412 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/6bba09e2-d7b9-4697-9b8a-7da367c36cc7/report
++				413 row
++					414 cell
++						415 text quic_init_pressure
++					416 cell
++						417 text COMPLETED
++					418 cell
++						419 text UNMITIGATED BASELINE
++					420 cell
++						421 text 1×
++					422 cell
++						423 text —
++					424 cell
++						425 text 1200
++					426 cell
++						427 text 0.139
++					428 cell
++						429 text 17/10/2026 14:25:47  ·
++						430 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/537230aa-8a45-4c1d-977e-9487535a530c/report
++				431 row
++					432 cell
++						433 text udp_cldap_reflection
++					434 cell
++						435 text COMPLETED
++					436 cell
++						437 text UNMITIGATED BASELINE
++					438 cell
++						439 text 50×
++					440 cell
++						441 text —
++					442 cell
++						443 text 720
++					444 cell
++						445 text 4.127
++					446 cell
++						447 text 17/10/2026 14:25:41  ·
++						448 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/f0a51f1a-e963-4079-9200-8e68bfcd1831/report
++				449 row
++					450 cell
++						451 text tcp_maxpackets
++					452 cell
++						453 text COMPLETED
++					454 cell
++						455 text STATE TABLE SATURATED
++					456 cell
++						457 text 58.62% sat
++					458 cell
++						459 text —
++					460 cell
++						461 text —
++					462 cell
++						463 text —
++					464 cell
++						465 text 17/10/2026 14:25:34  ·
++						466 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/ca6efad0-47c9-4a47-ae65-5cd51aa67f2c/report
++				467 row
++					468 cell
++						469 text udp_ssdp_reflection
++					470 cell
++						471 text COMPLETED
++					472 cell
++						473 text UNMITIGATED BASELINE
++					474 cell
++						475 text 30×
++					476 cell
++						477 text —
++					478 cell
++						479 text 840
++					480 cell
++						481 text 2.854
++					482 cell
++						483 text 17/10/2026 14:25:28  ·
++						484 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/a5ad13b2-3d73-4429-a0f4-7226c20f24bb/report
++				485 row
++					486 cell
++						487 text udp_maxpackets
++					488 cell
++						489 text COMPLETED
++					490 cell
++						491 text UNMITIGATED BASELINE
++					492 cell
++						493 text 10×
++					494 cell
++						495 text —
++					496 cell
++						497 text 6660
++					498 cell
++						499 text 0.779
++					500 cell
++						501 text 17/10/2026 14:25:22  ·
++						502 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/2cb0e95f-1a89-4be8-98ae-2b625a667379/report
++				503 row
++					504 cell
++						505 text tcp_synflood
++					506 cell
++						507 text COMPLETED
++					508 cell
++						509 text STATE TABLE SATURATED
++					510 cell
++						511 text 77.01% sat
++					512 cell
++						513 text —
++					514 cell
++						515 text —
++					516 cell
++						517 text —
++					518 cell
++						519 text 17/10/2026 14:25:15  ·
++						520 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/2e90a1d1-19c2-43bc-80eb-4451f45a6dec/report
++				521 row
++					522 cell
++						523 text udp_ntp_reflection
++					524 cell
++						525 text COMPLETED
++					526 cell
++						527 text UNMITIGATED BASELINE
++					528 cell
++						529 text 300×
++					530 cell
++						531 text —
++					532 cell
++						533 text 780
++					534 cell
++						535 text 4.420
++					536 cell
++						537 text 17/10/2026 14:25:09  ·
++						538 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/952c5649-6bb3-439d-89ef-ed277dd41704/report
++				539 row
++					540 cell
++						541 text udp_dns_reflection
++					542 cell
++						543 text COMPLETED
++					544 cell
++						545 text UNMITIGATED BASELINE
++					546 cell
++						547 text 40×
++					548 cell
++						549 text —
++					550 cell
++						551 text 720
++					552 cell
++						553 text 3.220
++					554 cell
++						555 text 17/10/2026 14:24:51  ·
++						556 link Description: Report, Value: 127.0.0.1:18096/api/bench/runs/73b648ee-7e30-4e79-8e79-76f59fcb85bc/report
+~			50 text 18  vectors 12 measured (lab) 12 covered (any method) 6 never emitted
+~						75 text MEASURED LAB
++						557 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 40×. ·  isolated-drs5-473
+~						88 text MEASURED LAB
++						558 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 77.01% at peak 200 conns. ·  isolated-drs5-473
+~						101 text MEASURED LAB
++						559 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 10×. ·  isolated-drs5-473
+~						114 text MEASURED LAB
++						560 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 58.62% at peak 300 conns. ·  isolated-drs5-473
+~						166 text MEASURED LAB
++						561 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 168.27×. ·  isolated-drs5-473
+~						218 text MEASURED LAB
++						562 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 300×. ·  isolated-drs5-473
+~						231 text MEASURED LAB
++						563 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 30×. ·  isolated-drs5-473
+~						244 text MEASURED LAB
++						564 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 50×. ·  isolated-drs5-473
+~						257 text MEASURED LAB
++						565 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 500×. ·  isolated-drs5-473
+~						270 text MEASURED LAB
++						566 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 1×. ·  isolated-drs5-473
+~						283 text MEASURED LAB
++						567 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 57.26% at peak 200 conns. ·  isolated-drs5-473
+~						296 text MEASURED LAB
++						568 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 132.41×. ·  isolated-drs5-473
+~			300 button + Attestation checklist
++			569 text The assistant is not configured on the server. Set 
++			570 text ASSISTANT_ENDPOINT
++			571 text  (and
++			572 text ASSISTANT_API_KEY
++			573 text ) — or 
++			574 text RUNPOD_API_KEY
++			575 text  +
++			576 text RUNPOD_POD_ID
++			577 text  for pod power control — on the API to enable it. qwen
+The focused UI element is 1 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18096/theater?mode=synthetic

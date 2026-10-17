@@ -1,0 +1,69 @@
+{
+  "scenario": "pulsewave_l34",
+  "generator": {
+    "sent": 767,
+    "profile": "mixed"
+  },
+  "generators": [
+    {
+      "profile": "dns",
+      "shape": "burst",
+      "factor": 40,
+      "packetFactor": 2,
+      "sent": 432
+    },
+    {
+      "profile": "ntp",
+      "shape": "burst",
+      "factor": 80,
+      "packetFactor": 4,
+      "sent": 335
+    }
+  ],
+  "perProfile": {
+    "dns": {
+      "requests": 432,
+      "inputBytes": 38880,
+      "outputPackets": 864,
+      "outputBytes": 3110400
+    },
+    "ntp": {
+      "requests": 335,
+      "inputBytes": 30150,
+      "outputPackets": 1340,
+      "outputBytes": 6030000
+    }
+  },
+  "reflector": {
+    "requests": 767,
+    "bap": 132.41,
+    "packetAmplification": 2.87
+  },
+  "target": {
+    "packets": 1452,
+    "avgPps": 172.14,
+    "avgBps": 5459537.64
+  },
+  "scrubber": null,
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "udp-amplification",
+    "scenario": "pulsewave_l34",
+    "labTarget": "lab-target.internal",
+    "profiles": ["dns", "ntp"],
+    "amplificationFactor": 132.41,
+    "packetAmplification": 2.87,
+    "requests": 767,
+    "target": {
+      "packets": 1452,
+      "avgPps": 172.14,
+      "avgBps": 5459537.64
+    },
+    "mitigation": null,
+    "outcome": "UNMITIGATED_BASELINE",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:26:24.000Z"
+  }
+}
