@@ -103,12 +103,17 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const a = run?.absorption;
   const measuredAvailability = run ? observedAvailability(run) : null;
   const avail = measuredAvailability ?? 0;
-  const configuredRps = a?.configuredRps ?? 0;
+  const cal = run?.calibration;
+  const recordedPeak = a?.configuredRps ?? run?.generator.config?.maxRps ?? 0;
+  const configuredRps = cal?.calibrated ? Math.max(recordedPeak, cal.requestedRps) : recordedPeak;
   // The rate the scenario meant to offer (its mean) — the honest denominator for
   // delivery. Equals the peak for a constant profile; lower for a wave/ramp. A
   // faithfully-delivered wave's mean is ~73% of its peak, a ramp's ~58%, so
   // measuring delivery against the peak would falsely flag them under-delivered.
-  const expectedRps = a?.expectedRps ?? configuredRps;
+  const recordedMean = a?.expectedRps ?? recordedPeak;
+  // Keep the originally requested exposure as the denominator after calibration.
+  const expectedRps =
+    recordedPeak > 0 ? (recordedMean * configuredRps) / recordedPeak : configuredRps;
   const achievedRps = a?.achievedRps ?? (run ? run.generator.actualRps : 0);
   const originRps = a?.originRps ?? 0;
   const absorbedRatio = a?.absorbedRatio ?? 0;
@@ -125,6 +130,26 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
 
   const caveats: string[] = [];
   const noProbe = !!run && measuredAvailability === null;
+  const approximation = /rapid.?reset|continuation|thor|pulsewave|carpet.bombing/i.test(ctx.shape);
+  const intendedUrls = run?.generator.config?.endpoints?.map((e) => e.url) ?? [];
+  const primaryUrl = run?.generator.config?.execution?.probeUrl;
+  const monitoredUrls =
+    run?.probe.endpoints?.filter((e) => e.samples > 0).map((e) => e.url) ??
+    (primaryUrl ? [primaryUrl] : []);
+  const missingCoverage =
+    intendedUrls.length > 0 && intendedUrls.some((url) => !monitoredUrls.includes(url));
+  if (approximation)
+    caveats.push(
+      'This bounded HTTP approximation does not implement the named protocol abuse or distributed mechanism; completion cannot establish resilience to that mechanism.',
+    );
+  if (missingCoverage)
+    caveats.push(
+      'Functional probe coverage does not include every requested endpoint. Availability describes only the monitored checks, not the entire target.',
+    );
+  if ((run?.probe.endpoints?.length ?? 0) > 1)
+    caveats.push(
+      'Availability counts complete probe cycles: every monitored GET check must succeed. It does not validate authenticated or POST transactions. Baseline latency on the primary URL is not comparable with the maximum latency across these checks.',
+    );
   const unsupportedH2 =
     /http\/?2|rapid.?reset|continuation/i.test(ctx.shape) && ctx.h2Confirmed !== true;
   if (noProbe) caveats.push('No completed probe observations; availability is unknown.');
@@ -147,7 +172,6 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
         `so resilience at the full DRS ${ctx.drs} rate is unproven.`,
     );
   }
-  const cal = run?.calibration;
   if (cal?.calibrated) {
     caveats.push(
       `Rate-calibrated: the requested ${cal.requestedRps} req/s exceeded what the generator ` +
@@ -179,16 +203,32 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   else if (rejectedRatio >= tarpitRatio) mechanism = 'rejected';
   else mechanism = 'tarpitted';
 
+  const secondaryBaselineMissing =
+    (run?.probe.endpoints?.length ?? 0) > 1 &&
+    (run?.probe.endpoints ?? []).some((e) => {
+      if (e.url === primaryUrl) return false;
+      const b = run?.probeBaselines?.find((b) => b.url === e.url)?.metrics;
+      return (
+        !b ||
+        b.samples < 1 ||
+        b.availabilityPct !== 100 ||
+        b.observation?.complete === false ||
+        Boolean(b.quality && remoteProbeQualityReasons(b.quality).length)
+      );
+    });
   const baselineMissing =
+    secondaryBaselineMissing ||
     run?.baseline?.observation?.complete === false ||
     Boolean(run?.baseline?.quality && remoteProbeQualityReasons(run.baseline.quality).length);
   if (baselineMissing)
     caveats.push(
-      'Remote baseline observations or resource diagnostics are uncertain; no reliable baseline comparison is available.',
+      'Baseline observations for the monitored routes or resource diagnostics are incomplete or unhealthy; no reliable pre-load comparison is available.',
     );
+  const reducedCalibration = cal?.calibrated === true && cal.appliedRps < cal.requestedRps;
   // Verdict — tied to what the measurement can prove.
   let verdict: VectorVerdict;
-  if (noProbe || unsupportedH2) verdict = 'inconclusive';
+  if (noProbe || unsupportedH2 || approximation || missingCoverage || reducedCalibration)
+    verdict = 'inconclusive';
   else if (ctx.status === 'KILLED_AUTO')
     verdict =
       run?.probeContended ||
@@ -214,6 +254,9 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     Boolean(run) &&
     !noProbe &&
     !unsupportedH2 &&
+    !approximation &&
+    !missingCoverage &&
+    !reducedCalibration &&
     ctx.status === 'COMPLETED' &&
     !baselineMissing &&
     !underDelivered &&
@@ -247,7 +290,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   // the verdict is never mistaken for one proven at the full requested rate.
   if (cal?.calibrated) {
     observation +=
-      ` (Rate-calibrated: graded at ${cal.appliedRps} req/s — the deliverable ceiling here — ` +
+      ` (Rate-calibrated: observed at ${cal.appliedRps} req/s — the deliverable ceiling here — ` +
       `not the requested ${cal.requestedRps} req/s.)`;
   }
 

@@ -93,6 +93,9 @@ export const MIN_RECURRENCE_MIN = 15;
 // treat loosening them (e.g. raising `windowKillAvailPct` down toward 0, or
 // pushing `autoKillUnavailableMs` up) as a change to the safety envelope.
 
+/** Maximum read-only URLs in one probe cycle, including its primary URL. */
+export const MAX_PROBE_URLS = 8;
+
 export type ProbeLimits = {
   /** Poll cadence (ms) between probe checks. */
   intervalMs: number;

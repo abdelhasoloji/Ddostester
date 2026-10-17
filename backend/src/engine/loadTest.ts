@@ -248,6 +248,7 @@ export interface LoadProgress {
    * campaign always shows target-health feedback.
    */
   probe?: {
+    endpoints?: { url: string; samples: number; available: number }[];
     samples: number;
     available: number;
     errorRate5xx: number;

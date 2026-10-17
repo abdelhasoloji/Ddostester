@@ -46,10 +46,7 @@
     "auditPreserved": true,
     "running": 0,
     "soleAdminPreserved": true,
-    "migrations": [
-      9,
-      10
-    ]
+    "migrations": [9, 10]
   },
   "ci": {
     "id": 39060734972,

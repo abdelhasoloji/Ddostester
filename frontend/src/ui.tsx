@@ -488,7 +488,7 @@ export function RunTheater({
                       ? `${Math.round((p.probe.available / p.probe.samples) * 100)}%`
                       : '—'}
                   </b>{' '}
-                  legit availability
+                  monitored checks
                 </span>
                 <span>
                   <b>{genPending ? '—' : `${absorbedPct}%`}</b> generator failures
@@ -588,8 +588,16 @@ export function RunTheater({
               </>
             )}
             <div className="theater-metric">
-              <div className="tm-k">
-                Legit probe
+              <div
+                className="tm-k"
+                title={
+                  p.probe?.endpoints
+                    ?.map((e) => `${e.url}: ${e.available}/${e.samples} successful GET checks`)
+                    .join('\n') ||
+                  'Availability of the configured probe URL only. Intervals between checks are not observed.'
+                }
+              >
+                Monitored checks
                 {p.probe?.health && p.probe.health !== 'ok' && (
                   <span className={`health-badge health-${p.probe.health}`}>
                     {p.probe.health === 'critical' ? '● critical' : '▲ degraded'}
@@ -602,7 +610,7 @@ export function RunTheater({
                 {p.probe && p.probe.samples > 0
                   ? Math.round((p.probe.available / p.probe.samples) * 100)
                   : '—'}
-                <small>% up</small>
+                <small>% cycles OK</small>
               </div>
             </div>
           </div>
@@ -1397,6 +1405,18 @@ export function RunDetails({ run }: { run: CampaignRun }) {
             </span>
           ))}
         </div>
+      )}
+      {!!run.probe.endpoints?.length && (
+        <details className="hint" style={{ marginTop: '.5rem' }}>
+          <summary title="One successful cycle requires every monitored GET check to succeed. This does not verify a login or POST transaction.">
+            Monitored pages ({run.probe.endpoints.length})
+          </summary>
+          {run.probe.endpoints.map((e) => (
+            <div key={e.url}>
+              {e.url}: {e.available}/{e.samples} checks OK
+            </div>
+          ))}
+        </details>
       )}
       {run.baseline && (
         <div className="metrics" style={{ marginTop: '.5rem' }}>

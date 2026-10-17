@@ -21,6 +21,7 @@ export function baselineComparisonAvailable(run: CampaignRun): boolean {
   const baseline = run.baseline;
   const delta = run.baselineDelta;
   return (
+    (run.probe.endpoints?.length ?? 1) <= 1 &&
     observedProbeP95(run) !== null &&
     !!baseline &&
     Number.isSafeInteger(baseline.samples) &&

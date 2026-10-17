@@ -282,3 +282,22 @@ describe('CampaignCard — dual control (CISO gate)', () => {
     expect(screen.getByRole('button', { name: /^Run$/ })).toBeInTheDocument();
   });
 });
+
+it('shows the actual monitored pages without claiming complete functional coverage', () => {
+  render(
+    <RunDetails
+      run={{
+        ...run,
+        probe: {
+          ...run.probe,
+          endpoints: [
+            { url: 'http://localhost/', samples: 10, available: 10 },
+            { url: 'http://localhost/login', samples: 10, available: 0 },
+          ],
+        },
+      }}
+    />,
+  );
+  expect(screen.getByText('Monitored pages (2)')).toBeInTheDocument();
+  expect(screen.getByText('http://localhost/login: 0/10 checks OK')).toBeInTheDocument();
+});

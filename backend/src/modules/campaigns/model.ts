@@ -84,6 +84,8 @@ export interface CampaignInput {
   maxDurationSec: number;
   /** Probed endpoint to measure impact (often the target itself). */
   probeUrl: string;
+  /** Additional functional GET checks; a cycle succeeds only when all checks succeed. */
+  probeUrls?: string[];
   /**
    * Optional independent reference endpoint (a canary / second vantage) polled
    * alongside the target probe but with NO kill authority. It lets a run tell

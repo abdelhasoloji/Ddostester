@@ -289,7 +289,7 @@ export interface CampaignRun {
       while the generator was serving it) — availability was taken from the
       generator's success ratio, not the probe's, and no false auto-kill fired. */
   probeContended?: boolean;
-  measurementPolicy?: 'independent-probe-v1';
+  measurementPolicy?: 'independent-probe-v1' | 'multi-route-probe-v2';
   /** Breaking point: the offered rps at which the target started failing en masse,
       and the highest rps it sustained cleanly. */
   breakingPoint?: {
@@ -367,6 +367,7 @@ export interface CampaignRun {
     hardStopped?: boolean;
   };
   probe: {
+    endpoints?: { url: string; samples: number; available: number }[];
     quality?: {
       measuredSamples: number;
       totalSamples: number;
@@ -964,6 +965,7 @@ export interface LiveProgressData {
   /** Rolling last-60s per-second series for the live sparkline. */
   timeline?: RunSample[];
   probe?: {
+    endpoints?: { url: string; samples: number; available: number }[];
     samples: number;
     available: number;
     errorRate5xx: number;

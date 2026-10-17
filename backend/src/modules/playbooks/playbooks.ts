@@ -1,3 +1,4 @@
+import { MAX_PROBE_URLS } from '../../config/limits.js';
 import { randomUUID } from 'node:crypto';
 import type {
   CampaignInput,
@@ -59,6 +60,8 @@ export interface PlaybookStep {
    * endpoint mix, resolved against the target at instantiation.
    */
   paths?: string[];
+  /** Preserve intentional negative-path checks instead of mapping them to recon paths. */
+  preservePaths?: boolean;
   /** Optional realism (built-in engine only): rotate the DEFAULT_UA_SET. */
   rotateUa?: boolean;
   /**
@@ -88,8 +91,8 @@ export interface PlaybookStep {
    * Closed-loop rate calibration (GEN-1): fire a short pre-flight burst to
    * measure the deliverable rate, then grade at it instead of an aspirational
    * rate the box can't sustain. Recommended on high-rate composite/pulse lines
-   * whose configured rate may exceed a single box's throughput, so their verdict
-   * is a valid measurement rather than an under-delivered INCONCLUSIVE.
+   * whose configured rate may exceed a single box's throughput. A reduced exposure
+   * remains inconclusive for the originally requested conditions.
    */
   calibrate?: boolean;
   /**
@@ -262,6 +265,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       vector: vector as LoadVector,
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
       paths,
+      preservePaths: s.preservePaths === true || undefined,
       rotateUa: s.rotateUa === true,
       calibrate: s.calibrate === true,
       headers,
@@ -1289,6 +1293,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
       {
         name: 'GET-Random-Flood (DRS3)',
+        preservePaths: true,
+        focusDynamic: false,
         summary: 'Line 4 — waves over non-existent paths; expect edge 404 / origin shielding.',
         maxRps: 500,
         concurrency: 100,
@@ -1327,7 +1333,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'k6',
       },
       {
-        name: 'HTTP/2 Rapid Reset — bounded (DRS4)',
+        name: 'HTTP/2 Rapid Reset — HTTP approximation (DRS4)',
         summary: 'Line 8a — h2 request path under sustained bounded rate (no RST_STREAM abuse).',
         maxRps: 800,
         concurrency: 200,
@@ -1336,7 +1342,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'k6',
       },
       {
-        name: 'HTTP/2 Continuation — header pressure (DRS4)',
+        name: 'HTTP/2 Continuation — HTTP approximation (DRS4)',
         summary: 'Line 8b — h2 requests carrying a larger benign header set (no HPACK bomb).',
         maxRps: 400,
         concurrency: 100,
@@ -1370,8 +1376,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         calibrate: true,
       },
       {
-        name: 'THOR / PulseWave — synchronized (DRS5)',
-        summary: 'Line 11 — synchronized bursts (pulse) rather than a steady rate.',
+        name: 'THOR / PulseWave — single-generator wave (DRS5)',
+        summary: 'Line 11 — bounded single-generator HTTP wave; no distributed synchronization.',
         maxRps: 1000,
         concurrency: 250,
         maxDurationSec: 180,
@@ -1382,7 +1388,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         calibrate: true,
       },
       {
-        name: 'MultiTarget / carpet-bombing (DRS5)',
+        name: 'MultiTarget / carpet-bombing — single-host path mix (DRS5)',
         summary:
           'Line 13 — spread over many paths of the target. True multi-target = instantiate this ' +
           'playbook once per allowlisted CRA host.',
@@ -2331,11 +2337,12 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   // sparse origin). Templates whose paths DO map to a real (non-root) surface
   // keep their mix, so a target-tuned line is unchanged where it applies.
   const dyn = ctx.recon?.dynamicPaths;
-  const resolved = seedPaths(step.paths, ctx.recon);
+  const resolved = step.preservePaths ? step.paths : seedPaths(step.paths, ctx.recon);
   const resolvedMeaningful = !!resolved && resolved.some((p) => p !== '/');
   // Explicit false preserves the configured target instead of automatically
   // replacing it with a costlier endpoint and enabling connection churn.
   const concentrateDynamic =
+    !step.preservePaths &&
     step.focusDynamic !== false &&
     (step.focusDynamic === true || !resolvedMeaningful) &&
     !!dyn &&
@@ -2390,6 +2397,11 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
     concurrency,
     maxDurationSec,
     probeUrl: ctx.probeUrl,
+    // Intentional missing-resource requests are not functional availability checks.
+    probeUrls:
+      endpoints?.length && !step.preservePaths
+        ? [...new Set([ctx.probeUrl, ...endpoints.map((e) => e.url)])].slice(0, MAX_PROBE_URLS)
+        : undefined,
     createdBy: ctx.createdBy,
     authorized: true,
     scenario: buildScenario(step.profile, maxRps, maxDurationSec),

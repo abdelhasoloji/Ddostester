@@ -298,7 +298,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   <div>
     <div class="pills">${verdictPill} ${riskPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
-      ${statCard('Availability', avail !== null ? `${avail.toFixed(1)}% (${run.probe.samples} observations)` : 'Not measured')}
+      ${statCard('Monitored checks', avail !== null ? `${avail.toFixed(1)}% (${run.probe.samples} observations)` : 'Not measured')}
       ${statCard('Configured load', slow ? `${campaign.concurrency} connections` : `${configuredRps} req/s`, false)}
       ${statCard(slow ? 'Connections opened' : 'Max recorded mean rate', slow ? String(g.totalRequests) : `${peakRps} req/s`, false)}
       ${statCard('Configured duration', `${campaign.maxDurationSec}s`)}
@@ -398,6 +398,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  }
  ${run.recoveryBeforeRun ? `<tr><th>Recovery before suite step</th><td>${run.recoveryBeforeRun.available && run.recoveryBeforeRun.verified !== false ? 'available' : 'unverified or unavailable'}; ${esc(String(run.recoveryBeforeRun.checks))} checks; ${esc(String(run.recoveryBeforeRun.waitedMs))} ms</td></tr>` : ''}
  ${g.fleet?.startup ? `<tr><th>Fleet generator-start delay</th><td>${g.fleet.startup.firstGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.firstGeneratorStartDelayMs))} to ${g.fleet.startup.lastGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.lastGeneratorStartDelayMs))} ms; ${g.fleet.startup.reportedAgents}/${g.fleet.startup.expectedAgents} timestamp observations. Global throughput includes startup; these timestamps do not prove first target arrival.</td></tr>` : ''}
+ ${run.probe.endpoints?.length ? `<tr><th>Monitored GET checks</th><td>${run.probe.endpoints.map((e) => `${esc(e.url)}: ${e.available}/${e.samples}`).join('<br>')}<br>Aggregate availability counts cycles where every check succeeded; it is not a full functional journey.</td></tr>` : ''}
  <tr><th>Probe availability</th><td>${avail === null ? 'Not measured' : `${run.probe.available}/${run.probe.samples} completed samples`} · ${avail === null || !Number.isFinite(run.probe.errorRate5xx) ? 'unknown' : run.probe.errorRate5xx + '%'} 5xx</td></tr>
  ${
    run.probe.quality

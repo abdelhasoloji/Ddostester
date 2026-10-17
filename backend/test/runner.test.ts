@@ -398,3 +398,57 @@ describe('executeCampaign — run time-series', () => {
     expect(calls[1]).toBe(800); // graded unchanged at the requested rate
   }, 20000);
 });
+
+it('carries application-route failures through live progress and the final report', async () => {
+  let applicationHealthy = true;
+  const server = createServer((req, res) => {
+    res.statusCode = req.url === '/login' && !applicationHealthy ? 503 : 200;
+    res.end('functional check');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const root = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+  const campaign = createCampaign(
+    {
+      name: 'Monitored route coverage',
+      target: root,
+      vector: 'http-get',
+      maxRps: 60,
+      concurrency: 1,
+      maxDurationSec: 2,
+      probeUrl: root,
+      probeUrls: [root, root + 'login'],
+      authorized: true,
+      createdBy: 'engineer',
+    },
+    ['127.0.0.1'],
+  );
+  const agent = new BuiltinHttpAgent();
+  const originalRun = agent.run.bind(agent);
+  agent.run = (...args) => {
+    applicationHealthy = false;
+    return originalRun(...args);
+  };
+  const progress: import('../src/engine/loadTest.js').LoadProgress[] = [];
+  try {
+    const result = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      (p) => progress.push(p),
+      agent,
+    );
+    expect(result.probe.available).toBe(0);
+    expect(result.probeContended).toBe(false);
+    expect(result.probe.endpoints?.find((p) => p.url === root)?.available).toBeGreaterThan(0);
+    expect(result.probe.endpoints?.find((p) => p.url.endsWith('/login'))?.available).toBe(0);
+    expect(result.probeBaselines?.[0].metrics.availabilityPct).toBe(100);
+    expect(result.baselineDelta).toBeUndefined();
+    expect(result.measurementPolicy).toBe('multi-route-probe-v2');
+    expect(progress.some((p) => p.probe?.endpoints?.length === 2)).toBe(true);
+    const report = renderCampaignReportHtml(campaign, result);
+    expect(report).toContain('Monitored GET checks');
+    expect(report).toContain(root + 'login');
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}, 15000);

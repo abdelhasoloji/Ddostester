@@ -749,3 +749,30 @@ it('preserves the requested duration for rounded wave and ramp phases', () => {
     }
   }
 });
+
+it('preserves intentional missing-resource paths and monitors functional routes separately', () => {
+  const pb = getPlaybook('pretest-cra-l7')!;
+  const campaigns = buildSuiteCampaigns(
+    pb,
+    {
+      ...target,
+      recon: {
+        paths: ['/', '/login.php', '/api/search.php'],
+        dynamicPaths: ['/api/search.php'],
+        loginPath: '/login.php',
+      },
+    },
+    engines,
+  );
+  const random = campaigns.find((c) => c.name.includes('GET-Random-Flood'))!;
+  expect(random.endpoints?.map((e) => new URL(e.url).pathname)).toEqual([
+    '/nonexistent-a1',
+    '/no/such/page',
+    '/api/does-not-exist',
+    '/random-9f2b',
+  ]);
+  expect(random.probeUrls).toBeUndefined();
+  const post = campaigns.find((c) => c.name.includes('POST-Flood (DRS4)'))!;
+  expect(post.probeUrls).toContain(target.probeUrl);
+  expect(post.probeUrls).toContain('https://staging.example.com/api/search.php');
+});

@@ -85,7 +85,7 @@ export interface CampaignRun {
   probe: ProbeMetrics;
   /** Probe/generator disagreement; raw probe metrics remain authoritative. */
   probeContended?: boolean;
-  measurementPolicy?: 'independent-probe-v1';
+  measurementPolicy?: 'independent-probe-v1' | 'multi-route-probe-v2';
   wrs: WrsBreakdown;
   /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
   posture?: PostureReport;
@@ -113,6 +113,8 @@ export interface CampaignRun {
   protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
   /** Nominal metrics captured before the ramp (legitimate traffic only). */
   baseline?: BaselineMetrics;
+  /** Per-URL pre-load GET observations for multi-route monitoring. */
+  probeBaselines?: { url: string; metrics: BaselineMetrics }[];
   /** Verified suite recovery before this step, not a post-run recovery measurement. */
   recoveryBeforeRun?: RecoveryResult;
   /** Under-load degradation vs. the baseline. */
@@ -237,6 +239,7 @@ export async function executeCampaign(
     throw new Error('Simulation campaigns cannot use physical generators');
   assertDestination(campaign.target, allowedHosts);
   assertDestination(campaign.probeUrl, allowedHosts);
+  for (const url of campaign.probeUrls ?? []) assertDestination(url, allowedHosts);
   if (campaign.referenceUrl) assertDestination(campaign.referenceUrl, allowedHosts);
   let remoteProbe: { agentUrl: string; token: string } | undefined;
   if (campaign.probeVantage === 'remote') {
@@ -256,6 +259,7 @@ export async function executeCampaign(
       runtime: process.version,
       sourceRef: getBuildInfo().commit,
       probeUrl: campaign.probeUrl,
+      probeUrls: campaign.probeUrls,
       probeVantage: campaign.probeVantage ?? 'local',
     },
     iotProfile: campaign.iotProfile ? { ...campaign.iotProfile } : undefined,
@@ -306,10 +310,25 @@ export async function executeCampaign(
       return undefined;
     });
 
+    const secondaryUrls = [...new Set(campaign.probeUrls ?? [])].filter(
+      (url) => url !== campaign.probeUrl,
+    );
+    const probeBaselines = secondaryUrls.length
+      ? await Promise.all(
+          secondaryUrls.map(async (url) => ({
+            url,
+            metrics:
+              captureBaselineFn === captureBaseline
+                ? await captureBaseline(url, killSwitch.signal, 3, 1000, 5000, remoteProbe)
+                : await captureBaselineFn(url, killSwitch.signal),
+          })),
+        )
+      : undefined;
+
     // Closed-loop rate calibration (GEN-1): before the graded run, fire a short
     // burst on the SAME engine + target to measure the rate the generator can
-    // actually deliver here, then grade at that rate instead of an aspirational one
-    // it would silently under-deliver (which the assessment marks INCONCLUSIVE).
+    // actually deliver here, then record that reduced exposure instead of silently under-delivering
+    // (which cannot establish a verdict at the originally requested rate).
     // Slow-connection vectors trickle by design, so they are never calibrated.
     // Calibration only ever LOWERS the offered rate — the graded run's shape is
     // preserved, just scaled to a deliverable amplitude.
@@ -366,6 +385,7 @@ export async function executeCampaign(
       probeLimits.timeoutMs,
       probeLimits,
       remoteProbe,
+      campaign.probeUrls,
     );
     // Optional independent reference vantage (I2): polled in parallel with its OWN
     // kill switch so its availability never stops the run — it only informs
@@ -492,6 +512,7 @@ export async function executeCampaign(
         // graduated verdict, so the operator sees a 'degraded' target before any
         // hard auto-kill — not only after the run settles.
         probe: {
+          endpoints: pm.endpoints,
           samples: pm.samples,
           available: pm.available,
           errorRate5xx: pm.errorRate5xx,
@@ -543,7 +564,12 @@ export async function executeCampaign(
     const genSuccessRatio = genTotal > 0 ? generator.successful / genTotal : 0;
     const rawProbeAvail = probeMetrics.samples ? probeMetrics.available / probeMetrics.samples : 1;
     const probeContended =
-      probeMetrics.samples > 0 && rawProbeAvail < 0.2 && genTotal >= 100 && genSuccessRatio >= 0.8;
+      // Successful traffic on one route cannot disprove another monitored route's failure.
+      (probeMetrics.endpoints?.length ?? 1) === 1 &&
+      probeMetrics.samples > 0 &&
+      rawProbeAvail < 0.2 &&
+      genTotal >= 100 &&
+      genSuccessRatio >= 0.8;
     // Detection/mitigation: with no protection integration, we derive
     // conservative estimates from the probe's measurements. These values can be
     // replaced by the real timings reported by WEDOS Protection.
@@ -628,12 +654,13 @@ export async function executeCampaign(
     const underLoadAvailPct = probeMetrics.samples
       ? (probeMetrics.available / probeMetrics.samples) * 100
       : 100;
-    const baselineDelta = baseline
-      ? computeBaselineDelta(baseline, {
-          availabilityPct: underLoadAvailPct,
-          latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
-        })
-      : undefined;
+    const baselineDelta =
+      baseline && secondaryUrls.length === 0
+        ? computeBaselineDelta(baseline, {
+            availabilityPct: underLoadAvailPct,
+            latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
+          })
+        : undefined;
 
     const total = generator.totalRequests;
     const checked = generator.assertionsChecked ?? 0;
@@ -656,7 +683,7 @@ export async function executeCampaign(
       generator,
       probe: probeMetrics,
       probeContended,
-      measurementPolicy: 'independent-probe-v1',
+      measurementPolicy: secondaryUrls.length ? 'multi-route-probe-v2' : 'independent-probe-v1',
       breakingPoint: detectBreakingPoint(timeline),
       wrs,
       posture: probe.posture(),
@@ -672,6 +699,7 @@ export async function executeCampaign(
           }
         : undefined,
       baseline,
+      probeBaselines,
       baselineDelta,
       targetTelemetry: targetSeries.length ? targetSeries : undefined,
       reference,
