@@ -14,6 +14,26 @@ import { missingRequirements } from '../src/modules/campaigns/model.js';
 import { HARD_CAPS } from '../src/config/limits.js';
 
 const allowed = ['staging.example.com'];
+
+it('preserves explicit target selection through validation and recon for the ZeroBS GET line', () => {
+  const original = getPlaybook('cra-l7-get-flood')!;
+  const validated = validatePlaybookInput(original);
+  expect(validated.steps[0].focusDynamic).toBe(false);
+  const [campaign] = buildSuiteCampaigns(
+    validated,
+    {
+      target: 'https://staging.example.com/',
+      probeUrl: 'https://staging.example.com/',
+      createdBy: 'engineer',
+      recon: { paths: ['/', '/api/slow'], dynamicPaths: ['/api/slow'] },
+    },
+    [{ id: 'vegeta', available: true }],
+  );
+  expect(campaign.target).toBe('https://staging.example.com/');
+  expect(campaign.endpoints).toBeUndefined();
+  expect(campaign.noKeepAlive).toBeUndefined();
+  expect(campaign.concurrency).toBe(original.steps[0].concurrency);
+});
 const target = {
   target: 'https://staging.example.com/',
   probeUrl: 'https://staging.example.com/health',

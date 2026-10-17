@@ -67,7 +67,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
     out.push({
       id: 'collateral',
       severity: w.collateral < 70 ? 'high' : 'medium',
-      weakness: `Mitigation caused collateral damage (collateral score ${w.collateral}/100) — legitimate traffic was blocked alongside the attack.`,
+      weakness: `Legitimate probe degradation was observed (collateral score ${w.collateral}/100); the cause requires independent telemetry.`,
       remediation:
         'Prefer challenge/rate-shaping over hard IP blocking, and narrow the mitigation rules; the DRS criterion explicitly requires NOT blocking source IPs (else DRS 3 only).',
     });

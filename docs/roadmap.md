@@ -1,5 +1,13 @@
 # Current implementation and remaining work
 
+## ZeroBS throughput delivery — 17 October 2026
+
+Source fixes explicit main-target preservation for GET-Flood, custom-template round trips, cancelled Vegeta report parsing and consistent successful-response rate windows in Theater/reports. Existing concurrency ceilings and stored campaigns remain intact. The isolated private lab reached 794.04 RPS live but varied with shared-host/collection load, so sustained 800 RPS is not yet qualified. Separate the generator/probe/collection capacity and obtain a stable reserved execution envelope before claiming that rate. See the dated throughput observations in [current setup](current-setup.md#zerobs-throughput-correction--17-october-2026).
+
+## ZeroBS / Vegeta follow-up — 17 October 2026
+
+The isolated GET qualification retained a final report after correcting cancelled-run evidence parsing. Report source also fixes transport/HTTP counts and an unsupported collateral-cause claim. The measured rate was 178.43 RPS: 800 RPS remains unqualified. Next: promote reviewed corrections through normal release gates, restore production browser permission, then qualify the intended direct target path and a separately routed probe. Preserve concurrency bounds and the failed attempt. Evidence is linked in [current setup](current-setup.md#isolated-zerobs--vegeta-qualification--17-october-2026).
+
 Reconciled against source and verified build 466 on 15 October 2026. This is the status authority; older plans and audits are not deployment claims.
 
 | Workstream          | Delivered                                                                                                                         | Remaining                                                                                                           |

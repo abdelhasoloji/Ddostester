@@ -886,7 +886,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         totalRequests: run.generator.totalRequests,
         successful: run.generator.successful,
         failed: run.generator.failed,
-        durationSec: runDurationSec,
+        // Successful and offered rates must share the generator's window,
+        // excluding orchestration/baseline time from the response-rate divisor.
+        durationSec:
+          run.generator.actualRps > 0
+            ? run.generator.totalRequests / run.generator.actualRps
+            : runDurationSec,
         rejected,
         tarpitted,
       });

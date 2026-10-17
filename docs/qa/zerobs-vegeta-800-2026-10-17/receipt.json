@@ -1,0 +1,63 @@
+{
+  "scope": "Isolated loopback MemoryStore application; not production UI acceptance",
+  "baseSource": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+  "patches": [
+    "Vegeta offline report gets independent bounded lifetime after emission cancellation",
+    "HTML failure breakdown uses observed status buckets; collateral cause not inferred"
+  ],
+  "productionChanged": false,
+  "fleetPodsChanged": false,
+  "target": "Private lab-target service on 31.31.74.187 via temporary private TCP/SSH relay",
+  "probeVantage": "Same relay as generator; not independent end-to-end qualification",
+  "campaignId": "b0dace08-8005-4049-b604-d6c01fa37c0d",
+  "runId": "c46dffa2-cdb8-4b1f-b8a0-d8a5d1b1dfa8",
+  "status": "COMPLETED",
+  "requestedRps": 800,
+  "configuredDurationSec": 20,
+  "concurrency": 100,
+  "noKeepAlive": true,
+  "reconSelectedPath": "/api/search.php?q=shieldtest",
+  "actualRps": 178.43,
+  "attempts": 3746,
+  "successful": 167,
+  "failed": 3579,
+  "probe": {
+    "samples": 4,
+    "available": 1,
+    "errorRate5xx": 0,
+    "latencyMs": {
+      "p50": 114.79,
+      "p95": 148.9,
+      "p99": 148.9
+    },
+    "successful": 1,
+    "health": "critical",
+    "windowAvailPct": 25
+  },
+  "qualification": "INCONCLUSIVE at 800 req/s; physical DRS NOT_EVALUATED",
+  "targetReceipts": {
+    "200": 169,
+    "504": 169,
+    "499": 50
+  },
+  "firstAttempt": "Kubernetes port-forward lost connection; aborted run evidence parsing threw Process cancelled before spawn; audit retained",
+  "sourcePatchHashes": {
+    "backend/src/agents/vegeta.ts": "e05566c5dabe91fea5c2e58f4facd4244608a69c628a98a2de27ec5862b7e7b0",
+    "backend/src/config/limits.ts": "64abe34a2ffdae32a5adc266f40ac6d04589730e9e345423d9b9287c3e4b83b0",
+    "backend/src/modules/reports/report.ts": "e15199b2ede278b7f513285367de5ed81f53ccd39ef96abcbfa5f6eabb43b0ba",
+    "backend/src/modules/reports/remediations.ts": "f7c48ad0f060724edacad012e602812575369feba47050aaab9d2b78ca487a25"
+  },
+  "verification": {
+    "backendTests": {
+      "passed": 1226,
+      "skipped": 38,
+      "exitCode": 0
+    },
+    "targetedTestsPassed": 47,
+    "backendTypecheck": "passed",
+    "backendBuild": "passed",
+    "repositoryLintAndFormatting": "passed",
+    "correctedHtmlVisuallyVerified": true,
+    "temporaryProcessesAndRelays": "stopped"
+  }
+}

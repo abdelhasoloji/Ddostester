@@ -267,7 +267,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       headers,
       cacheBust: s.cacheBust === true || undefined,
       noKeepAlive: s.noKeepAlive === true || undefined,
-      focusDynamic: s.focusDynamic === true || undefined,
+      focusDynamic: typeof s.focusDynamic === 'boolean' ? s.focusDynamic : undefined,
       parallelism,
     };
   });
@@ -1280,6 +1280,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'GET-Flood (DRS3)',
         summary: 'Line 3 — steady HTTP GET flood on the main path.',
+        focusDynamic: false,
         maxRps: 400,
         concurrency: 80,
         maxDurationSec: 120,
@@ -1427,6 +1428,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'GET-Flood (DRS3)',
         summary: 'Steady HTTP GET flood on the main path.',
+        focusDynamic: false,
         maxRps: 400,
         concurrency: 80,
         maxDurationSec: 120,
@@ -2327,7 +2329,13 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   const dyn = ctx.recon?.dynamicPaths;
   const resolved = seedPaths(step.paths, ctx.recon);
   const resolvedMeaningful = !!resolved && resolved.some((p) => p !== '/');
-  const concentrateDynamic = (step.focusDynamic || !resolvedMeaningful) && !!dyn && dyn.length > 0;
+  // Explicit false preserves the configured target instead of automatically
+  // replacing it with a costlier endpoint and enabling connection churn.
+  const concentrateDynamic =
+    step.focusDynamic !== false &&
+    (step.focusDynamic === true || !resolvedMeaningful) &&
+    !!dyn &&
+    dyn.length > 0;
   const seededPaths = concentrateDynamic ? dyn!.slice(0, 1) : resolved;
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))

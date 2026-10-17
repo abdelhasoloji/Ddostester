@@ -1,5 +1,25 @@
 # Current setup — observed 15 October 2026
 
+## ZeroBS throughput correction — 17 October 2026
+
+The GET-Flood template now explicitly preserves its configured main target (`focusDynamic: false` survives custom-template validation). Recon no longer silently replaces this line with the costliest dynamic endpoint and fresh-connection pressure. Explicit dynamic-pressure templates retain their behavior. Existing stored campaigns and their endpoint sets are not rewritten: create a new GET campaign to use the corrected template.
+
+The historical Vegeta adapter could allocate up to 20,000 workers despite the configured concurrency. That behavior is not restored. The current adapter preserves concurrency and rate/duration ceilings. On the Mac relay, the corrected GET measured 698.16 RPS with 100 workers and 510.92 RPS with 200; more workers did not remove that path's bottleneck.
+
+A disposable lab-local fixture targeting the private Kubernetes service measured 771.75 RPS over its complete generator lifecycle, a 794.04-RPS live peak and 15,872 successful requests with no failures. A repeat with live Kubernetes log streaming measured 480.98 RPS; all 9,849 HTTP 200 target receipts were captured. The VPS has two CPUs and the k3d container a 1.5-CPU allocation. These observations do not establish a stable 800-RPS capacity guarantee or DRS qualification. The generated fixtures use fresh memory state, not production accounts or history.
+
+Run Theater successful-response cards and final response-rate summaries now use the same generator observation window as offered throughput, excluding orchestration/baseline time from the response-rate divisor. Cancelled-run evidence parsing and failure-classification fixes from the preceding qualification are included. The separately archived results retain their original metrics and source/fixture limitations.
+
+## Isolated ZeroBS / Vegeta qualification — 17 October 2026
+
+A fresh loopback-only MemoryStore fixture, based on deployed build 468, exercised the GET-Flood template with explicit overrides: Vegeta, 800 requested RPS, 100 concurrent workers, 20 seconds. Production state and the three persistent Fleet Pods were untouched. Production browser acceptance remains blocked by its saved origin permission.
+
+The initial Kubernetes port-forward relay disconnected under load. Its aborted execution exposed a Vegeta defect: the cancelled emission signal also cancelled offline result parsing, preventing a retained report. Source now gives that offline helper a separate 15-second deadline. A subprocess regression covers cancellation without emitting traffic.
+
+With a temporary private TCP relay, the second execution completed and retained its report: 3,746 attempts, 167 successful, 178.43 effective RPS, 25% probe availability. The target archived 388 correlated receipts (169 HTTP 200, 169 HTTP 504, 50 HTTP 499). These are different observation points. Generator and probe shared the relay: this is inconclusive at 800 RPS and does not qualify DRS. The dynamic endpoint, fresh connections, concurrency cap and relay constrain delivery; no single cause of under-delivery is established.
+
+Report source now separates 169 HTTP failures from 3,410 transport failures instead of counting distinct error strings or attributing failures to protection. Corrected HTML was regenerated from retained observations and visually checked. Corrections are not promoted to production. See [receipt](qa/zerobs-vegeta-800-2026-10-17/receipt.json) and [corrected report](qa/zerobs-vegeta-800-2026-10-17/report-corrected.html). Temporary qualification processes and relays were stopped.
+
 This is a dated deployment observation, not a promise that an IP, Pod or release remains unchanged. Check `/health`, service identity and Kubernetes state before an operation. Private credentials and evidence live outside both repositories.
 
 ## Hosts and processes

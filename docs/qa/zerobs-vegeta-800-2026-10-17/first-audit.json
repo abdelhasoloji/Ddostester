@@ -1,0 +1,94 @@
+[
+  {
+    "id": "7f971b0c-19ca-459a-9a0b-d35172c4be0d",
+    "at": "2026-10-17T10:54:53.894Z",
+    "actor": "dev",
+    "action": "suite.skip",
+    "campaignId": "d19f9805-217e-462b-b392-fc8a71521b6c",
+    "detail": "run error: Process cancelled before spawn",
+    "prevHash": "17fd77bce3fd4a78b18b8171e6ffaf54b7606f6c8dc3fbd6842d9ab05c24539f",
+    "hash": "8b11b0ee88393261ed9471822156b0e45372718d611d6fe9263045bfdb55a2b8"
+  },
+  {
+    "id": "258d914d-288f-41d5-ba41-16e61f7ee095",
+    "at": "2026-10-17T10:54:53.893Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d19f9805-217e-462b-b392-fc8a71521b6c sha256=b5edcab842d904f5e9aea5360e465b82d4046110386b6fab5a66b9cc4bd7632c",
+    "prevHash": "032f88f319e2a183e0b4d0fd56bdf8aca85214f81e5b85a0ff9061ebebafbf1f",
+    "hash": "17fd77bce3fd4a78b18b8171e6ffaf54b7606f6c8dc3fbd6842d9ab05c24539f"
+  },
+  {
+    "id": "1826fd14-223e-46bb-ae36-7a0debdc3f25",
+    "at": "2026-10-17T10:54:31.473Z",
+    "actor": "dev",
+    "action": "campaign.execute",
+    "campaignId": "d19f9805-217e-462b-b392-fc8a71521b6c",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "29cba120f610058892ae8beedab94f9b7f503c029564003fe991cd4b1ccc5fee",
+    "hash": "70495326e6ab158dd568cb97fd5c2f9494582c3f3b20bba0f99f54ec6b2fad1f"
+  },
+  {
+    "id": "07eeeadc-2b0a-42e3-ba8e-33cea0d04d5c",
+    "at": "2026-10-17T10:54:31.473Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d19f9805-217e-462b-b392-fc8a71521b6c sha256=b437e9a6f9c91ed056e0812a38fa10ae558fc3fec51354297204ca10e1549029",
+    "prevHash": "70495326e6ab158dd568cb97fd5c2f9494582c3f3b20bba0f99f54ec6b2fad1f",
+    "hash": "032f88f319e2a183e0b4d0fd56bdf8aca85214f81e5b85a0ff9061ebebafbf1f"
+  },
+  {
+    "id": "74618be2-0667-40a0-930e-bacc522f4f27",
+    "at": "2026-10-17T10:54:31.466Z",
+    "actor": "dev",
+    "action": "suite.run",
+    "detail": "sequence start · 1 steps",
+    "prevHash": "646c3e4e42d3b8cea3dbe9f1e28ec97e3414a8bd9a13d33598e90c55f3113f28",
+    "hash": "29cba120f610058892ae8beedab94f9b7f503c029564003fe991cd4b1ccc5fee"
+  },
+  {
+    "id": "970c8615-e6b2-4a44-94bb-6571675ccbdb",
+    "at": "2026-10-17T10:54:20.914Z",
+    "actor": "dev",
+    "action": "campaign.approve",
+    "campaignId": "d19f9805-217e-462b-b392-fc8a71521b6c",
+    "prevHash": "a6b12671d4dc0d5d7ee82a086c49ead12a5efcf5bd0f851b2031eb4bd91f1eb3",
+    "hash": "646c3e4e42d3b8cea3dbe9f1e28ec97e3414a8bd9a13d33598e90c55f3113f28"
+  },
+  {
+    "id": "1a6f23be-cafe-40e8-bce2-9faf3734aa2a",
+    "at": "2026-10-17T10:54:20.913Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d19f9805-217e-462b-b392-fc8a71521b6c sha256=065d1788391ab93a9a96daff9668247b25498898b02ba8fb2b5f4506dba2f4fc",
+    "prevHash": "cfb324578473e50a6f7d201af33062c7de434693d281736bf3213c8483f57281",
+    "hash": "a6b12671d4dc0d5d7ee82a086c49ead12a5efcf5bd0f851b2031eb4bd91f1eb3"
+  },
+  {
+    "id": "f3b9207b-31f0-49aa-8dc1-807aff1f5636",
+    "at": "2026-10-17T10:54:10.840Z",
+    "actor": "dev",
+    "action": "campaign.approve",
+    "detail": "suite 59aeaad5-cc2e-470e-945a-efe1d6827a1e — 0 step(s) approved",
+    "prevHash": "afeef595643e164f910b7a600b8b76be91546aab81e1389777347be10026f5e0",
+    "hash": "cfb324578473e50a6f7d201af33062c7de434693d281736bf3213c8483f57281"
+  },
+  {
+    "id": "b34f47dc-2708-4446-abbf-ded8fa04c4f6",
+    "at": "2026-10-17T10:54:01.922Z",
+    "actor": "dev",
+    "action": "campaign.create",
+    "detail": "playbook \"ZeroBS GET qualification 800\" → 1 campaigns (suite 59aeaad5-cc2e-470e-945a-efe1d6827a1e, recon-seeded)",
+    "prevHash": "e50dcbd4ebcf6988cf9edb58db7299db17a6944610b7c4b7dc3dd6d8eaef12a4",
+    "hash": "afeef595643e164f910b7a600b8b76be91546aab81e1389777347be10026f5e0"
+  },
+  {
+    "id": "e0c306e0-b1b5-4244-9910-986e65a64051",
+    "at": "2026-10-17T10:54:01.921Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d19f9805-217e-462b-b392-fc8a71521b6c sha256=94b07cf86747fc5a3065c3d80832dfb0656288356a38ed0866fbc7c1e920efb6",
+    "prevHash": "GENESIS",
+    "hash": "e50dcbd4ebcf6988cf9edb58db7299db17a6944610b7c4b7dc3dd6d8eaef12a4"
+  }
+]

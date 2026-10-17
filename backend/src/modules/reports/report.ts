@@ -6,7 +6,7 @@ import { summarizeTargetTelemetry } from '../target-telemetry/provider.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { riskLevel } from './compliance.js';
-import { computeAbsorption, normalizeErrorMap } from './absorption.js';
+import { computeAbsorption, normalizeErrorMap, splitFailures } from './absorption.js';
 import { describeEdgeError } from '../posture/edge-error.js';
 import { scenarioMeanRps } from '../campaigns/calibration.js';
 import { fleetCpuContention, computeConfidence } from './confidence.js';
@@ -118,10 +118,10 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   // their underlying error classes, so the breakdown reads "context deadline
   // exceeded ×63,133" instead of thousands of ×1 lines.
   const errorBreakdown = normalizeErrorMap(errorsByName);
-  const rejectedByEdge = Object.entries(statusCounts)
-    .filter(([b]) => b !== '2xx' && b !== '3xx')
-    .reduce((s, [, n]) => s + n, 0); // 4xx/5xx — the target answered, refusing the request
-  const noResponse = Object.values(errorsByName).reduce((s, n) => s + n, 0); // timeouts / conn errors
+  const { rejected: rejectedByEdge, tarpitted: noResponse } = splitFailures(
+    statusCounts,
+    errorsByName,
+  );
 
   // Protection absorption (configured → offered → origin, + % absorbed) and
   // measurement confidence (was OUR generator the bottleneck?), both shared with
@@ -138,7 +138,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       totalRequests: g.totalRequests,
       successful: g.successful,
       failed: g.failed,
-      durationSec: durSec,
+      durationSec: g.actualRps > 0 ? g.totalRequests / g.actualRps : durSec,
     });
   const confidence =
     run.confidence ??
@@ -370,7 +370,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  ${counterCoverage ? `<tr><th>Generator counter coverage</th><td>${counterCoverage.reportedAgents}/${counterCoverage.expectedAgents} final reports. Missing counters are unknown; target receipts are independent evidence.</td></tr>` : ''}
  ${
    g.failed > 0
-     ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} rejected by the edge (4xx/5xx) · ${noResponse.toLocaleString('en-US')} no response (rate-limited / timed out)${
+     ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} HTTP failures (4xx/5xx) · ${noResponse.toLocaleString('en-US')} transport failures (cause unproven)${
          errorBreakdown.length
            ? ` <span class="muted">[${errorBreakdown
                .map((e) => `${esc(e.label)}×${e.count.toLocaleString('en-US')}`)

@@ -378,7 +378,9 @@ export function RunTheater({
   }, [campaignId]);
 
   const offered = p?.actualRps ?? 0;
-  const originRps = p && p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
+  // Use the generator snapshot's rate window, as the charts do. The display
+  // clock can be one tick ahead of an external generator's counters.
+  const originRps = p && p.sent > 0 ? offered * (p.successful / p.sent) : 0;
   const absorbedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0;
   const pct = p
     ? Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100))

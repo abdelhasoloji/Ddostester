@@ -2,6 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { renderCampaignReportHtml } from '../src/modules/reports/report.js';
 import { runsSummaryCsv } from '../src/modules/reports/csv.js';
 
+it('uses the same generator window for offered and successful response rates', () => {
+  const observed = run();
+  observed.generator.totalRequests = 16000;
+  observed.generator.successful = 16000;
+  observed.generator.failed = 0;
+  observed.generator.actualRps = 800;
+  observed.generator.statusCounts = { '2xx': 16000 };
+  const html = renderCampaignReportHtml(campaign(), observed);
+  expect(html).toContain('~800 req/s');
+});
+
+it('counts transport outcomes instead of counting distinct Vegeta error messages', () => {
+  const observed = run();
+  observed.generator.statusCounts = { '2xx': 167, '5xx': 169, '0xx': 3410 };
+  observed.generator.errors = { EOF: 1, '504 Gateway Time-out': 1 };
+  observed.generator.failed = 3579;
+  const html = renderCampaignReportHtml(campaign(), observed);
+  expect(html).toContain('169 HTTP failures (4xx/5xx)');
+  expect(html).toContain('3,410 transport failures (cause unproven)');
+  expect(html).not.toContain('3,579 rejected by the edge');
+  expect(html).not.toContain('Mitigation caused collateral damage');
+});
+
 it('exports missing latency as unknown rather than zero milliseconds', () => {
   const interrupted = run();
   interrupted.generator.latencySampleCount = 0;

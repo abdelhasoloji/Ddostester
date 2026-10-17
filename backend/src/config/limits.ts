@@ -267,6 +267,7 @@ export const IO_LIMITS = Object.freeze({
   processOutputBytes: 1024 * 1024,
   processStreamBytes: 64 * 1024 * 1024,
   processGraceMs: 1000,
+  processReportMs: 15_000,
   processDeadlineMs: (HARD_CAPS.maxDurationSec + 15) * 1000,
   binaryCheckMs: 3000,
   agentPreparationMs: 60_000,

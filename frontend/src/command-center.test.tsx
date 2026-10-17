@@ -192,6 +192,29 @@ describe('Command Center', () => {
 });
 
 describe('Run Theater', () => {
+  it('keeps successful and offered rates aligned when the UI clock advances before generator counters', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING' }],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    act(() => {
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 6400,
+          successful: 6400,
+          failed: 0,
+          elapsedSec: 9,
+          actualRps: 800,
+          maxDurationSec: 20,
+          engine: 'vegeta',
+          probe: { samples: 5, available: 5, errorRate5xx: 0 },
+        }),
+      });
+    });
+    expect(screen.getByText('Successful responses').parentElement).toHaveTextContent('800');
+  });
   it('points to Campaigns when nothing is in flight', () => {
     currentApp = makeApp({ role: 'engineer', campaigns: [scoredCampaign] });
     renderWithRouter(<RunTheaterPage />);

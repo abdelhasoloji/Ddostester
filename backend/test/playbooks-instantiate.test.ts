@@ -93,7 +93,7 @@ describe('curated templates instantiate into valid campaigns for bank.cz', () =>
     // is redirected to the costliest dynamic path — otherwise it would harmlessly
     // hit a bare origin's free static surface.
     const [plain] = buildSuiteCampaigns(
-      { ...pb, steps: [{ ...pb.steps[0], focusDynamic: false }] },
+      { ...pb, steps: [{ ...pb.steps[0], focusDynamic: undefined }] },
       { target: TARGET, probeUrl: TARGET, createdBy: 'test', recon },
       ENGINES,
     );
