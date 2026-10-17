@@ -1,3 +1,4 @@
+import { DrsBaselineDiagnostic } from './drs-baseline-diagnostic.js';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useApp, canDo } from './context.js';
@@ -442,6 +443,7 @@ export function DrsAssessmentWorkspace() {
       {report && (
         <div className="card" aria-label="DRS verdict">
           <h3>{report.assessment.label}</h3>
+          <DrsBaselineDiagnostic diagnostic={report.baselineDiagnostic} />
           <p>
             <b>
               {report.assessment.status} · {report.assessment.score ?? 'No usable score'}

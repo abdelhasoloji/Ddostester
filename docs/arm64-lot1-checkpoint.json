@@ -1,0 +1,40 @@
+{
+  "schema": "shieldtester.arm64-image-smoke/v1",
+  "observedAt": "2026-10-15T19:59:59.131Z",
+  "sourceCommit": "3bfa5091b76620d5391422148224d87faabe079c",
+  "imageId": "sha256:2062fc0e83e32bc64786433f71489657b331d236582a05ed825cbb74ed5817bb",
+  "dockerEngine": "linux/aarch64",
+  "runtime": {
+    "platform": "linux",
+    "arch": "arm64",
+    "node": "v22.23.3"
+  },
+  "apiReady": true,
+  "servedUiAssetsVerified": true,
+  "workerModulesImported": true,
+  "isolatedFixture": {
+    "userMode": "team",
+    "storage": "memory",
+    "network": "none",
+    "publishedPorts": 0
+  },
+  "campaignsStarted": 0,
+  "productionModeQualified": false,
+  "hpeHardwareQualified": false,
+  "containerRemoved": true,
+  "environmentScope": "Local Docker Desktop Linux ARM64 VM on Mac; not HPE hardware",
+  "checks": {
+    "targetedTests": {
+      "passed": 2,
+      "failed": 0
+    },
+    "repositoryLint": "passed",
+    "backendFrontendImageBuild": "passed",
+    "portableRuntimeScan": "passed",
+    "workflowStructure": "passed",
+    "githubWorkflowExecution": "not_run",
+    "fullTestSuite": "not_run_locally"
+  },
+  "productionChanged": false,
+  "publication": "Local commits only; no push, registry publication or deployment"
+}

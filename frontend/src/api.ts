@@ -1,3 +1,10 @@
+import type { BaselineDiagnosticView } from './drs-baseline-diagnostic.js';
+import type {
+  InfrastructureHost,
+  InfrastructureRecord,
+  InfrastructureWorkspace,
+  InfrastructureEvidenceInput,
+} from './infrastructure-types.js';
 import { lsGet, lsSet, lsRemove } from './storage.js';
 
 export interface FleetDeviceInput {
@@ -1191,6 +1198,25 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  infrastructure: (hosts: string[] = []) =>
+    get<InfrastructureWorkspace>(
+      '/api/fleet/infrastructure' +
+        (hosts.length ? '?hosts=' + encodeURIComponent(hosts.join(',')) : ''),
+    ),
+  saveInfrastructureHost: (id: string, expectedRevision: number, profile: InfrastructureHost) =>
+    put<InfrastructureRecord<InfrastructureHost>>(
+      '/api/fleet/infrastructure/hosts/' + encodeURIComponent(id),
+      { expectedRevision, profile },
+    ),
+  addInfrastructureEvidence: (body: InfrastructureEvidenceInput) =>
+    post<InfrastructureRecord<InfrastructureEvidenceInput>>(
+      '/api/fleet/infrastructure/evidence',
+      body,
+    ),
+  infrastructureHistory: (kind: 'host' | 'evidence', id: string) =>
+    get<{ revisions: InfrastructureRecord<InfrastructureHost | InfrastructureEvidenceInput>[] }>(
+      '/api/fleet/infrastructure/' + kind + '/' + encodeURIComponent(id) + '/history',
+    ),
   fleetSites: () =>
     get<{
       sites: { id: string; devices: number; online: number }[];
@@ -1729,6 +1755,7 @@ export interface DrsCampaignView {
   defaultPlan: Record<string, unknown>;
 }
 export interface DrsReportView {
+  baselineDiagnostic?: BaselineDiagnosticView | null;
   assessment: {
     label: string;
     status: string;

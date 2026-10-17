@@ -1,0 +1,479 @@
+{
+  "schema": "shieldtester.infrastructure-study/v1",
+  "observedAt": "2026-10-15T19:22:34.577156+00:00",
+  "scope": "Study only; no HPE access, deployment, test traffic, policy or limit change",
+  "sourceCommit": "58eff0b928d48d55b81f2bc57ab3037f616cd96f",
+  "companionSourceCommit": "4a656a89a6dbac6cf31203a04cd69be01a48dde8",
+  "declaredEstate": {
+    "servers": 20,
+    "model": "HPE RL300",
+    "cpu": "Ampere Altra Max",
+    "architecture": "ARM64",
+    "coresPerServer": 128,
+    "ramPerServer": "1 TB",
+    "verifiedOnHardware": false
+  },
+  "firstQualificationServers": 2,
+  "managementPath": "VPN",
+  "testDataPath": "Separate interfaces, direct egress to authorized targets",
+  "drsReference": "3.00.00",
+  "targetLevel": 5,
+  "proposedSixteenServersValidated": false,
+  "nativeLinuxArm64TestsExecuted": false,
+  "hpeNicInventoryVerified": false,
+  "publicSourceMappingVerified": false,
+  "distributedRuntimeQualifiedOnHpe": false,
+  "existingPolicyChanged": false,
+  "sourceEvidence": [
+    {
+      "id": "limits",
+      "repository": "Ddostester",
+      "path": "backend/src/config/limits.ts",
+      "sha256": "89dd2dccc2fb53236014e0e81fe99246a9baa30d807a52327e2b127e9e9f0180",
+      "line": 277,
+      "anchor": "maxAgents: 3"
+    },
+    {
+      "id": "active-adapter",
+      "repository": "Ddostester",
+      "path": "backend/src/agents/index.ts",
+      "sha256": "0f3fee71baac3a6c8b7155f41bd471b7e2f2302ea6801084d5c4e956b98e6ad7",
+      "line": 26,
+      "anchor": "new PersistentFleetHttpAgent()"
+    },
+    {
+      "id": "bounded-get",
+      "repository": "Ddostester",
+      "path": "backend/src/agents/persistent-fleet.ts",
+      "sha256": "bb44ae410359fc5777c7931b961ac7d727f0d189c2bd1c1c46cfac3548ec068e",
+      "line": 61,
+      "anchor": "This Fleet increment supports a single bounded GET campaign"
+    },
+    {
+      "id": "lease-stop",
+      "repository": "Ddostester",
+      "path": "backend/src/modules/fleet/agent.ts",
+      "sha256": "e501b57378b9428a3a8dc9b523d8f6c960e29f83fc765f0a68a0dd5284b36c4c",
+      "line": 47,
+      "anchor": "lease_expired"
+    },
+    {
+      "id": "identity-site",
+      "repository": "Ddostester",
+      "path": "backend/src/routes/fleet-mission-routes.ts",
+      "sha256": "1a32ea21e7e4fddbb8090b009f672c258434227545173074de71928db9aba097",
+      "line": 212,
+      "anchor": "agentSites:"
+    },
+    {
+      "id": "worker-policy",
+      "repository": "Ddostester",
+      "path": "scripts/fleet/mission-agent.mjs",
+      "sha256": "572a93bb4b36c58f7c61681ac9a0da3fedbacfff311f6c51c5adbc6822b1b090",
+      "line": 25,
+      "anchor": "let allowedOrigins = ['http://lab-target:8080']"
+    },
+    {
+      "id": "no-explicit-nic-selection",
+      "repository": "Ddostester",
+      "path": "backend/src/modules/fleet/agent.ts",
+      "sha256": "e501b57378b9428a3a8dc9b523d8f6c960e29f83fc765f0a68a0dd5284b36c4c",
+      "line": 94,
+      "anchor": "url: assignment.target"
+    },
+    {
+      "id": "portable-build",
+      "repository": "Ddostester",
+      "path": "backend/Dockerfile",
+      "sha256": "d0b253f38c8d2858c16a02c262777c8bad36ff0961b2a67635a94ae188135423",
+      "line": 16,
+      "anchor": "assert-portable-runtime.mjs"
+    },
+    {
+      "id": "amd64-bootstrap",
+      "repository": "Ddostester",
+      "path": "scripts/operations/linux-lab-create.py",
+      "sha256": "0e376cc976dc00a5ebee3afa28479404ec3d716f91df6674b194a9b2e33649a4",
+      "line": 19,
+      "anchor": "platform.machine() != 'x86_64'"
+    },
+    {
+      "id": "amd64-export",
+      "repository": "Ddostester",
+      "path": "scripts/operations/native-lab-export.py",
+      "sha256": "8039319ebc9c921d5e35dfb1a0d794ba7a784340fec5fa0a36941f86fa4dbd0a",
+      "line": 32,
+      "anchor": "platform=linux/amd64"
+    },
+    {
+      "id": "amd64-import",
+      "repository": "Ddostester",
+      "path": "scripts/operations/linux-lab-import.py",
+      "sha256": "8f21887b248c2f1db11c8ad4e2368f371cd56dc9271630c7bf8056ee195399d9",
+      "line": 80,
+      "anchor": "config['architecture'] != 'amd64'"
+    },
+    {
+      "id": "amd64-tools",
+      "repository": "Ddostester",
+      "path": "deploy/kubernetes/overlays/k3s/tools.lock.json",
+      "sha256": "c72b4f95e5c8590348f06b02f5ac100a4d2df6b0a861f461218f02e08265defa",
+      "line": 5,
+      "anchor": "linuxAmd64Url"
+    },
+    {
+      "id": "ci-runner",
+      "repository": "Ddostester",
+      "path": ".github/workflows/ci.yml",
+      "sha256": "c393befd8355a73c5c37501348e75c2a1fa11963f87b337e7ad9eecf7d9ca452",
+      "line": 26,
+      "anchor": "runs-on: ubuntu-latest"
+    },
+    {
+      "id": "drs-physical-gap",
+      "repository": "Ddostester",
+      "path": "backend/src/modules/drs/orchestrator.ts",
+      "sha256": "ded5275fb1cf868d428de61d069b9b5287841d645c986933f1737e09e9f36d8c",
+      "line": 111,
+      "anchor": "Unsupported physical vector"
+    },
+    {
+      "id": "catalogue",
+      "repository": "Ddostester",
+      "path": "standards/drs/3.00.00/manifest.json",
+      "sha256": "65b46b1082d5033655421c5c9c1f41e6af67e50bf54c87a2c3a8ac95ca70c780",
+      "line": 21,
+      "anchor": "catalogue_sha256"
+    },
+    {
+      "id": "companion-generator/Dockerfile",
+      "repository": "shieldtest-lab",
+      "path": "generator/Dockerfile",
+      "sha256": "b4545615f37405283cc9cc7e950a997e4bd32e5b435a9c489bf6896021bf2703",
+      "line": 1,
+      "anchor": "node:26.8-alpine"
+    },
+    {
+      "id": "companion-l3/backends/trex.mjs",
+      "repository": "shieldtest-lab",
+      "path": "l3/backends/trex.mjs",
+      "sha256": "6da2f6e3b1d48b57b0be9f423b012b0ef34912958349078c65b1d567819be863",
+      "line": 14,
+      "anchor": "disabled"
+    }
+  ],
+  "dependencyInspection": {
+    "host": "macOS ARM64",
+    "node": "22.23.2",
+    "command": "npm ci --omit=dev --ignore-scripts --no-audit --fund=false",
+    "directory": "Isolated temporary workspace outside the repository",
+    "packageLockSha256": "233428a617cf7a40e0b44eae8e245f6b30cf8b3a9da881c86bf642f3d8b0b0f6",
+    "portabilityAssertion": "Runtime dependencies contain no native addons or executables",
+    "assertionScript": "scripts/operations/assert-portable-runtime.mjs",
+    "assertionLogSha256": "9b61cc3f180712e25fd1a9e0c9932d4c589fb097f2524e8a582332e25acd128b",
+    "nativeHpeExecutionProof": false,
+    "linuxArm64BuildDependenciesInLock": [
+      {
+        "package": "node_modules/@esbuild/linux-arm64",
+        "version": "0.28.2",
+        "libc": null
+      },
+      {
+        "package": "node_modules/@rollup/rollup-linux-arm64-gnu",
+        "version": "4.64.5",
+        "libc": ["glibc"]
+      },
+      {
+        "package": "node_modules/@rollup/rollup-linux-arm64-musl",
+        "version": "4.64.5",
+        "libc": ["musl"]
+      }
+    ]
+  },
+  "registryInspection": {
+    "method": "Authenticated public Docker Registry manifest GET; bearer kept only in memory; raw response SHA-256 checked against each pinned digest",
+    "executionProof": false,
+    "images": [
+      {
+        "image": "library/node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+        "source": "https://registry-1.docker.io/v2/library/node/manifests/sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+        "digestVerified": true,
+        "linuxArm64Present": true,
+        "linuxPlatforms": [
+          {
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "digest": "sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v6"
+            },
+            "digest": "sha256:099ba81786a642d2e5570f8a1825f4e932c94653273a3f2f5dcb42ea2d306435"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v7"
+            },
+            "digest": "sha256:38dd72a9bee3a91cc8e2d71268087100a8498fdfee219f173cb92a39bea07408"
+          },
+          {
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux",
+              "variant": "v8"
+            },
+            "digest": "sha256:85cdd100016a2e09927c0776bb7ebebcfefce5cd0af49893ada91cbc4d78ee22"
+          },
+          {
+            "platform": {
+              "architecture": "s390x",
+              "os": "linux"
+            },
+            "digest": "sha256:107048f9dab733710ce9cd53395ea7a1f7b019faba8243b2e02656acb94ce764"
+          }
+        ]
+      },
+      {
+        "image": "prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+        "source": "https://registry-1.docker.io/v2/prom/prometheus/manifests/sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+        "digestVerified": true,
+        "linuxArm64Present": true,
+        "linuxPlatforms": [
+          {
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "digest": "sha256:86b17a25c2db1d16a61b16b3c8f336679eb19e26333d03e808da387206e40faa"
+          },
+          {
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux"
+            },
+            "digest": "sha256:6b41f7a45cfbd1d259a78701ee5e14fc2ad9383c9aa5d0427345a18539bc3c91"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v7"
+            },
+            "digest": "sha256:d538d0d9016a0fce100a390d9c236087afe6838adb4ba5c98be53e27a6ce9976"
+          },
+          {
+            "platform": {
+              "architecture": "ppc64le",
+              "os": "linux"
+            },
+            "digest": "sha256:0afa6e41f02107413c02f150d7ac3921f78a311bf796a55e601c61b567dc7782"
+          },
+          {
+            "platform": {
+              "architecture": "riscv64",
+              "os": "linux"
+            },
+            "digest": "sha256:eeeed5025c055e6b1ffb593119aac199f05e126e2ad29442cab7f6f12bbf5cea"
+          },
+          {
+            "platform": {
+              "architecture": "s390x",
+              "os": "linux"
+            },
+            "digest": "sha256:e6593ff7f47a29728798623e264ee46fa006d0546771951b5ba85d30ffc605e7"
+          }
+        ]
+      },
+      {
+        "image": "grafana/grafana@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f",
+        "source": "https://registry-1.docker.io/v2/grafana/grafana/manifests/sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f",
+        "digestVerified": true,
+        "linuxArm64Present": true,
+        "linuxPlatforms": [
+          {
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "digest": "sha256:7b22f3edf947329d75eba7a62d9f6ea1ac1e786736813ef7a98cfb275a52e49b"
+          },
+          {
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux"
+            },
+            "digest": "sha256:15254b507dd6da013d57af4fc7e902721110b70d37282ab9ae866290803bd752"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v7"
+            },
+            "digest": "sha256:6641a556c000663bd3d3b7a334b4c228e6d9be17c69f3ffbe63667ab73a77d4a"
+          }
+        ]
+      },
+      {
+        "image": "library/postgres@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d",
+        "source": "https://registry-1.docker.io/v2/library/postgres/manifests/sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d",
+        "digestVerified": true,
+        "linuxArm64Present": true,
+        "linuxPlatforms": [
+          {
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "digest": "sha256:75adc2a65806c96bc0e59030230bfe3f1c1b0d6d8f8181a8913e2b8b53bdc166"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v5"
+            },
+            "digest": "sha256:68accddf6285345649e47d891adc051a4d9268fecd6f3e7f4deac95830029ef0"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v7"
+            },
+            "digest": "sha256:a54360b8fee065d59f22d3125be6e116cd01b96dabaff2e043b9fe1c2ef34fb0"
+          },
+          {
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux",
+              "variant": "v8"
+            },
+            "digest": "sha256:ac51821423566931ecf50eb51ee9201d794d8632d33a2f23432ec47ff63a0fd4"
+          },
+          {
+            "platform": {
+              "architecture": "386",
+              "os": "linux"
+            },
+            "digest": "sha256:d9ac33e1c704afbdf2ca14e1de818c6c88ebdfd4fbb17dc61d01f7d3428b694e"
+          },
+          {
+            "platform": {
+              "architecture": "ppc64le",
+              "os": "linux"
+            },
+            "digest": "sha256:5c531c50c7600c63add3117ef44151c97d16c9278e29de87b06e886e7c6c3856"
+          },
+          {
+            "platform": {
+              "architecture": "riscv64",
+              "os": "linux"
+            },
+            "digest": "sha256:e2b2c511fcce8ed5bda05ccef5b86e7601c50ead4fd0b247dab7be04bdfce536"
+          },
+          {
+            "platform": {
+              "architecture": "s390x",
+              "os": "linux"
+            },
+            "digest": "sha256:5d27ba5e776548a2114c2a6431bb07b59908de2eaead45863af140053567b6aa"
+          }
+        ]
+      },
+      {
+        "image": "library/php@sha256:78cd8de9970a9cd6ff4d98860a94eb5bf37dd2d5776b4785562dbfad01c29d5a",
+        "source": "https://registry-1.docker.io/v2/library/php/manifests/sha256:78cd8de9970a9cd6ff4d98860a94eb5bf37dd2d5776b4785562dbfad01c29d5a",
+        "digestVerified": true,
+        "linuxArm64Present": true,
+        "linuxPlatforms": [
+          {
+            "platform": {
+              "architecture": "amd64",
+              "os": "linux"
+            },
+            "digest": "sha256:a8091f6d2623b0b23a78a81c71b10e71545e72ba37176030445f347cd5b1bdee"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v6"
+            },
+            "digest": "sha256:02f84ef750d2a79e5220266391adb7c44410b36644c831d96ff5ae1cb02f86b2"
+          },
+          {
+            "platform": {
+              "architecture": "arm",
+              "os": "linux",
+              "variant": "v7"
+            },
+            "digest": "sha256:f0d7f3f0602dc5efa93b83aac53da959435f445fe7314bcde5a577841b655d10"
+          },
+          {
+            "platform": {
+              "architecture": "arm64",
+              "os": "linux",
+              "variant": "v8"
+            },
+            "digest": "sha256:d809a3d259b86150b3091ec911abdefefd605a96e02d99c86b241d9bcb6f57aa"
+          },
+          {
+            "platform": {
+              "architecture": "386",
+              "os": "linux"
+            },
+            "digest": "sha256:e5257ea2935c2a0dcba29c89194ec06d85fb59fad70e44bf96a735615c7214cf"
+          },
+          {
+            "platform": {
+              "architecture": "ppc64le",
+              "os": "linux"
+            },
+            "digest": "sha256:6ebdbbf670c4c86a1fc76086c86137a79992f76384c018e8a4c24b117371b963"
+          },
+          {
+            "platform": {
+              "architecture": "riscv64",
+              "os": "linux"
+            },
+            "digest": "sha256:04591e180c26590e2b191f161ccfabfb2951d594938c315115ac00f9de4e3c93"
+          },
+          {
+            "platform": {
+              "architecture": "s390x",
+              "os": "linux"
+            },
+            "digest": "sha256:c3c5e446957bbda33df79c21f72f7cafc8034d43cabf0daf4355069e9672aec2"
+          }
+        ]
+      }
+    ]
+  },
+  "unchangedExecutionEnvelope": {
+    "maxAgents": 3,
+    "aggregateMaxRps": 15,
+    "aggregateMaxConcurrency": 6,
+    "minDurationSec": 10,
+    "maxDurationSec": 60,
+    "leaseMs": 6000,
+    "stopGraceMs": 2000,
+    "stopTimeoutMs": 8000
+  },
+  "qualificationOutstanding": [
+    "Actual two-host inventory and supported OS/NIC/firmware",
+    "Native image builds and functional tests on the two hosts",
+    "Host and Pod management/data route separation",
+    "Observed authorized public egress mapping",
+    "Distributed budget/stop/partition/restart receipts",
+    "Independent calibrated measurement and complete DRS scenario coverage",
+    "Workload-specific measured capacity and reviewed production count"
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schema": "shieldtester.passive-prototype-smoke/v1",
+  "scope": "Three sequential local Linux ARM64 container fixtures using existing Node 22 application image; not Kubernetes or remote x86_64 qualification",
+  "passed": 3,
+  "network": "none",
+  "image": "shieldtester-arm64:infrastructure",
+  "observations": [
+    {
+      "schema": "shieldtester.passive-telemetry/v1",
+      "observedAt": "2026-10-15T20:42:16.887Z",
+      "sequence": 1,
+      "scope": "This process and its visible cgroup; not physical-host or target measurements",
+      "pod": "local-fixture-1",
+      "node": null,
+      "platform": "linux",
+      "architecture": "arm64",
+      "nodeVersion": "v22.23.3",
+      "uptimeSec": 1.997452501,
+      "processMemoryBytes": {
+        "rss": 52506624,
+        "heapTotal": 5369856,
+        "heapUsed": 4211560,
+        "external": 1703251,
+        "arrayBuffers": 10511
+      },
+      "processCpuMicroseconds": {
+        "user": 289312,
+        "system": 118717
+      },
+      "cgroup": {
+        "memoryCurrentBytes": "9641984",
+        "memoryLimitBytes": "134217728",
+        "cpuStat": "usage_usec 457028\nuser_usec 290382\nsystem_usec 166645\nnr_periods 38\nnr_throttled 38\nthrottled_usec 3344781\nnr_bursts 0\nburst_usec 0"
+      },
+      "generatesTraffic": false,
+      "fleetEnrolled": false
+    },
+    {
+      "schema": "shieldtester.passive-telemetry/v1",
+      "observedAt": "2026-10-15T20:42:19.337Z",
+      "sequence": 1,
+      "scope": "This process and its visible cgroup; not physical-host or target measurements",
+      "pod": "local-fixture-2",
+      "node": null,
+      "platform": "linux",
+      "architecture": "arm64",
+      "nodeVersion": "v22.23.3",
+      "uptimeSec": 0.700226542,
+      "processMemoryBytes": {
+        "rss": 54546432,
+        "heapTotal": 5369856,
+        "heapUsed": 4211560,
+        "external": 1703251,
+        "arrayBuffers": 10511
+      },
+      "processCpuMicroseconds": {
+        "user": 89945,
+        "system": 50531
+      },
+      "cgroup": {
+        "memoryCurrentBytes": "11526144",
+        "memoryLimitBytes": "134217728",
+        "cpuStat": "usage_usec 154009\nuser_usec 91189\nsystem_usec 62819\nnr_periods 12\nnr_throttled 12\nthrottled_usec 1072971\nnr_bursts 0\nburst_usec 0"
+      },
+      "generatesTraffic": false,
+      "fleetEnrolled": false
+    },
+    {
+      "schema": "shieldtester.passive-telemetry/v1",
+      "observedAt": "2026-10-15T20:42:21.387Z",
+      "sequence": 1,
+      "scope": "This process and its visible cgroup; not physical-host or target measurements",
+      "pod": "local-fixture-3",
+      "node": null,
+      "platform": "linux",
+      "architecture": "arm64",
+      "nodeVersion": "v22.23.3",
+      "uptimeSec": 0.80343825,
+      "processMemoryBytes": {
+        "rss": 54751232,
+        "heapTotal": 5369856,
+        "heapUsed": 4211560,
+        "external": 1703251,
+        "arrayBuffers": 10511
+      },
+      "processCpuMicroseconds": {
+        "user": 80855,
+        "system": 54232
+      },
+      "cgroup": {
+        "memoryCurrentBytes": "11546624",
+        "memoryLimitBytes": "134217728",
+        "cpuStat": "usage_usec 146062\nuser_usec 80383\nsystem_usec 65679\nnr_periods 12\nnr_throttled 12\nthrottled_usec 944689\nnr_bursts 0\nburst_usec 0"
+      },
+      "generatesTraffic": false,
+      "fleetEnrolled": false
+    }
+  ],
+  "remoteDeployment": false,
+  "renderedResources": 5,
+  "kubernetesContextOnRemote": "No context configured for at264",
+  "clusterAdmissionValidated": false,
+  "existingFleetPodsChanged": false,
+  "runtimeFixtureImageSource": "b4078b872d8e15df2cc3d21b52405da2b09c06c2",
+  "remoteStaging": {
+    "host": "ac02",
+    "ssh": "at264@10.20.2.1",
+    "path": "/home/at264/shieldtest-qualification.huqRvtZK/resources.yml",
+    "sha256": "c7a27468b098438c5ee4436dd8affa8047504925b481c6468f83f58c186c1144",
+    "localAndRemoteHashesMatch": true,
+    "applied": false,
+    "permissions": "Private new directory and file, umask 077"
+  }
+}

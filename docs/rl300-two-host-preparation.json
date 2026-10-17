@@ -1,0 +1,50 @@
+{
+  "schema": "shieldtester.infrastructure-preparation/v1",
+  "purpose": "Two-physical-host infrastructure study; no traffic or deployment authorization",
+  "standardVersion": "3.00.00",
+  "catalogueHash": "43baa265b9f6675843473b1bf80666887eaf57377b1aa8c35b8891f4ef5ef856",
+  "targetLevel": 5,
+  "declaredEstate": {
+    "servers": 20,
+    "model": "HPE RL300",
+    "architecture": "ARM64 Ampere Altra Max",
+    "coresPerServer": 128,
+    "verified": false,
+    "memoryPerServerDeclared": "1 TB (reported; not measured)"
+  },
+  "pilotHosts": [],
+  "requiredHostCount": 2,
+  "hardwareQualified": false,
+  "executionAuthorized": false,
+  "pendingInputs": [
+    "Actual host identifiers and site placement",
+    "OS, kernel, container runtime, Kubernetes version and CNI",
+    "NIC models, firmware, link negotiation and management/data interface names",
+    "VPN management routing and administrative access scope",
+    "Allocated public addresses, NAT and independently observed egress mapping",
+    "Independent clock, probe, ingress and origin collector evidence",
+    "Reviewed maintenance/test window, exact target ownership and approved envelope"
+  ],
+  "acceptanceGates": [
+    "Each host has an exact image/source/runtime ARM64 receipt",
+    "Management and data paths are observed separately",
+    "Independent measurements and clock quality are available",
+    "Historical failures and evidence gaps remain visible",
+    "Stop outcomes have independent evidence; missing receipts stay unknown"
+  ],
+  "capacityDecision": {
+    "approvedServerCount": null,
+    "sixteenServersValidated": false,
+    "throughputEstimate": null,
+    "reason": "No two-HPE measurements or verified network specifications available"
+  },
+  "productionPromotion": {
+    "status": "not_performed",
+    "prerequisites": [
+      "Exact source commit and served API/UI asset hashes",
+      "Required tests and PostgreSQL migration checks",
+      "Backup/recovery and retained previous release",
+      "Runtime permissions, monitoring correlation and rollback review"
+    ]
+  }
+}

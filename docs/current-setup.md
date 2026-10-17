@@ -108,3 +108,17 @@ A separate 20-request, low-rate precheck of the existing Kubernetes probe return
 Build **466**, commit `8cec20c1ae59bb27135ec0e9fbfeb063a6985081`, is verified deployed. All four CI jobs, native lint/typecheck, 1,224 backend tests, 458 frontend tests and compilation passed. Served API/UI asset identities match. It corrects adjacent probes across extension batch boundaries, including one-sample batches near the deadline. A fake-clock test verifies the continuous one-second spacing across two consecutive batches. The observation ceiling, plan tolerance, approval and generation budgets remain unchanged.
 
 Promotion preserved accounts, settings, all 284 campaigns and three Fleet identities; all agents are online. Ten lab Pods remain Running and all five native Prometheus jobs are healthy. Old immutable releases and encrypted backups remain available. The full physical campaign was not repeated on build 466: the observed build-465 instability and separate probe precheck require instrumentation qualification before an equivalent repeat. Live participation, independently received Fleet traffic, natural stop, agent-loss and emergency-stop acceptance remain unqualified. See the [sanitized receipt](drs-baseline-checkpoint.json).
+
+## Local infrastructure product increment — 15 October 2026
+
+The source now includes the [infrastructure workspace](infrastructure-workspace.md): versioned physical-host profiles, an operator evidence register for a selected pair, DRS level-5 capability gaps and baseline-refusal distributions. PostgreSQL migration 9 adds a separate append-only revision table. It has been exercised only on disposable local storage. These changes do not alter the running production checkpoint, deploy agents, change traffic limits or qualify the HPE estate. No external operation was performed for this increment.
+
+## Development PoP access — 15 October 2026
+
+WEDOS VPN SSH access to `at264@10.20.2.1` was verified read-only. Host `ac02` reports Ubuntu 24.04.3 LTS, kernel 6.8.0-100-generic, KVM virtualization and x86_64, with 255 visible logical CPUs, approximately 755GiB RAM and a 3.4T root filesystem. These are VM-visible resources, not an exclusive allocation or proof of the physical host's core count. This is not native RL300 ARM64 qualification.
+
+Containerd and kubelet are active, and Cilium interfaces are present. The user's kubectl client is v1.32.0; this does not establish the API server version or health. No current/configured Kubernetes context is available for `at264`. No privileged kubeconfig or node identity was accessed. Cluster admission, reserved resources and the intended namespace remain unverified.
+
+A [passive qualification prototype](../deploy/pop-qualification/README.md) is prepared locally: three proposed telemetry Pods, no traffic generator, Fleet enrollment or external collector. Local rendering and isolated-container samples are not a live deployment. The existing three Fleet workers are unchanged; no second cluster was installed on the PoP.
+
+The rendered passive manifest is staged, not applied, in a new private directory under `/home/at264/shieldtest-qualification.huqRvtZK/`. The local and remote artifact hashes match; see the prototype checkpoint for provenance. No remote service, package, Kubernetes resource or Fleet workload was changed.
