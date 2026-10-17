@@ -1,0 +1,29 @@
+{
+  "dashboardUid": "shieldtest-run",
+  "kubernetesConfigMap": "lab-grafana-audit-e7b71e5",
+  "nativeLoadedDashboardConfirmed": true,
+  "otherNativeDashboardsUnchanged": true,
+  "liveStatsInstant": true,
+  "historicalFallbackRemoved": true,
+  "interpolation": "stepAfter",
+  "missingData": "Not measured",
+  "pods": [
+    {
+      "name": "lab-iot-01",
+      "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357",
+      "ready": true
+    },
+    {
+      "name": "lab-iot-02",
+      "uid": "42b0ed77-1a8b-4581-8619-ab851332f211",
+      "ready": true
+    },
+    {
+      "name": "lab-iot-03",
+      "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d",
+      "ready": true
+    }
+  ],
+  "fixtureNotScrapedByPrometheus": true,
+  "note": "Deployed dashboard definitions and live-stat query semantics verified; this does not claim that Grafana collected the isolated fixture campaign."
+}

@@ -1,0 +1,776 @@
+Browser tab: 38, Title: "WEDOS ShieldTest — 10.98.215.52 L7 resilience", URL: "http://127.0.0.1:18105/api/suites/fdfe12dd-8b75-4373-8d4e-f5a79a0263fd/report".
+1 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18105/api/suites/fdfe12dd-8b75-4373-8d4e-f5a79a0263fd/report
+	2 button Print / PDF
+	3 text WEDOS ShieldTest
+	4 heading DDoS resilience assessment — Layer 7, Value: 1
+		5 text DDoS resilience assessment — Layer 7
+	6 text Target 10.98.215.52 · 12 attack vectors · 2026-10-17 · WEDOS ShieldTest · confidential
+	7 text CONFIDENTIAL — WEDOS INTERNAL
+	8 heading Management summary, Value: 2
+		9 text Management summary
+	10 container
+		11 text On  2026-10-17 , WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against  10.98.215.52  (the live target) —  12  attack vectors, up to  DRS 5 .  3/12  vectors held at their delivered rate,  2  caused partial impact,  2  met the probe-failure criteria, and  5  were inconclusive (under-delivered or degraded — not a valid test at the target rate). Overall risk is  Critical ; worst WRS  59.5  (grade C), average  74.1 . The 2 breached shapes met the probe-failure criteria; these observations do not establish outage duration or business impact.
+	12 container score 74.1 of 100
+	13 text Legacy WRS diagnostic average · not a DRS score
+	14 text Critical
+	15 text 3/12 held
+	16 text 2 breached
+	17 text 5 inconclusive
+	18 text VECTORS
+	19 text 12
+	20 text WORST WRS
+	21 text 59.5
+	22 text DIAGNOSTIC ELIGIBLE
+	23 text 7/12
+	24 text BREACHED
+	25 text 2
+	26 text DRS NOT_EVALUATED: these bounded reference scenarios do not establish a measured DRS level. WRS is a separate legacy diagnostic.
+	27 heading Results — reference scenario groups, Value: 2
+		28 text Results — reference scenario groups
+	29 table
+		30 row
+			31 cell
+				32 text Threat scenario
+			33 cell
+				34 text Attacks
+			35 cell
+				36 text Max rate
+			37 cell
+				38 text RiskLevel
+			39 cell
+				40 text Verdict
+		41 row
+			42 cell
+				43 text Layer 7 · DRS 3
+			44 cell
+				45 text 3
+			46 cell
+				47 text 500 req/s configured / 100 opened connections
+			48 cell
+				49 text Medium
+			50 cell
+				51 text inconclusive (1 inconclusive)
+		52 row
+			53 cell
+				54 text Layer 7 · DRS 4
+			55 cell
+				56 text 5
+			57 cell
+				58 text 800 req/s configured
+			59 cell
+				60 text Critical
+			61 cell
+				62 text breached (3 inconclusive)
+		63 row
+			64 cell
+				65 text Layer 7 · DRS 5
+			66 cell
+				67 text 4
+			68 cell
+				69 text 743 req/s configured
+			70 cell
+				71 text Critical
+			72 cell
+				73 text breached (1 inconclusive)
+	74 heading Layer 7 summary, Value: 2
+		75 text Layer 7 summary
+	76 table
+		77 row
+			78 cell
+				79 text #
+			80 cell
+				81 text Attack (shape)
+			82 cell
+				83 text Load (configured→mean)
+			84 cell
+				85 text DRS
+			86 cell
+				87 text Verdict
+			88 cell
+				89 text RiskLevel
+			90 cell
+				91 text WRS
+			92 cell
+				93 text Mechanism
+		94 row
+			95 cell
+				96 text 1
+			97 cell
+				98 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)
+			99 cell
+				100 text 100 connections
+			101 cell
+				102 text 3
+			103 cell
+				104 text held
+			105 cell
+				106 text Low
+			107 cell
+				108 text 97
+			109 cell
+				110 text connections closed
+		111 row
+			112 cell
+				113 text 2
+			114 cell
+				115 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3)
+			116 cell
+				117 text 400→394
+			118 cell
+				119 text 3
+			120 cell
+				121 text held
+			122 cell
+				123 text Low
+			124 cell
+				125 text 97
+			126 cell
+				127 text successful responses
+		128 row
+			129 cell
+				130 text 3
+			131 cell
+				132 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3) 
+				133 text ⚠
+			134 cell
+				135 text 500→190
+			136 cell
+				137 text 3
+			138 cell
+				139 text inconclusive
+			140 cell
+				141 text Medium
+			142 cell
+				143 text 72
+			144 cell
+				145 text transport failures
+		146 row
+			147 cell
+				148 text 4
+			149 cell
+				150 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4)
+			151 cell
+				152 text 500→409
+			153 cell
+				154 text 4
+			155 cell
+				156 text held
+			157 cell
+				158 text Low
+			159 cell
+				160 text 97
+			161 cell
+				162 text transport failures
+		163 row
+			164 cell
+				165 text 5
+			166 cell
+				167 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4)
+			168 cell
+				169 text 400→376
+			170 cell
+				171 text 4
+			172 cell
+				173 text breached
+			174 cell
+				175 text Critical
+			176 cell
+				177 text 59.5
+			178 cell
+				179 text transport failures
+		180 row
+			181 cell
+				182 text 6
+			183 cell
+				184 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4) 
+				185 text ⚠
+			186 cell
+				187 text 800→720
+			188 cell
+				189 text 4
+			190 cell
+				191 text inconclusive
+			192 cell
+				193 text Medium
+			194 cell
+				195 text 59.5
+			196 cell
+				197 text unresolved failures
+		198 row
+			199 cell
+				200 text 7
+			201 cell
+				202 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4) 
+				203 text ⚠
+			204 cell
+				205 text 800→525
+			206 cell
+				207 text 4
+			208 cell
+				209 text inconclusive
+			210 cell
+				211 text Medium
+			212 cell
+				213 text 59.5
+			214 cell
+				215 text unresolved failures
+		216 row
+			217 cell
+				218 text 8
+			219 cell
+				220 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4) 
+				221 text ⚠
+			222 cell
+				223 text 400→394
+			224 cell
+				225 text 4
+			226 cell
+				227 text inconclusive
+			228 cell
+				229 text Medium
+			230 cell
+				231 text 59.5
+			232 cell
+				233 text unresolved failures
+		234 row
+			235 cell
+				236 text 9
+			237 cell
+				238 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5)
+			239 cell
+				240 text 500→468
+			241 cell
+				242 text 5
+			243 cell
+				244 text breached
+			245 cell
+				246 text Critical
+			247 cell
+				248 text 59.5
+			249 cell
+				250 text transport failures
+		251 row
+			252 cell
+				253 text 10
+			254 cell
+				255 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5)
+			256 cell
+				257 text 208→148
+			258 cell
+				259 text 5
+			260 cell
+				261 text partial
+			262 cell
+				263 text Medium
+			264 cell
+				265 text 84.5
+			266 cell
+				267 text transport failures
+		268 row
+			269 cell
+				270 text 11
+			271 cell
+				272 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5) 
+				273 text ⚠
+			274 cell
+				275 text 743→481
+			276 cell
+				277 text 5
+			278 cell
+				279 text inconclusive
+			280 cell
+				281 text Medium
+			282 cell
+				283 text 59.5
+			284 cell
+				285 text unresolved failures
+		286 row
+			287 cell
+				288 text 12
+			289 cell
+				290 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)
+			291 cell
+				292 text 213→152
+			293 cell
+				294 text 5
+			295 cell
+				296 text partial
+			297 cell
+				298 text Medium
+			299 cell
+				300 text 84.5
+			301 cell
+				302 text transport failures
+	303 container
+		304 text Verdict:  held  = availability held at the delivered rate;  partial  = some impact;  breached  = probe-failure or automatic-stop criteria met;  inconclusive  = under-delivered/degraded or insufficient evidence. ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.
+	305 heading Details — per attack, Value: 2
+		306 text Details — per attack
+	307 heading Attack 1 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3), Value: 3
+		308 text Attack 1 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)
+	309 table
+		310 row
+			311 cell
+				312 text DRS level
+			313 cell
+				314 text 3
+		315 row
+			316 cell
+				317 text Delivered rate
+			318 cell
+				319 text 100 opened connections; 100 closed (not req/s)
+		320 row
+			321 cell
+				322 text Verdict
+			323 cell
+				324 text held
+		325 row
+			326 cell
+				327 text Observation
+			328 cell
+				329 text Slow/incomplete connections closed; the closure cause requires target telemetry; legitimate availability held at 100%. WRS 97 (A+).
+		330 row
+			331 cell
+				332 text Caveats
+			333 cell
+				334 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.
+	335 text Connections opened (cumulative count)
+	336 container timeline
+	337 text Connections closed (cumulative count; cause unproven)
+	338 container timeline
+	339 text Probe availability (cumulative %; 4 completed observations)
+	340 container timeline
+	341 text Probe latency p95 (cumulative ms over completed observations)
+	342 container timeline
+	343 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	344 heading Attack 2 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3), Value: 3
+		345 text Attack 2 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3)
+	346 table
+		347 row
+			348 cell
+				349 text DRS level
+			350 cell
+				351 text 3
+		352 row
+			353 cell
+				354 text Delivered rate
+			355 cell
+				356 text 394/400 req/s mean (98% of expected mean; configured peak 400 req/s)
+		357 row
+			358 cell
+				359 text Verdict
+			360 cell
+				361 text held
+		362 row
+			363 cell
+				364 text Observation
+			365 cell
+				366 text Successful HTTP responses: ~394 req/s; generator failure ratio: 0% (origin/edge attribution requires telemetry); legitimate availability held at 100%. WRS 97 (A+).
+		367 row
+			368 cell
+				369 text Caveats
+			370 cell
+				371 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.
+	372 text Mean offered request rate since generator start (req/s)
+	373 container timeline
+	374 text Probe availability (cumulative %; 4 completed observations)
+	375 container timeline
+	376 text Probe latency p95 (cumulative ms over completed observations)
+	377 container timeline
+	378 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	379 heading Attack 3 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3), Value: 3
+		380 text Attack 3 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3)
+	381 table
+		382 row
+			383 cell
+				384 text DRS level
+			385 cell
+				386 text 3
+		387 row
+			388 cell
+				389 text Delivered rate
+			390 cell
+				391 text 190/360 req/s mean (53% of expected mean; configured peak 500 req/s)
+		392 row
+			393 cell
+				394 text Verdict
+			395 cell
+				396 text inconclusive
+		397 row
+			398 cell
+				399 text Observation
+			400 cell
+				401 text Delivered only 53% of the intended offered rate (190/360 req/s) — a generator-side shortfall, so this is INCONCLUSIVE at the DRS 3 rate. At the delivered rate successful HTTP responses were observed and legitimate availability held at 50%. WRS 72 (B).
+		402 row
+			403 cell
+				404 text Caveats
+			405 cell
+				406 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. Delivered only 53% of the intended offered rate (190/360 req/s) — a generator-side shortfall, so resilience at the full DRS 3 rate is unproven.
+	407 text Mean offered request rate since generator start (req/s)
+	408 container timeline
+	409 text Probe availability (cumulative %; 4 completed observations)
+	410 container timeline
+	411 text Probe latency p95 (cumulative ms over completed observations)
+	412 container timeline
+	413 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	414 heading Attack 4 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4), Value: 3
+		415 text Attack 4 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4)
+	416 table
+		417 row
+			418 cell
+				419 text DRS level
+			420 cell
+				421 text 4
+		422 row
+			423 cell
+				424 text Delivered rate
+			425 cell
+				426 text 409/500 req/s mean (82% of expected mean; configured peak 500 req/s)
+		427 row
+			428 cell
+				429 text Verdict
+			430 cell
+				431 text held
+		432 row
+			433 cell
+				434 text Observation
+			435 cell
+				436 text Transport failures: 34.5% of offered requests; timeouts do not prove edge tarpitting; legitimate availability held at 100%. WRS 97 (A+).
+		437 row
+			438 cell
+				439 text Caveats
+			440 cell
+				441 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.
+	442 text Mean offered request rate since generator start (req/s)
+	443 container timeline
+	444 text Probe availability (cumulative %; 4 completed observations)
+	445 container timeline
+	446 text Probe latency p95 (cumulative ms over completed observations)
+	447 container timeline
+	448 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	449 heading Attack 5 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4), Value: 3
+		450 text Attack 5 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4)
+	451 table
+		452 row
+			453 cell
+				454 text DRS level
+			455 cell
+				456 text 4
+		457 row
+			458 cell
+				459 text Delivered rate
+			460 cell
+				461 text 376/400 req/s mean (94% of expected mean; configured peak 400 req/s)
+		462 row
+			463 cell
+				464 text Verdict
+			465 cell
+				466 text breached
+		467 row
+			468 cell
+				469 text Observation
+			470 cell
+				471 text Not held — 25% of completed legitimate probe transactions succeeded; the majority failed. These samples do not establish outage duration. Transport failures: 99.5% of offered requests; timeouts do not prove edge tarpitting. WRS 59.5 (C).
+		472 row
+			473 cell
+				474 text Caveats
+			475 cell
+				476 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.
+	477 text Mean offered request rate since generator start (req/s)
+	478 container timeline
+	479 text Probe availability (cumulative %; 4 completed observations)
+	480 container timeline
+	481 text Probe latency p95 (cumulative ms over completed observations)
+	482 container timeline
+	483 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	484 heading Attack 6 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4), Value: 3
+		485 text Attack 6 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4)
+	486 table
+		487 row
+			488 cell
+				489 text DRS level
+			490 cell
+				491 text 4
+		492 row
+			493 cell
+				494 text Delivered rate
+			495 cell
+				496 text 720/800 req/s mean (90% of expected mean; configured peak 800 req/s)
+		497 row
+			498 cell
+				499 text Verdict
+			500 cell
+				501 text inconclusive
+		502 row
+			503 cell
+				504 text Observation
+			505 cell
+				506 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C).
+		507 row
+			508 cell
+				509 text Caveats
+			510 cell
+				511 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience. Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	512 text Generator rate timeline not measured. The final summary is not a time-series.
+	513 text Probe availability (cumulative %; 4 completed observations)
+	514 container timeline
+	515 text Probe latency p95 (cumulative ms over completed observations)
+	516 container timeline
+	517 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	518 heading Attack 7 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4), Value: 3
+		519 text Attack 7 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4)
+	520 table
+		521 row
+			522 cell
+				523 text DRS level
+			524 cell
+				525 text 4
+		526 row
+			527 cell
+				528 text Delivered rate
+			529 cell
+				530 text 525/576 req/s mean (91% of expected mean; configured peak 800 req/s)
+		531 row
+			532 cell
+				533 text Verdict
+			534 cell
+				535 text inconclusive
+		536 row
+			537 cell
+				538 text Observation
+			539 cell
+				540 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C).
+		541 row
+			542 cell
+				543 text Caveats
+			544 cell
+				545 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience. Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	546 text Generator rate timeline not measured. The final summary is not a time-series.
+	547 text Probe availability (cumulative %; 4 completed observations)
+	548 container timeline
+	549 text Probe latency p95 (cumulative ms over completed observations)
+	550 container timeline
+	551 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	552 heading Value: 3, Attack 8 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4)
+		553 text Attack 8 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4)
+	554 table
+		555 row
+			556 cell
+				557 text DRS level
+			558 cell
+				559 text 4
+		560 row
+			561 cell
+				562 text Delivered rate
+			563 cell
+				564 text 394/400 req/s mean (98% of expected mean; configured peak 400 req/s)
+		565 row
+			566 cell
+				567 text Verdict
+			568 cell
+				569 text inconclusive
+		570 row
+			571 cell
+				572 text Observation
+			573 cell
+				574 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C).
+		575 row
+			576 cell
+				577 text Caveats
+			578 cell
+				579 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience. Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	580 text Generator rate timeline not measured. The final summary is not a time-series.
+	581 text Probe availability (cumulative %; 4 completed observations)
+	582 container timeline
+	583 text Probe latency p95 (cumulative ms over completed observations)
+	584 container timeline
+	585 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	586 heading Attack 9 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5), Value: 3
+		587 text Attack 9 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5)
+	588 table
+		589 row
+			590 cell
+				591 text DRS level
+			592 cell
+				593 text 5
+		594 row
+			595 cell
+				596 text Delivered rate
+			597 cell
+				598 text 468/500 req/s mean (94% of expected mean; configured peak 500 req/s)
+		599 row
+			600 cell
+				601 text Verdict
+			602 cell
+				603 text breached
+		604 row
+			605 cell
+				606 text Observation
+			607 cell
+				608 text Not held — 25% of completed legitimate probe transactions succeeded; the majority failed. These samples do not establish outage duration. Transport failures: 100% of offered requests; timeouts do not prove edge tarpitting. WRS 59.5 (C).
+		609 row
+			610 cell
+				611 text Caveats
+			612 cell
+				613 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.
+	614 text Mean offered request rate since generator start (req/s)
+	615 container timeline
+	616 text Probe availability (cumulative %; 4 completed observations)
+	617 container timeline
+	618 text Probe latency p95 (cumulative ms over completed observations)
+	619 container timeline
+	620 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	621 heading Attack 10 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5), Value: 3
+		622 text Attack 10 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5)
+	623 table
+		624 row
+			625 cell
+				626 text DRS level
+			627 cell
+				628 text 5
+		629 row
+			630 cell
+				631 text Delivered rate
+			632 cell
+				633 text 148/150 req/s mean (99% of expected mean; configured peak 208 req/s)
+		634 row
+			635 cell
+				636 text Verdict
+			637 cell
+				638 text partial
+		639 row
+			640 cell
+				641 text Observation
+			642 cell
+				643 text Transport failures: 90.3% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 75%. WRS 84.5 (B). (Rate-calibrated: graded at 208 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+		644 row
+			645 cell
+				646 text Caveats
+			647 cell
+				648 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 219.7 req/s), so the graded run was offered at 208 req/s. This calibration is not proof of successful mitigation at 208 req/s; proving resilience at the full 800 req/s requires further generator and target qualification.
+	649 text Mean offered request rate since generator start (req/s)
+	650 container timeline
+	651 text Probe availability (cumulative %; 4 completed observations)
+	652 container timeline
+	653 text Probe latency p95 (cumulative ms over completed observations)
+	654 container timeline
+	655 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	656 heading Attack 11 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5), Value: 3
+		657 text Attack 11 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5)
+	658 table
+		659 row
+			660 cell
+				661 text DRS level
+			662 cell
+				663 text 5
+		664 row
+			665 cell
+				666 text Delivered rate
+			667 cell
+				668 text 481/535 req/s mean (90% of expected mean; configured peak 743 req/s)
+		669 row
+			670 cell
+				671 text Verdict
+			672 cell
+				673 text inconclusive
+		674 row
+			675 cell
+				676 text Observation
+			677 cell
+				678 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C). (Rate-calibrated: graded at 743 req/s — the deliverable ceiling here — not the requested 1000 req/s.)
+		679 row
+			680 cell
+				681 text Caveats
+			682 cell
+				683 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. Rate-calibrated: the requested 1000 req/s exceeded what the generator could deliver against this target on one box (measured 782.99 req/s), so the graded run was offered at 743 req/s. This calibration is not proof of successful mitigation at 743 req/s; proving resilience at the full 1000 req/s requires further generator and target qualification. Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	684 text Generator rate timeline not measured. The final summary is not a time-series.
+	685 text Probe availability (cumulative %; 4 completed observations)
+	686 container timeline
+	687 text Probe latency p95 (cumulative ms over completed observations)
+	688 container timeline
+	689 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	690 heading Attack 12 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5), Value: 3
+		691 text Attack 12 / Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)
+	692 table
+		693 row
+			694 cell
+				695 text DRS level
+			696 cell
+				697 text 5
+		698 row
+			699 cell
+				700 text Delivered rate
+			701 cell
+				702 text 152/153 req/s mean (99% of expected mean; configured peak 213 req/s)
+		703 row
+			704 cell
+				705 text Verdict
+			706 cell
+				707 text partial
+		708 row
+			709 cell
+				710 text Observation
+			711 cell
+				712 text Transport failures: 89.9% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 75%. WRS 84.5 (B). (Rate-calibrated: graded at 213 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+		713 row
+			714 cell
+				715 text Caveats
+			716 cell
+				717 text Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 224.7 req/s), so the graded run was offered at 213 req/s. This calibration is not proof of successful mitigation at 213 req/s; proving resilience at the full 800 req/s requires further generator and target qualification.
+	718 text Mean offered request rate since generator start (req/s)
+	719 container timeline
+	720 text Probe availability (cumulative %; 4 completed observations)
+	721 container timeline
+	722 text Probe latency p95 (cumulative ms over completed observations)
+	723 container timeline
+	724 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	725 heading Glossary, Value: 2
+		726 text Glossary
+	727 heading Verdict, Value: 3
+		728 text Verdict
+	729 table
+		730 row
+			731 cell
+				732 text held
+			733 cell
+				734 text Legitimate availability held (≥99%) at the delivered rate — a diagnostic at the delivered load; continuous availability and a DRS score are not established.
+		735 row
+			736 cell
+				737 text partial
+			738 cell
+				739 text Some legitimate impact — availability dipped below 99% while the target stayed up.
+		740 row
+			741 cell
+				742 text breached
+			743 cell
+				744 text The run met the probe-failure or automatic-stop criteria; probe sample success does not directly measure outage duration. Completion and resilience verdict are separate; a breach does not imply an automatic kill.
+		745 row
+			746 cell
+				747 text inconclusive
+			748 cell
+				749 text The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted.  Not a pass.
+	750 heading Mechanism, Value: 3
+		751 text Mechanism
+	752 table
+		753 row
+			754 cell
+				755 text served
+			756 cell
+				757 text Successful HTTP responses observed by the generator; origin and edge attribution require independent telemetry.
+		758 row
+			759 cell
+				760 text rejected / tarpitted
+			761 cell
+				762 text HTTP failures or transport failures observed by the generator. These alone do not establish filtering or deliberate tarpitting.
+		763 row
+			764 cell
+				765 text shed
+			766 cell
+				767 text For slow-connection vectors: slow/incomplete connections ended; the cause requires independent telemetry.
+		768 row
+			769 cell
+				770 text blocked
+			771 cell
+				772 text Generator failures observed; their location and cause are unresolved.
+	773 text Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST/slow-header, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.
+
+The focused UI element is 1 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18105/api/suites/fdfe12dd-8b75-4373-8d4e-f5a79a0263fd/report

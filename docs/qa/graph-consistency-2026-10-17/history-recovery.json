@@ -1,0 +1,18 @@
+{
+  "compatibility": {
+    "classicApplicationReady": true,
+    "singleOwner": true,
+    "users": 11,
+    "campaigns": 289,
+    "fleet": 3,
+    "currentDatabaseUnchanged": true
+  },
+  "checkedAt": "2026-10-17T18:27:31.085Z",
+  "authenticatedRecovery": true,
+  "atomicRestore": true,
+  "preserved": {
+    "audit": true,
+    "infrastructure": true
+  },
+  "archiveSha256": "5e5c9dbae1ff50f71a3b1276342a44bc53388ff8095268b5d7539a23104de5f8"
+}

@@ -1,79 +1,79 @@
 {
   "auditedAt": "2026-10-17",
-  "status": "SOURCE_CORRECTED_DELIVERY_PENDING",
+  "status": "DEPLOYED_VERIFIED",
   "scope": "campaign execution, Run Theater, retained timelines, CSV, per-run and suite reports, run Grafana dashboard",
   "issues": [
     {
       "id": "G01",
       "finding": "Connection counts were rendered as HTTP rates",
       "correction": "Separate connection panels and units in live, replay and reports",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G02",
       "finding": "Absent external-engine counters became measured zeros",
       "correction": "Explicit generator provenance; blank unknown CSV values; no reconstructed historical time-series",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G03",
       "finding": "Generator errors declared an outage or mitigation without supporting probe observations",
       "correction": "Neutral generator-error banner; probe impact presented separately; no edge or origin attribution",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G04",
       "finding": "Successful response curves inferred outcomes from unfinished attempts",
       "correction": "Use the successful counter and the same generator rate window as the tiles",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G05",
       "finding": "Live probe p95 was lost from the stored timeline",
       "correction": "Persist p95 and completed observation counts; expose cumulative semantics and stepped sample plots",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G06",
       "finding": "App and runner published duplicate Prometheus series on different clocks and label sets",
       "correction": "One producer with target and vector labels; absent series omitted",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G07",
       "finding": "Grafana live failures fell back to a previous settled run",
       "correction": "Instant live queries without historical fallback; no smoothing or null spanning",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G08",
       "finding": "Reports conflated scenario completion, safety stops and resilience outcomes",
       "correction": "Independent execution and verdict wording; diagnostic WRS is not a measured DRS score",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G09",
       "finding": "Mean-rate peaks and source protocol capability were overstated",
       "correction": "Explicit maximum-recorded-mean labels; unconfirmed HTTP/2 scope is inconclusive",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G10",
       "finding": "Cached historical interpretations diverged from regenerated reports",
       "correction": "Read-time assessment projection from preserved evidence, without writing historical measurements",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G11",
       "finding": "Wave/ramp rounding changed a 20-second window to 21 seconds",
       "correction": "Phase durations sum exactly to the requested total",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     },
     {
       "id": "G12",
       "finding": "k6 missing summary fields and verbose output lost usable execution evidence",
       "correction": "Bounded quiet output; validate exported counters; retain diagnostics and process-output ceiling",
-      "status": "source_corrected"
+      "status": "corrected_and_verified"
     }
   ],
   "preserved": [
@@ -89,5 +89,17 @@
     "Missing historical p95 cannot be reconstructed",
     "HTTP-only target does not qualify HTTP/2 resilience",
     "No physical DRS certification or capacity inferred"
-  ]
+  ],
+  "delivery": {
+    "build": 483,
+    "commit": "d15afa3d8a09670e492634529029db7274e3d1cc",
+    "ciRun": 39058232004,
+    "evidence": "docs/qa/graph-consistency-2026-10-17/",
+    "replayCompleted": 12,
+    "configuredStepSeconds": 20,
+    "addedIntervalSeconds": 0,
+    "backendTestsPassed": 1248,
+    "frontendTestsPassed": 470,
+    "productionBrowserVerified": false
+  }
 }

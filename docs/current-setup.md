@@ -227,5 +227,4 @@ completion and safety-stop status are separate from the resilience verdict.
 Grafana's live failure stat no longer falls back to an earlier run. Instant live stats,
 non-smoothed sample steps, explicit absent values and neutral outcome labels preserve
 the same meaning as the app. The source dashboard and Kubernetes copy remain aligned.
-These are candidate-source changes; deployment and qualification are recorded separately
-after exact-source CI, native checks, authenticated recovery and preservation gates.
+Deployed as build 483 (`d15afa3d8a09670e492634529029db7274e3d1cc`) after exact-source CI, native build/report checks and authenticated recovery. API/UI release identity, readiness, runtime configuration, all 289 campaigns, 11 accounts, the sole administrator and three Fleet identities were preserved. The private-lab replay completed all 12 steps at 20 seconds each with no added interval; final reports were regenerated from unchanged measurements. Both native and Kubernetes Grafana dashboards are loaded and the three persistent IoT Pods remain ready. Evidence: `docs/qa/graph-consistency-2026-10-17/`. Production browser access remained denied by its saved policy; the UI was verified in the isolated lab and production through authenticated health, asset and database checks.
