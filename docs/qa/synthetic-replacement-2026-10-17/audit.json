@@ -1,0 +1,56 @@
+[
+  {
+    "id": "e5a18e81-6630-41b6-b647-c4fc5a783840",
+    "at": "2026-10-17T11:27:01.839Z",
+    "actor": "isolated-synthetic-qualification",
+    "action": "bench.verdict",
+    "detail": "C/udp_dns_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 40x",
+    "prevHash": "f2dc36f24eb16476be082da4ea14fcf180fd8177e8fcc8b82cd46aae53012d4b",
+    "hash": "3950f357c01dd26c391a215344c6fa83df99f75af2e1ed8f1970de5aa5c80eae"
+  },
+  {
+    "id": "96d12c78-9d27-40be-8dc0-9977cc5ec0d7",
+    "at": "2026-10-17T11:27:01.838Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=3764b0f3-6c6b-4442-8b89-9828291e8036 sha256=79fa930ba70aff0ba0c17f757123478595c4e275acfb2d110c98377696b7dc15",
+    "prevHash": "018c1638690f31c4a79cb34000b7436eee28012487d2f81dc63694dba112aa8d",
+    "hash": "f2dc36f24eb16476be082da4ea14fcf180fd8177e8fcc8b82cd46aae53012d4b"
+  },
+  {
+    "id": "3bd49169-7e15-45a7-b738-fa13b03b431f",
+    "at": "2026-10-17T11:27:01.836Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=e15249c6-936d-4ed2-80ff-67cc019b2d85 sha256=fb5e7abbb6ad2350b9cd4ca067657ae85b150ef0e19de11cbefd3bf800039a25",
+    "prevHash": "b435109527b4512eedc8b2f23b109f5ff2eac2cc629aca943396b0883dab70fb",
+    "hash": "018c1638690f31c4a79cb34000b7436eee28012487d2f81dc63694dba112aa8d"
+  },
+  {
+    "id": "adf78c72-293e-4a62-88c8-f33afc00c4a4",
+    "at": "2026-10-17T11:26:55.298Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-synthetic-qualification sha256=0241ac0ba3897d3f549a76d5eb89626143908e1aaef46f5b4447e9045c29869f",
+    "prevHash": "9ca7797724a6b2fefa6a89783ec6bf41692ca8fb26767dd4ab203c0b5a6c7550",
+    "hash": "b435109527b4512eedc8b2f23b109f5ff2eac2cc629aca943396b0883dab70fb"
+  },
+  {
+    "id": "254c70dc-8b19-4108-a089-30bab2e75f3f",
+    "at": "2026-10-17T11:26:48.115Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_dns_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "82f137217cfec5751e3faf2233bc5ff0fbc2d2368a3994b93423ba4690249673",
+    "hash": "9ca7797724a6b2fefa6a89783ec6bf41692ca8fb26767dd4ab203c0b5a6c7550"
+  },
+  {
+    "id": "a71d62dd-9f9a-4bdf-9c3c-5bae5b2bb12f",
+    "at": "2026-10-17T11:26:48.113Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=e15249c6-936d-4ed2-80ff-67cc019b2d85 sha256=756da4e7fc95c5678b8d04ab481492a6ad8603ee9b3ba936bdc4e3a00d62aef6",
+    "prevHash": "GENESIS",
+    "hash": "82f137217cfec5751e3faf2233bc5ff0fbc2d2368a3994b93423ba4690249673"
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "runs": [
+    {
+      "id": "e15249c6-936d-4ed2-80ff-67cc019b2d85",
+      "scenario": "udp_dns_reflection",
+      "labTarget": "127.0.0.1",
+      "status": "COMPLETED",
+      "requestedBy": "dev",
+      "requestedAt": "2026-10-17T11:26:48.111Z",
+      "claimedAt": "2026-10-17T11:26:55.297Z",
+      "claimedBy": "isolated-synthetic-qualification",
+      "completedAt": "2026-10-17T11:27:01.835Z",
+      "verdict": {
+        "schema": "shieldtest.lab.verdict/v1",
+        "class": "C",
+        "kind": "udp-amplification",
+        "scenario": "udp_dns_reflection",
+        "labTarget": "127.0.0.1",
+        "profiles": ["dns"],
+        "amplificationFactor": 40,
+        "packetAmplification": 1,
+        "requests": 720,
+        "target": { "packets": 720, "avgPps": 111.58, "avgBps": 3212891.23 },
+        "mitigation": null,
+        "connections": null,
+        "outcome": "UNMITIGATED_BASELINE",
+        "runner": "isolated-synthetic-qualification",
+        "source": "shieldtest-lab",
+        "generatedAt": "2026-10-17T11:27:01.793Z"
+      }
+    }
+  ]
+}

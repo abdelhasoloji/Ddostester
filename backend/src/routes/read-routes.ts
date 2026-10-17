@@ -14,6 +14,7 @@ import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderFleetMetrics, renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
+import { renderBenchReportHtml } from '../modules/reports/bench-report.js';
 import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml, compareRuns } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
@@ -85,6 +86,13 @@ export interface ReadRoutesCtx {
  */
 export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): void {
   const { store, guard, readTokenAllowed, prometheusUrl, grafanaUrl } = ctx;
+  app.get('/api/bench/runs/:id/report', async (req, reply) => {
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
+    const run = await store.getBenchRun((req.params as { id: string }).id);
+    if (!run) return reply.code(404).send({ error: 'run not found' });
+    return sendReport(req, reply, renderBenchReportHtml(run), 'bench-' + run.id.slice(0, 8));
+  });
   app.get('/api/fleet/status', { preHandler: guard('campaign:read') }, async (_req, reply) => {
     reply.header('cache-control', 'no-store');
     return fleetStatusFromEnv();

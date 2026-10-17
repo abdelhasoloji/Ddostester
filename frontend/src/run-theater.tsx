@@ -6,6 +6,7 @@ import type { Campaign, CampaignStatus, ReconReport, SuiteSequenceState } from '
 import { RunTheater, RunVerdictLine, AbsorptionWidget, WrsPill, wrsClass, hostOf } from './ui.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { ReconDetailModal } from './recon-detail.js';
+import { BenchCard } from './bench-card.js';
 import { PageHead, GrafanaLink, useSuiteSequences, shortStepName } from './pages.js';
 
 const SUITE_TERMINAL: CampaignStatus[] = [
@@ -389,12 +390,33 @@ export function RunTheaterPage() {
     (revision) => revision.number === grafanaCampaign.drsDocument?.currentRevision,
   );
 
+  if (params.get('mode') === 'synthetic') {
+    return (
+      <>
+        <PageHead
+          title="Run Theater"
+          sub="Bounded synthetic network campaigns · experimental evidence"
+        />
+        <p>
+          <Link to="/theater">HTTP campaigns</Link> ·{' '}
+          <Link to="/api/reports/compliance" target="_blank">
+            Aggregate report
+          </Link>
+        </p>
+        <BenchCard />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHead
         title="Run Theater"
         sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
       />
+      <p>
+        <Link to="/theater?mode=synthetic">Synthetic bench</Link>
+      </p>
       {grafanaTarget && (
         <GrafanaLink
           plane="run"

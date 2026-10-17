@@ -1,5 +1,9 @@
 # Current implementation and remaining work
 
+## Selected synthetic workflow — 17 October 2026
+
+The operator replaced the GET-rate objective with a bounded synthetic bench campaign. The existing governed bench cockpit is available in Run Theater, with receiver packet/bit counters and dedicated per-run reports. A real isolated six-second DNS-shape scenario completed with 720 received packets, 3.213 Mbit/s and an observed 40× byte ratio; it is an unmitigated baseline, not a DRS pass. Preserve the earlier HTTP shortfalls as diagnostics. Delivery must verify exact API/UI identity, existing admin/history/three Pods and bench runner configuration. Production browser acceptance remains independently blocked by its saved origin permission; see [current setup](current-setup.md#synthetic-bench-replaces-http-qualification--17-october-2026).
+
 ## ZeroBS throughput delivery — 17 October 2026
 
 Source fixes explicit main-target preservation for GET-Flood, custom-template round trips, cancelled Vegeta report parsing and consistent successful-response rate windows in Theater/reports. Existing concurrency ceilings and stored campaigns remain intact. The isolated private lab reached 794.04 RPS live but varied with shared-host/collection load, so sustained 800 RPS is not yet qualified. Separate the generator/probe/collection capacity and obtain a stable reserved execution envelope before claiming that rate. See the dated throughput observations in [current setup](current-setup.md#zerobs-throughput-correction--17-october-2026).

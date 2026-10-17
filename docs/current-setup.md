@@ -1,5 +1,13 @@
 # Current setup — observed 15 October 2026
 
+## Synthetic bench replaces HTTP qualification — 17 October 2026
+
+The operator selected the existing bounded synthetic network bench instead of further GET throughput qualification. Run Theater now exposes `/theater?mode=synthetic`, reusing the governed bench catalogue, dispatch and result polling. Completed rows show actual received packets and Mbit/s separately from the amplification ratio, and link a dedicated authenticated HTML/PDF report at `/api/bench/runs/:id/report`. The report has no inferred HTTP RPS, WRS or DRS score; absent counters remain unknown. The HTTP path remains available separately.
+
+An isolated fresh-memory instance on the lab VPS exercised the deployed companion source `eb0aa26249965f9cddd421870dbc991348cb6d6a`: `udp_dns_reflection`, six seconds, 120 configured input packets/s. The real loopback receiver measured 720 packets, 111.58 packets/s and 3,212,891.23 bits/s; the observed byte amplification ratio was 40×. Outcome: `UNMITIGATED_BASELINE` (no scrubber in this scenario). No public reflector or IoT agent was used. This is experimental synthetic evidence, not a mitigation success or DRS qualification.
+
+The campaign followed request → runner claim → real bounded execution → completed verdict. The dedicated report was then regenerated from that exact retained record and visually checked, without emitting a second scenario. [Evidence receipt](qa/synthetic-replacement-2026-10-17/receipt.json), [report](qa/synthetic-replacement-2026-10-17/report.html). Fixture UI/API source mismatch is explicitly recorded; production acceptance remains subject to exact release gates and the saved browser-origin restriction. Production has a bench runner token configured and the lab runner service is active; these flags alone are not a live production campaign proof.
+
 ## ZeroBS throughput correction — 17 October 2026
 
 The GET-Flood template now explicitly preserves its configured main target (`focusDynamic: false` survives custom-template validation). Recon no longer silently replaces this line with the costliest dynamic endpoint and fresh-connection pressure. Explicit dynamic-pressure templates retain their behavior. Existing stored campaigns and their endpoint sets are not rewritten: create a new GET campaign to use the corrected template.

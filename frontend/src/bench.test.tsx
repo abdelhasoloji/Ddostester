@@ -91,6 +91,7 @@ vi.mock('./api.js', async (orig) => {
 });
 
 const { SettingsPage } = await import('./pages.js');
+const { RunTheaterPage } = await import('./run-theater.js');
 
 describe('Network bench cockpit (Settings) — DRS matrix', () => {
   beforeEach(() => {
@@ -100,6 +101,18 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
       authRequired: true,
       identity: { email: 'ciso@wedos', role: 'ciso' },
     });
+  });
+
+  it('opens the existing governed synthetic cockpit in Run Theater without an HTTP run', async () => {
+    renderWithRouter(<RunTheaterPage />);
+    fireEvent.click(screen.getByRole('link', { name: 'Synthetic bench' }));
+    expect(await screen.findByText(/Network bench — advanced · class C/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Aggregate report' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Report' })).toHaveAttribute(
+      'href',
+      '/api/bench/runs/b1/report',
+    );
+    expect(fakeApi.createBenchRun).not.toHaveBeenCalled();
   });
 
   it('shows the CISO the DRS coverage matrix and a completed verdict', async () => {

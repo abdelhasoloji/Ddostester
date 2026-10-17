@@ -308,6 +308,8 @@ export function BenchCard() {
                 <th>Outcome</th>
                 <th style={{ textAlign: 'right' }}>Amplification</th>
                 <th style={{ textAlign: 'right' }}>Collateral</th>
+                <th>Received packets</th>
+                <th>Received Mbit/s</th>
                 <th>Requested</th>
               </tr>
             </thead>
@@ -337,7 +339,22 @@ export function BenchCard() {
                       ? `${r.verdict.mitigation.collateralPct}%`
                       : '—'}
                   </td>
-                  <td className="hint">{new Date(r.requestedAt).toLocaleString()}</td>
+                  <td>{r.verdict?.target?.packets ?? '—'}</td>
+                  <td>
+                    {r.verdict?.target?.avgBps != null
+                      ? (r.verdict.target.avgBps / 1e6).toFixed(3)
+                      : '—'}
+                  </td>
+                  <td className="hint">
+                    {new Date(r.requestedAt).toLocaleString()} ·{' '}
+                    <a
+                      href={`/api/bench/runs/${encodeURIComponent(r.id)}/report`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Report
+                    </a>
+                  </td>
                 </tr>
               ))}
             </tbody>

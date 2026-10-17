@@ -1,0 +1,20 @@
+{
+  "scope": "User selected synthetic network bench instead of GET; isolated app and dedicated loopback receiver on lab VPS",
+  "labSource": "eb0aa26249965f9cddd421870dbc991348cb6d6a",
+  "scenario": "udp_dns_reflection",
+  "durationSec": 6,
+  "configuredInputPps": 120,
+  "inputRequests": 720,
+  "receivedPackets": 720,
+  "receivedBitsPerSec": 3212891.23,
+  "amplificationRatio": 40,
+  "outcome": "UNMITIGATED_BASELINE",
+  "physicalDrsScore": "NOT_EVALUATED",
+  "threeIotPodsUsed": false,
+  "publicReflectorsUsed": false,
+  "productionDataUsed": false,
+  "reportVerification": "Dedicated report regenerated from exact retained completed bench record; no second traffic run",
+  "theaterMode": "/theater?mode=synthetic",
+  "reportPath": "/api/bench/runs/e15249c6-936d-4ed2-80ff-67cc019b2d85/report",
+  "fixtureIdentity": "Mixed base and candidate modules/assets, explicit UI/API mismatch; not a production source-identity receipt"
+}
