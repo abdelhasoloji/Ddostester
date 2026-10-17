@@ -1,0 +1,215 @@
+{
+  "startedAt": "2026-10-17T07:13:09.810Z",
+  "finishedAt": "2026-10-17T07:13:37.675Z",
+  "environment": "isolated localhost memory-store fixture; no production access",
+  "target": "127.0.0.1",
+  "targetDrsLevel": 5,
+  "referenceRows": 60,
+  "syntheticMappedRows": 15,
+  "uniqueShapesExecuted": 5,
+  "events": [
+    {
+      "phase": "REQUESTED",
+      "scenario": "tcp_synflood",
+      "id": "4d4304b2-6c0d-4282-bc56-2c8427f9f99d",
+      "at": "2026-10-17T07:12:17.686Z"
+    },
+    {
+      "phase": "CLAIMED",
+      "scenario": "tcp_synflood",
+      "id": "4d4304b2-6c0d-4282-bc56-2c8427f9f99d",
+      "at": "2026-10-17T07:12:38.652Z"
+    },
+    {
+      "phase": "COMPLETED",
+      "scenario": "tcp_synflood",
+      "id": "4d4304b2-6c0d-4282-bc56-2c8427f9f99d",
+      "at": "2026-10-17T07:12:44.895Z"
+    },
+    {
+      "phase": "REQUESTED",
+      "scenario": "udp_maxpackets",
+      "id": "1b4762cd-ede4-4f93-83a6-ad6541df9267",
+      "at": "2026-10-17T07:13:09.852Z"
+    },
+    {
+      "phase": "CLAIMED",
+      "scenario": "udp_maxpackets",
+      "id": "1b4762cd-ede4-4f93-83a6-ad6541df9267",
+      "at": "2026-10-17T07:13:09.855Z"
+    },
+    {
+      "phase": "COMPLETED",
+      "scenario": "udp_maxpackets",
+      "id": "1b4762cd-ede4-4f93-83a6-ad6541df9267",
+      "at": "2026-10-17T07:13:16.296Z"
+    },
+    {
+      "phase": "REQUESTED",
+      "scenario": "udp_ntp_reflection",
+      "id": "ddfb9dfe-90e3-4a93-9add-0d73b901d352",
+      "at": "2026-10-17T07:13:16.304Z"
+    },
+    {
+      "phase": "CLAIMED",
+      "scenario": "udp_ntp_reflection",
+      "id": "ddfb9dfe-90e3-4a93-9add-0d73b901d352",
+      "at": "2026-10-17T07:13:16.307Z"
+    },
+    {
+      "phase": "COMPLETED",
+      "scenario": "udp_ntp_reflection",
+      "id": "ddfb9dfe-90e3-4a93-9add-0d73b901d352",
+      "at": "2026-10-17T07:13:22.741Z"
+    },
+    {
+      "phase": "REQUESTED",
+      "scenario": "udp_multivector",
+      "id": "84ba779e-db86-4477-aae1-cf7985b8e4cd",
+      "at": "2026-10-17T07:13:22.746Z"
+    },
+    {
+      "phase": "CLAIMED",
+      "scenario": "udp_multivector",
+      "id": "84ba779e-db86-4477-aae1-cf7985b8e4cd",
+      "at": "2026-10-17T07:13:22.748Z"
+    },
+    {
+      "phase": "COMPLETED",
+      "scenario": "udp_multivector",
+      "id": "84ba779e-db86-4477-aae1-cf7985b8e4cd",
+      "at": "2026-10-17T07:13:29.184Z"
+    },
+    {
+      "phase": "REQUESTED",
+      "scenario": "pulsewave_l34",
+      "id": "3dfdf032-5143-45a4-9820-4642fd6764b0",
+      "at": "2026-10-17T07:13:29.191Z"
+    },
+    {
+      "phase": "CLAIMED",
+      "scenario": "pulsewave_l34",
+      "id": "3dfdf032-5143-45a4-9820-4642fd6764b0",
+      "at": "2026-10-17T07:13:29.193Z"
+    },
+    {
+      "phase": "COMPLETED",
+      "scenario": "pulsewave_l34",
+      "id": "3dfdf032-5143-45a4-9820-4642fd6764b0",
+      "at": "2026-10-17T07:13:37.642Z"
+    }
+  ],
+  "observations": [
+    {
+      "id": "4d4304b2-6c0d-4282-bc56-2c8427f9f99d",
+      "scenario": "tcp_synflood",
+      "status": "COMPLETED",
+      "outcome": "STATE_TABLE_SATURATED",
+      "received": {
+        "opened": 870,
+        "accepted": 200,
+        "refused": 670,
+        "concurrentPeak": 200,
+        "capacity": 200,
+        "saturationPct": 77.01
+      }
+    },
+    {
+      "id": "1b4762cd-ede4-4f93-83a6-ad6541df9267",
+      "scenario": "udp_maxpackets",
+      "status": "COMPLETED",
+      "outcome": "UNMITIGATED_BASELINE",
+      "received": {
+        "packets": 12000,
+        "avgPps": 1864.51,
+        "avgBps": 1402113.11
+      }
+    },
+    {
+      "id": "ddfb9dfe-90e3-4a93-9add-0d73b901d352",
+      "scenario": "udp_ntp_reflection",
+      "status": "COMPLETED",
+      "outcome": "UNMITIGATED_BASELINE",
+      "received": {
+        "packets": 3600,
+        "avgPps": 559.7,
+        "avgBps": 20373134.33
+      }
+    },
+    {
+      "id": "84ba779e-db86-4477-aae1-cf7985b8e4cd",
+      "scenario": "udp_multivector",
+      "status": "COMPLETED",
+      "outcome": "UNMITIGATED_BASELINE",
+      "received": {
+        "packets": 3516,
+        "avgPps": 546.56,
+        "avgBps": 19281181.41
+      }
+    },
+    {
+      "id": "3dfdf032-5143-45a4-9820-4642fd6764b0",
+      "scenario": "pulsewave_l34",
+      "status": "COMPLETED",
+      "outcome": "UNMITIGATED_BASELINE",
+      "received": {
+        "packets": 2204,
+        "avgPps": 261.08,
+        "avgBps": 8661833.69
+      }
+    }
+  ],
+  "report": {
+    "maxLevel": 5,
+    "status": "PARTIAL",
+    "score": null,
+    "attachments": 5,
+    "proofs": 0,
+    "sha256": "f673983ac630aba016eb698bd37a24710004d6d8c4b6817b731bbc631a92da5a",
+    "file": "report.html",
+    "jsonFile": "report.json"
+  },
+  "productGaps": [
+    "Bench runs are not campaign suite steps; QA driver orders scenarios, not the application manager",
+    "Bench requests have no Run Theater link or bench-run subscription",
+    "Diagnostic attachments and finalization require separate assessment workflow",
+    "Finalizing a synthetic diagnostic assessment leaves the campaign PENDING_APPROVAL while its DRS revision is FINAL_REPORT",
+    "Bench preparation displays legacy report-level labels instead of retaining the selected official reference row",
+    "No bench-specific stop/progress control or automatic report link exists in Run Theater"
+  ],
+  "campaignStatusAfterReport": "PENDING_APPROVAL",
+  "productionMutated": false,
+  "capsModified": false,
+  "fixtureCampaignSeeded": true,
+  "schema": "shieldtester.synthetic-journey-checkpoint/v1",
+  "overallJourney": "NOT_COMPLETE",
+  "applicationSourceCommit": "8b3ece432df2b6dac73939be9b37e63ac070fd25",
+  "applicationCodeEquivalentTo": "d19b64c0d820ef2cace7aec613e8caf4e9b0255c",
+  "benchSourceCommit": "4a656a89a6dbac6cf31203a04cd69be01a48dde8",
+  "fixtureNotes": [
+    "Assessment campaign seeded in temporary memory store; not created through the production campaign form",
+    "First bench request submitted using local UI; remaining four requests ordered by QA driver",
+    "No authentication credentials or production data copied; local development-mode access does not validate production authentication",
+    "Existing named scenarios and original budgets used without parameter overrides",
+    "TCP driver assertion initially treated an empty UDP target object as packet counters; corrected to connection counters, and reused the completed first observation without replay"
+  ],
+  "theater": {
+    "result": "FAIL",
+    "observedText": "No run in flight",
+    "screenshotAt": "2026-10-17T07:13:19.371630+00:00",
+    "benchRunsActiveAtScreenshot": [
+      {
+        "id": "ddfb9dfe-90e3-4a93-9add-0d73b901d352",
+        "scenario": "udp_ntp_reflection",
+        "claimedAt": "2026-10-17T07:13:16.307Z",
+        "completedAt": "2026-10-17T07:13:22.741Z"
+      }
+    ],
+    "screenshot": "theater.png"
+  },
+  "productionBrowserCheck": {
+    "result": "BLOCKED",
+    "reason": "Saved browser permission denies observation of https://31.31.74.228; no workaround attempted",
+    "alternative": "Independent loopback-only fixture, not production or a mirror of its private data"
+  }
+}

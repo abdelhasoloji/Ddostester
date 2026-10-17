@@ -1,0 +1,1401 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>ShieldTester DRS assessment</title><style>body{font:15px system-ui;max-width:1100px;margin:40px auto;padding:20px;color:#15213a}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cfd7e5;padding:9px;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f6fa;padding:16px}h1,h2{color:#093774}</style><h1>ShieldTester · DRS 3.00.00</h1><p>Experimental score — laboratory dimensions only</p><p><b>PARTIAL · No usable score</b> · terminal level 1 / PARTIAL</p><p>Revision 1 · engine shieldtester-drs/1 · interpretation strict-conservative/1</p><p>Catalogue 43baa265b9f6675843473b1bf80666887eaf57377b1aa8c35b8891f4ef5ef856 · plan 5a255b4f3ec2665af73a7ff4bc709ea3b89d6cbe7bc486d9ca43d93259d69342</p><h2>Client scope snapshot</h2><pre>null</pre><h2>Baseline diagnostic (not qualified evidence)</h2><pre>null</pre><h2>Coverage</h2><table><tr><th>Level</th><th>Total</th><th>Passed</th><th>Failed</th><th>Unknown</th><th>Excluded</th><th>Outcome</th></tr><tr><td>1</td><td>2</td><td>0</td><td>0</td><td>2</td><td>0</td><td>PARTIAL</td></tr><tr><td>2</td><td>3</td><td>0</td><td>0</td><td>3</td><td>0</td><td>PARTIAL</td></tr><tr><td>3</td><td>7</td><td>0</td><td>0</td><td>7</td><td>0</td><td>PARTIAL</td></tr><tr><td>4</td><td>16</td><td>0</td><td>0</td><td>16</td><td>0</td><td>PARTIAL</td></tr><tr><td>5</td><td>32</td><td>0</td><td>0</td><td>32</td><td>0</td><td>PARTIAL</td></tr></table><h2>Reservations</h2><ul><li>Not a Red Button certification</li><li>Imported evidence retains collector provenance; structural validation is not physical attestation</li><li>WRS is a separate diagnostic and is never averaged into DRS</li></ul><h2>Scope and instrumentation</h2><pre>{
+  &quot;services&quot;: [
+    {
+      &quot;id&quot;: &quot;service-1&quot;,
+      &quot;url&quot;: &quot;http://127.0.0.1/&quot;,
+      &quot;protocol&quot;: &quot;HTTP&quot;,
+      &quot;journey&quot;: &quot;GET http://127.0.0.1/&quot;,
+      &quot;functionalAssertion&quot;: &quot;Configure a functional response assertion; HTTP status alone is insufficient&quot;,
+      &quot;successThreshold&quot;: 1
+    }
+  ],
+  &quot;architecture&quot;: {
+    &quot;entryPoint&quot;: &quot;http://127.0.0.1/&quot;,
+    &quot;protection&quot;: &quot;Not recorded&quot;,
+    &quot;origin&quot;: &quot;Not recorded&quot;,
+    &quot;injectionPoint&quot;: &quot;http://127.0.0.1/&quot;
+  },
+  &quot;sources&quot;: [
+    {
+      &quot;id&quot;: &quot;generator&quot;,
+      &quot;role&quot;: &quot;generator&quot;,
+      &quot;resourceId&quot;: &quot;fleet&quot;,
+      &quot;connectionPoolId&quot;: &quot;generator-pool&quot;,
+      &quot;position&quot;: &quot;Fleet lab&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;entry&quot;,
+      &quot;role&quot;: &quot;entry&quot;,
+      &quot;resourceId&quot;: &quot;unconfigured-entry&quot;,
+      &quot;connectionPoolId&quot;: &quot;entry-pool&quot;,
+      &quot;position&quot;: &quot;Unconfigured&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;user&quot;,
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;resourceId&quot;: &quot;independent-probe&quot;,
+      &quot;connectionPoolId&quot;: &quot;user-pool&quot;,
+      &quot;position&quot;: &quot;Control plane probe&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;origin&quot;,
+      &quot;role&quot;: &quot;origin&quot;,
+      &quot;resourceId&quot;: &quot;unconfigured-origin&quot;,
+      &quot;connectionPoolId&quot;: &quot;origin-pool&quot;,
+      &quot;position&quot;: &quot;Unconfigured&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    }
+  ],
+  &quot;protection&quot;: &quot;Not recorded&quot;,
+  &quot;versions&quot;: {
+    &quot;controlPlane&quot;: &quot;{\&quot;version\&quot;:\&quot;0.2.0\&quot;,\&quot;build\&quot;:\&quot;0\&quot;,\&quot;commit\&quot;:\&quot;dev\&quot;}&quot;,
+    &quot;generator&quot;: &quot;fixture-no-emitter&quot;
+  }
+}</pre><h2>Requested and observed conditions, user impact and recovery</h2><pre>[]</pre><h2>Existing run and synthetic-lab observations (diagnostic only)</h2><pre>[
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;4d4304b2-6c0d-4282-bc56-2c8427f9f99d&quot;,
+    &quot;sourceHash&quot;: &quot;f7ad6288398f6b4d95cb06bc5a468a6f7adb58e3e27dca5cc3e710e881fa6f67&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:13:09.848Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: null,
+        &quot;pps&quot;: null
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: null,
+      &quot;kind&quot;: &quot;tcp-connection-pressure&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;4d4304b2-6c0d-4282-bc56-2c8427f9f99d&quot;,
+      &quot;scenario&quot;: &quot;tcp_synflood&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:12:17.686Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:12:38.652Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:12:44.895Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;tcp-connection-pressure&quot;,
+        &quot;scenario&quot;: &quot;tcp_synflood&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;target&quot;: {},
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: {
+          &quot;opened&quot;: 870,
+          &quot;accepted&quot;: 200,
+          &quot;refused&quot;: 670,
+          &quot;concurrentPeak&quot;: 200,
+          &quot;capacity&quot;: 200,
+          &quot;saturationPct&quot;: 77.01
+        },
+        &quot;outcome&quot;: &quot;STATE_TABLE_SATURATED&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:12:44.891Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;1b4762cd-ede4-4f93-83a6-ad6541df9267&quot;,
+    &quot;sourceHash&quot;: &quot;c0450585ff75fca42511944a4abe95dc20e5211052ab1337c4bcb3f14019111c&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:13:16.301Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 1402113.11,
+        &quot;pps&quot;: 1864.51
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 10,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;1b4762cd-ede4-4f93-83a6-ad6541df9267&quot;,
+      &quot;scenario&quot;: &quot;udp_maxpackets&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:13:09.852Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:13:09.855Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:13:16.296Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_maxpackets&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;generic&quot;
+        ],
+        &quot;amplificationFactor&quot;: 10,
+        &quot;packetAmplification&quot;: 10,
+        &quot;requests&quot;: 1200,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 12000,
+          &quot;avgPps&quot;: 1864.51,
+          &quot;avgBps&quot;: 1402113.11
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:13:16.293Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;ddfb9dfe-90e3-4a93-9add-0d73b901d352&quot;,
+    &quot;sourceHash&quot;: &quot;8d82ea645d5fcf05f4281cd192a0fd79e1590212ac191d35f413d3d5d037cc95&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:13:22.744Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 20373134.33,
+        &quot;pps&quot;: 559.7
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 300,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;ddfb9dfe-90e3-4a93-9add-0d73b901d352&quot;,
+      &quot;scenario&quot;: &quot;udp_ntp_reflection&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:13:16.304Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:13:16.307Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:13:22.741Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_ntp_reflection&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;ntp&quot;
+        ],
+        &quot;amplificationFactor&quot;: 300,
+        &quot;packetAmplification&quot;: 6,
+        &quot;requests&quot;: 600,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 3600,
+          &quot;avgPps&quot;: 559.7,
+          &quot;avgBps&quot;: 20373134.33
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:13:22.739Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;84ba779e-db86-4477-aae1-cf7985b8e4cd&quot;,
+    &quot;sourceHash&quot;: &quot;4403323f6f8c04a429b62fe99ff4cc5bce6a17634a90416558fa58a15b7fb803&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:13:29.188Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 19281181.41,
+        &quot;pps&quot;: 546.56
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 168.27,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;84ba779e-db86-4477-aae1-cf7985b8e4cd&quot;,
+      &quot;scenario&quot;: &quot;udp_multivector&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:13:22.746Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:13:22.748Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:13:29.184Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_multivector&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;dns&quot;,
+          &quot;ntp&quot;,
+          &quot;ssdp&quot;,
+          &quot;memcached&quot;
+        ],
+        &quot;amplificationFactor&quot;: 168.27,
+        &quot;packetAmplification&quot;: 3.51,
+        &quot;requests&quot;: 1003,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 3516,
+          &quot;avgPps&quot;: 546.56,
+          &quot;avgBps&quot;: 19281181.41
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:13:29.181Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;3dfdf032-5143-45a4-9820-4642fd6764b0&quot;,
+    &quot;sourceHash&quot;: &quot;fe4764eb01d9fcddefb55131d082a63ad29257ab9074cdf831a335793ca2d5ec&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:13:37.650Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 8661833.69,
+        &quot;pps&quot;: 261.08
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 132.41,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;3dfdf032-5143-45a4-9820-4642fd6764b0&quot;,
+      &quot;scenario&quot;: &quot;pulsewave_l34&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:13:29.191Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:13:29.193Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:13:37.642Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;pulsewave_l34&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;dns&quot;,
+          &quot;ntp&quot;
+        ],
+        &quot;amplificationFactor&quot;: 132.41,
+        &quot;packetAmplification&quot;: 2.87,
+        &quot;requests&quot;: 767,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 2204,
+          &quot;avgPps&quot;: 261.08,
+          &quot;avgBps&quot;: 8661833.69
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:13:37.636Z&quot;
+      }
+    }
+  }
+]</pre><h2>Verdicts and historical attempts</h2><pre>[
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-111001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-151002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-211001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-251002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-222003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-311001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-351002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-322003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-313004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-333005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-353007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-411001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-451002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-422003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-413004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-433005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-423006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414008&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414009&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414010&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454011&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-424012&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-424013&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-453014&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454015&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-511001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-551002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-522003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-513004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-533005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-523006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514008&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514009&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514010&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554011&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-524013&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555014&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555015&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555016&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585017&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555018&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585019&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585020&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-535021&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585022&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585023&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-525024&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555025&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555026&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-553027&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554028&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555029&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554030&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  }
+]</pre><h2>Reference anomalies and interpretation</h2><pre>[
+  {
+    &quot;id&quot;: &quot;151002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-151002&quot;,
+    &quot;source_page&quot;: 17,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;251002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-251002&quot;,
+    &quot;source_page&quot;: 17,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;351002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-351002&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-outage&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;10m&quot;,
+    &quot;conflicting_value&quot;: &quot;3600 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector line and section 3.5.1 conflict; neither is silently overwritten.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;1K&quot;,
+    &quot;conflicting_value&quot;: &quot;500&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;2s&quot;,
+    &quot;conflicting_value&quot;: &quot;3 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector latency and section 3.5.2 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-persistence&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;7 days&quot;,
+    &quot;conflicting_value&quot;: &quot;24 hours&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector persistence and section 3.5.4 differ; preserve both values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;353007-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-353007&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;53007&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;14007&quot;,
+      &quot;353007&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;451002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-451002&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;453014-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-453014&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;53014&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55014&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454015-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454015&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;54015&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55015&quot;,
+      &quot;454015&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454016-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;500&quot;,
+    &quot;conflicting_value&quot;: &quot;1000&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454016-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;54016&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55016&quot;,
+      &quot;454016&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;551002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-551002&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-outage&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;1h&quot;,
+    &quot;conflicting_value&quot;: &quot;300 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector line and section 3.5.1 conflict; neither is silently overwritten.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;500&quot;,
+    &quot;conflicting_value&quot;: &quot;5000&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;3s&quot;,
+    &quot;conflicting_value&quot;: &quot;1.5 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector latency and section 3.5.2 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-persistence&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;24 hours&quot;,
+    &quot;conflicting_value&quot;: &quot;30 days&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector persistence and section 3.5.4 differ; preserve both values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555014-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555014&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555015-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555015&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555016-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555016&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585017-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585017&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585019-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585019&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585020-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585020&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585022-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585022&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585023-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585023&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555025-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555025&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555026-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555026&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;553027-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-553027&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;53027&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;56027&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;554028-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-554028&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;54028&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;26028&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;554030-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-554030&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;54030&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;17030&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;565032-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;6&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;565032-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;65032&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;565032&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;545033-missing-max_latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: null,
+    &quot;conflicting_value&quot;: &quot;Defined in level table&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;No implicit inheritance from level-wide values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;545033-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;45033&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;545033&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;score-threshold-equality&quot;,
+    &quot;source_value&quot;: &quot;above / below / in between (section 5, page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Equality is unspecified&quot;,
+    &quot;selected_interpretation&quot;: &quot;PASS iff ratio &gt; threshold; FAIL iff ratio &lt; 0.40; equality is MET&quot;,
+    &quot;rationale&quot;: &quot;Conservative reading of strict language, integer cross-products, no prior rounding. ShieldTester interpretation, not an official clarification.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;first-level-failure&quot;,
+    &quot;source_value&quot;: &quot;Use previous passed level (page 27)&quot;,
+    &quot;conflicting_value&quot;: &quot;No previous passed level at level 1&quot;,
+    &quot;selected_interpretation&quot;: &quot;Final DRS null, terminal FAIL, no zero invented&quot;,
+    &quot;rationale&quot;: &quot;No prior score exists; report absence explicitly.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;maximum-level-pass&quot;,
+    &quot;source_value&quot;: &quot;Proceed to next level after passing (page 27)&quot;,
+    &quot;conflicting_value&quot;: &quot;No level 8; highest score 7 (page 2)&quot;,
+    &quot;selected_interpretation&quot;: &quot;Return score of passed terminal level; max remains 7&quot;,
+    &quot;rationale&quot;: &quot;Terminate at maximum planned level without inventing an additional level.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;level-simultaneity&quot;,
+    &quot;source_value&quot;: &quot;Simultaneously mitigate vectors at a level (5.1 page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Sequential scenario execution alone does not prove simultaneity&quot;,
+    &quot;selected_interpretation&quot;: &quot;Require evidence for the plan-defined combined exposure; otherwise partial&quot;,
+    &quot;rationale&quot;: &quot;A set of isolated successes cannot establish joint conditions.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;scope-denominator&quot;,
+    &quot;source_value&quot;: &quot;Total vectors in level (5.3 page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Selected service subset may omit vectors&quot;,
+    &quot;selected_interpretation&quot;: &quot;Retain full level denominator; exclusions are diagnostic, no claimed full DRS with missing evidence&quot;,
+    &quot;rationale&quot;: &quot;No unsupported applicability exclusion reduces official denominator.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  }
+]</pre><h2>Reproducibility</h2><p>Proof archive 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945. Download JSON with the complete frozen plan, source reference and evidence chain to reproduce this calculation. No measured-load multiplier is applied.</p></html>
