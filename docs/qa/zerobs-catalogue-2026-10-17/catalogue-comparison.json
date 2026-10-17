@@ -1,0 +1,36 @@
+{
+  "historicalReference": "d98db08",
+  "historicalTemplates": 43,
+  "currentTemplates": 43,
+  "allTemplateIdsAndStepsUnchanged": true,
+  "stepsSha256": "2e9d067d910376945d819884f7743f9e0bacb4e420c3fa782767a23b285c7151",
+  "zeroBsParentId": "pretest-cra-l7",
+  "parentSteps": [
+    "SlowLoris (DRS3)",
+    "GET-Flood (DRS3)",
+    "GET-Random-Flood (DRS3)",
+    "GET /VALID_RANDOM (DRS4)",
+    "POST-Flood (DRS4)",
+    "HTTP/2 GET-Flood (DRS4)",
+    "HTTP/2 Rapid Reset — bounded (DRS4)",
+    "HTTP/2 Continuation — header pressure (DRS4)",
+    "Login/account POST-Flood (DRS5)",
+    "L7 MultiVector (DRS5)",
+    "THOR / PulseWave — synchronized (DRS5)",
+    "MultiTarget / carpet-bombing (DRS5)"
+  ],
+  "singleLineIds": [
+    "cra-l7-slowloris",
+    "cra-l7-get-flood",
+    "cra-l7-get-random-flood",
+    "cra-l7-get-valid-random",
+    "cra-l7-post-flood",
+    "cra-l7-http-2-get-flood",
+    "cra-l7-http-2-rapid-reset-bounded",
+    "cra-l7-http-2-continuation-header-pressure",
+    "cra-l7-login-account-post-flood",
+    "cra-l7-l7-multivector",
+    "cra-l7-thor-pulsewave-synchronized",
+    "cra-l7-multitarget-carpet-bombing"
+  ]
+}
