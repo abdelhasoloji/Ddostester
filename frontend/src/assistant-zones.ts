@@ -51,7 +51,7 @@ const SELECTOR_ZONES: { sel: string; title: string; text: string }[] = [
   {
     sel: '[class*="zone"]',
     title: 'Protected zone',
-    text: 'A guarded origin behind the WEDOS edge — its edge-absorbed % is how much traffic the edge soaks up before the origin.',
+    text: 'Current target authorization and campaign activity. Open details to manage the registration; retained campaigns are available separately.',
   },
   {
     sel: 'nav,[class*="spine"],[class*="sidebar"]',
@@ -67,7 +67,7 @@ const ROUTE_ZONES: Record<string, { title: string; text: string }> = {
   },
   '/zones': {
     title: 'Protected zones',
-    text: 'The origins under WEDOS edge protection, and how much traffic the edge absorbs for each.',
+    text: 'Current configured and registered targets, authorization, campaign links and separate historical activity. Previous scores do not establish current service health.',
   },
   '/campaigns': {
     title: 'Campaigns',

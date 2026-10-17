@@ -1,98 +1,179 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from './api.js';
 import type { ZoneSummary, ProtectedTarget, TargetAuthStatus } from './api.js';
 import { useApp, canDo } from './context.js';
 import { PageHead } from './pages.js';
-import { wrsClass, AiSupportButton } from './ui.js';
 
-/**
- * Protected zones — the WEDOS-Protection framing: the estate seen per protected
- * customer/host, each with its assurance posture (WRS, DRS reached, edge
- * absorption, activity). Derived from the existing campaigns; a zone is the unit
- * WEDOS Protection is sold and measured by. See docs/vision-proving-ground.md.
- *
- * Targets are onboarded here under governance: registering a host is metadata
- * only; a CISO must authorize it (separately from the requester) before any
- * campaign can run against it — authorization adds the host to the effective
- * allowlist. See backend/src/modules/targets/model.ts.
- */
-function fmtWhen(iso?: string): string {
-  if (!iso) return 'never tested';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'never tested';
-  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return `${days}d ago`;
-  return d.toLocaleDateString();
+/** Current scope comes from the target registry/configuration, never campaign history. */
+export function protectedHost(value: string): string {
+  try {
+    return new URL(value.includes('://') ? value : `https://${value}`).hostname
+      .toLowerCase()
+      .replace(/\.$/, '');
+  } catch {
+    return '';
+  }
+}
+
+function activityDate(value?: string): string {
+  if (!value || !Number.isFinite(Date.parse(value))) return 'Not recorded';
+  return new Date(value).toLocaleString();
 }
 
 const AUTH_BADGE: Record<TargetAuthStatus, { cls: string; label: string }> = {
-  unauthorized: { cls: 'zs-none', label: 'unauthorized' },
-  requested: { cls: 'zs-warn', label: '⏳ auth requested' },
-  authorized: { cls: 'zs-ok', label: '✓ authorized' },
-  revoked: { cls: 'zs-bad', label: '⃠ revoked' },
+  unauthorized: { cls: 'zs-none', label: 'Not authorized' },
+  requested: { cls: 'zs-warn', label: 'Awaiting authorization' },
+  authorized: { cls: 'zs-ok', label: 'Authorized' },
+  revoked: { cls: 'zs-bad', label: 'Revoked' },
 };
 
-function ZoneCard({ z, onOpen }: { z: ZoneSummary; onOpen: () => void }) {
-  const status = z.running
-    ? { cls: 'zs-live', label: '● testing' }
-    : z.regression
-      ? { cls: 'zs-bad', label: '▼ regression' }
-      : z.lastLevel && ['A+', 'A', 'B'].includes(z.lastLevel)
-        ? { cls: 'zs-ok', label: '✓ resilient' }
-        : z.lastWrs != null
-          ? { cls: 'zs-warn', label: 'needs attention' }
-          : { cls: 'zs-none', label: 'not tested' };
+function ZoneHistory({ authorized }: { authorized: Set<string> | null }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [zones, setZones] = useState<ZoneSummary[] | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  async function load() {
+    setLoading(true);
+    setError(false);
+    try {
+      setZones(await api.zones());
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const filtered = (zones ?? []).filter((z) =>
+    z.host.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 10));
+  const current = Math.min(page, pages);
   return (
-    <button type="button" className="zone-card" onClick={onOpen} aria-label={`Open ${z.host}`}>
-      <div className="zone-head">
-        <span className="zone-host">🛡 {z.host}</span>
-        <span className={`zone-status ${status.cls}`}>{status.label}</span>
-      </div>
-      <div className="zone-wrs">
-        {z.lastWrs != null && z.lastLevel ? (
-          <span className={`wrs ${wrsClass(z.lastLevel)}`} title="Latest WRS">
-            <span className="wrs-score">{z.lastWrs}</span> {z.lastLevel}
-          </span>
-        ) : (
-          <span className="hint">No score yet</span>
-        )}
-        {z.meanWrs != null && z.lastWrs != null && <span className="hint">avg {z.meanWrs}</span>}
-      </div>
-      <dl className="zone-meta">
-        <div>
-          <dt>DRS reached</dt>
-          <dd>{z.maxDrs != null ? `DRS ${z.maxDrs}` : '—'}</dd>
-        </div>
-        <div
-          className="zone-absorb"
-          title="Share of the offered attack load the edge soaked up before it reached origin. 0% = the edge never engaged (traffic passed straight to origin); a high % with the probe still up = protection working."
+    <section className="card zone-history">
+      <div className="zones-section-head">
+        <button
+          className="btn btn-ghost"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen(!open);
+            if (!open && zones === null && !loading) void load();
+          }}
         >
-          <dt>Edge absorbed</dt>
-          <dd>
-            {z.lastAbsorbedPct == null ? (
-              '—'
-            ) : z.lastAbsorbedPct === 0 ? (
-              <span className="zone-absorb-v zone-absorb-idle">0% · edge idle</span>
-            ) : (
-              <span className={`zone-absorb-v${z.lastAbsorbedPct >= 60 ? ' zone-absorb-ok' : ''}`}>
-                {z.lastAbsorbedPct}%
-              </span>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Campaigns</dt>
-          <dd>
-            {z.campaigns}
-            {z.suites > 0 ? ` · ${z.suites} suite${z.suites === 1 ? '' : 's'}` : ''}
-          </dd>
-        </div>
-      </dl>
-      <div className="zone-foot hint">Last test: {fmtWhen(z.lastTestAt)}</div>
-    </button>
+          Historical activity
+        </button>
+        <span
+          className="hint"
+          title="Retained campaign records do not establish current authorization, service health or a measured DRS score."
+        >
+          Previous campaigns only
+        </span>
+      </div>
+      {open && (
+        <>
+          <div className="zones-tools">
+            <input
+              aria-label="Search history"
+              placeholder="Search historical hosts"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+            />
+            <button className="btn btn-sm" disabled={loading} onClick={() => void load()}>
+              Refresh history
+            </button>
+          </div>
+          {loading ? (
+            <p role="status">Loading history…</p>
+          ) : error ? (
+            <p role="alert">
+              Couldn’t load historical activity.{' '}
+              <button className="btn btn-sm" onClick={() => void load()}>
+                Retry history
+              </button>
+            </p>
+          ) : !filtered.length ? (
+            <p className="empty">No historical activity{query ? ' matching this search' : ''}.</p>
+          ) : (
+            <>
+              <div className="zones-table-wrap">
+                <table className="zones-history-table">
+                  <thead>
+                    <tr>
+                      <th>Host</th>
+                      <th>Current access</th>
+                      <th>Campaigns</th>
+                      <th>Last activity</th>
+                      <th>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.slice((current - 1) * 10, current * 10).map((z) => (
+                      <tr key={z.host}>
+                        <td>{z.host}</td>
+                        <td>
+                          <span className="hint">
+                            {authorized === null
+                              ? 'Unavailable'
+                              : authorized.has(protectedHost(z.host))
+                                ? 'Authorized'
+                                : 'Outside authorized scope'}
+                          </span>
+                        </td>
+                        <td>
+                          {z.campaigns}
+                          {z.suites ? ` · ${z.suites} suites` : ''}
+                        </td>
+                        <td title={z.lastTestAt}>{activityDate(z.lastTestAt)}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-ghost"
+                            disabled={!protectedHost(z.host)}
+                            onClick={() =>
+                              navigate(
+                                `/campaigns?tab=history&host=${encodeURIComponent(protectedHost(z.host))}&archived=1`,
+                              )
+                            }
+                          >
+                            View campaigns
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="zones-pagination">
+                <span className="hint">
+                  {filtered.length} hosts · page {current}/{pages}
+                </span>
+                <button
+                  className="btn btn-sm"
+                  disabled={current === 1}
+                  onClick={() => setPage(current - 1)}
+                >
+                  Previous
+                </button>
+                <button
+                  className="btn btn-sm"
+                  disabled={current === pages}
+                  onClick={() => setPage(current + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -100,6 +181,7 @@ const EMPTY_FORM = { host: '', displayName: '', owner: '', notes: '', attestatio
 
 function TargetsPanel() {
   const app = useApp();
+  const navigate = useNavigate();
   const canManage = canDo(
     app.role,
     'targetManage',
@@ -115,6 +197,11 @@ function TargetsPanel() {
     app.capabilities,
   );
 
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('authorized');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadVersion = useRef(0);
   const [targets, setTargets] = useState<ProtectedTarget[] | null>(null);
   const [envAllowlist, setEnvAllowlist] = useState<string[]>([]);
   const [failed, setFailed] = useState(false);
@@ -136,16 +223,23 @@ function TargetsPanel() {
   }
 
   const load = () => {
+    const version = ++loadVersion.current;
+    setRefreshing(true);
     api
       .targets()
       .then((r) => {
+        if (version !== loadVersion.current) return;
         setTargets(r.targets);
         setEnvAllowlist(r.envAllowlist ?? []);
         setFailed(false);
       })
       .catch(() => {
-        setTargets([]);
+        if (version !== loadVersion.current) return;
+        setTargets((previous) => previous ?? []);
         setFailed(true);
+      })
+      .finally(() => {
+        if (version === loadVersion.current) setRefreshing(false);
       });
   };
   useEffect(load, []);
@@ -167,7 +261,7 @@ function TargetsPanel() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.host.trim() || busyId) return;
+    if (!form.host.trim() || busyId || refreshing || failed) return;
     setBusyId('new');
     setError(null);
     try {
@@ -179,6 +273,8 @@ function TargetsPanel() {
         attestation: form.attestation.trim() || undefined,
       });
       upsert(created);
+      setFilter('all');
+      setSelectedId(created.id);
       setForm({ ...EMPTY_FORM });
       setShowForm(false);
     } catch (err) {
@@ -199,6 +295,7 @@ function TargetsPanel() {
       const r = await fn();
       if (del) setTargets((prev) => (prev ?? []).filter((x) => x.id !== id));
       else upsert(r as ProtectedTarget);
+      setFilter('all');
       setRequestingId(null);
       setReqAtt('');
       setEditingId(null);
@@ -212,352 +309,488 @@ function TargetsPanel() {
     }
   }
 
-  // Hosts permanently allowlisted via server env config are always testable and
-  // need no governed onboarding — surface them here (deduped against onboarded
-  // targets) so the table shows the complete set of protected hosts, not just the
-  // ones onboarded through this panel.
-  const envHosts = envAllowlist.filter((h) => !(targets ?? []).some((t) => t.host === h));
+  const configured = new Set(envAllowlist.map(protectedHost));
+  const authorized = new Set([
+    ...configured,
+    ...(targets ?? [])
+      .filter((t) => t.authStatus === 'authorized')
+      .map((t) => protectedHost(t.host)),
+  ]);
+  const visible = (host: string, name: string, effective: boolean) =>
+    `${host} ${name}`.toLowerCase().includes(query.trim().toLowerCase()) &&
+    (filter === 'all' || (filter === 'authorized' ? effective : !effective));
+  const envHosts = [...new Set(envAllowlist.map(protectedHost))].filter(
+    (host) => host && !(targets ?? []).some((t) => protectedHost(t.host) === host),
+  );
+  const activeFor = (host: string) =>
+    app.campaigns.filter(
+      (c) => c.status === 'RUNNING' && protectedHost(c.target) === protectedHost(host),
+    );
+  const historyLink = (host: string) =>
+    navigate(`/campaigns?tab=history&host=${encodeURIComponent(protectedHost(host))}`);
+  const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
+  const configure = (host: string) => {
+    const recent = app.campaigns
+      .filter((c) => protectedHost(c.target) === protectedHost(host))
+      .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0];
+    let url = `https://${protectedHost(host)}/`;
+    try {
+      if (recent) url = new URL(recent.target).origin + '/';
+    } catch {
+      /* Keep editable default. */
+    }
+    navigate(`/campaigns?tab=templates&target=${encodeURIComponent(url)}`);
+  };
+  const activeCount = [
+    ...new Set([...envHosts, ...(targets ?? []).map((t) => protectedHost(t.host))]),
+  ].filter((host) => activeFor(host).length > 0).length;
+  const noMatches =
+    targets !== null &&
+    !envHosts.some((h) => visible(h, '', true)) &&
+    !targets.some((t) =>
+      visible(t.host, t.displayName ?? '', authorized.has(protectedHost(t.host))),
+    );
 
   return (
-    <section className="card targets-panel">
-      <div className="targets-head">
-        <div>
-          <div className="card-head">
-            <h3>Protected targets</h3>
-            <AiSupportButton
-              title="Protected targets"
-              context="the registered protected zones/targets and their authorization state (a CISO must authorize before any test)."
-            />
-          </div>
-          <p className="hint">
-            Onboard a host as a protected zone. Registering is metadata only — a CISO must authorize
-            it (separately from the requester) before any test can run against it.
-          </p>
-        </div>
-        {canManage && (
-          <button className="btn btn-primary" onClick={() => setShowForm((s) => !s)}>
-            {showForm ? 'Cancel' : '+ Add target'}
-          </button>
-        )}
-      </div>
-
-      {error && <p className="hint assistant-error">⚠ {error}</p>}
-
-      {showForm && canManage && (
-        <form className="target-form" onSubmit={submit}>
-          <div className="target-form-grid">
-            <label>
-              Host <span className="req">*</span>
-              <input
-                value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.target.value })}
-                placeholder="app.customer.eu"
-                autoFocus
-              />
-            </label>
-            <label>
-              Zone / customer name
-              <input
-                value={form.displayName}
-                onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                placeholder="Customer Bank"
-              />
-            </label>
-            <label>
-              Owner / contact
-              <input
-                value={form.owner}
-                onChange={(e) => setForm({ ...form, owner: e.target.value })}
-                placeholder="soc@customer.eu"
-              />
-            </label>
-          </div>
-          <label>
-            Notes
-            <input
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Scope, maintenance windows, contacts…"
-            />
-          </label>
-          <label>
-            Authorization attestation (optional — request testing now)
-            <textarea
-              value={form.attestation}
-              onChange={(e) => setForm({ ...form, attestation: e.target.value })}
-              rows={2}
-              placeholder="I attest WEDOS is authorized to run bounded resilience tests against this host (ownership / signed mandate, scope, RoE)."
-            />
-            <span className="hint">
-              Leave blank to register the zone without requesting authorization. Filling it submits
-              a request a CISO will validate.
-            </span>
-          </label>
-          <div className="target-form-actions">
-            <button
-              className="btn btn-primary"
-              type="submit"
-              disabled={busyId === 'new' || !form.host.trim()}
+    <>
+      <section className="card targets-panel zones-workspace">
+        <div className="zones-section-head">
+          <div>
+            <h2>Current scope</h2>
+            <span
+              className="hint"
+              title="Current authorization from registered targets and server configuration. Campaign history is not a source of authorization. Service availability is measured only during a campaign."
             >
-              {busyId === 'new'
-                ? 'Registering…'
-                : form.attestation.trim()
-                  ? 'Register & request'
-                  : 'Register zone'}
-            </button>
+              Authorization and activity
+            </span>
           </div>
-        </form>
-      )}
-
-      {envHosts.length > 0 && (
-        <ul className="target-list target-list-env">
-          {envHosts.map((h) => (
-            <li key={`env-${h}`} className="target-row target-row-env">
-              <div className="target-main">
-                <span className="target-host">{h}</span>
-                <span
-                  className="zone-status zs-ok"
-                  title="Permanently allowlisted in server config"
-                >
-                  ✓ env-allowlisted
-                </span>
-              </div>
-              <div className="target-sub hint">
-                <span>
-                  permanently allowlisted in server config · always testable, no onboarding needed
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {targets === null ? (
-        <p className="hint">
-          <span className="spin" /> Loading targets…
-        </p>
-      ) : failed ? (
-        <div className="empty">
-          Couldn&apos;t load targets.{' '}
-          <button className="btn btn-sm" onClick={load}>
-            Retry
-          </button>
+          <div className="zones-tools">
+            <button
+              className="btn btn-sm"
+              disabled={refreshing || !!busyId}
+              onClick={() => {
+                load();
+                void app.refresh();
+                void app.refreshHealth();
+              }}
+            >
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            {canManage && (
+              <button className="btn btn-primary" onClick={() => setShowForm((s) => !s)}>
+                {showForm ? 'Cancel' : 'Add target'}
+              </button>
+            )}
+          </div>
         </div>
-      ) : targets.length === 0 ? (
-        envHosts.length === 0 ? (
-          <p className="hint">No targets registered yet.</p>
-        ) : null
-      ) : (
-        <ul className="target-list">
-          {targets.map((t) => {
-            const badge = AUTH_BADGE[t.authStatus];
-            const busy = busyId === t.id;
-            return (
-              <li key={t.id} className="target-row">
-                <div className="target-main">
-                  <span className="target-host">{t.host}</span>
-                  <span className={`zone-status ${badge.cls}`}>{badge.label}</span>
-                  {t.displayName && <span className="hint">{t.displayName}</span>}
-                </div>
-                <div className="target-sub hint">
-                  {t.owner && <span>owner: {t.owner}</span>}
-                  {t.authStatus === 'requested' && t.authRequestedBy && (
-                    <span>requested by {t.authRequestedBy}</span>
-                  )}
-                  {t.authStatus === 'authorized' && t.authorizedBy && (
-                    <span>authorized by {t.authorizedBy}</span>
-                  )}
-                  {t.authAttestation && (
-                    <span title={t.authAttestation}>· attestation on file</span>
-                  )}
-                </div>
+        {!failed && targets !== null && (
+          <div className="zones-summary">
+            <span>
+              <b>{targets.length + envHosts.length}</b> registered
+            </span>
+            <span>
+              <b>{authorized.size}</b> authorized
+            </span>
+            <span>
+              <b>{activeCount}</b> active
+            </span>
+            <span className="hint" title="No background health check is performed by this screen.">
+              Service health: not monitored here
+            </span>
+          </div>
+        )}
+        <div className="zones-tools zones-search">
+          <input
+            aria-label="Search zones"
+            placeholder="Search host, customer or name"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <select
+            aria-label="Authorization filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">All registered zones</option>
+            <option value="authorized">Authorized</option>
+            <option value="pending">Not authorized</option>
+          </select>
+        </div>
+        {error && (
+          <p className="hint assistant-error" role="alert">
+            {error}
+          </p>
+        )}
 
-                <div className="target-actions">
-                  {/* CISO governance: grant / revoke */}
-                  {canAuthorize && t.authStatus === 'requested' && (
-                    <>
+        {showForm && canManage && (
+          <form className="target-form" onSubmit={submit}>
+            <div className="target-form-grid">
+              <label>
+                Host <span className="req">*</span>
+                <input
+                  value={form.host}
+                  onChange={(e) => setForm({ ...form, host: e.target.value })}
+                  placeholder="app.customer.eu"
+                  autoFocus
+                />
+              </label>
+              <label>
+                Zone / customer name
+                <input
+                  value={form.displayName}
+                  onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                  placeholder="Customer Bank"
+                />
+              </label>
+              <label>
+                Owner / contact
+                <input
+                  value={form.owner}
+                  onChange={(e) => setForm({ ...form, owner: e.target.value })}
+                  placeholder="soc@customer.eu"
+                />
+              </label>
+            </div>
+            <label>
+              Notes
+              <input
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Scope, maintenance windows, contacts…"
+              />
+            </label>
+            <label>
+              Authorization attestation (optional — request testing now)
+              <textarea
+                value={form.attestation}
+                onChange={(e) => setForm({ ...form, attestation: e.target.value })}
+                rows={2}
+                placeholder="I attest WEDOS is authorized to run bounded resilience tests against this host (ownership / signed mandate, scope, RoE)."
+              />
+              <span className="hint">
+                Optional. Authorization follows the current account policy.
+              </span>
+            </label>
+            <div className="target-form-actions">
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={!!busyId || refreshing || failed || !form.host.trim()}
+              >
+                {busyId === 'new'
+                  ? 'Registering…'
+                  : form.attestation.trim()
+                    ? 'Register & request'
+                    : 'Register zone'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {!failed && targets !== null && envHosts.some((h) => visible(h, '', true)) && (
+          <ul className="target-list target-list-env">
+            {envHosts
+              .filter((h) => visible(h, '', true))
+              .map((h) => (
+                <li key={`env-${h}`} className="target-row target-row-env">
+                  <div className="target-main">
+                    <span className="target-host">{h}</span>
+                    <span
+                      className="zone-status zs-ok"
+                      title="Authorization is managed in server configuration; it cannot be revoked from this screen."
+                    >
+                      Configured access
+                    </span>
+                  </div>
+                  <div className="target-sub hint">
+                    <span>
+                      {activeFor(h).length
+                        ? `${activeFor(h).length} campaign(s) running`
+                        : 'No campaign running'}
+                    </span>
+                  </div>
+                  <div className="target-actions">
+                    {canCreate && (
                       <button
                         className="btn btn-sm btn-primary"
-                        disabled={busy}
-                        onClick={() => void act(t.id, () => api.authorizeTarget(t.id))}
+                        title="Review the URL and choose a template. No traffic starts here."
+                        disabled={refreshing}
+                        onClick={() => configure(h)}
                       >
-                        Authorize
+                        Configure campaign
                       </button>
+                    )}
+                    <button className="btn btn-sm" onClick={() => historyLink(h)}>
+                      Campaigns
+                    </button>
+                    {activeFor(h)[0] && (
                       <button
-                        className="btn btn-sm"
-                        disabled={busy}
-                        onClick={() => void act(t.id, () => api.revokeTarget(t.id))}
+                        className="btn btn-sm btn-primary"
+                        onClick={() =>
+                          navigate(`/theater?run=${encodeURIComponent(activeFor(h)[0].id)}`)
+                        }
                       >
-                        Reject
+                        Watch live
                       </button>
-                    </>
-                  )}
-                  {canAuthorize && t.authStatus === 'authorized' && (
-                    <button
-                      className="btn btn-sm"
-                      disabled={busy}
-                      onClick={() => void act(t.id, () => api.revokeTarget(t.id))}
-                    >
-                      Revoke
-                    </button>
-                  )}
-                  {/* Operator: request authorization (unauthorized / revoked) */}
-                  {canManage && (t.authStatus === 'unauthorized' || t.authStatus === 'revoked') && (
-                    <button
-                      className="btn btn-sm"
-                      disabled={busy}
-                      onClick={() => {
-                        setRequestingId(requestingId === t.id ? null : t.id);
-                        setReqAtt('');
-                      }}
-                    >
-                      Request authorization
-                    </button>
-                  )}
-                  {canManage && (
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      disabled={busy}
-                      onClick={() => (editingId === t.id ? setEditingId(null) : openEdit(t))}
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {canManage && t.authStatus !== 'authorized' && (
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      disabled={busy}
-                      onClick={() => void act(t.id, () => api.deleteTarget(t.id), true)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {t.authStatus === 'requested' && !canAuthorize && (
-                    <span className="hint">awaiting CISO</span>
-                  )}
-                </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+          </ul>
+        )}
 
-                {editingId === t.id && (
-                  <div className="target-request target-edit">
-                    <div className="target-form-grid">
-                      <input
-                        value={editForm.displayName}
-                        onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
-                        placeholder="Zone / customer name"
-                        aria-label="Zone name"
-                      />
-                      <input
-                        value={editForm.owner}
-                        onChange={(e) => setEditForm({ ...editForm, owner: e.target.value })}
-                        placeholder="Owner / contact"
-                        aria-label="Owner"
-                      />
-                      <input
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                        placeholder="Notes"
-                        aria-label="Notes"
-                      />
+        {targets === null ? (
+          <p className="hint">
+            <span className="spin" /> Loading targets…
+          </p>
+        ) : failed ? (
+          <div className="empty" role="alert">
+            Couldn&apos;t load targets.{' '}
+            <button className="btn btn-sm" onClick={load}>
+              Retry
+            </button>
+          </div>
+        ) : targets.length === 0 ? (
+          envHosts.length === 0 ? (
+            <p className="empty">No zones configured. Add an authorized target to get started.</p>
+          ) : null
+        ) : (
+          <ul className="target-list">
+            {targets
+              .filter((t) =>
+                visible(t.host, t.displayName ?? '', authorized.has(protectedHost(t.host))),
+              )
+              .sort((a, b) => a.host.localeCompare(b.host))
+              .map((t) => {
+                const badge = AUTH_BADGE[t.authStatus];
+                const busy = busyId !== null || refreshing;
+                return (
+                  <li key={t.id} className="target-row">
+                    <div className="target-main">
+                      <span className="target-host">{t.host}</span>
+                      <span className={`zone-status ${badge.cls}`}>{badge.label}</span>
+                      {configured.has(protectedHost(t.host)) && (
+                        <span
+                          className="zone-status zs-ok"
+                          title="Server configuration independently authorizes this host, even if its registration is revoked."
+                        >
+                          Configured access
+                        </span>
+                      )}
+                      {t.displayName && <span className="hint">{t.displayName}</span>}
                     </div>
-                    <button
-                      className="btn btn-sm btn-primary"
-                      disabled={busy}
-                      onClick={() =>
-                        void act(t.id, () =>
-                          api.updateTarget(t.id, {
-                            displayName: editForm.displayName.trim(),
-                            owner: editForm.owner.trim(),
-                            notes: editForm.notes.trim(),
-                          }),
-                        )
-                      }
-                    >
-                      Save
-                    </button>
-                  </div>
-                )}
+                    <div className="target-sub hint">
+                      {t.owner && <span>owner: {t.owner}</span>}
+                      {t.authStatus === 'requested' && t.authRequestedBy && (
+                        <span>requested by {t.authRequestedBy}</span>
+                      )}
+                      {t.authStatus === 'authorized' && t.authorizedBy && (
+                        <span>authorized by {t.authorizedBy}</span>
+                      )}
+                      {t.authAttestation && (
+                        <span title={t.authAttestation}>· attestation on file</span>
+                      )}
+                    </div>
 
-                {requestingId === t.id && (
-                  <div className="target-request">
-                    <textarea
-                      value={reqAtt}
-                      onChange={(e) => setReqAtt(e.target.value)}
-                      rows={2}
-                      placeholder="Authorization attestation (ownership / signed mandate, scope, RoE)…"
-                    />
-                    <button
-                      className="btn btn-sm btn-primary"
-                      disabled={busy || reqAtt.trim().length < 10}
-                      onClick={() =>
-                        void act(t.id, () => api.requestTargetAuth(t.id, reqAtt.trim()))
-                      }
-                    >
-                      Submit request
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+                    <div className="target-actions">
+                      <span className="hint">
+                        {activeFor(t.host).length
+                          ? `${activeFor(t.host).length} campaign(s) running`
+                          : 'No campaign running'}
+                      </span>
+                      {canCreate && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          disabled={refreshing || !authorized.has(protectedHost(t.host))}
+                          title="Review the URL and choose a template. Authorization is required; no traffic starts here."
+                          onClick={() => configure(t.host)}
+                        >
+                          Configure campaign
+                        </button>
+                      )}
+                      <button className="btn btn-sm" onClick={() => historyLink(t.host)}>
+                        Campaigns
+                      </button>
+                      {activeFor(t.host)[0] && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() =>
+                            navigate(`/theater?run=${encodeURIComponent(activeFor(t.host)[0].id)}`)
+                          }
+                        >
+                          Watch live
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        aria-expanded={selectedId === t.id}
+                        onClick={() => {
+                          setSelectedId(selectedId === t.id ? null : t.id);
+                          setEditingId(null);
+                          setRequestingId(null);
+                        }}
+                      >
+                        {selectedId === t.id ? 'Close details' : 'Details'}
+                      </button>
+                    </div>
+                    {selectedId === t.id && (
+                      <div className="zone-target-detail">
+                        <p className="hint">Configuration updated: {activityDate(t.updatedAt)}</p>
+                        {t.notes && <p className="hint">{t.notes}</p>}
+                        <div className="target-actions">
+                          {/* Existing server capability and authorization rules remain authoritative. */}
+                          {canAuthorize && t.authStatus === 'requested' && (
+                            <>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                disabled={busy}
+                                onClick={() => void act(t.id, () => api.authorizeTarget(t.id))}
+                              >
+                                Authorize
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                disabled={busy}
+                                onClick={() => void act(t.id, () => api.revokeTarget(t.id))}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {canAuthorize && t.authStatus === 'authorized' && (
+                            <button
+                              className="btn btn-sm"
+                              disabled={busy}
+                              onClick={() => void act(t.id, () => api.revokeTarget(t.id))}
+                            >
+                              Revoke
+                            </button>
+                          )}
+                          {/* Operator: request authorization (unauthorized / revoked) */}
+                          {canManage &&
+                            (t.authStatus === 'unauthorized' || t.authStatus === 'revoked') && (
+                              <button
+                                className="btn btn-sm"
+                                disabled={busy}
+                                onClick={() => {
+                                  setRequestingId(requestingId === t.id ? null : t.id);
+                                  setReqAtt('');
+                                }}
+                              >
+                                Request authorization
+                              </button>
+                            )}
+                          {canManage && (
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              disabled={busy}
+                              onClick={() =>
+                                editingId === t.id ? setEditingId(null) : openEdit(t)
+                              }
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canManage && t.authStatus !== 'authorized' && (
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              disabled={busy}
+                              onClick={() => void act(t.id, () => api.deleteTarget(t.id), true)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          {t.authStatus === 'requested' && !canAuthorize && (
+                            <span className="hint">awaiting authorization</span>
+                          )}
+                        </div>
+
+                        {editingId === t.id && (
+                          <div className="target-request target-edit">
+                            <div className="target-form-grid">
+                              <input
+                                value={editForm.displayName}
+                                onChange={(e) =>
+                                  setEditForm({ ...editForm, displayName: e.target.value })
+                                }
+                                placeholder="Zone / customer name"
+                                aria-label="Zone name"
+                              />
+                              <input
+                                value={editForm.owner}
+                                onChange={(e) =>
+                                  setEditForm({ ...editForm, owner: e.target.value })
+                                }
+                                placeholder="Owner / contact"
+                                aria-label="Owner"
+                              />
+                              <input
+                                value={editForm.notes}
+                                onChange={(e) =>
+                                  setEditForm({ ...editForm, notes: e.target.value })
+                                }
+                                placeholder="Notes"
+                                aria-label="Notes"
+                              />
+                            </div>
+                            <button
+                              className="btn btn-sm btn-primary"
+                              disabled={busy}
+                              onClick={() =>
+                                void act(t.id, () =>
+                                  api.updateTarget(t.id, {
+                                    displayName: editForm.displayName.trim(),
+                                    owner: editForm.owner.trim(),
+                                    notes: editForm.notes.trim(),
+                                  }),
+                                )
+                              }
+                            >
+                              Save
+                            </button>
+                          </div>
+                        )}
+
+                        {requestingId === t.id && (
+                          <div className="target-request">
+                            <textarea
+                              value={reqAtt}
+                              onChange={(e) => setReqAtt(e.target.value)}
+                              rows={2}
+                              placeholder="Authorization attestation (ownership / signed mandate, scope, RoE)…"
+                            />
+                            <button
+                              className="btn btn-sm btn-primary"
+                              disabled={busy || reqAtt.trim().length < 10}
+                              onClick={() =>
+                                void act(t.id, () => api.requestTargetAuth(t.id, reqAtt.trim()))
+                              }
+                            >
+                              Submit request
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+          </ul>
+        )}
+        {!failed && noMatches && (targets?.length || envHosts.length) ? (
+          <p className="empty">No zones match this filter.</p>
+        ) : null}
+      </section>
+      <ZoneHistory authorized={failed || targets === null ? null : authorized} />
+    </>
   );
 }
 
 export function ZonesPage() {
-  const navigate = useNavigate();
-  const [zones, setZones] = useState<ZoneSummary[] | null>(null);
-  const [errored, setErrored] = useState(false);
-  const load = () => {
-    setErrored(false);
-    api
-      .zones()
-      .then((z) => {
-        setZones(z);
-      })
-      .catch(() => {
-        setZones([]);
-        setErrored(true);
-      });
-  };
-  useEffect(load, []);
-
   return (
     <>
-      <PageHead
-        title="Protected zones"
-        sub="Assurance per protected customer — how well the WEDOS edge holds for each host, at a glance. Onboard a target below; open a zone to see its campaigns."
-      />
-
+      <PageHead title="Protected zones" />
       <TargetsPanel />
-
-      {zones === null ? (
-        <p className="hint">
-          <span className="spin" /> Loading zones…
-        </p>
-      ) : errored ? (
-        <div className="empty">
-          Couldn&apos;t load protected zones.{' '}
-          <button className="btn btn-sm" onClick={load}>
-            Retry
-          </button>
-        </div>
-      ) : zones.length === 0 ? (
-        <div className="empty">
-          No protected zones yet — run a campaign against an authorized target and it appears here.
-        </div>
-      ) : (
-        <div className="zones-grid">
-          {zones.map((z) => (
-            <ZoneCard
-              key={z.host}
-              z={z}
-              onOpen={() => navigate(`/campaigns?q=${encodeURIComponent(z.host)}`)}
-            />
-          ))}
-        </div>
-      )}
     </>
   );
 }

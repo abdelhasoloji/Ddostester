@@ -1869,23 +1869,35 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
   );
 }
 
+function matchesCampaignHost(target: string, host: string): boolean {
+  if (!host) return true;
+  try {
+    return new URL(target).hostname.toLowerCase().replace(/\.$/, '') === host;
+  } catch {
+    return false;
+  }
+}
+
 export function CampaignList() {
   const app = useApp();
   // Pre-fill the search from ?q= so a "Protected zones" card deep-links straight
   // to that host's campaigns.
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState<StatusFilterId>('all');
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(params.get('archived') === '1');
+  const exactHost = params.get('host')?.toLowerCase().replace(/\.$/, '') ?? '';
 
   const archivedCount = useMemo(
-    () => app.campaigns.filter((c) => c.archived).length,
-    [app.campaigns],
+    () =>
+      app.campaigns.filter((c) => c.archived && matchesCampaignHost(c.target, exactHost)).length,
+    [app.campaigns, exactHost],
   );
 
   const filtered = useMemo(() => {
     const matchStatus = STATUS_FILTERS.find((f) => f.id === status)!.match;
     let list = app.campaigns.filter((c) => showArchived || !c.archived).filter(matchStatus);
+    list = list.filter((c) => matchesCampaignHost(c.target, exactHost));
     const term = q.trim().toLowerCase();
     if (term) {
       list = list.filter(
@@ -1893,7 +1905,7 @@ export function CampaignList() {
       );
     }
     return list;
-  }, [app.campaigns, status, q, showArchived]);
+  }, [app.campaigns, status, q, showArchived, exactHost]);
 
   // Everything — suites AND standalone campaigns — is one compact, column-sortable
   // table; a row expands to its detail (a suite's step card, a campaign's card) on
@@ -1919,10 +1931,26 @@ export function CampaignList() {
 
       {hasCampaigns && (
         <div className="filter-bar">
+          {exactHost && (
+            <button
+              className="chip chip-active"
+              title="Clear the exact host filter"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete('host');
+                setParams(next);
+              }}
+            >
+              Host: {exactHost} ×
+            </button>
+          )}
           <div className="filter-chips">
             {STATUS_FILTERS.map((f) => {
               const n = app.campaigns.filter(
-                (c) => (showArchived || !c.archived) && f.match(c),
+                (c) =>
+                  (showArchived || !c.archived) &&
+                  matchesCampaignHost(c.target, exactHost) &&
+                  f.match(c),
               ).length;
               return (
                 <button

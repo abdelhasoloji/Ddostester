@@ -1,160 +1,183 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
-import type { ZoneSummary } from './api.js';
+import type { ZoneSummary, ProtectedTarget, Campaign } from './api.js';
 
 let currentApp: ReturnType<typeof makeApp>;
 const fakeApi = makeApi();
-
-vi.mock('./context.js', async (orig) => {
-  const actual = await orig<typeof import('./context.js')>();
-  return { ...actual, useApp: () => currentApp };
-});
-vi.mock('./api.js', async (orig) => {
-  const actual = await orig<typeof import('./api.js')>();
-  return { ...actual, api: fakeApi };
-});
-
+vi.mock('./context.js', async (orig) => ({
+  ...(await orig<typeof import('./context.js')>()),
+  useApp: () => currentApp,
+}));
+vi.mock('./api.js', async (orig) => ({
+  ...(await orig<typeof import('./api.js')>()),
+  api: fakeApi,
+}));
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async (orig) => {
-  const actual = await orig<typeof import('react-router-dom')>();
-  return { ...actual, useNavigate: () => mockNavigate };
-});
-
-const { ZonesPage } = await import('./zones-page.js');
-
-const zone = (over: Partial<ZoneSummary>): ZoneSummary => ({
-  host: 'bank.cz',
+vi.mock('react-router-dom', async (orig) => ({
+  ...(await orig<typeof import('react-router-dom')>()),
+  useNavigate: () => mockNavigate,
+}));
+const { ZonesPage, protectedHost } = await import('./zones-page.js');
+const zone = (host: string): ZoneSummary => ({
+  host,
   campaigns: 3,
   suites: 1,
   running: false,
   regression: false,
+  lastWrs: 99,
+  lastLevel: 'A+',
+  maxDrs: 5,
+  lastAbsorbedPct: 99,
+});
+const target = (over: Partial<ProtectedTarget> = {}): ProtectedTarget => ({
+  id: 't1',
+  host: 'bank.cz',
+  authStatus: 'authorized',
+  displayName: 'Bank',
+  owner: 'SOC',
+  createdBy: 'admin',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
   ...over,
 });
-
 beforeEach(() => {
   vi.clearAllMocks();
   currentApp = makeApp({});
+  fakeApi.targets.mockResolvedValue({ targets: [], envAllowlist: [] });
+  fakeApi.zones.mockResolvedValue([]);
 });
 
-describe('ZonesPage', () => {
-  it('renders a card per protected zone with its posture', async () => {
-    fakeApi.zones.mockResolvedValue([
-      zone({
-        host: 'bank.cz',
-        lastWrs: 78,
-        lastLevel: 'C',
-        maxDrs: 5,
-        lastAbsorbedPct: 96.4,
-        running: true,
-      }),
-      zone({
-        host: 'shop.eu',
-        lastWrs: 91,
-        lastLevel: 'A',
-        running: false,
-        campaigns: 2,
-        suites: 0,
-      }),
-      zone({
-        host: 'idle.eu',
-        lastWrs: 40,
-        lastLevel: 'D',
-        maxDrs: 1,
-        lastAbsorbedPct: 0,
-      }),
-    ]);
+describe('Protected zones workspace', () => {
+  it('uses current authorization, never historic scores, as its default estate', async () => {
+    fakeApi.targets.mockResolvedValue({ targets: [target()], envAllowlist: ['46.28.109.92'] });
+    fakeApi.zones.mockResolvedValue([zone('retired.example')]);
     renderWithRouter(<ZonesPage />);
-    expect(await screen.findByText(/bank\.cz/)).toBeInTheDocument();
-    expect(screen.getByText(/shop\.eu/)).toBeInTheDocument();
-    expect(screen.getByText('DRS 5')).toBeInTheDocument();
-    expect(screen.getByText('96.4%')).toBeInTheDocument();
-    // A 0% absorbed reading is spelled out so it is not mistaken for "no data".
-    expect(screen.getByText(/0% · edge idle/)).toBeInTheDocument();
-    // Status reflects posture: a running zone shows "testing", an A-grade "resilient".
-    expect(screen.getByText(/● testing/)).toBeInTheDocument();
-    expect(screen.getByText(/resilient/)).toBeInTheDocument();
-  });
-
-  it('opens a zone into its filtered campaigns', async () => {
-    fakeApi.zones.mockResolvedValue([zone({ host: 'bank.cz', lastWrs: 78, lastLevel: 'C' })]);
-    renderWithRouter(<ZonesPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /Open bank\.cz/ }));
-    expect(mockNavigate).toHaveBeenCalledWith('/campaigns?q=bank.cz');
-  });
-
-  it('shows an empty state when there are no zones', async () => {
-    fakeApi.zones.mockResolvedValue([]);
-    renderWithRouter(<ZonesPage />);
-    await waitFor(() => expect(screen.getByText(/No protected zones yet/)).toBeInTheDocument());
-  });
-
-  it('distinguishes a load failure from an empty estate, and retries', async () => {
-    fakeApi.zones.mockRejectedValueOnce(new Error('offline'));
-    renderWithRouter(<ZonesPage />);
-    // A failure must NOT read as "no zones yet".
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't load protected zones/)).toBeInTheDocument(),
-    );
-    expect(screen.queryByText(/No protected zones yet/)).not.toBeInTheDocument();
-    // Retry re-fetches; this time it returns a zone.
-    fakeApi.zones.mockResolvedValue([zone({ host: 'bank.cz', lastWrs: 78, lastLevel: 'C' })]);
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText(/bank\.cz/)).toBeInTheDocument();
-    expect(screen.queryByText(/Couldn't load protected zones/)).not.toBeInTheDocument();
-  });
-});
-
-describe('Protected targets panel', () => {
-  it('lists env-allowlisted (legacy) hosts as read-only rows in the table', async () => {
-    fakeApi.zones.mockResolvedValue([]);
-    fakeApi.targets.mockResolvedValue({
-      targets: [],
-      envAllowlist: ['bank.cz', '46.28.109.92'],
-    });
-    renderWithRouter(<ZonesPage />);
-    // Both legacy hosts show, badged as permanently allowlisted…
     expect(await screen.findByText('bank.cz')).toBeInTheDocument();
     expect(screen.getByText('46.28.109.92')).toBeInTheDocument();
-    expect(screen.getAllByText(/env-allowlisted/)).toHaveLength(2);
-    // …and the panel does NOT read as empty when only env hosts exist.
-    expect(screen.queryByText(/No targets registered yet/)).not.toBeInTheDocument();
+    expect(fakeApi.zones).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Authorization filter')).toHaveValue('authorized');
+    expect(screen.queryByText('retired.example')).not.toBeInTheDocument();
+    expect(screen.queryByText(/resilient|DRS reached|Edge absorbed|A\+/)).not.toBeInTheDocument();
+    expect(screen.getByText('Service health: not monitored here')).toBeInTheDocument();
   });
-
-  it('does not duplicate a host that is both env-allowlisted and onboarded', async () => {
-    fakeApi.zones.mockResolvedValue([]);
+  it('separates historical-only hosts and keeps archived evidence reachable', async () => {
+    fakeApi.zones.mockResolvedValue([zone('retired.example')]);
+    renderWithRouter(<ZonesPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Historical activity' }));
+    expect(await screen.findByText('retired.example')).toBeInTheDocument();
+    expect(screen.getByText('Outside authorized scope')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View campaigns' }));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/campaigns?tab=history&host=retired.example&archived=1',
+    );
+    expect(screen.queryByText('DRS 5')).not.toBeInTheDocument();
+  });
+  it('deduplicates configured and registered hosts and explains independent configured access', async () => {
     fakeApi.targets.mockResolvedValue({
-      targets: [
-        { id: 't1', host: 'bank.cz', authStatus: 'authorized', authorizedBy: 'ciso@wedos' },
-      ],
-      envAllowlist: ['bank.cz'],
+      targets: [target({ authStatus: 'revoked' })],
+      envAllowlist: ['BANK.CZ.', 'bank.cz'],
     });
     renderWithRouter(<ZonesPage />);
-    await screen.findByText('bank.cz');
-    // Only the onboarded row remains; the env duplicate is filtered out.
+    expect(await screen.findByText('bank.cz')).toBeInTheDocument();
     expect(screen.getAllByText('bank.cz')).toHaveLength(1);
-    expect(screen.queryByText(/env-allowlisted/)).not.toBeInTheDocument();
+    expect(screen.getByText('Configured access')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Configure campaign' })).toBeEnabled();
   });
-
-  it('refreshes the effective allowlist after a CISO authorizes a target', async () => {
-    currentApp = makeApp({ role: 'ciso', authRequired: true });
-    fakeApi.zones.mockResolvedValue([]);
+  it('filters by host/name and effective authorization without treating revocation as health', async () => {
     fakeApi.targets.mockResolvedValue({
       targets: [
-        { id: 't1', host: 'app.customer.eu', authStatus: 'requested', authRequestedBy: 'op@wedos' },
+        target(),
+        target({ id: 't2', host: 'other.example', authStatus: 'revoked', displayName: 'Other' }),
       ],
       envAllowlist: [],
     });
-    fakeApi.authorizeTarget.mockResolvedValue({
-      id: 't1',
-      host: 'app.customer.eu',
-      authStatus: 'authorized',
-      authorizedBy: 'ciso@wedos',
-    });
     renderWithRouter(<ZonesPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Authorize' }));
-    await waitFor(() => expect(fakeApi.authorizeTarget).toHaveBeenCalledWith('t1'));
-    // The allowlist changed → the shared /health posture is refreshed.
-    await waitFor(() => expect(currentApp.refreshHealth).toHaveBeenCalled());
+    await screen.findByText('bank.cz');
+    fireEvent.change(screen.getByLabelText('Search zones'), { target: { value: 'Bank' } });
+    expect(screen.queryByText('other.example')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Search zones'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Authorization filter'), {
+      target: { value: 'pending' },
+    });
+    expect(screen.queryByText('bank.cz')).not.toBeInTheDocument();
+    expect(screen.getByText('other.example')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Configure campaign' })).toBeDisabled();
   });
+  it('routes configuration through templates and live activity to the correct campaign', async () => {
+    currentApp = makeApp({
+      campaigns: [
+        {
+          id: 'live',
+          target: 'http://46.28.109.92:8080/path',
+          status: 'RUNNING',
+          createdAt: '2026-10-17T00:00:00Z',
+        } as Campaign,
+      ],
+    });
+    fakeApi.targets.mockResolvedValue({ targets: [], envAllowlist: ['46.28.109.92'] });
+    renderWithRouter(<ZonesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Configure campaign' }));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/campaigns?tab=templates&target=http%3A%2F%2F46.28.109.92%3A8080%2F',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Watch live' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/theater?run=live');
+    expect(fakeApi.execute).not.toHaveBeenCalled();
+  });
+  it('fails closed on registry errors, retries, and does not advertise stale configured access', async () => {
+    fakeApi.targets.mockRejectedValueOnce(new Error('offline'));
+    renderWithRouter(<ZonesPage />);
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load targets");
+    fakeApi.targets.mockResolvedValue({ targets: [target()], envAllowlist: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await screen.findByText('bank.cz');
+    fakeApi.targets.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(screen.queryByText('bank.cz')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Configure campaign' })).not.toBeInTheDocument();
+  });
+  it('keeps history failures independent from current scope and supports history pagination/search', async () => {
+    fakeApi.targets.mockResolvedValue({ targets: [target()], envAllowlist: [] });
+    fakeApi.zones.mockRejectedValueOnce(new Error('offline'));
+    renderWithRouter(<ZonesPage />);
+    await screen.findByText('bank.cz');
+    fireEvent.click(screen.getByRole('button', { name: 'Historical activity' }));
+    const error = await screen.findByRole('alert');
+    expect(error).toHaveTextContent('historical activity');
+    expect(screen.getByText('bank.cz')).toBeInTheDocument();
+    fakeApi.zones.mockResolvedValue(Array.from({ length: 11 }, (_, i) => zone(`old-${i}.example`)));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry history' }));
+    await screen.findByText('old-0.example');
+    expect(screen.queryByText('old-10.example')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('old-10.example')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Search history'), { target: { value: 'old-0.' } });
+    expect(screen.getByText('old-0.example')).toBeInTheDocument();
+  });
+  it('preserves read-only capability restrictions', async () => {
+    currentApp = makeApp({ role: 'viewer', authRequired: true });
+    fakeApi.targets.mockResolvedValue({ targets: [target()], envAllowlist: [] });
+    renderWithRouter(<ZonesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Revoke' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Configure campaign' })).not.toBeInTheDocument();
+  });
+});
+
+it('canonicalizes ports, URL paths, case and trailing dots consistently with host authorization', () => {
+  expect(protectedHost('https://BANK.cz.:8443/path')).toBe('bank.cz');
+  expect(protectedHost('bank.cz:8080')).toBe('bank.cz');
+  expect(protectedHost('bad host')).toBe('');
+});
+
+it('does not label historical access as revoked or absent when the registry is unavailable', async () => {
+  fakeApi.targets.mockRejectedValueOnce(new Error('offline'));
+  fakeApi.zones.mockResolvedValue([zone('bank.cz')]);
+  renderWithRouter(<ZonesPage />);
+  await screen.findByRole('alert');
+  fireEvent.click(screen.getByRole('button', { name: 'Historical activity' }));
+  expect(await screen.findByText('Unavailable')).toBeInTheDocument();
+  expect(screen.queryByText('Outside authorized scope')).not.toBeInTheDocument();
 });

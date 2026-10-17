@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 import type { ProtectedTarget } from './api.js';
 
@@ -49,7 +49,9 @@ describe('TargetsPanel (Protected Zones)', () => {
     });
     renderWithRouter(<ZonesPage />);
     expect(await screen.findByText('app.customer.eu')).toBeInTheDocument();
-    expect(screen.getByText(/✓ authorized/)).toBeInTheDocument();
+    expect(
+      within(screen.getByText('app.customer.eu').closest('li')!).getByText(/^Authorized$/),
+    ).toBeInTheDocument();
   });
 
   it('registers a new target with an authorization request', async () => {
@@ -86,9 +88,16 @@ describe('TargetsPanel (Protected Zones)', () => {
       target({ authStatus: 'authorized', authorizedBy: 'op@wedos' }),
     );
     renderWithRouter(<ZonesPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Authorize' }));
     await waitFor(() => expect(fakeApi.authorizeTarget).toHaveBeenCalledWith('t1'));
-    expect(await screen.findByText(/✓ authorized/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(screen.getByText('app.customer.eu').closest('li')!).getByText(/^Authorized$/),
+      ).toBeInTheDocument(),
+    );
   });
 
   it('lets a CISO revoke an authorized target', async () => {
@@ -100,9 +109,12 @@ describe('TargetsPanel (Protected Zones)', () => {
       target({ authStatus: 'revoked', revokedBy: 'op@wedos' }),
     );
     renderWithRouter(<ZonesPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
     await waitFor(() => expect(fakeApi.revokeTarget).toHaveBeenCalledWith('t1'));
-    expect(await screen.findByText(/⃠ revoked/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Revoked$/)).toBeInTheDocument();
   });
 
   it('requests authorization on an existing target via the inline attestation', async () => {
@@ -112,6 +124,9 @@ describe('TargetsPanel (Protected Zones)', () => {
     });
     fakeApi.requestTargetAuth.mockResolvedValue(target({ authStatus: 'requested' }));
     renderWithRouter(<ZonesPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Request authorization' }));
     const box = screen.getByPlaceholderText(/Authorization attestation/);
     // Under 10 chars keeps submit disabled.
@@ -138,6 +153,9 @@ describe('TargetsPanel (Protected Zones)', () => {
       target({ authStatus: 'authorized', displayName: 'New name' }),
     );
     renderWithRouter(<ZonesPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Zone name'), { target: { value: 'New name' } });
     fireEvent.change(screen.getByLabelText('Owner'), { target: { value: 'soc@fake' } });
@@ -158,6 +176,9 @@ describe('TargetsPanel (Protected Zones)', () => {
     });
     fakeApi.deleteTarget.mockResolvedValue({ ok: true });
     renderWithRouter(<ZonesPage />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(fakeApi.deleteTarget).toHaveBeenCalledWith('t1'));
     await waitFor(() => expect(screen.queryByText('app.customer.eu')).not.toBeInTheDocument());
@@ -172,6 +193,8 @@ describe('TargetsPanel (Protected Zones)', () => {
       envAllowlist: [],
     });
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+    fireEvent.change(screen.getByLabelText('Authorization filter'), { target: { value: 'all' } });
     expect(await screen.findByText('back.eu')).toBeInTheDocument();
   });
 });
