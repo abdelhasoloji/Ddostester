@@ -25,6 +25,7 @@ COPY --from=build --chown=node:node /app/backend/package.json ./backend/package.
 COPY --from=build --chown=node:node /app/scripts/fleet/heartbeat-agent.mjs ./scripts/fleet/heartbeat-agent.mjs
 COPY --from=build --chown=node:node /app/frontend/dist ./frontend/dist
 COPY --from=build --chown=node:node /app/release-manifest.json ./release-manifest.json
+COPY --from=build --chown=node:node /app/scripts/verify-release.mjs ./scripts/verify-release.mjs
 USER node
 EXPOSE 8080
 CMD ["node", "backend/dist/server.js"]

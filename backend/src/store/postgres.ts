@@ -1,3 +1,4 @@
+import type { InfrastructureRevision } from '../modules/infrastructure/model.js';
 import pg from 'pg';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
@@ -233,6 +234,21 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     id: 8,
     sql: `CREATE TABLE IF NOT EXISTS fleet_devices_v1 (id text PRIMARY KEY, data jsonb NOT NULL);`,
   },
+  {
+    id: 9,
+    sql: `CREATE TABLE IF NOT EXISTS infrastructure_revisions_v1 (
+      kind text NOT NULL CHECK (kind IN ('host','evidence')),
+      id text NOT NULL,
+      revision integer NOT NULL CHECK (revision > 0),
+      data jsonb NOT NULL,
+      PRIMARY KEY (kind,id,revision)
+    );`,
+  },
+  {
+    id: 10,
+    sql: `ALTER TABLE infrastructure_revisions_v1 DROP CONSTRAINT infrastructure_revisions_v1_kind_check;
+      ALTER TABLE infrastructure_revisions_v1 ADD CONSTRAINT infrastructure_revisions_v1_kind_check CHECK (kind IN ('host','evidence','client'));`,
+  },
 ];
 
 /** settings key for the CISO-managed operational limits. */
@@ -244,6 +260,31 @@ const LIMITS_KEY = 'operational_limits';
  * target, WRS, dates) — the basis of a per-target WRS history (TSD §5.4).
  */
 export class PostgresStore implements Store {
+  async listInfrastructure(
+    kind: InfrastructureRevision['kind'],
+  ): Promise<InfrastructureRevision[]> {
+    const r = await this.pool.query<{ data: InfrastructureRevision }>(
+      'SELECT DISTINCT ON (id) data FROM infrastructure_revisions_v1 WHERE kind=$1 ORDER BY id,revision DESC',
+      [kind],
+    );
+    return r.rows.map((x) => x.data);
+  }
+  async infrastructureHistory(
+    kind: InfrastructureRevision['kind'],
+    id: string,
+  ): Promise<InfrastructureRevision[]> {
+    const r = await this.pool.query<{ data: InfrastructureRevision }>(
+      'SELECT data FROM infrastructure_revisions_v1 WHERE kind=$1 AND id=$2 ORDER BY revision',
+      [kind, id],
+    );
+    return r.rows.map((x) => x.data);
+  }
+  async appendInfrastructure(record: InfrastructureRevision): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO infrastructure_revisions_v1(kind,id,revision,data) VALUES($1,$2,$3,$4)',
+      [record.kind, record.id, record.revision, JSON.stringify(record)],
+    );
+  }
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
     const r = await this.pool.query<{ data: FleetDevice }>(
       'SELECT data FROM fleet_devices_v1 WHERE id=$1',
@@ -740,9 +781,9 @@ export class PostgresStore implements Store {
     return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
   }
 
-  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+  async listBenchRuns(limit = 100, activeOnly = false): Promise<BenchRun[]> {
     const r = await this.pool.query(
-      'SELECT * FROM bench_runs ORDER BY requested_at DESC LIMIT $1',
+      `SELECT * FROM bench_runs ${activeOnly ? "WHERE status IN ('REQUESTED','CLAIMED')" : ''} ORDER BY requested_at DESC LIMIT $1`,
       [limit],
     );
     return r.rows.map(rowToBenchRun);

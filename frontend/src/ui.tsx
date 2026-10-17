@@ -1,3 +1,4 @@
+import { DrsLaunchReview } from './drs-launch-review.js';
 import { FleetCampaignLive } from './fleet-campaign-live.js';
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -1763,6 +1764,7 @@ export function ExecuteModal() {
   // Reset the one-shot guard whenever a different campaign is queued for confirm.
   useEffect(() => setLaunching(false), [c?.id]);
   if (!c) return null;
+  if (app.drsWorkflow && c.agent === 'fleet') return <DrsLaunchReview key={c.id} campaign={c} />;
   return (
     <Modal label="Confirm run" onClose={() => app.setConfirmExec(null)}>
       <h3>Confirm run</h3>

@@ -1,3 +1,4 @@
+import { InfrastructureWorkspacePanel } from './infrastructure-workspace.js';
 import { FleetSitesPanel } from './fleet-sites.js';
 import { FleetMissions } from './fleet-missions.js';
 import { useEffect, useState } from 'react';
@@ -123,6 +124,7 @@ export function FleetPage() {
         sub="Prepare IoT agents for campaigns, follow assigned runs and manage enrollment."
       />
       {app.drsWorkflow && <FleetSitesPanel />}
+      <InfrastructureWorkspacePanel editable={editable} />
       <FleetOperations editable={editable} />
       {error && <p role="alert">{error}</p>}
       {readError && (

@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-17",
+  "environment": "isolated localhost memory-store fixture",
+  "campaignId": "461c0f49-713f-49d0-a73a-cb879a27644c",
+  "createdThroughUI": true,
+  "seededCampaign": false,
+  "automaticServerSequence": true,
+  "runnerOnlyClaimsAndPostsResults": true,
+  "uiReloadDuringExecution": true,
+  "state": "COMPLETED",
+  "campaignStatus": "COMPLETED",
+  "targetLevel": 5,
+  "intervalSec": 2,
+  "startedAt": "2026-10-17T07:29:11.901Z",
+  "finishedAt": "2026-10-17T07:29:55.641Z",
+  "scenarios": [
+    {
+      "scenario": "tcp_synflood",
+      "runId": "83e6da58-abc9-4bcc-aa4d-2d6e62015572"
+    },
+    {
+      "scenario": "udp_maxpackets",
+      "runId": "11348e14-3523-4436-8b9a-97b09f5265b7"
+    },
+    {
+      "scenario": "udp_ntp_reflection",
+      "runId": "65d4096d-f27f-423c-ad2c-9cc1158c5bb6"
+    },
+    {
+      "scenario": "udp_multivector",
+      "runId": "c5048208-02f2-4b56-be22-e9a963b43efb"
+    },
+    {
+      "scenario": "pulsewave_l34",
+      "runId": "6d106ea0-dd3e-4fad-a3bc-51ff847faa8b"
+    }
+  ],
+  "report": {
+    "status": "PARTIAL",
+    "score": null,
+    "attachments": 5,
+    "proofs": 0,
+    "referenceRows": 60
+  },
+  "productionMutated": false,
+  "runnerBudgetsChanged": false,
+  "limitations": [
+    "Production browser origin access remains blocked by saved permission; no bypass attempted",
+    "Only five existing named synthetic shapes executed; official DRS rows remain unevaluated",
+    "Final animation class corrected after this first UI observation; rebuilt in release gate"
+  ]
+}

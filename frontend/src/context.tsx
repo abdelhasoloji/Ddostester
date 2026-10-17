@@ -160,7 +160,7 @@ interface Ctx {
   login: (email: string, password: string) => Promise<void>;
   changeOwnPassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => void;
-  createCampaign: (payload: Record<string, unknown>) => Promise<void>;
+  createCampaign: (payload: Record<string, unknown>) => Promise<Campaign | void>;
   approve: (
     c: Campaign,
     approvedBy: string,
@@ -248,7 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(() => {
-    api
+    return api
       .listCampaigns()
       .then(setCampaigns)
       .catch((e) => push('error', e.message));
@@ -417,7 +417,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const createCampaign = async (payload: Record<string, unknown>) => {
-    await api.createCampaign({
+    const created = await api.createCampaign({
       ...payload,
       ...(userMode === 'single' ? { scheduledAt: undefined, recurrence: undefined } : {}),
       createdBy: authRequired ? identity?.email : operator,
@@ -428,7 +428,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ? 'Campaign created — review and confirm before running.'
         : 'Campaign created — awaiting approval.',
     );
-    refresh();
+    await refresh();
+    return created;
   };
 
   const approve = async (

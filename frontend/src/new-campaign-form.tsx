@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useApp, canDo } from './context.js';
 import { PRESETS, estimatedRequests, formatCount } from './presets.js';
-import { api, type FleetDevice } from './api.js';
+import { HelpTip } from './help-tip.js';
+import { api, type Campaign, type FleetDevice } from './api.js';
 import type { Preset } from './presets.js';
 import {
   buildAcceptance,
@@ -19,8 +20,10 @@ import {
 export function NewCampaignForm({
   onDone,
   initial,
+  onCreate,
 }: {
-  onDone?: () => void;
+  onDone?: (campaign?: Campaign) => void;
+  onCreate?: (payload: Record<string, unknown>) => Promise<Campaign | void>;
   /** Seed values (e.g. carried over from the guided wizard's "Advanced" step). */
   initial?: Partial<typeof emptyForm>;
 }) {
@@ -39,6 +42,9 @@ export function NewCampaignForm({
   });
   const [fleetDevices, setFleetDevices] = useState<FleetDevice[]>([]);
   const [fleetError, setFleetError] = useState('');
+  const [fleetRefresh, setFleetRefresh] = useState(0);
+  const [fleetLoading, setFleetLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [generatorChanged, setGeneratorChanged] = useState(false);
   const [fleetOrigins, setFleetOrigins] = useState<string[]>([]);
   const [fleetSite, setFleetSite] = useState('');
@@ -56,10 +62,11 @@ export function NewCampaignForm({
   useEffect(() => {
     if (form.agent !== 'fleet') return;
     let live = true;
+    setFleetLoading(true);
     void (async () => {
       try {
         const result = await api.fleetOverview();
-        if (!Array.isArray(result.devices) || !Array.isArray(result.origins))
+        if (!result.enabled || !Array.isArray(result.devices) || !Array.isArray(result.origins))
           throw new Error('Fleet policy unavailable');
         if (!live) return;
         let devices: FleetDevice[] = result.devices.filter((d) => d.group === 'VPS Lab');
@@ -97,12 +104,14 @@ export function NewCampaignForm({
         );
       } catch (e) {
         if (live) setFleetError((e as Error).message);
+      } finally {
+        if (live) setFleetLoading(false);
       }
     })();
     return () => {
       live = false;
     };
-  }, [form.agent, app.drsWorkflow, fleetSite, fleetPage]);
+  }, [form.agent, app.drsWorkflow, fleetSite, fleetPage, fleetRefresh]);
   const [attested, setAttested] = useState(false);
   const [appliedPreset, setAppliedPreset] = useState<string | null>(null);
 
@@ -238,11 +247,11 @@ export function NewCampaignForm({
           ),
         ) &&
         form.maxRps >= form.fleetDeviceIds.length &&
-        form.maxRps <= 15 &&
+        form.maxRps <= Math.min(15, fleetPolicyCaps?.maxRps ?? 0) &&
         form.concurrency >= form.fleetDeviceIds.length &&
-        form.concurrency <= 6 &&
+        form.concurrency <= Math.min(6, fleetPolicyCaps?.maxConcurrency ?? 0) &&
         form.maxDurationSec >= 10 &&
-        form.maxDurationSec <= 60));
+        form.maxDurationSec <= Math.min(60, fleetPolicyCaps?.maxDurationSec ?? 0)));
   const identityOk = app.authRequired ? app.identity !== null : app.operator.trim() !== '';
   const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
   const iotValid = (() => {
@@ -295,13 +304,15 @@ export function NewCampaignForm({
     fleetCompatible &&
     iotValid &&
     attested &&
+    (!app.drsWorkflow || form.drsMode === 'synthetic-lab') &&
     canCreate;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formValid) return;
+    if (!formValid || submitting || fleetLoading) return;
+    setSubmitting(true);
     try {
-      await app.createCampaign({
+      const created = await (onCreate ?? app.createCampaign)({
         drsProfileId: form.drsProfileId || undefined,
         drsMode: app.drsWorkflow
           ? (form.drsMode as 'engine-validation' | 'synthetic-lab' | 'measured')
@@ -352,12 +363,274 @@ export function NewCampaignForm({
       });
       setForm({ ...emptyForm });
       setAttested(false);
-      onDone?.();
+      onDone?.(created || undefined);
     } catch (err) {
       app.push('error', (err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  if (app.drsWorkflow && canCreate) {
+    const checks = [
+      {
+        label: 'Target permission',
+        ok: targetAllowed,
+        fix: 'Choose a host and origin authorized for Fleet.',
+      },
+      {
+        label: 'Probe scope',
+        ok: probeAllowed && referenceAllowed,
+        fix: 'Enter an authorized probe URL; its health is checked at runtime.',
+      },
+      {
+        label: 'Fleet and shared budget',
+        ok: capsOk && !fleetLoading,
+        fix: fleetError || 'Select available agents and keep the shared budget within limits.',
+      },
+      {
+        label: 'Profile and identity',
+        ok:
+          fleetCompatible &&
+          identityOk &&
+          form.agent === 'fleet' &&
+          /^(cra-l7-get-flood|drs-3\.00\.00-[1-7]51002)$/.test(form.drsProfileId),
+        fix: 'Choose an executable Fleet profile and sign in.',
+      },
+    ];
+    return (
+      <section className="card campaign-form" aria-label="Campaign preparation">
+        <div className="card-head">
+          <h2>Prepare campaign</h2>
+          {onDone && (
+            <button
+              className="btn btn-ghost"
+              type="button"
+              disabled={submitting}
+              onClick={() => onDone()}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+        <p className="hint">1 · Prepare → 2 · Freeze plan → 3 · Confirm and follow</p>
+        {form.drsMode !== 'synthetic-lab' && (
+          <p role="alert">
+            This path prepares a laboratory campaign. Open the assessment workspace for simulation
+            or measured evidence.
+          </p>
+        )}
+        <form className="grid" onSubmit={submit}>
+          <div className="field">
+            <label htmlFor="campaign-name">Name</label>
+            <input
+              id="campaign-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="campaign-target">Target (URL)</label>
+            <input
+              id="campaign-target"
+              value={form.target}
+              onChange={(e) => setForm({ ...form, target: e.target.value })}
+              required
+            />
+            <div className="allowed-chips">
+              {fleetOrigins
+                .filter((origin) => app.allowed.includes(hostOf(origin) ?? ''))
+                .map((origin) => (
+                  <button
+                    type="button"
+                    className="chip chip-xs"
+                    key={origin}
+                    onClick={() => setForm((f) => ({ ...f, target: origin + '/' }))}
+                  >
+                    {origin}
+                  </button>
+                ))}
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="campaign-probe">Probe (URL)</label>
+            <input
+              id="campaign-probe"
+              value={form.probeUrl}
+              onChange={(e) => setForm({ ...form, probeUrl: e.target.value })}
+              required
+            />
+            <span className="hint">
+              Independent observation{' '}
+              <HelpTip label="Independent probe">
+                The probe URL describes the user transaction. Its observation resources must be
+                separate from the Fleet generator. URL permission alone does not prove health or
+                independence; baseline qualification still applies.
+              </HelpTip>
+            </span>
+          </div>
+          <div className="field">
+            <label htmlFor="campaign-generator">Generator</label>
+            <select id="campaign-generator" value={form.agent} disabled>
+              <option value="fleet">IoT Fleet</option>
+            </select>
+            <span className="hint">
+              Laboratory HTTP campaign{' '}
+              <HelpTip label="Campaign result">
+                This bounded laboratory campaign is an experimental measurement. It does not
+                establish a measured DRS 5 level or certification. No traffic starts when this draft
+                is created.
+              </HelpTip>
+            </span>
+          </div>
+          <fieldset style={{ gridColumn: '1 / -1' }}>
+            <legend>Agents · {form.fleetDeviceIds.length} selected</legend>
+            {fleetError && <p role="alert">Inventory unavailable: {fleetError}</p>}
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={fleetLoading}
+              onClick={() => setFleetRefresh((n) => n + 1)}
+            >
+              {fleetLoading ? 'Refreshing agents…' : 'Refresh agents'}
+            </button>
+            <details>
+              <summary>Choose agents</summary>
+              <label>
+                Site{' '}
+                <select
+                  value={fleetSite}
+                  onChange={(e) => {
+                    setFleetSite(e.target.value);
+                    setFleetPage(1);
+                  }}
+                >
+                  <option value="">All sites</option>
+                  {fleetSites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.id} · {site.online}/{site.devices} online
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="btn-row">
+                <button
+                  type="button"
+                  disabled={fleetPage === 1 || fleetLoading}
+                  onClick={() => setFleetPage((n) => n - 1)}
+                >
+                  Previous agents
+                </button>
+                <span>
+                  Page {fleetPage} · {fleetTotal} agents
+                </span>
+                <button
+                  type="button"
+                  disabled={fleetPage * 100 >= fleetTotal || fleetLoading}
+                  onClick={() => setFleetPage((n) => n + 1)}
+                >
+                  Next agents
+                </button>
+              </div>
+              {fleetDevices
+                .filter((d) => fleetVisible.includes(d.id))
+                .map((d) => (
+                  <label key={d.id}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Use ${d.name}`}
+                      checked={form.fleetDeviceIds.includes(d.id)}
+                      disabled={
+                        fleetLoading ||
+                        d.connection !== 'online' ||
+                        d.agentVersion !== 'fleet-mission-agent/v1'
+                      }
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          fleetDeviceIds: e.target.checked
+                            ? [...f.fleetDeviceIds, d.id]
+                            : f.fleetDeviceIds.filter((id) => id !== d.id),
+                        }))
+                      }
+                    />{' '}
+                    {d.name} · {d.connection}
+                  </label>
+                ))}
+            </details>
+          </fieldset>
+          <details style={{ gridColumn: '1 / -1' }}>
+            <summary>
+              Shared limits · {form.maxRps} req/s · {form.maxDurationSec}s
+            </summary>
+            <div className="grid">
+              {(
+                [
+                  ['maxRps', 'Max RPS'],
+                  ['concurrency', 'Concurrency'],
+                  ['maxDurationSec', 'Max duration (s)'],
+                ] as const
+              ).map(([key, label]) => (
+                <div className="field" key={key}>
+                  <label htmlFor={'prepare-' + key}>{label}</label>
+                  <input
+                    id={'prepare-' + key}
+                    type="number"
+                    value={form[key]}
+                    onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="hint">The budget is shared across selected agents.</p>
+          </details>
+          <div style={{ gridColumn: '1 / -1' }} aria-label="Preparation checks">
+            <h3>
+              Configuration checks{' '}
+              <HelpTip label="Preparation checks">
+                These checks validate configuration and inventory only. Target health, baseline
+                stability, capacity and evidence are assessed by the server; missing measurements
+                cannot become a pass.
+              </HelpTip>
+            </h3>
+            <ul>
+              {checks.map((check) => (
+                <li key={check.label}>
+                  <b>
+                    {check.ok ? '✓' : 'Needs attention'} · {check.label}
+                  </b>
+                  {!check.ok && <span> — {check.fix}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <label className="attest">
+            <input
+              type="checkbox"
+              checked={attested}
+              onChange={(e) => setAttested(e.target.checked)}
+            />
+            <span>
+              I attest that I own the target or hold a <b>written authorization</b> to run this
+              campaign (internal WEDOS / authorized scope).
+            </span>
+          </label>
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={!formValid || fleetLoading || submitting}
+          >
+            {submitting
+              ? 'Creating campaign…'
+              : app.approvalPolicy === 'confirmation'
+                ? 'Create campaign'
+                : 'Submit for approval'}
+          </button>
+        </form>
+      </section>
+    );
+  }
   if (!canCreate) return null;
   return (
     <section className="card campaign-form">
@@ -367,7 +640,7 @@ export function NewCampaignForm({
           <h2>New campaign</h2>
         </div>
         {onDone && (
-          <button type="button" className="btn btn-sm btn-ghost" onClick={onDone}>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => onDone()}>
             Cancel
           </button>
         )}
@@ -1121,8 +1394,8 @@ export function NewCampaignForm({
             onChange={(e) => setAttested(e.target.checked)}
           />
           <span>
-            I attest that I own the target or hold a <b>written authorization</b> to test it
-            (internal WEDOS / authorized scope).
+            I attest that I own the target or hold a <b>written authorization</b> to run this
+            campaign (internal WEDOS / authorized scope).
           </span>
         </label>
         {capsOk && (

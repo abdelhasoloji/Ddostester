@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-10-17T08:44:06Z",
+  "sourceCommit": "6c579dbac7ece74b7c839b0e474c7e088d248d2a",
+  "build": "494",
+  "previousBuild": "492",
+  "release": "/home/shieldtest/ddostester-releases/release-6c579dba.I9a4FO/backend",
+  "ci": {
+    "conclusion": "success",
+    "headSha": "6c579dbac7ece74b7c839b0e474c7e088d248d2a",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "quality"
+      },
+      {
+        "conclusion": "success",
+        "name": "frontend"
+      },
+      {
+        "conclusion": "success",
+        "name": "postgres"
+      },
+      {
+        "conclusion": "success",
+        "name": "backend"
+      }
+    ],
+    "url": "https://github.com/abdelhasoloji/Ddostester/actions/runs/39017785923"
+  },
+  "functionalCoverage": {
+    "referenceScenarios": 60,
+    "separateMeasuredPartialShapeRuns": 15,
+    "noTrafficReferenceLifecycleSimulations": 45,
+    "omittedScenarios": 0,
+    "qualifiedDrsScore": null,
+    "localJourneyReceipt": "qa/drs-60-scenarios-2026-10-17/receipt.json",
+    "finalSourceReadback": "qa/drs-60-scenarios-2026-10-17/readback-build494.json"
+  },
+  "validation": {
+    "nativeLint": true,
+    "nativeTypecheck": true,
+    "nativeBackendTestsPassed": 1268,
+    "nativeBackendTestsSkipped": 48,
+    "nativeFrontendTestsPassed": 519,
+    "nativeBuild": true,
+    "ciBackendTestsPassed": 1312,
+    "ciBackendTestsSkipped": 4,
+    "ciFrontendTestsPassed": 519,
+    "ciPostgresRecoveryTestsPassed": 72,
+    "ciSyntheticPostgresTestsPassed": 2,
+    "ciReferenceStepTestsPassed": 5,
+    "ciCoverageThresholds": true,
+    "apiAndAllUiAssetsMatchManifest": true,
+    "authenticatedHttpsHealth": true,
+    "postgresReady": true,
+    "protectedRoutes": true,
+    "threeAgentsOnline": true,
+    "encryptedBackupAndAuthenticatedIsolatedRestore": true
+  },
+  "localPrePush": {
+    "initialExistingProbeTimingTestFailure": true,
+    "isolatedProbeTestsPassed": 9,
+    "completeRetryPassed": true,
+    "sourceChangedToBypassFailure": false
+  },
+  "preservation": {
+    "accounts": 11,
+    "campaigns": 284,
+    "settings": 1,
+    "fleetIdentities": 3,
+    "soleAdmin": true,
+    "runtimePolicy": true,
+    "auditHistory": true,
+    "infrastructureHistory": true
+  },
+  "productionCampaignStarted": false,
+  "podRollout": false,
+  "labRunnerUpdated": false,
+  "limitations": [
+    "Lifecycle simulations generate no traffic and model no target service behavior or resilience",
+    "Measured presets reproduce partial shapes only; all official reference rows remain without qualified DRS proof",
+    "Production browser origin permission remains blocked; no bypass attempted. Functional UI qualification is local; production delivery checked through service/API and asset identity"
+  ]
+}

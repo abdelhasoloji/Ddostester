@@ -77,18 +77,7 @@ const roleDescription: Record<Role, string> = {
 };
 
 // ---------- sidebar + layout ----------
-// Campaign orchestration is the whole point of the tool, so it is the single
-// primary destination (the home page). Everything else — the assessment phases,
-// templates, reports, audit, guide and settings — stays one click away under a
-// collapsible "More" menu, keeping the sidebar focused instead of a flat list.
-// v2 — the resilience spine: land on status (Command Center), then the workflow
-// arc (Prepare → Campaigns → Results) and governance (Assurance). Secondary
-// destinations stay reachable under "More"; Guide/Settings live in the foot.
-// The primary navigation — the resilience spine, then governance. Everything a
-// campaign needs (Templates, Plan, the guide) lives inside the Campaigns
-// workspace, so the sidebar stays a flat, focused list with Settings on it too.
-// One distinct emoji per destination — no repeats, no lone geometric glyph, so
-// the eight links stay tellable apart at a glance.
+// Legacy routes remain available; DRS planning uses a smaller primary navigation.
 const SPINE_NAV = [
   { to: '/', label: 'Command Center', icon: '🛰', end: true },
   { to: '/zones', label: 'Protected zones', icon: '🛡' },
@@ -99,6 +88,14 @@ const SPINE_NAV = [
   { to: '/assistant', label: 'Assistant', icon: '💬' },
   // Prepare retired from the spine; the audit log now lives in Settings.
   { to: '/settings', label: 'Settings', icon: '⚙' },
+];
+
+const WORKSPACE_NAV = [
+  { to: '/campaigns', label: 'Campaigns', icon: '◈', end: false },
+  { to: '/', label: 'Overview', icon: '◉', end: true },
+  { to: '/clients', label: 'Clients', icon: '▦', end: false },
+  { to: '/infrastructure', label: 'Infrastructure', icon: '▤', end: false },
+  { to: '/reports', label: 'Evidence archive', icon: '▧', end: false },
 ];
 
 const THEME_OPTS: [Theme, string, string][] = [
@@ -694,7 +691,14 @@ export function Layout() {
   // An "AI support" button on any card asks the docked assistant to open.
   useEffect(() => onAiSupport(() => setDockOpen(true)), []);
   // The docked assistant column shows on every screen except its own full page.
-  const showDock = !location.pathname.startsWith('/assistant');
+  const planningPage =
+    app.drsWorkflow &&
+    (location.pathname === '/' ||
+      location.pathname.startsWith('/clients') ||
+      location.pathname === '/infrastructure' ||
+      location.pathname === '/reports' ||
+      location.pathname === '/campaigns');
+  const showDock = !planningPage && !location.pathname.startsWith('/assistant');
   const shellClass = `shell${showDock ? (dockOpen ? ' dock-open' : ' dock-min') : ''}`;
   return (
     <>
@@ -708,7 +712,7 @@ export function Layout() {
             <NotificationsBell />
           </div>
           <nav className="nav">
-            {SPINE_NAV.map((n) => (
+            {(app.drsWorkflow ? WORKSPACE_NAV : SPINE_NAV).map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
@@ -723,6 +727,26 @@ export function Layout() {
                 {n.label}
               </NavLink>
             ))}
+            {app.drsWorkflow && (
+              <>
+                {app.anyRunning && (
+                  <NavLink className="nav-link" to="/theater">
+                    ● Active run · Run Theater
+                  </NavLink>
+                )}
+                <details className="nav-advanced">
+                  <summary>Technical tools</summary>
+                  {SPINE_NAV.filter((n) => n.to !== '/' && n.to !== '/reports').map((n) => (
+                    <NavLink key={n.to} className="nav-link" to={n.to}>
+                      {n.label}
+                    </NavLink>
+                  ))}
+                  <NavLink className="nav-link" to="/overview-legacy">
+                    Legacy overview
+                  </NavLink>
+                </details>
+              </>
+            )}
           </nav>
           <div className="sidebar-foot">
             {grafanaBase && (
@@ -1372,7 +1396,16 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
               {localBusy ? <span className="spin" /> : null}Approve / Reject ({g.pending})
             </button>
           )}
+          {g.members[0]?.drsSequence && (
+            <Link
+              className="btn btn-sm btn-primary"
+              to={'/campaigns?tab=manager&suite=' + encodeURIComponent(g.suiteId)}
+            >
+              Manage campaign
+            </Link>
+          )}
           {canExec &&
+            !g.members[0]?.drsSequence &&
             (app.approvalPolicy === 'confirmation'
               ? g.remaining > 0
               : g.pending === 0 && approvedRemaining > 0) &&
@@ -1524,7 +1557,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
 /** The "Launch" surface of the Campaigns workspace: the guided wizard (or the
  *  classic form when a preset is queued from the guide). */
 export function CampaignLaunch() {
-  const [launchParams] = useSearchParams();
+  const [launchParams, setLaunchParams] = useSearchParams();
   const fleetLaunch = launchParams.get('engine') === 'fleet';
   const app = useApp();
   const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
@@ -1534,10 +1567,11 @@ export function CampaignLaunch() {
   useEffect(() => {
     if (app.draftPreset || app.draftCampaign) setShowForm(true);
   }, [app.draftPreset, app.draftCampaign]);
-  const closeForm = () => {
+  const closeForm = (created?: Campaign) => {
     app.clearDraftCampaign();
     app.clearDraftPreset();
     setShowForm(false);
+    if (app.drsWorkflow && created?.id) setLaunchParams({ tab: 'evidence', campaign: created.id });
   };
 
   if (!canCreate) {

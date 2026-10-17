@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, it, expect, vi } from 'vitest';
-import { makeApp } from './test-utils.js';
+import { makeApp, renderWithRouter as render } from './test-utils.js';
 import { api } from './api.js';
 import { DrsCatalogPanel } from './drs-catalog.js';
 const app = makeApp({
@@ -21,7 +21,7 @@ vi.mock('./context.js', async (original) => ({
   useApp: () => app,
 }));
 afterEach(() => vi.restoreAllMocks());
-it('offers only supported DRS Fleet configuration and disables unsupported profiles without local fallback', async () => {
+it('shows the full DRS reference by default and only permits supported Fleet configuration', async () => {
   vi.spyOn(api, 'drsCatalog').mockResolvedValue({
     version: 'v1',
     reference: 'DRS v3',
@@ -52,7 +52,17 @@ it('offers only supported DRS Fleet configuration and disables unsupported profi
   });
   render(<DrsCatalogPanel target="http://target.test/" deviceIds={['agent-1']} />);
   await waitFor(() => expect(screen.getByText('GET DRS3')).toBeInTheDocument());
+  expect(screen.getByRole('checkbox', { name: 'Show full catalogue' })).toBeChecked();
+  expect(screen.getByLabelText('Execution source')).toHaveValue('synthetic');
+  fireEvent.change(screen.getByLabelText('Execution source'), { target: { value: 'fleet' } });
   expect(screen.getByRole('button', { name: 'Unsupported by current agents' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
+  expect(screen.queryByText('POST DRS4')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show full catalogue' }));
+  expect(screen.getByText('POST DRS4')).toBeInTheDocument();
+  expect(screen.getByText('Reference and capacity details').closest('details')).not.toHaveAttribute(
+    'open',
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Configure Fleet campaign' }));
   expect(app.queueReplay).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -64,4 +74,58 @@ it('offers only supported DRS Fleet configuration and disables unsupported profi
     }),
   );
   expect(screen.getByText(/registry capacity/)).toBeInTheDocument();
+});
+
+it('prepares both measured partial shapes and explicit simulations without dispatching the client target', async () => {
+  const dispatch = vi.spyOn(api, 'createBenchRun');
+  vi.spyOn(api, 'drsCatalog').mockResolvedValue({
+    version: '3.00.00',
+    reference: 'DRS',
+    provenance: 'Pinned',
+    scope: 'Reference',
+    inventoryCaps: { maxDevices: 5000, maxSites: 100, pageSize: 100 },
+    executionCaps: { maxAgents: 3, maxRps: 15, maxConcurrency: 6, maxDurationSec: 60 },
+    profiles: [
+      {
+        id: 'ntp',
+        name: 'NTP Reflection Flood',
+        level: 3,
+        summary: 'Source line',
+        supported: false,
+        status: 'reference-only',
+        reason: 'Reference',
+        laboratory: {
+          scenarioId: 'udp_ntp_reflection',
+          mode: 'synthetic-lab',
+          qualification: 'partial-shape',
+          representedDimensions: ['NTP-like shape'],
+          missingDimensions: ['Protocol semantics'],
+          scoreEligible: false,
+        },
+      },
+      {
+        id: 'rst',
+        name: 'TCP RST Flood',
+        level: 3,
+        summary: 'Source line',
+        supported: false,
+        status: 'reference-only',
+        reason: 'Reference',
+      },
+    ],
+  });
+  render(<DrsCatalogPanel target="https://client.invalid/" />);
+  await screen.findByText('NTP Reflection Flood');
+  expect(screen.getByText('TCP RST Flood')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Reference lifecycle simulation only. No traffic or measured service behavior.',
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole('link', { name: 'Prepare synthetic campaign' })[0]).toHaveAttribute(
+    'href',
+    '/campaigns?tab=manager&source=synthetic&level=3',
+  );
+  expect(screen.getAllByRole('link', { name: 'Prepare synthetic campaign' })).toHaveLength(2);
+  expect(dispatch).not.toHaveBeenCalled();
 });

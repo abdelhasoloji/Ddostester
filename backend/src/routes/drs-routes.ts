@@ -1,3 +1,4 @@
+import { initialClients } from '../modules/infrastructure/clients.js';
 import { runAttachment, benchAttachment } from '../modules/drs/attachments.js';
 import { DRS_EVIDENCE_LIMITS } from '../config/limits.js';
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
@@ -27,7 +28,10 @@ export function registerDrsRoutes(
 ) {
   app.post('/api/drs/validations', { preHandler: guard('campaign:create') }, async (req, reply) => {
     try {
-      const level = (req.body as { maxLevel?: number } | undefined)?.maxLevel ?? 1;
+      const body = (req.body ?? {}) as { maxLevel?: number; clientId?: unknown };
+      const level = body.maxLevel ?? 1;
+      const client = initialClients.find((c) => c.id === body.clientId);
+      ensure(body.clientId === undefined || !!client, 'Unknown authorized client');
       ensure(Number.isInteger(level) && level >= 1 && level <= 7, 'Level must be 1–7');
       const actor = mutationActor.getStore() ?? req.authUser?.email ?? 'dev';
       const c: Campaign = {
@@ -53,6 +57,16 @@ export function registerDrsRoutes(
       plan.services[0].functionalAssertion = 'Simulation fixture only';
       c.drsDocument = createRevision(undefined, plan, actor);
       await store.transaction(async (tx) => {
+        if (client) {
+          const saved = (await tx.listInfrastructure('client')).find((r) => r.id === client.id);
+          c.clientWorkspace = {
+            id: client.id,
+            revision: saved?.revision ?? 0,
+            hash: saved?.hash ?? null,
+            profile: structuredClone((saved?.payload ?? client.profile) as typeof client.profile),
+          };
+          c.name = client.profile.name + ' · DRS prototype';
+        }
         await tx.saveCampaign(c);
         await tx.saveAudit({
           id: randomUUID(),
@@ -62,7 +76,7 @@ export function registerDrsRoutes(
           campaignId: c.id,
           detail:
             'Created offline engine validation; no target authorization, generator or traffic ' +
-            digest(c.drsDocument),
+            digest({ document: c.drsDocument, clientWorkspace: c.clientWorkspace ?? null }),
         });
       });
       return reply.code(201).send(c);
@@ -76,6 +90,8 @@ export function registerDrsRoutes(
     const c = await store.getCampaign((req.params as { id: string }).id);
     if (!c) return reply.code(404).send({ error: 'Campaign not found' });
     return {
+      clientWorkspace: c.clientWorkspace ?? null,
+      archived: c.archived === true,
       document: c.drsDocument ?? null,
       defaultPlan: defaultPlan(c),
       execution: 'Evidence workflow; never dispatches traffic or bypasses campaign approval',
@@ -101,8 +117,8 @@ export function registerDrsRoutes(
                   'Content-Security-Policy',
                   "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
                 )
-                .send(drsReportHtml(r))
-            : drsReport(r);
+                .send(drsReportHtml(r, c.clientWorkspace, c.syntheticJourney))
+            : drsReport(r, c.clientWorkspace, c.syntheticJourney);
         } catch (e) {
           if (e instanceof DrsError) return reply.code(400).send({ error: e.message });
           throw e;
@@ -136,6 +152,10 @@ export function registerDrsRoutes(
           return await store.transaction(async (tx) => {
             const stored = await tx.getCampaign((req.params as { id: string }).id);
             if (!stored) return reply.code(404).send({ error: 'Campaign not found' });
+            ensure(
+              !stored.syntheticJourney,
+              'Use the synthetic campaign lifecycle; its assessment is immutable',
+            );
             const c: Campaign = structuredClone(stored);
             ensure(!c.archived, 'Archived campaign is read-only');
             ensure(

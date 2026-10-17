@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-17T07:47:43Z",
+  "sourceCommit": "ad422b3b86feab479ea41dbc992f17f55b1f88ee",
+  "build": "492",
+  "previousBuild": "489",
+  "release": "/home/shieldtest/ddostester-releases/release-ad422b3b.SYUMCM/backend",
+  "ci": {
+    "conclusion": "success",
+    "headSha": "ad422b3b86feab479ea41dbc992f17f55b1f88ee",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "frontend"
+      },
+      {
+        "conclusion": "success",
+        "name": "backend"
+      },
+      {
+        "conclusion": "success",
+        "name": "postgres"
+      },
+      {
+        "conclusion": "success",
+        "name": "quality"
+      }
+    ],
+    "url": "https://github.com/abdelhasoloji/Ddostester/actions/runs/39014261752"
+  },
+  "validation": {
+    "nativeLint": true,
+    "nativeTypecheck": true,
+    "nativeBackendTestsPassed": 1263,
+    "nativeBackendTestsSkipped": 48,
+    "nativeFrontendTestsPassed": 518,
+    "nativeBuild": true,
+    "ciBackendTestsPassed": 1307,
+    "ciFrontendTestsPassed": 518,
+    "ciPostgresRecoveryTestsPassed": 72,
+    "ciSyntheticPostgresTestsPassed": 2,
+    "ciCoverageThresholds": true,
+    "apiAndAllUiAssetsMatchManifest": true,
+    "authenticatedHttpsHealth": true,
+    "postgresReady": true,
+    "newRoutesRejectUnauthenticatedRequests": true,
+    "threeAgentsOnline": true,
+    "encryptedBackupAndAuthenticatedIsolatedRestore": true
+  },
+  "preservation": {
+    "accounts": 11,
+    "campaigns": 284,
+    "settings": 1,
+    "fleetIdentities": 3,
+    "soleAdmin": true,
+    "runtimePolicy": true,
+    "auditHistory": true,
+    "infrastructureHistory": true
+  },
+  "productionCampaignStarted": false,
+  "podRollout": false,
+  "runner": {
+    "existingServiceRestarted": true,
+    "pendingOrClaimedBeforeRestart": 0,
+    "tunnelHealth": true,
+    "codeUpdated": false
+  },
+  "localJourneyReceipt": "qa/synthetic-journey-fixed-2026-10-17/receipt.json",
+  "finalSourceReadback": "qa/synthetic-journey-fixed-2026-10-17/readback-build492.json",
+  "limitations": [
+    "Production browser origin access remains blocked by saved permission; no bypass attempted",
+    "Complete local software journey with five existing shapes, not measured DRS 5 qualification",
+    "No production campaign was dispatched"
+  ]
+}

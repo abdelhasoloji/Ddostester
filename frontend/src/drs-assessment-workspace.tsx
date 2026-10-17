@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom';
+import { HelpTip } from './help-tip.js';
+import { DrsBaselineDiagnostic } from './drs-baseline-diagnostic.js';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useApp, canDo } from './context.js';
@@ -12,6 +15,8 @@ export function DrsAssessmentWorkspace() {
     if (requested) setSelected(requested);
   }, [requested]);
   const id = selected || campaigns[0]?.id;
+  const campaign = campaigns.find((c) => c.id === id);
+  const isFleet = campaign?.agent === 'fleet';
   const [reference, setReference] = useState<DrsReferenceView>();
   const [view, setView] = useState<DrsCampaignView>();
   const [report, setReport] = useState<DrsReportView>();
@@ -165,15 +170,21 @@ export function DrsAssessmentWorkspace() {
   return (
     <section className="drs-assessment-workspace" aria-label="DRS assessment workspace">
       <div className="card">
-        <h2>DRS assessment</h2>
-        <p>
-          Standard {reference?.manifest.version ?? '…'} · {reference?.manifest.vector_count ?? '…'}{' '}
-          reference vectors. WRS remains a separate diagnostic.
-        </p>
-        <p className="hint">
-          A simulation validates this tool. A laboratory result describes the dimensions actually
-          reproduced. Measured DRS requires independent evidence. No certification is issued.
-        </p>
+        <h2>{isFleet ? 'Campaign plan' : 'DRS assessment'}</h2>
+        {!isFleet && (
+          <>
+            <p>
+              Standard {reference?.manifest.version ?? '…'} ·{' '}
+              {reference?.manifest.vector_count ?? '…'} reference vectors. WRS remains a separate
+              diagnostic.
+            </p>
+            <p className="hint">
+              A simulation validates this tool. A laboratory result describes the dimensions
+              actually reproduced. Measured DRS requires independent evidence. No certification is
+              issued.
+            </p>
+          </>
+        )}
         <label>
           Campaign
           <select value={id ?? ''} onChange={(e) => setSelected(e.target.value)}>
@@ -184,13 +195,15 @@ export function DrsAssessmentWorkspace() {
             ))}
           </select>
         </label>
-        <button
-          className="btn btn-primary"
-          disabled={busy || !canCreate}
-          onClick={() => void createValidation()}
-        >
-          New engine validation · no traffic
-        </button>
+        {!isFleet && (
+          <button
+            className="btn btn-primary"
+            disabled={busy || !canCreate}
+            onClick={() => void createValidation()}
+          >
+            New engine validation · no traffic
+          </button>
+        )}
         {!id && (
           <p>
             Validate the engine without a target or Fleet enrollment, or create a bounded Fleet
@@ -201,80 +214,104 @@ export function DrsAssessmentWorkspace() {
       </div>
       {view && (
         <div className="card">
-          <h3>Frozen plan and revisions</h3>
+          <h3>Review campaign plan</h3>
+          {campaign?.agent === 'fleet' && (
+            <p>
+              <b>{campaign.target}</b> · {campaign.fleetDeviceIds?.length ?? 0} agents ·{' '}
+              {campaign.maxRps} req/s shared · {campaign.maxDurationSec}s
+            </p>
+          )}
+          <p className="hint">
+            Prepare → freeze → confirm → baseline → execution → report{' '}
+            <HelpTip label="Execution sequence">
+              Freezing records the reviewed plan; it does not start traffic. The next confirmation
+              starts server admission and at least five minutes of baseline observation. An unstable
+              baseline stops the attempt before Fleet injection.
+            </HelpTip>
+          </p>
           <p>{revision ? `Revision ${revision.number} · ${revision.state}` : 'No plan yet'}</p>
-          <label>
-            Campaign mode
-            <select
-              disabled={busy || !canCreate}
-              value={(() => {
-                try {
-                  return JSON.parse(plan).mode ?? 'synthetic-lab';
-                } catch {
-                  return 'synthetic-lab';
-                }
-              })()}
-              onChange={(e) => changeMode(e.target.value)}
-            >
-              <option value="engine-validation">Engine validation · simulated events</option>
-              <option value="synthetic-lab">Synthetic laboratory · experimental measurement</option>
-              <option value="measured">Measured evaluation · independent evidence required</option>
-            </select>
-          </label>
-          <div className="row">
+          <details open={!isFleet}>
+            <summary>
+              Plan settings · baseline {readParameter('baselineMinSec', 300)}s · exposure{' '}
+              {readParameter('exposureSec', 20)}s
+            </summary>
             <label>
-              Maximum reference level
+              Campaign mode
               <select
                 disabled={busy || !canCreate}
-                value={readParameter('maxLevel', 1)}
-                onChange={(e) => parameter('maxLevel', Number(e.target.value))}
+                value={(() => {
+                  try {
+                    return JSON.parse(plan).mode ?? 'synthetic-lab';
+                  } catch {
+                    return 'synthetic-lab';
+                  }
+                })()}
+                onChange={(e) => changeMode(e.target.value)}
               >
-                {[1, 2, 3, 4, 5, 6, 7].map((l) => (
-                  <option key={l} value={l}>
-                    Level {l}
-                  </option>
-                ))}
+                <option value="engine-validation">Engine validation · simulated events</option>
+                <option value="synthetic-lab">
+                  Synthetic laboratory · experimental measurement
+                </option>
+                <option value="measured">
+                  Measured evaluation · independent evidence required
+                </option>
               </select>
             </label>
-            <label>
-              Baseline seconds
-              <input
-                type="number"
-                min={300}
-                max={600}
-                value={readParameter('baselineMinSec', 300)}
-                disabled={busy || !canCreate}
-                onChange={(e) => parameter('baselineMinSec', Number(e.target.value))}
-              />
-            </label>
-            <label>
-              Exposure seconds
-              <input
-                type="number"
-                min={1}
-                max={60}
-                value={readParameter('exposureSec', 20)}
-                disabled={busy || !canCreate}
-                onChange={(e) => parameter('exposureSec', Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <p className="hint">
-            Baseline: at least five minutes. Exposure must be justified within the existing budget.
-            A plan change creates a new revision and keeps all historical evidence.
-          </p>
-          <details>
-            <summary>Scope, architecture, instrumentation and verdict rules</summary>
-            <label>
-              Assessment plan JSON
-              <textarea
-                aria-label="Assessment plan JSON"
-                value={plan}
-                rows={22}
-                onChange={(e) => setPlan(e.target.value)}
-                disabled={busy || !canCreate}
-              />
-            </label>
+            <div className="row">
+              <label>
+                Maximum reference level
+                <select
+                  disabled={busy || !canCreate}
+                  value={readParameter('maxLevel', 1)}
+                  onChange={(e) => parameter('maxLevel', Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7].map((l) => (
+                    <option key={l} value={l}>
+                      Level {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Baseline seconds
+                <input
+                  type="number"
+                  min={300}
+                  max={600}
+                  value={readParameter('baselineMinSec', 300)}
+                  disabled={busy || !canCreate}
+                  onChange={(e) => parameter('baselineMinSec', Number(e.target.value))}
+                />
+              </label>
+              <label>
+                Exposure seconds
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={readParameter('exposureSec', 20)}
+                  disabled={busy || !canCreate}
+                  onChange={(e) => parameter('exposureSec', Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <p className="hint">
+              Baseline: at least five minutes. Exposure must be justified within the existing
+              budget. A plan change creates a new revision and keeps all historical evidence.
+            </p>
+            <details>
+              <summary>Scope, architecture, instrumentation and verdict rules</summary>
+              <label>
+                Assessment plan JSON
+                <textarea
+                  aria-label="Assessment plan JSON"
+                  value={plan}
+                  rows={22}
+                  onChange={(e) => setPlan(e.target.value)}
+                  disabled={busy || !canCreate}
+                />
+              </label>
+            </details>
           </details>
           {planDirty && (
             <p className="hint">
@@ -287,27 +324,61 @@ export function DrsAssessmentWorkspace() {
               disabled={busy || !canCreate}
               onClick={() => void action('revisions')}
             >
-              Create new revision
+              {revision ? 'Create new revision' : 'Save campaign plan'}
             </button>
             <button
-              className="btn"
+              className="btn btn-primary"
               disabled={busy || !canApprove || revision?.state !== 'DRAFT' || planDirty}
               onClick={() => void action('freeze')}
             >
               Freeze plan
             </button>
-            <button
-              className="btn"
-              disabled={busy || !canCreate || !revision?.planHash || !!revision.finalizedAt}
-              onClick={() => void action('capacity')}
-            >
-              Check capacity
-            </button>
+            {!isFleet && (
+              <button
+                className="btn"
+                disabled={busy || !canCreate || !revision?.planHash || !!revision.finalizedAt}
+                onClick={() => void action('capacity')}
+              >
+                Check capacity
+              </button>
+            )}
           </div>
+          {campaign?.agent === 'fleet' &&
+            revision?.planHash &&
+            !revision.finalizedAt &&
+            revision.plan.mode === 'synthetic-lab' &&
+            canExecute && (
+              <button
+                className="btn btn-primary"
+                disabled={
+                  busy ||
+                  planDirty ||
+                  !(
+                    campaign.status === 'APPROVED' ||
+                    (app.approvalPolicy === 'confirmation' &&
+                      campaign.status === 'PENDING_APPROVAL')
+                  )
+                }
+                onClick={() => app.setConfirmExec(campaign)}
+              >
+                Review and confirm campaign
+              </button>
+            )}
+          {campaign?.status === 'RUNNING' && (
+            <Link
+              className="btn btn-primary"
+              to={'/theater?run=' + encodeURIComponent(campaign.id)}
+            >
+              Follow campaign
+            </Link>
+          )}
           {revision?.planHash && (
-            <p className="hint">
-              Catalogue {revision.reference.catalogueHash} · plan {revision.planHash}
-            </p>
+            <details>
+              <summary>Reference fingerprints</summary>
+              <p className="hint" style={{ overflowWrap: 'anywhere' }}>
+                Catalogue {revision.reference.catalogueHash} · plan {revision.planHash}
+              </p>
+            </details>
           )}
           {revision?.planHash &&
             revision.plan.mode === 'engine-validation' &&
@@ -391,7 +462,15 @@ export function DrsAssessmentWorkspace() {
             <div className="row">
               <button
                 className="btn"
-                disabled={busy || !canApprove || !!revision.finalizedAt}
+                disabled={
+                  busy ||
+                  !canApprove ||
+                  !!revision.finalizedAt ||
+                  (isFleet &&
+                    !['COMPLETED', 'KILLED_AUTO', 'KILLED_MANUAL', 'CANCELLED'].includes(
+                      campaign.status,
+                    ))
+                }
                 onClick={() => void action('finalize')}
               >
                 Finalize report
@@ -439,9 +518,10 @@ export function DrsAssessmentWorkspace() {
           )}
         </div>
       )}
-      {report && (
+      {report && (!isFleet || !!revision?.finalizedAt) && (
         <div className="card" aria-label="DRS verdict">
           <h3>{report.assessment.label}</h3>
+          <DrsBaselineDiagnostic diagnostic={report.baselineDiagnostic} />
           <p>
             <b>
               {report.assessment.status} · {report.assessment.score ?? 'No usable score'}

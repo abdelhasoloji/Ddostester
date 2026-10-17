@@ -2,6 +2,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 const fakeApi = {
+  clientWorkspaces: vi.fn().mockResolvedValue({
+    targetLevel: 5,
+    pilot: { sites: 2, independentProbe: 1, capacityQualified: false },
+    clients: [],
+  }),
   health: vi.fn(),
   agents: vi.fn().mockResolvedValue({ default: 'builtin', agents: [] }),
   listCampaigns: vi.fn().mockResolvedValue([]),
@@ -93,4 +98,25 @@ describe('App gate', () => {
     // The routed app is NOT reachable until the password is changed.
     expect(screen.queryByRole('heading', { name: 'Command Center' })).not.toBeInTheDocument();
   });
+});
+
+it('prioritizes the internal WEDOS test and keeps technical tools secondary', async () => {
+  fakeApi.health.mockResolvedValue({
+    allowedTargets: ['127.0.0.1'],
+    authRequired: false,
+    drsWorkflow: true,
+  });
+  render(<App />);
+  await screen.findByRole('heading', { name: 'WEDOS campaigns' });
+  expect(screen.getByRole('link', { name: 'Clients' })).toHaveAttribute('href', '/clients');
+  expect(screen.getByRole('link', { name: 'Infrastructure' })).toHaveAttribute(
+    'href',
+    '/infrastructure',
+  );
+  expect(screen.getByRole('link', { name: 'Evidence archive' })).toHaveAttribute(
+    'href',
+    '/reports',
+  );
+  expect(screen.getByText('Technical tools')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Open the assistant' })).not.toBeInTheDocument();
 });

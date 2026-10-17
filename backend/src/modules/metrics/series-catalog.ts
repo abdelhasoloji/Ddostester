@@ -90,3 +90,53 @@ export function resolveSeries(name: string, target?: string): ResolvedSeries | n
   if (def.needsTarget && !t) return null;
   return { def, lines: def.lines.map((l) => ({ label: l.label, promql: l.expr(t) })) };
 }
+
+/** Scoped equivalents of the provisioned DRS Grafana panels. */
+export function resolveDrsSeries(
+  name: string,
+  campaign?: string,
+  revision?: string,
+): ResolvedSeries | null {
+  if (
+    !campaign ||
+    !revision ||
+    !/^[a-zA-Z0-9_-]{1,128}$/.test(campaign) ||
+    !/^[a-zA-Z0-9_-]{1,128}$/.test(revision)
+  )
+    return null;
+  const match = `campaign_id="${campaign}",revision_id="${revision}"`;
+  const fresh = ` and on(campaign_id,revision_id,run_id,mode,job,instance) (time() - shieldtest_fleet_live_observed_timestamp_seconds{${match}} < 20)`;
+  const definitions: Record<
+    string,
+    { title: string; unit: string; lines: { label: string; promql: string }[] }
+  > = {
+    drs_score: {
+      title: 'DRS score · inspect mode and finalization',
+      unit: 'short',
+      lines: [{ label: 'DRS score', promql: `shieldtest_drs_score{${match}}` }],
+    },
+    drs_coverage: {
+      title: 'DRS vector coverage',
+      unit: 'short',
+      lines: ['passed', 'failed', 'unknown'].map((coverage) => ({
+        label: coverage,
+        promql: `sum(shieldtest_drs_vectors{${match},coverage="${coverage}"})`,
+      })),
+    },
+    drs_agents: {
+      title: 'Fleet participation · reported and unknown',
+      unit: 'short',
+      lines: [
+        {
+          label: 'reporting',
+          promql: `sum(shieldtest_fleet_live_agents_reporting{${match}}${fresh})`,
+        },
+        { label: 'unknown', promql: `sum(shieldtest_fleet_live_agents_unknown{${match}}${fresh})` },
+      ],
+    },
+  };
+  const d = definitions[name];
+  return d
+    ? { def: { title: d.title, unit: d.unit, needsTarget: false, lines: [] }, lines: d.lines }
+    : null;
+}

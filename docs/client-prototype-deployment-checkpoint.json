@@ -1,0 +1,61 @@
+{
+  "deployedAt": "2026-10-15T22:57:46.903Z",
+  "build": 478,
+  "commit": "9404f8d1c34f594283a539bbf6d33b5e3655c3be",
+  "previousBuild": 475,
+  "release": "/home/shieldtest/ddostester-releases/release-9404f8d1.0FAQPY",
+  "ci": {
+    "run": 38819367978,
+    "allFourJobsPassed": true
+  },
+  "nativeVerifyPassed": true,
+  "servedApiAndUiIdentityPassed": true,
+  "externalHttpsHealth": "ok",
+  "ready": true,
+  "preservation": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "settingsUnchanged": true,
+    "allFourFingerprintsUnchanged": true,
+    "fullAuditPrefixDigestUnchanged": true,
+    "infrastructureRevisionDigestUnchanged": true,
+    "soleAdminPreserved": true,
+    "targetAndTrafficPoliciesUnchanged": true
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRecoveryPassed": true,
+    "archiveSha256": "78786a89080c159765c585e45b79f2f110d646f4eeb81b69dcab942287e85fda"
+  },
+  "prototype": {
+    "entry": "/clients/test-vps",
+    "flow": ["create", "freeze", "confirm simulation", "simulate", "finalize", "download report"],
+    "persistedClientScopeSnapshot": true,
+    "fixtures": ["healthy", "service-outage", "generator-saturation", "telemetry-gap"],
+    "maximumSimulatedLevel": 5,
+    "measuredClientScore": null,
+    "compactGuidance": "hover/focus/touch tooltips; Escape/blur closes",
+    "journalAndReservationsCollapsed": true
+  },
+  "verification": {
+    "localBackendPassed": 1240,
+    "localFrontendPassed": 479,
+    "browser": "isolated Chrome desktop/mobile",
+    "reloadResumePassed": true,
+    "jsonDownloadPassed": true,
+    "mobileOverflow": false,
+    "tooltipKeyboardPassed": true,
+    "productionAuthenticatedBrowserSessionTested": false
+  },
+  "externalExecution": {
+    "campaignStarted": false,
+    "podsMoved": false,
+    "trafficGenerated": false
+  },
+  "remaining": [
+    "Physical Fleet acceptance and independent measurement qualification",
+    "Infrastructure Kubernetes access and allocation",
+    "ENISA exact target scope"
+  ]
+}

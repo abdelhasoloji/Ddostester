@@ -10,7 +10,9 @@ import type { Store } from '../store/types.js';
  * a note, mirroring runCampaign's own failure path. Returns the count reset.
  */
 export async function reconcileOrphanedRuns(store: Store): Promise<number> {
-  const orphaned = (await store.listCampaigns()).filter((c) => c.status === 'RUNNING');
+  const orphaned = (await store.listCampaigns()).filter(
+    (c) => c.status === 'RUNNING' && !c.syntheticJourney,
+  );
   for (const c of orphaned) {
     await store.transaction(async (tx) => {
       await tx.saveCampaign({

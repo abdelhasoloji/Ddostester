@@ -10,7 +10,7 @@ import { buildAbsorptionSummary } from '../modules/observability/summary.js';
 import { buildZones } from '../modules/zones/zones.js';
 import { validateMitigation } from '../modules/mitigation/validation.js';
 import { queryRange, rangeWindow, type PromResult } from '../modules/metrics/prometheus-query.js';
-import { resolveSeries } from '../modules/metrics/series-catalog.js';
+import { resolveDrsSeries, resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderFleetMetrics, renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
@@ -137,14 +137,20 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
   // the graph shows the same data as Grafana without embedding Grafana. Fail-
   // soft: no PROMETHEUS_URL → `source: "unavailable"` and the UI hides the chart.
   app.get('/api/metrics/range', { preHandler: guard('campaign:read') }, async (req, reply) => {
-    const { series, target, minutes, step, sinceSec } = req.query as {
+    const { series, target, minutes, step, sinceSec, campaignId, revisionId } = req.query as {
       series?: string;
+      campaignId?: string;
+      revisionId?: string;
       target?: string;
       minutes?: string;
       step?: string;
       sinceSec?: string;
     };
-    const resolved = series ? resolveSeries(series, target) : null;
+    const resolved = series
+      ? series.startsWith('drs_')
+        ? resolveDrsSeries(series, campaignId, revisionId)
+        : resolveSeries(series, target)
+      : null;
     if (!resolved) {
       return reply
         .code(400)
@@ -153,7 +159,23 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
     // `sinceSec` scopes the window to the live run's elapsed span so the chart
     // shows ONLY the current run (see rangeWindow); falls back to the `minutes`
     // lookback. Pure window math lives in prometheus-query for testability.
-    const { startS, endS, stepS } = rangeWindow(Date.now(), { minutes, step, sinceSec });
+    let observationEnd = Date.now();
+    let observationSpan = sinceSec;
+    if (series?.startsWith('drs_')) {
+      const campaign = await store.getCampaign(campaignId!);
+      const revision = campaign?.drsDocument?.revisions.find((r) => r.id === revisionId);
+      if (!revision) return reply.code(404).send({ error: 'Campaign revision not found' });
+      const end = Date.parse(revision.finalizedAt ?? '');
+      if (Number.isFinite(end)) observationEnd = end;
+      const start = Date.parse(revision.createdAt);
+      if (Number.isFinite(start))
+        observationSpan = String(Math.max(5, (observationEnd - start) / 1000 + 30));
+    }
+    const { startS, endS, stepS } = rangeWindow(observationEnd, {
+      minutes,
+      step,
+      sinceSec: observationSpan,
+    });
 
     let source: PromResult['status'] = 'ok';
     const out: { label: string; points: [number, number][] }[] = [];

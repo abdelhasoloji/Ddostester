@@ -1,3 +1,4 @@
+import type { InfrastructureRevision } from '../modules/infrastructure/model.js';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
@@ -29,6 +30,12 @@ export type UserTransaction = Pick<
 >;
 
 export interface Store {
+  listInfrastructure(kind: InfrastructureRevision['kind']): Promise<InfrastructureRevision[]>;
+  infrastructureHistory(
+    kind: InfrastructureRevision['kind'],
+    id: string,
+  ): Promise<InfrastructureRevision[]>;
+  appendInfrastructure(record: InfrastructureRevision): Promise<void>;
   listFleetDevices(): Promise<FleetDevice[]>;
   getFleetDevice(id: string): Promise<FleetDevice | undefined>;
   saveFleetDevice(device: FleetDevice): Promise<void>;
@@ -109,7 +116,7 @@ export interface Store {
    */
   createBenchRun(run: BenchRun): Promise<void>;
   getBenchRun(id: string): Promise<BenchRun | undefined>;
-  listBenchRuns(limit?: number): Promise<BenchRun[]>;
+  listBenchRuns(limit?: number, activeOnly?: boolean): Promise<BenchRun[]>;
   /** Atomically claim the oldest REQUESTED run for `runnerId` (→ CLAIMED). */
   claimNextBenchRun(runnerId: string): Promise<BenchRun | undefined>;
   /** Complete a CLAIMED run with a verdict (→ COMPLETED) or an error (→ FAILED). */

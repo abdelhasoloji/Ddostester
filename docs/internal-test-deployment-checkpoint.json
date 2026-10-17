@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-16T07:14:35.769Z",
+  "build": "484",
+  "commit": "8d4705180f910b9da7c28e89f5d568dba276dd50",
+  "release": "/home/shieldtest/ddostester-releases/release-8d470518.ojaIbC",
+  "ci": "https://github.com/abdelhasoloji/Ddostester/actions/runs/38864819840",
+  "ciJobsPassed": 4,
+  "nativeVerificationPassed": true,
+  "apiUiAssetsVerified": true,
+  "externalHttpsVerified": true,
+  "ready": true,
+  "policyUnchanged": true,
+  "preserved": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "settings": true,
+    "auditHistory": true,
+    "infrastructureHistory": true,
+    "soleAdmin": true
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRestore": true,
+    "historyRestoreVerified": true,
+    "archiveSha256": "bd9985d0801dc58130eeda4324e86548600777bb4abd30893fdefcabaa3e2eb1"
+  },
+  "isolatedChrome": {
+    "homeToFleet": true,
+    "executableProfilesFirst": true,
+    "fullCatalogueAvailable": true,
+    "mobileOverflow": false
+  },
+  "campaignStarted": false,
+  "podsMoved": false
+}

@@ -1,3 +1,5 @@
+import { registerClientWorkspaceRoutes } from './client-workspace-routes.js';
+import { registerInfrastructureRoutes } from './infrastructure-routes.js';
 import { drsWorkflow } from '../modules/drs/catalog.js';
 import { FLEET_INVENTORY_LIMITS } from '../config/limits.js';
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
@@ -14,6 +16,8 @@ export function registerFleetRoutes(
   guard: (permission: Permission) => preHandlerHookHandler,
 ) {
   registerFleetEnrollmentRoutes(app, store, guard);
+  registerInfrastructureRoutes(app, store, guard);
+  registerClientWorkspaceRoutes(app, store, guard);
   const siteOf = (d: { siteId?: string }) => d.siteId ?? 'vps-lab';
   app.get('/api/fleet/sites', { preHandler: guard('campaign:read') }, async () => {
     const devices = await store.listFleetDevices();
@@ -66,6 +70,16 @@ export function registerFleetRoutes(
       pageSize,
     };
   });
+  app.get<{ Params: { id: string } }>(
+    '/api/fleet/devices/:id',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      reply.header('cache-control', 'no-store');
+      const device = await store.getFleetDevice(req.params.id);
+      if (!device) return reply.code(404).send({ error: 'Fleet device not found' });
+      return fleetDeviceView(device);
+    },
+  );
   const save = async (body: unknown, id?: string) => {
     const input = deviceInput.parse(body);
     return store.transaction(async (tx) => {

@@ -423,3 +423,41 @@ it('rejects a 101st site without increasing execution capacity', async () => {
     ).statusCode,
   ).toBe(409);
 });
+
+it('reads one fresh agent by exact identity without exposing credentials or mutating inventory', async () => {
+  const created = await app.inject({
+    method: 'POST',
+    url: '/api/fleet/devices',
+    headers,
+    payload: device,
+  });
+  const id = created.json().id;
+  const stored = (await store.getFleetDevice(id))!;
+  await store.saveFleetDevice({
+    ...stored,
+    credential: { hash: 'private-credential-hash', expiresAt: Date.now() + 60000 },
+    heartbeat: {
+      sequence: 1,
+      receivedAt: Date.now(),
+      version: 'fleet-mission-agent/v1',
+      uptimeSec: 1,
+      peerIp: '127.0.0.1',
+    },
+  });
+  const before = JSON.stringify(await store.getFleetDevice(id));
+  const unauthorized = await app.inject({ method: 'GET', url: '/api/fleet/devices/' + id });
+  expect(unauthorized.statusCode).toBe(401);
+  const response = await app.inject({ method: 'GET', url: '/api/fleet/devices/' + id, headers });
+  expect(response.statusCode).toBe(200);
+  expect(response.headers['cache-control']).toBe('no-store');
+  expect(response.json()).toMatchObject({
+    id,
+    connection: 'online',
+    agentVersion: 'fleet-mission-agent/v1',
+  });
+  expect(response.body).not.toContain('private-credential-hash');
+  expect(response.json()).not.toHaveProperty('heartbeat');
+  expect(JSON.stringify(await store.getFleetDevice(id))).toBe(before);
+  const absent = await app.inject({ method: 'GET', url: '/api/fleet/devices/missing', headers });
+  expect(absent.statusCode).toBe(404);
+});

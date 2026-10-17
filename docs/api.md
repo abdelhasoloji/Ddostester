@@ -30,3 +30,13 @@ See [user journey](usage.md), [Fleet contract](fleet-missions.md), [security](se
 `POST /api/campaigns/:id/execute` accepts `background: true` alongside the existing explicit `confirmed: true` in single-owner mode. It returns HTTP 202 with `{campaignId, statusUrl}` and a Location header only after execution guards pass, a kill switch is registered and RUNNING is persisted. Poll the authenticated campaign URL / reconnect to its progress stream; use the retained `runId` to retrieve a completed run. A duplicate active start is refused. The normal confirmation, approval, policy and concurrency bounds apply; this is immediate execution, not a queue. The original blocking 201 response remains available when background is omitted. Never automatically retry a start after an uncertain network result; read campaign state first.
 
 A failed baseline retains `baselineDiagnostic` on the DRS revision and JSON/HTML report, including bounded sample distribution, elapsed/observed duration, availability, mean, coefficient of variation, frozen tolerance and reason (unhealthy, unstable, incomplete, cancelled or deadline). This is diagnostic data, not qualified DRS evidence. The campaign detail remains readable after reconnect. Blocking clients receive HTTP 422 `baseline_rejected` with the diagnostic/reference instead of a generic internal error. Missing diagnostics on older revisions stay absent.
+
+## Infrastructure study workspace
+
+The versioned host inventory and operator evidence endpoints under `/api/fleet/infrastructure` are described in the [workspace contract](infrastructure-workspace.md). They store metadata and attestations only; they do not grant campaign execution or hardware qualification.
+
+### Exact Fleet device observation
+
+`GET /api/fleet/devices/:id` requires `campaign:read`, returns the same credential-free inventory view as the device list and sets `Cache-Control: no-store`. The connection state is calculated at read time. Unknown IDs return 404. This read-only endpoint supports bounded checks of the exact campaign selection across inventory pages; it does not enroll agents, reserve capacity or dispatch a mission.
+
+DRS campaign chains, immutable target-level/interval configuration, collective freeze, scoped observability and partial reports are documented in [campaign management](drs-campaign-manager.md). Existing runtime admission and stop contracts remain authoritative.

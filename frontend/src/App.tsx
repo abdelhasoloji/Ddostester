@@ -1,3 +1,4 @@
+import { DrsWorkbenchHome, ClientWorkspacePage, PilotInfrastructurePage } from './drs-workbench.js';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useApp } from './context.js';
 import { Login, ForcedPasswordChange } from './ui.js';
@@ -41,7 +42,11 @@ function Gate() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<CommandCenterPage />} />
+        <Route index element={app.drsWorkflow ? <DrsWorkbenchHome /> : <CommandCenterPage />} />
+        <Route path="clients" element={<DrsWorkbenchHome clientsOnly />} />
+        <Route path="clients/:id" element={<ClientWorkspacePage />} />
+        <Route path="infrastructure" element={<PilotInfrastructurePage />} />
+        <Route path="overview-legacy" element={<CommandCenterPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />

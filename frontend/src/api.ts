@@ -1,3 +1,15 @@
+import type {
+  ClientWorkspaceList,
+  ClientWorkspace,
+  ClientProfile,
+} from './client-workspace-types.js';
+import type { BaselineDiagnosticView } from './drs-baseline-diagnostic.js';
+import type {
+  InfrastructureHost,
+  InfrastructureRecord,
+  InfrastructureWorkspace,
+  InfrastructureEvidenceInput,
+} from './infrastructure-types.js';
 import { lsGet, lsSet, lsRemove } from './storage.js';
 
 export interface FleetDeviceInput {
@@ -65,6 +77,15 @@ export interface DurableFleetEvidence {
 }
 
 export interface Campaign {
+  syntheticJourney?: SyntheticJourney;
+  drsSequence?: {
+    schema: string;
+    targetLevel: number;
+    intervalSec: number;
+    catalogueHash: string;
+    planHash: string;
+  };
+  clientWorkspace?: { id: string; revision: number; hash: string | null; profile: ClientProfile };
   drsMode?: 'engine-validation' | 'synthetic-lab' | 'measured';
   drsDocument?: DrsCampaignView['document'];
   drsProfileId?: string;
@@ -1060,7 +1081,8 @@ export interface AccessContract {
 }
 
 export const api = {
-  drsValidation: (maxLevel = 1) => post<Campaign>('/api/drs/validations', { maxLevel }),
+  drsValidation: (maxLevel = 1, clientId?: string) =>
+    post<Campaign>('/api/drs/validations', { maxLevel, ...(clientId ? { clientId } : {}) }),
   drsReference: () => get<DrsReferenceView>('/api/drs/reference'),
   drsCampaign: (id: string) => get<DrsCampaignView>(`/api/campaigns/${encodeURIComponent(id)}/drs`),
   drsAction: (id: string, action: string, body: unknown) =>
@@ -1072,6 +1094,16 @@ export const api = {
     get<DrsReportView>(
       `/api/campaigns/${encodeURIComponent(id)}/drs/report.json?revision=${revision}`,
     ),
+  drsReportHtml: async (id: string, revision: number): Promise<string> => {
+    const res = await fetch(
+      `/api/campaigns/${encodeURIComponent(id)}/drs/report.html?revision=${revision}`,
+      { headers: authHeaders() },
+    );
+    if (!res.ok) await json<never>(res);
+    if (!res.headers.get('content-type')?.includes('text/html'))
+      throw new Error('HTML report unavailable');
+    return res.text();
+  },
   fleetEvidenceForCampaign: (campaignId: string) =>
     get<DurableFleetEvidence>(
       `/api/fleet/campaigns/${encodeURIComponent(campaignId)}/evidence.json`,
@@ -1159,10 +1191,19 @@ export const api = {
     ),
   metricsRange: (
     series: string,
-    opts: { target?: string; minutes?: number; step?: number; sinceSec?: number } = {},
+    opts: {
+      target?: string;
+      campaignId?: string;
+      revisionId?: string;
+      minutes?: number;
+      step?: number;
+      sinceSec?: number;
+    } = {},
   ) => {
     const p = new URLSearchParams({ series });
     if (opts.target) p.set('target', opts.target);
+    if (opts.campaignId) p.set('campaignId', opts.campaignId);
+    if (opts.revisionId) p.set('revisionId', opts.revisionId);
     if (opts.minutes) p.set('minutes', String(opts.minutes));
     if (opts.step) p.set('step', String(opts.step));
     // Scope the window to a run's elapsed span (Run Theater) so stale samples from
@@ -1179,6 +1220,20 @@ export const api = {
   assistantStatus: () =>
     get<{ configured: boolean; model: string; podManaged: boolean }>('/api/assistant/status'),
   fleetMissions: () => get<FleetMissionStatus>('/api/fleet/missions'),
+  fleetDevice: (id: string) => get<FleetDevice>(`/api/fleet/devices/${encodeURIComponent(id)}`),
+  drsSequencePlan: (targetLevel: number, intervalSec: number) =>
+    get<DrsSequencePlan>(
+      `/api/drs/sequences/plan?targetLevel=${targetLevel}&intervalSec=${intervalSec}`,
+    ),
+  savedDrsSequencePlan: (id: string) =>
+    get<DrsSequencePlan>(`/api/suites/${encodeURIComponent(id)}/drs/plan`),
+  createDrsSequence: (body: unknown) =>
+    post<{ suiteId: string; campaigns: Campaign[]; plan: DrsSequencePlan }>(
+      '/api/drs/sequences',
+      body,
+    ),
+  freezeDrsSequence: (id: string, planHash: string) =>
+    post(`/api/suites/${encodeURIComponent(id)}/drs/freeze`, { planHash }),
   fleetOverview: () => get<FleetOverview>('/api/fleet/overview'),
   fleetCampaign: (id: string) =>
     get<FleetCampaignObservation>(`/api/fleet/campaigns/${encodeURIComponent(id)}`),
@@ -1191,6 +1246,33 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  clientWorkspaces: () => get<ClientWorkspaceList>('/api/workspace/clients'),
+  saveClientWorkspace: (id: string, expectedRevision: number, profile: ClientProfile) =>
+    put<ClientWorkspace>('/api/workspace/clients/' + encodeURIComponent(id), {
+      expectedRevision,
+      profile,
+    }),
+  clientWorkspaceHistory: (id: string) =>
+    get<{ revisions: unknown[] }>('/api/workspace/clients/' + encodeURIComponent(id) + '/history'),
+  infrastructure: (hosts: string[] = []) =>
+    get<InfrastructureWorkspace>(
+      '/api/fleet/infrastructure' +
+        (hosts.length ? '?hosts=' + encodeURIComponent(hosts.join(',')) : ''),
+    ),
+  saveInfrastructureHost: (id: string, expectedRevision: number, profile: InfrastructureHost) =>
+    put<InfrastructureRecord<InfrastructureHost>>(
+      '/api/fleet/infrastructure/hosts/' + encodeURIComponent(id),
+      { expectedRevision, profile },
+    ),
+  addInfrastructureEvidence: (body: InfrastructureEvidenceInput) =>
+    post<InfrastructureRecord<InfrastructureEvidenceInput>>(
+      '/api/fleet/infrastructure/evidence',
+      body,
+    ),
+  infrastructureHistory: (kind: 'host' | 'evidence', id: string) =>
+    get<{ revisions: InfrastructureRecord<InfrastructureHost | InfrastructureEvidenceInput>[] }>(
+      '/api/fleet/infrastructure/' + kind + '/' + encodeURIComponent(id) + '/history',
+    ),
   fleetSites: () =>
     get<{
       sites: { id: string; devices: number; online: number }[];
@@ -1244,6 +1326,21 @@ export const api = {
     ),
   getLimits: () => get<LimitsInfo>('/api/limits'),
   setLimits: (caps: HardCaps) => put<LimitsInfo>('/api/limits', caps),
+  createSyntheticCampaign: (body: {
+    name: string;
+    targetLevel: number;
+    intervalSec: number;
+    labTarget: string;
+    authorized: boolean;
+  }) => post<Campaign>('/api/synthetic-campaigns', body),
+  syntheticCampaign: (id: string) =>
+    get<SyntheticView>('/api/synthetic-campaigns/' + encodeURIComponent(id)),
+  syntheticControl: (
+    id: string,
+    action: 'start' | 'pause' | 'resume' | 'stop',
+    body?: { confirmed: boolean; planHash: string },
+  ) =>
+    post<Campaign>('/api/synthetic-campaigns/' + encodeURIComponent(id) + '/' + action, body ?? {}),
   benchScenarios: () => get<BenchCatalogue>('/api/bench/scenarios'),
   benchRuns: () => get<{ runs: BenchRun[] }>('/api/bench/runs'),
   createBenchRun: (scenario: string, labTarget?: string) =>
@@ -1300,11 +1397,11 @@ export const api = {
     post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
       reason,
     }),
-  runSuite: (id: string, confirmed = false) =>
-    post<{ suiteId: string; steps: number; started: boolean }>(
-      `/api/suites/${id}/run`,
-      confirmed ? { confirmed: true } : undefined,
-    ),
+  runSuite: (id: string, confirmed = false, planHash?: string) =>
+    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`, {
+      ...(confirmed ? { confirmed: true } : {}),
+      ...(planHash ? { planHash } : {}),
+    }),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
   resumeSuite: (id: string) =>
     post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
@@ -1571,6 +1668,7 @@ export interface GapAnalysis {
 
 /** Live control state of an in-flight suite sequence (GET /api/suites/sequences). */
 export interface SuiteSequenceState {
+  intervalEndsAt?: number;
   paused: boolean;
   current?: string;
   started: number;
@@ -1698,6 +1796,14 @@ export interface DrsCatalog {
     name: string;
     level?: number;
     summary: string;
+    laboratory?: {
+      scenarioId: string;
+      mode: 'synthetic-lab';
+      qualification: 'partial-shape';
+      representedDimensions: string[];
+      missingDimensions: string[];
+      scoreEligible: false;
+    };
     supported: boolean;
     status: string;
     reason: string;
@@ -1725,10 +1831,16 @@ export interface DrsRevisionView {
   };
 }
 export interface DrsCampaignView {
+  archived?: boolean;
+  clientWorkspace?: Campaign['clientWorkspace'] | null;
   document: { currentRevision: number; revisions: DrsRevisionView[] } | null;
   defaultPlan: Record<string, unknown>;
 }
 export interface DrsReportView {
+  revisionId?: string;
+  planHash?: string;
+  clientWorkspace?: Campaign['clientWorkspace'] | null;
+  baselineDiagnostic?: BaselineDiagnosticView | null;
   assessment: {
     label: string;
     status: string;
@@ -1748,4 +1860,71 @@ export interface DrsReportView {
   };
   reference: DrsRevisionView['reference'];
   revision: number;
+}
+
+export interface SyntheticJourney {
+  schema: string;
+  state: 'DRAFT' | 'RUNNING' | 'PAUSED' | 'STOPPING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  definition: {
+    schema: string;
+    reference: DrsSequencePlan;
+    labTarget: string;
+    scenarios: string[];
+    entries?: {
+      vectorId: string;
+      name: string;
+      level: number;
+      execution: 'LAB_MEASUREMENT' | 'SIMULATION';
+      scenarioId: string;
+      referenceHash: string;
+      referenceVector: Record<string, unknown>;
+    }[];
+  };
+  planHash: string;
+  steps: {
+    scenarioId: string;
+    runId?: string;
+    vectorId?: string;
+    name?: string;
+    level?: number;
+    execution?: 'LAB_MEASUREMENT' | 'SIMULATION';
+    result?: {
+      kind: 'LAB_MEASUREMENT' | 'SIMULATION' | 'NOT_EVALUATED';
+      outcome: string;
+      at: string;
+      reason?: string;
+      receivedBps: number | null;
+      acceptedConnections?: number | null;
+      runId?: string;
+      drsScoreEligible: false;
+    };
+  }[];
+  nextAt?: number;
+  startedAt?: string;
+  finishedAt?: string;
+  reason?: string;
+}
+export interface SyntheticView {
+  campaign: Campaign;
+  runs: (BenchRun | null)[];
+}
+export interface DrsSequencePlan {
+  schema: string;
+  targetLevel: number;
+  intervalSec: number;
+  catalogueHash: string;
+  planHash: string;
+  executable: number;
+  blocked: number;
+  measuredLevel: null;
+  rows: {
+    laboratory?: DrsCatalog['profiles'][number]['laboratory'];
+    id: string;
+    name: string;
+    level: number;
+    supported: boolean;
+    reason: string;
+    sourceVectorId: string;
+    ambiguityCount: number;
+  }[];
 }

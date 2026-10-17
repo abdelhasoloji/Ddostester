@@ -1,3 +1,4 @@
+import { CampaignManager } from './campaign-manager.js';
 import { DrsAssessmentWorkspace } from './drs-assessment-workspace.js';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -16,6 +17,7 @@ import { PlanPage } from './plan-page.js';
  * entry point (guide, recon → plan, deep links) lands on the right surface.
  */
 const TABS = [
+  { id: 'manager', label: 'Campaign manager' },
   { id: 'launch', label: 'Launch' },
   { id: 'templates', label: 'Templates' },
   { id: 'evidence', label: 'DRS assessment' },
@@ -34,18 +36,21 @@ export function CampaignsWorkspace() {
     void refreshHealth();
   }, [refreshHealth]);
   const [params, setParams] = useSearchParams();
-  const requested = params.get('tab') ?? 'launch';
+  const requested = params.get('tab') ?? (app.drsWorkflow ? 'manager' : 'launch');
   const active =
-    app.drsWorkflow && !['launch', 'templates', 'evidence'].includes(requested)
+    app.drsWorkflow && !['manager', 'launch', 'templates', 'evidence'].includes(requested)
       ? 'launch'
       : TABS.some((t) => t.id === requested)
         ? requested
         : 'launch';
-  const select = (id: string) => setParams(id === 'launch' ? {} : { tab: id }, { replace: false });
+  const select = (id: string) =>
+    setParams(!app.drsWorkflow && id === 'launch' ? {} : { tab: id }, { replace: false });
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const visibleTabs = TABS.filter(
-    (t) => !app.drsWorkflow || ['launch', 'templates', 'evidence'].includes(t.id),
+  const visibleTabs = TABS.filter((t) =>
+    app.drsWorkflow
+      ? ['manager', 'launch', 'templates', 'evidence'].includes(t.id)
+      : t.id !== 'manager',
   );
   // WAI-ARIA tabs keyboard model: ←/→ (and Home/End) move between tabs with
   // automatic activation, so the panel follows focus.
@@ -65,7 +70,11 @@ export function CampaignsWorkspace() {
     <>
       <PageHead
         title="Campaigns"
-        sub="Define, launch and track bounded resilience campaigns — guided, straight from a template, or from a recon-seeded replay plan."
+        sub={
+          app.drsWorkflow
+            ? 'DRS objective · execution chain · campaign control'
+            : 'Define, launch and track bounded resilience campaigns.'
+        }
       />
       <SuiteRunBanner />
 
@@ -87,17 +96,20 @@ export function CampaignsWorkspace() {
             onKeyDown={(e) => onTabKey(e, i)}
           >
             {app.drsWorkflow
-              ? t.id === 'launch'
-                ? 'DRS campaigns'
-                : t.id === 'templates'
-                  ? 'DRS catalogue'
-                  : 'DRS assessment'
+              ? t.id === 'manager'
+                ? 'Campaign manager'
+                : t.id === 'launch'
+                  ? 'Single scenario'
+                  : t.id === 'templates'
+                    ? 'DRS catalogue'
+                    : 'DRS assessment'
               : t.label}
           </button>
         ))}
       </div>
 
       <div className="ws-panel" role="tabpanel" id="ws-panel" aria-labelledby={`ws-tab-${active}`}>
+        {active === 'manager' && <CampaignManager />}
         {active === 'launch' && <CampaignLaunch />}
         {active === 'templates' && <TemplatesPage embedded />}
         {active === 'evidence' && <DrsAssessmentWorkspace />}
@@ -105,7 +117,14 @@ export function CampaignsWorkspace() {
         {active === 'guide' && <GuidePage embedded />}
       </div>
 
-      <CampaignList />
+      {active === 'manager' ? (
+        <details>
+          <summary>Other campaigns</summary>
+          <CampaignList />
+        </details>
+      ) : (
+        <CampaignList />
+      )}
     </>
   );
 }

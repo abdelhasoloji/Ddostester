@@ -1,3 +1,5 @@
+import { SyntheticTheater } from './synthetic-workspace.js';
+import { TheaterTelemetry } from './theater-telemetry.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from './context.js';
@@ -150,7 +152,8 @@ function SuiteTheater({
   const seqActive = !!seq;
   // Between waves: the sequence is live but nothing is RUNNING yet — the
   // recovery gate is holding for the target to come back.
-  const inGate = seqActive && !runningStep && doneCount < total && !seq?.paused;
+  const inGate =
+    seqActive && !runningStep && doneCount < total && !seq?.paused && !seq?.intervalEndsAt;
   const nextStep = ordered.find(
     (c) => !SUITE_TERMINAL.includes(c.status) && c.status !== 'RUNNING',
   );
@@ -160,7 +163,7 @@ function SuiteTheater({
   const [reconLoading, setReconLoading] = useState(false);
   const [reconOpen, setReconOpen] = useState(false);
   useEffect(() => {
-    if (!target) return;
+    if (!target || ordered[0]?.drsSequence) return;
     let alive = true;
     setReconLoading(true);
     api
@@ -171,7 +174,7 @@ function SuiteTheater({
     return () => {
       alive = false;
     };
-  }, [target]);
+  }, [target, !!ordered[0]?.drsSequence]);
 
   const phase = seq?.autoPaused
     ? 'down'
@@ -179,9 +182,11 @@ function SuiteTheater({
       ? 'paused'
       : runningStep
         ? 'running'
-        : inGate
-          ? 'gate'
-          : 'settling';
+        : seq?.intervalEndsAt
+          ? 'interval'
+          : inGate
+            ? 'gate'
+            : 'settling';
 
   return (
     <div className="suite-theater">
@@ -206,7 +211,10 @@ function SuiteTheater({
         </div>
       </div>
 
-      <ReconStrip recon={recon} loading={reconLoading} onOpen={() => setReconOpen(true)} />
+      {seq?.intervalEndsAt && <ScenarioInterval endAt={seq.intervalEndsAt} />}
+      {!ordered[0]?.drsSequence && (
+        <ReconStrip recon={recon} loading={reconLoading} onOpen={() => setReconOpen(true)} />
+      )}
       {reconOpen && recon && <ReconDetailModal recon={recon} onClose={() => setReconOpen(false)} />}
 
       <div className="stepper" role="list">
@@ -257,6 +265,8 @@ function SuiteTheater({
           name={shortStepName(runningStep.name)}
           target={runningStep.target}
           engine={runningStep.agent}
+          fleet={runningStep.agent === 'fleet'}
+          fleetDeviceCount={runningStep.fleetDeviceIds?.length}
           vector={runningStep.vector}
           onKill={() => onKill(runningStep)}
           killing={killing[runningStep.id]}
@@ -302,7 +312,13 @@ function SuiteTheater({
         </div>
       ) : (
         <p className="hint" style={{ padding: '1rem' }}>
-          Suite settling — finalising the last step.
+          {seq?.intervalEndsAt
+            ? 'Observing the configured scenario interval.'
+            : doneCount === total
+              ? 'Campaign complete. Open the campaign report for coverage and evidence.'
+              : !seq
+                ? 'Campaign awaiting confirmation.'
+                : 'Campaign settling — finalising the scenario.'}
         </p>
       )}
     </div>
@@ -321,13 +337,39 @@ const TERMINAL_STATUSES = new Set<CampaignStatus>(SUITE_TERMINAL);
 
 export function RunTheaterPage() {
   const app = useApp();
+  const [params] = useSearchParams();
+  const explicit =
+    params.get('synthetic') ??
+    app.campaigns.find((c) => c.id === params.get('run') && c.syntheticJourney)?.id;
+  const id =
+    explicit ??
+    (!params.get('run') && !params.get('suite')
+      ? app.campaigns.find(
+          (c) =>
+            c.syntheticJourney &&
+            ['RUNNING', 'PAUSED', 'STOPPING'].includes(c.syntheticJourney.state),
+        )?.id
+      : undefined);
+  return id ? (
+    <>
+      <PageHead title="Run Theater" sub="Bounded synthetic campaign" />
+      <SyntheticTheater id={id} />
+    </>
+  ) : (
+    <FleetRunTheaterPage />
+  );
+}
+function FleetRunTheaterPage() {
+  const app = useApp();
+  const [params] = useSearchParams();
   // Refresh campaigns on each sequence poll while a suite is in flight, so the
   // theater advances through the recovery gate without a manual navigation.
   const seqs = useSuiteSequences(app.refresh);
-  const running = app.campaigns.filter((c) => c.status === 'RUNNING');
+  const running = app.campaigns.filter((c) => c.status === 'RUNNING' && !c.syntheticJourney);
   // An active suite = one with a live sequence, or (fallback) the suite of a
   // running step even if the poll hasn't landed yet.
-  const activeSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const activeSuiteId =
+    params.get('suite') ?? Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
   const suiteMembers = activeSuiteId
     ? app.campaigns.filter((c) => c.suiteId === activeSuiteId)
     : [];
@@ -338,7 +380,6 @@ export function RunTheaterPage() {
   const runningStandalone = running.filter((c) => !(hasSuite && c.suiteId === activeSuiteId));
   // A `?run=<id>` param (set when launching or "Watch live →" from Campaigns)
   // focuses that run; otherwise the operator's manual pick wins, then the first.
-  const [params] = useSearchParams();
   const focusRun = params.get('run');
   // The client's campaign snapshot can lag the durable RUNNING acknowledgement.
   // Keep a focused, non-terminal campaign visible across the launch redirect;
@@ -384,7 +425,9 @@ export function RunTheaterPage() {
   }, [finishedCampaign, finishedRun, fetchRunFn]);
 
   const grafanaTarget = suiteMembers[0]?.target ?? current?.target;
-  const grafanaCampaign = current ?? finishedCampaign;
+  const grafanaCampaign = hasSuite
+    ? (suiteMembers.find((c) => c.status === 'RUNNING') ?? suiteMembers[0])
+    : (current ?? finishedCampaign);
   const grafanaRevision = grafanaCampaign?.drsDocument?.revisions.find(
     (revision) => revision.number === grafanaCampaign.drsDocument?.currentRevision,
   );
@@ -500,6 +543,21 @@ export function RunTheaterPage() {
           )}
         </>
       )}
+      {grafanaCampaign && <TheaterTelemetry campaign={grafanaCampaign} />}
     </>
+  );
+}
+
+function ScenarioInterval({ endAt }: { endAt: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <p className="phase-tag phase-interval" role="status">
+      Next scenario in {Math.max(0, Math.ceil((endAt - now) / 1000))}s · recovery and baseline
+      checks follow
+    </p>
   );
 }

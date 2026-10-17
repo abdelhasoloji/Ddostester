@@ -1,3 +1,4 @@
+import type { InfrastructureRevision } from '../modules/infrastructure/model.js';
 import type { Campaign } from '../modules/campaigns/model.js';
 import type { CampaignRun } from '../modules/campaigns/runner.js';
 import type { AuditEntry } from '../modules/audit/model.js';
@@ -12,6 +13,31 @@ import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 export class MemoryStore implements Store {
+  private infrastructure = new Map<string, InfrastructureRevision>();
+  async listInfrastructure(
+    kind: InfrastructureRevision['kind'],
+  ): Promise<InfrastructureRevision[]> {
+    const latest = new Map<string, InfrastructureRevision>();
+    for (const record of this.infrastructure.values())
+      if (record.kind === kind && record.revision > (latest.get(record.id)?.revision ?? 0))
+        latest.set(record.id, record);
+    return structuredClone([...latest.values()].sort((a, b) => a.id.localeCompare(b.id)));
+  }
+  async infrastructureHistory(
+    kind: InfrastructureRevision['kind'],
+    id: string,
+  ): Promise<InfrastructureRevision[]> {
+    return structuredClone(
+      [...this.infrastructure.values()]
+        .filter((r) => r.kind === kind && r.id === id)
+        .sort((a, b) => a.revision - b.revision),
+    );
+  }
+  async appendInfrastructure(record: InfrastructureRevision): Promise<void> {
+    const key = `${record.kind}/${record.id}/${record.revision}`;
+    if (this.infrastructure.has(key)) throw new Error('Duplicate infrastructure revision');
+    this.infrastructure.set(key, structuredClone(record));
+  }
   private fleetDevices = new Map<string, FleetDevice>();
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
     const device = this.fleetDevices.get(id);
@@ -135,6 +161,7 @@ export class MemoryStore implements Store {
     for (const key of [
       'campaigns',
       'fleetDevices',
+      'infrastructure',
       'runs',
       'audit',
       'users',
@@ -152,6 +179,7 @@ export class MemoryStore implements Store {
       for (const key of [
         'campaigns',
         'fleetDevices',
+        'infrastructure',
         'runs',
         'audit',
         'users',
@@ -224,8 +252,9 @@ export class MemoryStore implements Store {
     const r = this.benchRuns.get(id);
     return r ? { ...r } : undefined;
   }
-  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+  async listBenchRuns(limit = 100, activeOnly = false): Promise<BenchRun[]> {
     return [...this.benchRuns.values()]
+      .filter((r) => !activeOnly || r.status === 'REQUESTED' || r.status === 'CLAIMED')
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
       .slice(0, limit)
       .map((r) => ({ ...r }));

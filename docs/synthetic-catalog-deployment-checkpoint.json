@@ -1,0 +1,95 @@
+{
+  "schema": "shieldtester.deployment-receipt/v1",
+  "checkedAt": "2026-10-17T07:04:29.867Z",
+  "version": {
+    "version": "0.2.0",
+    "build": "489",
+    "commit": "d19b64c0d820ef2cace7aec613e8caf4e9b0255c",
+    "builtAt": "2026-10-17T07:03:30.797Z"
+  },
+  "release": "/home/shieldtest/ddostester-releases/release-d19b64c0.jrrVOF",
+  "ci": {
+    "headSha": "d19b64c0d820ef2cace7aec613e8caf4e9b0255c",
+    "conclusion": "success",
+    "url": "https://github.com/abdelhasoloji/Ddostester/actions/runs/39011591988",
+    "jobs": [
+      {
+        "name": "postgres",
+        "conclusion": "success"
+      },
+      {
+        "name": "backend",
+        "conclusion": "success"
+      },
+      {
+        "name": "quality",
+        "conclusion": "success"
+      },
+      {
+        "name": "frontend",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "nativeVerification": {
+    "lint": true,
+    "typecheck": true,
+    "backendTestsPassed": 1253,
+    "backendTestsSkipped": 46,
+    "frontendTestsPassed": 513,
+    "build": true,
+    "apiAndUiAssetIdentityVerified": true
+  },
+  "backup": {
+    "encrypted": true,
+    "authenticatedRecovery": true,
+    "archiveSha256": "6d0beb6b6f07f73b7fae8742ee96add97a7c91d292695290655f228bdb1ae995",
+    "auditAndInfrastructureRecovery": {
+      "audit": true,
+      "infrastructure": true
+    }
+  },
+  "preservation": {
+    "checkedAt": "2026-10-17T07:04:29.268Z",
+    "preservation": {
+      "users": {
+        "count": 11,
+        "unchanged": true
+      },
+      "campaigns": {
+        "count": 284,
+        "unchanged": true
+      },
+      "settings": {
+        "count": 1,
+        "unchanged": true
+      },
+      "fleet": {
+        "count": 3,
+        "unchanged": true
+      }
+    },
+    "auditPreserved": true,
+    "running": 0,
+    "soleAdminPreserved": true,
+    "migrations": [9, 10]
+  },
+  "runtime": {
+    "ready": true,
+    "policyUnchanged": true,
+    "historyUnchanged": {
+      "audit": true,
+      "infrastructure": true
+    },
+    "fleet": {
+      "checkedAt": "2026-10-17T07:04:30.635Z",
+      "identities": 3,
+      "online": 3,
+      "unauthenticatedDeviceRouteStatus": 401
+    },
+    "guardsProtected": true,
+    "externalHttpsVerified": true
+  },
+  "campaignsStarted": false,
+  "podsChanged": false
+}

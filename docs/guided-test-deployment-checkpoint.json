@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-16T20:17:12.464Z",
+  "build": "486",
+  "commit": "860ca2143326414cadfa85674f7fdd9e43423513",
+  "release": "/home/shieldtest/ddostester-releases/release-860ca214.VevVY4",
+  "ci": "https://github.com/abdelhasoloji/Ddostester/actions/runs/38959742664",
+  "ciJobsPassed": 4,
+  "nativeVerificationPassed": true,
+  "tests": {
+    "backendPassed": 1241,
+    "backendSkipped": 46,
+    "frontendPassed": 501
+  },
+  "apiUiAssetsVerified": true,
+  "externalHttpsVerified": true,
+  "ready": true,
+  "policyUnchanged": true,
+  "preserved": {
+    "users": 11,
+    "campaigns": 284,
+    "fleetIdentities": 3,
+    "onlineFleetAgents": 3,
+    "settings": true,
+    "auditHistory": true,
+    "infrastructureHistory": true,
+    "soleAdmin": true
+  },
+  "unauthenticatedDeviceRouteStatus": 401,
+  "backup": {
+    "encrypted": true,
+    "authenticatedIsolatedRestore": true,
+    "historyRestoreVerified": true,
+    "archiveSha256": "8d8a6de2ae7974578cacfdcec5198c5138d6f47c5abf9b39f35f8757f699b87c"
+  },
+  "isolatedChrome": {
+    "prepareToExactCampaign": true,
+    "planFreeze": true,
+    "exactAgentChecks": true,
+    "explicitConfirmationReady": true,
+    "mobileOverflow": false,
+    "executeRequests": 0,
+    "fixtureInventoryNotPhysicalQualification": true
+  },
+  "campaignStarted": false,
+  "podsMoved": false,
+  "baselineInstabilityResolved": false
+}
