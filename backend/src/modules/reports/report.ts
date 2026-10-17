@@ -295,7 +295,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       ${statCard('Configured load', slow ? `${campaign.concurrency} connections` : `${configuredRps} req/s`, false)}
       ${statCard(slow ? 'Connections opened' : 'Max recorded mean rate', slow ? String(g.totalRequests) : `${peakRps} req/s`, false)}
       ${statCard('Configured duration', `${campaign.maxDurationSec}s`)}
-      ${statCard(partialCounters ? 'Reported requests (partial)' : 'Requests (ok)', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
+      ${statCard(slow ? 'Connections closed' : partialCounters ? 'Reported requests (partial)' : 'Requests (ok)', slow ? g.failed.toLocaleString('en-US') : partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
     </div>
   </div>
 </div>` +
@@ -363,20 +363,22 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>Target</th><td>${esc(campaign.target)}</td></tr>
  <tr><th>Vector</th><td>${campaign.vector} (bounded application HTTP)</td></tr>
  <tr><th>Author / Approver</th><td>${esc(campaign.createdBy)} / ${esc(campaign.approvedBy ?? '—')}</td></tr>
- <tr><th>${partialCounters ? 'Reported requests (partial)' : 'Requests (success / fail)'}</th><td>${partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')})`}</td></tr>
+ <tr><th>${slow ? 'Connections (opened / closed)' : partialCounters ? 'Reported requests (partial)' : 'Requests (success / fail)'}</th><td>${slow ? `${g.totalRequests.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')}` : partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')} / ${g.failed.toLocaleString('en-US')})`}</td></tr>
  ${g.latencyMethod ? `<tr><th>Generator latency aggregation</th><td>${esc(g.latencyMethod)} — ${g.latencyMethod === 'native-rounded-response-times' ? 'native final statistics with rounded response-time buckets' : 'combined observations or histogram upper bounds; phase percentiles are not averaged'}</td></tr>` : ''}
  ${g.finalizedRequests === undefined ? '' : `<tr><th>Finalized / unfinalized HTTP outcomes</th><td>${g.finalizedRequests} / ${g.unfinalizedRequests ?? 'unknown'} — unfinalized attempts have no inferred target receipt or HTTP status</td></tr>`}
  ${counterCoverage ? `<tr><th>Generator counter coverage</th><td>${counterCoverage.reportedAgents}/${counterCoverage.expectedAgents} final reports. Missing counters are unknown; target receipts are independent evidence.</td></tr>` : ''}
  ${
-   g.failed > 0
-     ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} HTTP failures (4xx/5xx) · ${noResponse.toLocaleString('en-US')} transport failures (cause unproven)${
-         errorBreakdown.length
-           ? ` <span class="muted">[${errorBreakdown
-               .map((e) => `${esc(e.label)}×${e.count.toLocaleString('en-US')}`)
-               .join(', ')}]</span>`
-           : ''
-       }</td></tr>`
-     : ''
+   slow
+     ? `<tr><th>Connection closure</th><td>${g.failed.toLocaleString('en-US')} connections closed; cause unproven. No HTTP outcome is inferred.</td></tr>`
+     : g.failed > 0
+       ? `<tr><th>Failure breakdown</th><td>${rejectedByEdge.toLocaleString('en-US')} HTTP failures (4xx/5xx) · ${noResponse.toLocaleString('en-US')} transport failures (cause unproven)${
+           errorBreakdown.length
+             ? ` <span class="muted">[${errorBreakdown
+                 .map((e) => `${esc(e.label)}×${e.count.toLocaleString('en-US')}`)
+                 .join(', ')}]</span>`
+             : ''
+         }</td></tr>`
+       : ''
  }
  <tr><th>${partialCounters ? 'Configured / reported rate (partial)' : 'Configured / achieved rate'}</th><td>${slow ? `${g.totalRequests} connections opened; HTTP rate is not applicable` : `${configuredRps} req/s configured · ${partialCounters && !counterCoverage.reportedAgents ? 'unknown reported rate' : `${g.actualRps} req/s mean`} · ${peakRps} req/s maximum recorded mean (not instantaneous peak)`}</td></tr>
  ${

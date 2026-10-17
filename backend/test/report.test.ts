@@ -430,4 +430,8 @@ it('describes a slow-header run in connection units throughout its summary', () 
   expect(html).not.toContain('Under a bounded HTTP load configured');
   expect(html).not.toContain('Mean offered request rate');
   expect(html).toContain('HTTP request latency is not applicable');
+  expect(html).toContain('Connections (opened / closed)');
+  expect(html).toContain('Connection closure');
+  expect(html).not.toContain('Requests (success / fail)');
+  expect(html).not.toContain('HTTP failures (4xx/5xx)');
 });
