@@ -1,0 +1,2384 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>ShieldTester DRS assessment</title><style>body{font:15px system-ui;max-width:1100px;margin:40px auto;padding:20px;color:#15213a}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cfd7e5;padding:9px;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f6fa;padding:16px}h1,h2{color:#093774}</style><h1>ShieldTester · DRS 3.00.00</h1><p>Experimental score — laboratory dimensions only</p><p><b>PARTIAL · No usable score</b> · terminal level 1 / PARTIAL</p><p>Revision 1 · engine shieldtester-drs/1 · interpretation strict-conservative/1</p><p>Catalogue 43baa265b9f6675843473b1bf80666887eaf57377b1aa8c35b8891f4ef5ef856 · plan 0b4668816f573f1a61f0f884cc2a0a3af1486b2b7dbec06e94ffab23e52533b9</p><h2>Synthetic execution</h2><p>COMPLETED · objective 5 · interval 2s</p><p>Registered bounded shapes; reference coverage remains partial</p><pre>{
+  &quot;schema&quot;: &quot;shieldtester.synthetic-journey/v1&quot;,
+  &quot;state&quot;: &quot;COMPLETED&quot;,
+  &quot;definition&quot;: {
+    &quot;schema&quot;: &quot;shieldtester.synthetic-plan/v1&quot;,
+    &quot;reference&quot;: {
+      &quot;schema&quot;: &quot;shieldtester.drs.sequence/v1&quot;,
+      &quot;targetLevel&quot;: 5,
+      &quot;intervalSec&quot;: 2,
+      &quot;catalogueHash&quot;: &quot;43baa265b9f6675843473b1bf80666887eaf57377b1aa8c35b8891f4ef5ef856&quot;,
+      &quot;rows&quot;: [
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-111001&quot;,
+          &quot;name&quot;: &quot;SYN Flood&quot;,
+          &quot;level&quot;: 1,
+          &quot;summary&quot;: &quot;Source 111001 · section 4.3 · page 17&quot;,
+          &quot;sourceVectorId&quot;: &quot;111001&quot;,
+          &quot;sourcePage&quot;: 17,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded TCP connection pressure; not SYN packet semantics&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-151002&quot;,
+          &quot;name&quot;: &quot;HTTP/S GET Flood&quot;,
+          &quot;level&quot;: 1,
+          &quot;summary&quot;: &quot;Source 151002 · section 4.3 · page 17&quot;,
+          &quot;sourceVectorId&quot;: &quot;151002&quot;,
+          &quot;sourcePage&quot;: 17,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: true,
+          &quot;status&quot;: &quot;bounded-get-experiment&quot;,
+          &quot;reason&quot;: &quot;Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-211001&quot;,
+          &quot;name&quot;: &quot;SYN Flood&quot;,
+          &quot;level&quot;: 2,
+          &quot;summary&quot;: &quot;Source 211001 · section 4.3 · page 17&quot;,
+          &quot;sourceVectorId&quot;: &quot;211001&quot;,
+          &quot;sourcePage&quot;: 17,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded TCP connection pressure; not SYN packet semantics&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-251002&quot;,
+          &quot;name&quot;: &quot;HTTP/S GET Flood&quot;,
+          &quot;level&quot;: 2,
+          &quot;summary&quot;: &quot;Source 251002 · section 4.3 · page 17&quot;,
+          &quot;sourceVectorId&quot;: &quot;251002&quot;,
+          &quot;sourcePage&quot;: 17,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: true,
+          &quot;status&quot;: &quot;bounded-get-experiment&quot;,
+          &quot;reason&quot;: &quot;Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-222003&quot;,
+          &quot;name&quot;: &quot;UDP Flood&quot;,
+          &quot;level&quot;: 2,
+          &quot;summary&quot;: &quot;Source 222003 · section 4.3 · page 17&quot;,
+          &quot;sourceVectorId&quot;: &quot;222003&quot;,
+          &quot;sourcePage&quot;: 17,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_maxpackets&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded UDP packet-rate shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-311001&quot;,
+          &quot;name&quot;: &quot;SYN Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 311001 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;311001&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded TCP connection pressure; not SYN packet semantics&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-351002&quot;,
+          &quot;name&quot;: &quot;HTTP/S GET Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 351002 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;351002&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: true,
+          &quot;status&quot;: &quot;bounded-get-experiment&quot;,
+          &quot;reason&quot;: &quot;Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-322003&quot;,
+          &quot;name&quot;: &quot;UDP Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 322003 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;322003&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_maxpackets&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded UDP packet-rate shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-313004&quot;,
+          &quot;name&quot;: &quot;TCP RST Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 313004 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;313004&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-333005&quot;,
+          &quot;name&quot;: &quot;ICMP Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 333005 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;333005&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-323006&quot;,
+          &quot;name&quot;: &quot;NTP Reflection Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 323006 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;323006&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 4,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_ntp_reflection&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;synthetic NTP-like response-size and packet shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-353007&quot;,
+          &quot;name&quot;: &quot;API Unformatted Flood&quot;,
+          &quot;level&quot;: 3,
+          &quot;summary&quot;: &quot;Source 353007 · section 4.3 · page 18&quot;,
+          &quot;sourceVectorId&quot;: &quot;353007&quot;,
+          &quot;sourcePage&quot;: 18,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-411001&quot;,
+          &quot;name&quot;: &quot;SYN Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 411001 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;411001&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded TCP connection pressure; not SYN packet semantics&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-451002&quot;,
+          &quot;name&quot;: &quot;HTTP/S GET Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 451002 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;451002&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: true,
+          &quot;status&quot;: &quot;bounded-get-experiment&quot;,
+          &quot;reason&quot;: &quot;Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-422003&quot;,
+          &quot;name&quot;: &quot;UDP Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 422003 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;422003&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_maxpackets&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded UDP packet-rate shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-413004&quot;,
+          &quot;name&quot;: &quot;TCP RST Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 413004 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;413004&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-433005&quot;,
+          &quot;name&quot;: &quot;ICMP Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 433005 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;433005&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-423006&quot;,
+          &quot;name&quot;: &quot;NTP Reflection Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 423006 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;423006&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_ntp_reflection&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;synthetic NTP-like response-size and packet shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-414007&quot;,
+          &quot;name&quot;: &quot;TCP PSH+ACK Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 414007 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;414007&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-414008&quot;,
+          &quot;name&quot;: &quot;TCP SYN+ACK Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 414008 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;414008&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-414009&quot;,
+          &quot;name&quot;: &quot;TCP ACK Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 414009 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;414009&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-414010&quot;,
+          &quot;name&quot;: &quot;TCP FIN Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 414010 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;414010&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-454011&quot;,
+          &quot;name&quot;: &quot;DNS Query Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 454011 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;454011&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-424012&quot;,
+          &quot;name&quot;: &quot;UDP Multi-vector Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 424012 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;424012&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_multivector&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;concurrent synthetic UDP shapes&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-424013&quot;,
+          &quot;name&quot;: &quot;DNS Garbage Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 424013 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;424013&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-453014&quot;,
+          &quot;name&quot;: &quot;API Unformatted Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 453014 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;453014&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-454015&quot;,
+          &quot;name&quot;: &quot;API Formatted Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 454015 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;454015&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-454016&quot;,
+          &quot;name&quot;: &quot;pulsewave/’Hit&amp;Run’ Floods Flood&quot;,
+          &quot;level&quot;: 4,
+          &quot;summary&quot;: &quot;Source 454016 · section 4.3 · page 19&quot;,
+          &quot;sourceVectorId&quot;: &quot;454016&quot;,
+          &quot;sourcePage&quot;: 19,
+          &quot;ambiguityCount&quot;: 2,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;pulsewave_l34&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded UDP bursts; not application transactions&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-511001&quot;,
+          &quot;name&quot;: &quot;SYN Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 511001 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;511001&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded TCP connection pressure; not SYN packet semantics&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-551002&quot;,
+          &quot;name&quot;: &quot;HTTP/S GET Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 551002 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;551002&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: true,
+          &quot;status&quot;: &quot;bounded-get-experiment&quot;,
+          &quot;reason&quot;: &quot;Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-522003&quot;,
+          &quot;name&quot;: &quot;UDP Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 522003 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;522003&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_maxpackets&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;bounded UDP packet-rate shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-513004&quot;,
+          &quot;name&quot;: &quot;TCP RST Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 513004 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;513004&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-533005&quot;,
+          &quot;name&quot;: &quot;ICMP Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 533005 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;533005&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-523006&quot;,
+          &quot;name&quot;: &quot;NTP Reflection Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 523006 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;523006&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_ntp_reflection&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;synthetic NTP-like response-size and packet shape&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-514007&quot;,
+          &quot;name&quot;: &quot;TCP PSH+ACK Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 514007 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;514007&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-514008&quot;,
+          &quot;name&quot;: &quot;TCP SYN+ACK Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 514008 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;514008&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-514009&quot;,
+          &quot;name&quot;: &quot;TCP ACK Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 514009 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;514009&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-514010&quot;,
+          &quot;name&quot;: &quot;TCP FIN Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 514010 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;514010&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-554011&quot;,
+          &quot;name&quot;: &quot;DNS Query Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 554011 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;554011&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-524012&quot;,
+          &quot;name&quot;: &quot;UDP Multi-vector Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 524012 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;524012&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 4,
+          &quot;supported&quot;: false,
+          &quot;laboratory&quot;: {
+            &quot;scenarioId&quot;: &quot;udp_multivector&quot;,
+            &quot;representedDimensions&quot;: [
+              &quot;concurrent synthetic UDP shapes&quot;
+            ],
+            &quot;mode&quot;: &quot;synthetic-lab&quot;,
+            &quot;qualification&quot;: &quot;partial-shape&quot;,
+            &quot;missingDimensions&quot;: [
+              &quot;Full protocol and application semantics&quot;,
+              &quot;Standard load, duration and source diversity&quot;,
+              &quot;Independent complete DRS evidence and calibration&quot;
+            ],
+            &quot;scoreEligible&quot;: false
+          },
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-524013&quot;,
+          &quot;name&quot;: &quot;DNS Garbage Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 524013 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;524013&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555014&quot;,
+          &quot;name&quot;: &quot;HTTP Flood Cookie Support&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555014 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;555014&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555015&quot;,
+          &quot;name&quot;: &quot;HTTP Search Page Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555015 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;555015&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555016&quot;,
+          &quot;name&quot;: &quot;HTTP Login Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555016 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;555016&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-585017&quot;,
+          &quot;name&quot;: &quot;HTTP Large File Download&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 585017 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;585017&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555018&quot;,
+          &quot;name&quot;: &quot;DNS Recursive Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555018 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;555018&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-585019&quot;,
+          &quot;name&quot;: &quot;SLOW POST (HTTP)&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 585019 · section 4.3 · page 20&quot;,
+          &quot;sourceVectorId&quot;: &quot;585019&quot;,
+          &quot;sourcePage&quot;: 20,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-585020&quot;,
+          &quot;name&quot;: &quot;SSL Renegotiation&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 585020 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;585020&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-535021&quot;,
+          &quot;name&quot;: &quot;IPSEC Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 535021 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;535021&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-585022&quot;,
+          &quot;name&quot;: &quot;HTTP/2.0 Continuation flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 585022 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;585022&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-585023&quot;,
+          &quot;name&quot;: &quot;Rapid Reset&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 585023 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;585023&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-525024&quot;,
+          &quot;name&quot;: &quot;Multi-protocol Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 525024 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;525024&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555025&quot;,
+          &quot;name&quot;: &quot;HTTPS Flood Headless Browse&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555025 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;555025&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555026&quot;,
+          &quot;name&quot;: &quot;HTTPS Flood JS Support&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555026 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;555026&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-553027&quot;,
+          &quot;name&quot;: &quot;API Unformatted Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 553027 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;553027&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-554028&quot;,
+          &quot;name&quot;: &quot;API Formatted Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 554028 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;554028&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-555029&quot;,
+          &quot;name&quot;: &quot;API Authenticated Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 555029 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;555029&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 0,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-554030&quot;,
+          &quot;name&quot;: &quot;pulsewave/’Hit&amp;Run’ Floods Flood&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 554030 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;554030&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 1,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-565032&quot;,
+          &quot;name&quot;: &quot;Non-HTTP/S Application Floods&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 565032 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;565032&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 2,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        },
+        {
+          &quot;id&quot;: &quot;drs-3.00.00-545033&quot;,
+          &quot;name&quot;: &quot;Fragmented Network Floods&quot;,
+          &quot;level&quot;: 5,
+          &quot;summary&quot;: &quot;Source 545033 · section 4.3 · page 21&quot;,
+          &quot;sourceVectorId&quot;: &quot;545033&quot;,
+          &quot;sourcePage&quot;: 21,
+          &quot;ambiguityCount&quot;: 2,
+          &quot;supported&quot;: false,
+          &quot;status&quot;: &quot;reference-only&quot;,
+          &quot;reason&quot;: &quot;Reference and engine simulation only. No generator adapter or traffic dispatch; no local fallback.&quot;
+        }
+      ],
+      &quot;planHash&quot;: &quot;d8bd6d6d63c4a02bc1dffd73ffc3e0688d5e61b2bcb1d545383ec9655722768a&quot;,
+      &quot;executable&quot;: 5,
+      &quot;blocked&quot;: 55,
+      &quot;measuredLevel&quot;: null
+    },
+    &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+    &quot;scenarios&quot;: [
+      &quot;tcp_synflood&quot;,
+      &quot;udp_maxpackets&quot;,
+      &quot;udp_ntp_reflection&quot;,
+      &quot;udp_multivector&quot;,
+      &quot;pulsewave_l34&quot;
+    ]
+  },
+  &quot;planHash&quot;: &quot;e31c5621d6189f448ba5a88e4502681e6c6a94ef010602ade23183363d1f70ff&quot;,
+  &quot;steps&quot;: [
+    {
+      &quot;scenarioId&quot;: &quot;tcp_synflood&quot;,
+      &quot;runId&quot;: &quot;83e6da58-abc9-4bcc-aa4d-2d6e62015572&quot;
+    },
+    {
+      &quot;scenarioId&quot;: &quot;udp_maxpackets&quot;,
+      &quot;runId&quot;: &quot;11348e14-3523-4436-8b9a-97b09f5265b7&quot;
+    },
+    {
+      &quot;scenarioId&quot;: &quot;udp_ntp_reflection&quot;,
+      &quot;runId&quot;: &quot;65d4096d-f27f-423c-ad2c-9cc1158c5bb6&quot;
+    },
+    {
+      &quot;scenarioId&quot;: &quot;udp_multivector&quot;,
+      &quot;runId&quot;: &quot;c5048208-02f2-4b56-be22-e9a963b43efb&quot;
+    },
+    {
+      &quot;scenarioId&quot;: &quot;pulsewave_l34&quot;,
+      &quot;runId&quot;: &quot;6d106ea0-dd3e-4fad-a3bc-51ff847faa8b&quot;
+    }
+  ],
+  &quot;startedAt&quot;: &quot;2026-10-17T07:29:11.901Z&quot;,
+  &quot;nextAt&quot;: 1792222197641,
+  &quot;finishedAt&quot;: &quot;2026-10-17T07:29:55.641Z&quot;
+}</pre><h2>Client scope snapshot</h2><pre>null</pre><h2>Baseline diagnostic (not qualified evidence)</h2><pre>null</pre><h2>Coverage</h2><table><tr><th>Level</th><th>Total</th><th>Passed</th><th>Failed</th><th>Unknown</th><th>Excluded</th><th>Outcome</th></tr><tr><td>1</td><td>2</td><td>0</td><td>0</td><td>2</td><td>0</td><td>PARTIAL</td></tr><tr><td>2</td><td>3</td><td>0</td><td>0</td><td>3</td><td>0</td><td>PARTIAL</td></tr><tr><td>3</td><td>7</td><td>0</td><td>0</td><td>7</td><td>0</td><td>PARTIAL</td></tr><tr><td>4</td><td>16</td><td>0</td><td>0</td><td>16</td><td>0</td><td>PARTIAL</td></tr><tr><td>5</td><td>32</td><td>0</td><td>0</td><td>32</td><td>0</td><td>PARTIAL</td></tr></table><h2>Reservations</h2><ul><li>Not a Red Button certification</li><li>Imported evidence retains collector provenance; structural validation is not physical attestation</li><li>WRS is a separate diagnostic and is never averaged into DRS</li></ul><h2>Scope and instrumentation</h2><pre>{
+  &quot;services&quot;: [
+    {
+      &quot;id&quot;: &quot;service-1&quot;,
+      &quot;url&quot;: &quot;http://127.0.0.1/&quot;,
+      &quot;protocol&quot;: &quot;SYNTHETIC&quot;,
+      &quot;journey&quot;: &quot;Isolated named traffic-shape diagnostics&quot;,
+      &quot;functionalAssertion&quot;: &quot;Configure a functional response assertion; HTTP status alone is insufficient&quot;,
+      &quot;successThreshold&quot;: 1
+    }
+  ],
+  &quot;architecture&quot;: {
+    &quot;entryPoint&quot;: &quot;http://127.0.0.1/&quot;,
+    &quot;protection&quot;: &quot;Not recorded&quot;,
+    &quot;origin&quot;: &quot;Not recorded&quot;,
+    &quot;injectionPoint&quot;: &quot;http://127.0.0.1/&quot;
+  },
+  &quot;sources&quot;: [
+    {
+      &quot;id&quot;: &quot;generator&quot;,
+      &quot;role&quot;: &quot;generator&quot;,
+      &quot;resourceId&quot;: &quot;isolated-bench-runner&quot;,
+      &quot;connectionPoolId&quot;: &quot;generator-pool&quot;,
+      &quot;position&quot;: &quot;Isolated synthetic bench&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;entry&quot;,
+      &quot;role&quot;: &quot;entry&quot;,
+      &quot;resourceId&quot;: &quot;unconfigured-entry&quot;,
+      &quot;connectionPoolId&quot;: &quot;entry-pool&quot;,
+      &quot;position&quot;: &quot;Unconfigured&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;user&quot;,
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;resourceId&quot;: &quot;independent-probe&quot;,
+      &quot;connectionPoolId&quot;: &quot;user-pool&quot;,
+      &quot;position&quot;: &quot;Control plane probe&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    },
+    {
+      &quot;id&quot;: &quot;origin&quot;,
+      &quot;role&quot;: &quot;origin&quot;,
+      &quot;resourceId&quot;: &quot;unconfigured-origin&quot;,
+      &quot;connectionPoolId&quot;: &quot;origin-pool&quot;,
+      &quot;position&quot;: &quot;Unconfigured&quot;,
+      &quot;frequencyMs&quot;: 1000,
+      &quot;clockUncertaintyMs&quot;: 100
+    }
+  ],
+  &quot;protection&quot;: &quot;Not recorded&quot;,
+  &quot;versions&quot;: {
+    &quot;controlPlane&quot;: &quot;{\&quot;version\&quot;:\&quot;0.2.0\&quot;,\&quot;build\&quot;:\&quot;0\&quot;,\&quot;commit\&quot;:\&quot;dev\&quot;}&quot;,
+    &quot;generator&quot;: &quot;synthetic-bench&quot;,
+    &quot;syntheticContract&quot;: &quot;registered-scenarios/v1&quot;
+  }
+}</pre><h2>Requested and observed conditions, user impact and recovery</h2><pre>[]</pre><h2>Existing run and synthetic-lab observations (diagnostic only)</h2><pre>[
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;83e6da58-abc9-4bcc-aa4d-2d6e62015572&quot;,
+    &quot;sourceHash&quot;: &quot;760d15ae995e903ace89c5e640b7bfecc5aa7060b641b7103dd044c570fe0a74&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:29:18.443Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: null,
+        &quot;pps&quot;: null
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: null,
+      &quot;kind&quot;: &quot;tcp-connection-pressure&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;83e6da58-abc9-4bcc-aa4d-2d6e62015572&quot;,
+      &quot;scenario&quot;: &quot;tcp_synflood&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:29:11.902Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:29:11.916Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:29:18.177Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;tcp-connection-pressure&quot;,
+        &quot;scenario&quot;: &quot;tcp_synflood&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;target&quot;: {},
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: {
+          &quot;opened&quot;: 870,
+          &quot;accepted&quot;: 200,
+          &quot;refused&quot;: 670,
+          &quot;concurrentPeak&quot;: 200,
+          &quot;capacity&quot;: 200,
+          &quot;saturationPct&quot;: 77.01
+        },
+        &quot;outcome&quot;: &quot;STATE_TABLE_SATURATED&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:29:18.171Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;11348e14-3523-4436-8b9a-97b09f5265b7&quot;,
+    &quot;sourceHash&quot;: &quot;c2a8297714d48320d27434553f7dec9d0db7bc682b12ddbbb7e73b592f3b2034&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:29:27.246Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 1162646.88,
+        &quot;pps&quot;: 1546.07
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 10,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;11348e14-3523-4436-8b9a-97b09f5265b7&quot;,
+      &quot;scenario&quot;: &quot;udp_maxpackets&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:29:20.513Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:29:20.515Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:29:26.989Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_maxpackets&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;generic&quot;
+        ],
+        &quot;amplificationFactor&quot;: 10,
+        &quot;packetAmplification&quot;: 10,
+        &quot;requests&quot;: 1000,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 10000,
+          &quot;avgPps&quot;: 1546.07,
+          &quot;avgBps&quot;: 1162646.88
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:29:26.985Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;65d4096d-f27f-423c-ad2c-9cc1158c5bb6&quot;,
+    &quot;sourceHash&quot;: &quot;635d2916189c09bff5aebbc6d3842080f367e86dc443f9fcfa25d82815f11ff6&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:29:35.988Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 20369967.36,
+        &quot;pps&quot;: 559.61
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 300,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;65d4096d-f27f-423c-ad2c-9cc1158c5bb6&quot;,
+      &quot;scenario&quot;: &quot;udp_ntp_reflection&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:29:29.377Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:29:29.378Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:29:35.817Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_ntp_reflection&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;ntp&quot;
+        ],
+        &quot;amplificationFactor&quot;: 300,
+        &quot;packetAmplification&quot;: 6,
+        &quot;requests&quot;: 600,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 3600,
+          &quot;avgPps&quot;: 559.61,
+          &quot;avgBps&quot;: 20369967.36
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:29:35.813Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;c5048208-02f2-4b56-be22-e9a963b43efb&quot;,
+    &quot;sourceHash&quot;: &quot;01d1c175693348bdd4a1733e2b1e413e445f1ec49e20752315c45217d178ad91&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:29:44.864Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 19242296,
+        &quot;pps&quot;: 545.45
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 168.27,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;c5048208-02f2-4b56-be22-e9a963b43efb&quot;,
+      &quot;scenario&quot;: &quot;udp_multivector&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:29:37.988Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:29:38.151Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:29:44.604Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;udp_multivector&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;dns&quot;,
+          &quot;ntp&quot;,
+          &quot;ssdp&quot;,
+          &quot;memcached&quot;
+        ],
+        &quot;amplificationFactor&quot;: 168.27,
+        &quot;packetAmplification&quot;: 3.51,
+        &quot;requests&quot;: 1003,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 3516,
+          &quot;avgPps&quot;: 545.45,
+          &quot;avgBps&quot;: 19242296
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:29:44.598Z&quot;
+      }
+    }
+  },
+  {
+    &quot;kind&quot;: &quot;network-bench&quot;,
+    &quot;sourceId&quot;: &quot;6d106ea0-dd3e-4fad-a3bc-51ff847faa8b&quot;,
+    &quot;sourceHash&quot;: &quot;b7583100763eb5dd82489d9f82560d8731d6b9320369bc15e81e9c766b65df86&quot;,
+    &quot;archivedAt&quot;: &quot;2026-10-17T07:29:55.642Z&quot;,
+    &quot;measurements&quot;: {
+      &quot;actual_received_load&quot;: {
+        &quot;bps&quot;: 8652609.16,
+        &quot;pps&quot;: 260.8
+      },
+      &quot;injection_point&quot;: &quot;127.0.0.1&quot;,
+      &quot;declared_synthetic_factor&quot;: 132.41,
+      &quot;kind&quot;: &quot;udp-amplification&quot;
+    },
+    &quot;limitations&quot;: [
+      &quot;Read-only isolated laboratory observation; no traffic dispatched&quot;,
+      &quot;No numeric amplification multiplier is applied to received measurements&quot;,
+      &quot;Internet source distribution and a real reflection chain are not demonstrated&quot;,
+      &quot;Functional service, latency distribution, independent measurement positions and calibration need separate evidence&quot;,
+      &quot;No perimeter or DRS score is inferred from this attachment&quot;
+    ],
+    &quot;source&quot;: {
+      &quot;id&quot;: &quot;6d106ea0-dd3e-4fad-a3bc-51ff847faa8b&quot;,
+      &quot;scenario&quot;: &quot;pulsewave_l34&quot;,
+      &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+      &quot;status&quot;: &quot;COMPLETED&quot;,
+      &quot;requestedBy&quot;: &quot;dev&quot;,
+      &quot;requestedAt&quot;: &quot;2026-10-17T07:29:46.929Z&quot;,
+      &quot;claimedAt&quot;: &quot;2026-10-17T07:29:46.930Z&quot;,
+      &quot;claimedBy&quot;: &quot;isolated-local-qa&quot;,
+      &quot;completedAt&quot;: &quot;2026-10-17T07:29:55.387Z&quot;,
+      &quot;verdict&quot;: {
+        &quot;schema&quot;: &quot;shieldtest.lab.verdict/v1&quot;,
+        &quot;class&quot;: &quot;C&quot;,
+        &quot;kind&quot;: &quot;udp-amplification&quot;,
+        &quot;scenario&quot;: &quot;pulsewave_l34&quot;,
+        &quot;labTarget&quot;: &quot;127.0.0.1&quot;,
+        &quot;profiles&quot;: [
+          &quot;dns&quot;,
+          &quot;ntp&quot;
+        ],
+        &quot;amplificationFactor&quot;: 132.41,
+        &quot;packetAmplification&quot;: 2.87,
+        &quot;requests&quot;: 767,
+        &quot;target&quot;: {
+          &quot;packets&quot;: 2204,
+          &quot;avgPps&quot;: 260.8,
+          &quot;avgBps&quot;: 8652609.16
+        },
+        &quot;mitigation&quot;: null,
+        &quot;connections&quot;: null,
+        &quot;outcome&quot;: &quot;UNMITIGATED_BASELINE&quot;,
+        &quot;runner&quot;: &quot;isolated-local-qa&quot;,
+        &quot;source&quot;: &quot;shieldtest-lab&quot;,
+        &quot;generatedAt&quot;: &quot;2026-10-17T07:29:55.382Z&quot;
+      }
+    }
+  }
+]</pre><h2>Verdicts and historical attempts</h2><pre>[
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-111001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-151002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-211001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-251002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-222003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-311001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-351002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-322003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-313004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-333005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-353007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-411001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-451002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-422003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-413004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-433005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-423006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414008&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414009&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-414010&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454011&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-424012&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-424013&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-453014&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454015&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-511001&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-551002&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-522003&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-513004&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-533005&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-523006&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514007&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514008&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514009&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-514010&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554011&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-524013&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555014&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555015&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555016&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585017&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555018&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585019&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585020&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-535021&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585022&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-585023&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-525024&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555025&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555026&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-553027&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554028&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-555029&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-554030&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  },
+  {
+    &quot;vectorId&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;validity&quot;: &quot;INCONCLUSIVE&quot;,
+    &quot;result&quot;: &quot;NOT_EVALUATED&quot;,
+    &quot;reasons&quot;: [
+      &quot;Scenario missing&quot;
+    ],
+    &quot;proofIds&quot;: [],
+    &quot;excluded&quot;: false
+  }
+]</pre><h2>Reference anomalies and interpretation</h2><pre>[
+  {
+    &quot;id&quot;: &quot;151002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-151002&quot;,
+    &quot;source_page&quot;: 17,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;251002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-251002&quot;,
+    &quot;source_page&quot;: 17,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;351002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-351002&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-outage&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;10m&quot;,
+    &quot;conflicting_value&quot;: &quot;3600 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector line and section 3.5.1 conflict; neither is silently overwritten.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;1K&quot;,
+    &quot;conflicting_value&quot;: &quot;500&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;2s&quot;,
+    &quot;conflicting_value&quot;: &quot;3 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector latency and section 3.5.2 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;323006-persistence&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-323006&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;7 days&quot;,
+    &quot;conflicting_value&quot;: &quot;24 hours&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector persistence and section 3.5.4 differ; preserve both values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;353007-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-353007&quot;,
+    &quot;source_page&quot;: 18,
+    &quot;source_value&quot;: &quot;53007&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;14007&quot;,
+      &quot;353007&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;451002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-451002&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;453014-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-453014&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;53014&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55014&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454015-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454015&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;54015&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55015&quot;,
+      &quot;454015&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454016-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;500&quot;,
+    &quot;conflicting_value&quot;: &quot;1000&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;454016-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-454016&quot;,
+    &quot;source_page&quot;: 19,
+    &quot;source_value&quot;: &quot;54016&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;55016&quot;,
+      &quot;454016&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;551002-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-551002&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-outage&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;1h&quot;,
+    &quot;conflicting_value&quot;: &quot;300 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector line and section 3.5.1 conflict; neither is silently overwritten.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-bots&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;500&quot;,
+    &quot;conflicting_value&quot;: &quot;5000&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector source diversity and section 3.5.3 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;3s&quot;,
+    &quot;conflicting_value&quot;: &quot;1.5 seconds&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector latency and section 3.5.2 conflict.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;524012-persistence&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-524012&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;24 hours&quot;,
+    &quot;conflicting_value&quot;: &quot;30 days&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Vector persistence and section 3.5.4 differ; preserve both values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555014-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555014&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555015-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555015&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555016-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555016&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585017-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585017&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585019-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585019&quot;,
+    &quot;source_page&quot;: 20,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585020-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585020&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585022-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585022&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;585023-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-585023&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;8&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555025-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555025&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;555026-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-555026&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;5&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;553027-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-553027&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;53027&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;56027&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;554028-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-554028&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;54028&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;26028&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;554030-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-554030&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;54030&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;17030&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;565032-family&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;6&quot;,
+    &quot;conflicting_value&quot;: &quot;4 per section 4.1.1.1&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Identifier family does not match its stated HTTP family; retain source string.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;565032-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-565032&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;65032&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;565032&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;545033-missing-max_latency&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: null,
+    &quot;conflicting_value&quot;: &quot;Defined in level table&quot;,
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;No implicit inheritance from level-wide values.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;545033-type-id&quot;,
+    &quot;vector_id&quot;: &quot;drs-3.00.00-545033&quot;,
+    &quot;source_page&quot;: 21,
+    &quot;source_value&quot;: &quot;45033&quot;,
+    &quot;conflicting_value&quot;: [
+      &quot;545033&quot;
+    ],
+    &quot;selected_interpretation&quot;: null,
+    &quot;rationale&quot;: &quot;Type identifier does not map uniquely to section 4.2. No suffix-based automatic substitution.&quot;,
+    &quot;review_status&quot;: &quot;unresolved&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;score-threshold-equality&quot;,
+    &quot;source_value&quot;: &quot;above / below / in between (section 5, page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Equality is unspecified&quot;,
+    &quot;selected_interpretation&quot;: &quot;PASS iff ratio &gt; threshold; FAIL iff ratio &lt; 0.40; equality is MET&quot;,
+    &quot;rationale&quot;: &quot;Conservative reading of strict language, integer cross-products, no prior rounding. ShieldTester interpretation, not an official clarification.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;first-level-failure&quot;,
+    &quot;source_value&quot;: &quot;Use previous passed level (page 27)&quot;,
+    &quot;conflicting_value&quot;: &quot;No previous passed level at level 1&quot;,
+    &quot;selected_interpretation&quot;: &quot;Final DRS null, terminal FAIL, no zero invented&quot;,
+    &quot;rationale&quot;: &quot;No prior score exists; report absence explicitly.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;maximum-level-pass&quot;,
+    &quot;source_value&quot;: &quot;Proceed to next level after passing (page 27)&quot;,
+    &quot;conflicting_value&quot;: &quot;No level 8; highest score 7 (page 2)&quot;,
+    &quot;selected_interpretation&quot;: &quot;Return score of passed terminal level; max remains 7&quot;,
+    &quot;rationale&quot;: &quot;Terminate at maximum planned level without inventing an additional level.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;level-simultaneity&quot;,
+    &quot;source_value&quot;: &quot;Simultaneously mitigate vectors at a level (5.1 page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Sequential scenario execution alone does not prove simultaneity&quot;,
+    &quot;selected_interpretation&quot;: &quot;Require evidence for the plan-defined combined exposure; otherwise partial&quot;,
+    &quot;rationale&quot;: &quot;A set of isolated successes cannot establish joint conditions.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  },
+  {
+    &quot;id&quot;: &quot;scope-denominator&quot;,
+    &quot;source_value&quot;: &quot;Total vectors in level (5.3 page 26)&quot;,
+    &quot;conflicting_value&quot;: &quot;Selected service subset may omit vectors&quot;,
+    &quot;selected_interpretation&quot;: &quot;Retain full level denominator; exclusions are diagnostic, no claimed full DRS with missing evidence&quot;,
+    &quot;rationale&quot;: &quot;No unsupported applicability exclusion reduces official denominator.&quot;,
+    &quot;review_status&quot;: &quot;documented-interpretation&quot;,
+    &quot;affects_verdict&quot;: true
+  }
+]</pre><h2>Reproducibility</h2><p>Proof archive 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945. Download JSON with the complete frozen plan, source reference and evidence chain to reproduce this calculation. No measured-load multiplier is applied.</p></html>

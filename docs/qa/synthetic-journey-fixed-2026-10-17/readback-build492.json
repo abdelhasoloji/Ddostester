@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "ad422b3b86feab479ea41dbc992f17f55b1f88ee",
+  "build": "492",
+  "kind": "read-only local archived campaign readback",
+  "newTrafficGenerated": false,
+  "campaignId": "461c0f49-713f-49d0-a73a-cb879a27644c",
+  "checks": [
+    "Theater COMPLETED 5/5 with observed counters",
+    "HTML report opens from Theater",
+    "Report retains synthetic execution state, objective, interval and original run bindings",
+    "Report remains PARTIAL with null DRS score"
+  ],
+  "notProductionBrowserVerification": true
+}

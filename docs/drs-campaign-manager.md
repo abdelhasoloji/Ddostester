@@ -1,8 +1,8 @@
 # DRS campaign management and Run Theater
 
-Deployed as build 489 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-catalog-deployment-checkpoint.json).
+Deployed as build 492 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-journey-deployment-checkpoint.json).
 
-## Automatic bounded synthetic journey (source increment, 17 October)
+## Automatic bounded synthetic journey (build 492, 17 October)
 
 The default manager now offers the isolated synthetic bench alongside HTTP Fleet. Select an objective and quiet interval, keep the configured isolated target, authorize the laboratory plan, create the draft, then review and explicitly launch its exact hash. Creation sends no traffic. Team mode retains separate approval; single mode retains owner confirmation.
 
