@@ -7,7 +7,7 @@ import { RunTheater, RunVerdictLine, AbsorptionWidget, WrsPill, wrsClass, hostOf
 import { ReplayFromRun } from './replay-from-run.js';
 import { ReconDetailModal } from './recon-detail.js';
 import { BenchCard } from './bench-card.js';
-import { PageHead, GrafanaLink, useSuiteSequences, shortStepName } from './pages.js';
+import { GrafanaLink, useSuiteSequences, shortStepName } from './pages.js';
 
 const SUITE_TERMINAL: CampaignStatus[] = [
   'COMPLETED',
@@ -194,7 +194,9 @@ function SuiteTheater({
     <div className="suite-theater">
       <div className="stheater-head">
         <div className="stheater-id">
-          <div className="stheater-title">{suiteName}</div>
+          <div className="stheater-title" title={suiteName}>
+            {suiteName.startsWith('Composite —') ? 'Composite campaign' : suiteName}
+          </div>
           <span className="hint">
             {hostOf(target) ?? target} · {total} steps
           </span>
@@ -432,16 +434,22 @@ export function RunTheaterPage() {
   if (params.get('mode') === 'synthetic') {
     return (
       <>
-        <PageHead
-          title="Run Theater"
-          sub="Bounded synthetic network campaigns · experimental evidence"
-        />
-        <p>
-          <Link to="/theater">HTTP campaigns</Link> ·{' '}
-          <Link to="/api/reports/compliance" target="_blank">
-            Aggregate report
-          </Link>
-        </p>
+        <header className="run-theater-toolbar">
+          <h1
+            className="page-title"
+            title="Bounded synthetic network campaigns · experimental evidence"
+          >
+            Run Theater
+          </h1>
+          <nav aria-label="Campaign tools">
+            <Link className="btn btn-sm btn-ghost" to="/theater">
+              HTTP campaigns
+            </Link>
+            <Link className="btn btn-sm btn-ghost" to="/api/reports/compliance" target="_blank">
+              Aggregate report
+            </Link>
+          </nav>
+        </header>
         <BenchCard readOnly />
       </>
     );
@@ -449,28 +457,38 @@ export function RunTheaterPage() {
 
   return (
     <>
-      <PageHead
-        title="Run Theater"
-        sub="Follow offered load, generator outcomes and probe health."
-      />
-      <p>
-        <Link to="/theater?mode=synthetic">Synthetic bench</Link>
-      </p>
-      {grafanaTarget && (
-        <GrafanaLink
-          plane="run"
-          label="Open this run in Grafana"
-          target={hostOf(grafanaTarget) ?? grafanaTarget}
-        />
-      )}
-      {grafanaRevision && (
-        <GrafanaLink
-          plane="drs"
-          label="Open this DRS campaign in Grafana"
-          campaignId={grafanaCampaign?.id}
-          revisionId={grafanaRevision.id}
-        />
-      )}
+      <header className="run-theater-toolbar">
+        <h1
+          className="page-title"
+          title="Follow offered load, generator outcomes and monitored checks."
+        >
+          Run Theater
+        </h1>
+        <nav aria-label="Campaign tools">
+          <Link
+            className="btn btn-sm btn-ghost"
+            to="/theater?mode=synthetic"
+            title="Open bounded synthetic network campaigns"
+          >
+            Synthetic bench
+          </Link>
+          {grafanaTarget && (
+            <GrafanaLink
+              plane="run"
+              label="Grafana"
+              target={hostOf(grafanaTarget) ?? grafanaTarget}
+            />
+          )}
+          {grafanaRevision && (
+            <GrafanaLink
+              plane="drs"
+              label="DRS"
+              campaignId={grafanaCampaign?.id}
+              revisionId={grafanaRevision.id}
+            />
+          )}
+        </nav>
+      </header>
       {!hasSuite && standalone.length === 0 && finishedCampaign ? (
         <div className="card run-complete-card">
           <div className="run-complete-head">

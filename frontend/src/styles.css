@@ -4295,6 +4295,7 @@ table.remediations td {
 
 /* ── Suite theater: the whole multi-step assessment as one live surface ── */
 .suite-theater-card {
+  padding: 14px 18px;
   overflow: hidden;
 }
 .suite-theater {
@@ -4304,21 +4305,28 @@ table.remediations td {
 }
 .stheater-head {
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
+.stheater-id {
+  flex: 1;
+  min-width: 0;
+}
 .stheater-title {
-  font-size: 1.2rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+  font-size: 1rem;
   font-weight: 780;
   letter-spacing: -0.015em;
-  text-wrap: balance;
 }
 .stheater-progress-wrap {
   margin-left: auto;
-  min-width: 220px;
-  flex: 1;
-  max-width: 360px;
+  min-width: 160px;
+  flex: 0 1 220px;
+  max-width: 220px;
 }
 .stheater-progress-label {
   display: flex;
@@ -7360,4 +7368,37 @@ table.remediations td {
 }
 .campaign-workspace .tpl-created {
   display: none;
+}
+
+/* Keep campaign controls together so charts start near the top of the page. */
+.run-theater-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.run-theater-toolbar .page-title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+.run-theater-toolbar nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.run-theater-toolbar .page-actions {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .stheater-id {
+    flex-basis: 100%;
+  }
+  .stheater-progress-wrap {
+    max-width: none;
+    flex: 1;
+  }
 }
