@@ -158,7 +158,7 @@ function runChart(
     ...runWindowMs(run?.generator.startedAt, run?.generator.finishedAt),
   });
   const grafanaNote = gl
-    ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (offered vs origin rps, absorption, availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
+    ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (generator outcomes and probe availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
     : '';
   return evidenceCharts(run, connections) + grafanaNote;
 }

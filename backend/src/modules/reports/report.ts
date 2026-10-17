@@ -226,8 +226,9 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
 
   // Latency percentiles (ms), single hue.
   const latMax = Math.max(g.latencyMs.p99, run.probe.latencyMs.p99, 1) * 1.1;
-  const genLat =
-    g.latencySampleCount === 0
+  const genLat = slow
+    ? '<p class="muted">HTTP request latency is not applicable to connection holds.</p>'
+    : g.latencySampleCount === 0
       ? '<p class="muted">Generator latency unknown — no finalized latency samples.</p>'
       : hbarsSvg(
           [
@@ -237,14 +238,29 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
           ],
           { max: latMax },
         );
-  const probeLat = hbarsSvg(
-    [
-      { label: 'p50', value: run.probe.latencyMs.p50, display: `${run.probe.latencyMs.p50} ms` },
-      { label: 'p95', value: run.probe.latencyMs.p95, display: `${run.probe.latencyMs.p95} ms` },
-      { label: 'p99', value: run.probe.latencyMs.p99, display: `${run.probe.latencyMs.p99} ms` },
-    ],
-    { max: latMax, color: REPORT_COLORS.good },
-  );
+  const probeLat =
+    run.probe.samples === 0
+      ? '<p class="muted">Probe latency unknown — no completed probe observations.</p>'
+      : hbarsSvg(
+          [
+            {
+              label: 'p50',
+              value: run.probe.latencyMs.p50,
+              display: `${run.probe.latencyMs.p50} ms`,
+            },
+            {
+              label: 'p95',
+              value: run.probe.latencyMs.p95,
+              display: `${run.probe.latencyMs.p95} ms`,
+            },
+            {
+              label: 'p99',
+              value: run.probe.latencyMs.p99,
+              display: `${run.probe.latencyMs.p99} ms`,
+            },
+          ],
+          { max: latMax, color: REPORT_COLORS.good },
+        );
 
   const ttRow = (label: string, v: number | undefined, unit: string): string =>
     v != null ? `<tr><th>${label}</th><td>${v}${unit}</td></tr>` : '';

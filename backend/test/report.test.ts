@@ -415,6 +415,7 @@ it('keeps missing probe evidence unknown and distinguishes a mean rate from an i
   observed.probe.samples = 0;
   const html = renderCampaignReportHtml(campaign(), observed);
   expect(html).toContain('Not measured');
+  expect(html).toContain('Probe latency unknown');
   expect(html).toContain('verdict <b>inconclusive');
   expect(html).toContain('maximum recorded mean (not instantaneous peak)');
   expect(html).not.toContain('Achieved peak');
@@ -428,4 +429,5 @@ it('describes a slow-header run in connection units throughout its summary', () 
   expect(html).toContain('Connections opened');
   expect(html).not.toContain('Under a bounded HTTP load configured');
   expect(html).not.toContain('Mean offered request rate');
+  expect(html).toContain('HTTP request latency is not applicable');
 });

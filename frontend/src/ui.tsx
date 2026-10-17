@@ -1379,7 +1379,7 @@ export function RunDetails({ run }: { run: CampaignRun }) {
             </Metric>
           </>
         )}
-        <Metric label="Probe 5xx">{run.probe.errorRate5xx}%</Metric>
+        <Metric label="Probe 5xx">{run.probe.samples ? `${run.probe.errorRate5xx}%` : '—'}</Metric>
         <Metric label="Probe availability">
           {run.probe.available}/{run.probe.samples}
         </Metric>

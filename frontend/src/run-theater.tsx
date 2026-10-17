@@ -451,7 +451,7 @@ export function RunTheaterPage() {
     <>
       <PageHead
         title="Run Theater"
-        sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
+        sub="Follow offered load, generator outcomes and probe health."
       />
       <p>
         <Link to="/theater?mode=synthetic">Synthetic bench</Link>
