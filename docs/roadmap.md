@@ -72,3 +72,5 @@ The owner-directed restoration is deployed as build 468 on `codex/main-classic-t
 ### Correct restoration target: historical ZeroBS templates
 
 Restore the existing `legacy` catalogue profile rather than only the classic main navigation. The code already contains all 43 historical curated definitions; identity and steps match `d98db08`. Preserve the currently verified application, account policy and three Pods. Only the catalogue selection changes; do not reimplement attack mechanisms, increase limits or present the separate Fleet GET alternative as the original multi-step sequence.
+
+Historical catalogue activation is verified delivered on the unchanged build 468: `legacy` template workflow, persisted sole administrator and original three Pods, with fresh recovery and preservation checks. The published branch is `codex/zerobs-classic-three-pods`. See [activation receipt](zerobs-catalogue-deployment-checkpoint.json). No production campaign or new generator mechanism was introduced by this delivery.
