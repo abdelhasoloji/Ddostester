@@ -1,0 +1,56 @@
+{
+  "scenario": "udp_memcached_reflection",
+  "generator": {
+    "sent": 480,
+    "profile": "memcached"
+  },
+  "generators": [
+    {
+      "profile": "memcached",
+      "shape": "constant",
+      "factor": 100,
+      "packetFactor": 10,
+      "sent": 480
+    }
+  ],
+  "perProfile": {
+    "memcached": {
+      "requests": 480,
+      "inputBytes": 47040,
+      "outputPackets": 4800,
+      "outputBytes": 23520000
+    }
+  },
+  "reflector": {
+    "requests": 480,
+    "bap": 500,
+    "packetAmplification": 10
+  },
+  "target": {
+    "packets": 780,
+    "avgPps": 121.36,
+    "avgBps": 4757429.59
+  },
+  "scrubber": null,
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "udp-amplification",
+    "scenario": "udp_memcached_reflection",
+    "labTarget": "lab-target.internal",
+    "profiles": ["memcached"],
+    "amplificationFactor": 500,
+    "packetAmplification": 10,
+    "requests": 480,
+    "target": {
+      "packets": 780,
+      "avgPps": 121.36,
+      "avgBps": 4757429.59
+    },
+    "mitigation": null,
+    "outcome": "UNMITIGATED_BASELINE",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:43:00.477Z"
+  }
+}

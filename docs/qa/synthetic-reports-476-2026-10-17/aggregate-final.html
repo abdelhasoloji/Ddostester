@@ -1,0 +1,137 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resilience assessment — WEDOS ShieldTest</title><style>
+ :root{--brand:#003484;--ink:#1a1d21;--muted:#6b7280;--surface:#fff;--surface-2:#f6f8fb;--border:#e4e8ef;
+  --good:#0f8a5f;--good-bg:#e8f6f0;--warn:#b8860b;--warn-bg:#fdf6e3;--crit:#c23b34;--crit-bg:#fdeceb;--neutral:#6b7280;--neutral-bg:#f0f2f5;}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;color:var(--ink);background:#eef1f5}
+ .page{max-width:920px;margin:0 auto;padding:0 1.5rem 3rem}
+ .cover{background:linear-gradient(120deg,#003484,#0a4aa0);color:#fff;padding:1.4rem 1.5rem;margin:0 -1.5rem 1.5rem;border-bottom:4px solid #f5a623}
+ .cover .top{display:flex;align-items:center;gap:.6rem}
+ .cover h1{font-size:1.35rem;margin:.1rem 0 0;font-weight:800;letter-spacing:.2px}
+ .cover .sub{opacity:.9;font-size:.9rem;margin-top:.3rem}
+ .cover .wm{font-weight:800}
+ .cover .conf{display:inline-block;margin-top:.6rem;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.16);padding:.15rem .5rem;border-radius:4px}
+ h2{color:var(--brand);font-size:1.05rem;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--border)}
+ h3{font-size:.95rem;margin:1rem 0 .4rem}
+ p{margin:.5rem 0}
+ .muted{color:var(--muted)}
+ .lead{font-size:1rem;line-height:1.6;background:var(--surface-2);border-left:3px solid var(--brand);padding:.8rem 1rem;border-radius:0 8px 8px 0}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0;background:var(--surface)}
+ th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top}
+ thead th,table.kvs th{background:var(--surface-2);font-weight:600}
+ td.note{color:#444;font-size:.85rem;max-width:280px}
+ .grid{display:grid;gap:1rem}
+ .cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:.8rem 0}
+ .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+ .card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+ .card .v{font-size:1.5rem;font-weight:800;color:var(--ink);margin-top:.15rem}
+ .card .v.sm{font-size:1.05rem}
+ .scorecard{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+ .scorecard .pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.2rem}
+ .figure{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;margin:.6rem 0}
+ .figure .cap{font-size:.8rem;color:var(--muted);margin-bottom:.4rem}
+ .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+ .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.8rem;font-weight:700;padding:.2rem .6rem;border-radius:999px}
+ .p-good{color:var(--good);background:var(--good-bg)} .p-warn{color:var(--warn);background:var(--warn-bg)}
+ .p-crit{color:var(--crit);background:var(--crit-bg)} .p-neutral{color:var(--neutral);background:var(--neutral-bg)}
+ .callout{border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;font-size:.9rem;border:1px solid}
+ .callout.kill{border-color:#e8b4b0;background:var(--crit-bg);color:#8a221c;font-weight:600}
+ .callout.info{border-color:var(--border);background:var(--surface-2);color:#444}
+ .callout.warn{border-color:#e6d59a;background:var(--warn-bg);color:#7a5c07}
+ .chart-empty{color:var(--muted);font-size:.86rem;padding:1rem;text-align:center;background:var(--surface-2);border-radius:8px}
+ .r-low,.v-held{color:var(--good);font-weight:700}.r-med,.v-partial{color:var(--warn);font-weight:700}
+ .r-crit,.v-fail{color:var(--crit);font-weight:700}.v-aborted{color:var(--muted);font-weight:700}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+ .print-foot{display:none}
+ @page{size:A4;margin:16mm 14mm 20mm}
+ @media print{
+  .print-btn{display:none} body{background:#fff;font-size:10.5pt} .page{max-width:none;padding:0}
+  .cover{margin:0 0 1rem;break-after:avoid} .card,.scorecard,.figure{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{break-before:page;padding-top:.2rem} h2:first-of-type{break-before:auto}
+  h3{break-after:avoid} table,.figure,.scorecard,.card,tr,.callout{break-inside:avoid}
+  thead{display:table-header-group} a{color:inherit;text-decoration:none}
+  .print-foot{display:block;position:fixed;bottom:6mm;left:0;right:0;text-align:center;font-size:8pt;color:#8a8f99}
+ }
+ @media(max-width:640px){.two-col{grid-template-columns:1fr}.scorecard{grid-template-columns:1fr;text-align:center}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button><div class="page"><div class="cover"><div class="top"><svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="wl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#wl)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wm">WEDOS ShieldTest</span></div>
+  <h1>Resilience assessment</h1>
+  <div class="sub">Period origin → now · generated 2026-10-17 12:43 UTC</div>
+  <span class="conf">Confidential — WEDOS internal</span></div><p class="lead">No HTTP assessments were recorded in <b>origin → now</b>. Network-bench evidence is summarized separately.</p><p class="lead">Synthetic network bench: <b>12</b> retained laboratory observations; <b>3</b> state-table saturation outcomes; <b>9</b> unmitigated baselines. These observations do not establish a measured DRS score or successful protection.</p><h2>At a glance</h2>
+<div class="scorecard">
+  <div><p>HTTP WRS: not evaluated</p>
+    <div style="text-align:center;font-size:.75rem;color:#6b7280">HTTP average across 0 runs</div></div>
+  <div>
+    <div class="pills"><span class="pill p-neutral">0 Critical</span> <span class="pill p-neutral">0 Medium</span> <span class="pill p-good">0 Low</span></div>
+    <div class="grid cards" style="margin-top:.7rem">
+      <div class="card"><div class="k">Runs assessed</div><div class="v">0</div></div>
+      <div class="card"><div class="k">Minimum WRS</div><div class="v">—</div></div>
+      <div class="card"><div class="k">Below WRS 70</div><div class="v">0</div></div>
+      <div class="card"><div class="k">Inconclusive (not valid)</div><div class="v">0</div></div>
+      <div class="card"><div class="k">Degraded measurements</div><div class="v">0</div></div>
+      <div class="card"><div class="k">Targets</div><div class="v">0</div></div>
+    </div>
+    <div style="margin-top:.5rem"><span class="muted" style="font-size:.8rem">WRS trend </span><span class="muted">—</span></div>
+  </div>
+</div><h2>Scope</h2>
+<table class="kvs">
+ <tr><th>Runs assessed</th><td>0</td></tr>
+ <tr><th>Targets</th><td>—</td></tr>
+ <tr><th>Load engines</th><td>—</td></tr>
+ <tr><th>HTTP method</th><td>Bounded HTTP (GET/POST), allowlisted, capped ≤ 2000 rps / 500 conc / 900 s</td></tr>
+ <tr><th>Network method</th><td>Bounded synthetic UDP shapes and real TCP connection pressure on the isolated lab; no HTTP WRS applies</td></tr>
+ <tr><th>DRS note</th><td>DRS 3.00.00 is evaluated only from frozen independent evidence; no DRS score is inferred from WRS or reference-level labels</td></tr>
+</table><h2>Score &amp; risk distribution</h2>
+<div class="two-col">
+  <div class="figure"><div class="cap">Runs by WRS grade</div><div class="chart-empty">No runs in the period.</div></div>
+  <div class="figure"><div class="cap">Runs by RiskLevel</div><div class="chart-empty">No runs in the period.</div></div>
+</div><h2>Per-scenario results (Layer 7, bounded)</h2>
+<table>
+ <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Load rps (cfg&rarr;eff)</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr></thead>
+ <tbody><tr><td colspan="8" class="muted">No runs in the period.</td></tr></tbody>
+</table>
+
+<div class="callout info"><strong>Volumetric / L3-L4 — class C, network bench.</strong> UDP/TCP/ICMP
+floods, amplification, fragmentation and source spoofing are never run by this
+control plane. The UDP amplification and no-spoof TCP state-table shapes are
+measured on the isolated network bench; spoofing/GRE/fragmentation are covered by
+attestation or ingestion — see <em>drs-validation-policy.md</em> and the coverage
+matrix below.</div>
+
+<h2>Weaknesses &amp; recommended remediations</h2><p class="muted">No additional HTTP remediations were derived. This does not establish that targets held cleanly; inspect the per-scenario verdicts and network-bench evidence.</p>
+
+<h2>Network bench (class C) — DRS Volumetric coverage</h2>
+<div class="grid cards" style="margin-bottom:.7rem">
+  <div class="card"><div class="k">Vectors</div><div class="v">18</div></div>
+  <div class="card"><div class="k">Measured (lab)</div><div class="v">12</div></div>
+  <div class="card"><div class="k">Covered (any method)</div><div class="v">12</div></div>
+  <div class="card"><div class="k">Never emitted</div><div class="v">6</div></div>
+</div>
+<table>
+ <thead><tr><th>Vector</th><th>Proto</th><th>DRS</th><th>Bench</th><th>Coverage method</th><th>Latest evidence</th></tr></thead>
+ <tbody><tr><td><code>udp_dns_reflection</code></td><td>UDP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 40×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>tcp_synflood</code></td><td>TCP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>STATE_TABLE_SATURATED</b> Bounded synthetic run (no-spoof) — state-table saturation 77.01% at peak 200 conns. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>udp_maxpackets</code></td><td>UDP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 10×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>tcp_maxpackets</code></td><td>TCP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>STATE_TABLE_SATURATED</b> Bounded synthetic run (no-spoof) — state-table saturation 58.62% at peak 300 conns. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>ip_spoofing</code></td><td>IP</td><td>4</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>Source-IP spoofing is NEVER permitted here — the defining safety property of this bench.</td></tr><tr><td><code>udp_fragmentation</code></td><td>UDP</td><td>4</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>Fragment crafting — outside the synthetic model (no raw packet crafting).</td></tr><tr><td><code>tcp_fragmentation</code></td><td>TCP</td><td>4</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>TCP + fragment crafting — out of model.</td></tr><tr><td><code>udp_multivector</code></td><td>UDP</td><td>4</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 168.27×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>tcp_multivector</code></td><td>TCP</td><td>4</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>TCP multi-vector — out of model.</td></tr><tr><td><code>multiproto_multivector</code></td><td>Multi</td><td>5</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>UDP+TCP+GRE mix — includes non-UDP, out-of-model vectors.</td></tr><tr><td><code>gre_packets</code></td><td>GRE</td><td>5</td><td><span class="pill p-neutral">out of model</span></td><td><span class="pill p-crit">not covered</span></td><td>GRE protocol packets — not a UDP amplification shape.</td></tr><tr><td><code>udp_ntp_reflection</code></td><td>UDP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 300×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>udp_ssdp_reflection</code></td><td>UDP</td><td>3</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 30×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>udp_cldap_reflection</code></td><td>UDP</td><td>4</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 50×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>udp_memcached_reflection</code></td><td>UDP</td><td>4</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 500×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>quic_init_pressure</code></td><td>UDP</td><td>4</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 1×. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>tcp_conn_drain</code></td><td>TCP</td><td>4</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>STATE_TABLE_SATURATED</b> Bounded synthetic run (no-spoof) — state-table saturation 57.26% at peak 200 conns. <span class="muted">· isolated-drs5-476</span></td></tr><tr><td><code>pulsewave_l34</code></td><td>UDP</td><td>5</td><td><span class="pill p-good">reproducible</span></td><td><span class="pill p-good">MEASURED LAB</span></td><td><b>UNMITIGATED_BASELINE</b> Bounded synthetic run — amplification 132.41×. <span class="muted">· isolated-drs5-476</span></td></tr></tbody>
+</table>
+<p class="muted" style="font-size:.8rem">Class C (network bench). Measured vectors are bounded, synthetic, no-spoof lab
+runs; the rest are covered by attestation, ingestion from the network team's bench, or modelling. Source-IP spoofing and
+raw floods are never emitted by construction.</p>
+
+<h2>Coverage by target</h2>
+<table>
+ <thead><tr><th>Target</th><th>Runs</th><th>Average WRS</th></tr></thead>
+ <tbody><tr><td colspan="3">—</td></tr></tbody>
+</table>
+
+<h2>Breakdown by status</h2>
+<table class="kvs"><tr><th>—</th><td>0</td></tr></table>
+
+<h2>Glossary</h2>
+<table class="kvs">
+ <tr><th>WRS / DRS</th><td>WRS is a separate 0–100 diagnostic. DRS 3.00.00 uses per-level vector ratios and independently archived evidence; missing scenarios produce partial or indeterminate coverage. No certification is issued.</td></tr>
+ <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
+ <tr><th>Mitigation</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> auto-killed (target down ≥30 s) · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
+ <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.</td></tr>
+ <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; effective rate the target sustained; a large gap means the protection rate-limited or tarpitted the flood. Volumetric PPS is out of scope.</td></tr>
+</table>
+
+<p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. HTTP observations and synthetic network-bench evidence are separate scopes; missing evidence is not a success. WEDOS internal use.</p><div class="print-foot">Confidential — WEDOS ShieldTest · internal use only · must not be disclosed to third parties</div></div></body></html>

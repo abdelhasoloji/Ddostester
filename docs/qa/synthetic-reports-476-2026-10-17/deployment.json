@@ -1,0 +1,67 @@
+{
+  "source": "b862610d5d0dc1985187302b73eaf643d900d913",
+  "build": 476,
+  "verifiedAt": "2026-10-17T12:52:00Z",
+  "release": "/home/shieldtest/ddostester-releases/release-b862610.DXm0AO",
+  "ciRun": 39033706255,
+  "ciJobs": {
+    "backend": "success",
+    "frontend": "success",
+    "quality": "success",
+    "postgres": "success"
+  },
+  "nativeVerification": "passed",
+  "httpsMtlsHealth": "passed",
+  "ready": true,
+  "preservation": {
+    "checkedAt": "2026-10-17T12:51:52.466Z",
+    "preservation": {
+      "users": {
+        "count": 11,
+        "unchanged": true
+      },
+      "campaigns": {
+        "count": 289,
+        "unchanged": true
+      },
+      "settings": {
+        "count": 1,
+        "unchanged": true
+      },
+      "fleet": {
+        "count": 3,
+        "unchanged": true
+      }
+    },
+    "auditPreserved": true,
+    "running": 0,
+    "soleAdminPreserved": true,
+    "migrations": [9, 10]
+  },
+  "authenticatedRecovery": {
+    "compatibility": {
+      "classicApplicationReady": true,
+      "singleOwner": true,
+      "users": 11,
+      "campaigns": 289,
+      "fleet": 3,
+      "currentDatabaseUnchanged": true
+    },
+    "checkedAt": "2026-10-17T12:51:06.543Z",
+    "authenticatedRecovery": true,
+    "atomicRestore": true,
+    "preserved": {
+      "audit": true,
+      "infrastructure": true
+    },
+    "archiveSha256": "d080a60b7d51969555cc21c8f42a3524ce935fdcadbad29c4ed234e4adb6066f"
+  },
+  "onlineAgents": 3,
+  "authenticationGuards": {
+    "campaigns": 401,
+    "fleetDevices": 401,
+    "benchReport": 401
+  },
+  "productionCampaignLaunched": false,
+  "visualAcceptance": "isolated lab candidate API/UI, not production browser; see README.md"
+}

@@ -1,0 +1,566 @@
+Browser tab: 28, Title: "WEDOS ShieldTest — Control Plane", URL: "http://127.0.0.1:18097/theater?mode=synthetic".
+0 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18097/theater?mode=synthetic
+	1 container root
+		2 container
+			3 image WEDOS
+			4 text SHIELDTEST
+			5 button (collapsed) Description: Notifications, Secondary Actions: Expand
+			6 link Description: Command Center, Value: 127.0.0.1:18097/
+			7 link Description: Protected zones, Value: 127.0.0.1:18097/zones
+			8 link Description: Campaigns, Value: 127.0.0.1:18097/campaigns
+			9 link Description: Fleet, Value: 127.0.0.1:18097/fleet
+			10 link Description: Run Theater, Value: 127.0.0.1:18097/theater
+			11 link Description: Results, Value: 127.0.0.1:18097/reports
+			12 link Description: Assistant, Value: 127.0.0.1:18097/assistant
+			13 link Description: Settings, Value: 127.0.0.1:18097/settings
+			14 container Theme
+				15 checkbox Description: Theme: Light, Value: 0
+				16 checkbox Description: Theme: System, Value: 1
+				17 checkbox Description: Theme: Dark, Value: 0
+			18 link Description: Dev mode · operator —, Help: My account, Value: 127.0.0.1:18097/account
+			19 text v0.1.0+476 · b862610d5d0dc1985187302b73eaf643d900d913
+		20 container
+			21 heading Run Theater, Value: 1
+				22 text Run Theater
+			23 text Bounded synthetic network campaigns · experimental evidence
+			24 link Description: HTTP campaigns, Value: 127.0.0.1:18097/theater
+			25 text  ·
+			26 link Description: Aggregate report, Value: 127.0.0.1:18097/api/reports/compliance
+			27 heading Network bench — advanced · class C (CISO), Value: 2
+				28 text Network bench — advanced · class C (CISO)
+			29 text The  DRS Volumetric  matrix (report P25-20300). Launch a bounded synthetic realization of a UDP amplification/rate vector on the isolated lab and read its verdict here. The control plane  records and governs  the run — it never emits the traffic. An isolated external runner claims the request, executes it off the control plane, and posts back a read-only class-C verdict. Every request and verdict is audited. Reproducible vector
+			30 pop up button (collapsed, settable) Reproducible vector, Value: udp_dns_reflection — DRS 3, ID: bench-scenario, Secondary Actions: Expand
+				31 menu
+					32 (selected) udp_dns_reflection — DRS 3
+					33 tcp_synflood — DRS 3
+					34 udp_maxpackets — DRS 3
+					35 tcp_maxpackets — DRS 3
+					36 udp_multivector — DRS 4
+					37 udp_ntp_reflection — DRS 3
+					38 udp_ssdp_reflection — DRS 3
+					39 udp_cldap_reflection — DRS 4
+					40 udp_memcached_reflection — DRS 4
+					41 quic_init_pressure — DRS 4
+					42 tcp_conn_drain — DRS 4
+					43 pulsewave_l34 — DRS 5
+			44 text Synthetic DNS-shape amplification (no real resolver, no spoofing).
+			45 button ▶ Request run
+			330 table
+				331 row
+					332 cell
+						333 text SCENARIO
+					334 cell
+						335 text STATUS
+					336 cell
+						337 text OUTCOME
+					338 cell
+						339 text AMPLIFICATION
+					340 cell
+						341 text COLLATERAL
+					342 cell
+						343 text RECEIVED PACKETS
+					344 cell
+						345 text RECEIVED MBIT/S
+					346 cell
+						347 text REQUESTED
+				442 row
+					443 cell
+						444 text pulsewave_l34
+					445 cell
+						446 text COMPLETED
+					447 cell
+						448 text UNMITIGATED BASELINE
+					449 cell
+						450 text 132.41×
+					451 cell
+						452 text —
+					453 cell
+						454 text 1452
+					455 cell
+						456 text 5.454
+					457 cell
+						458 text 17/10/2026 14:43:07  ·
+						459 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/ac345b28-0df8-4478-8f8b-2dee309c6885/report
+				460 row
+					461 cell
+						462 text udp_multivector
+					463 cell
+						464 text COMPLETED
+					465 cell
+						466 text UNMITIGATED BASELINE
+					467 cell
+						468 text 168.27×
+					469 cell
+						470 text —
+					471 cell
+						472 text 1809
+					473 cell
+						474 text 9.501
+					475 cell
+						476 text 17/10/2026 14:43:00  ·
+						477 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/bff1a3a1-6f63-4d21-a88b-b65585f40f4b/report
+				478 row
+					479 cell
+						480 text udp_memcached_reflection
+					481 cell
+						482 text COMPLETED
+					483 cell
+						484 text UNMITIGATED BASELINE
+					485 cell
+						486 text 500×
+					487 cell
+						488 text —
+					489 cell
+						490 text 780
+					491 cell
+						492 text 4.757
+					493 cell
+						494 text 17/10/2026 14:42:54  ·
+						495 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/209c29a8-3a1b-4e6e-a5f5-667ed58e475e/report
+				496 row
+					497 cell
+						498 text tcp_conn_drain
+					499 cell
+						500 text COMPLETED
+					501 cell
+						502 text STATE TABLE SATURATED
+					503 cell
+						504 text 57.26% sat
+					505 cell
+						506 text —
+					507 cell
+						508 text —
+					509 cell
+						510 text —
+					511 cell
+						512 text 17/10/2026 14:42:45  ·
+						513 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/85b2bda5-f189-476a-90db-afd28ea318ee/report
+				514 row
+					515 cell
+						516 text quic_init_pressure
+					517 cell
+						518 text COMPLETED
+					519 cell
+						520 text UNMITIGATED BASELINE
+					521 cell
+						522 text 1×
+					523 cell
+						524 text —
+					525 cell
+						526 text 1200
+					527 cell
+						528 text 0.139
+					529 cell
+						530 text 17/10/2026 14:42:39  ·
+						531 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/5aadbee8-61e7-4b14-98fe-98e1e7e36208/report
+				532 row
+					533 cell
+						534 text udp_cldap_reflection
+					535 cell
+						536 text COMPLETED
+					537 cell
+						538 text UNMITIGATED BASELINE
+					539 cell
+						540 text 50×
+					541 cell
+						542 text —
+					543 cell
+						544 text 720
+					545 cell
+						546 text 4.128
+					547 cell
+						548 text 17/10/2026 14:42:32  ·
+						549 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/218d6620-0ed6-448e-94fe-688121a95a15/report
+				550 row
+					551 cell
+						552 text tcp_maxpackets
+					553 cell
+						554 text COMPLETED
+					555 cell
+						556 text STATE TABLE SATURATED
+					557 cell
+						558 text 58.62% sat
+					559 cell
+						560 text —
+					561 cell
+						562 text —
+					563 cell
+						564 text —
+					565 cell
+						566 text 17/10/2026 14:42:26  ·
+						567 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/e1f6e898-b78d-4b01-a31e-2b1ac1b04ffd/report
+				366 row
+					367 cell
+						368 text udp_ssdp_reflection
+					369 cell
+						370 text COMPLETED
+					371 cell
+						372 text UNMITIGATED BASELINE
+					373 cell
+						374 text 30×
+					375 cell
+						376 text —
+					377 cell
+						378 text 840
+					379 cell
+						380 text 2.858
+					381 cell
+						382 text 17/10/2026 14:42:19  ·
+						383 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/7f8048b8-13f4-40ae-b441-6e875000d554/report
+				384 row
+					385 cell
+						386 text udp_maxpackets
+					387 cell
+						388 text COMPLETED
+					389 cell
+						390 text UNMITIGATED BASELINE
+					391 cell
+						392 text 10×
+					393 cell
+						394 text —
+					395 cell
+						396 text 6660
+					397 cell
+						398 text 0.780
+					399 cell
+						400 text 17/10/2026 14:42:13  ·
+						401 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/3a6a7e8a-70b4-4338-ac67-76eb69ec7e37/report
+				402 row
+					403 cell
+						404 text tcp_synflood
+					405 cell
+						406 text COMPLETED
+					407 cell
+						408 text STATE TABLE SATURATED
+					409 cell
+						410 text 77.01% sat
+					411 cell
+						412 text —
+					413 cell
+						414 text —
+					415 cell
+						416 text —
+					417 cell
+						418 text 17/10/2026 14:42:07  ·
+						419 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/5bb59c62-dfc6-47cf-b648-99aa2e2e610f/report
+				420 row
+					421 cell
+						422 text udp_ntp_reflection
+					423 cell
+						424 text COMPLETED
+					425 cell
+						426 text UNMITIGATED BASELINE
+					427 cell
+						428 text 300×
+					429 cell
+						430 text —
+					431 cell
+						432 text 780
+					433 cell
+						434 text 4.420
+					435 cell
+						436 text 17/10/2026 14:42:00  ·
+						437 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/71efcd54-fcc9-4c04-bee9-ac3bb1e4403e/report
+				348 row
+					349 cell
+						350 text udp_dns_reflection
+					351 cell
+						352 text COMPLETED
+					353 cell
+						354 text UNMITIGATED BASELINE
+					355 cell
+						356 text 40×
+					357 cell
+						358 text —
+					359 cell
+						360 text 720
+					361 cell
+						362 text 3.215
+					363 cell
+						364 text 17/10/2026 14:41:48  ·
+						365 link Description: Report, Value: 127.0.0.1:18097/api/bench/runs/7b89a7ab-0a1b-4d9f-9719-4344b6516f85/report
+			47 heading DRS Volumetric coverage, Value: 3
+				48 text DRS Volumetric coverage
+			49 text 18  vectors 12 measured (lab) 12 covered (any method) 6 never emitted
+			50 table
+				51 row
+					52 cell
+						53 text VECTOR
+					54 cell
+						55 text PROTO
+					56 cell
+						57 text DRS
+					58 cell
+						59 text BENCH
+					60 cell
+						61 text COVERAGE
+					62 cell
+						63 text LATEST EVIDENCE
+				64 row
+					65 cell
+						66 text udp_dns_reflection
+					67 cell
+						68 text UDP
+					69 cell
+						70 text 3
+					71 cell
+						72 text REPRODUCIBLE
+					73 cell
+						74 text MEASURED LAB
+					75 cell
+						438 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 40×. ·  isolated-drs5-476
+				77 row
+					78 cell
+						79 text tcp_synflood
+					80 cell
+						81 text TCP
+					82 cell
+						83 text 3
+					84 cell
+						85 text REPRODUCIBLE
+					86 cell
+						87 text MEASURED LAB
+					88 cell
+						439 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 77.01% at peak 200 conns. ·  isolated-drs5-476
+				90 row
+					91 cell
+						92 text udp_maxpackets
+					93 cell
+						94 text UDP
+					95 cell
+						96 text 3
+					97 cell
+						98 text REPRODUCIBLE
+					99 cell
+						100 text MEASURED LAB
+					101 cell
+						440 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 10×. ·  isolated-drs5-476
+				103 row
+					104 cell
+						105 text tcp_maxpackets
+					106 cell
+						107 text TCP
+					108 cell
+						109 text 3
+					110 cell
+						111 text REPRODUCIBLE
+					112 cell
+						113 text MEASURED LAB
+					114 cell
+						568 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 58.62% at peak 300 conns. ·  isolated-drs5-476
+				116 row
+					117 cell
+						118 text ip_spoofing
+					119 cell
+						120 text IP
+					121 cell
+						122 text 4
+					123 cell
+						124 text OUT OF MODEL
+					125 cell
+						126 text not covered
+					127 cell
+						128 text Source-IP spoofing is NEVER permitted here — the defining safety property of this bench.
+				129 row
+					130 cell
+						131 text udp_fragmentation
+					132 cell
+						133 text UDP
+					134 cell
+						135 text 4
+					136 cell
+						137 text OUT OF MODEL
+					138 cell
+						139 text not covered
+					140 cell
+						141 text Fragment crafting — outside the synthetic model (no raw packet crafting).
+				142 row
+					143 cell
+						144 text tcp_fragmentation
+					145 cell
+						146 text TCP
+					147 cell
+						148 text 4
+					149 cell
+						150 text OUT OF MODEL
+					151 cell
+						152 text not covered
+					153 cell
+						154 text TCP + fragment crafting — out of model.
+				155 row
+					156 cell
+						157 text udp_multivector
+					158 cell
+						159 text UDP
+					160 cell
+						161 text 4
+					162 cell
+						163 text REPRODUCIBLE
+					164 cell
+						165 text MEASURED LAB
+					166 cell
+						569 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 168.27×. ·  isolated-drs5-476
+				168 row
+					169 cell
+						170 text tcp_multivector
+					171 cell
+						172 text TCP
+					173 cell
+						174 text 4
+					175 cell
+						176 text OUT OF MODEL
+					177 cell
+						178 text not covered
+					179 cell
+						180 text TCP multi-vector — out of model.
+				181 row
+					182 cell
+						183 text multiproto_multivector
+					184 cell
+						185 text Multi
+					186 cell
+						187 text 5
+					188 cell
+						189 text OUT OF MODEL
+					190 cell
+						191 text not covered
+					192 cell
+						193 text UDP+TCP+GRE mix — includes non-UDP, out-of-model vectors.
+				194 row
+					195 cell
+						196 text gre_packets
+					197 cell
+						198 text GRE
+					199 cell
+						200 text 5
+					201 cell
+						202 text OUT OF MODEL
+					203 cell
+						204 text not covered
+					205 cell
+						206 text GRE protocol packets — not a UDP amplification shape.
+				207 row
+					208 cell
+						209 text udp_ntp_reflection
+					210 cell
+						211 text UDP
+					212 cell
+						213 text 3
+					214 cell
+						215 text REPRODUCIBLE
+					216 cell
+						217 text MEASURED LAB
+					218 cell
+						441 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 300×. ·  isolated-drs5-476
+				220 row
+					221 cell
+						222 text udp_ssdp_reflection
+					223 cell
+						224 text UDP
+					225 cell
+						226 text 3
+					227 cell
+						228 text REPRODUCIBLE
+					229 cell
+						230 text MEASURED LAB
+					231 cell
+						570 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 30×. ·  isolated-drs5-476
+				233 row
+					234 cell
+						235 text udp_cldap_reflection
+					236 cell
+						237 text UDP
+					238 cell
+						239 text 4
+					240 cell
+						241 text REPRODUCIBLE
+					242 cell
+						243 text MEASURED LAB
+					244 cell
+						571 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 50×. ·  isolated-drs5-476
+				246 row
+					247 cell
+						248 text udp_memcached_reflection
+					249 cell
+						250 text UDP
+					251 cell
+						252 text 4
+					253 cell
+						254 text REPRODUCIBLE
+					255 cell
+						256 text MEASURED LAB
+					257 cell
+						572 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 500×. ·  isolated-drs5-476
+				259 row
+					260 cell
+						261 text quic_init_pressure
+					262 cell
+						263 text UDP
+					264 cell
+						265 text 4
+					266 cell
+						267 text REPRODUCIBLE
+					268 cell
+						269 text MEASURED LAB
+					270 cell
+						573 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 1×. ·  isolated-drs5-476
+				272 row
+					273 cell
+						274 text tcp_conn_drain
+					275 cell
+						276 text TCP
+					277 cell
+						278 text 4
+					279 cell
+						280 text REPRODUCIBLE
+					281 cell
+						282 text MEASURED LAB
+					283 cell
+						574 text STATE_TABLE_SATURATED Bounded synthetic run (no-spoof) — state-table saturation 57.26% at peak 200 conns. ·  isolated-drs5-476
+				285 row
+					286 cell
+						287 text pulsewave_l34
+					288 cell
+						289 text UDP
+					290 cell
+						291 text 5
+					292 cell
+						293 text REPRODUCIBLE
+					294 cell
+						295 text MEASURED LAB
+					296 cell
+						575 text UNMITIGATED_BASELINE Bounded synthetic run — amplification 132.41×. ·  isolated-drs5-476
+			298 button + Record coverage evidence
+			299 button + Attestation checklist
+			300 button + Import external verdicts
+			301 text Mapped to DRS report  P25-20300  (Volumetric section). Out-of-model vectors (TCP/GRE stateful floods, IP spoofing, fragmentation) are shown for coverage but can never be dispatched — spoofing is never permitted here by construction. The report's Layer-7 vectors live in the control plane's playbooks. These verdicts are class C, read-only evidence — not the class-A/B DRS validations recorded via 
+			302 text /api/drs-validations
+			303 text .
+		304 container
+			305 image WEDOS AI Assistant mascot
+			306 text … WEDOS AI Assistant context-aware · governed
+			307 button Collapse the assistant
+			308 text The assistant is not configured on the server. Set 
+			309 text ASSISTANT_ENDPOINT
+			310 text  (and
+			311 text ASSISTANT_API_KEY
+			312 text ) — or 
+			313 text RUNPOD_API_KEY
+			314 text  +
+			315 text RUNPOD_POD_ID
+			316 text  for pod power control — on the API to enable it. qwen
+			317 checkbox ⤢ Float, Help: Detach the assistant into a floating window you can drag anywhere, Value: 0
+			318 container When on, Qwen proactively suggests next actions after platform changes (only while the pod is running).
+				319 checkbox (settable, integer) Description: Auto, Value: 1
+				320 text Auto
+			321 button (disabled) Suggest, Help: Power Qwen on to get suggestions
+			322 checkbox History, Value: 0
+			323 text Ask about platform state, resilience, or code security. The assistant sees your live context (authorized targets, recent campaigns, caps) and, with Auto on, proposes next actions after platform changes — a test, a target, tighter caps — that you complete right here, through governance (approval · HARD_CAPS · kill switch).
+			324 button (disabled) What are my authorized targets and current caps?, Help: Assistant unavailable
+			325 button (disabled) How did my most recent campaigns do (status + WRS)?, Help: Assistant unavailable
+			326 button (disabled) Prepare a conservative resilience test against my authorized staging target., Help: Assistant unavailable
+			327 button (disabled) What are the best practices to harden an HTTP endpoint against amplification?, Help: Assistant unavailable
+			328 button (disabled) Description: Joindre un fichier, Help: Joindre un fichier (texte extrait quand possible)
+			329 button (disabled) Send
+
+The focused UI element is 0 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18097/theater?mode=synthetic

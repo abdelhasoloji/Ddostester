@@ -1,0 +1,56 @@
+{
+  "scenario": "udp_cldap_reflection",
+  "generator": {
+    "sent": 720,
+    "profile": "cldap"
+  },
+  "generators": [
+    {
+      "profile": "cldap",
+      "shape": "constant",
+      "factor": 56,
+      "packetFactor": 1,
+      "sent": 720
+    }
+  ],
+  "perProfile": {
+    "cldap": {
+      "requests": 720,
+      "inputBytes": 66240,
+      "outputPackets": 720,
+      "outputBytes": 3312000
+    }
+  },
+  "reflector": {
+    "requests": 720,
+    "bap": 50,
+    "packetAmplification": 1
+  },
+  "target": {
+    "packets": 720,
+    "avgPps": 112.17,
+    "avgBps": 4127745.75
+  },
+  "scrubber": null,
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "udp-amplification",
+    "scenario": "udp_cldap_reflection",
+    "labTarget": "lab-target.internal",
+    "profiles": ["cldap"],
+    "amplificationFactor": 50,
+    "packetAmplification": 1,
+    "requests": 720,
+    "target": {
+      "packets": 720,
+      "avgPps": 112.17,
+      "avgBps": 4127745.75
+    },
+    "mitigation": null,
+    "outcome": "UNMITIGATED_BASELINE",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:42:39.210Z"
+  }
+}
