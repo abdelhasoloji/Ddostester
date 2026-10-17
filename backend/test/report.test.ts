@@ -314,7 +314,7 @@ describe('renderCampaignReportHtml — template applicability (requires → N/A)
     expect(html).toContain('Template applicability');
     expect(html).toContain('WAF / bot-management');
     expect(html).toContain('N/A');
-    expect(html).toContain('not resistance');
+    expect(html).toContain('does not prove resistance');
   });
 
   it('marks a required feature as applying when the target exhibits it', () => {
@@ -434,4 +434,75 @@ it('describes a slow-header run in connection units throughout its summary', () 
   expect(html).toContain('Connection closure');
   expect(html).not.toContain('Requests (success / fail)');
   expect(html).not.toContain('HTTP failures (4xx/5xx)');
+});
+
+it('uses the actual 0–100 WRS scale instead of saturating every bar at one', () => {
+  const observed = run();
+  observed.wrs = {
+    ...observed.wrs,
+    detection: 25,
+    mitigation: 50,
+    availability: 75,
+    collateral: 100,
+    wrs: 59.5,
+  };
+  const out = renderCampaignReportHtml(campaign(), observed);
+  expect(out).toContain('components (0–100)');
+  expect(out).toContain('width="107"');
+  expect(out).toContain('width="214"');
+  expect(out).toContain('>59.5<');
+});
+
+it('never attributes generator failures or matching fractions to proven protection', () => {
+  const observed = run();
+  observed.generator.totalRequests = 1000;
+  observed.generator.successful = 1;
+  observed.generator.failed = 999;
+  observed.generator.statusCounts = { '5xx': 999, '2xx': 1 };
+  observed.absorption = {
+    configuredRps: 300,
+    expectedRps: 300,
+    achievedRps: 250,
+    originRps: 0.25,
+    totalRequests: 1000,
+    offeredShortfall: 1 / 6,
+    tarpitRatio: 0,
+    rejectedRatio: 0.999,
+    absorbedRatio: 0.999,
+    absorbedPct: 99.9,
+  } as CampaignRun['absorption'];
+  const html = renderCampaignReportHtml(campaign(), observed);
+  expect(html).not.toContain("The target's edge handled the load");
+  expect(html).not.toContain('stayed available throughout');
+  expect(html).not.toContain('so this absorption is measured evidence');
+});
+
+it('records collection and renderer identity separately and keeps connection exports in their own units', () => {
+  const measured = run();
+  measured.runId = 'archived-id';
+  measured.generator.config = {
+    ...measured.generator.config,
+    slowloris: true,
+    execution: {
+      engine: 'builtin-http',
+      runtime: 'v22.23.2',
+      sourceRef: 'a'.repeat(40),
+      probeUrl: 'https://staging.example.com/health',
+      probeVantage: 'local',
+    },
+  };
+  const html = renderCampaignReportHtml(campaign(), measured);
+  expect(html).toContain('Evidence traceability');
+  expect(html).toContain('archived-id');
+  expect(html).toContain('Recorded collection source');
+  expect(html).toContain('Report renderer');
+  const [h, v] = runsSummaryCsv([measured])
+    .trim()
+    .split('\n')
+    .map((x) => x.split(','));
+  expect(v[h.indexOf('measurementUnit')]).toBe('connections');
+  expect(v[h.indexOf('actualRps')]).toBe('');
+  expect(v[h.indexOf('latencyP95Ms')]).toBe('');
+  expect(v[h.indexOf('requests')]).toBe('');
+  expect(v[h.indexOf('connectionsOpened')]).toBe(String(measured.generator.totalRequests));
 });

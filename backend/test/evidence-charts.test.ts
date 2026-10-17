@@ -10,7 +10,8 @@ const sample = (t: number, extra: Partial<RunSample> = {}): RunSample => ({
   availPct: 100,
   ...extra,
 });
-const run = (timeline: RunSample[]) => ({ timeline, probe: { samples: 4 } }) as CampaignRun;
+const run = (timeline: RunSample[]) =>
+  ({ timeline, probe: { samples: 4, available: 4 } }) as CampaignRun;
 describe('faithful report timelines', () => {
   it('does not reconstruct an external engine timeline from its final summary', () => {
     const html = evidenceCharts(run([sample(1), sample(20)]));
@@ -60,4 +61,31 @@ it('exports unknown timeline measurements as blank fields without erasing a meas
   expect(lines[1][5]).toBe('');
   expect(lines[2][1]).toBe('0');
   expect(lines[2][5]).toBe('100');
+});
+
+it('keeps an internal measurement gap instead of joining two observed segments', () => {
+  const html = evidenceCharts(
+    run([
+      sample(1, { generatorObserved: true, rps: 10 }),
+      sample(2, { generatorObserved: true, rps: 12 }),
+      sample(3, { generatorObserved: false }),
+      sample(4, { generatorObserved: true, rps: 8 }),
+      sample(5, { generatorObserved: true, rps: 9 }),
+    ]),
+  );
+  const firstFigure = html.split('</div></div>')[0];
+  expect((firstFigure.match(/stroke-linejoin="round"/g) ?? []).length).toBeGreaterThanOrEqual(2);
+});
+
+it('does not export a legacy placeholder availability when the run has no probe observations', async () => {
+  const { runTimelineCsv } = await import('../src/modules/reports/csv.js');
+  const missing = run([sample(1, { generatorObserved: false, successful: 0, probeP95: 0 })]);
+  missing.probe.samples = 0;
+  missing.probe.available = 0;
+  const [h, v] = runTimelineCsv(missing)
+    .trim()
+    .split('\n')
+    .map((s) => s.split(','));
+  for (const key of ['availPct', 'probe5xxPct', 'probeP95Ms', 'successful'])
+    expect(v[h.indexOf(key)]).toBe('');
 });

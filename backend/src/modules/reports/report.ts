@@ -1,4 +1,5 @@
 import { evidenceCharts } from './evidence-charts.js';
+import { reportIdentityHtml } from './identity.js';
 import type { Campaign, TargetRequirement } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { fleetCounterCoverage } from '../fleet/summary.js';
@@ -12,7 +13,11 @@ import { describeEdgeError } from '../posture/edge-error.js';
 import { scenarioMeanRps } from '../campaigns/calibration.js';
 import { fleetCpuContention, computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
-import { availabilityPct } from '../../util/run-metrics.js';
+import {
+  observedAvailability,
+  observedProbeP95,
+  baselineComparisonAvailable,
+} from './measurements.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
 import { gaugeSvg, hbarsSvg, scoreColor, REPORT_COLORS } from './charts.js';
 import { deriveRemediations, SEVERITY_PILL, type Remediation } from './remediations.js';
@@ -20,7 +25,7 @@ import { deriveRemediations, SEVERITY_PILL, type Remediation } from './remediati
 /** Renders the "Weaknesses & recommended remediations" block (empty → clean note). */
 export function remediationsHtml(items: Remediation[]): string {
   if (items.length === 0) {
-    return `<h2>Weaknesses &amp; remediations</h2><p class="muted">No weaknesses identified — the target held cleanly for this scenario.</p>`;
+    return `<h2>Weaknesses &amp; remediations</h2><p class="muted">No additional remediations were derived. This does not prove successful protection; inspect evidence coverage and the diagnostic verdict.</p>`;
   }
   const rows = items
     .map(
@@ -79,7 +84,7 @@ export function requiresApplicabilityHtml(campaign: Campaign, run: CampaignRun):
         state === true
           ? `${pill('applies', 'good')} target exhibits ${esc(label)}`
           : state === false
-            ? `${pill('N/A', 'warn')} target has no ${esc(label)} — a benign result here is not resistance`
+            ? `${pill('N/A', 'warn')} ${esc(label)} was not confirmed — a benign result here does not prove resistance`
             : `${pill('not recorded', 'neutral')} target posture for ${esc(label)} was not captured for this run`;
       return `<tr><th>${esc(label)}</th><td>${cell}</td></tr>`;
     })
@@ -89,7 +94,7 @@ export function requiresApplicabilityHtml(campaign: Campaign, run: CampaignRun):
     `<h3>Template applicability</h3><table class="kvs">${rows}</table>` +
     `<p class="muted">This line's template needs the feature(s) above to produce a meaningful verdict.${
       anyNa
-        ? ' Where the target lacks one, the corresponding result is <b>N/A</b> — not proof the target resisted.'
+        ? ' Where a required feature is unconfirmed, the corresponding result is <b>not established</b> — not proof the target resisted.'
         : ''
     }</p>`
   );
@@ -104,9 +109,8 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const w = run.wrs;
   const tl = run.timeline ?? [];
   const tt = run.targetTelemetry?.length ? summarizeTargetTelemetry(run.targetTelemetry) : null;
-  const avail = availabilityPct(run);
+  const avail = observedAvailability(run);
   const slow = campaign.vector === 'http-slowloris';
-  const risk = riskLevel(run);
   const peakRps = tl.length
     ? Math.max(...tl.map((s) => s.rps), Math.round(g.actualRps))
     : Math.round(g.actualRps);
@@ -165,15 +169,17 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     },
   );
 
+  const risk = riskLevel(run, assessment);
+
   // Management summary — led by the engine's verdict + faithful observation.
   const kill = run.status !== 'COMPLETED';
   const summary =
     (slow
       ? `Under a bounded hold of up to <b>${campaign.concurrency} connections</b> for a configured <b>${campaign.maxDurationSec}s</b> against `
       : `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for a configured <b>${campaign.maxDurationSec}s</b> against `) +
-    `<b>${esc(hostOf(campaign.target))}</b>, the run scored <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
+    `<b>${esc(hostOf(campaign.target))}</b>, the recorded legacy diagnostic is <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
     `<b>${assessment.verdict}</b>, RiskLevel <b>${risk.label}</b>. ${esc(assessment.observation)}` +
-    (run.baselineDelta && run.baseline?.observation?.complete !== false
+    (run.baselineDelta && baselineComparisonAvailable(run)
       ? ` Under load, p95 latency shifted by ${run.baselineDelta.latencyP95DeltaMs} ms vs the pre-load baseline.`
       : '');
 
@@ -187,13 +193,14 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       : (assessment.mechanism === 'rejected' ||
             assessment.mechanism === 'tarpitted' ||
             assessment.mechanism === 'blocked') &&
+          avail !== null &&
           avail >= 99
-        ? `<div class="callout info"><b>The target's edge handled the load.</b> ` +
+        ? `<div class="callout info"><b>Generator failures with successful probe observations.</b> ` +
           `Of ${g.totalRequests.toLocaleString('en-US')} bounded requests, ` +
           `<b>${g.successful.toLocaleString('en-US')}</b> succeeded — ` +
-          `${rejectedByEdge.toLocaleString('en-US')} were rejected by the edge (4xx/5xx) and ` +
-          `${noResponse.toLocaleString('en-US')} got no response (rate-limited / connection held). ` +
-          `Legitimate probe traffic stayed available throughout.</div>`
+          `${rejectedByEdge.toLocaleString('en-US')} received unsuccessful HTTP responses (4xx/5xx) and ` +
+          `${noResponse.toLocaleString('en-US')} ended without an HTTP response; their cause is unproven. ` +
+          `Completed probe transactions succeeded; intervals between observations are not measured. This does not attribute filtering to the edge.</div>`
         : '';
 
   const riskPill = pill(risk.label, RISK_PILL[risk.cls as keyof typeof RISK_PILL] ?? 'neutral');
@@ -221,7 +228,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       { label: 'Availability', value: w.availability, display: w.availability.toFixed(2) },
       { label: 'Collateral', value: w.collateral, display: w.collateral.toFixed(2) },
     ],
-    { max: 1, barColor: (v) => scoreColor(v * 100) },
+    { max: 100, barColor: (v) => scoreColor(v) },
   );
 
   // Latency percentiles (ms), single hue.
@@ -239,7 +246,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
           { max: latMax },
         );
   const probeLat =
-    run.probe.samples === 0
+    observedProbeP95(run) === null
       ? '<p class="muted">Probe latency unknown — no completed probe observations.</p>'
       : hbarsSvg(
           [
@@ -286,12 +293,12 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
       : '') +
     `<h2>At a glance</h2>
 <div class="scorecard">
-  <div>${gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: scoreColor(w.wrs) })}
+  <div>${avail === null ? '<p>WRS not evaluated: valid probe observations are missing.</p>' : gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: assessment.verdict === 'inconclusive' ? REPORT_COLORS.muted : scoreColor(w.wrs) })}
     <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic · not a DRS score</div></div>
   <div>
     <div class="pills">${verdictPill} ${riskPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
-      ${statCard('Availability', run.probe.samples ? `${avail.toFixed(1)}% (${run.probe.samples} observations)` : 'Not measured')}
+      ${statCard('Availability', avail !== null ? `${avail.toFixed(1)}% (${run.probe.samples} observations)` : 'Not measured')}
       ${statCard('Configured load', slow ? `${campaign.concurrency} connections` : `${configuredRps} req/s`, false)}
       ${statCard(slow ? 'Connections opened' : 'Max recorded mean rate', slow ? String(g.totalRequests) : `${peakRps} req/s`, false)}
       ${statCard('Configured duration', `${campaign.maxDurationSec}s`)}
@@ -319,30 +326,30 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
           run.edgeCorroboration
             ? `<div class="callout ${run.edgeCorroboration.agrees ? 'info' : 'warn'}"><b>Bilateral corroboration (${esc(run.edgeCorroboration.source)}):</b> we inferred <b>${Math.round(run.edgeCorroboration.ourAbsorbedRatio * 100)}%</b> absorbed; the edge itself reports <b>${Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}%</b> — ${
                 run.edgeCorroboration.agrees
-                  ? 'the two sides <b>agree</b>, so this absorption is measured evidence, not inference.'
+                  ? 'the reported fractions <b>agree</b>; this numeric agreement alone does not authenticate their provenance or prove causal attribution.'
                   : `they <b>disagree</b> by ${Math.round(run.edgeCorroboration.agreementDelta * 100)} pts — investigate (measurement gap or partial edge visibility).`
               }</div>`
             : ''
         }`) +
     `<h2>Traffic over time</h2>${evidenceCharts(run, campaign.vector === 'http-slowloris')}` +
     `<h2>Resiliency score breakdown</h2>
-<div class="figure"><div class="cap">The four WRS components (0–1). ${w.estimated ? 'Detection & Mitigation (*) are estimated — no protection source reported real timings.' : 'Detection & Mitigation are measured.'}</div>
-  ${wrsBars}</div>` +
+<div class="figure"><div class="cap">The four legacy WRS components (0–100). ${w.estimated ? 'Detection & Mitigation (*) are estimated — no protection source reported real timings.' : 'Detection & Mitigation are measured.'}</div>
+  ${avail === null ? '<p>Component assessment unavailable without valid probe observations; archived WRS remains a separate legacy diagnostic.</p>' : wrsBars}</div>` +
     (w.estimated
       ? `<div class="callout info">* Without a protection integration, Detection and Mitigation are held constant, so the WRS mostly reflects measured Availability and Collateral damage. Wire a protection source for real TTD/TTM (see methodology §3.2).</div>`
       : '') +
     (run.protection
-      ? `<div class="callout info"><b>Protection (measured):</b> source <b>${esc(run.protection.source ?? '—')}</b> · Time-to-detect <b>${run.protection.detectionTimeSec}s</b> · Time-to-mitigate <b>${run.protection.mitigationTimeSec}s</b>. The scores above are measured, not estimated.</div>`
+      ? `<div class="callout info"><b>Protection telemetry (reported):</b> source <b>${esc(run.protection.source ?? '—')}</b> · Time-to-detect <b>${run.protection.detectionTimeSec}s</b> · Time-to-mitigate <b>${run.protection.mitigationTimeSec}s</b>. These provider-reported timings do not establish independent measurement or a DRS score.</div>`
       : '') +
     `<h2>Latency profile</h2>
 <div class="two-col">
-  <div class="figure"><div class="cap">Load generator latency</div>${genLat}</div>
+  <div class="figure"><div class="cap">Load generator latency</div>${g.latencySampleCount === undefined && !slow ? '<p class="muted">Legacy aggregate: finalized latency sample count was not recorded.</p>' : ''}${genLat}</div>
   <div class="figure"><div class="cap">Legitimate probe latency</div>${probeLat}</div>
 </div>` +
     (run.baseline?.observation?.complete === false
       ? `<div class="callout warn"><b>Remote baseline incomplete.</b> ${run.baseline.observation.receivedSamples}/${run.baseline.observation.expectedSamples} observations received; target availability and comparison remain uncertain.</div>`
       : '') +
-    (run.baselineDelta && run.baseline?.observation?.complete !== false
+    (run.baselineDelta && baselineComparisonAvailable(run)
       ? `<div class="callout ${run.baselineDelta.availabilityDeltaPct < 0 || run.baselineDelta.latencyP95DeltaMs > 0 ? 'warn' : 'info'}">
     <b>Degradation under load vs baseline:</b> Δ p50 ${run.baselineDelta.latencyP50DeltaMs} ms · Δ p95 ${run.baselineDelta.latencyP95DeltaMs} ms · Δ availability ${run.baselineDelta.availabilityDeltaPct} pts
     ${run.baseline ? `<span class="muted">(baseline: ${run.baseline.availabilityPct}% avail, p50 ${run.baseline.latencyMs.p50} ms / p95 ${run.baseline.latencyMs.p95} ms over ${run.baseline.samples} samples).</span>` : ''}</div>`
@@ -355,6 +362,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
         }`
       : '') +
     remediationsHtml(deriveRemediations(campaign, run)) +
+    reportIdentityHtml(run) +
     `<h2>Run detail</h2>
 <table class="kvs">
  ${campaign.drsProfileId ? `<tr><th>DRS profile</th><td>${esc(campaign.drsProfileId)} · bounded Fleet functional measurement, not a DRS certification</td></tr>` : ''}
@@ -390,7 +398,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  }
  ${run.recoveryBeforeRun ? `<tr><th>Recovery before suite step</th><td>${run.recoveryBeforeRun.available && run.recoveryBeforeRun.verified !== false ? 'available' : 'unverified or unavailable'}; ${esc(String(run.recoveryBeforeRun.checks))} checks; ${esc(String(run.recoveryBeforeRun.waitedMs))} ms</td></tr>` : ''}
  ${g.fleet?.startup ? `<tr><th>Fleet generator-start delay</th><td>${g.fleet.startup.firstGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.firstGeneratorStartDelayMs))} to ${g.fleet.startup.lastGeneratorStartDelayMs === null ? 'unknown' : esc(String(g.fleet.startup.lastGeneratorStartDelayMs))} ms; ${g.fleet.startup.reportedAgents}/${g.fleet.startup.expectedAgents} timestamp observations. Global throughput includes startup; these timestamps do not prove first target arrival.</td></tr>` : ''}
- <tr><th>Probe availability</th><td>${run.probe.available}/${run.probe.samples} samples · ${run.probe.errorRate5xx}% 5xx</td></tr>
+ <tr><th>Probe availability</th><td>${avail === null ? 'Not measured' : `${run.probe.available}/${run.probe.samples} completed samples`} · ${avail === null || !Number.isFinite(run.probe.errorRate5xx) ? 'unknown' : run.probe.errorRate5xx + '%'} 5xx</td></tr>
  ${
    run.probe.quality
      ? `<tr><th>Probe diagnostic coverage</th><td>${esc(String(run.probe.quality.measuredSamples))}/${esc(String(run.probe.quality.totalSamples))} measurements</td></tr>
@@ -411,13 +419,13 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
  <tr><th>CDN</th><td>${run.posture.cdn ? 'detected' : 'not detected'}</td></tr>
  <tr><th>Rate limiting</th><td>${run.posture.rateLimiting ? 'detected' : 'not detected'}</td></tr>
  <tr><th>Load balancer</th><td>${run.posture.loadBalancer ? 'detected' : 'not detected'}</td></tr>
- <tr><th>HSTS / headers</th><td>${run.posture.hsts ? 'enabled' : 'not set'} · ${run.posture.securityHeaders.join(', ') || '—'}</td></tr>
+ <tr><th>HSTS / headers</th><td>${run.posture.hsts ? 'enabled' : 'not set'} · ${esc(run.posture.securityHeaders.join(', ') || '—')}</td></tr>
 </table><p class="muted">Inferred passively from the legitimate probe's own responses (no scanning).</p>`
       : '') +
     requiresApplicabilityHtml(campaign, run) +
     (run.edgeErrors && run.edgeErrors.length
-      ? `<h3>Edge-served errors under load</h3>` +
-        `<p class="muted">The edge served its OWN error page under load — first-party evidence of the mechanism that engaged (and, for a 5xx origin page, that the origin buckled behind a healthy edge).</p>` +
+      ? `<h3>Response error fingerprints under load</h3>` +
+        `<p class="muted">Response text matched a known error-page fingerprint. Branding and HTTP status alone do not authenticate its producer, prove a mitigation mechanism or establish origin failure.</p>` +
         `<table class="kvs">` +
         run.edgeErrors
           .map(

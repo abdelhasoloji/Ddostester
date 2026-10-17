@@ -1,4 +1,6 @@
 import { evidenceCharts } from '../reports/evidence-charts.js';
+import { reportIdentityHtml } from '../reports/identity.js';
+import { riskLevel } from '../reports/compliance.js';
 import type { Campaign, TargetRequirement, ReconPostureSnapshot } from '../campaigns/model.js';
 import { missingRequirements } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
@@ -52,7 +54,7 @@ export interface SuiteSummary {
   members: SuiteMember[];
   /** Aggregate WRS over scored members, or null if none scored yet. */
   wrs: { avg: number; min: number; level: WrsLevel; scored: number } | null;
-  /** Aggregate SLO verdict: FAIL if any member failed, PASS if any judged and none failed, else null. */
+  /** Aggregate SLO: FAIL if any member failed; PASS only when every completed member is judged, else null. */
   verdict: 'PASS' | 'FAIL' | null;
 }
 
@@ -109,7 +111,10 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
       verdict: (() => {
         const judged = members.filter((c) => c.acceptanceResult);
         if (judged.length === 0) return null;
-        return judged.some((c) => c.acceptanceResult!.verdict === 'FAIL') ? 'FAIL' : 'PASS';
+        if (judged.some((c) => c.acceptanceResult!.verdict === 'FAIL')) return 'FAIL';
+        return judged.length === members.length && members.every((c) => c.status === 'COMPLETED')
+          ? 'PASS'
+          : null;
       })(),
     });
   }
@@ -124,7 +129,16 @@ function drsOf(name: string): string {
 }
 
 function riskPill(label: string): string {
-  return pill(label, label === 'Critical' ? 'crit' : label === 'Medium' ? 'warn' : 'good');
+  return pill(
+    label,
+    label === 'Critical'
+      ? 'crit'
+      : label === 'Medium'
+        ? 'warn'
+        : label === 'Low'
+          ? 'good'
+          : 'neutral',
+  );
 }
 
 /** CSS class + display label per faithful verdict (assessment engine). */
@@ -133,12 +147,6 @@ const VERDICT_CLASS: Record<VectorVerdict, string> = {
   partial: 'v-partial',
   breached: 'r-crit',
   inconclusive: 'v-aborted',
-};
-const VERDICT_RISK: Record<VectorVerdict, string> = {
-  held: 'Low',
-  partial: 'Medium',
-  inconclusive: 'Medium',
-  breached: 'Critical',
 };
 
 /**
@@ -189,7 +197,7 @@ function attackDetail(
  <tr><th>Verdict</th><td class="${VERDICT_CLASS[va.verdict]}">${va.verdict}</td></tr>
  <tr><th>Observation</th><td>${esc(va.observation)}</td></tr>
  ${caveats}
-</table>${runChart(run, grafanaUrl, targetHost, va.isSlowConnection)}`;
+</table>${run ? reportIdentityHtml(run, true) : ''}${runChart(run, grafanaUrl, targetHost, va.isSlowConnection)}`;
 }
 
 /** Glossary — verdict + mechanism definitions used by the assessment engine. */
@@ -241,10 +249,15 @@ export function renderSuiteReportHtml(
         })
       : assessVector(undefined, context);
     if (!run && m.statusDetail) va.observation += ` ${m.statusDetail}`;
-    return { m, run, va };
+    return { m, run, va, risk: run ? riskLevel(run, va) : { label: 'Unknown', cls: 'v-aborted' } };
   });
   const scored = steps.filter((s) => s.va.wrs != null);
   const sa = assessSuite(steps.map((s) => s.va));
+  const riskOf = (items: typeof steps) =>
+    ['Critical', 'Unknown', 'Medium', 'Low'].find((label) =>
+      items.some((s) => s.risk.label === label),
+    ) ?? 'Unknown';
+  const displayedRisk = riskOf(steps);
   const avg = sa.avgWrs ?? 0;
   const worstLevel = sa.worstLevel;
 
@@ -256,7 +269,7 @@ export function renderSuiteReportHtml(
       (sa.inconclusive
         ? `, and <b>${sa.inconclusive}</b> were inconclusive (under-delivered or degraded — not a valid test at the target rate)`
         : '') +
-      `. Overall risk is <b>${sa.worstRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
+      `. Overall risk is <b>${displayedRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
       (sa.breached
         ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} met the probe-failure criteria; these observations do not establish outage duration or business impact.`
         : sa.inconclusive
@@ -297,7 +310,7 @@ export function renderSuiteReportHtml(
       const tv = tierVerdict(ss);
       const inc = ss.filter((s) => s.va.verdict === 'inconclusive').length;
       const note = inc ? ` (${inc} inconclusive)` : '';
-      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${loadLabel}</td><td>${riskPill(VERDICT_RISK[tv])}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
+      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${loadLabel}</td><td>${riskPill(riskOf(ss))}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
     })
     .join('');
 
@@ -317,7 +330,7 @@ export function renderSuiteReportHtml(
             : s.va.configuredRps
               ? `${s.va.configuredRps}→${s.va.achievedRps}`
               : `${s.va.achievedRps}`;
-      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(VERDICT_RISK[s.va.verdict])}</td><td>${wrsCell}</td><td>${s.run ? { served: 'successful responses', rejected: 'HTTP failures', tarpitted: 'transport failures', shed: 'connections closed', blocked: 'unresolved failures', unknown: 'unknown' }[s.va.mechanism] : '—'}</td></tr>`;
+      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(s.risk.label)}</td><td>${wrsCell}</td><td>${s.run ? { served: 'successful responses', rejected: 'HTTP failures', tarpitted: 'transport failures', shed: 'connections closed', blocked: 'unresolved failures', unknown: 'unknown' }[s.va.mechanism] : '—'}</td></tr>`;
     })
     .join('');
 
@@ -343,8 +356,8 @@ export function renderSuiteReportHtml(
     .filter((x) => x.missing.length > 0);
   const applicabilityCaveats = naSteps.length
     ? `<h2>Applicability caveats</h2>
-<p class="muted" style="font-size:.82rem">These steps' templates need a target feature this target does not have (from recon) — so their result is <b>N/A</b>, not evidence the target resisted.</p>
-<table class="kvs"><thead><tr><th>Step</th><th>N/A — target has no…</th></tr></thead><tbody>${naSteps
+<p class="muted" style="font-size:.82rem">These steps' templates need a target feature not confirmed by the captured posture — so their result is <b>N/A</b>, not evidence the target resisted.</p>
+<table class="kvs"><thead><tr><th>Step</th><th>Unconfirmed required feature</th></tr></thead><tbody>${naSteps
         .map(
           (x) =>
             `<tr><td>${esc(x.label)}</td><td>${x.missing
@@ -368,10 +381,10 @@ export function renderSuiteReportHtml(
     ) +
     `<h2>Management summary</h2><p class="lead">${narrative}</p>${grafanaBanner}
 <div class="scorecard">
-  <div>${sa.avgWrs == null ? '<p>No measured score</p>' : gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: scoreColor(avg) })}
+  <div>${sa.avgWrs == null ? '<p>No measured score</p>' : gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: sa.inconclusive ? REPORT_COLORS.muted : scoreColor(avg) })}
     <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic average · not a DRS score</div></div>
   <div>
-    <div class="pills">${riskPill(sa.worstRisk)} ${pill(`${sa.held}/${suite.total} held`, sa.held === suite.total ? 'good' : 'warn')}${sa.breached ? ' ' + pill(`${sa.breached} breached`, 'crit') : ''}${sa.inconclusive ? ' ' + pill(`${sa.inconclusive} inconclusive`, 'warn') : ''}</div>
+    <div class="pills">${riskPill(displayedRisk)} ${pill(`${sa.held}/${suite.total} held`, sa.held === suite.total ? 'good' : 'warn')}${sa.breached ? ' ' + pill(`${sa.breached} breached`, 'crit') : ''}${sa.inconclusive ? ' ' + pill(`${sa.inconclusive} inconclusive`, 'warn') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Vectors', String(suite.total))}
       ${statCard('Worst WRS', sa.worstWrs != null ? String(sa.worstWrs) : '—')}
@@ -404,15 +417,13 @@ function wrsDelta(a?: number, b?: number): string {
   if (a == null || b == null) return '<span class="muted">—</span>';
   const d = b - a;
   if (d === 0) return '<span class="muted">±0</span>';
-  const up = d > 0;
-  return `<span class="${up ? 'good' : 'bad'}">${up ? '▲ +' : '▼ '}${d}</span>`;
+  return `<span class="muted">${d > 0 ? '+' : ''}${Math.round(d * 100) / 100} (descriptive)</span>`;
 }
 
 /** How a per-step verdict moved between the two runs (FAIL→PASS is a fix). */
 function verdictDelta(a?: 'PASS' | 'FAIL', b?: 'PASS' | 'FAIL'): string {
   if (!a || !b || a === b) return '';
-  if (a === 'FAIL' && b === 'PASS') return '<span class="good">fixed</span>';
-  return '<span class="bad">regressed</span>';
+  return `<span class="muted">recorded SLO ${a}→${b}</span>`;
 }
 
 /**
@@ -456,9 +467,7 @@ export function renderSuiteCompareHtml(a: SuiteSummary, b: SuiteSummary): string
       : 'Not enough scored steps on both runs to summarise.';
   const verdictLine =
     a.verdict && b.verdict && a.verdict !== b.verdict
-      ? `<p class="verdict">SLO verdict <span class="${
-          a.verdict === 'FAIL' && b.verdict === 'PASS' ? 'good' : 'bad'
-        }">${a.verdict} → ${b.verdict}</span></p>`
+      ? `<p class="verdict">SLO verdict <span class="${'muted'}">${a.verdict} → ${b.verdict}</span></p>`
       : a.verdict || b.verdict
         ? `<p class="verdict">SLO verdict ${a.verdict ?? '—'} → ${b.verdict ?? '—'}</p>`
         : '';
@@ -485,11 +494,11 @@ export function renderSuiteCompareHtml(a: SuiteSummary, b: SuiteSummary): string
  <h1><span class="wm">WEDOS ShieldTest</span> — Suite comparison (tune &amp; replay)</h1>
 </div>
 <p class="muted">Generated on ${new Date().toISOString()} · WEDOS internal use</p>
-<p class="muted">Playbook <b>${esc(a.suiteName)}</b> · target <code>${esc(a.target)}</code></p>
+<p class="muted">Playbook <b>${esc(a.suiteName)}</b> · target A <code>${esc(a.target)}</code> · target B <code>${esc(b.target)}</code></p>
 <p>A (before): <code>${esc(a.createdAt)}</code> &nbsp;→&nbsp; B (after): <code>${esc(b.createdAt)}</code></p>
-<h2>Overall</h2>
+<p class="muted">Comparison inconclusive: detailed workload and measurement equivalence are not evaluated by this summary export. No causal improvement conclusion or DRS score is supported.</p><h2>Overall</h2>
 <p>${summary}</p>
-<p><b>${improved}</b> step(s) improved · <b>${regressed}</b> regressed · ${
+<p><b>${improved}</b> step score(s) increased · <b>${regressed}</b> decreased · ${
     orders.length - improved - regressed
   } unchanged/unscored</p>
 ${verdictLine}
@@ -499,6 +508,6 @@ ${rows}
 </table>
 <p class="muted">Steps are paired by playbook order. Bounded HTTP generator only —
 no volumetric or exhaustion vector. WRS is driven mainly by the legitimate probe;
-a higher WRS after a rule change means better protection with less collateral.</p>
+these are descriptive legacy WRS changes. Summary records alone do not establish workload equivalence, measurement validity or a protection improvement.</p>
 </body></html>`;
 }

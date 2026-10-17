@@ -368,3 +368,18 @@ it('does not pass an absent probe or an unconfirmed HTTP/2 protocol', () => {
   expect(h2.verdict).toBe('inconclusive');
   expect(h2.caveats.join(' ')).toContain('HTTP/2 was not confirmed');
 });
+
+it('cannot turn inconsistent probe counts or a degraded automatic stop into an attributed breach', () => {
+  const invalid = mkRun({ availCount: 110 });
+  const ctx = { shape: 'bounded HTTP', drs: '3', status: 'COMPLETED', vector: 'http-get' };
+  expect(assessVector(invalid, ctx)).toMatchObject({
+    verdict: 'inconclusive',
+    availabilityPct: null,
+  });
+  const degraded = mkRun({
+    status: 'KILLED_AUTO',
+    availCount: 0,
+    confidence: { degraded: true, reasons: ['probe resource contention'] },
+  });
+  expect(assessVector(degraded, { ...ctx, status: 'KILLED_AUTO' }).verdict).toBe('inconclusive');
+});

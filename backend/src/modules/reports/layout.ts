@@ -26,7 +26,7 @@ export const REPORT_CSS = `
  .muted{color:var(--muted)}
  .lead{font-size:1rem;line-height:1.6;background:var(--surface-2);border-left:3px solid var(--brand);padding:.8rem 1rem;border-radius:0 8px 8px 0}
  table{border-collapse:collapse;width:100%;margin:.6rem 0;background:var(--surface)}
- th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top}
+ th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
  thead th,table.kvs th{background:var(--surface-2);font-weight:600}
  td.note{color:#444;font-size:.85rem;max-width:280px}
  .grid{display:grid;gap:1rem}
@@ -58,7 +58,7 @@ export const REPORT_CSS = `
   .cover{margin:0 0 1rem;break-after:avoid} .card,.scorecard,.figure{box-shadow:none}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   h2{break-before:page;padding-top:.2rem} h2:first-of-type{break-before:auto}
-  h3{break-after:avoid} table,.figure,.scorecard,.card,tr,.callout{break-inside:avoid}
+  h3{break-after:avoid} .figure,.scorecard,.card,tr,.callout{break-inside:avoid} table{break-inside:auto}
   thead{display:table-header-group} a{color:inherit;text-decoration:none}
   .print-foot{display:block;position:fixed;bottom:6mm;left:0;right:0;text-align:center;font-size:8pt;color:#8a8f99}
  }

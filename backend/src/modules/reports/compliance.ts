@@ -8,7 +8,8 @@ import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { HARD_CAPS } from '../../config/limits.js';
-import { assessVector, type VectorVerdict } from './assessment.js';
+import { assessCampaignRun, type VectorVerdict, type VectorAssessment } from './assessment.js';
+import { observedAvailability } from './measurements.js';
 
 /** CSS class per faithful verdict, shared with the suite report's convention. */
 const VERDICT_CLASS: Record<VectorVerdict, string> = {
@@ -94,21 +95,32 @@ raw floods are never emitted by construction.</p>`;
  * Mitigation / availability verdict (bounded meaning, see methodology §3.2):
  * what happened to legitimate traffic while the bounded load ran.
  */
-export function mitigationVerdict(run: CampaignRun): { label: string; cls: string } {
+export function mitigationVerdict(
+  run: CampaignRun,
+  assessment = assessCampaignRun(run),
+): { label: string; cls: string } {
   if (run.status === 'KILLED_MANUAL') return { label: 'Aborted', cls: 'v-aborted' };
-  if (run.status === 'KILLED_AUTO') return { label: 'Failed (impact)', cls: 'v-fail' };
-  return availabilityPct(run) >= 99
-    ? { label: 'Held', cls: 'v-held' }
-    : { label: 'Partial', cls: 'v-partial' };
+  const states = {
+    held: { label: 'Held', cls: 'v-held' },
+    partial: { label: 'Partial', cls: 'v-partial' },
+    breached: { label: 'Breached', cls: 'v-fail' },
+    inconclusive: { label: 'Inconclusive', cls: 'v-aborted' },
+  };
+  return states[assessment.verdict];
 }
 
-/** RiskLevel (Low / Medium / Critical), scored on status + availability + WRS. */
-export function riskLevel(run: CampaignRun): { label: string; cls: string } {
-  const avail = availabilityPct(run);
-  if (run.status === 'KILLED_AUTO' || run.wrs.wrs < 55 || avail < 90)
+/** Diagnostic risk, never a DRS result; insufficient evidence is explicitly unknown. */
+export function riskLevel(
+  run: CampaignRun,
+  assessment?: VectorAssessment,
+): { label: string; cls: string } {
+  const verdict = assessment ?? assessCampaignRun(run);
+  const avail = observedAvailability(run);
+  if (avail === null || verdict.verdict === 'inconclusive')
+    return { label: 'Unknown', cls: 'v-aborted' };
+  if (verdict.verdict === 'breached' || run.wrs.wrs < 55 || avail < 90)
     return { label: 'Critical', cls: 'r-crit' };
-  if (run.status === 'COMPLETED' && avail >= 99 && run.wrs.wrs >= 80)
-    return { label: 'Low', cls: 'r-low' };
+  if (verdict.verdict === 'held' && run.wrs.wrs >= 80) return { label: 'Low', cls: 'r-low' };
   return { label: 'Medium', cls: 'r-med' };
 }
 
@@ -165,7 +177,10 @@ export function renderComplianceHtml(
     const c = campById.get(r.campaignId);
     const host = hostOf(c?.target ?? '—');
     targets.add(host);
-    engines.add(c?.agent ?? 'builtin');
+    engines.add(
+      r.generator.config?.execution?.engine ??
+        (c?.agent ? `${c.agent} (declared; runtime not recorded)` : 'not recorded'),
+    );
     const agg = perTarget.get(host) ?? { n: 0, sum: 0 };
     agg.n += 1;
     agg.sum += r.wrs.wrs;
@@ -180,20 +195,11 @@ export function renderComplianceHtml(
   const period = `${opts.from ? esc(opts.from) : 'origin'} → ${opts.to ? esc(opts.to) : 'now'}`;
 
   // Faithful per-run verdict — the SAME assessment engine as every other surface.
-  const assess = (r: CampaignRun) => {
-    const c = campById.get(r.campaignId);
-    return assessVector(r, {
-      shape: c?.name ?? r.campaignId,
-      drs: /DRS\s*([0-9])/i.exec(c?.name ?? '')?.[1] ?? '—',
-      status: r.status,
-      vector: c?.vector,
-      h2Confirmed: c?.reconPosture?.h2,
-    });
-  };
+  const assess = (r: CampaignRun) => assessCampaignRun(r, campById.get(r.campaignId));
 
   // Risk distribution across the period.
-  const riskCount = { Low: 0, Medium: 0, Critical: 0 };
-  for (const r of inPeriod) riskCount[riskLevel(r).label as keyof typeof riskCount]++;
+  const riskCount = { Low: 0, Medium: 0, Critical: 0, Unknown: 0 };
+  for (const r of inPeriod) riskCount[riskLevel(r, assess(r)).label as keyof typeof riskCount]++;
   const inconclusiveCount = inPeriod.filter((r) => assess(r).verdict === 'inconclusive').length;
   const degradedCount = inPeriod.filter((r) => r.confidence?.degraded).length;
 
@@ -201,9 +207,9 @@ export function renderComplianceHtml(
   const summary = total
     ? `Across <b>${period}</b>, <b>${total}</b> bounded assessment${total > 1 ? 's' : ''} ran against ` +
       `<b>${targets.size}</b> target${targets.size > 1 ? 's' : ''} using ${[...engines].map(esc).join(', ')}. ` +
-      `The average WEDOS Resiliency Score was <b>${wrsAvg}</b> (lowest ${wrsMinStr}); ` +
+      `The stored legacy WRS average was <b>${wrsAvg}</b> (lowest ${wrsMinStr}); ` +
       `<b>${worst.length}</b> run${worst.length === 1 ? '' : 's'} fell below the resilience threshold of 70. ` +
-      `RiskLevel spread: ${riskCount.Low} Low · ${riskCount.Medium} Medium · <b>${riskCount.Critical} Critical</b>. ` +
+      `Diagnostic RiskLevel spread: ${riskCount.Low} Low · ${riskCount.Medium} Medium · <b>${riskCount.Critical} Critical</b> · ${riskCount.Unknown} Unknown. ` +
       (anyEstimated
         ? `Some runs have estimated detection/mitigation (no protection source), so their score reflects measured availability.`
         : `Detection/mitigation timings were measured for these runs.`)
@@ -227,15 +233,12 @@ export function renderComplianceHtml(
       { label: 'Low', value: riskCount.Low, display: String(riskCount.Low) },
       { label: 'Medium', value: riskCount.Medium, display: String(riskCount.Medium) },
       { label: 'Critical', value: riskCount.Critical, display: String(riskCount.Critical) },
+      { label: 'Unknown', value: riskCount.Unknown, display: String(riskCount.Unknown) },
     ],
     {
-      max: Math.max(1, riskCount.Low, riskCount.Medium, riskCount.Critical),
-      barColor: (v) =>
-        v === riskCount.Critical && v > 0
-          ? REPORT_COLORS.crit
-          : v === riskCount.Medium
-            ? REPORT_COLORS.warn
-            : REPORT_COLORS.good,
+      max: Math.max(1, ...Object.values(riskCount)),
+      barColor: (_v, index) =>
+        [REPORT_COLORS.good, REPORT_COLORS.warn, REPORT_COLORS.crit, REPORT_COLORS.muted][index],
     },
   );
   // WRS trend across the period (chronological).
@@ -249,13 +252,17 @@ export function renderComplianceHtml(
     .map((r, i) => {
       const c = campById.get(r.campaignId);
       const a = assess(r);
-      const risk = riskLevel(r);
+      const risk = riskLevel(r, a);
       const g = r.generator;
       const rps = Math.round(g.actualRps);
       // Show configured intent → effective achieved, so a flood the target
       // throttled isn't misread as a trivial test (achieved rate only).
       const cfgRps = c?.maxRps ?? 0;
-      const loadCell = cfgRps ? `${cfgRps}→${rps}` : `${rps}`;
+      const loadCell = a.isSlowConnection
+        ? `${g.totalRequests ?? 'unknown'} opened connections`
+        : cfgRps
+          ? `${cfgRps}→${rps}`
+          : `${rps}`;
       const ttdttm = r.protection
         ? `TTD ${r.protection.detectionTimeSec}s · TTM ${r.protection.mitigationTimeSec}s · `
         : '';
@@ -264,13 +271,13 @@ export function renderComplianceHtml(
         ttdttm +
         (r.statusDetail
           ? esc(r.statusDetail)
-          : `avail ${availabilityPct(r).toFixed(0)}%${
+          : `probe success ${observedAvailability(r) === null ? 'not measured' : observedAvailability(r)!.toFixed(1) + '%'}${
               r.baselineDelta ? ` · Δp95 ${r.baselineDelta.latencyP95DeltaMs} ms` : ''
             }`) +
         (a.verdict === 'inconclusive' && a.underDelivered
           ? ` · <b>inconclusive</b> — delivered only ${Math.round(a.deliveryRatio * 100)}% of the configured rate`
           : a.mechanism === 'rejected' || a.mechanism === 'tarpitted' || a.mechanism === 'blocked'
-            ? ` · edge ${a.mechanism} the load (${g.successful.toLocaleString('en-US')}/${g.totalRequests.toLocaleString('en-US')} ok)`
+            ? ` · generator ${{ rejected: 'HTTP failures', tarpitted: 'transport failures', blocked: 'unresolved failures' }[a.mechanism]}; attribution unproven`
             : '') +
         (degraded
           ? ` · <b>⚠ measurement degraded</b> (${esc(r.confidence?.reasons[0] ?? 'generator-side bottleneck')})`
@@ -318,10 +325,10 @@ export function renderComplianceHtml(
     `<p class="lead">${summary}</p>${benchSummary}` +
     `<h2>At a glance</h2>
 <div class="scorecard">
-  <div>${total ? gaugeSvg(wrsAvgNum, { sub: 'avg WRS', color: scoreColor(wrsAvgNum) }) : '<p>HTTP WRS: not evaluated</p>'}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">HTTP average across ${total} run${total === 1 ? '' : 's'}</div></div>
+  <div>${total ? gaugeSvg(Number(wrsAvg), { sub: 'stored avg WRS', color: inconclusiveCount ? REPORT_COLORS.muted : scoreColor(wrsAvgNum) }) : '<p>HTTP WRS: not evaluated</p>'}
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic average, not a DRS score · ${total} run${total === 1 ? '' : 's'}</div></div>
   <div>
-    <div class="pills">${pill(`${riskCount.Critical} Critical`, riskCount.Critical ? 'crit' : 'neutral')} ${pill(`${riskCount.Medium} Medium`, riskCount.Medium ? 'warn' : 'neutral')} ${pill(`${riskCount.Low} Low`, 'good')}</div>
+    <div class="pills">${pill(`${riskCount.Critical} Critical`, riskCount.Critical ? 'crit' : 'neutral')} ${pill(`${riskCount.Medium} Medium`, riskCount.Medium ? 'warn' : 'neutral')} ${pill(`${riskCount.Low} Low`, 'good')} ${pill(`${riskCount.Unknown} Unknown`, 'neutral')}</div>
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Runs assessed', String(total))}
       ${statCard('Minimum WRS', wrsMinStr)}
@@ -349,7 +356,7 @@ export function renderComplianceHtml(
 </div>` +
     `<h2>Per-scenario results (Layer 7, bounded)</h2>
 <table>
- <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Load rps (cfg&rarr;eff)</th><th>WRS</th><th>Mitigation</th><th>RiskLevel</th><th>Notes</th></tr></thead>
+ <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Load (configured&rarr;mean)</th><th>WRS</th><th>Diagnostic verdict</th><th>RiskLevel</th><th>Notes</th></tr></thead>
  <tbody>${scenarioRows || '<tr><td colspan="8" class="muted">No runs in the period.</td></tr>'}</tbody>
 </table>
 
@@ -376,10 +383,10 @@ ${benchSection}
 <h2>Glossary</h2>
 <table class="kvs">
  <tr><th>WRS / DRS</th><td>WRS is a separate 0–100 diagnostic. DRS 3.00.00 uses per-level vector ratios and independently archived evidence; missing scenarios produce partial or indeterminate coverage. No certification is issued.</td></tr>
- <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> target unavailable or WRS &lt; 55.</td></tr>
- <tr><th>Mitigation</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> auto-killed (target down ≥30 s) · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
- <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.</td></tr>
- <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; effective rate the target sustained; a large gap means the protection rate-limited or tarpitted the flood. Volumetric PPS is out of scope.</td></tr>
+ <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> probe-failure threshold or WRS &lt; 55. Unknown = insufficient evidence; no risk conclusion.</td></tr>
+ <tr><th>Diagnostic verdict</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> probe-failure criteria or automatic stop · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
+ <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — supplied protection telemetry; an automatic-stop timestamp is not a mitigation timestamp.</td></tr>
+ <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; mean rate reported by the generator; a gap alone cannot identify filtering, target capacity or a generator bottleneck. Volumetric PPS is out of scope.</td></tr>
 </table>
 
 <p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. HTTP observations and synthetic network-bench evidence are separate scopes; missing evidence is not a success. WEDOS internal use.</p>` +

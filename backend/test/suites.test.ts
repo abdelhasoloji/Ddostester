@@ -251,9 +251,11 @@ describe('renderSuiteCompareHtml', () => {
     expect(html).toContain('CRA L7');
     expect(html).toContain('bank.cz');
     // step 0 improved 60→85 and its verdict was fixed; step 1 regressed 80→75.
-    expect(html).toContain('1</b> step(s) improved');
-    expect(html).toContain('1</b> regressed');
-    expect(html).toContain('fixed');
+    expect(html).toContain('1</b> step score(s) increased');
+    expect(html).toContain('1</b> decreased');
+    expect(html).toContain('recorded SLO FAIL→PASS');
+    expect(html).toContain('Comparison inconclusive');
+    expect(html).not.toContain('means better protection');
     expect(html).toContain('worst-step WRS <b>60</b> → <b>75</b>');
   });
 
@@ -279,4 +281,17 @@ it('retains execution diagnostics without fabricating missing measurements', () 
   expect(html).toContain('diagnostic-123');
   expect(html).toContain('Not measured');
   expect(html).not.toContain('availability dipped to 0%');
+});
+
+it('cannot report a suite-wide SLO pass from only one judged step', () => {
+  const [suite] = buildSuites([
+    campaign({
+      suiteId: 'partial-slo',
+      suiteOrder: 0,
+      status: 'COMPLETED',
+      acceptanceResult: { verdict: 'PASS' } as Campaign['acceptanceResult'],
+    }),
+    campaign({ suiteId: 'partial-slo', suiteOrder: 1, status: 'APPROVED' }),
+  ]);
+  expect(suite.verdict).toBeNull();
 });

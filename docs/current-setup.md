@@ -228,3 +228,14 @@ Grafana's live failure stat no longer falls back to an earlier run. Instant live
 non-smoothed sample steps, explicit absent values and neutral outcome labels preserve
 the same meaning as the app. The source dashboard and Kubernetes copy remain aligned.
 Deployed as build 483 (`d15afa3d8a09670e492634529029db7274e3d1cc`) after exact-source CI, native build/report checks and authenticated recovery. API/UI release identity, readiness, runtime configuration, all 289 campaigns, 11 accounts, the sole administrator and three Fleet identities were preserved. The private-lab replay completed all 12 steps at 20 seconds each with no added interval; final reports were regenerated from unchanged measurements. Both native and Kubernetes Grafana dashboards are loaded and the three persistent IoT Pods remain ready. Evidence: `docs/qa/graph-consistency-2026-10-17/`. Production browser access remained denied by its saved policy; the UI was verified in the isolated lab and production through authenticated health, asset and database checks.
+
+### Three-pass critical report review — 17 October 2026 (source)
+
+Three successive reviews cover numeric/graph accuracy, evidence-strength conclusions,
+and coverage/traceability. Corrections include the real 0–100 WRS component scale,
+unknown probe/risk values, current assessments in aggregates, descriptive comparisons,
+complete-suite SLO requirements, connection CSV units, imported-lab uncertainty and
+separate collection/render identities. Raw archived measurements and execution caps
+are unchanged. See `docs/qa/reports-critical-2026-10-17/` for the three-pass record
+and regenerated reports. This source review is separate from the deployed build 483;
+any later release activation is recorded with its own delivery receipt.

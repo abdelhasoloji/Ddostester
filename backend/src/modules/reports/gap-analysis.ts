@@ -463,10 +463,6 @@ export interface GapEvidence {
 
 const SOURCE_RANK: Record<EvidenceSource, number> = { lab: 3, run: 2, recon: 1 };
 
-// Read the lab's free-but-bounded verdict text into a coarse status.
-const LAB_GAP_RE = /not[_ -]?mitigated|fail|breach|through|leak/i;
-const LAB_OK_RE = /mitigated|pass|absorb|dropped|blocked|contained/i;
-
 /** One L3/4 network vector on the lab's DRS ladder. */
 export type NetworkVectorStatus = 'absorbed' | 'gap' | 'uncovered';
 export interface NetworkVector {
@@ -494,9 +490,23 @@ export interface NetworkLadder {
 
 function labStatusOf(c?: BenchCoverage): NetworkVectorStatus {
   if (!c) return 'uncovered';
-  if (LAB_GAP_RE.test(c.outcome ?? '')) return 'gap';
-  if (LAB_OK_RE.test(c.outcome ?? '')) return 'absorbed';
-  return 'absorbed'; // covered with a neutral outcome → the lab has handling evidence
+  const outcome = (c.outcome ?? '').trim().toUpperCase().replace(/[ -]+/g, '_');
+  if (
+    [
+      'NOT_MITIGATED',
+      'UNMITIGATED',
+      'UNMITIGATED_BASELINE',
+      'FAIL',
+      'FAILED',
+      'BREACHED',
+      'STATE_TABLE_SATURATED',
+      'PARTIAL',
+    ].includes(outcome)
+  )
+    return 'gap';
+  if (['MITIGATED', 'PASS', 'ABSORBED', 'DROPPED', 'BLOCKED', 'CONTAINED'].includes(outcome))
+    return 'absorbed';
+  return 'uncovered';
 }
 
 /**
@@ -613,15 +623,7 @@ export function crossLayerAssurance(
   };
 }
 
-/**
- * Infer a ProtectionProfile from evidence instead of a from-scratch manual
- * declaration: recon fills what it observed passively, prior bounded runs fill
- * what their absorption revealed (edge rejects → rate-limiting; tarpit → slow-
- * request handling), and the class-C LAB fills the network controls (SYN/handshake
- * protection) that no L7 test can see. Every control keeps its provenance so the
- * operator reviews rather than trusts blindly; nothing is proven 'absent' from
- * passive signals alone — only the lab's own verdict may mark a control absent.
- */
+/** Preserve evidence provenance without treating generator failures or imported lab metadata as target-control proof. */
 export function inferProfile(ev: GapEvidence): InferredProfile {
   const provenance: Partial<Record<ControlKey, ControlEvidence[]>> = {};
   const add = (key: ControlKey, status: ControlStatus, source: EvidenceSource, note: string) => {
@@ -638,43 +640,35 @@ export function inferProfile(ev: GapEvidence): InferredProfile {
     }
   }
 
-  // 2. Prior bounded runs — the absorption mechanism split names the control.
+  // 2. Generator outcomes identify questions to investigate, not control presence.
   for (const row of ev.absorption ?? []) {
     if (row.lastRejectedPct >= 30) {
-      add('rateLimiting', 'present', 'run', `${row.vector}: ${row.lastRejectedPct}% edge-rejected`);
+      add(
+        'rateLimiting',
+        'unknown',
+        'run',
+        `${row.vector}: ${row.lastRejectedPct}% unsuccessful HTTP responses; rate limiting is not established`,
+      );
     }
     if (row.lastTarpitPct >= 30) {
       add(
         'slowRequestTimeout',
-        'present',
+        'unknown',
         'run',
-        `${row.vector}: ${row.lastTarpitPct}% held/tarpitted`,
+        `${row.vector}: ${row.lastTarpitPct}% transport failures; deliberate connection holding is not established`,
       );
     }
   }
 
-  // 3. Class-C lab — the network DRS ladder informs SYN/handshake protection (the
-  //    L3/4 control the bounded L7 tests deliberately never exercise). The weakest
-  //    link decides, mirroring the L7 model: a gap at the DRS-3 foundation proves
-  //    it 'absent'; a gap only at a higher tier is 'partial'; no gap → 'present'.
-  //    The lab is the one source allowed to prove this control absent.
+  // 3. Lab coverage metadata does not establish controls on the campaign target.
   const ladder = buildNetworkLadder(ev.labCoverage ?? []);
   if (ladder.covered > 0) {
-    if (ladder.weakest) {
-      add(
-        'synFloodProtection',
-        ladder.weakest.drs <= 3 ? 'absent' : 'partial',
-        'lab',
-        `lab gap at DRS${ladder.weakest.drs}: ${ladder.weakest.title}`,
-      );
-    } else {
-      add(
-        'synFloodProtection',
-        'present',
-        'lab',
-        `lab: ${ladder.covered}/${ladder.total} network vectors absorbed, no gap`,
-      );
-    }
+    add(
+      'synFloodProtection',
+      'unknown',
+      'lab',
+      `Retained network-lab metadata covers ${ladder.covered}/${ladder.total} vectors. It does not establish SYN protection on the campaign target; reconcile scope, method and independent telemetry first.`,
+    );
   }
 
   // Resolve each control to its strongest-source evidence (lab > run > recon).
@@ -780,7 +774,7 @@ ${rows}
   } · WEDOS internal use</p>
 <p><b>${a.summary.high}</b> high · <b>${a.summary.medium}</b> medium · <b>${a.summary.low}</b> low priority to replay · <b>${a.summary.attested}</b> attestation-only line(s).</p>
 ${breakHtml}
-<h2>DRS escalation ladder (replay in this order)</h2>
+<p class="muted">Planning hypotheses from declared or inferred controls, not a measured DRS result. Laboratory outcomes do not automatically describe protection on the campaign target.</p><h2>DRS escalation ladder (replay in this order)</h2>
 <p class="muted">The DRS engagement climbs attacker capability 3 → 4 → 5. Replay each rung, read the per-line delta with the suite-compare, and fix the weakest link before climbing. Intensities are the real capped playbook values.</p>
 ${ladder}
 <h2>Attestation-only (out of the bounded model)</h2>

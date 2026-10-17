@@ -223,3 +223,28 @@ it('summarizes synthetic evidence without a zero HTTP score or a clean protectio
   expect(empty).not.toContain('Synthetic network bench: <b>');
   expect(empty).not.toContain('STATE_TABLE_SATURATED');
 });
+
+it('withholds risk and success when no legitimate probe transactions completed', () => {
+  const html = renderComplianceHtml(
+    [campaign('unknown', 'Unknown evidence', 'https://bank.cz/')],
+    [run('unknown', { status: 'COMPLETED', wrs: 97, level: 'A+', available: 0, samples: 0 })],
+  );
+  expect(html).toContain('>Unknown<');
+  expect(html).toContain('>inconclusive<');
+  expect(html).toContain('probe success not measured');
+  expect(html).not.toContain('avail 100%');
+  expect(html).not.toContain('edge rejected the load');
+});
+
+it('does not give equal risk counts the same color', () => {
+  const out = renderComplianceHtml(
+    [campaign('one', 'a', 'https://bank.cz/'), campaign('two', 'b', 'https://bank.cz/')],
+    [
+      run('one', { status: 'COMPLETED', wrs: 97, level: 'A+', available: 100, samples: 100 }),
+      run('two', { status: 'COMPLETED', wrs: 72, level: 'B', available: 95, samples: 100 }),
+    ],
+  );
+  const risk = out.split('Runs by RiskLevel')[1].split('</svg>')[0];
+  expect(risk).toContain('fill="#0f8a5f"');
+  expect(risk).toContain('fill="#b8860b"');
+});

@@ -40,7 +40,7 @@ export function renderBenchReportHtml(run: BenchRun): string {
   ];
   return (
     docHead('Synthetic network campaign report') +
-    coverBand('Synthetic network campaign', esc(run.scenario)) +
+    coverBand('Synthetic network campaign', run.scenario) +
     `<p class="lead">Bounded synthetic laboratory observations. These are not HTTP requests/s, a measured DRS score, or a certification. Amplification ratios do not multiply the received bit rate.</p>` +
     `<div class="stats">${statCard('STATUS', esc(run.status))}${tcp ? statCard('PEAK CONNECTIONS', number(v?.connections?.concurrentPeak)) + statCard('REFUSED CONNECTIONS', number(v?.connections?.refused)) : statCard('RECEIVED PACKETS', number(v?.target?.packets)) + statCard('RECEIVED BITS/S', number(v?.target?.avgBps))}</div>` +
     `<h2>Retained observations</h2><table>${rows.map(([key, value]) => `<tr><th>${esc(key)}</th><td>${esc(value)}</td></tr>`).join('')}</table>` +

@@ -55,8 +55,8 @@ function run(
 }
 
 describe('before/after comparison report', () => {
-  const cBefore = campaign('c1', 'Baseline (before DRS)', 'https://127.0.0.1/');
-  const cAfter = campaign('c2', 'Baseline (after DRS)', 'https://127.0.0.1/');
+  const cBefore = campaign('c1', 'Baseline (before DRS)', 'https://bank.cz/');
+  const cAfter = campaign('c2', 'Baseline (after DRS)', 'https://bank.cz/');
 
   it('reports "Improved" and per-metric deltas when B beats A', () => {
     const a = {
@@ -256,7 +256,7 @@ describe('compareRuns (structured Mitigation Proof)', () => {
     expect(byKey.origin5xx).toMatchObject({ before: 11252, after: 0, improved: true }); // down = good
     expect(byKey.latencyP95).toMatchObject({ before: 4973, after: 40, improved: true });
     expect(byKey.availability).toMatchObject({ before: 33, after: 100, improved: true });
-    expect(byKey.absorbedPct).toMatchObject({ before: 20, after: 96, improved: true });
+    expect(byKey.absorbedPct).toMatchObject({ before: 20, after: 96, improved: null });
     expect(byKey.wrs.improved).toBe(true);
   });
 
@@ -330,4 +330,42 @@ describe('compareRuns (structured Mitigation Proof)', () => {
     });
     expect(byKey.absorbedPct).toMatchObject({ before: null, after: null, improved: null });
   });
+});
+
+it('does not turn absent probe observations into 100% availability or 0ms latency', () => {
+  const campaignA = campaign('a', 'before', 'https://bank.cz/');
+  const a = run('a', { wrs: 90, level: 'A', available: 0, samples: 0, p95: 0 });
+  const b = run('b', { wrs: 90, level: 'A', available: 100, samples: 100, p95: 10 });
+  const comparison = compareRuns({ campaign: campaignA, run: a }, { campaign: campaignA, run: b });
+  for (const key of ['availability', 'latencyP95'])
+    expect(comparison.metrics.find((m) => m.key === key)).toMatchObject({
+      before: null,
+      delta: null,
+      improved: null,
+    });
+  expect(
+    renderCompareHtml({ campaign: campaignA, run: a }, { campaign: campaignA, run: b }),
+  ).toContain('Not measured');
+});
+
+it('retains small availability differences before calculating the delta', () => {
+  const c = campaign('a', 'probe', 'https://bank.cz/');
+  const a = run('a', { wrs: 90, level: 'A', available: 998, samples: 1000, p95: 10 });
+  const b = run('b', { wrs: 90, level: 'A', available: 999, samples: 1000, p95: 10 });
+  expect(
+    compareRuns({ campaign: c, run: a }, { campaign: c, run: b }).metrics.find(
+      (m) => m.key === 'availability',
+    ),
+  ).toMatchObject({ before: 99.8, after: 99.9, delta: 0.1 });
+});
+
+it('does not compare different campaign targets even when the cached workloads match', () => {
+  const a = run('a', { wrs: 60, level: 'C', samples: 100, available: 100, p95: 10 });
+  const b = run('b', { wrs: 97, level: 'A+', samples: 100, available: 100, p95: 10 });
+  const x = compareRuns(
+    { campaign: campaign('a', 'a', 'https://bank.cz/'), run: a },
+    { campaign: campaign('b', 'b', 'https://different.invalid/'), run: b },
+  );
+  expect(x.verdict).toBe('inconclusive');
+  expect(x.comparability.reasons).toContain('campaign targets differ');
 });

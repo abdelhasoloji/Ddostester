@@ -17,7 +17,7 @@ export function evidenceCharts(run: CampaignRun | undefined, connections = false
     max?: number,
   ) =>
     `<div class="figure"><div class="cap">${caption}</div>${timelineSvg(
-      ticks.map((s) => ({ t: s.t, y: y(s) })),
+      samples.map((s) => ({ t: s.t, y: ticks.includes(s) ? y(s) : null })),
       {
         xMax,
         stepped: true,

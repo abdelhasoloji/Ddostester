@@ -3,10 +3,11 @@ import type { CampaignRun } from '../campaigns/runner.js';
 import { mitigationVerdict, riskLevel } from './compliance.js';
 import { deriveRemediations } from './remediations.js';
 import type { Remediation } from './remediations.js';
-import { availabilityPct } from '../../util/run-metrics.js';
+import { observedAvailability, observedProbeP95 } from './measurements.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { hostOf } from '../../util/net.js';
 import { runComparability } from './comparability.js';
+import { assessCampaignRun } from './assessment.js';
 
 /**
  * RPT-03 — Before / after comparison of two runs (typically the same target
@@ -80,12 +81,10 @@ function metricDelta(
   betterWhenUp: boolean,
   unit?: string,
 ): MetricDelta {
-  const d = before != null && after != null ? Math.round((after - before) * 10) / 10 : null;
+  const d = before != null && after != null ? Math.round((after - before) * 100) / 100 : null;
   const improved = d != null && d !== 0 ? d > 0 === betterWhenUp : null;
   return { key, label, unit, before, after, delta: d, betterWhenUp, improved };
 }
-
-const round0 = (n: number): number => Math.round(n);
 
 /**
  * Structured before/after comparison of two runs — the "did the mitigation
@@ -93,6 +92,27 @@ const round0 = (n: number): number => Math.round(n);
  */
 export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
   const comparability = runComparability(a.run, b.run);
+  if (a.campaign.target !== b.campaign.target)
+    comparability.reasons.push('campaign targets differ');
+  for (const [label, side] of [
+    ['before', a],
+    ['after', b],
+  ] as const) {
+    if (assessCampaignRun(side.run, side.campaign).verdict === 'inconclusive')
+      comparability.reasons.push(`${label}: current evidence assessment is inconclusive`);
+    try {
+      if (
+        side.run.generator.config?.url &&
+        new URL(side.run.generator.config.url).origin !== new URL(side.campaign.target).origin
+      )
+        comparability.reasons.push(
+          `${label}: recorded generator origin differs from campaign target`,
+        );
+    } catch {
+      comparability.reasons.push(`${label}: target identity is invalid`);
+    }
+  }
+  comparability.comparable = comparability.reasons.length === 0;
   const before: RunComparisonSide = {
     runId: a.run.runId,
     campaign: a.campaign.name,
@@ -123,7 +143,7 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
   const sign = wrsDelta > 0 ? '+' : '';
   const headline = !comparability.comparable
     ? `Comparison inconclusive: ${comparability.reasons.join('; ')}`
-    : `Resilience ${verb}: ${before.level}→${after.level} · ` +
+    : `Observed legacy WRS diagnostic ${verb}: ${before.level}→${after.level} · ` +
       `WRS ${before.wrs}→${after.wrs} (${sign}${wrsDelta})`;
 
   const metrics: MetricDelta[] = [
@@ -131,26 +151,32 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
     metricDelta(
       'availability',
       'Probe availability',
-      round0(availabilityPct(a.run)),
-      round0(availabilityPct(b.run)),
+      observedAvailability(a.run),
+      observedAvailability(b.run),
       true,
       '%',
     ),
     metricDelta(
       'latencyP95',
       'Probe latency p95',
-      round0(a.run.probe.latencyMs.p95),
-      round0(b.run.probe.latencyMs.p95),
+      observedProbeP95(a.run),
+      observedProbeP95(b.run),
       false,
       ' ms',
     ),
-    metricDelta('origin5xx', 'Origin 5xx', origin5xx(a.run), origin5xx(b.run), false),
+    metricDelta(
+      'origin5xx',
+      'Generator-observed HTTP 5xx',
+      origin5xx(a.run),
+      origin5xx(b.run),
+      false,
+    ),
     metricDelta(
       'absorbedPct',
-      'Edge absorbed',
-      a.run.absorption ? round0(a.run.absorption.absorbedPct) : null,
-      b.run.absorption ? round0(b.run.absorption.absorbedPct) : null,
-      true,
+      'Generator failures (legacy fraction)',
+      a.run.absorption ? a.run.absorption.absorbedPct : null,
+      b.run.absorption ? b.run.absorption.absorbedPct : null,
+      false,
       '%',
     ),
   ];
@@ -166,7 +192,9 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
     verdict,
     headline,
     metrics: comparability.comparable
-      ? metrics
+      ? metrics.map((metric) =>
+          metric.key === 'absorbedPct' ? { ...metric, improved: null } : metric,
+        )
       : metrics.map((metric) => ({ ...metric, improved: null })),
     remainingRemediations: deriveRemediations(b.campaign, b.run),
   };
@@ -174,7 +202,7 @@ export function compareRuns(a: CompareSide, b: CompareSide): RunComparison {
 
 /** Signed delta with an arrow; `betterWhenUp` decides the good direction. */
 function directionalDelta(a: number, b: number, betterWhenUp: boolean, unit = ''): string {
-  const d = Math.round((b - a) * 10) / 10;
+  const d = Math.round((b - a) * 100) / 100;
   if (d === 0) return `±0${unit}`;
   const up = d > 0;
   const good = up === betterWhenUp;
@@ -185,14 +213,16 @@ function directionalDelta(a: number, b: number, betterWhenUp: boolean, unit = ''
 
 export function renderCompareHtml(a: CompareSide, b: CompareSide): string {
   const comparison = compareRuns(a, b);
-  const delta = (before: number, after: number, betterWhenUp: boolean, unit = '') =>
-    comparison.comparability.comparable
-      ? directionalDelta(before, after, betterWhenUp, unit)
-      : `<span class="muted">${Math.round((after - before) * 10) / 10}${unit} (descriptive)</span>`;
-  const aAvail = availabilityPct(a.run);
-  const bAvail = availabilityPct(b.run);
-  const aP95 = a.run.probe.latencyMs.p95;
-  const bP95 = b.run.probe.latencyMs.p95;
+  const delta = (before: number | null, after: number | null, betterWhenUp: boolean, unit = '') =>
+    before === null || after === null
+      ? 'Not measured'
+      : comparison.comparability.comparable
+        ? directionalDelta(before, after, betterWhenUp, unit)
+        : `<span class="muted">${Math.round((after - before) * 100) / 100}${unit} (descriptive)</span>`;
+  const aAvail = observedAvailability(a.run);
+  const bAvail = observedAvailability(b.run);
+  const aP95 = observedProbeP95(a.run);
+  const bP95 = observedProbeP95(b.run);
   const wrsDelta = b.run.wrs.wrs - a.run.wrs.wrs;
   const verdict = !comparison.comparability.comparable
     ? { label: 'Comparison inconclusive', cls: 'muted' }
@@ -202,10 +232,10 @@ export function renderCompareHtml(a: CompareSide, b: CompareSide): string {
         ? { label: `Regressed (${wrsDelta} WRS)`, cls: 'bad' }
         : { label: 'No change', cls: 'muted' };
 
-  const aRisk = riskLevel(a.run);
-  const bRisk = riskLevel(b.run);
-  const aMit = mitigationVerdict(a.run);
-  const bMit = mitigationVerdict(b.run);
+  const aRisk = riskLevel(a.run, assessCampaignRun(a.run, a.campaign));
+  const bRisk = riskLevel(b.run, assessCampaignRun(b.run, b.campaign));
+  const aMit = mitigationVerdict(a.run, assessCampaignRun(a.run, a.campaign));
+  const bMit = mitigationVerdict(b.run, assessCampaignRun(b.run, b.campaign));
 
   const row = (label: string, av: string, bv: string, d = ''): string =>
     `<tr><th>${label}</th><td>${av}</td><td>${bv}</td><td>${d}</td></tr>`;
@@ -245,11 +275,13 @@ ${comparison.comparability.comparable ? '' : `<p class="muted">${esc(comparison.
 <table>
  <tr><th>Metric</th><th>A — ${esc(a.campaign.name)}</th><th>B — ${esc(b.campaign.name)}</th><th>Δ (A→B)</th></tr>
  ${row('Target', esc(hostOf(a.campaign.target)), esc(hostOf(b.campaign.target)))}
+ ${row('Run ID', esc(String(a.run.runId)), esc(String(b.run.runId)))}
+ ${row('Collection source (recorded)', esc(a.run.generator.config?.execution?.sourceRef ?? 'not recorded'), esc(b.run.generator.config?.execution?.sourceRef ?? 'not recorded'))}
  ${row('Run finished', esc(a.run.generator.finishedAt), esc(b.run.generator.finishedAt))}
- ${row('WRS', `${a.run.wrs.wrs} <span class="muted">${a.run.wrs.level}</span>`, `${b.run.wrs.wrs} <span class="muted">${b.run.wrs.level}</span>`, delta(a.run.wrs.wrs, b.run.wrs.wrs, true))}
- ${row('Availability', `${aAvail.toFixed(0)}%`, `${bAvail.toFixed(0)}%`, delta(aAvail, bAvail, true, ' pts'))}
- ${row('Probe latency p95', `${aP95} ms`, `${bP95} ms`, delta(aP95, bP95, false, ' ms'))}
- ${row('Mitigation', `<span class="${aMit.cls}">${aMit.label}</span>`, `<span class="${bMit.cls}">${bMit.label}</span>`)}
+ ${row('Legacy WRS diagnostic (not DRS)', `${a.run.wrs.wrs} <span class="muted">${a.run.wrs.level}</span>`, `${b.run.wrs.wrs} <span class="muted">${b.run.wrs.level}</span>`, delta(a.run.wrs.wrs, b.run.wrs.wrs, true))}
+ ${row('Availability', aAvail === null ? 'Not measured' : `${aAvail}%`, bAvail === null ? 'Not measured' : `${bAvail}%`, delta(aAvail, bAvail, true, ' pts'))}
+ ${row('Probe latency p95', aP95 === null ? 'Not measured' : `${aP95} ms`, bP95 === null ? 'Not measured' : `${bP95} ms`, delta(aP95, bP95, false, ' ms'))}
+ ${row('Diagnostic verdict', `<span class="${aMit.cls}">${aMit.label}</span>`, `<span class="${bMit.cls}">${bMit.label}</span>`)}
  ${row('RiskLevel', `<span class="${aRisk.cls}">${aRisk.label}</span>`, `<span class="${bRisk.cls}">${bRisk.label}</span>`)}
  ${row('Time to detect (TTD)', ttd(a.run), ttd(b.run))}
  ${row('Time to mitigate (TTM)', ttm(a.run), ttm(b.run))}
@@ -257,6 +289,6 @@ ${comparison.comparability.comparable ? '' : `<p class="muted">${esc(comparison.
 </table>
 
 <p class="muted">Bounded HTTP generator — no volumetric vector. Detection/mitigation
-timings are measured only when a protection source reports them (else estimated).</p>
+timings are reported by a protection source when available (otherwise estimated). Even comparable workloads support descriptive differences, not a causal protection proof or a DRS score.</p>
 </body></html>`;
 }

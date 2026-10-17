@@ -83,7 +83,9 @@ describe('remediations engine', () => {
     expect(ids).toContain('collateral');
     expect(ids).toContain('slow-detection');
     expect(ids).toContain('slow-mitigation');
-    expect(rem.find((r) => r.id === 'collateral')!.remediation).toMatch(/block/i);
+    expect(rem.find((r) => r.id === 'collateral')!.remediation).toMatch(
+      /independent origin and protection logs/i,
+    );
   });
 
   it('recommends wiring the scrubber when the WRS is estimated', () => {
@@ -138,4 +140,25 @@ describe('remediations engine', () => {
     expect(loss!.affected).toBe(2);
     expect(agg[0].severity).toBe('critical');
   });
+});
+
+it('requires probe evidence and real reported timings before claiming a measured weakness', () => {
+  const missing = run({
+    status: 'COMPLETED',
+    wrs: 40,
+    level: 'D',
+    available: 0,
+    samples: 0,
+    detection: 10,
+    mitigation: 10,
+    estimated: true,
+  });
+  const items = deriveRemediations(campaign('missing'), missing);
+  expect(items.some((x) => x.id === 'probe-evidence')).toBe(true);
+  expect(
+    items.some((x) => ['availability-loss', 'slow-detection', 'slow-mitigation'].includes(x.id)),
+  ).toBe(false);
+  expect(items.map((x) => x.remediation).join(' ')).not.toContain(
+    'pass/fail becomes authoritative',
+  );
 });

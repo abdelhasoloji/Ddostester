@@ -5,7 +5,7 @@ import { computeConfidence, fleetCpuContention, remoteProbeQualityReasons } from
 import type { CampaignRun } from '../campaigns/runner.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { wrsLevel } from '../wrs/scoring.js';
-import { availabilityPct } from '../../util/run-metrics.js';
+import { observedAvailability } from './measurements.js';
 
 /**
  * Dedicated assessment engine — the single source of truth that turns the REAL
@@ -101,7 +101,8 @@ const pct1 = (r: number): number => Math.round(Math.max(0, Math.min(1, r)) * 100
 export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): VectorAssessment {
   const isSlow = ctx.vector === 'http-slowloris' || /slowloris/i.test(ctx.shape);
   const a = run?.absorption;
-  const avail = run ? availabilityPct(run) : 0;
+  const measuredAvailability = run ? observedAvailability(run) : null;
+  const avail = measuredAvailability ?? 0;
   const configuredRps = a?.configuredRps ?? 0;
   // The rate the scenario meant to offer (its mean) — the honest denominator for
   // delivery. Equals the peak for a constant profile; lower for a wave/ramp. A
@@ -123,7 +124,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const level = run?.wrs?.level ?? ctx.level ?? (wrs != null ? wrsLevel(wrs) : null);
 
   const caveats: string[] = [];
-  const noProbe = !!run && run.probe.samples === 0;
+  const noProbe = !!run && measuredAvailability === null;
   const unsupportedH2 =
     /http\/?2|rapid.?reset|continuation/i.test(ctx.shape) && ctx.h2Confirmed !== true;
   if (noProbe) caveats.push('No completed probe observations; availability is unknown.');
@@ -189,7 +190,13 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   let verdict: VectorVerdict;
   if (noProbe || unsupportedH2) verdict = 'inconclusive';
   else if (ctx.status === 'KILLED_AUTO')
-    verdict = run?.probeContended || baselineMissing ? 'inconclusive' : 'breached';
+    verdict =
+      run?.probeContended ||
+      baselineMissing ||
+      run?.confidence?.degraded ||
+      run?.generator.fleet?.measurementComplete === false
+        ? 'inconclusive'
+        : 'breached';
   else if (ctx.status === 'KILLED_MANUAL') verdict = 'inconclusive';
   else if (!run) verdict = 'inconclusive';
   else if (
@@ -256,7 +263,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     originRps: Math.round(originRps),
     deliveryRatio,
     underDelivered,
-    availabilityPct: run?.probe.samples ? Math.round(avail * 10) / 10 : null,
+    availabilityPct: measuredAvailability === null ? null : Math.round(avail * 10) / 10,
     absorbedPct: a?.absorbedPct ?? 0,
     rejectedPct: pct1(rejectedRatio),
     tarpitPct: pct1(tarpitRatio),

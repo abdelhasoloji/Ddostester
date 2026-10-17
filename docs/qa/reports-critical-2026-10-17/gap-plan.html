@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Protection-gap analysis — WEDOS ShieldTest</title>
+<style>
+ body{font:14px system-ui,sans-serif;margin:2rem;color:#111;max-width:1000px}
+ .brand{display:flex;align-items:center;gap:.6rem;border-bottom:3px solid #003484;padding-bottom:.6rem;margin-bottom:1rem}
+ .brand h1{font-size:1.25rem;margin:0}.wm{font-weight:800;color:#003484}
+ h2{color:#003484;margin-top:1.4rem;font-size:1.1rem}
+ h3{margin:1rem 0 .25rem;font-size:1rem}
+ table{border-collapse:collapse;width:100%;margin:.4rem 0}
+ th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:top}
+ .muted{color:#666}
+ .ctl-weak{font-weight:800;color:#c23b34}
+ .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-weight:700;color:#fff;font-size:.85rem}
+ .p-high{background:#c23b34}.p-med{background:#b8860b}.p-low{background:#0f8a5f}
+ .tag{display:inline-block;padding:0 .4rem;border-radius:4px;background:#eef;border:1px solid #ccd;font-size:.75rem;color:#334}
+ .tag-break{background:#fde7e6;border-color:#e0b4b1;color:#8a2a24}
+ .breakrow{background:#fdf3f2}
+ .break{margin:.8rem 0;padding:.6rem .8rem;border-left:4px solid #c23b34;background:#fdf3f2}
+ .break.ok{border-left-color:#0f8a5f;background:#eef9f3}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
+ @media print{.print-btn{display:none}body{margin:0}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button>
+<div class="brand">
+ <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+ <h1><span class="wm">WEDOS ShieldTest</span> — Protection-gap analysis (DRS P26-20371 shape)</h1>
+</div>
+<p class="muted">Generated on 2026-10-17T18:49:46.188Z · target <code>http://10.98.215.52:8080/</code> · WEDOS internal use</p>
+<p><b>4</b> high · <b>7</b> medium · <b>0</b> low priority to replay · <b>3</b> attestation-only line(s).</p>
+<div class="break"><b>Predicted break point — line 9 (POST-Flood (login/account), DRS 5 — advanced / nation-state).</b> Weakest rung on the ladder (bot challenge (js / pow / captcha): unknown) — prove this line first, it gates everything above it.</div>
+<p class="muted">Planning hypotheses from declared or inferred controls, not a measured DRS result. Laboratory outcomes do not automatically describe protection on the campaign target.</p><h2>DRS escalation ladder (replay in this order)</h2>
+<p class="muted">The DRS engagement climbs attacker capability 3 → 4 → 5. Replay each rung, read the per-line delta with the suite-compare, and fix the weakest link before climbing. Intensities are the real capped playbook values.</p>
+<h3>DRS 3 — commodity capability</h3>
+<table><tr><th>#</th><th>Threat line</th><th>Control chain (weakest in bold)</th><th>Priority</th><th>Step · capped intensity · why</th></tr>
+<tr><td>2</td><td>SlowLoris</td><td><span class="ctl ctl-weak">Slow-request / header timeout <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>SlowLoris (DRS3)<br><span class="muted">≤ 10 rps · 100 conns · 120s · constant</span><br><span class="muted">Weakest link: slow-request / header timeout not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>3</td><td>HTTP GET-Flood</td><td><span class="ctl ctl-weak">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>GET-Flood (DRS3)<br><span class="muted">≤ 400 rps · 80 conns · 120s · constant</span><br><span class="muted">Weakest link: request rate limiting not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>4</td><td>GET-Random-Flood</td><td><span class="ctl ctl-weak">Origin shielding / edge 404 <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>GET-Random-Flood (DRS3)<br><span class="muted">≤ 500 rps · 100 conns · 120s · wave</span><br><span class="muted">Weakest link: origin shielding / edge 404 not declared — replay to establish the baseline.</span></td></tr>
+</table>
+<h3>DRS 4 — elevated / botnet</h3>
+<table><tr><th>#</th><th>Threat line</th><th>Control chain (weakest in bold)</th><th>Priority</th><th>Step · capped intensity · why</th></tr>
+<tr><td>5</td><td>GET /VALID_RANDOM</td><td><span class="ctl ctl-weak">Cache-key policy <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>GET /VALID_RANDOM (DRS4)<br><span class="muted">≤ 500 rps · 100 conns · 120s · constant</span><br><span class="muted">Weakest link: cache-key policy not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>6</td><td>HTTP POST-Flood</td><td><span class="ctl ctl-weak">HTTP method policy <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>POST-Flood (DRS4)<br><span class="muted">≤ 400 rps · 80 conns · 120s · constant</span><br><span class="muted">Weakest link: http method policy not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>7</td><td>HTTP/2 GET-Flood</td><td><span class="ctl ctl-weak">HTTP/2 abuse guard (rapid-reset / continuation) <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>HTTP/2 GET-Flood (DRS4)<br><span class="muted">≤ 800 rps · 150 conns · 120s · constant</span><br><span class="muted">Weakest link: http/2 abuse guard (rapid-reset / continuation) not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>8</td><td>HTTP/2 Rapid Reset / Continuation</td><td><span class="ctl ctl-weak">HTTP/2 abuse guard (rapid-reset / continuation) <span class="muted">(unknown)</span></span></td><td><span class="pill p-med">medium</span></td><td>HTTP/2 Continuation — header pressure (DRS4)<br><span class="muted">≤ 400 rps · 100 conns · 120s · constant</span><br><span class="muted">Weakest link: http/2 abuse guard (rapid-reset / continuation) not declared — replay to establish the baseline.</span><br><span class="muted">⚠ Rapid-reset and continuation are exercised bounded; the HPACK decompression bomb stays attested (amplification exploit, not emitted).</span></td></tr>
+</table>
+<h3>DRS 5 — advanced / nation-state</h3>
+<table><tr><th>#</th><th>Threat line</th><th>Control chain (weakest in bold)</th><th>Priority</th><th>Step · capped intensity · why</th></tr>
+<tr class="breakrow"><td>9</td><td>POST-Flood (login/account) <span class="tag tag-break">break point</span></td><td><span class="ctl ctl-weak">Bot challenge (JS / PoW / CAPTCHA) <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span> · <span class="ctl">Credential brute-force protection <span class="muted">(unknown)</span></span></td><td><span class="pill p-high">high</span></td><td>Login/account POST-Flood (DRS5)<br><span class="muted">≤ 500 rps · 120 conns · 180s · constant</span><br><span class="muted">Weakest link: bot challenge (js / pow / captcha) not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>10</td><td>HTTP MultiVector <span class="tag">combo</span></td><td><span class="ctl ctl-weak">Request rate limiting <span class="muted">(unknown)</span></span> · <span class="ctl">Bot challenge (JS / PoW / CAPTCHA) <span class="muted">(unknown)</span></span> · <span class="ctl">HTTP/2 abuse guard (rapid-reset / continuation) <span class="muted">(unknown)</span></span></td><td><span class="pill p-high">high</span></td><td>L7 MultiVector (DRS5)<br><span class="muted">≤ 800 rps · 200 conns · 180s · wave</span><br><span class="muted">Weakest link: request rate limiting not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>11</td><td>Layer-7-THOR / PulseWave <span class="tag">combo</span></td><td><span class="ctl ctl-weak">Bot challenge (JS / PoW / CAPTCHA) <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span></td><td><span class="pill p-high">high</span></td><td>THOR / PulseWave — synchronized (DRS5)<br><span class="muted">≤ 1000 rps · 250 conns · 180s · wave</span><br><span class="muted">Weakest link: bot challenge (js / pow / captcha) not declared — replay to establish the baseline.</span></td></tr>
+<tr><td>13</td><td>MultiTarget / carpet-bombing <span class="tag">combo</span></td><td><span class="ctl ctl-weak">Bot challenge (JS / PoW / CAPTCHA) <span class="muted">(unknown)</span></span> · <span class="ctl">Request rate limiting <span class="muted">(unknown)</span></span> · <span class="ctl">Origin shielding / edge 404 <span class="muted">(unknown)</span></span></td><td><span class="pill p-high">high</span></td><td>MultiTarget / carpet-bombing (DRS5)<br><span class="muted">≤ 800 rps · 200 conns · 180s · wave</span><br><span class="muted">Weakest link: bot challenge (js / pow / captcha) not declared — replay to establish the baseline.</span></td></tr>
+</table>
+<h2>Attestation-only (out of the bounded model)</h2>
+<p class="muted">Validated by attestation of the control, never emitted — no exploit, amplification or spoofing.</p>
+<table><tr><th>#</th><th>DRS</th><th>Threat line</th><th>Control</th><th>Disposition</th></tr>
+<tr><td>1</td><td>DRS3</td><td>TCP-Handshakes</td><td><span class="ctl ctl-weak">SYN-flood / handshake protection (L3/4) <span class="muted">(unknown)</span></span></td><td>L3/4 state-table line — runs on the isolated class-C bench, not the L7 playbook.</td></tr>
+<tr><td>12</td><td>DRS5</td><td>WAF-Cracker</td><td><span class="ctl ctl-weak">WAF signature ruleset <span class="muted">(unknown)</span></span></td><td>Live SQLi/XSS/RCE payloads — weaponized, never emitted; WAF efficacy is attested from the ruleset.</td></tr>
+<tr><td>14</td><td>DRS4</td><td>RANDOM POST / LOGIN_BRUTE_FORCE</td><td><span class="ctl ctl-weak">Credential brute-force protection <span class="muted">(unknown)</span></span></td><td>Bounded POST is covered (line 6/9); credential brute-force stays out of the model by design.</td></tr>
+</table>
+<p class="muted">Analytical only — selects and orders existing bounded vectors against the
+authorized target from the declared defense; it synthesises no attack, defeats no rule, and relaxes no cap/allowlist.</p>
+</body></html>

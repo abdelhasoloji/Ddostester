@@ -270,7 +270,8 @@ describe('executeCampaign — run time-series', () => {
       mitigationTimeSec: 11,
     });
     const html = renderCampaignReportHtml(campaign, run);
-    expect(html).toContain('Protection (measured)');
+    expect(html).toContain('Protection telemetry (reported)');
+    expect(html).toContain('do not establish independent measurement');
     expect(html).toContain('Time-to-detect');
     expect(html).toContain('4s'); // TTD
     expect(html).toContain('11s'); // TTM

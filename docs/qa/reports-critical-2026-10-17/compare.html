@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Resilience comparison — WEDOS ShieldTest</title>
+<style>
+ body{font:14px system-ui,sans-serif;margin:2rem;color:#111;max-width:900px}
+ .brand{display:flex;align-items:center;gap:.6rem;border-bottom:3px solid #003484;padding-bottom:.6rem;margin-bottom:1rem}
+ .brand h1{font-size:1.25rem;margin:0}.wm{font-weight:800;color:#003484}
+ h2{color:#003484;margin-top:1.4rem}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0}
+ th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}
+ .muted{color:#666}
+ .good,.r-low,.v-held{color:#0f8a5f;font-weight:700}
+ .bad,.r-crit,.v-fail{color:#c23b34;font-weight:700}
+ .r-med,.v-partial{color:#b8860b;font-weight:700}
+ .v-aborted{color:#666;font-weight:600}
+ .verdict{font-size:1.1rem;font-weight:700;margin:.4rem 0 0}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:#003484;color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer}
+ @media print{.print-btn{display:none}body{margin:0}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button>
+<div class="brand">
+ <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#g)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+ <h1><span class="wm">WEDOS ShieldTest</span> — Resilience comparison (before / after)</h1>
+</div>
+<p class="muted">Generated on 2026-10-17T18:49:46.186Z · WEDOS internal use</p>
+<p class="verdict"><span class="muted">Comparison inconclusive</span></p>
+<p class="muted">before: source identity unknown; before: score estimated or invalid; after: HTTP outcomes unfinalized; after: source identity unknown; after: external/fleet engine version conformance not recorded; after: measurement confidence unknown or degraded; after: score estimated or invalid; recorded workload or execution context differs; after: current evidence assessment is inconclusive. Values are descriptive; no improvement conclusion is supported.</p>
+
+<table>
+ <tr><th>Metric</th><th>A — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)</th><th>B — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5)</th><th>Δ (A→B)</th></tr>
+ <tr><th>Target</th><td>10.98.215.52</td><td>10.98.215.52</td><td></td></tr>
+ <tr><th>Run ID</th><td>6ef1641e-290a-4a59-acc0-1569462894c7</td><td>d0247fed-bd59-47a9-84fd-2eec3841b0f2</td><td></td></tr>
+ <tr><th>Collection source (recorded)</th><td>266e9a6</td><td>266e9a6</td><td></td></tr>
+ <tr><th>Run finished</th><td>2026-10-17T18:14:59.586Z</td><td>2026-10-17T18:14:18.799Z</td><td></td></tr>
+ <tr><th>Legacy WRS diagnostic (not DRS)</th><td>84.5 <span class="muted">B</span></td><td>59.5 <span class="muted">C</span></td><td><span class="muted">-25 (descriptive)</span></td></tr>
+ <tr><th>Availability</th><td>75%</td><td>25%</td><td><span class="muted">-50 pts (descriptive)</span></td></tr>
+ <tr><th>Probe latency p95</th><td>482.92 ms</td><td>423.49 ms</td><td><span class="muted">-59.43 ms (descriptive)</span></td></tr>
+ <tr><th>Diagnostic verdict</th><td><span class="v-partial">Partial</span></td><td><span class="v-aborted">Inconclusive</span></td><td></td></tr>
+ <tr><th>RiskLevel</th><td><span class="r-crit">Critical</span></td><td><span class="v-aborted">Unknown</span></td><td></td></tr>
+ <tr><th>Time to detect (TTD)</th><td>—</td><td>—</td><td></td></tr>
+ <tr><th>Time to mitigate (TTM)</th><td>—</td><td>—</td><td></td></tr>
+ <tr><th>Final status</th><td>COMPLETED</td><td>COMPLETED</td><td></td></tr>
+</table>
+
+<p class="muted">Bounded HTTP generator — no volumetric vector. Detection/mitigation
+timings are reported by a protection source when available (otherwise estimated). Even comparable workloads support descriptive differences, not a causal protection proof or a DRS score.</p>
+</body></html>
