@@ -241,3 +241,5 @@ and regenerated reports. This source review is separate from the deployed build 
 any later release activation is recorded with its own delivery receipt.
 
 Candidate build 485 (`0b5f403e396133f8e7763f9d7eae00fad8128d1c`) passed local checks and regenerated 227 historical individual reports and 50 suites on an isolated restored database. Production build 483 is retained while a new suite is running. Refresh the preservation snapshot and authenticated backup after that execution completes before any activation. No campaign was launched for this review.
+
+Report corrections activated as build 485 (`0b5f403e396133f8e7763f9d7eae00fad8128d1c`) on 17 October 2026 at 20:54 UTC, after campaign completion and fresh authenticated backup recovery. All 301 campaigns, 11 accounts, sole administrator, settings, caps and three Fleet identities were preserved; HTTPS/API/UI identity and three ready IoT Pods were verified. Receipt: `docs/qa/reports-critical-2026-10-17/delivery.json`. This supersedes the earlier deferred activation status.

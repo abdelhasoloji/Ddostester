@@ -1,18 +1,20 @@
 {
-  "status": "NOT_DEPLOYED_ACTIVE_PRODUCTION_SUITE",
+  "status": "DEPLOYED",
   "candidateBuild": 485,
   "candidateSource": "0b5f403e396133f8e7763f9d7eae00fad8128d1c",
-  "liveBuild": 483,
-  "liveSource": "d15afa3d8a09670e492634529029db7274e3d1cc",
+  "liveBuild": 485,
+  "liveSource": "0b5f403e396133f8e7763f9d7eae00fad8128d1c",
   "activeSuite": "7347851d-3b8c-4352-9193-51be5adebd92",
   "observedRunningStep": 1,
   "configuredStepSeconds": 120,
   "currentCampaigns": 301,
-  "reason": "No application restart while a production suite is active. The earlier preservation snapshot predates 12 newly created campaigns and changed account records; a fresh backup/preservation snapshot is required after execution finishes.",
+  "reason": "Suite completed before activation. Fresh encrypted backup and authenticated recovery verified; all preservation gates and API/UI identity checks passed.",
   "localBackendTestsPassed": 1263,
   "localFrontendTestsPassed": 470,
   "nativeTargetedTestsPassed": 133,
   "ciRun": 39060734972,
-  "ciStatus": "IN_PROGRESS",
-  "newTrafficGeneratedByReview": false
+  "ciStatus": "SUCCESS",
+  "newTrafficGeneratedByReview": false,
+  "deployedAt": "2026-10-17T20:54:36.084Z",
+  "runningAtPromotion": 0
 }

@@ -24,7 +24,7 @@ Reproduce after building: `node scripts/qa/render-reports.mjs /tmp/reports-criti
 
 ## Delivery status
 
-Candidate build 485 (`0b5f403e396133f8e7763f9d7eae00fad8128d1c`) is prepared. Production remains build 483 because suite `7347851d-3b8c-4352-9193-51be5adebd92` is actively executing 120-second steps. No restart or campaign stop was performed. Twelve campaigns were created after the backup baseline: refresh preservation and authenticated-backup checks after the suite finishes before promotion. `delivery-status.json` records this distinction.
+Build 485 (`0b5f403e396133f8e7763f9d7eae00fad8128d1c`) was activated on 17 October at 20:54 UTC after the active suite finished. A fresh encrypted backup was restored and verified. API/UI identity, readiness, all 301 campaigns, 11 accounts, sole administrator, three Fleet identities and runtime configuration were preserved. HTTPS/mTLS health and all three ready IoT Pods were verified. See `delivery.json` and `delivery-status.json`. No campaign was launched for this deployment.
 
 The restored-copy compatibility check regenerated 227 retained individual reports, 50 suite reports and the portfolio report without errors or database mutation. This check predates the active 12-step suite; it does not claim to have reviewed that unfinished execution.
 
