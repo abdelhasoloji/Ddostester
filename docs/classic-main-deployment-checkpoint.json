@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-10-17T09:53:26Z",
+  "branch": "codex/main-classic-three-pods",
+  "baseMain": "58eff0b928d48d55b81f2bc57ab3037f616cd96f",
+  "sourceCommit": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+  "applicationSourceEqualsMain": true,
+  "build": "468",
+  "previousBuild": "496",
+  "preservedNewerBranch": "codex/passive-pop-readiness",
+  "release": "/home/shieldtest/ddostester-releases/release-2067c984.lFJ6Za",
+  "ci": {
+    "conclusion": "success",
+    "headSha": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "backend"
+      },
+      {
+        "conclusion": "success",
+        "name": "quality"
+      },
+      {
+        "conclusion": "success",
+        "name": "frontend"
+      },
+      {
+        "conclusion": "success",
+        "name": "postgres"
+      }
+    ],
+    "url": "https://github.com/abdelhasoloji/Ddostester/actions/runs/39022154991"
+  },
+  "verification": {
+    "nativeVpsVerification": "passed",
+    "encryptedBackup": "passed",
+    "authenticatedIsolatedRecovery": "passed",
+    "classicApplicationOnRestoredCurrentDatabase": "passed",
+    "restoredRecordsAndMigrationsUnchanged": true,
+    "apiAndUiAssetIdentity": "passed",
+    "externalMtlsHealth": "passed",
+    "ready": true,
+    "userMode": "single",
+    "soleAdmin": "abdelha@wedos",
+    "policyUnchanged": true,
+    "auditAndInfrastructureHistoryUnchanged": true,
+    "preserved": {
+      "users": 11,
+      "campaigns": 284,
+      "settings": 1,
+      "fleetIdentities": 3
+    },
+    "onlineAgents": 3,
+    "podsRunning": ["lab-iot-01", "lab-iot-02", "lab-iot-03"],
+    "podUidsAndIpsUnchanged": true,
+    "protectedExistingRoutes": "passed; campaign list/create/execute/kill, Fleet list, DRS catalogue, bench catalogue, metrics return 401 without authentication"
+  },
+  "productionCampaignsDispatched": 0,
+  "podsRolledOut": 0,
+  "rollbackReleaseRetained": true,
+  "browserQualification": "Read-only localhost classic interface preview. Production origin remains blocked by saved browser permission; release is independently checked through SSH, API/UI manifest identity and external mTLS health. Newer workspace/detail routes are absent in this main version; checks use the existing classic campaign/Fleet routes."
+}
