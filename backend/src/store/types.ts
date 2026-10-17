@@ -116,7 +116,7 @@ export interface Store {
    */
   createBenchRun(run: BenchRun): Promise<void>;
   getBenchRun(id: string): Promise<BenchRun | undefined>;
-  listBenchRuns(limit?: number): Promise<BenchRun[]>;
+  listBenchRuns(limit?: number, activeOnly?: boolean): Promise<BenchRun[]>;
   /** Atomically claim the oldest REQUESTED run for `runnerId` (→ CLAIMED). */
   claimNextBenchRun(runnerId: string): Promise<BenchRun | undefined>;
   /** Complete a CLAIMED run with a verdict (→ COMPLETED) or an error (→ FAILED). */

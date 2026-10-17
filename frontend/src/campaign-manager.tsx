@@ -1,3 +1,4 @@
+import { SyntheticWorkspace } from './synthetic-workspace.js';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, type Campaign, type DrsSequencePlan, type SuiteSequenceState } from './api.js';
@@ -7,6 +8,27 @@ import { HelpTip } from './help-tip.js';
 import { Modal } from './modal.js';
 import './campaign-manager.css';
 export function CampaignManager() {
+  const [params, setParams] = useSearchParams();
+  const source = params.get('source') ?? (params.get('suite') ? 'fleet' : 'synthetic');
+  return (
+    <>
+      <div className="card">
+        <label>
+          Campaign source{' '}
+          <select
+            value={source}
+            onChange={(e) => setParams({ tab: 'manager', source: e.target.value })}
+          >
+            <option value="synthetic">Bounded synthetic bench</option>
+            <option value="fleet">HTTP Fleet</option>
+          </select>
+        </label>
+      </div>
+      {source === 'fleet' ? <FleetCampaignManager /> : <SyntheticWorkspace />}
+    </>
+  );
+}
+export function FleetCampaignManager() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
   const [template, setTemplate] = useState<Campaign>();

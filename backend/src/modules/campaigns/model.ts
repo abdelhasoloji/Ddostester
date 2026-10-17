@@ -218,6 +218,7 @@ export interface Recurrence {
 }
 
 export interface Campaign extends CampaignInput {
+  syntheticJourney?: import('../bench/journey.js').SyntheticJourney;
   drsSequence?: DrsSequenceBinding;
   /** Server-captured client scope for an offline prototype; never a target grant. */
   clientWorkspace?: {

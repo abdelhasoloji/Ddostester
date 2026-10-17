@@ -117,8 +117,8 @@ export function registerDrsRoutes(
                   'Content-Security-Policy',
                   "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
                 )
-                .send(drsReportHtml(r, c.clientWorkspace))
-            : drsReport(r, c.clientWorkspace);
+                .send(drsReportHtml(r, c.clientWorkspace, c.syntheticJourney))
+            : drsReport(r, c.clientWorkspace, c.syntheticJourney);
         } catch (e) {
           if (e instanceof DrsError) return reply.code(400).send({ error: e.message });
           throw e;
@@ -152,6 +152,10 @@ export function registerDrsRoutes(
           return await store.transaction(async (tx) => {
             const stored = await tx.getCampaign((req.params as { id: string }).id);
             if (!stored) return reply.code(404).send({ error: 'Campaign not found' });
+            ensure(
+              !stored.syntheticJourney,
+              'Use the synthetic campaign lifecycle; its assessment is immutable',
+            );
             const c: Campaign = structuredClone(stored);
             ensure(!c.archived, 'Archived campaign is read-only');
             ensure(

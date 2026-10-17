@@ -77,6 +77,7 @@ export interface DurableFleetEvidence {
 }
 
 export interface Campaign {
+  syntheticJourney?: SyntheticJourney;
   drsSequence?: {
     schema: string;
     targetLevel: number;
@@ -1325,6 +1326,21 @@ export const api = {
     ),
   getLimits: () => get<LimitsInfo>('/api/limits'),
   setLimits: (caps: HardCaps) => put<LimitsInfo>('/api/limits', caps),
+  createSyntheticCampaign: (body: {
+    name: string;
+    targetLevel: number;
+    intervalSec: number;
+    labTarget: string;
+    authorized: boolean;
+  }) => post<Campaign>('/api/synthetic-campaigns', body),
+  syntheticCampaign: (id: string) =>
+    get<SyntheticView>('/api/synthetic-campaigns/' + encodeURIComponent(id)),
+  syntheticControl: (
+    id: string,
+    action: 'start' | 'pause' | 'resume' | 'stop',
+    body?: { confirmed: boolean; planHash: string },
+  ) =>
+    post<Campaign>('/api/synthetic-campaigns/' + encodeURIComponent(id) + '/' + action, body ?? {}),
   benchScenarios: () => get<BenchCatalogue>('/api/bench/scenarios'),
   benchRuns: () => get<{ runs: BenchRun[] }>('/api/bench/runs'),
   createBenchRun: (scenario: string, labTarget?: string) =>
@@ -1846,6 +1862,26 @@ export interface DrsReportView {
   revision: number;
 }
 
+export interface SyntheticJourney {
+  schema: string;
+  state: 'DRAFT' | 'RUNNING' | 'PAUSED' | 'STOPPING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  definition: {
+    schema: string;
+    reference: DrsSequencePlan;
+    labTarget: string;
+    scenarios: string[];
+  };
+  planHash: string;
+  steps: { scenarioId: string; runId?: string }[];
+  nextAt?: number;
+  startedAt?: string;
+  finishedAt?: string;
+  reason?: string;
+}
+export interface SyntheticView {
+  campaign: Campaign;
+  runs: (BenchRun | null)[];
+}
 export interface DrsSequencePlan {
   schema: string;
   targetLevel: number;
@@ -1856,6 +1892,7 @@ export interface DrsSequencePlan {
   blocked: number;
   measuredLevel: null;
   rows: {
+    laboratory?: DrsCatalog['profiles'][number]['laboratory'];
     id: string;
     name: string;
     level: number;

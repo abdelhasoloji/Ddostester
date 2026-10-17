@@ -781,9 +781,9 @@ export class PostgresStore implements Store {
     return r.rows[0] ? rowToBenchRun(r.rows[0]) : undefined;
   }
 
-  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+  async listBenchRuns(limit = 100, activeOnly = false): Promise<BenchRun[]> {
     const r = await this.pool.query(
-      'SELECT * FROM bench_runs ORDER BY requested_at DESC LIMIT $1',
+      `SELECT * FROM bench_runs ${activeOnly ? "WHERE status IN ('REQUESTED','CLAIMED')" : ''} ORDER BY requested_at DESC LIMIT $1`,
       [limit],
     );
     return r.rows.map(rowToBenchRun);

@@ -339,3 +339,12 @@ export const INFRASTRUCTURE_LIMITS = Object.freeze({
 
 /** Additional minimum quiet period between sequential, bounded DRS scenarios. */
 export const DRS_SEQUENCE_LIMITS = { maxIntervalSec: 3600 } as const;
+
+/** The synthetic runner keeps its fixed named-scenario budgets; no rate overrides. */
+export const SYNTHETIC_JOURNEY_LIMITS = {
+  maxActive: 1,
+  queueTimeoutSec: 120,
+  resultTimeoutSec: 180,
+  tickMs: 1000,
+  assessmentBudget: { maxRps: 3, concurrency: 1, maxDurationSec: 60 },
+} as const;

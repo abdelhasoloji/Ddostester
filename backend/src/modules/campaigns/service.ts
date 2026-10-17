@@ -67,6 +67,8 @@ export function createCampaign(
 ): Campaign {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new CampaignError('Invalid campaign input');
+  if ('syntheticJourney' in input)
+    throw new CampaignError('Synthetic lifecycle metadata is server-managed');
   if (
     input.drsMode !== undefined &&
     !['engine-validation', 'synthetic-lab', 'measured'].includes(input.drsMode)
@@ -528,6 +530,7 @@ export function cisoApproveCampaign(campaign: Campaign, cisoBy: string): Campaig
  * deployment), a mandatory CISO sign-off must also be present.
  */
 export function assertExecutable(campaign: Campaign, opts: { requireCiso?: boolean } = {}): void {
+  if (campaign.syntheticJourney) throw new CampaignError('Use the governed synthetic lifecycle');
   if (campaign.status !== 'APPROVED') {
     throw new CampaignError(`Campaign is not executable (status ${campaign.status}).`);
   }

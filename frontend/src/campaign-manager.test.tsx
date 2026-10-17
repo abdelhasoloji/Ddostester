@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { CampaignManager } from './campaign-manager.js';
+import { FleetCampaignManager as CampaignManager } from './campaign-manager.js';
 import { api, type Campaign, type DrsSequencePlan } from './api.js';
 import { makeApp } from './test-utils.js';
 let app: Omit<ReturnType<typeof makeApp>, 'campaigns'> & { campaigns: Campaign[] } = makeApp();

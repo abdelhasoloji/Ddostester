@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, it, expect, vi } from 'vitest';
-import { makeApp } from './test-utils.js';
+import { makeApp, renderWithRouter as render } from './test-utils.js';
 import { api } from './api.js';
 import { DrsCatalogPanel } from './drs-catalog.js';
 const app = makeApp({
@@ -19,11 +19,6 @@ const app = makeApp({
 vi.mock('./context.js', async (original) => ({
   ...(await original<typeof import('./context.js')>()),
   useApp: () => app,
-}));
-vi.mock('./bench-card.js', () => ({
-  BenchCard: ({ initialScenario }: { initialScenario: string }) => (
-    <div>Prepared bench: {initialScenario}</div>
-  ),
 }));
 afterEach(() => vi.restoreAllMocks());
 it('shows the full DRS reference by default and only permits supported Fleet configuration', async () => {
@@ -125,8 +120,9 @@ it('prepares only an explicit registered synthetic shape without dispatching or 
   expect(
     screen.getByText('No matching synthetic shape. Remains not evaluated.'),
   ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare synthetic scenario' }));
-  expect(screen.getByText('Prepared bench: udp_ntp_reflection')).toBeInTheDocument();
-  expect(screen.getByText(/not the client URL/)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Prepare synthetic campaign' })).toHaveAttribute(
+    'href',
+    '/campaigns?tab=manager&source=synthetic&level=3',
+  );
   expect(dispatch).not.toHaveBeenCalled();
 });

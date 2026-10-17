@@ -1,3 +1,4 @@
+import { registerSyntheticRoutes } from './routes/synthetic-routes.js';
 import { fleetDeviceView } from './modules/fleet/devices.js';
 import { registerDrsSequenceRoutes } from './routes/drs-sequence-routes.js';
 import { drsSequencePlan, waitForScenarioInterval } from './modules/drs/sequence.js';
@@ -2028,9 +2029,37 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       requestedBy: req.authUser?.email ?? 'dev',
       requestedAt: new Date().toISOString(),
     };
-    await store.createBenchRun(run);
-    await audit(req, 'bench.request', undefined, `C/${run.scenario} @ ${host} → REQUESTED`);
+    const created = await store.transaction(async (tx) => {
+      if (
+        (await tx.listCampaigns()).some(
+          (c) =>
+            c.syntheticJourney &&
+            ['RUNNING', 'PAUSED', 'STOPPING'].includes(c.syntheticJourney.state),
+        )
+      )
+        return false;
+      await tx.createBenchRun(run);
+      await tx.saveAudit({
+        id: randomUUID(),
+        at: new Date().toISOString(),
+        actor: req.authUser?.email ?? 'dev',
+        action: 'bench.request',
+        detail: `C/${run.scenario} @ ${host} → REQUESTED`,
+      });
+      return true;
+    });
+    if (!created)
+      return reply
+        .code(409)
+        .send({ error: 'A synthetic campaign owns the bench; wait for it to settle' });
     return reply.code(201).send(run);
+  });
+
+  const synthetic = await registerSyntheticRoutes(app, store, guard, {
+    enabled: benchDispatchEnabled,
+    targets: labTargets,
+    requireApproval: auth.enabled && auth.userMode !== 'single',
+    requireCiso: requireCisoApproval,
   });
 
   // Runner API — an isolated external runner claims work and posts verdicts.
@@ -2039,7 +2068,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     if (!runnerAuthed(req))
       return reply.code(401).send({ error: 'runner authentication required' });
     const runnerId = (((req.body ?? {}) as { runner?: string }).runner ?? 'runner').slice(0, 120);
-    const run = await store.claimNextBenchRun(runnerId);
+    const run = await synthetic.claim(runnerId);
     if (!run) return reply.code(204).send();
     return reply.code(200).send(run);
   });
@@ -2047,64 +2076,75 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   app.post('/api/bench/runs/:id/result', async (req, reply) => {
     if (!runnerAuthed(req))
       return reply.code(401).send({ error: 'runner authentication required' });
-    const id = (req.params as { id: string }).id;
-    const existing = await store.getBenchRun(id);
-    if (!existing) return reply.code(404).send({ error: 'not found' });
-    // A verdict is accepted only for a run currently being executed (CLAIMED).
-    // This makes result-posting idempotent-safe: a duplicate or late post can't
-    // overwrite a terminal run or record a second MEASURED_LAB coverage row.
-    if (existing.status !== 'CLAIMED') {
-      return reply.code(409).send({
-        error: `run is ${existing.status}, not CLAIMED — cannot post a result`,
+    return store.transaction(async (tx) => {
+      const record: typeof auditAs = (actor, action, campaignId, detail) =>
+        tx.saveAudit({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          actor,
+          action,
+          campaignId,
+          detail,
+        });
+      const id = (req.params as { id: string }).id;
+      const existing = await tx.getBenchRun(id);
+      if (!existing) return reply.code(404).send({ error: 'not found' });
+      // A verdict is accepted only for a run currently being executed (CLAIMED).
+      // This makes result-posting idempotent-safe: a duplicate or late post can't
+      // overwrite a terminal run or record a second MEASURED_LAB coverage row.
+      if (existing.status !== 'CLAIMED') {
+        return reply.code(409).send({
+          error: `run is ${existing.status}, not CLAIMED — cannot post a result`,
+        });
+      }
+      const b = (req.body ?? {}) as { verdict?: unknown; error?: string };
+      if (b.error && !b.verdict) {
+        const updated = await tx.setBenchRunResult(id, {
+          error: String(b.error).slice(0, 500),
+        });
+        await record(
+          existing.claimedBy ?? 'runner',
+          'bench.verdict',
+          undefined,
+          `C/${existing.scenario} @ ${existing.labTarget} → FAILED`,
+        );
+        return reply.code(200).send(updated);
+      }
+      let verdict;
+      try {
+        verdict = parseBenchVerdict(b.verdict, existing.scenario);
+      } catch (err) {
+        return reply.code(400).send({ error: (err as Error).message });
+      }
+      const updated = await tx.setBenchRunResult(id, { verdict });
+      // A real run also records MEASURED_LAB coverage for its vector, so the
+      // coverage matrix reflects what was actually measured in the lab.
+      const drs = BENCH_SCENARIOS.find((s) => s.id === existing.scenario)?.drs;
+      await tx.saveBenchCoverage({
+        id: randomUUID(),
+        vector: existing.scenario,
+        method: 'MEASURED_LAB',
+        outcome: verdict.outcome,
+        drs,
+        summary: verdict.connections
+          ? `Bounded synthetic run (no-spoof) — state-table saturation ${
+              verdict.connections.saturationPct ?? '?'
+            }% at peak ${verdict.connections.concurrentPeak ?? '?'} conns.`
+          : `Bounded synthetic run — amplification ${verdict.amplificationFactor ?? '?'}×${
+              verdict.mitigation ? `, collateral ${verdict.mitigation.collateralPct ?? '?'}%` : ''
+            }.`,
+        source: existing.claimedBy ?? 'shieldtest-lab',
+        recordedBy: existing.claimedBy ?? 'runner',
+        at: new Date().toISOString(),
       });
-    }
-    const b = (req.body ?? {}) as { verdict?: unknown; error?: string };
-    if (b.error && !b.verdict) {
-      const updated = await store.setBenchRunResult(id, {
-        error: String(b.error).slice(0, 500),
-      });
-      await auditAs(
+      await record(
         existing.claimedBy ?? 'runner',
         'bench.verdict',
         undefined,
-        `C/${existing.scenario} @ ${existing.labTarget} → FAILED`,
+        `C/${existing.scenario} @ ${existing.labTarget} → ${verdict.outcome ?? 'COMPLETED'} · amp ${verdict.amplificationFactor ?? '?'}x`,
       );
       return reply.code(200).send(updated);
-    }
-    let verdict;
-    try {
-      verdict = parseBenchVerdict(b.verdict, existing.scenario);
-    } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message });
-    }
-    const updated = await store.setBenchRunResult(id, { verdict });
-    // A real run also records MEASURED_LAB coverage for its vector, so the
-    // coverage matrix reflects what was actually measured in the lab.
-    const drs = BENCH_SCENARIOS.find((s) => s.id === existing.scenario)?.drs;
-    await store.saveBenchCoverage({
-      id: randomUUID(),
-      vector: existing.scenario,
-      method: 'MEASURED_LAB',
-      outcome: verdict.outcome,
-      drs,
-      summary: verdict.connections
-        ? `Bounded synthetic run (no-spoof) — state-table saturation ${
-            verdict.connections.saturationPct ?? '?'
-          }% at peak ${verdict.connections.concurrentPeak ?? '?'} conns.`
-        : `Bounded synthetic run — amplification ${verdict.amplificationFactor ?? '?'}×${
-            verdict.mitigation ? `, collateral ${verdict.mitigation.collateralPct ?? '?'}%` : ''
-          }.`,
-      source: existing.claimedBy ?? 'shieldtest-lab',
-      recordedBy: existing.claimedBy ?? 'runner',
-      at: new Date().toISOString(),
     });
-    await auditAs(
-      existing.claimedBy ?? 'runner',
-      'bench.verdict',
-      undefined,
-      `C/${existing.scenario} @ ${existing.labTarget} → ${verdict.outcome ?? 'COMPLETED'} · amp ${verdict.amplificationFactor ?? '?'}x`,
-    );
-    return reply.code(200).send(updated);
   });
 
   // Coverage evidence for a vector by a non-run method (ingested external
@@ -3234,6 +3274,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     { preHandler: guard('campaign:kill') },
     async (req, reply) => {
       const id = (req.params as { id: string }).id;
+      if ((await store.getCampaign(id))?.syntheticJourney)
+        return synthetic.control(id, 'stop', req.authUser?.email ?? 'dev');
       const kill = kills.get(id);
       if (kill) {
         kill.trigger('KILLED_MANUAL');
@@ -3270,6 +3312,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       const c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campaign not found' });
+      if (c.syntheticJourney) return synthetic.control(c.id, 'stop', req.authUser?.email ?? 'dev');
       const reason = (req.body as { reason?: string } | undefined)?.reason;
       try {
         const cancelled = cancelCampaign(c, reason);

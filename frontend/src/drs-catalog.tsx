@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BenchCard } from './bench-card.js';
+import { Link } from 'react-router-dom';
 import { HelpTip } from './help-tip.js';
 import { api, type DrsCatalog } from './api.js';
 import { useApp, canDo } from './context.js';
@@ -12,7 +12,6 @@ export function DrsCatalogPanel({
 }) {
   const app = useApp();
   const [source, setSource] = useState('synthetic');
-  const [prepared, setPrepared] = useState<{ id: string; name: string; scenarioId: string }>();
   const [data, setData] = useState<DrsCatalog>();
   const [error, setError] = useState('');
   const [level, setLevel] = useState('all');
@@ -101,7 +100,6 @@ export function DrsCatalogPanel({
             onChange={(e) => {
               setSource(e.target.value);
               setPage(1);
-              setPrepared(undefined);
             }}
           >
             <option value="synthetic">Bounded synthetic bench</option>
@@ -154,19 +152,6 @@ export function DrsCatalogPanel({
           Next vectors
         </button>
       </div>
-      {prepared && (
-        <section aria-label="Prepared synthetic approximation">
-          <h3>{prepared.name}</h3>
-          <p role="status">
-            Partial shape only · not a DRS verdict. Uses the isolated lab target, not the client
-            URL.
-          </p>
-          <button className="btn" onClick={() => setPrepared(undefined)}>
-            Close preparation
-          </button>
-          <BenchCard key={prepared.id} initialScenario={prepared.scenarioId} />
-        </section>
-      )}
       <div className="drs-catalog-grid">
         {visible.map((p) => (
           <article className="card" key={p.id}>
@@ -200,18 +185,12 @@ export function DrsCatalogPanel({
                       never multiplied for scoring.
                     </HelpTip>
                     {canBench && (
-                      <button
+                      <Link
                         className="btn btn-primary"
-                        onClick={() =>
-                          setPrepared({
-                            id: p.id,
-                            name: p.name,
-                            scenarioId: p.laboratory!.scenarioId,
-                          })
-                        }
+                        to={'/campaigns?tab=manager&source=synthetic&level=' + p.level}
                       >
-                        Prepare synthetic scenario
-                      </button>
+                        Prepare synthetic campaign
+                      </Link>
                     )}
                   </>
                 ) : (

@@ -1,3 +1,4 @@
+import { SyntheticTheater } from './synthetic-workspace.js';
 import { TheaterTelemetry } from './theater-telemetry.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -337,10 +338,34 @@ const TERMINAL_STATUSES = new Set<CampaignStatus>(SUITE_TERMINAL);
 export function RunTheaterPage() {
   const app = useApp();
   const [params] = useSearchParams();
+  const explicit =
+    params.get('synthetic') ??
+    app.campaigns.find((c) => c.id === params.get('run') && c.syntheticJourney)?.id;
+  const id =
+    explicit ??
+    (!params.get('run') && !params.get('suite')
+      ? app.campaigns.find(
+          (c) =>
+            c.syntheticJourney &&
+            ['RUNNING', 'PAUSED', 'STOPPING'].includes(c.syntheticJourney.state),
+        )?.id
+      : undefined);
+  return id ? (
+    <>
+      <PageHead title="Run Theater" sub="Bounded synthetic campaign" />
+      <SyntheticTheater id={id} />
+    </>
+  ) : (
+    <FleetRunTheaterPage />
+  );
+}
+function FleetRunTheaterPage() {
+  const app = useApp();
+  const [params] = useSearchParams();
   // Refresh campaigns on each sequence poll while a suite is in flight, so the
   // theater advances through the recovery gate without a manual navigation.
   const seqs = useSuiteSequences(app.refresh);
-  const running = app.campaigns.filter((c) => c.status === 'RUNNING');
+  const running = app.campaigns.filter((c) => c.status === 'RUNNING' && !c.syntheticJourney);
   // An active suite = one with a live sequence, or (fallback) the suite of a
   // running step even if the poll hasn't landed yet.
   const activeSuiteId =

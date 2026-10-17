@@ -2,7 +2,17 @@
 
 Deployed as build 489 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-catalog-deployment-checkpoint.json).
 
-## Campaign workflow
+## Automatic bounded synthetic journey (source increment, 17 October)
+
+The default manager now offers the isolated synthetic bench alongside HTTP Fleet. Select an objective and quiet interval, keep the configured isolated target, authorize the laboratory plan, create the draft, then review and explicitly launch its exact hash. Creation sends no traffic. Team mode retains separate approval; single mode retains owner confirmation.
+
+The server persists the reviewed catalogue/shape snapshot and queues one existing named scenario at a time. The external runner only claims and returns its existing bounded observation. Successful settlement archives the diagnostic once and starts the interval. Pause holds admission. Stop cancels an unclaimed request and waits for a claimed bounded scenario; errors and queue/result timeouts halt admission and still finalize a report. Restart stops admission without replay. Atomic admission prevents overlap with standalone bench requests or another synthetic chain.
+
+Run Theater opens with `?synthetic=<campaignId>`, follows persisted states, survives reload and displays received counters only when supplied. Finalization updates campaign status, stops polling and exposes protected HTML/JSON reports automatically. Objective 5 executes five unique existing shapes associated with 15 of 60 reference rows. Missing vectors remain unevaluated; no measured DRS 5 score is inferred. [Local end-to-end receipt](qa/synthetic-journey-fixed-2026-10-17/receipt.json).
+
+API: `POST /api/synthetic-campaigns` creates a draft (name, targetLevel, intervalSec, labTarget, authorized). `GET /api/synthetic-campaigns/:id` reads state and ordered observations without dispatch. `POST /:id/start` requires confirmed and planHash; pause/resume/stop share the same prefix. State changes and result acceptance are transactional and audited; duplicate results are rejected. Generic execution and DRS mutation routes cannot bypass the coordinator.
+
+## HTTP Fleet campaign workflow
 
 Campaigns is now a primary navigation entry. Choose a target DRS score (integer levels 1–7), an interval in seconds, then configure the authorized target, observation URL, enrolled agents and shared budget. The complete reference chain contains every catalogue row through the selected level, in reference order. Unsupported rows remain visible as requiring a generator. Current execution remains the existing bounded GET approximation per level; source diversity, standard volumetric requirements and full combined exposures are not established.
 

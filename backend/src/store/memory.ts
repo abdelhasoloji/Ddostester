@@ -252,8 +252,9 @@ export class MemoryStore implements Store {
     const r = this.benchRuns.get(id);
     return r ? { ...r } : undefined;
   }
-  async listBenchRuns(limit = 100): Promise<BenchRun[]> {
+  async listBenchRuns(limit = 100, activeOnly = false): Promise<BenchRun[]> {
     return [...this.benchRuns.values()]
+      .filter((r) => !activeOnly || r.status === 'REQUESTED' || r.status === 'CLAIMED')
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
       .slice(0, limit)
       .map((r) => ({ ...r }));
