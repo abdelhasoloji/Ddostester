@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AbsorptionWidget,
   buildAcceptance,
   buildAssertion,
   buildScenario,
@@ -253,4 +254,10 @@ describe('parseDataset', () => {
   it('returns undefined with fewer than 2 lines', () => {
     expect(parseDataset('q,id')).toBeUndefined();
   });
+});
+
+it('omits HTTP outcome widgets for connection holds in every parent view', () => {
+  expect(
+    AbsorptionWidget({ run: { generator: { config: { slowloris: true } } } as never }),
+  ).toBeNull();
 });

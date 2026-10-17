@@ -128,13 +128,11 @@ export function ConfidenceBadge({ run }: { run: CampaignRun }) {
   );
 }
 
-/**
- * Protection absorption widget: how much of the offered load the target's edge
- * absorbed (rate-limited / tarpitted / 4xx) vs let through to origin — the
- * product-level "protection working" signal, shown next to the WRS.
- */
+/** Generator request outcomes; connection holds have separate units and panels. */
 export function AbsorptionWidget({ run }: { run: CampaignRun }) {
   const g = run.generator;
+  if (g.config?.slowloris || run.timeline?.some((sample) => sample.sampleUnit === 'connections'))
+    return null;
   const a =
     run.absorption ??
     ({

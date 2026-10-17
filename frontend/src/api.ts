@@ -300,6 +300,7 @@ export interface CampaignRun {
     sustainedRps: number;
   };
   generator: {
+    config?: { slowloris?: boolean };
     startedAt?: string;
     finishedAt?: string;
     fleet?: {
