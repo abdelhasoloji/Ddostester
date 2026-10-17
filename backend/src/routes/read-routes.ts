@@ -1,3 +1,4 @@
+import { assessCampaignRun } from '../modules/reports/assessment.js';
 import { renderDrsTimeline } from '../modules/metrics/drs-detail.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import type { Store } from '../store/index.js';
@@ -365,12 +366,17 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
 
   app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {
     const { campaignId } = req.query as { campaignId?: string };
-    return store.listRuns(campaignId);
+    const campaigns = new Map((await store.listCampaigns()).map((c) => [c.id, c]));
+    return (await store.listRuns(campaignId)).map((run) => ({
+      ...run,
+      assessment: assessCampaignRun(run, campaigns.get(run.campaignId)),
+    }));
   });
 
   app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const r = await store.getRun((req.params as { runId: string }).runId);
-    return r ?? reply.code(404).send({ error: 'run not found' });
+    if (!r) return reply.code(404).send({ error: 'run not found' });
+    return { ...r, assessment: assessCampaignRun(r, await store.getCampaign(r.campaignId)) };
   });
   app.post<{ Params: { runId: string } }>(
     '/api/runs/:runId/fleet-receipts',

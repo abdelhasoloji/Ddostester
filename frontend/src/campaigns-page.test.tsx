@@ -153,6 +153,24 @@ describe('CampaignList — suite grouping', () => {
     await waitFor(() => expect(fakeApi.approveSuite).toHaveBeenCalledWith('suite-1'));
   });
 
+  it('does not claim approval when every step was skipped', async () => {
+    fakeApi.approveSuite = vi
+      .fn()
+      .mockResolvedValue({ suiteId: 'suite-1', approved: 0, skipped: 2 });
+    currentApp = makeApp({
+      role: 'ciso',
+      authRequired: true,
+      campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
+    });
+    renderWithRouter(<CampaignList />);
+    expandRow('Suite X');
+    fireEvent.click(screen.getByRole('button', { name: /Approve \/ Reject/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Approve \(/ }));
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith('error', '0 steps approved; 2 skipped.'),
+    );
+  });
+
   it('a CISO rejects a pending scenario with a reason via the same modal', async () => {
     fakeApi.rejectSuite = vi
       .fn()

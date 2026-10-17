@@ -1,0 +1,200 @@
+{
+  "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+  "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+  "target": "http://10.98.215.52:8080/",
+  "createdAt": "2026-10-17T16:58:22.146Z",
+  "total": 12,
+  "pending": 0,
+  "approved": 0,
+  "running": 0,
+  "completed": 12,
+  "members": [
+    {
+      "id": "ff26eae5-7885-4e55-a356-fd7dae178bfe",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)",
+      "order": 0,
+      "status": "COMPLETED",
+      "wrs": 97,
+      "level": "A+",
+      "runId": "23e04e99-a543-4813-9b6c-7b51cd7dd828",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "3753cb9b-3b98-469d-b861-f8fb6e774ce4",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3)",
+      "order": 1,
+      "status": "COMPLETED",
+      "wrs": 97,
+      "level": "A+",
+      "runId": "108fec40-c2e3-44a6-8d47-fb8e0bbabd8f",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "c1a743d4-1b63-4f4a-9b0b-0f15343a1f18",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3)",
+      "order": 2,
+      "status": "COMPLETED",
+      "wrs": 97,
+      "level": "A+",
+      "runId": "128abd20-cc79-47ce-a338-10212d012c4c",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "d302805f-aeec-43ce-8e2b-f394d3709550",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4)",
+      "order": 3,
+      "status": "COMPLETED",
+      "wrs": 97,
+      "level": "A+",
+      "runId": "e38cbcff-f46e-455e-95a8-890ff215c2fc",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "c2c96683-3a03-45fe-89dd-a7ab7e40be9f",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4)",
+      "order": 4,
+      "status": "COMPLETED",
+      "wrs": 59.5,
+      "level": "C",
+      "runId": "e0097531-a1f4-48e0-8e42-2daf1dfa3666",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "da8aacb9-e2ca-40fd-9a45-ea05970825b0",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4)",
+      "order": 5,
+      "status": "COMPLETED",
+      "wrs": 72,
+      "level": "B",
+      "runId": "4cb56336-c093-4c6f-ac7f-f89a243f1fec",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "1185b4a2-cbd9-4048-9c33-cec401fbdbb8",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4)",
+      "order": 6,
+      "status": "COMPLETED",
+      "wrs": 59.5,
+      "level": "C",
+      "runId": "20e33faa-0995-4c20-b589-7ee402569f8b",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "4c171ffa-1c3e-44c9-80ea-984bde3fbba3",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4)",
+      "order": 7,
+      "status": "COMPLETED",
+      "wrs": 59.5,
+      "level": "C",
+      "runId": "e6531c5b-6e2b-4007-a1e1-1aadf2c8eab0",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "12b09bb3-371e-4576-903d-8ef4e46069bc",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5)",
+      "order": 8,
+      "status": "COMPLETED",
+      "wrs": 59.5,
+      "level": "C",
+      "runId": "11032ed3-39cb-46a1-b6c4-fa6611bdaf01",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "48e61332-eb07-4e8f-bc11-9ed12f5062c3",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5)",
+      "order": 9,
+      "status": "COMPLETED",
+      "wrs": 84.5,
+      "level": "B",
+      "runId": "de61592b-b07d-4369-9804-1026540a1910",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "38841f22-acf5-4524-97b7-44e62428fd2d",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5)",
+      "order": 10,
+      "status": "COMPLETED",
+      "wrs": 59.5,
+      "level": "C",
+      "runId": "a1799838-fef8-412d-bd28-c031f8902abc",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "e5d7eee3-2c95-4901-be73-b3699f8a045d",
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)",
+      "order": 11,
+      "status": "COMPLETED",
+      "wrs": 84.5,
+      "level": "B",
+      "runId": "7709386d-ef50-4392-8cf2-25b3882df054",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      }
+    }
+  ],
+  "wrs": {
+    "avg": 77.21,
+    "min": 59.5,
+    "level": "C",
+    "scored": 12
+  },
+  "verdict": null
+}

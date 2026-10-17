@@ -9,6 +9,7 @@ const sample = (over: Partial<RunSample>): RunSample => ({
   failed: 0,
   probe5xx: 0,
   availPct: 100,
+  successful: Math.max(0, (over.sent ?? 0) - (over.failed ?? 0)),
   ...over,
 });
 
@@ -33,7 +34,7 @@ describe('theaterPanels — built-in engine (live generator counts)', () => {
       sample({ t: 2, rps: 200, sent: 400, failed: 200, availPct: 80 }),
     ]);
     expect(panels.map((p) => p.label)).toEqual([
-      'Offered vs successful-response RPS',
+      'Mean offered vs successful-response RPS',
       'Generator failures (%)',
       'Legitimate availability (%)',
     ]);
@@ -133,4 +134,32 @@ describe('panelsXMax (shared x-domain — no line plotted past the frame)', () =
       }
     }
   });
+});
+
+it('does not infer successful responses from unfinished attempts', () => {
+  const panels = theaterPanels([
+    sample({ t: 1, rps: 100, sent: 100, failed: 0, successful: 10, generatorObserved: true }),
+  ]);
+  expect(panels[0].series[1].points).toEqual([[1, 10]]);
+});
+it('separates missing counters from a measured zero and omits missing probes', () => {
+  const missing = sample({ t: 1, generatorObserved: false, probeSamples: 0 });
+  const zero = sample({
+    t: 2,
+    generatorObserved: true,
+    successful: 0,
+    probeSamples: 1,
+    availPct: 100,
+  });
+  expect(theaterPanels([missing, zero])[0].series[0].points).toEqual([[2, 0]]);
+  expect(theaterPanels([missing])[0].series[0].points).toEqual([]);
+});
+it('plots connection counts rather than HTTP rates for slow connections', () => {
+  const panels = theaterPanels(
+    [sample({ t: 1, sent: 100, failed: 40, successful: 60 })],
+    'http-slowloris',
+  );
+  expect(panels[0].label).toBe('Connections (count)');
+  expect(panels[0].series[1].points).toEqual([[1, 60]]);
+  expect(panels.some((p) => p.label.includes('RPS'))).toBe(false);
 });

@@ -49,6 +49,10 @@ describe('executeCampaign — run time-series', () => {
     expect(run.baselineDelta).toBeDefined();
     const s = run.timeline![0];
     expect(s.t).toBeGreaterThanOrEqual(0);
+    expect(s.sampleUnit).toBe('requests');
+    expect(s.probeSamples).toBeGreaterThan(0);
+    expect(s.probeP95).toBeGreaterThanOrEqual(0);
+    expect(typeof s.generatorObserved).toBe('boolean');
     expect(s.availPct).toBeGreaterThanOrEqual(0);
     expect(s.availPct).toBeLessThanOrEqual(100);
     // Samples are ordered by elapsed time.
@@ -166,6 +170,28 @@ describe('executeCampaign — run time-series', () => {
     });
     expect(run.generator.config.flow).toEqual(expectedFlow);
   }, 15_000);
+
+  it('does not emit fake live request metrics when an engine has no progress stream', async () => {
+    const { metrics } = await import('../src/modules/metrics/runtime.js');
+    const agent = new BuiltinHttpAgent();
+    agent.run = (config, hosts, signal) => new BuiltinHttpAgent().run(config, hosts, signal);
+    let checked = false;
+    const observed = await executeCampaign(
+      makeCampaign(),
+      ['127.0.0.1'],
+      new KillSwitch(),
+      (p) => {
+        if (!p.probe?.samples) return;
+        checked = true;
+        expect(p.generatorObserved).toBe(false);
+        expect(metrics.render()).not.toMatch(/shieldtest_run_live_offered_rps\{/);
+      },
+      agent,
+    );
+    expect(checked).toBe(true);
+    expect(observed.timeline?.every((t) => t.generatorObserved === false)).toBe(true);
+    expect(observed.timeline?.some((t) => t.probeP95 !== undefined)).toBe(true);
+  }, 15000);
 
   it('retires the live per-run Prometheus gauges when the run ends (no stale flat line)', async () => {
     const { metrics } = await import('../src/modules/metrics/runtime.js');

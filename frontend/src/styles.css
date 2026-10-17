@@ -4484,6 +4484,10 @@ table.remediations td {
   background: color-mix(in srgb, var(--success) 16%, var(--surface));
   color: var(--success);
 }
+.step-failed .step-dot {
+  border-color: var(--danger);
+  color: var(--danger);
+}
 .step-run .step-dot {
   border-color: var(--success);
   background: var(--success);
@@ -7234,4 +7238,126 @@ table.remediations td {
 }
 .drs-assessment-workspace .hint {
   overflow-wrap: anywhere;
+}
+
+/* Quiet campaign workspace: one template entry, restrained monochrome chrome. */
+.line-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-link {
+  border-radius: 6px;
+  font-weight: 500;
+}
+.nav-link.active::before {
+  animation: none;
+  border-radius: 1px;
+  width: 2px;
+}
+.nav-link-primary,
+.nav-link-primary.active {
+  background: transparent;
+}
+.nav-link.active {
+  background: var(--surface-2);
+  color: var(--brand);
+}
+.help-tip {
+  display: inline-flex;
+  position: relative;
+  vertical-align: middle;
+  margin-inline: 0.3rem;
+  font-size: 0.8rem;
+}
+.help-tip > button {
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+  border-radius: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0;
+  line-height: 1;
+  cursor: help;
+}
+.help-tip > [role='tooltip'] {
+  display: none;
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: min(19rem, 75vw);
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 5px 18px #0002;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+}
+.help-tip:hover > [role='tooltip'],
+.help-tip:focus-within > [role='tooltip'] {
+  display: block;
+}
+.help-tip > button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.workspace-help {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -1.5rem;
+  margin-bottom: 0.8rem;
+}
+.campaign-workspace .card,
+.campaign-workspace .tpl-row {
+  border-radius: 7px;
+  box-shadow: none;
+}
+.campaign-workspace .tpl-launchbar::before {
+  display: none;
+}
+.campaign-workspace .tpl-summary {
+  padding-block: 0.9rem;
+}
+.campaign-workspace .engine-badge {
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 500;
+}
+.campaign-workspace .ws-tabs {
+  margin-bottom: 1.2rem;
+}
+.template-option {
+  border-bottom: 1px solid var(--border);
+  padding: 0.7rem 0;
+  margin-bottom: 0.6rem;
+}
+.template-option > summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.template-option[open] > summary {
+  margin-bottom: 0.8rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-link {
+    transition: none;
+  }
+}
+
+.campaign-workspace .tpl-row {
+  overflow: visible;
+}
+.campaign-workspace .tpl-created {
+  display: none;
 }

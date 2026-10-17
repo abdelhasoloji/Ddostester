@@ -202,16 +202,18 @@ export interface RequestStep {
 }
 
 export interface RunSample {
+  /** Explicit provenance; absent on historical samples. */
+  generatorObserved?: boolean;
+  successful?: number;
+  probeSamples?: number;
+  probeP95?: number;
+  sampleUnit?: 'requests' | 'connections';
   t: number;
   rps: number;
   sent: number;
   failed: number;
   probe5xx: number;
   availPct: number;
-  /** Legitimate-probe p95 latency (ms) at this tick — a real LIVE signal for
-   *  every engine (external engines don't stream generator counts, but the probe
-   *  always runs), so the theater can show target health while a run is live. */
-  probeP95?: number;
 }
 
 export interface AgentInfo {
@@ -240,6 +242,8 @@ export interface EdgeErrorSignal {
   originIpLeaked?: string;
 }
 export interface RunAssessment {
+  expectedRps?: number;
+  isSlowConnection?: boolean;
   verdict: RunVerdict;
   mechanism: RunMechanism;
   /** One faithful sentence describing what happened. */
@@ -943,6 +947,7 @@ export function streamUrl(campaignId: string): string {
 }
 
 export interface LiveProgressData {
+  generatorObserved?: boolean;
   sent: number;
   successful: number;
   failed: number;

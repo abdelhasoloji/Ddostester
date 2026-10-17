@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildK6Script, parseK6Summary } from '../src/agents/k6.js';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { K6Agent, buildK6Script, parseK6Summary } from '../src/agents/k6.js';
 import { BuiltinHttpAgent } from '../src/agents/builtin.js';
 import { selectAgent } from '../src/agents/index.js';
 import type { LoadTestConfig } from '../src/engine/types.js';
@@ -176,10 +179,10 @@ describe('parseK6Summary', () => {
     expect(r.latencyMs.p95).toBe(12);
     expect(r.latencyMs.p99).toBe(20);
   });
-  it('stays robust on an empty summary', () => {
-    const r = parseK6Summary({}, { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' });
-    expect(r.totalRequests).toBe(0);
-    expect(r.failed).toBe(0);
+  it('rejects missing measurements instead of inventing a zero-load run', () => {
+    expect(() =>
+      parseK6Summary({}, { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' }),
+    ).toThrow('missing request measurements');
   });
 });
 
@@ -193,4 +196,74 @@ describe('selectAgent', () => {
   it('the built-in agent is always available', async () => {
     expect(await new BuiltinHttpAgent().available()).toBe(true);
   });
+});
+
+describe('k6 subprocess evidence', () => {
+  async function fake(body: string, check: (agent: K6Agent) => Promise<void>) {
+    const dir = await mkdtemp(join(tmpdir(), 'k6-regression-'));
+    const bin = join(dir, 'k6');
+    await writeFile(
+      bin,
+      `#!${process.execPath}\nconst args = process.argv.slice(2);\nif (args[0] === 'version') process.exit(0);\n${body}`,
+      { mode: 0o700 },
+    );
+    try {
+      await check(new K6Agent(bin));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+  it('suppresses noisy progress and request logs while retaining exported metrics', async () => {
+    await fake(
+      `
+      if (!args.includes('--quiet') || !args.includes('--log-output=none')) {
+        process.stdout.write('x'.repeat(2 * 1024 * 1024));
+      }
+      require('node:fs').writeFileSync(args[args.indexOf('--summary-export') + 1],
+        JSON.stringify({ metrics: { http_reqs: { count: 10, rate: 1 }, http_req_failed: { value: 0 } } }));
+    `,
+      async (agent) => {
+        const result = await agent.run(cfg, ['127.0.0.1']);
+        expect(result.totalRequests).toBe(10);
+      },
+    );
+  });
+  it('rejects a missing export instead of recording a successful zero-load run', async () => {
+    await fake('', async (agent) => {
+      await expect(agent.run(cfg, ['127.0.0.1'])).rejects.toThrow();
+    });
+  });
+  it('keeps the process output ceiling when an engine ignores quiet flags', async () => {
+    await fake(`process.stdout.write('x'.repeat(2 * 1024 * 1024));`, async (agent) => {
+      await expect(agent.run(cfg, ['127.0.0.1'])).rejects.toThrow('byte budget');
+    });
+  });
+  it('rejects malformed summary JSON', async () => {
+    await fake(
+      `require('node:fs').writeFileSync(args[args.indexOf('--summary-export') + 1], '{');`,
+      async (agent) => {
+        await expect(agent.run(cfg, ['127.0.0.1'])).rejects.toThrow();
+      },
+    );
+  });
+  it('rejects nonzero exit even if a summary exists', async () => {
+    await fake(
+      `require('node:fs').writeFileSync(args[args.indexOf('--summary-export') + 1], JSON.stringify({ metrics: { http_reqs: { count: 10 } } })); process.exit(42);`,
+      async (agent) => {
+        await expect(agent.run(cfg, ['127.0.0.1'])).rejects.toThrow('code 42');
+      },
+    );
+  });
+});
+
+it('rejects incomplete or fractional request measurements instead of manufacturing zero rates or successes', () => {
+  for (const metrics of [
+    { http_reqs: {} },
+    { http_reqs: { count: 1.5, rate: 1 } },
+    { http_reqs: { count: 5, rate: undefined } },
+    { http_reqs: { count: 5, rate: 1 } },
+  ])
+    expect(() =>
+      parseK6Summary({ metrics }, { id: 'x', config: cfg, startedAt: 'a', finishedAt: 'b' }),
+    ).toThrow();
 });

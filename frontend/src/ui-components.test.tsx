@@ -173,7 +173,7 @@ describe('RunDetails', () => {
     };
     render(<RunDetails run={withAssessment} />);
     expect(screen.getByText('inconclusive')).toBeInTheDocument();
-    expect(screen.getByText(/mechanism:/)).toBeInTheDocument();
+    expect(screen.getByText(/observed:/)).toBeInTheDocument();
     expect(screen.getByText(/INCONCLUSIVE at full rate/)).toBeInTheDocument();
     expect(screen.getByText(/141\/800 req\/s/)).toBeInTheDocument();
   });

@@ -83,6 +83,8 @@ export function timelineSvg(
     yUnit?: string;
     title?: string;
     height?: number;
+    xMax?: number;
+    stepped?: boolean;
   } = {},
 ): string {
   const W = 640;
@@ -100,15 +102,19 @@ export function timelineSvg(
   if (pts.length < 2) {
     return `<div class="chart-empty">No time-series captured for this run.</div>`;
   }
-  const tMax = Math.max(...pts.map((p) => p.t)) || 1;
+  const tMax = Math.max(opts.xMax ?? 1, ...pts.map((p) => p.t));
   const yMax = opts.yMax ?? Math.max(1, Math.ceil(Math.max(...pts.map((p) => p.y)) * 1.1));
   const X = (t: number): number => padL + (t / tMax) * plotW;
   const Y = (y: number): number => padT + plotH - (Math.max(0, Math.min(yMax, y)) / yMax) * plotH;
 
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'} ${r1(X(p.t))} ${r1(Y(p.y))}`).join(' ');
-  const area = `M ${r1(X(pts[0].t))} ${r1(padT + plotH)} ${pts
-    .map((p) => `L ${r1(X(p.t))} ${r1(Y(p.y))}`)
-    .join(' ')} L ${r1(X(pts[pts.length - 1].t))} ${r1(padT + plotH)} Z`;
+  const line = pts
+    .map((p, i) =>
+      i && opts.stepped
+        ? `H ${r1(X(p.t))} V ${r1(Y(p.y))}`
+        : `${i ? 'L' : 'M'} ${r1(X(p.t))} ${r1(Y(p.y))}`,
+    )
+    .join(' ');
+  const area = `${line} L ${r1(X(pts[pts.length - 1].t))} ${r1(padT + plotH)} L ${r1(X(pts[0].t))} ${r1(padT + plotH)} Z`;
 
   // 4 horizontal gridlines + y labels.
   const grid = [0, 0.25, 0.5, 0.75, 1]

@@ -1,0 +1,33 @@
+Browser tab: 32, Title: "WEDOS ShieldTest — Control Plane", URL: "http://127.0.0.1:18103/theater".
+1 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18103/theater
+	2 container root
+		3 container
+			4 image WEDOS
+			5 text SHIELDTEST
+			6 button (collapsed) Description: Notifications (7 unread), Help: Notifications, Secondary Actions: Expand
+			7 link Description: Command Center, Value: 127.0.0.1:18103/
+			8 link Description: Protected zones, Value: 127.0.0.1:18103/zones
+			9 link Description: Campaigns, Value: 127.0.0.1:18103/campaigns
+			10 link Description: Fleet, Value: 127.0.0.1:18103/fleet
+			11 link Description: Run Theater, Value: 127.0.0.1:18103/theater
+			12 link Description: Results, Value: 127.0.0.1:18103/reports
+			13 link Description: Assistant, Value: 127.0.0.1:18103/assistant
+			14 link Description: Settings, Value: 127.0.0.1:18103/settings
+			15 container Theme
+				16 checkbox Description: Theme: Light, Value: 0
+				17 checkbox Description: Theme: System, Value: 1
+				18 checkbox Description: Theme: Dark, Value: 0
+			19 link Description: engineer@fixture.invalid Security Engineer, Help: My account, Value: 127.0.0.1:18103/account
+			20 button Sign out
+			21 text v0.1.0+477 · b688e27
+		22 container
+			23 heading Run Theater, Value: 1
+				24 text Run Theater
+			25 text Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs.
+			26 link Description: Synthetic bench, Value: 127.0.0.1:18103/theater?mode=synthetic
+			102 text No run in flight. Launch one from 
+			103 link Description: Campaigns, Value: 127.0.0.1:18103/campaigns
+			104 text  and it appears here live.
+		101 button Open the assistant
+
+The focused UI element is 1 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18103/theater

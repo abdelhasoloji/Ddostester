@@ -409,3 +409,13 @@ it('identifies suite recovery as a before-step observation in HTML and CSV', () 
   expect(values[headers.indexOf('recoveryBeforeRunVerified')]).toBe('true');
   expect(values[headers.indexOf('recoveryBeforeRunChecks')]).toBe('2');
 });
+
+it('keeps missing probe evidence unknown and distinguishes a mean rate from an instantaneous peak', () => {
+  const observed = run();
+  observed.probe.samples = 0;
+  const html = renderCampaignReportHtml(campaign(), observed);
+  expect(html).toContain('Not measured');
+  expect(html).toContain('verdict <b>inconclusive');
+  expect(html).toContain('maximum recorded mean (not instantaneous peak)');
+  expect(html).not.toContain('Achieved peak');
+});

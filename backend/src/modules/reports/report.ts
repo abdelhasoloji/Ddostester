@@ -1,3 +1,4 @@
+import { evidenceCharts } from './evidence-charts.js';
 import type { Campaign, TargetRequirement } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import { fleetCounterCoverage } from '../fleet/summary.js';
@@ -13,7 +14,7 @@ import { fleetCpuContention, computeConfidence } from './confidence.js';
 import { assessVector, type VectorVerdict } from './assessment.js';
 import { availabilityPct } from '../../util/run-metrics.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from './layout.js';
-import { gaugeSvg, hbarsSvg, timelineSvg, scoreColor, REPORT_COLORS } from './charts.js';
+import { gaugeSvg, hbarsSvg, scoreColor, REPORT_COLORS } from './charts.js';
 import { deriveRemediations, SEVERITY_PILL, type Remediation } from './remediations.js';
 
 /** Renders the "Weaknesses & recommended remediations" block (empty → clean note). */
@@ -104,6 +105,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   const tl = run.timeline ?? [];
   const tt = run.targetTelemetry?.length ? summarizeTargetTelemetry(run.targetTelemetry) : null;
   const avail = availabilityPct(run);
+  const slow = campaign.vector === 'http-slowloris';
   const risk = riskLevel(run);
   const peakRps = tl.length
     ? Math.max(...tl.map((s) => s.rps), Math.round(g.actualRps))
@@ -152,22 +154,21 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   // The faithful verdict — the SAME assessment engine the suite report and the
   // detail page use, so all three tell one story. Prefer the stored assessment;
   // recompute (with the absorption above) for older runs that predate it.
-  const assessment =
-    run.assessment ??
-    assessVector(
-      { ...run, absorption, confidence },
-      {
-        shape: campaign.name,
-        drs: /DRS\s*([0-9])/i.exec(campaign.name)?.[1] ?? '—',
-        status: run.status,
-        vector: campaign.vector,
-      },
-    );
+  const assessment = assessVector(
+    { ...run, absorption, confidence },
+    {
+      shape: campaign.name,
+      drs: /DRS\s*([0-9])/i.exec(campaign.name)?.[1] ?? '—',
+      status: run.status,
+      vector: campaign.vector,
+      h2Confirmed: campaign.reconPosture?.h2,
+    },
+  );
 
   // Management summary — led by the engine's verdict + faithful observation.
   const kill = run.status !== 'COMPLETED';
   const summary =
-    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for <b>${durSec}s</b> against ` +
+    `Under a bounded HTTP load configured at up to <b>${configuredRps} req/s</b> for a configured <b>${campaign.maxDurationSec}s</b> against ` +
     `<b>${esc(hostOf(campaign.target))}</b>, the run scored <b>WRS ${w.wrs} (${grade})</b> — verdict ` +
     `<b>${assessment.verdict}</b>, RiskLevel <b>${risk.label}</b>. ${esc(assessment.observation)}` +
     (run.baselineDelta && run.baseline?.observation?.complete !== false
@@ -268,19 +269,21 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     `<h2>At a glance</h2>
 <div class="scorecard">
   <div>${gaugeSvg(w.wrs, { sub: `Grade ${grade}`, color: scoreColor(w.wrs) })}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">WEDOS Resiliency Score</div></div>
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic · not a DRS score</div></div>
   <div>
     <div class="pills">${verdictPill} ${riskPill} ${pill(run.status.replace('_', ' '), kill ? 'crit' : 'good')}${w.estimated ? ' ' + pill('WRS estimated', 'neutral') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
-      ${statCard('Availability', `${avail.toFixed(1)}%`)}
-      ${statCard('Configured load', `${configuredRps} req/s`, false)}
-      ${statCard('Achieved peak', `${peakRps} req/s`, false)}
-      ${statCard('Duration', `${durSec}s`)}
+      ${statCard('Availability', run.probe.samples ? `${avail.toFixed(1)}% (${run.probe.samples} observations)` : 'Not measured')}
+      ${statCard('Configured load', slow ? `${campaign.concurrency} connections` : `${configuredRps} req/s`, false)}
+      ${statCard(slow ? 'Connections opened' : 'Max recorded mean rate', slow ? String(g.totalRequests) : `${peakRps} req/s`, false)}
+      ${statCard('Configured duration', `${campaign.maxDurationSec}s`)}
       ${statCard(partialCounters ? 'Reported requests (partial)' : 'Requests (ok)', partialCounters && !counterCoverage.reportedAgents ? 'unknown' : `${g.totalRequests.toLocaleString('en-US')} (${g.successful.toLocaleString('en-US')})`, true)}
     </div>
   </div>
 </div>` +
-    `<h2>Protection absorption</h2>
+    (slow
+      ? `<h2>Connection observations</h2><p>${g.totalRequests} connections opened; ${g.failed} closed. Closure cause is not inferred from generator counters.</p>`
+      : `<h2>Generator observations</h2>
 <p class="muted">Generator observations${partialCounters ? ' from received final agent reports only; missing agents have unknown counters and fractions' : ''}. Successful responses may come from cache or edge; failures do not by themselves prove protection absorption.</p>
 <div class="grid cards">
   ${statCard('Configured', `${absorption.configuredRps} req/s`, false)}
@@ -295,37 +298,15 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
   ${statCard('Offered shortfall', `${(absorption.offeredShortfall * 100).toFixed(1)}%`, false)}
 </div>
 <p class="muted" style="font-size:.82rem">HTTP failures and transport failures identify outcomes, not their cause. Edge absorption and origin impact require corroborating telemetry. Offered shortfall indicates generator under-delivery.</p>${
-      run.edgeCorroboration
-        ? `<div class="callout ${run.edgeCorroboration.agrees ? 'info' : 'warn'}"><b>Bilateral corroboration (${esc(run.edgeCorroboration.source)}):</b> we inferred <b>${Math.round(run.edgeCorroboration.ourAbsorbedRatio * 100)}%</b> absorbed; the edge itself reports <b>${Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}%</b> — ${
-            run.edgeCorroboration.agrees
-              ? 'the two sides <b>agree</b>, so this absorption is measured evidence, not inference.'
-              : `they <b>disagree</b> by ${Math.round(run.edgeCorroboration.agreementDelta * 100)} pts — investigate (measurement gap or partial edge visibility).`
-          }</div>`
-        : ''
-    }` +
-    `<h2>Traffic over time</h2>
-<div class="figure"><div class="cap">Generator request rate (req/s) across the run.</div>
-  ${timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.rps })),
-    {
-      yUnit: 'req/s',
-      color: REPORT_COLORS.brand,
-      fill: REPORT_COLORS.brandFill,
-      title: 'request rate',
-    },
-  )}</div>
-<div class="figure"><div class="cap">Legitimate-probe availability (%) across the run — the signal the auto-kill watches.</div>
-  ${timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.availPct })),
-    {
-      yMax: 100,
-      yUnit: '% avail',
-      color: REPORT_COLORS.good,
-      fill: REPORT_COLORS.goodFill,
-      title: 'availability',
-      height: 150,
-    },
-  )}</div>` +
+          run.edgeCorroboration
+            ? `<div class="callout ${run.edgeCorroboration.agrees ? 'info' : 'warn'}"><b>Bilateral corroboration (${esc(run.edgeCorroboration.source)}):</b> we inferred <b>${Math.round(run.edgeCorroboration.ourAbsorbedRatio * 100)}%</b> absorbed; the edge itself reports <b>${Math.round(run.edgeCorroboration.edgeAbsorbedRatio * 100)}%</b> — ${
+                run.edgeCorroboration.agrees
+                  ? 'the two sides <b>agree</b>, so this absorption is measured evidence, not inference.'
+                  : `they <b>disagree</b> by ${Math.round(run.edgeCorroboration.agreementDelta * 100)} pts — investigate (measurement gap or partial edge visibility).`
+              }</div>`
+            : ''
+        }`) +
+    `<h2>Traffic over time</h2>${evidenceCharts(run, campaign.vector === 'http-slowloris')}` +
     `<h2>Resiliency score breakdown</h2>
 <div class="figure"><div class="cap">The four WRS components (0–1). ${w.estimated ? 'Detection & Mitigation (*) are estimated — no protection source reported real timings.' : 'Detection & Mitigation are measured.'}</div>
   ${wrsBars}</div>` +
@@ -379,7 +360,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
        }</td></tr>`
      : ''
  }
- <tr><th>${partialCounters ? 'Configured / reported rate (partial)' : 'Configured / achieved rate'}</th><td>${configuredRps} req/s configured · ${partialCounters && !counterCoverage.reportedAgents ? 'unknown reported rate' : `${g.actualRps} req/s ${partialCounters ? 'reported' : 'effective'}`} · ${peakRps} req/s observed peak</td></tr>
+ <tr><th>${partialCounters ? 'Configured / reported rate (partial)' : 'Configured / achieved rate'}</th><td>${slow ? `${g.totalRequests} connections opened; HTTP rate is not applicable` : `${configuredRps} req/s configured · ${partialCounters && !counterCoverage.reportedAgents ? 'unknown reported rate' : `${g.actualRps} req/s mean`} · ${peakRps} req/s maximum recorded mean (not instantaneous peak)`}</td></tr>
  ${
    run.baseline?.quality
      ? `<tr><th>Baseline diagnostic coverage</th><td>${esc(String(run.baseline.quality.measuredSamples))}/${esc(String(run.baseline.quality.totalSamples))} measurements</td></tr>

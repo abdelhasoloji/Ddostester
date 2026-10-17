@@ -743,37 +743,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           status: 'RUNNING',
           engine: runAgent.name,
         });
-        // Same definitions the Run Theater cards use (see frontend RunTheater):
-        // offered = achieved RPS, reached-origin = successful/elapsed, absorbed =
-        // failed/sent, probe availability from the live probe snapshot.
-        const originRps = p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
-        const absorbed = p.sent > 0 ? p.failed / p.sent : 0;
-        metrics.setGauge(
-          'shieldtest_run_live_offered_rps',
-          'Live offered RPS of the in-flight run',
-          p.actualRps,
-          liveLabels,
-        );
-        metrics.setGauge(
-          'shieldtest_run_live_successful_rps',
-          'Live RPS returning successful HTTP responses (successful) of the in-flight run',
-          originRps,
-          liveLabels,
-        );
-        metrics.setGauge(
-          'shieldtest_run_live_failed_ratio',
-          'Live generator failure ratio (failed/sent); no edge attribution',
-          absorbed,
-          liveLabels,
-        );
-        if (p.probe && p.probe.samples > 0) {
-          metrics.setGauge(
-            'shieldtest_run_live_probe_avail_pct',
-            'Live legit-probe availability % of the in-flight run',
-            (p.probe.available / p.probe.samples) * 100,
-            liveLabels,
-          );
-        }
+        // The runner alone publishes Prometheus live gauges, on the same clock
+        // and with the same provenance as its persisted samples.
       };
       // Seed a zeroed progress record immediately: the run opens with a baseline
       // capture (up to ten minutes for DRS) during which the engine emits no
@@ -781,6 +752,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // the UI the run is "done", stranding the progress view on "Starting run…".
       // Cleared in the finally below; onProgress overwrites it once load begins.
       onProgress({
+        generatorObserved: false,
         sent: 0,
         successful: 0,
         failed: 0,
@@ -995,6 +967,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         drs: /DRS\s*([0-9])/i.exec(c.name)?.[1] ?? '—',
         status: run.status,
         vector: c.vector,
+        h2Confirmed: c.reconPosture?.h2,
       });
       // Bilateral corroboration (I1): if an edge source is configured, compare our
       // inferred absorption with the edge's own reported blocked/seen counts.
@@ -1166,6 +1139,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         ...transition(c, 'APPROVED'),
         statusDetail: `Last run failed (reference ${diagnosticId}); ${reported instanceof DrsBaselineError ? reported.message : 'review before retrying.'}`,
       });
+      await auditAs(
+        actor,
+        'campaign.execute',
+        c.id,
+        `Execution failed (reference ${diagnosticId}); ${(reported as Error).message}`,
+      );
       throw reported;
     } finally {
       if (countedInFlight)

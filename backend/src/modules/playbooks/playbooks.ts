@@ -2101,19 +2101,23 @@ export function buildScenario(
   maxRps: number,
   durationSec: number,
 ): ScenarioPhase[] | undefined {
-  const third = Math.max(1, Math.round(durationSec / 3));
+  if ((profile === 'wave' || profile === 'ramp') && durationSec < 3)
+    return [{ maxRps, durationSec }];
+  const third = Math.floor(durationSec / 3);
+  const remainder = durationSec % 3;
+  const phaseDuration = (index: number) => third + (index < remainder ? 1 : 0);
   const pct = (p: number): number => Math.max(1, Math.round((maxRps * p) / 100));
   if (profile === 'ramp')
     return [
-      { maxRps: pct(25), durationSec: third },
-      { maxRps: pct(50), durationSec: third },
-      { maxRps: pct(100), durationSec: third },
+      { maxRps: pct(25), durationSec: phaseDuration(0) },
+      { maxRps: pct(50), durationSec: phaseDuration(1) },
+      { maxRps: pct(100), durationSec: phaseDuration(2) },
     ];
   if (profile === 'wave')
     return [
-      { maxRps: pct(100), durationSec: third },
-      { maxRps: pct(20), durationSec: third },
-      { maxRps: pct(100), durationSec: third },
+      { maxRps: pct(100), durationSec: phaseDuration(0) },
+      { maxRps: pct(20), durationSec: phaseDuration(1) },
+      { maxRps: pct(100), durationSec: phaseDuration(2) },
     ];
   return undefined;
 }

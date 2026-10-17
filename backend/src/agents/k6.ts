@@ -234,8 +234,22 @@ interface K6Summary {
 
 /** Converts the k6 summary (--summary-export) into a LoadTestResult. Pure function. */
 export function parseK6Summary(summary: K6Summary, meta: ResultMeta): LoadTestResult {
-  const m = summary.metrics ?? {};
+  if (
+    !summary ||
+    !summary.metrics ||
+    (!summary.metrics.http_reqs && !summary.metrics.ddostester_requests_started)
+  )
+    throw new AgentError('k6 summary is missing request measurements');
+  const m = summary.metrics;
   const attempts = m.ddostester_requests_started;
+  const counter = attempts ?? m.http_reqs;
+  if (
+    !Number.isSafeInteger(counter?.count) ||
+    counter!.count! < 0 ||
+    (counter!.count! > 0 && (!Number.isFinite(counter?.rate) || counter!.rate! < 0)) ||
+    (!attempts && counter!.count! > 0 && !Number.isFinite(m.http_req_failed?.value))
+  )
+    throw new AgentError('k6 summary lacks valid request counts, rates or outcomes');
   const total = Math.round(attempts?.count ?? m.http_reqs?.count ?? 0);
   const failRate = m.http_req_failed?.value ?? 0;
   const successful = attempts
@@ -318,9 +332,18 @@ export class K6Agent implements AttackAgent {
       const script = join(dir, 'load.js');
       const summaryPath = join(dir, 'summary.json');
       await writeFile(script, buildK6Script(config), 'utf8');
-      // k6 exits non-zero if thresholds fail; we read the summary anyway.
-      await runProcess(this.bin, ['run', '--summary-export', summaryPath, script], { killSignal });
-      const raw = await readFile(summaryPath, 'utf8').catch(() => '{}');
+      // Metrics are exported separately; suppress per-request logs and progress so
+      // failing targets cannot exhaust the bounded process-output budget.
+      const process = await runProcess(
+        this.bin,
+        ['run', '--quiet', '--log-output=none', '--summary-export', summaryPath, script],
+        { killSignal },
+      );
+      if (process.code !== 0 && !killSignal?.aborted)
+        throw new AgentError(
+          `k6 exited with code ${process.code}; no successful execution recorded`,
+        );
+      const raw = await readFile(summaryPath, 'utf8');
       const summary = JSON.parse(raw) as K6Summary;
       return parseK6Summary(summary, {
         id: randomUUID(),

@@ -351,3 +351,20 @@ it('keeps automatic safety stop but withholds an outage verdict when remote base
   expect(assessVector(run, ctx({ status: 'KILLED_AUTO' })).verdict).toBe('inconclusive');
   expect(run.status).toBe('KILLED_AUTO');
 });
+
+it('does not describe absent run evidence as zero availability', () => {
+  const result = assessVector(undefined, { shape: 'HTTP/2', drs: '3', status: 'APPROVED' });
+  expect(result.verdict).toBe('inconclusive');
+  expect(result.observation).toContain('unknown');
+  expect(result.observation).not.toContain('0%');
+});
+
+it('does not pass an absent probe or an unconfirmed HTTP/2 protocol', () => {
+  const run = mkRun({});
+  run.probe.samples = 0;
+  expect(assessVector(run, ctx()).verdict).toBe('inconclusive');
+  expect(assessVector(run, ctx()).observation).toContain('unknown');
+  const h2 = assessVector(mkRun({}), { ...ctx({ shape: 'HTTP/2 GET' }), h2Confirmed: false });
+  expect(h2.verdict).toBe('inconclusive');
+  expect(h2.caveats.join(' ')).toContain('HTTP/2 was not confirmed');
+});

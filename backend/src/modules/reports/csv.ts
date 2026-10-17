@@ -107,14 +107,31 @@ export function runsSummaryCsv(runs: CampaignRun[]): string {
 
 /** Per-second time-series of one run (rps, errors, availability). */
 export function runTimelineCsv(run: CampaignRun): string {
-  const headers = ['t', 'rps', 'sent', 'failed', 'probe5xxPct', 'availPct'];
+  const headers = [
+    't',
+    'rps',
+    'sent',
+    'failed',
+    'probe5xxPct',
+    'availPct',
+    'generatorObserved',
+    'successful',
+    'probeSamples',
+    'probeP95Ms',
+    'sampleUnit',
+  ];
   const rows = (run.timeline ?? []).map((s) => [
     s.t,
-    s.rps,
-    s.sent,
-    s.failed,
-    s.probe5xx,
-    s.availPct,
+    s.generatorObserved === false || s.sampleUnit === 'connections' ? undefined : s.rps,
+    s.generatorObserved === false ? undefined : s.sent,
+    s.generatorObserved === false ? undefined : s.failed,
+    s.probeSamples === 0 ? undefined : s.probe5xx,
+    s.probeSamples === 0 ? undefined : s.availPct,
+    s.generatorObserved,
+    s.successful,
+    s.probeSamples,
+    s.probeP95,
+    s.sampleUnit,
   ]);
   return toCsv(headers, rows);
 }

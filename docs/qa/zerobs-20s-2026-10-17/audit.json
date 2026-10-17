@@ -1,0 +1,1018 @@
+[
+  {
+    "id": "fc0b13a7-23f5-41f6-a819-7680c66b61c2",
+    "at": "2026-10-17T17:04:04.431Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "e5d7eee3-2c95-4901-be73-b3699f8a045d",
+    "detail": "COMPLETED · WRS 84.5 (B)",
+    "prevHash": "eb925d20a66702243d3563352b3f0ea399bc52ab1590bcfd31e01746e8af6013",
+    "hash": "80a844f6ae1f6c9f4c57389ee1a89a0120ac2e8982f7979d2c91ce4e3f61704c"
+  },
+  {
+    "id": "56dacf7e-168e-4ad3-842b-7089c60dd720",
+    "at": "2026-10-17T17:04:04.430Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=e5d7eee3-2c95-4901-be73-b3699f8a045d sha256=2b4f9cf99f30619746aadf8f8a2a190ab10d39a6f6c4c34667840edfeb3a76f7",
+    "prevHash": "1ef26fbf93cc2a7b4e6cfb42e33371355dadd2434e10a7722dc72ca9df391bb7",
+    "hash": "eb925d20a66702243d3563352b3f0ea399bc52ab1590bcfd31e01746e8af6013"
+  },
+  {
+    "id": "ce36d4e9-5c1a-49a2-8745-8b5f367bed04",
+    "at": "2026-10-17T17:04:04.382Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=7709386d-ef50-4392-8cf2-25b3882df054 sha256=227f46ff65ac9c73718aa6211eb43e98d4b3c201793192ace9d63dc58a572b96",
+    "prevHash": "fe0bbc1901bc62e0a0eb349fb8f240f990bf2a9161360cfa33dcb48ceb3775df",
+    "hash": "1ef26fbf93cc2a7b4e6cfb42e33371355dadd2434e10a7722dc72ca9df391bb7"
+  },
+  {
+    "id": "b9caead5-d123-4846-8468-7fd18727b207",
+    "at": "2026-10-17T17:03:35.130Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "eec2f6c9e602b99c271be3d8163c1dcf5699de29ee843c7d7e23c4901dfd4b1d",
+    "hash": "fe0bbc1901bc62e0a0eb349fb8f240f990bf2a9161360cfa33dcb48ceb3775df"
+  },
+  {
+    "id": "f6d93a12-a323-4633-96bf-31f2d3d146d8",
+    "at": "2026-10-17T17:03:25.772Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=e5d7eee3-2c95-4901-be73-b3699f8a045d sha256=417839a1657c27ce813367094aae4576cf0b38b9118de426bd2d054a5c717b3d",
+    "prevHash": "b86d10a52f0614c9a3b9cf34d68e283ba650aee650044b6cf9948307fc20ecf7",
+    "hash": "eec2f6c9e602b99c271be3d8163c1dcf5699de29ee843c7d7e23c4901dfd4b1d"
+  },
+  {
+    "id": "932b8241-3c31-4bda-a527-cb82e015c25f",
+    "at": "2026-10-17T17:03:25.684Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "e5d7eee3-2c95-4901-be73-b3699f8a045d",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "1dbccaf39cbd0b9e26d41d5d7d3af769d8d36e9f1ef9b229c1e11da19f3364a8",
+    "hash": "b86d10a52f0614c9a3b9cf34d68e283ba650aee650044b6cf9948307fc20ecf7"
+  },
+  {
+    "id": "e42a15fb-2a18-4e87-a1a4-38012348e0c9",
+    "at": "2026-10-17T17:03:25.631Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "e5d7eee3-2c95-4901-be73-b3699f8a045d",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2021.622995999991,\"checks\":2}",
+    "prevHash": "3199a875dbd20a2078738d8515cea5fc2209cce06a04669ffabc1115d553dc77",
+    "hash": "1dbccaf39cbd0b9e26d41d5d7d3af769d8d36e9f1ef9b229c1e11da19f3364a8"
+  },
+  {
+    "id": "bc936911-6ecf-43da-aed5-bfa89bb319c3",
+    "at": "2026-10-17T17:03:23.573Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=38841f22-acf5-4524-97b7-44e62428fd2d sha256=f05ca885a1f0c99550dd4fe2bbe7383641071e0d673886042e6d08c982a7693d",
+    "prevHash": "d9c78c069bce8dc4fcaed59e1f45ab737f70094dee08368de094f877fa8ac48e",
+    "hash": "6ff9b3f55ea011dfb24fb1a9e2525e15746a0992bc4500091f435759e4d94bfe"
+  },
+  {
+    "id": "03b618f1-d6ee-4aaf-9f0b-4957f0ea1d75",
+    "at": "2026-10-17T17:03:23.573Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "38841f22-acf5-4524-97b7-44e62428fd2d",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "6ff9b3f55ea011dfb24fb1a9e2525e15746a0992bc4500091f435759e4d94bfe",
+    "hash": "3199a875dbd20a2078738d8515cea5fc2209cce06a04669ffabc1115d553dc77"
+  },
+  {
+    "id": "1ba082ec-394a-4028-acbe-a117d880ee88",
+    "at": "2026-10-17T17:03:23.531Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=a1799838-fef8-412d-bd28-c031f8902abc sha256=d55e6318045078b6ea911ad9d95651739e8bf6b14bef2fbc478428adaf714394",
+    "prevHash": "3308e5600ec99363d2ccc09f8d1493b7250b766b99cd42f020724c5a55a7f69d",
+    "hash": "d9c78c069bce8dc4fcaed59e1f45ab737f70094dee08368de094f877fa8ac48e"
+  },
+  {
+    "id": "8ac2325f-09ba-462d-bbd7-5f9d51ffa98c",
+    "at": "2026-10-17T17:02:47.497Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=38841f22-acf5-4524-97b7-44e62428fd2d sha256=fa16d89343940439e840ad12aca98b772a5f1d3b9e7a8049a8a00409d6220f60",
+    "prevHash": "78580c395b19a93fd54157ed28d041befbaf4470223babe9296f88ee21cf60a1",
+    "hash": "3308e5600ec99363d2ccc09f8d1493b7250b766b99cd42f020724c5a55a7f69d"
+  },
+  {
+    "id": "1c025114-ae38-4a75-b06d-4556b389e2ec",
+    "at": "2026-10-17T17:02:47.418Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "38841f22-acf5-4524-97b7-44e62428fd2d",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "bf2d70e7019bc5079f353953128de3320c1e0fa62999af0e8a91c4bc43f38740",
+    "hash": "78580c395b19a93fd54157ed28d041befbaf4470223babe9296f88ee21cf60a1"
+  },
+  {
+    "id": "117d108e-2275-4ade-8c0d-7beae9089712",
+    "at": "2026-10-17T17:02:47.363Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "38841f22-acf5-4524-97b7-44e62428fd2d",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2012.6962579999818,\"checks\":2}",
+    "prevHash": "4ac5239632f146a4adab99217d9d29babef0e016a19009cdcc235ee0c8abd3f0",
+    "hash": "bf2d70e7019bc5079f353953128de3320c1e0fa62999af0e8a91c4bc43f38740"
+  },
+  {
+    "id": "216a0152-ddaf-4518-96cd-2286a8bbcd97",
+    "at": "2026-10-17T17:02:45.311Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=48e61332-eb07-4e8f-bc11-9ed12f5062c3 sha256=08db451f7d14d4298985ff3dccf6799aac21f737d754b566dcb829034b815515",
+    "prevHash": "6dcb0d494bcaf12164133002d680dd4ac40782064c771704c7dd68e784102bbb",
+    "hash": "325e9b506eaef409acb18cf424ed29235ba7216fbabd2e68f11464254dabf143"
+  },
+  {
+    "id": "adba34bf-2f7c-4323-862b-e078b9046f37",
+    "at": "2026-10-17T17:02:45.311Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "48e61332-eb07-4e8f-bc11-9ed12f5062c3",
+    "detail": "COMPLETED · WRS 84.5 (B)",
+    "prevHash": "325e9b506eaef409acb18cf424ed29235ba7216fbabd2e68f11464254dabf143",
+    "hash": "4ac5239632f146a4adab99217d9d29babef0e016a19009cdcc235ee0c8abd3f0"
+  },
+  {
+    "id": "0e92ef57-a785-453b-9b9f-b453efbb9de0",
+    "at": "2026-10-17T17:02:45.216Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=de61592b-b07d-4369-9804-1026540a1910 sha256=feeb162dfb9a9682d010999d4f573fa2176443b53b06a08b95301a8090572de3",
+    "prevHash": "1b9dbd275aacc904bdf81d0f9df00eae99257e107f62c2bff201867aa6fa5a72",
+    "hash": "6dcb0d494bcaf12164133002d680dd4ac40782064c771704c7dd68e784102bbb"
+  },
+  {
+    "id": "10b54b61-fa96-433e-abb7-2de35d5aac7b",
+    "at": "2026-10-17T17:02:41.227Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "f49616964a0fa25919207310713cfe58a2a3c88ef458ff4d883e7c303c370a23",
+    "hash": "1b9dbd275aacc904bdf81d0f9df00eae99257e107f62c2bff201867aa6fa5a72"
+  },
+  {
+    "id": "48b3bd8f-9990-45e8-9dc1-a21ffad91528",
+    "at": "2026-10-17T17:02:06.275Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=48e61332-eb07-4e8f-bc11-9ed12f5062c3 sha256=c07b0a48d414e8f8e16e0d39af0e9af7c9aa3656c4aeb84df4c2a25b26e2bb33",
+    "prevHash": "4d6c86878a20d51b799d30b529fdafd52a4d681b2b43a6d3084984007a63893a",
+    "hash": "f49616964a0fa25919207310713cfe58a2a3c88ef458ff4d883e7c303c370a23"
+  },
+  {
+    "id": "0af53b7b-add0-4615-a02a-e9c7d2bfe2dd",
+    "at": "2026-10-17T17:02:06.194Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "48e61332-eb07-4e8f-bc11-9ed12f5062c3",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "df6a123a5990c44ab27858a4b57a242a769465ab4d935d4225c1321a91250532",
+    "hash": "4d6c86878a20d51b799d30b529fdafd52a4d681b2b43a6d3084984007a63893a"
+  },
+  {
+    "id": "0e76cd4b-c95a-4336-b0e6-6584da361d24",
+    "at": "2026-10-17T17:02:06.150Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "48e61332-eb07-4e8f-bc11-9ed12f5062c3",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2019.5315980000014,\"checks\":2}",
+    "prevHash": "2d0fd6f8e79ee6d1af0127d9624bd337f09765480d3a4d99ada232091a48571a",
+    "hash": "df6a123a5990c44ab27858a4b57a242a769465ab4d935d4225c1321a91250532"
+  },
+  {
+    "id": "54d6cde0-c36a-4afb-b00f-54d1931b5999",
+    "at": "2026-10-17T17:02:04.089Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "12b09bb3-371e-4576-903d-8ef4e46069bc",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "1efd6e6153983564f4395b5d2e8f603e3234523421e88d6d3377ee1b77af6832",
+    "hash": "2d0fd6f8e79ee6d1af0127d9624bd337f09765480d3a4d99ada232091a48571a"
+  },
+  {
+    "id": "8395c76a-d6b5-4ff8-b6a0-0f07b3875a30",
+    "at": "2026-10-17T17:02:04.088Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=12b09bb3-371e-4576-903d-8ef4e46069bc sha256=49190d8fb204aadb9cdb318292b4c61b69a4ce33ef81831032dac0b849943e35",
+    "prevHash": "829fffc00dd7aadd97a6905404903ef34de42314aea1e5c96728374b2c29c17c",
+    "hash": "1efd6e6153983564f4395b5d2e8f603e3234523421e88d6d3377ee1b77af6832"
+  },
+  {
+    "id": "83384d28-4d3e-4bb2-b7fe-78e187610e1f",
+    "at": "2026-10-17T17:02:04.014Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=11032ed3-39cb-46a1-b6c4-fa6611bdaf01 sha256=c21bfcd15df9549ee22b63aa3ebe83e2d86feeb76654e977bd5840face6dd072",
+    "prevHash": "5e888fda3c4d938d548f1e152c0cb5380ad6434ac9501ef1503888ce17af7355",
+    "hash": "829fffc00dd7aadd97a6905404903ef34de42314aea1e5c96728374b2c29c17c"
+  },
+  {
+    "id": "19ef4745-4e97-46aa-8102-20ef50eb219f",
+    "at": "2026-10-17T17:02:03.499Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "d1117425116a986184379a1e9d3b4f974994bea3d68be4c0d78b67b71512ee5f",
+    "hash": "5e888fda3c4d938d548f1e152c0cb5380ad6434ac9501ef1503888ce17af7355"
+  },
+  {
+    "id": "12ab6dbb-3f02-4d83-8beb-7e971c79848e",
+    "at": "2026-10-17T17:01:40.811Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=12b09bb3-371e-4576-903d-8ef4e46069bc sha256=848324552ed2221b608deb3e6dc1eb9dcb1ee4cd1026d5eef536f0216ecdd9fe",
+    "prevHash": "890208f4717e9fec793510828df58e6dad9d524c1d369b1f59d9a2e7b0c6fb2d",
+    "hash": "d1117425116a986184379a1e9d3b4f974994bea3d68be4c0d78b67b71512ee5f"
+  },
+  {
+    "id": "991584ca-fe0b-485c-abdc-1d9697f6a902",
+    "at": "2026-10-17T17:01:40.763Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "12b09bb3-371e-4576-903d-8ef4e46069bc",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "4d260a4ed64affd4367200deb2ce133b72f04972f1acfa0e0b6e71c96b457a06",
+    "hash": "890208f4717e9fec793510828df58e6dad9d524c1d369b1f59d9a2e7b0c6fb2d"
+  },
+  {
+    "id": "f0b51088-0dbd-4f3c-be31-0725aeca2661",
+    "at": "2026-10-17T17:01:40.731Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "12b09bb3-371e-4576-903d-8ef4e46069bc",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2036.3680630000017,\"checks\":2}",
+    "prevHash": "5f209c463f7623009ef2a49ef2cfc247b0016bd9b9e13d5a4c415d3e41224073",
+    "hash": "4d260a4ed64affd4367200deb2ce133b72f04972f1acfa0e0b6e71c96b457a06"
+  },
+  {
+    "id": "84c7d884-368a-4e9a-afd6-7fe46bf44593",
+    "at": "2026-10-17T17:01:38.668Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=4c171ffa-1c3e-44c9-80ea-984bde3fbba3 sha256=8d4ee3dd1641bd83aadd23ac7cfe4aea906bd14a1558b6c5afa8cf1e24514fb7",
+    "prevHash": "f4779494f0d56fefc16c0d68f407953dac76c6fca99650aebb523be75084c1a9",
+    "hash": "b54d4ac76dd0bef92e464e9ea69a5d9740497e966643ba728afabc62a41e769a"
+  },
+  {
+    "id": "08fb5e88-4767-4df3-99b0-98ce60e8bc53",
+    "at": "2026-10-17T17:01:38.668Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "4c171ffa-1c3e-44c9-80ea-984bde3fbba3",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "b54d4ac76dd0bef92e464e9ea69a5d9740497e966643ba728afabc62a41e769a",
+    "hash": "5f209c463f7623009ef2a49ef2cfc247b0016bd9b9e13d5a4c415d3e41224073"
+  },
+  {
+    "id": "c758719a-5841-4e85-b067-2ff17656857f",
+    "at": "2026-10-17T17:01:38.636Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=e6531c5b-6e2b-4007-a1e1-1aadf2c8eab0 sha256=1f79559c463a33f9f2da05b0b8494d100b58367d970f096eaf6c94199443470b",
+    "prevHash": "46132c304d8b5d17860d5de1f5de956c7588fa8eade6e6c0531e6074a09ee40b",
+    "hash": "f4779494f0d56fefc16c0d68f407953dac76c6fca99650aebb523be75084c1a9"
+  },
+  {
+    "id": "3d944913-6d9f-48b5-98fc-65691b3b0b86",
+    "at": "2026-10-17T17:01:15.849Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=4c171ffa-1c3e-44c9-80ea-984bde3fbba3 sha256=035eec739b4f9ef888be5496f9de7e4d387aec6a643169d26ee16339b36d841a",
+    "prevHash": "a4f9fb06c4f449605d67f5b47daa83859fdde7bf108e4578aba52e85c3be0246",
+    "hash": "46132c304d8b5d17860d5de1f5de956c7588fa8eade6e6c0531e6074a09ee40b"
+  },
+  {
+    "id": "7f590bb8-6bd9-4b1d-b577-46321253e027",
+    "at": "2026-10-17T17:01:15.804Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "4c171ffa-1c3e-44c9-80ea-984bde3fbba3",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "dc065a1a4d4f67cb6b3d0121afaaa065eca091148e207558c994c763e074db9c",
+    "hash": "a4f9fb06c4f449605d67f5b47daa83859fdde7bf108e4578aba52e85c3be0246"
+  },
+  {
+    "id": "6bf9a741-1c6b-407b-a133-c85eb719f996",
+    "at": "2026-10-17T17:01:15.773Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "4c171ffa-1c3e-44c9-80ea-984bde3fbba3",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2024.4361609999905,\"checks\":2}",
+    "prevHash": "9853959b635138e84df8ea86469140c9b7c11d5355a5e2614653adbc73d6b8c4",
+    "hash": "dc065a1a4d4f67cb6b3d0121afaaa065eca091148e207558c994c763e074db9c"
+  },
+  {
+    "id": "0f1028cc-b170-4c85-80cf-7fa619266721",
+    "at": "2026-10-17T17:01:13.820Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "ad92ebde1ae0ab1ccdddf8b9cde7aae50a3647b3393c5a1d51d972b8a3633a7e",
+    "hash": "9853959b635138e84df8ea86469140c9b7c11d5355a5e2614653adbc73d6b8c4"
+  },
+  {
+    "id": "ed27e369-7580-480b-b0bf-6b951b4d46ce",
+    "at": "2026-10-17T17:01:13.703Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=1185b4a2-cbd9-4048-9c33-cec401fbdbb8 sha256=b67be7f86ce4ee01b91557c684524d1b045612d8db70121a83786bb3aa1cdf15",
+    "prevHash": "c608ee7309075227f7b18fe632a3c2f6db0e56df5d951270d0e6b9feb5fb2b6c",
+    "hash": "45ea63c82886932c93c32156c346a724f547ff5ef5911e00acb5000a69586b63"
+  },
+  {
+    "id": "bdabe181-1233-49d5-b961-4e590771d8e9",
+    "at": "2026-10-17T17:01:13.703Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "1185b4a2-cbd9-4048-9c33-cec401fbdbb8",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "45ea63c82886932c93c32156c346a724f547ff5ef5911e00acb5000a69586b63",
+    "hash": "ad92ebde1ae0ab1ccdddf8b9cde7aae50a3647b3393c5a1d51d972b8a3633a7e"
+  },
+  {
+    "id": "38054f4e-e576-4961-82d4-07b9eb012250",
+    "at": "2026-10-17T17:01:13.668Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=20e33faa-0995-4c20-b589-7ee402569f8b sha256=3d16a115114cc27eb09ae99340f085de1d3403ec87de538b1f9af9883c9746ac",
+    "prevHash": "cb463a169f5b40a1f8e7fff6b36d09105db6be95ab64633249fe66796ae14e36",
+    "hash": "c608ee7309075227f7b18fe632a3c2f6db0e56df5d951270d0e6b9feb5fb2b6c"
+  },
+  {
+    "id": "439803a0-35cd-42f2-8650-55f444da2505",
+    "at": "2026-10-17T17:00:50.929Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=1185b4a2-cbd9-4048-9c33-cec401fbdbb8 sha256=23deb79d8f60f3b49d0f9e996d0224c4061e35628271ad46c11e7bddc7280b5a",
+    "prevHash": "6c1471a6bcddade7a691467d31647c0fe05c27e2d6061f1e40c5c701e2f2b04f",
+    "hash": "cb463a169f5b40a1f8e7fff6b36d09105db6be95ab64633249fe66796ae14e36"
+  },
+  {
+    "id": "6f72edef-006e-4f97-a97f-20b9144673ca",
+    "at": "2026-10-17T17:00:50.869Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "1185b4a2-cbd9-4048-9c33-cec401fbdbb8",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "67bf8d97e9433100295a58530155b424941d5dee5499460ccb41261f86410e4e",
+    "hash": "6c1471a6bcddade7a691467d31647c0fe05c27e2d6061f1e40c5c701e2f2b04f"
+  },
+  {
+    "id": "cc3970e1-df2b-4b2b-aab8-0810085c201e",
+    "at": "2026-10-17T17:00:50.838Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "1185b4a2-cbd9-4048-9c33-cec401fbdbb8",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2026.5629029999836,\"checks\":2}",
+    "prevHash": "d2f12c40234229bb5e25339e47ee9f4676e92168405d7cfa131e5d30fd34ebdf",
+    "hash": "67bf8d97e9433100295a58530155b424941d5dee5499460ccb41261f86410e4e"
+  },
+  {
+    "id": "459d94e4-f002-4dda-b208-2a4b5c252221",
+    "at": "2026-10-17T17:00:48.788Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "da8aacb9-e2ca-40fd-9a45-ea05970825b0",
+    "detail": "COMPLETED · WRS 72 (B)",
+    "prevHash": "38becb980945e9801e5e0b01f0296acb0e20add0efb8d81d7ba37256428ad62e",
+    "hash": "d2f12c40234229bb5e25339e47ee9f4676e92168405d7cfa131e5d30fd34ebdf"
+  },
+  {
+    "id": "023a4a6e-1545-4998-8d2d-9d997ea184c1",
+    "at": "2026-10-17T17:00:48.787Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=da8aacb9-e2ca-40fd-9a45-ea05970825b0 sha256=3ee3219fac08feafff6ecdbc906fd2d1df79faa2fb6ef20a8983565bd7cc66e9",
+    "prevHash": "55ba7d5ebc122c067cc271cfc711af9ab122f0b3d515856e93053242d3fdb566",
+    "hash": "38becb980945e9801e5e0b01f0296acb0e20add0efb8d81d7ba37256428ad62e"
+  },
+  {
+    "id": "bd61d6c1-9647-42d5-b3f0-776fa479615b",
+    "at": "2026-10-17T17:00:48.763Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=4cb56336-c093-4c6f-ac7f-f89a243f1fec sha256=cd79410a28b69173b745f90da33909411f1ee362218c0b3930b08b03563d73b7",
+    "prevHash": "be55f65bec0cbb4d410d35a4b529e84db56aa3a5bfe672ae49473512b02224b4",
+    "hash": "55ba7d5ebc122c067cc271cfc711af9ab122f0b3d515856e93053242d3fdb566"
+  },
+  {
+    "id": "99c12492-24a9-43a7-af96-3fcb92d6dceb",
+    "at": "2026-10-17T17:00:26.121Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=da8aacb9-e2ca-40fd-9a45-ea05970825b0 sha256=20f8724be5f2fdbaa04ddf1bc24e4f8899f209b8055de0a3333cae48534a3ea2",
+    "prevHash": "77fb6c7f2dc319c02fac9d8a6e4ee5f18048092aa1bcd77386f137691ebe5f54",
+    "hash": "be55f65bec0cbb4d410d35a4b529e84db56aa3a5bfe672ae49473512b02224b4"
+  },
+  {
+    "id": "e57a0c0e-6609-45ea-8cb7-37a8216bdf09",
+    "at": "2026-10-17T17:00:26.083Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "da8aacb9-e2ca-40fd-9a45-ea05970825b0",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "b685419a49bdf9444f2be66c2eeb3bb07b294c5e6648e24c83ee766a5a190403",
+    "hash": "77fb6c7f2dc319c02fac9d8a6e4ee5f18048092aa1bcd77386f137691ebe5f54"
+  },
+  {
+    "id": "3436d514-a06e-4861-a426-70967aa43d4d",
+    "at": "2026-10-17T17:00:26.057Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "da8aacb9-e2ca-40fd-9a45-ea05970825b0",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2014.1510410000046,\"checks\":2}",
+    "prevHash": "608b2dd7e1bc7fcb3b40b6f21ac778cd052cd6b135149e887bf439415562aa0b",
+    "hash": "b685419a49bdf9444f2be66c2eeb3bb07b294c5e6648e24c83ee766a5a190403"
+  },
+  {
+    "id": "2fe46053-f99b-4958-8a99-cc424702952b",
+    "at": "2026-10-17T17:00:25.612Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "a65f76f384551a370fcd083308ece044a838a5434b14e14fa2cee052e6b636c7",
+    "hash": "608b2dd7e1bc7fcb3b40b6f21ac778cd052cd6b135149e887bf439415562aa0b"
+  },
+  {
+    "id": "5d6e6a6c-c1e7-4ef5-ae55-93e3a81065fb",
+    "at": "2026-10-17T17:00:24.027Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c2c96683-3a03-45fe-89dd-a7ab7e40be9f sha256=fa865a4ceae0ed4b309a02d8e469b7c1108ae6980d0a85a4dbf7f83db69a0d04",
+    "prevHash": "670a1a4c1e985a8f48b9729433c1bdf4cc845a24723dcd8f60142f0ff7e3c741",
+    "hash": "89e0fb2c404c9d7d87e209a6e36dce968f7eff159601bcf610de9b44a6067e96"
+  },
+  {
+    "id": "5c8b26a9-6f3d-4d91-a868-5bd3e9c6f3b0",
+    "at": "2026-10-17T17:00:24.027Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "c2c96683-3a03-45fe-89dd-a7ab7e40be9f",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "89e0fb2c404c9d7d87e209a6e36dce968f7eff159601bcf610de9b44a6067e96",
+    "hash": "a65f76f384551a370fcd083308ece044a838a5434b14e14fa2cee052e6b636c7"
+  },
+  {
+    "id": "e8b67a4d-2293-483a-a616-e5e29dbf643a",
+    "at": "2026-10-17T17:00:23.964Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=e0097531-a1f4-48e0-8e42-2daf1dfa3666 sha256=71abd3b93f6a0e79c2629532ba20eab6bfbcd3ee3825b776eca3f58ea6f34a74",
+    "prevHash": "a738f68fcc8d69269075fd7842f5ab0f43f72882ad6a400baeb95be410458270",
+    "hash": "670a1a4c1e985a8f48b9729433c1bdf4cc845a24723dcd8f60142f0ff7e3c741"
+  },
+  {
+    "id": "d0906f58-a937-4ce5-b692-355343971bf1",
+    "at": "2026-10-17T17:00:00.650Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c2c96683-3a03-45fe-89dd-a7ab7e40be9f sha256=90a39dc3e3e4448307d9cee73cb5fcda30b8691c3a3ed4f39ad5bdbd6f390def",
+    "prevHash": "d7d211991b8e180b4e831a95fa11f9045aba52c8b3c14fc11df1075d5b2a5bb8",
+    "hash": "a738f68fcc8d69269075fd7842f5ab0f43f72882ad6a400baeb95be410458270"
+  },
+  {
+    "id": "96ade123-6a7b-4e51-840a-fceee76d22ed",
+    "at": "2026-10-17T17:00:00.644Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "c2c96683-3a03-45fe-89dd-a7ab7e40be9f",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "4fb5ace3477f2a2b18db49ecee447eabe6b8fcdf4a7caf73ed0bf924eae64b5e",
+    "hash": "d7d211991b8e180b4e831a95fa11f9045aba52c8b3c14fc11df1075d5b2a5bb8"
+  },
+  {
+    "id": "630b1c17-4cae-4ff4-b336-3c4579a56e6d",
+    "at": "2026-10-17T17:00:00.640Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "c2c96683-3a03-45fe-89dd-a7ab7e40be9f",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2013.1144720000011,\"checks\":2}",
+    "prevHash": "b27f4615716b4c06b4e571ad3d619a3c67afdb8d2965180f59b62f8c252a16ea",
+    "hash": "4fb5ace3477f2a2b18db49ecee447eabe6b8fcdf4a7caf73ed0bf924eae64b5e"
+  },
+  {
+    "id": "a603daeb-6fd8-407e-b422-6289f36bf37b",
+    "at": "2026-10-17T16:59:58.623Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d302805f-aeec-43ce-8e2b-f394d3709550 sha256=10866a0de6d788b4b6abe52edab3d049da9039a303055bc13fa0324b2c046bf5",
+    "prevHash": "9ca6cebb37f339593492843d77bc8f8b7d5f3e45f6d51102dd2dff57241d4790",
+    "hash": "4ad0ea8c3db39ce9016b916b766fbb4c67ee40c77b6ce968c8c4bc0555b4d228"
+  },
+  {
+    "id": "b95e14f7-44a8-49b0-8be8-78cc0584f8a5",
+    "at": "2026-10-17T16:59:58.623Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "d302805f-aeec-43ce-8e2b-f394d3709550",
+    "detail": "COMPLETED · WRS 97 (A+)",
+    "prevHash": "4ad0ea8c3db39ce9016b916b766fbb4c67ee40c77b6ce968c8c4bc0555b4d228",
+    "hash": "b27f4615716b4c06b4e571ad3d619a3c67afdb8d2965180f59b62f8c252a16ea"
+  },
+  {
+    "id": "7db71c72-5b26-4b80-adb3-58da13a8ff33",
+    "at": "2026-10-17T16:59:58.621Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=e38cbcff-f46e-455e-95a8-890ff215c2fc sha256=e6e30141a2aecf49c49a7cfa3322fdba4dadd9f5a7acdd0f280ef9a18120a162",
+    "prevHash": "9844918bc34fa9653fc50fc2bc89d22e9558309b0800748ad1a712621b8e73e7",
+    "hash": "9ca6cebb37f339593492843d77bc8f8b7d5f3e45f6d51102dd2dff57241d4790"
+  },
+  {
+    "id": "31cb4740-37e6-4340-bc73-2fe3260b801f",
+    "at": "2026-10-17T16:59:51.114Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "f6ad85514628a9a01161a042a56c462a949f1a0c1f1d3b4c415eec6df4adf8a4",
+    "hash": "9844918bc34fa9653fc50fc2bc89d22e9558309b0800748ad1a712621b8e73e7"
+  },
+  {
+    "id": "16aa1333-2a4b-4c60-bd87-7f04cb53e5bc",
+    "at": "2026-10-17T16:59:35.782Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d302805f-aeec-43ce-8e2b-f394d3709550 sha256=0dd6132abb5e126d827e1943d166ce4e5d3d54d6082e8c890f6280e938e6c1cd",
+    "prevHash": "c42332c93f71d7c2eca2189a46acf607ac3d57fa505a00bc8a55fc18b9ce0b8a",
+    "hash": "f6ad85514628a9a01161a042a56c462a949f1a0c1f1d3b4c415eec6df4adf8a4"
+  },
+  {
+    "id": "3d616705-3bf0-41eb-abef-d3a9a6519964",
+    "at": "2026-10-17T16:59:35.778Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "d302805f-aeec-43ce-8e2b-f394d3709550",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "ebd391df668970ce1b30721c3375250f985a97ad7f541287d46e2e6d07f3884e",
+    "hash": "c42332c93f71d7c2eca2189a46acf607ac3d57fa505a00bc8a55fc18b9ce0b8a"
+  },
+  {
+    "id": "dc156e13-6f9e-46d5-821e-9b86f1e21edf",
+    "at": "2026-10-17T16:59:35.773Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "d302805f-aeec-43ce-8e2b-f394d3709550",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2012.1512780000048,\"checks\":2}",
+    "prevHash": "2b470ebdb34f64fbb985226065c0aef5d49577d7fd514ab550f3aa3a9a0c07c4",
+    "hash": "ebd391df668970ce1b30721c3375250f985a97ad7f541287d46e2e6d07f3884e"
+  },
+  {
+    "id": "1a1e2300-5e06-4dc2-ae47-6a0ebcb108bc",
+    "at": "2026-10-17T16:59:35.744Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "87cc6c5dcd67f4eeeefd17bac4a5d25953791198e4fa7da338ec45cd7c2b3101",
+    "hash": "2b470ebdb34f64fbb985226065c0aef5d49577d7fd514ab550f3aa3a9a0c07c4"
+  },
+  {
+    "id": "6d0fb1ed-0740-4a38-87fb-e47d906e1037",
+    "at": "2026-10-17T16:59:33.757Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c1a743d4-1b63-4f4a-9b0b-0f15343a1f18 sha256=863e946696368b505d82bdaacb022d988d7739ade26815576ae2ef35e9a94bac",
+    "prevHash": "394b371b9ade0748a3eab856503e00e0c53b310a50d1fdd5471094df9e08a689",
+    "hash": "afa36082519cda8a5dd7dde49e6261b55aeddabdbb2874d95d3c376087f7a20c"
+  },
+  {
+    "id": "39578724-a324-41cc-84a8-f3cb4fef791c",
+    "at": "2026-10-17T16:59:33.757Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "c1a743d4-1b63-4f4a-9b0b-0f15343a1f18",
+    "detail": "COMPLETED · WRS 97 (A+)",
+    "prevHash": "afa36082519cda8a5dd7dde49e6261b55aeddabdbb2874d95d3c376087f7a20c",
+    "hash": "87cc6c5dcd67f4eeeefd17bac4a5d25953791198e4fa7da338ec45cd7c2b3101"
+  },
+  {
+    "id": "b1a6d4d4-7535-4141-a345-a745b73f5760",
+    "at": "2026-10-17T16:59:33.752Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=128abd20-cc79-47ce-a338-10212d012c4c sha256=2dc5385ce9898884fb407635608bdb38d258602cd2900eaa12324c13248fbbf6",
+    "prevHash": "57889ce52c0ade57d3af05b3f1008b698574cedc1b20087efa5bc232125272e0",
+    "hash": "394b371b9ade0748a3eab856503e00e0c53b310a50d1fdd5471094df9e08a689"
+  },
+  {
+    "id": "f90077fd-f931-48a0-9ef1-1b8a69b629e3",
+    "at": "2026-10-17T16:59:20.168Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "0ed2dc1179b670c99d75df99cd6530ec70f5b7727dc7db53f8c2bfed202b0b34",
+    "hash": "57889ce52c0ade57d3af05b3f1008b698574cedc1b20087efa5bc232125272e0"
+  },
+  {
+    "id": "32d5c517-7fb5-430a-b230-cba4eba3942c",
+    "at": "2026-10-17T16:59:10.984Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c1a743d4-1b63-4f4a-9b0b-0f15343a1f18 sha256=31bad3cc83f1d4f9a0e456d19c20dfa24cabaee7cdc6934b699b9ff8ceb4c9d6",
+    "prevHash": "e8c204fdcd3b8fc2869358f73c99a4633cc5589dde64ee4cb5db319ea44f4722",
+    "hash": "0ed2dc1179b670c99d75df99cd6530ec70f5b7727dc7db53f8c2bfed202b0b34"
+  },
+  {
+    "id": "c2d53730-e2ea-4906-949f-e505aa3ba4ae",
+    "at": "2026-10-17T16:59:10.981Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "c1a743d4-1b63-4f4a-9b0b-0f15343a1f18",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "89137180a1a820fbc55cddb2b1dcfc549d5ca6b6e9eb0d12914003ea01f7af5e",
+    "hash": "e8c204fdcd3b8fc2869358f73c99a4633cc5589dde64ee4cb5db319ea44f4722"
+  },
+  {
+    "id": "16499b25-336d-4c13-8b84-13dafd40ca0e",
+    "at": "2026-10-17T16:59:10.978Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "c1a743d4-1b63-4f4a-9b0b-0f15343a1f18",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2015.5054930000042,\"checks\":2}",
+    "prevHash": "d32b5754374fe699ec9aad241966b35e9c6c44666f95f6dfd88491201c79f214",
+    "hash": "89137180a1a820fbc55cddb2b1dcfc549d5ca6b6e9eb0d12914003ea01f7af5e"
+  },
+  {
+    "id": "9704e0ad-ca83-4986-9ae1-049fa8d9c663",
+    "at": "2026-10-17T16:59:08.959Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=3753cb9b-3b98-469d-b861-f8fb6e774ce4 sha256=f04d166a4feccd17023fb6ec5054168c757f47826e359a819122eb7a017e917a",
+    "prevHash": "1281053e0a14890e0df38707304f70b3c42bc3f273984f401f8bbe60e31f0248",
+    "hash": "1195a90861f4595b8476f1dcb5507bd8c97b32f6a873da45b22a60d47698e941"
+  },
+  {
+    "id": "e5c65532-081f-4638-94db-e1a66510aad0",
+    "at": "2026-10-17T16:59:08.959Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "3753cb9b-3b98-469d-b861-f8fb6e774ce4",
+    "detail": "COMPLETED · WRS 97 (A+)",
+    "prevHash": "1195a90861f4595b8476f1dcb5507bd8c97b32f6a873da45b22a60d47698e941",
+    "hash": "d32b5754374fe699ec9aad241966b35e9c6c44666f95f6dfd88491201c79f214"
+  },
+  {
+    "id": "e116aa2c-cf1c-4f5d-8128-2b2b8c0df517",
+    "at": "2026-10-17T16:59:08.956Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=108fec40-c2e3-44a6-8d47-fb8e0bbabd8f sha256=b773e77e3eb86a03d443039c2058b55e53090fd82ec2aeeac4f764d7dd549638",
+    "prevHash": "43ccfa7088f1d8866c167a841c5c52567976456f29b9739caee87eb8e0ea76e2",
+    "hash": "1281053e0a14890e0df38707304f70b3c42bc3f273984f401f8bbe60e31f0248"
+  },
+  {
+    "id": "86062d6f-9273-4cbd-9a01-c4b191132a1f",
+    "at": "2026-10-17T16:58:46.630Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=3753cb9b-3b98-469d-b861-f8fb6e774ce4 sha256=b49ffae99036ba165fb6e3fa3f7e4e62c09318b0814662a4c1b3d23851726cce",
+    "prevHash": "479c2ede121588f1331790f44b762fba0f034f7be99ab13fdd2af6e8b79069a3",
+    "hash": "43ccfa7088f1d8866c167a841c5c52567976456f29b9739caee87eb8e0ea76e2"
+  },
+  {
+    "id": "45fc73d4-d960-48c0-af7d-5e407559c880",
+    "at": "2026-10-17T16:58:46.625Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "3753cb9b-3b98-469d-b861-f8fb6e774ce4",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "381e8a62a923eafee6650379e83fa2b0fc71e24627d1049ace10eee3eb04369f",
+    "hash": "479c2ede121588f1331790f44b762fba0f034f7be99ab13fdd2af6e8b79069a3"
+  },
+  {
+    "id": "fedcc403-1bfb-4c59-b1b9-5c484d9ffb48",
+    "at": "2026-10-17T16:58:46.622Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.gate",
+    "campaignId": "3753cb9b-3b98-469d-b861-f8fb6e774ce4",
+    "detail": "recovery available after 2s — proceeding; {\"available\":true,\"waitedMs\":2014.2225410000028,\"checks\":2}",
+    "prevHash": "971cb05c2a111b5e5ee999965f7d33a32370a9390127ba2ce86ac4a814e3547f",
+    "hash": "381e8a62a923eafee6650379e83fa2b0fc71e24627d1049ace10eee3eb04369f"
+  },
+  {
+    "id": "e1c71ce1-cae7-461a-858a-7f2587c63b12",
+    "at": "2026-10-17T16:58:44.601Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=ff26eae5-7885-4e55-a356-fd7dae178bfe sha256=332e6adb3cf50a0a6e1e4f67b612e690111be2e5df569a979799919a769222a8",
+    "prevHash": "f97d470024d1841473c40c90cacbc88965a0569bf5f02c95eef870ca3b231d5f",
+    "hash": "5e197632c5b2fb864e86f8d008680283e1213e648c1747168e9cbe36b474fa8e"
+  },
+  {
+    "id": "3fa30b4f-65c6-44fd-985c-169eeda0ad8c",
+    "at": "2026-10-17T16:58:44.601Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "ff26eae5-7885-4e55-a356-fd7dae178bfe",
+    "detail": "COMPLETED · WRS 97 (A+)",
+    "prevHash": "5e197632c5b2fb864e86f8d008680283e1213e648c1747168e9cbe36b474fa8e",
+    "hash": "971cb05c2a111b5e5ee999965f7d33a32370a9390127ba2ce86ac4a814e3547f"
+  },
+  {
+    "id": "16f75402-9ed3-40a9-a5eb-8f19a7db8380",
+    "at": "2026-10-17T16:58:44.598Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveRun entity=23e04e99-a543-4813-9b6c-7b51cd7dd828 sha256=3c8b7f4c48a530b208ea12b43febcfa6e6179ed636f6f0baaeb93b4f3757c955",
+    "prevHash": "7d6c55f5338448a9a4607e7d86b42d5e9ca09fec0ac0bb22f73472624d8c34ea",
+    "hash": "f97d470024d1841473c40c90cacbc88965a0569bf5f02c95eef870ca3b231d5f"
+  },
+  {
+    "id": "d1bd3408-1e00-4a92-8f96-0d2857702cf5",
+    "at": "2026-10-17T16:58:23.282Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "4c5a6d18361afff12f1bf21b89b0b0da9d53f7f430550f431e74d73bb7bd20f4",
+    "hash": "7d6c55f5338448a9a4607e7d86b42d5e9ca09fec0ac0bb22f73472624d8c34ea"
+  },
+  {
+    "id": "8352aed9-d7ad-4e15-bb13-f89477b9c4b2",
+    "at": "2026-10-17T16:58:22.310Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=ff26eae5-7885-4e55-a356-fd7dae178bfe sha256=263f4fbce88f59ffb5a893f7b94aee34085ef790bdc2da36d9cfda57bade4b83",
+    "prevHash": "cc60c12d5defa479a45f6ba7ce8114cf539f570c9da888e98897f7ac763268d5",
+    "hash": "4c5a6d18361afff12f1bf21b89b0b0da9d53f7f430550f431e74d73bb7bd20f4"
+  },
+  {
+    "id": "f68e25e4-8408-48d6-a33f-10b1ef5b5878",
+    "at": "2026-10-17T16:58:22.305Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.execute",
+    "campaignId": "ff26eae5-7885-4e55-a356-fd7dae178bfe",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "c99e3b85ac0def811b036cce7abf6582b9fbdc61eb869a12e6dc8948dd3cec75",
+    "hash": "cc60c12d5defa479a45f6ba7ce8114cf539f570c9da888e98897f7ac763268d5"
+  },
+  {
+    "id": "d38703a8-a226-432a-b13f-6e12fdb60cd3",
+    "at": "2026-10-17T16:58:22.290Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "suite.run",
+    "detail": "sequence start · 12 steps",
+    "prevHash": "b8afc9caaf66b51da29fecd046c26fad41c0848b9fcf57c461ea5d1d6114fc96",
+    "hash": "c99e3b85ac0def811b036cce7abf6582b9fbdc61eb869a12e6dc8948dd3cec75"
+  },
+  {
+    "id": "083d6238-ba49-4f7b-bbf3-3bd698c71911",
+    "at": "2026-10-17T16:58:22.244Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=ff26eae5-7885-4e55-a356-fd7dae178bfe sha256=d0f02606c0b4cc92627739fc7cf6a622e8e1fe3f432a9df2c87702c52e74321d",
+    "prevHash": "d33e3922b4d4d74d8b66a476a8488d8594fbb64f98fdcece5c6dc322bdf2e036",
+    "hash": "13477c5f00a135e79cf0202309b7ca57fb078ccdd8f5cfa69e750c30a5a7d9e4"
+  },
+  {
+    "id": "3e5beb26-f810-4141-a509-c17bd8602495",
+    "at": "2026-10-17T16:58:22.244Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "campaign.approve",
+    "detail": "suite ee90d84e-2631-4c1d-aeeb-b20ea56f0b32 — 12 step(s) approved",
+    "prevHash": "13477c5f00a135e79cf0202309b7ca57fb078ccdd8f5cfa69e750c30a5a7d9e4",
+    "hash": "b8afc9caaf66b51da29fecd046c26fad41c0848b9fcf57c461ea5d1d6114fc96"
+  },
+  {
+    "id": "4b962deb-a1e2-4687-bec3-b4dcaf577b7b",
+    "at": "2026-10-17T16:58:22.243Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=3753cb9b-3b98-469d-b861-f8fb6e774ce4 sha256=ee1a604a5da896323a2c7e305ee8331818bd3e3c75f4192d29fec391800f0def",
+    "prevHash": "e997864badb3df6cb1dc90ec65a06cf3b8482e95bb415ee20014335a74ba5ac9",
+    "hash": "d33e3922b4d4d74d8b66a476a8488d8594fbb64f98fdcece5c6dc322bdf2e036"
+  },
+  {
+    "id": "7c04bc19-e835-466a-9b74-8c3ae1a9c935",
+    "at": "2026-10-17T16:58:22.242Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c1a743d4-1b63-4f4a-9b0b-0f15343a1f18 sha256=fbc2d94b76a95ec2122829d7ae09f114184bc0faeb3bffed4a2e5837f92825ae",
+    "prevHash": "aa3158c912c37012c40673dc8be6b3320afd175103545bf03f3af972434166e6",
+    "hash": "e997864badb3df6cb1dc90ec65a06cf3b8482e95bb415ee20014335a74ba5ac9"
+  },
+  {
+    "id": "a907854e-ed4d-41cd-bdc1-4f6673fde834",
+    "at": "2026-10-17T16:58:22.241Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d302805f-aeec-43ce-8e2b-f394d3709550 sha256=838cabc04644fd64acb04d6bd4747a2a482f884a74956d0c3580a81092b61ab9",
+    "prevHash": "f0d77c7f2a73420818583e2f661c3314b416b2cc183168571f4b13ba4e827897",
+    "hash": "aa3158c912c37012c40673dc8be6b3320afd175103545bf03f3af972434166e6"
+  },
+  {
+    "id": "4677941a-0b86-4954-bcf3-147f7f368416",
+    "at": "2026-10-17T16:58:22.240Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c2c96683-3a03-45fe-89dd-a7ab7e40be9f sha256=2bcf7c7d21bc08160d6f6b5a24a1371027d2cd16398b624ce7b3aa30953e7a0b",
+    "prevHash": "78f01ce613dced7597890438c471b96e0f980471484a1a78d730a8d32ca76b89",
+    "hash": "f0d77c7f2a73420818583e2f661c3314b416b2cc183168571f4b13ba4e827897"
+  },
+  {
+    "id": "e65e8798-4fca-4bdc-b9d5-b2cfe10d7174",
+    "at": "2026-10-17T16:58:22.239Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=da8aacb9-e2ca-40fd-9a45-ea05970825b0 sha256=b292094faf601859bc2fa3a75beca4d5379fa5d6115cae10a98480b593be1d5a",
+    "prevHash": "f32c88aaef5f7e3afd736ffaf3d93c6120118dfe18a733c782087afa29c742f1",
+    "hash": "78f01ce613dced7597890438c471b96e0f980471484a1a78d730a8d32ca76b89"
+  },
+  {
+    "id": "dd79a0a0-e69d-4697-9e32-8d9b57905eee",
+    "at": "2026-10-17T16:58:22.238Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=1185b4a2-cbd9-4048-9c33-cec401fbdbb8 sha256=243d8b2197966b2620e926a42363f6a3be82e035a2dd9437caf38a4afc342c00",
+    "prevHash": "f2b9982391de40f8436393b1c11b09adb3611e1f6fc46462fc4e4f129abcbb83",
+    "hash": "f32c88aaef5f7e3afd736ffaf3d93c6120118dfe18a733c782087afa29c742f1"
+  },
+  {
+    "id": "037393ce-fce6-46f8-82b2-7505be89d362",
+    "at": "2026-10-17T16:58:22.237Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=4c171ffa-1c3e-44c9-80ea-984bde3fbba3 sha256=491dad5ad4fb2c04a0c9f2a63399c2281053df44cbd0bcd8d02a98e89e9525df",
+    "prevHash": "c2d9ce5e29ec429749d45f13bd089a88fc04f0303d3ca36fc718141f65501c94",
+    "hash": "f2b9982391de40f8436393b1c11b09adb3611e1f6fc46462fc4e4f129abcbb83"
+  },
+  {
+    "id": "1cc98340-977c-4755-bb86-7ba2e0fd6771",
+    "at": "2026-10-17T16:58:22.236Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=12b09bb3-371e-4576-903d-8ef4e46069bc sha256=cfdc7a8284fb5d9224baa8068a6952c9176dbe4806f38743f7b27ef0556c7ebf",
+    "prevHash": "a4fd225a960991442da565ffd41f7c230ac3cd5cc3115fafabff555ee275aa34",
+    "hash": "c2d9ce5e29ec429749d45f13bd089a88fc04f0303d3ca36fc718141f65501c94"
+  },
+  {
+    "id": "c6df7406-5d87-4943-94da-59f4445333b3",
+    "at": "2026-10-17T16:58:22.235Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=48e61332-eb07-4e8f-bc11-9ed12f5062c3 sha256=72b0c10f49a2045ce519ee03dbc48da8f36f73c4cc15d79ac93d4f8aa24f224c",
+    "prevHash": "c601450d5a4f8b7e8703f8790c72d2a4e81d3a41c72fbbe80c6ae5cb2eab5f74",
+    "hash": "a4fd225a960991442da565ffd41f7c230ac3cd5cc3115fafabff555ee275aa34"
+  },
+  {
+    "id": "fa29212f-71cd-4433-ac2d-d31b22f06fdd",
+    "at": "2026-10-17T16:58:22.234Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=38841f22-acf5-4524-97b7-44e62428fd2d sha256=d28da3669ac0d189e6dfe84454a92dca194bb5b344425e112018506797315905",
+    "prevHash": "7d4f79b0d063c7919ef92320ab391ad6c2556d9cac6ee094daca9ccd82653437",
+    "hash": "c601450d5a4f8b7e8703f8790c72d2a4e81d3a41c72fbbe80c6ae5cb2eab5f74"
+  },
+  {
+    "id": "79c4d1b2-343f-4608-925f-0591bdb19929",
+    "at": "2026-10-17T16:58:22.233Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=e5d7eee3-2c95-4901-be73-b3699f8a045d sha256=42cb4d8f0eb93e520a96be5c4018a0804e0a4e837049aca24848a55597b27469",
+    "prevHash": "99852638464fe60fcab53cb654f4f4183526912fe030791aab5922736e502af3",
+    "hash": "7d4f79b0d063c7919ef92320ab391ad6c2556d9cac6ee094daca9ccd82653437"
+  },
+  {
+    "id": "5bce775d-f920-4082-82ce-3a139c0a215c",
+    "at": "2026-10-17T16:58:22.170Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "campaign.create",
+    "detail": "playbook \"Pre-test — DRS L7 playbook (P26-20371) [20s QA]\" → 12 campaigns (suite ee90d84e-2631-4c1d-aeeb-b20ea56f0b32, recon-seeded)",
+    "prevHash": "41a884bb95d023613f7fee5973217e78eaa8b8d2065c89be4b639bf445bec3d3",
+    "hash": "99852638464fe60fcab53cb654f4f4183526912fe030791aab5922736e502af3"
+  },
+  {
+    "id": "1afbe52a-6433-43f8-97e1-bc79eddddaa5",
+    "at": "2026-10-17T16:58:22.169Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=e5d7eee3-2c95-4901-be73-b3699f8a045d sha256=51dc5da4b2f9e940bfff235e8e2e45411fd32cd9284ea935d6a4d3ce97f8ea19",
+    "prevHash": "1c3cda06d888e360d8ccb1d3691cfdae304f900dd8879e73dfe19b3801b03355",
+    "hash": "41a884bb95d023613f7fee5973217e78eaa8b8d2065c89be4b639bf445bec3d3"
+  },
+  {
+    "id": "da62e96a-a01e-4218-a988-9799d6217002",
+    "at": "2026-10-17T16:58:22.168Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=38841f22-acf5-4524-97b7-44e62428fd2d sha256=7b8e10ecdbd15744565cd5bb9e0841f6db482e12ff1d158a05e54519c5e626a3",
+    "prevHash": "5605a964e7183deaf26ce0450c1ccbd17b881d51d0c56462eef2081b218702de",
+    "hash": "1c3cda06d888e360d8ccb1d3691cfdae304f900dd8879e73dfe19b3801b03355"
+  },
+  {
+    "id": "24202b9a-e52f-4d3a-a210-d80deeedb0c3",
+    "at": "2026-10-17T16:58:22.166Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=48e61332-eb07-4e8f-bc11-9ed12f5062c3 sha256=317c9c8971d45a0d2c6baac4829155115208d213ae0ae709c07587e0a59a3dfc",
+    "prevHash": "bcf57395556ddc337c40af513f380f757fa25a9e8eee5213d987a16697acb31a",
+    "hash": "5605a964e7183deaf26ce0450c1ccbd17b881d51d0c56462eef2081b218702de"
+  },
+  {
+    "id": "b9925518-a60e-4551-8a75-951315730a8a",
+    "at": "2026-10-17T16:58:22.161Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=12b09bb3-371e-4576-903d-8ef4e46069bc sha256=bee2140ef287e645070c1d5147447477c31996bcd7ad4aa73a4678e3e56b1941",
+    "prevHash": "70cbfe7e6a196a183648fac08269ba8998aeaf9ba63f706ab5a1739e4b9b0665",
+    "hash": "bcf57395556ddc337c40af513f380f757fa25a9e8eee5213d987a16697acb31a"
+  },
+  {
+    "id": "75acc5ef-6d61-4c6a-bec9-770c54709fd8",
+    "at": "2026-10-17T16:58:22.160Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=4c171ffa-1c3e-44c9-80ea-984bde3fbba3 sha256=61ea4662a9f69d65d291f0e01a0fab91b0ad4263e790993895692af75ef46ab2",
+    "prevHash": "e1ac4ede6d1818b8ad13a2ae2c8fdecad464050ef1af9d404c4feddd37652ddc",
+    "hash": "70cbfe7e6a196a183648fac08269ba8998aeaf9ba63f706ab5a1739e4b9b0665"
+  },
+  {
+    "id": "e2b4aa20-a886-4c91-94f9-a25679240cbf",
+    "at": "2026-10-17T16:58:22.158Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=1185b4a2-cbd9-4048-9c33-cec401fbdbb8 sha256=5e1961bf76584114d83a79bd0d3b9d1c2c2bc0aae2d5708c45a1b63bb7e16e5f",
+    "prevHash": "69885ddf51faf7a2cac80cf3a634767572b0939c23ecd7bdc241388c668f7f38",
+    "hash": "e1ac4ede6d1818b8ad13a2ae2c8fdecad464050ef1af9d404c4feddd37652ddc"
+  },
+  {
+    "id": "3feac3b6-4b22-4679-9cee-793fd692cb4e",
+    "at": "2026-10-17T16:58:22.157Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=da8aacb9-e2ca-40fd-9a45-ea05970825b0 sha256=31c6e709a84847b3b837029bc7b03b602fbf73bc610177a434e4f7edd4a44409",
+    "prevHash": "13f7d38f6418a9a6c50e4756833c67c44c07f8b82e2b7a1a0bcbe7e3d774cfda",
+    "hash": "69885ddf51faf7a2cac80cf3a634767572b0939c23ecd7bdc241388c668f7f38"
+  },
+  {
+    "id": "6bfdd297-81cd-447d-89af-8f9ee5a5beb7",
+    "at": "2026-10-17T16:58:22.156Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c2c96683-3a03-45fe-89dd-a7ab7e40be9f sha256=24b6f51041745cf034629ac75a664ce1c2302908b51caadd791d5ec605a5b602",
+    "prevHash": "d3f4975d7f21065df71a492f367adaee0693eea7da3ba08092ae6acf1ca61677",
+    "hash": "13f7d38f6418a9a6c50e4756833c67c44c07f8b82e2b7a1a0bcbe7e3d774cfda"
+  },
+  {
+    "id": "c18b0ca1-8b4b-4f49-ab06-99412c12b4cb",
+    "at": "2026-10-17T16:58:22.155Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=d302805f-aeec-43ce-8e2b-f394d3709550 sha256=da49cfba061a55cf0ffc83df94069707620f3ce3c1b0f287180d67fe6d27af54",
+    "prevHash": "10014cf14dbc3ad2649a8a69078a5c8732f34ef38365e2ed5ba66d6dccb9543d",
+    "hash": "d3f4975d7f21065df71a492f367adaee0693eea7da3ba08092ae6acf1ca61677"
+  },
+  {
+    "id": "4ca31cdc-62f6-4e8d-bb70-699985c2f1d6",
+    "at": "2026-10-17T16:58:22.153Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=c1a743d4-1b63-4f4a-9b0b-0f15343a1f18 sha256=2985951a4842c7691fe4a1647cffc4c0fab3d30ea2cabc56408b2930710f5d92",
+    "prevHash": "d8599ca9c607377e7d81b943cf093de4815940f68cdb17972549c1635d8179ee",
+    "hash": "10014cf14dbc3ad2649a8a69078a5c8732f34ef38365e2ed5ba66d6dccb9543d"
+  },
+  {
+    "id": "f8ecba28-ee17-444d-9d74-4e86c02aaf9d",
+    "at": "2026-10-17T16:58:22.151Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=3753cb9b-3b98-469d-b861-f8fb6e774ce4 sha256=be0697ff5a73d9edcc5f4abf326d8102e06e112ea1d95509f4dc2fcc2b1448b0",
+    "prevHash": "16ae7899eee8775decbc66906f645ec5671afca59481f36eda68168a5273dc34",
+    "hash": "d8599ca9c607377e7d81b943cf093de4815940f68cdb17972549c1635d8179ee"
+  },
+  {
+    "id": "f114165f-e8bf-4c86-a425-607dd3f4a532",
+    "at": "2026-10-17T16:58:22.148Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=ff26eae5-7885-4e55-a356-fd7dae178bfe sha256=03ac211a82a1b0d2314b51f5d30d2432396299a5a9fb26162f9eba2b845ae93e",
+    "prevHash": "2f627ee7894761edcc9f01fcfc2bd0047ec566f3554df0a324865211e1ca9ea5",
+    "hash": "16ae7899eee8775decbc66906f645ec5671afca59481f36eda68168a5273dc34"
+  },
+  {
+    "id": "fc33d017-ad92-4ecc-a432-5d2985e60e9f",
+    "at": "2026-10-17T16:58:21.587Z",
+    "actor": "ciso@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "b9e8f65d5e171c596270d58c85fe24189ffcaf8fd4864a588b54e028d12b5cf2",
+    "hash": "2f627ee7894761edcc9f01fcfc2bd0047ec566f3554df0a324865211e1ca9ea5"
+  },
+  {
+    "id": "8890a965-b9ad-4c8b-b939-a7857aee488e",
+    "at": "2026-10-17T16:58:21.401Z",
+    "actor": "engineer@fixture.invalid",
+    "action": "auth.login",
+    "detail": "env user",
+    "prevHash": "GENESIS",
+    "hash": "b9e8f65d5e171c596270d58c85fe24189ffcaf8fd4864a588b54e028d12b5cf2"
+  }
+]

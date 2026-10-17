@@ -1,0 +1,112 @@
+Browser tab: 34, Title: "WEDOS ShieldTest — Control Plane", URL: "http://127.0.0.1:18104/theater".
+0 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18104/theater
+	1 container root
+		2 container
+			3 image WEDOS
+			4 text SHIELDTEST
+			5 button (collapsed) Description: Notifications (3 unread), Help: Notifications, Secondary Actions: Expand
+			6 link Description: Command Center, Value: 127.0.0.1:18104/
+			7 link Description: Protected zones, Value: 127.0.0.1:18104/zones
+			8 link Description: Campaigns, Value: 127.0.0.1:18104/campaigns
+			9 link Description: Fleet, Value: 127.0.0.1:18104/fleet
+			10 link Description: Run Theater, Value: 127.0.0.1:18104/theater
+			11 link Description: Results, Value: 127.0.0.1:18104/reports
+			12 link Description: Assistant, Value: 127.0.0.1:18104/assistant
+			13 link Description: Settings, Value: 127.0.0.1:18104/settings
+			14 container Theme
+				15 checkbox Description: Theme: Light, Value: 0
+				16 checkbox Description: Theme: System, Value: 1
+				17 checkbox Description: Theme: Dark, Value: 0
+			18 link Description: engineer@fixture.invalid Security Engineer, Help: My account, Value: 127.0.0.1:18104/account
+			19 button Sign out
+			20 text v0.1.0+477 · b688e27
+		21 container
+			22 heading Run Theater, Value: 1
+				23 text Run Theater
+			24 text Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs.
+			25 link Description: Synthetic bench, Value: 127.0.0.1:18104/theater?mode=synthetic
+			26 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] 10.98.215.52  ·  12  steps 6 / 12 steps RUNNING
+			27 button Help: Open the full target intelligence, 🔎 RECON nginx/1.30.4 ✗ WAF ✗ CDN ✗ Rate-limit ✗ Load-balancer 10 seeded path(s) 9 dynamic ⚡ login /login.php preflight GO full intel →
+				28 text 🔎 RECON
+				29 text nginx/1.30.4
+				30 text ✗
+				31 text WAF
+				32 text ✗
+				33 text CDN
+				34 text ✗
+				35 text Rate-limit
+				36 text ✗
+				37 text Load-balancer
+				38 text 10
+				39 text  seeded path(s)
+				40 container Dynamic/expensive paths that pressure the origin (not cached static assets) — targeted first
+					41 text 9  dynamic ⚡
+				42 text login 
+				43 text /login.php
+				44 text preflight GO
+				45 text full intel →
+			46 content list
+				47 container
+					101 text ✓
+					48 text SlowLoris (DRS3)
+					102 text 97 A+
+				50 container
+					103 text ✓
+					52 text GET-Flood (DRS3)
+					104 text 97 A+
+				54 container
+					105 text ✓
+					56 text GET-Random-Flood (DRS3)
+					106 text 97 A+
+				58 container
+					107 text ✓
+					60 text GET /VALID_RANDOM (DRS4)
+					108 text 97 A+
+				62 container
+					109 text ✓
+					64 text POST-Flood (DRS4)
+					110 text 59.5 C
+				66 container
+					111 text ✓
+					68 text HTTP/2 GET-Flood (DRS4)
+					112 text 72 B
+				70 container
+					72 text HTTP/2 Rapid Reset — bounded (DRS4)
+					73 text ● live
+				74 container
+					75 text 8
+					76 text HTTP/2 Continuation — header pressure (DRS4)
+					77 text queued
+				78 container
+					79 text 9
+					80 text Login/account POST-Flood (DRS5)
+					81 text queued
+				82 container
+					83 text 10
+					84 text L7 MultiVector (DRS5)
+					85 text queued
+				86 container
+					87 text 11
+					88 text THOR / PulseWave — synchronized (DRS5)
+					89 text queued
+				90 container
+					91 text 12
+					92 text MultiTarget / carpet-bombing (DRS5)
+					93 text queued
+			113 text HTTP/2 Rapid Reset — bounded (DRS4) http://10.98.215.52:8080/  · engine  k6  · 13.1s / 20s
+			114 text ● TARGET OVERWHELMED
+			115 button ◼ Kill
+				116 text ◼ 
+				117 text Kill
+			118 text ⚠ TARGET DOWN
+			119 text origin failing under load — legitimate users can’t get through
+			120 text 33 % legit availability 0 %  failed / 5xx successful responses  0  rps OFFERED
+			121 text —
+			122 text SUCCESSFUL RESPONSES
+			123 text —
+			124 text HTTP / TRANSPORT FAILURES
+			125 text —
+			126 text LEGIT PROBE ● CRITICAL 33 % up ⧗  k6  runs out-of-process — offered & absorbed rates are computed when it settles. The live signals below (legitimate availability and latency) are measured throughout. Run graphs · live  · over 13s Legitimate availability (%) probe avail % 33.3 Legitimate latency p95 (ms) probe p95 423
+		100 button Open the assistant
+
+The focused UI element is 0 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18104/theater

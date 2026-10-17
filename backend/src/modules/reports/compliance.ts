@@ -182,15 +182,13 @@ export function renderComplianceHtml(
   // Faithful per-run verdict — the SAME assessment engine as every other surface.
   const assess = (r: CampaignRun) => {
     const c = campById.get(r.campaignId);
-    return (
-      r.assessment ??
-      assessVector(r, {
-        shape: c?.name ?? r.campaignId,
-        drs: /DRS\s*([0-9])/i.exec(c?.name ?? '')?.[1] ?? '—',
-        status: r.status,
-        vector: c?.vector,
-      })
-    );
+    return assessVector(r, {
+      shape: c?.name ?? r.campaignId,
+      drs: /DRS\s*([0-9])/i.exec(c?.name ?? '')?.[1] ?? '—',
+      status: r.status,
+      vector: c?.vector,
+      h2Confirmed: c?.reconPosture?.h2,
+    });
   };
 
   // Risk distribution across the period.

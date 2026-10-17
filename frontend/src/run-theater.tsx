@@ -146,14 +146,18 @@ function SuiteTheater({
   const target = ordered[0]?.target ?? '';
   const suiteName = ordered[0]?.suiteName ?? 'Assessment suite';
   const runningStep = ordered.find((c) => c.status === 'RUNNING');
-  const doneCount = ordered.filter((c) => SUITE_TERMINAL.includes(c.status)).length;
+  const executionFailed = (c: Campaign) =>
+    c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed');
+  const doneCount = ordered.filter(
+    (c) => SUITE_TERMINAL.includes(c.status) || executionFailed(c),
+  ).length;
   const total = seq?.total ?? ordered.length;
   const seqActive = !!seq;
   // Between waves: the sequence is live but nothing is RUNNING yet — the
   // recovery gate is holding for the target to come back.
   const inGate = seqActive && !runningStep && doneCount < total && !seq?.paused;
   const nextStep = ordered.find(
-    (c) => !SUITE_TERMINAL.includes(c.status) && c.status !== 'RUNNING',
+    (c) => !SUITE_TERMINAL.includes(c.status) && !executionFailed(c) && c.status !== 'RUNNING',
   );
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
@@ -182,7 +186,9 @@ function SuiteTheater({
         ? 'running'
         : inGate
           ? 'gate'
-          : 'settling';
+          : doneCount === total
+            ? 'complete'
+            : 'settling';
 
   return (
     <div className="suite-theater">
@@ -215,27 +221,42 @@ function SuiteTheater({
           const isDone = SUITE_TERMINAL.includes(c.status);
           const isRun = c.status === 'RUNNING';
           const isGateHere = inGate && nextStep?.id === c.id;
-          const state = isRun ? 'run' : isGateHere ? 'gate' : isDone ? 'done' : 'queued';
+          const failed = c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed');
+          const state = failed
+            ? 'failed'
+            : isRun
+              ? 'run'
+              : isGateHere
+                ? 'gate'
+                : isDone
+                  ? 'done'
+                  : 'queued';
           const killed = c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL';
           return (
             <div key={c.id} className={`step-node step-${state}`} role="listitem">
               <div className="step-connector" aria-hidden="true" />
               <div className="step-dot">
-                {isDone
-                  ? c.status === 'COMPLETED'
-                    ? '✓'
-                    : killed
-                      ? '◼'
-                      : '✕'
-                  : isRun
-                    ? ''
-                    : i + 1}
+                {failed
+                  ? '✕'
+                  : isDone
+                    ? c.status === 'COMPLETED'
+                      ? '✓'
+                      : killed
+                        ? '◼'
+                        : '✕'
+                    : isRun
+                      ? ''
+                      : i + 1}
               </div>
               <div className="step-meta">
                 <div className="step-name" title={c.name}>
                   {shortStepName(c.name)}
                 </div>
-                {c.wrs ? (
+                {failed ? (
+                  <span className="step-tag" title={c.statusDetail}>
+                    Execution failed
+                  </span>
+                ) : c.wrs ? (
                   <span className={`wrs-pill ${wrsClass(c.wrs.level)}`}>
                     {c.wrs.wrs} {c.wrs.level}
                   </span>
@@ -244,7 +265,9 @@ function SuiteTheater({
                 ) : isGateHere ? (
                   <span className="step-tag gate">recovering…</span>
                 ) : (
-                  <span className="step-tag">queued</span>
+                  <span className="step-tag">
+                    {isDone ? c.status.toLowerCase().replaceAll('_', ' ') : 'queued'}
+                  </span>
                 )}
               </div>
             </div>
@@ -303,7 +326,18 @@ function SuiteTheater({
         </div>
       ) : (
         <p className="hint" style={{ padding: '1rem' }}>
-          Suite settling — finalising the last step.
+          {doneCount === total
+            ? 'Sequence finished.'
+            : 'Suite settling — finalising the last step.'}{' '}
+          {doneCount === total && ordered[0]?.suiteId && (
+            <a
+              href={`/api/suites/${encodeURIComponent(ordered[0].suiteId)}/report`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open report
+            </a>
+          )}
         </p>
       )}
     </div>
@@ -328,7 +362,12 @@ export function RunTheaterPage() {
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   // An active suite = one with a live sequence, or (fallback) the suite of a
   // running step even if the poll hasn't landed yet.
-  const activeSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const liveSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const [lastSuiteId, setLastSuiteId] = useState<string | undefined>();
+  useEffect(() => {
+    if (liveSuiteId) setLastSuiteId(liveSuiteId);
+  }, [liveSuiteId]);
+  const activeSuiteId = liveSuiteId ?? lastSuiteId;
   const suiteMembers = activeSuiteId
     ? app.campaigns.filter((c) => c.suiteId === activeSuiteId)
     : [];
@@ -403,7 +442,7 @@ export function RunTheaterPage() {
             Aggregate report
           </Link>
         </p>
-        <BenchCard />
+        <BenchCard readOnly />
       </>
     );
   }

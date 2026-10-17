@@ -1,0 +1,664 @@
+Browser tab: 33, Title: "WEDOS ShieldTest — 10.98.215.52 L7 resilience", URL: "http://127.0.0.1:18103/api/suites/07fc0a22-46d2-4889-86fc-53088b76fbe7/report".
+0 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18103/api/suites/07fc0a22-46d2-4889-86fc-53088b76fbe7/report
+	1 button Print / PDF
+	2 text WEDOS ShieldTest
+	3 heading DDoS resilience assessment — Layer 7, Value: 1
+		4 text DDoS resilience assessment — Layer 7
+	5 text Target 10.98.215.52 · 12 attack vectors · 2026-10-17 · WEDOS ShieldTest · confidential
+	6 text CONFIDENTIAL — WEDOS INTERNAL
+	7 heading Management summary, Value: 2
+		8 text Management summary
+	9 container
+		10 text On  2026-10-17 , WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against  10.98.215.52  (the live target) —  12  attack vectors, up to  DRS 5 .  2/12  vectors held at their delivered rate,  2  caused partial impact,  4  breached the target, and  4  were inconclusive (under-delivered or degraded — not a valid test at the target rate). Overall risk is  Critical ; worst WRS  48.09  (grade D), average  74.3 . The 4 breached shapes took the target unavailable — a business-impacting gap.
+	11 container score 74.3 of 100
+	12 text Assessment resilience (avg WRS)
+	13 text Critical
+	14 text 2/12 held
+	15 text 4 breached
+	16 text 4 inconclusive
+	17 text VECTORS
+	18 text 12
+	19 text WORST WRS
+	20 text 48.09
+	21 text VALID AT TARGET RATE
+	22 text 4/12
+	23 text BREACHED
+	24 text 4
+	25 heading Results — protection level by DRS, Value: 2
+		26 text Results — protection level by DRS
+	27 table
+		28 row
+			29 cell
+				30 text Threat scenario
+			31 cell
+				32 text Attacks
+			33 cell
+				34 text Max rate
+			35 cell
+				36 text RiskLevel
+			37 cell
+				38 text Verdict
+		39 row
+			40 cell
+				41 text Layer 7 · DRS 3
+			42 cell
+				43 text 3
+			44 cell
+				45 text 500 req/s
+			46 cell
+				47 text Medium
+			48 cell
+				49 text partial
+		50 row
+			51 cell
+				52 text Layer 7 · DRS 4
+			53 cell
+				54 text 5
+			55 cell
+				56 text 500 req/s
+			57 cell
+				58 text Critical
+			59 cell
+				60 text breached (3 inconclusive)
+		61 row
+			62 cell
+				63 text Layer 7 · DRS 5
+			64 cell
+				65 text 4
+			66 cell
+				67 text 500 req/s
+			68 cell
+				69 text Critical
+			70 cell
+				71 text breached (1 inconclusive)
+	72 heading Layer 7 summary, Value: 2
+		73 text Layer 7 summary
+	74 table
+		75 row
+			76 cell
+				77 text #
+			78 cell
+				79 text Attack (shape)
+			80 cell
+				81 text RPS (cfg→eff)
+			82 cell
+				83 text DRS
+			84 cell
+				85 text Verdict
+			86 cell
+				87 text RiskLevel
+			88 cell
+				89 text WRS
+			90 cell
+				91 text Mechanism
+		92 row
+			93 cell
+				94 text 1
+			95 cell
+				96 text SlowLoris (DRS3)
+			97 cell
+				98 text 10→1
+			99 cell
+				100 text 3
+			101 cell
+				102 text held
+			103 cell
+				104 text Low
+			105 cell
+				106 text 97
+			107 cell
+				108 text shed
+		109 row
+			110 cell
+				111 text 2
+			112 cell
+				113 text GET-Flood (DRS3)
+			114 cell
+				115 text 400→395
+			116 cell
+				117 text 3
+			118 cell
+				119 text held
+			120 cell
+				121 text Low
+			122 cell
+				123 text 97
+			124 cell
+				125 text served
+		126 row
+			127 cell
+				128 text 3
+			129 cell
+				130 text GET-Random-Flood (DRS3)
+			131 cell
+				132 text 500→284
+			133 cell
+				134 text 3
+			135 cell
+				136 text partial
+			137 cell
+				138 text Medium
+			139 cell
+				140 text 90.65
+			141 cell
+				142 text tarpitted
+		143 row
+			144 cell
+				145 text 4
+			146 cell
+				147 text GET /VALID_RANDOM (DRS4)
+			148 cell
+				149 text 500→432
+			150 cell
+				151 text 4
+			152 cell
+				153 text partial
+			154 cell
+				155 text Medium
+			156 cell
+				157 text 90.65
+			158 cell
+				159 text tarpitted
+		160 row
+			161 cell
+				162 text 5
+			163 cell
+				164 text POST-Flood (DRS4) 
+				165 text ⚠
+			166 cell
+				167 text 400→381
+			168 cell
+				169 text 4
+			170 cell
+				171 text breached
+			172 cell
+				173 text Critical
+			174 cell
+				175 text 48.09
+			176 cell
+				177 text tarpitted
+		178 row
+			179 cell
+				180 text 6
+			181 cell
+				182 text HTTP/2 GET-Flood (DRS4)
+			183 cell
+				184 text 0
+			185 cell
+				186 text 4
+			187 cell
+				188 text inconclusive
+			189 cell
+				190 text Medium
+			191 cell
+				192 text —
+			193 cell
+				194 text —
+		195 row
+			196 cell
+				197 text 7
+			198 cell
+				199 text HTTP/2 Rapid Reset — bounded (DRS4)
+			200 cell
+				201 text 0
+			202 cell
+				203 text 4
+			204 cell
+				205 text inconclusive
+			206 cell
+				207 text Medium
+			208 cell
+				209 text —
+			210 cell
+				211 text —
+		212 row
+			213 cell
+				214 text 8
+			215 cell
+				216 text HTTP/2 Continuation — header pressure (DRS4)
+			217 cell
+				218 text 0
+			219 cell
+				220 text 4
+			221 cell
+				222 text inconclusive
+			223 cell
+				224 text Medium
+			225 cell
+				226 text —
+			227 cell
+				228 text —
+		229 row
+			230 cell
+				231 text 9
+			232 cell
+				233 text Login/account POST-Flood (DRS5) 
+				234 text ⚠
+			235 cell
+				236 text 500→476
+			237 cell
+				238 text 5
+			239 cell
+				240 text breached
+			241 cell
+				242 text Critical
+			243 cell
+				244 text 48.09
+			245 cell
+				246 text tarpitted
+		247 row
+			248 cell
+				249 text 10
+			250 cell
+				251 text L7 MultiVector (DRS5) 
+				252 text ⚠
+			253 cell
+				254 text 207→171
+			255 cell
+				256 text 5
+			257 cell
+				258 text breached
+			259 cell
+				260 text Critical
+			261 cell
+				262 text 48.09
+			263 cell
+				264 text tarpitted
+		265 row
+			266 cell
+				267 text 11
+			268 cell
+				269 text THOR / PulseWave — synchronized (DRS5)
+			270 cell
+				271 text 0
+			272 cell
+				273 text 5
+			274 cell
+				275 text inconclusive
+			276 cell
+				277 text Medium
+			278 cell
+				279 text —
+			280 cell
+				281 text —
+		282 row
+			283 cell
+				284 text 12
+			285 cell
+				286 text MultiTarget / carpet-bombing (DRS5) 
+				287 text ⚠
+			288 cell
+				289 text 263→186
+			290 cell
+				291 text 5
+			292 cell
+				293 text breached
+			294 cell
+				295 text Critical
+			296 cell
+				297 text 75.13
+			298 cell
+				299 text tarpitted
+	300 container
+		301 text Verdict:  held  = availability held at the delivered rate;  partial  = some impact;  breached  = target went unavailable;  inconclusive  = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism is keyed on the measured absorption/origin traffic — not on status codes, which out-of-process engines don't report.
+	302 heading Details — per attack, Value: 2
+		303 text Details — per attack
+	304 heading Attack 1 / SlowLoris (DRS3), Value: 3
+		305 text Attack 1 / SlowLoris (DRS3)
+	306 table
+		307 row
+			308 cell
+				309 text DRS level
+			310 cell
+				311 text 3
+		312 row
+			313 cell
+				314 text Delivered rate
+			315 cell
+				316 text 1/10 req/s (8% of target)
+		317 row
+			318 cell
+				319 text Verdict
+			320 cell
+				321 text held
+		322 row
+			323 cell
+				324 text Observation
+			325 cell
+				326 text The target shed the slow/incomplete connections (request/header timeout) — the correct defense; legitimate availability held at 100%. WRS 97 (A+).
+	327 text Offered load across the run (req/s).
+	328 container timeline
+	329 text Legitimate-probe availability across the run (%).
+	330 container timeline
+	331 heading Attack 2 / GET-Flood (DRS3), Value: 3
+		332 text Attack 2 / GET-Flood (DRS3)
+	333 table
+		334 row
+			335 cell
+				336 text DRS level
+			337 cell
+				338 text 3
+		339 row
+			340 cell
+				341 text Delivered rate
+			342 cell
+				343 text 395/400 req/s (99% of target)
+		344 row
+			345 cell
+				346 text Verdict
+			347 cell
+				348 text held
+		349 row
+			350 cell
+				351 text Observation
+			352 cell
+				353 text Successful HTTP responses: ~395 req/s; generator failure ratio: 0% (origin/edge attribution requires telemetry); legitimate availability held at 100%. WRS 97 (A+).
+	354 text Offered load across the run (req/s).
+	355 container timeline
+	356 text Legitimate-probe availability across the run (%).
+	357 container timeline
+	358 heading Attack 3 / GET-Random-Flood (DRS3), Value: 3
+		359 text Attack 3 / GET-Random-Flood (DRS3)
+	360 table
+		361 row
+			362 cell
+				363 text DRS level
+			364 cell
+				365 text 3
+		366 row
+			367 cell
+				368 text Delivered rate
+			369 cell
+				370 text 284/500 req/s (77% of target)
+		371 row
+			372 cell
+				373 text Verdict
+			374 cell
+				375 text partial
+		376 row
+			377 cell
+				378 text Observation
+			379 cell
+				380 text Transport failures: 99.5% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 88%. WRS 90.65 (A).
+	381 text Offered load across the run (req/s).
+	382 container timeline
+	383 text Legitimate-probe availability across the run (%).
+	384 container timeline
+	385 heading Attack 4 / GET /VALID_RANDOM (DRS4), Value: 3
+		386 text Attack 4 / GET /VALID_RANDOM (DRS4)
+	387 table
+		388 row
+			389 cell
+				390 text DRS level
+			391 cell
+				392 text 4
+		393 row
+			394 cell
+				395 text Delivered rate
+			396 cell
+				397 text 432/500 req/s (86% of target)
+		398 row
+			399 cell
+				400 text Verdict
+			401 cell
+				402 text partial
+		403 row
+			404 cell
+				405 text Observation
+			406 cell
+				407 text Transport failures: 28.7% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 88%. WRS 90.65 (A).
+	408 text Offered load across the run (req/s).
+	409 container timeline
+	410 text Legitimate-probe availability across the run (%).
+	411 container timeline
+	412 heading Attack 5 / POST-Flood (DRS4), Value: 3
+		413 text Attack 5 / POST-Flood (DRS4)
+	414 table
+		415 row
+			416 cell
+				417 text DRS level
+			418 cell
+				419 text 4
+		420 row
+			421 cell
+				422 text Delivered rate
+			423 cell
+				424 text 381/400 req/s (95% of target)
+		425 row
+			426 cell
+				427 text Verdict
+			428 cell
+				429 text breached
+		430 row
+			431 cell
+				432 text Observation
+			433 cell
+				434 text Not mitigated — the target went unavailable (14% legitimate availability). Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 14.3% over 7 checks). The kill switch stopped the run to protect the target.
+	435 text Offered load across the run (req/s).
+	436 container timeline
+	437 text Legitimate-probe availability across the run (%).
+	438 container timeline
+	439 heading Attack 6 / HTTP/2 GET-Flood (DRS4), Value: 3
+		440 text Attack 6 / HTTP/2 GET-Flood (DRS4)
+	441 table
+		442 row
+			443 cell
+				444 text DRS level
+			445 cell
+				446 text 4
+		447 row
+			448 cell
+				449 text Delivered rate
+			450 cell
+				451 text 0 req/s
+		452 row
+			453 cell
+				454 text Verdict
+			455 cell
+				456 text inconclusive
+		457 row
+			458 cell
+				459 text Observation
+			460 cell
+				461 text No run data; legitimate availability dipped to 0%.
+	462 heading Attack 7 / HTTP/2 Rapid Reset — bounded (DRS4), Value: 3
+		463 text Attack 7 / HTTP/2 Rapid Reset — bounded (DRS4)
+	464 table
+		465 row
+			466 cell
+				467 text DRS level
+			468 cell
+				469 text 4
+		470 row
+			471 cell
+				472 text Delivered rate
+			473 cell
+				474 text 0 req/s
+		475 row
+			476 cell
+				477 text Verdict
+			478 cell
+				479 text inconclusive
+		480 row
+			481 cell
+				482 text Observation
+			483 cell
+				484 text No run data; legitimate availability dipped to 0%.
+	485 heading Attack 8 / HTTP/2 Continuation — header pressure (DRS4), Value: 3
+		486 text Attack 8 / HTTP/2 Continuation — header pressure (DRS4)
+	487 table
+		488 row
+			489 cell
+				490 text DRS level
+			491 cell
+				492 text 4
+		493 row
+			494 cell
+				495 text Delivered rate
+			496 cell
+				497 text 0 req/s
+		498 row
+			499 cell
+				500 text Verdict
+			501 cell
+				502 text inconclusive
+		503 row
+			504 cell
+				505 text Observation
+			506 cell
+				507 text No run data; legitimate availability dipped to 0%.
+	508 heading Attack 9 / Login/account POST-Flood (DRS5), Value: 3
+		509 text Attack 9 / Login/account POST-Flood (DRS5)
+	510 table
+		511 row
+			512 cell
+				513 text DRS level
+			514 cell
+				515 text 5
+		516 row
+			517 cell
+				518 text Delivered rate
+			519 cell
+				520 text 476/500 req/s (95% of target)
+		521 row
+			522 cell
+				523 text Verdict
+			524 cell
+				525 text breached
+		526 row
+			527 cell
+				528 text Observation
+			529 cell
+				530 text Not mitigated — the target went unavailable (14% legitimate availability). Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 14.3% over 7 checks). The kill switch stopped the run to protect the target.
+	531 text Offered load across the run (req/s).
+	532 container timeline
+	533 text Legitimate-probe availability across the run (%).
+	534 container timeline
+	535 heading Attack 10 / L7 MultiVector (DRS5), Value: 3
+		536 text Attack 10 / L7 MultiVector (DRS5)
+	537 table
+		538 row
+			539 cell
+				540 text DRS level
+			541 cell
+				542 text 5
+		543 row
+			544 cell
+				545 text Delivered rate
+			546 cell
+				547 text 171/207 req/s (100% of target)
+		548 row
+			549 cell
+				550 text Verdict
+			551 cell
+				552 text breached
+		553 row
+			554 cell
+				555 text Observation
+			556 cell
+				557 text Not mitigated — the target went unavailable (14% legitimate availability). Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 14.3% over 7 checks). The kill switch stopped the run to protect the target. (Rate-calibrated: graded at 207 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+	558 text Offered load across the run (req/s).
+	559 container timeline
+	560 text Legitimate-probe availability across the run (%).
+	561 container timeline
+	562 heading Attack 11 / THOR / PulseWave — synchronized (DRS5), Value: 3
+		563 text Attack 11 / THOR / PulseWave — synchronized (DRS5)
+	564 table
+		565 row
+			566 cell
+				567 text DRS level
+			568 cell
+				569 text 5
+		570 row
+			571 cell
+				572 text Delivered rate
+			573 cell
+				574 text 0 req/s
+		575 row
+			576 cell
+				577 text Verdict
+			578 cell
+				579 text inconclusive
+		580 row
+			581 cell
+				582 text Observation
+			583 cell
+				584 text No run data; legitimate availability dipped to 0%.
+	585 heading Attack 12 / MultiTarget / carpet-bombing (DRS5), Value: 3
+		586 text Attack 12 / MultiTarget / carpet-bombing (DRS5)
+	587 table
+		588 row
+			589 cell
+				590 text DRS level
+			591 cell
+				592 text 5
+		593 row
+			594 cell
+				595 text Delivered rate
+			596 cell
+				597 text 186/263 req/s (96% of target)
+		598 row
+			599 cell
+				600 text Verdict
+			601 cell
+				602 text breached
+		603 row
+			604 cell
+				605 text Observation
+			606 cell
+				607 text Not mitigated — the target went unavailable (68% legitimate availability). Auto-killed: the legitimate probe found the target unavailable for ≥30 s (availability 68.4% over 19 checks). The kill switch stopped the run to protect the target. (Rate-calibrated: graded at 263 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+	608 text Offered load across the run (req/s).
+	609 container timeline
+	610 text Legitimate-probe availability across the run (%).
+	611 container timeline
+	612 heading Glossary, Value: 2
+		613 text Glossary
+	614 heading Verdict, Value: 3
+		615 text Verdict
+	616 table
+		617 row
+			618 cell
+				619 text held
+			620 cell
+				621 text Legitimate availability held (≥99%) at the delivered rate — a valid test the target passed.
+		622 row
+			623 cell
+				624 text partial
+			625 cell
+				626 text Some legitimate impact — availability dipped below 99% while the target stayed up.
+		627 row
+			628 cell
+				629 text breached
+			630 cell
+				631 text The target went unavailable and the safety kill-switch stopped the run — a real, attributed outage.
+		632 row
+			633 cell
+				634 text inconclusive
+			635 cell
+				636 text The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted.  Not a pass.
+	637 heading Mechanism, Value: 3
+		638 text Mechanism
+	639 table
+		640 row
+			641 cell
+				642 text served
+			643 cell
+				644 text The origin served the load directly — the edge absorbed ~nothing. Not necessarily a mitigation: the origin simply coped at this rate.
+		645 row
+			646 cell
+				647 text rejected / tarpitted
+			648 cell
+				649 text The edge refused the load with a response (4xx/5xx), or held connections until they timed out.
+		650 row
+			651 cell
+				652 text shed
+			653 cell
+				654 text For slow-connection vectors: the target dropped the slow/incomplete connections — the correct defense.
+		655 row
+			656 cell
+				657 text blocked
+			658 cell
+				659 text The edge blocked a real fraction but the exact mechanism is unresolved (out-of-process engines report no per-status breakdown).
+	660 text Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST/slow-header, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.
+
+The focused UI element is 0 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18103/api/suites/07fc0a22-46d2-4889-86fc-53088b76fbe7/report

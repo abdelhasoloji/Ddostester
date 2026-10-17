@@ -1,0 +1,476 @@
+{
+  "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+  "campaigns": [
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)",
+      "description": "Line 2 — bounded slow-header hold: 100 connections trickling partial requests; a resilient edge sheds them (request/header timeout).",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-slowloris",
+      "maxRps": 10,
+      "concurrency": 100,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "builtin",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 0,
+      "id": "ff26eae5-7885-4e55-a356-fd7dae178bfe",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.146Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3)",
+      "description": "Line 3 — steady HTTP GET flood on the main path.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 400,
+      "concurrency": 80,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "vegeta",
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 1,
+      "id": "3753cb9b-3b98-469d-b861-f8fb6e774ce4",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.150Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3)",
+      "description": "Line 4 — waves over non-existent paths; expect edge 404 / origin shielding.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 500,
+      "concurrency": 100,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "scenario": [
+        {
+          "maxRps": 500,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 100,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 500,
+          "durationSec": 6
+        }
+      ],
+      "agent": "builtin",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "noKeepAlive": true,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 2,
+      "id": "c1a743d4-1b63-4f4a-9b0b-0f15343a1f18",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.152Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4)",
+      "description": "Line 5 — steady load spread over a fixed set of valid paths.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 500,
+      "concurrency": 100,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "builtin",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/"
+        },
+        {
+          "url": "http://10.98.215.52:8080/login.php"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 3,
+      "id": "d302805f-aeec-43ce-8e2b-f394d3709550",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.154Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4)",
+      "description": "Line 6 — bounded HTTP POST load.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-post",
+      "maxRps": 400,
+      "concurrency": 80,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "vegeta",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "noKeepAlive": true,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 4,
+      "id": "c2c96683-3a03-45fe-89dd-a7ab7e40be9f",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.155Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4)",
+      "description": "Line 7 — high steady rate over h2 (HTTPS target).",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 150,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "k6",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 5,
+      "id": "da8aacb9-e2ca-40fd-9a45-ea05970825b0",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.156Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4)",
+      "description": "Line 8a — h2 request path under sustained bounded rate (no RST_STREAM abuse).",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 200,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "scenario": [
+        {
+          "maxRps": 800,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 160,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 800,
+          "durationSec": 6
+        }
+      ],
+      "agent": "k6",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 6,
+      "id": "1185b4a2-cbd9-4048-9c33-cec401fbdbb8",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.157Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4)",
+      "description": "Line 8b — h2 requests carrying a larger benign header set (no HPACK bomb).",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 400,
+      "concurrency": 100,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "k6",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 7,
+      "id": "4c171ffa-1c3e-44c9-80ea-984bde3fbba3",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.159Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5)",
+      "description": "Line 9 — bounded POST load on the account/login path (set the path at launch).",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-post",
+      "maxRps": 500,
+      "concurrency": 120,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "agent": "vegeta",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/login.php"
+        }
+      ],
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 8,
+      "id": "12b09bb3-371e-4576-903d-8ef4e46069bc",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.161Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5)",
+      "description": "Line 10 — mixed paths and rates in one bounded wave.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 200,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "scenario": [
+        {
+          "maxRps": 800,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 160,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 800,
+          "durationSec": 6
+        }
+      ],
+      "agent": "builtin",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/"
+        },
+        {
+          "url": "http://10.98.215.52:8080/login.php"
+        }
+      ],
+      "userAgents": [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
+      ],
+      "calibrate": true,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 9,
+      "id": "48e61332-eb07-4e8f-bc11-9ed12f5062c3",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.162Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5)",
+      "description": "Line 11 — synchronized bursts (pulse) rather than a steady rate.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 1000,
+      "concurrency": 250,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "scenario": [
+        {
+          "maxRps": 1000,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 200,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 1000,
+          "durationSec": 6
+        }
+      ],
+      "agent": "k6",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/api/search.php?q=shieldtest"
+        }
+      ],
+      "noKeepAlive": true,
+      "calibrate": true,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 10,
+      "id": "38841f22-acf5-4524-97b7-44e62428fd2d",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.166Z"
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)",
+      "description": "Line 13 — spread over many paths of the target. True multi-target = instantiate this playbook once per allowlisted CRA host.",
+      "target": "http://10.98.215.52:8080/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 200,
+      "maxDurationSec": 20,
+      "probeUrl": "http://10.98.215.52:8080/",
+      "createdBy": "engineer@fixture.invalid",
+      "authorized": true,
+      "scenario": [
+        {
+          "maxRps": 800,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 160,
+          "durationSec": 7
+        },
+        {
+          "maxRps": 800,
+          "durationSec": 6
+        }
+      ],
+      "agent": "builtin",
+      "endpoints": [
+        {
+          "url": "http://10.98.215.52:8080/"
+        },
+        {
+          "url": "http://10.98.215.52:8080/login.php"
+        }
+      ],
+      "userAgents": [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
+      ],
+      "calibrate": true,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "ee90d84e-2631-4c1d-aeeb-b20ea56f0b32",
+      "suiteName": "Pre-test — DRS L7 playbook (P26-20371) [20s QA]",
+      "suiteOrder": 11,
+      "id": "e5d7eee3-2c95-4901-be73-b3699f8a045d",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T16:58:22.168Z"
+    }
+  ],
+  "recon": {
+    "seeded": true,
+    "go": true,
+    "suggestedPaths": [
+      "/",
+      "/api/search.php?q=shieldtest",
+      "/api/db.php?id=42",
+      "/api/products.php?page=2",
+      "/api/work.php?ms=250",
+      "/login.php",
+      "/account.php",
+      "/api/report.php",
+      "/api/echo.php",
+      "/api/cached.php"
+    ],
+    "loginPath": "/login.php"
+  }
+}

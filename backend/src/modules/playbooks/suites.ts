@@ -1,3 +1,4 @@
+import { evidenceCharts } from '../reports/evidence-charts.js';
 import type { Campaign, TargetRequirement, ReconPostureSnapshot } from '../campaigns/model.js';
 import { missingRequirements } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
@@ -5,10 +6,11 @@ import { wrsLevel } from '../wrs/scoring.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from '../reports/layout.js';
-import { gaugeSvg, scoreColor, REPORT_COLORS, timelineSvg } from '../reports/charts.js';
+import { gaugeSvg, scoreColor, REPORT_COLORS } from '../reports/charts.js';
 import { hostOf } from '../../util/net.js';
 import {
   assessVector,
+  assessCampaignRun,
   assessSuite,
   type VectorAssessment,
   type VectorVerdict,
@@ -30,6 +32,7 @@ export interface SuiteMember {
   level?: WrsLevel;
   verdict?: 'PASS' | 'FAIL';
   runId?: string;
+  statusDetail?: string;
   /** Source-template target requirements + the recon posture snapshot, so the
    *  suite report can flag members whose result is N/A for this target. */
   requires?: TargetRequirement[];
@@ -98,6 +101,7 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
         level: c.wrs?.level,
         verdict: c.acceptanceResult?.verdict,
         runId: c.runId,
+        statusDetail: c.statusDetail,
         requires: c.requires,
         reconPosture: c.reconPosture,
       })),
@@ -147,8 +151,8 @@ function runChart(
   run: CampaignRun | undefined,
   grafanaUrl: string | undefined,
   targetHost: string,
+  connections = false,
 ): string {
-  const tl = run?.timeline ?? [];
   const gl = grafanaLink(grafanaUrl, 'run', {
     target: targetHost,
     ...runWindowMs(run?.generator.startedAt, run?.generator.finishedAt),
@@ -156,26 +160,7 @@ function runChart(
   const grafanaNote = gl
     ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (offered vs origin rps, absorption, availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
     : '';
-  if (tl.length < 2) return grafanaNote;
-  const rpsChart = timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.rps })),
-    { yUnit: ' rps', color: REPORT_COLORS.brand, fill: 'rgba(0, 52, 132, 0.10)', height: 120 },
-  );
-  const availChart = timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.availPct })),
-    {
-      yMax: 100,
-      yUnit: '% avail',
-      color: REPORT_COLORS.good,
-      fill: REPORT_COLORS.goodFill,
-      height: 120,
-    },
-  );
-  return (
-    `<div class="figure"><div class="cap">Offered load across the run (req/s).</div>${rpsChart}</div>` +
-    `<div class="figure"><div class="cap">Legitimate-probe availability across the run (%).</div>${availChart}</div>` +
-    grafanaNote
-  );
+  return evidenceCharts(run, connections) + grafanaNote;
 }
 
 /** Per-attack detail block: faithful verdict, delivered rate, mechanism, caveats + chart. */
@@ -186,9 +171,14 @@ function attackDetail(
   grafanaUrl: string | undefined,
   targetHost: string,
 ): string {
-  const rate = va.configuredRps
-    ? `${va.achievedRps}/${va.configuredRps} req/s (${Math.round(va.deliveryRatio * 100)}% of target)`
-    : `${va.achievedRps} req/s`;
+  const rate =
+    run && va.isSlowConnection
+      ? `${run.generator.totalRequests} opened connections; ${run.generator.failed} closed (not req/s)`
+      : !run
+        ? 'Not measured'
+        : va.configuredRps
+          ? `${va.achievedRps}/${va.expectedRps} req/s mean (${Math.round(va.deliveryRatio * 100)}% of expected mean; peak ${va.configuredRps} req/s)`
+          : `${va.achievedRps} req/s`;
   const caveats =
     va.caveats.length && va.verdict !== 'breached'
       ? `<tr><th>Caveats</th><td class="v-partial">${va.caveats.map(esc).join(' ')}</td></tr>`
@@ -200,7 +190,7 @@ function attackDetail(
  <tr><th>Verdict</th><td class="${VERDICT_CLASS[va.verdict]}">${va.verdict}</td></tr>
  <tr><th>Observation</th><td>${esc(va.observation)}</td></tr>
  ${caveats}
-</table>${runChart(run, grafanaUrl, targetHost)}`;
+</table>${runChart(run, grafanaUrl, targetHost, va.isSlowConnection)}`;
 }
 
 /** Glossary — verdict + mechanism definitions used by the assessment engine. */
@@ -210,15 +200,15 @@ function glossary(): string {
 <table class="kvs">
  <tr><th class="v-held">held</th><td>Legitimate availability held (≥99%) at the delivered rate — a valid test the target passed.</td></tr>
  <tr><th class="v-partial">partial</th><td>Some legitimate impact — availability dipped below 99% while the target stayed up.</td></tr>
- <tr><th class="r-crit">breached</th><td>The target went unavailable and the safety kill-switch stopped the run — a real, attributed outage.</td></tr>
+ <tr><th class="r-crit">breached</th><td>The run met the probe-failure or automatic-stop criteria; probe sample success does not directly measure outage duration. Completion and resilience verdict are separate; a breach does not imply an automatic kill.</td></tr>
  <tr><th class="v-aborted">inconclusive</th><td>The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted. <b>Not a pass.</b></td></tr>
 </table>
 <h3>Mechanism</h3>
 <table class="kvs">
- <tr><th>served</th><td>The origin served the load directly — the edge absorbed ~nothing. Not necessarily a mitigation: the origin simply coped at this rate.</td></tr>
- <tr><th>rejected / tarpitted</th><td>The edge refused the load with a response (4xx/5xx), or held connections until they timed out.</td></tr>
- <tr><th>shed</th><td>For slow-connection vectors: the target dropped the slow/incomplete connections — the correct defense.</td></tr>
- <tr><th>blocked</th><td>The edge blocked a real fraction but the exact mechanism is unresolved (out-of-process engines report no per-status breakdown).</td></tr>
+ <tr><th>served</th><td>Successful HTTP responses observed by the generator; origin and edge attribution require independent telemetry.</td></tr>
+ <tr><th>rejected / tarpitted</th><td>HTTP failures or transport failures observed by the generator. These alone do not establish filtering or deliberate tarpitting.</td></tr>
+ <tr><th>shed</th><td>For slow-connection vectors: slow/incomplete connections ended; the cause requires independent telemetry.</td></tr>
+ <tr><th>blocked</th><td>Generator failures observed; their location and cause are unresolved.</td></tr>
 </table>`;
 }
 
@@ -235,13 +225,23 @@ export function renderSuiteReportHtml(
   // source of truth so the narrative can never drift from what happened.
   const steps = suite.members.map((m) => {
     const run = m.runId ? runById.get(m.runId) : undefined;
-    const va = assessVector(run, {
+    const context = {
       shape: stepLabel(suite.suiteName, m.name),
       drs: drsOf(m.name),
       status: m.status,
+      vector: /slowloris/i.test(m.name) ? 'http-slowloris' : undefined,
+      h2Confirmed: m.reconPosture?.h2,
       wrs: m.wrs,
       level: m.level,
-    });
+    };
+    const va = run
+      ? assessCampaignRun(run, {
+          name: m.name,
+          vector: /slowloris/i.test(m.name) ? 'http-slowloris' : 'http-get',
+          reconPosture: m.reconPosture,
+        })
+      : assessVector(undefined, context);
+    if (!run && m.statusDetail) va.observation += ` ${m.statusDetail}`;
     return { m, run, va };
   });
   const scored = steps.filter((s) => s.va.wrs != null);
@@ -284,10 +284,11 @@ export function renderSuiteReportHtml(
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([drs, ss]) => {
       const maxRps = Math.max(0, ...ss.map((s) => s.va.configuredRps || s.va.achievedRps));
+      const loadLabel = ss.some((s) => s.run) ? `${maxRps} req/s` : 'Not measured';
       const tv = tierVerdict(ss);
       const inc = ss.filter((s) => s.va.verdict === 'inconclusive').length;
       const note = inc ? ` (${inc} inconclusive)` : '';
-      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${maxRps} req/s</td><td>${riskPill(VERDICT_RISK[tv])}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
+      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${loadLabel}</td><td>${riskPill(VERDICT_RISK[tv])}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
     })
     .join('');
 
@@ -299,10 +300,15 @@ export function renderSuiteReportHtml(
         !s.va.confident && s.run
           ? ' <span title="not a valid test at the target rate — under-delivered / degraded / contended">⚠</span>'
           : '';
-      const rps = s.va.configuredRps
-        ? `${s.va.configuredRps}→${s.va.achievedRps}`
-        : `${s.va.achievedRps}`;
-      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(VERDICT_RISK[s.va.verdict])}</td><td>${wrsCell}</td><td>${s.run ? s.va.mechanism : '—'}</td></tr>`;
+      const rps =
+        s.va.isSlowConnection && s.run
+          ? `${s.run.generator.totalRequests} connections`
+          : !s.run
+            ? 'Not measured'
+            : s.va.configuredRps
+              ? `${s.va.configuredRps}→${s.va.achievedRps}`
+              : `${s.va.achievedRps}`;
+      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(VERDICT_RISK[s.va.verdict])}</td><td>${wrsCell}</td><td>${s.run ? { served: 'successful responses', rejected: 'HTTP failures', tarpitted: 'transport failures', shed: 'connections closed', blocked: 'unresolved failures', unknown: 'unknown' }[s.va.mechanism] : '—'}</td></tr>`;
     })
     .join('');
 
@@ -353,8 +359,8 @@ export function renderSuiteReportHtml(
     ) +
     `<h2>Management summary</h2><p class="lead">${narrative}</p>${grafanaBanner}
 <div class="scorecard">
-  <div>${gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: scoreColor(avg) })}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Assessment resilience (avg WRS)</div></div>
+  <div>${sa.avgWrs == null ? '<p>No measured score</p>' : gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: scoreColor(avg) })}
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic average · not a DRS score</div></div>
   <div>
     <div class="pills">${riskPill(sa.worstRisk)} ${pill(`${sa.held}/${suite.total} held`, sa.held === suite.total ? 'good' : 'warn')}${sa.breached ? ' ' + pill(`${sa.breached} breached`, 'crit') : ''}${sa.inconclusive ? ' ' + pill(`${sa.inconclusive} inconclusive`, 'warn') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
@@ -368,8 +374,8 @@ export function renderSuiteReportHtml(
     `<h2>Results — protection level by DRS</h2>
 <table class="kvs"><thead><tr><th>Threat scenario</th><th>Attacks</th><th>Max rate</th><th>RiskLevel</th><th>Verdict</th></tr></thead><tbody>${resultRows}</tbody></table>` +
     `<h2>Layer 7 summary</h2>
-<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (cfg→eff)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
-<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = target went unavailable; <b>inconclusive</b> = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism is keyed on the measured absorption/origin traffic — not on status codes, which out-of-process engines don't report.</p>` +
+<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (peak→mean)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
+<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = target went unavailable; <b>inconclusive</b> = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.</p>` +
     applicabilityCaveats +
     `<h2>Details — per attack</h2>${details}` +
     glossary() +

@@ -208,6 +208,7 @@ export function validateConfig(config: LoadTestConfig, allowedHosts: string[]): 
  * throttling).
  */
 export interface LoadProgress {
+  generatorObserved?: boolean;
   runId?: string;
   sent: number;
   successful: number;
@@ -228,6 +229,12 @@ export interface LoadProgress {
    * the engine free of a back-import from the campaigns module.
    */
   timeline?: Array<{
+    /** Explicit provenance; absent on historical samples. */
+    generatorObserved?: boolean;
+    successful?: number;
+    probeSamples?: number;
+    probeP95?: number;
+    sampleUnit?: 'requests' | 'connections';
     t: number;
     rps: number;
     sent: number;

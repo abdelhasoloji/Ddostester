@@ -84,25 +84,28 @@ describe('pages render', () => {
     expect(currentApp.refreshHealth).toHaveBeenCalled();
   });
 
-  it('CampaignsWorkspace lists campaigns under the workspace tabs', () => {
+  it('opens templates by default and keeps history separate from creation', () => {
     renderWithRouter(<CampaignsWorkspace />);
     expect(screen.getByRole('heading', { name: 'Campaigns' })).toBeInTheDocument();
-    // The persistent list shows below the tabs regardless of the active tab.
+    // Templates are the only creation entry; history has its own tab.
+    expect(screen.queryByText('Baseline')).toBeNull();
+    expect(screen.queryByRole('button', { name: /New campaign/ })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Campaigns' }));
     expect(screen.getByText('Baseline')).toBeInTheDocument();
-    // The four workspace tabs are present.
-    expect(screen.getByRole('tab', { name: 'Launch' })).toBeInTheDocument();
+    // No independent launch wizard is advertised.
+    expect(screen.queryByRole('tab', { name: 'Launch' })).toBeNull();
     expect(screen.getByRole('tab', { name: 'Templates' })).toBeInTheDocument();
   });
 
   it('moves between workspace tabs with the arrow keys', () => {
     renderWithRouter(<CampaignsWorkspace />);
-    const launch = screen.getByRole('tab', { name: 'Launch' });
+    const launch = screen.getByRole('tab', { name: 'Templates' });
     expect(launch).toHaveAttribute('aria-selected', 'true');
     // Roving tabindex: only the active tab is in the tab order.
     expect(launch).toHaveAttribute('tabindex', '0');
-    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('tab', { name: 'Campaigns' })).toHaveAttribute('tabindex', '-1');
     fireEvent.keyDown(launch, { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Campaigns' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('AuditLog (now hosted in Settings) shows an entry', () => {

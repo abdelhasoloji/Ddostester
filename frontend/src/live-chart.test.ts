@@ -59,3 +59,17 @@ describe('pathFor', () => {
     expect(pathFor([[0, null]], sx, sy)).toBe('');
   });
 });
+
+it('holds sampled values instead of inventing interpolated availability', () => {
+  expect(
+    pathFor(
+      [
+        [1, 100],
+        [5, 50],
+      ],
+      (x) => x,
+      (y) => y,
+      true,
+    ),
+  ).toBe('M1.0 100.0 H5.0 V50.0');
+});

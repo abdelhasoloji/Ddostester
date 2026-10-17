@@ -737,3 +737,15 @@ describe('bank.cz connexes playbook (adjacent-scenario hypotheses)', () => {
     }
   });
 });
+
+it('preserves the requested duration for rounded wave and ramp phases', () => {
+  for (const profile of ['wave', 'ramp'] as const) {
+    for (const duration of [1, 2, 3, 19, 20, 21, 120, 180]) {
+      const phases = buildScenario(profile, 400, duration)!;
+      expect(phases.reduce((sum, phase) => sum + phase.durationSec, 0)).toBe(duration);
+      expect(
+        phases.every((phase) => Number.isInteger(phase.durationSec) && phase.durationSec > 0),
+      ).toBe(true);
+    }
+  }
+});

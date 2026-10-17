@@ -38,6 +38,12 @@ import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
 export interface RunSample {
+  /** Explicit provenance; absent on historical samples. */
+  generatorObserved?: boolean;
+  successful?: number;
+  probeSamples?: number;
+  probeP95?: number;
+  sampleUnit?: 'requests' | 'connections';
   /** Seconds since the run started. */
   t: number;
   /** Generator requests/s at this tick (0 for engines that don't report counters). */
@@ -396,7 +402,7 @@ export async function executeCampaign(
     } catch {
       /* keep the raw value */
     }
-    const liveLabels = { target: liveHost };
+    const liveLabels = { target: liveHost, vector: campaign.vector };
     const ticker = setInterval(() => {
       if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
         telemetryInFlight = true;
@@ -412,39 +418,55 @@ export async function executeCampaign(
       }
       const pm = probe.metrics();
       const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
-      // Live per-run gauges → Prometheus (scraped) → Grafana + the app's native
-      // panels. Same values the live progress carries: offered rps, reached-origin
-      // rps (successful / elapsed), and the generator failure ratio (failed / sent).
+      // Absent telemetry is omitted, never exported as measured zero.
       const sent = gen?.sent ?? 0;
-      metrics.setGauge(
-        'shieldtest_run_live_offered_rps',
-        'Live offered request rate of the in-flight run',
-        gen?.actualRps ?? 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_successful_rps',
-        'Live rate of requests that returned successful HTTP responses (successful/elapsed)',
-        elapsedSec > 0 ? (gen?.successful ?? 0) / elapsedSec : 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_failed_ratio',
-        'Live share of offered requests failed at the generator (failed/sent)',
-        sent > 0 ? (gen?.failed ?? 0) / sent : 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_probe_avail_pct',
-        'Live availability seen by the legitimate probe (%)',
-        pm.samples ? (pm.available / pm.samples) * 100 : 100,
-        liveLabels,
-      );
+      const generatorObserved = gen !== undefined;
+      const requestCounters = generatorObserved && campaign.vector !== 'http-slowloris';
+      if (requestCounters && gen) {
+        metrics.setGauge(
+          'shieldtest_run_live_offered_rps',
+          'Mean offered requests/s since generator start',
+          gen.actualRps,
+          liveLabels,
+        );
+        metrics.setGauge(
+          'shieldtest_run_live_successful_rps',
+          'Mean successful responses/s on the generator clock',
+          sent > 0 ? (gen.actualRps * gen.successful) / sent : 0,
+          liveLabels,
+        );
+        metrics.setGauge(
+          'shieldtest_run_live_failed_ratio',
+          'Cumulative generator failure fraction',
+          sent > 0 ? gen.failed / sent : 0,
+          liveLabels,
+        );
+      } else {
+        for (const name of [
+          'shieldtest_run_live_offered_rps',
+          'shieldtest_run_live_successful_rps',
+          'shieldtest_run_live_failed_ratio',
+        ])
+          metrics.clearGauge(name, liveLabels);
+      }
+      if (pm.samples > 0)
+        metrics.setGauge(
+          'shieldtest_run_live_probe_avail_pct',
+          'Cumulative probe availability (%)',
+          (pm.available / pm.samples) * 100,
+          liveLabels,
+        );
+      else metrics.clearGauge('shieldtest_run_live_probe_avail_pct', liveLabels);
       // Capture the per-second series (persisted with the run) for EVERY engine,
       // independently of whether a live consumer is attached.
       if (timeline.length < MAX_RUN_SAMPLES) {
         timeline.push({
           t: elapsedSec,
+          generatorObserved,
+          successful: gen?.successful,
+          probeSamples: pm.samples,
+          probeP95: pm.samples > 0 ? pm.latencyMs.p95 : undefined,
+          sampleUnit: campaign.vector === 'http-slowloris' ? 'connections' : 'requests',
           rps: gen?.actualRps ?? 0,
           sent: gen?.sent ?? 0,
           failed: gen?.failed ?? 0,
@@ -453,6 +475,7 @@ export async function executeCampaign(
         });
       }
       onProgress?.({
+        generatorObserved,
         sent: gen?.sent ?? 0,
         successful: gen?.successful ?? 0,
         failed: gen?.failed ?? 0,

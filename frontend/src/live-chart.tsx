@@ -38,6 +38,7 @@ export function pathFor(
   points: [number, number | null][],
   sx: (x: number) => number,
   sy: (y: number) => number,
+  stepped = false,
 ): string {
   let d = '';
   let pen = false; // whether the last command left the pen down
@@ -46,7 +47,10 @@ export function pathFor(
       pen = false;
       continue;
     }
-    d += `${pen ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
+    d +=
+      pen && stepped
+        ? `H${sx(x).toFixed(1)} V${sy(y).toFixed(1)} `
+        : `${pen ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
     pen = true;
   }
   return d.trim();
@@ -63,8 +67,10 @@ export function LiveLineChart({
   height = 140,
   xDomain,
   yRange,
+  stepped = false,
 }: {
   series: ChartSeries[];
+  stepped?: boolean;
   height?: number;
   /** Shared numeric x-domain [min, max] — never derived from the data, so
    *  sibling panels stay in lockstep and the axis reflects true elapsed time. */
@@ -191,7 +197,7 @@ export function LiveLineChart({
               <g key={`${s.label}:${s.axis ?? 'left'}`}>
                 <path
                   className="lc-line"
-                  d={pathFor(s.points as [number, number | null][], sx, sy)}
+                  d={pathFor(s.points as [number, number | null][], sx, sy, stepped)}
                   stroke={s.color ?? '#3b82f6'}
                   fill="none"
                 />

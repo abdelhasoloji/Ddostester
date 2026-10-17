@@ -1,5 +1,15 @@
 # Current setup — observed 15 October 2026
 
+## Full ZeroBS suite check — 17 October 2026
+
+The isolated 12-step original-duration suite was attempted once: four completed runs, four automatic availability stops and four k6 output-budget failures. All approval/execution bounds remained in force. The consolidated report has four inconclusive rows, but incorrectly renders missing measurements as zero; engine failures also remain APPROVED/queued in campaign tracking. This is not a validated full suite. Target health recovered and three Pod identities/readiness are preserved. Production stays build 476; the UI simplification remains local source. See [evidence and defects](qa/zerobs-full-2026-10-17/README.md).
+
+## Campaign interface simplification — source preview, 17 October 2026
+
+Campaigns now opens the template catalogue as its sole creation surface. History and assessment evidence have separate tabs. Legacy launch/plan/guide URLs land on templates; Fleet configuration is a template continuation, and selected DRS profiles retain their configuration handoff. Synthetic dispatch is offered in the template catalogue; Theater and Settings retain results and link back to templates instead of creating campaigns. Template and composed-suite creation return to history. No backend authorization, approval, traffic limits, scenario definitions or production data change.
+
+Navigation/theme controls use monochrome outline icons. Template summaries and generator explanations use keyboard-focusable help tips; required target/budget and confirmation information remains visible. Cards have restrained borders and no decorative shadows. The assistant starts collapsed when no saved preference exists. This increment is a local source/visual preview, **not deployed**; production remains build 476.
+
 ## Synthetic reporting correction — 17 October 2026
 
 Source now refreshes bench coverage alongside polled run results, renders TCP opened/accepted/refused/peak/capacity counters in individual reports, and separates network evidence from HTTP WRS in aggregate conclusions. Empty HTTP periods no longer render a zero score; network saturation and unmitigated-baseline outcomes are counted without declaring targets clean. Bench evidence respects report period filters and adverse historical observations remain in the conclusion. No execution limits, accounts, generators or Pod definitions changed. Delivered build **476**, commit `b862610d5d0dc1985187302b73eaf643d900d913`, at 12:52 UTC. Full local/native gates and all four exact-source CI jobs passed, including PostgreSQL and recovery. The isolated lab replay completed 12/12 supported scenarios; live Theater coverage reached 12 without reload, all reports matched retained evidence, and the aggregate correctly showed three TCP saturation outcomes and nine unmitigated UDP baselines. Production API/UI identity, readiness, sole admin, 11 accounts, 289 campaigns, settings, audit and three online agents were preserved. No production campaign was launched. See [acceptance](qa/synthetic-reports-476-2026-10-17/README.md) and [deployment receipt](qa/synthetic-reports-476-2026-10-17/deployment.json). Six out-of-model scenarios remain unexecuted; no physical DRS qualification is claimed.
@@ -158,3 +168,64 @@ The previous classic-main restoration retained `CAMPAIGN_CATALOG=drs-fleet`, whi
 ### ZeroBS catalogue activation — 17 October 2026, 12:13 Paris time
 
 The historical catalogue profile is verified active in production: `CAMPAIGN_CATALOG=legacy`, `drsWorkflow=false`, `USER_MODE=single`, persisted `single_admin` policy. The existing build 468/code/assets remain unchanged, retaining their exact-source CI/native qualification; the activation changes only runtime catalogue selection. The versioned profile branch is published as `codex/zerobs-classic-three-pods`. A fresh encrypted backup and authenticated isolated restore passed before activation. Existing API/UI manifest identity, external mTLS health, readiness, protected routes, unchanged account/cap/target policies, all 284 campaigns, 11 accounts, custom playbook history, audit/infrastructure and settings passed. Three agents are online; the original three Pod UIDs/IPs are unchanged. No production campaign was created or executed. The public engine-availability endpoint reports the built-in, k6, Vegeta and Fleet providers available. Templates remain labelled DRS L7 after the earlier wording change; their IDs and steps match the former ZeroBS definitions exactly. Access them through Campaigns → Templates, searching P26-20371. The parent retains its 12-step sequence; Fleet is a separate bounded GET alternative. Production browser permission remains blocked; the read-only local UI preview verifies the same application/profile and the generator-choice dialog. See [activation receipt](zerobs-catalogue-deployment-checkpoint.json), [historical playbook preview](qa/zerobs-catalogue-2026-10-17/historical-playbook.png) and [identity comparison](qa/zerobs-catalogue-2026-10-17/catalogue-comparison.json).
+
+### ZeroBS execution corrections — 17 October 2026 (local source)
+
+The full original-duration qualification exposed four k6 output-budget failures,
+four automatic safety stops and misleading missing-evidence presentation. Local
+corrections suppress k6 progress/request logs without increasing process or traffic
+caps, reject absent request metrics/nonzero engine exits, retain diagnostic references
+in audit and suite reports, show failed steps explicitly, keep an observed suite
+on stage after completion, and report missing load/availability as unmeasured.
+Delivery ratios now compare mean achieved and mean expected rates, with peak
+configuration identified separately. Approval messages reflect actual approved/skipped
+counts. Existing local interface changes and historical qualification evidence are preserved.
+
+These source changes are not a deployed release or a new successful 12-step
+qualification. The HTTP-only lab target still cannot establish HTTP/2 coverage;
+automatic safety stops remain active, and 800 req/s capacity is not established.
+k6 flags follow the [official options reference](https://grafana.com/docs/k6/latest/using-k6/k6-options/reference/).
+
+### Short ZeroBS replay — 17 October 2026
+
+An isolated authenticated lab replay executed all 12 legacy L7 scenarios with
+20-second configured load windows and no added interval. Existing baseline,
+calibration, recovery and stop controls remained active. All 12 run records and
+the consolidated report were retained; the sequence took 343.177 seconds including
+those controls. Four k6 runs completed without the previous output-budget error.
+The target recovered to HTTP 200 and the three persistent IoT Pods were preserved.
+No production release was promoted. Phase rounding was corrected so wave/ramp
+phases sum to the requested duration (20 seconds, rather than 21); 1,239 backend
+tests, lint, type checking and compilation passed.
+
+Graph review still found HTTP panels on the slow-connection scenario, an outage
+banner not always supported by probe availability, zero-filled historical k6
+load curves despite nonzero final summaries, missing persisted probe p95 samples,
+and a breach glossary that incorrectly assumes an automatic kill. Four probe
+samples per 20-second window are coarse; HTTP/2 coverage is not established on
+this HTTP-only target. These findings are recorded, not claimed fixed by this replay.
+See the [replay receipt](qa/zerobs-20s-2026-10-17/receipt.json) and
+[retained report](qa/zerobs-20s-2026-10-17/report.html).
+
+### Graph and report consistency audit — 17 October 2026 (candidate source)
+
+The corrective source now retains explicit generator observation, successful counters,
+probe sample counts, probe p95 and request/connection units in each timeline tick.
+Live and historical app graphs share that contract. Unknown counters stay absent;
+SlowLoris uses connection counts, and generator errors do not declare a global outage
+or mitigation. Rates are cumulative means, not instantaneous peaks. Probe plots hold
+observed values rather than smooth invented intermediate measurements, with observation
+counts and cumulative semantics disclosed. Probe cadence and traffic caps are unchanged.
+
+Both report types share evidence charts: historical k6 summaries cannot manufacture
+a load timeline, missing latency remains unrecorded, and old records are not rewritten.
+Derived assessments are refreshed at read time so cached historical interpretations do
+not contradict current reports. HTTP/2-named runs without confirmed target support are
+inconclusive. WRS remains a legacy diagnostic, distinct from a measured DRS score;
+completion and safety-stop status are separate from the resilience verdict.
+
+Grafana's live failure stat no longer falls back to an earlier run. Instant live stats,
+non-smoothed sample steps, explicit absent values and neutral outcome labels preserve
+the same meaning as the app. The source dashboard and Kubernetes copy remain aligned.
+These are candidate-source changes; deployment and qualification are recorded separately
+after exact-source CI, native checks, authenticated recovery and preservation gates.
