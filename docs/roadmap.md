@@ -2,6 +2,8 @@
 
 ## Selected synthetic workflow — 17 October 2026
 
+Delivered as build 473 / `0e43cea`, with four green CI jobs, native release checks, encrypted recovery, matching API/UI identity and preservation checks. The three agents are online and their Pod UIDs are unchanged; the bench runner is active. The real campaign qualification remains isolated lab evidence, not a production browser run. [Deployment receipt](synthetic-bench-deployment-checkpoint.json).
+
 The operator replaced the GET-rate objective with a bounded synthetic bench campaign. The existing governed bench cockpit is available in Run Theater, with receiver packet/bit counters and dedicated per-run reports. A real isolated six-second DNS-shape scenario completed with 720 received packets, 3.213 Mbit/s and an observed 40× byte ratio; it is an unmitigated baseline, not a DRS pass. Preserve the earlier HTTP shortfalls as diagnostics. Delivery must verify exact API/UI identity, existing admin/history/three Pods and bench runner configuration. Production browser acceptance remains independently blocked by its saved origin permission; see [current setup](current-setup.md#synthetic-bench-replaces-http-qualification--17-october-2026).
 
 ## ZeroBS throughput delivery — 17 October 2026
