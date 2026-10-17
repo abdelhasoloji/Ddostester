@@ -1780,6 +1780,14 @@ export interface DrsCatalog {
     name: string;
     level?: number;
     summary: string;
+    laboratory?: {
+      scenarioId: string;
+      mode: 'synthetic-lab';
+      qualification: 'partial-shape';
+      representedDimensions: string[];
+      missingDimensions: string[];
+      scoreEligible: false;
+    };
     supported: boolean;
     status: string;
     reason: string;

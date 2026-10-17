@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 export interface DrsVector {
   internal_id: string;
   source_vector_id: string;
+  source_type_id?: string;
   source_section: string;
   source_page: number;
   level: number;

@@ -34,3 +34,13 @@ Full Grafana links retain exact campaign/revision scope and the recorded time wi
 This is a campaign-management increment, not a new network generator, a DRS 5 qualification, Kusa integration, worker expansion or PoP deployment.
 
 The reference catalogue is shown in full by default. Unavailable generators remain visible and cannot be launched; the optional filter only hides them for browsing. A reference row is not evidence of execution capability.
+
+## Bounded synthetic catalogue — 17 October 2026
+
+The reference catalogue defaults to **Bounded synthetic bench**, retaining all 131 source rows and a separate HTTP Fleet selector. Selecting a source does not change the standard or mark an unsupported vector executable. Registered bench shape associations are exposed as `laboratory` metadata, with represented/missing dimensions and `scoreEligible: false`.
+
+Only explicit type associations are used: SYN → bounded connection pressure (not SYN packets), UDP → packet-rate shape, NTP → synthetic response shape, UDP multi-vector → synthetic mixed profiles, and pulsewave types → bounded UDP bursts (not application transactions). A generic UDP amplification reference may use the registered synthetic mix. Other rows remain reference-only; no regex or generic fallback invents support. The bench registry independently validates names and reproducibility.
+
+**Prepare synthetic scenario** opens the existing governed bench form with the exact registered scenario preselected. It does not request a run, copy the client URL, or bind a synthetic observation as a DRS PASS. A missing preselected scenario fails closed without substituting another one. Only a separate explicit request can queue a run, subject to existing bench permissions, isolated `LAB_TARGETS`, runner configuration and fixed budgets. Runtime readiness is established by the bench form, not by catalogue metadata. No new generator, reflector protocol, source spoofing or higher budget is introduced.
+
+Bench result/history and the existing diagnostic attachment contract remain available. Automatic DRS chain execution still uses its separately supported Fleet subset; this increment does not substitute the synthetic bench into that chain or claim measured level 5. Actual received counters retain their units and are never multiplied for scoring. Source implementation is not a deployed release.

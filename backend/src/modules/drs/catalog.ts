@@ -1,4 +1,5 @@
 import { FLEET_LIMITS, FLEET_INVENTORY_LIMITS } from '../../config/limits.js';
+import { syntheticApproximation } from './synthetic-catalog.js';
 import { drsReference } from './reference.js';
 export const drsWorkflow = () => process.env.CAMPAIGN_CATALOG === 'drs-fleet';
 export const DRS_CATALOG_VERSION = '3.00.00';
@@ -32,6 +33,7 @@ export function drsCatalog() {
         sourcePage: v.source_page,
         ambiguityCount: v.ambiguity_ids.length,
         supported,
+        laboratory: syntheticApproximation(v.source_type_id ?? ''),
         status: supported ? 'bounded-get-experiment' : 'reference-only',
         reason: supported
           ? 'Bounded GET laboratory approximation only. Full DRS load, source diversity, persistence and combined exposure are not established.'

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BenchCard } from './bench-card.js';
 import { HelpTip } from './help-tip.js';
 import { api, type DrsCatalog } from './api.js';
 import { useApp, canDo } from './context.js';
@@ -10,6 +11,8 @@ export function DrsCatalogPanel({
   deviceIds?: string[];
 }) {
   const app = useApp();
+  const [source, setSource] = useState('synthetic');
+  const [prepared, setPrepared] = useState<{ id: string; name: string; scenarioId: string }>();
   const [data, setData] = useState<DrsCatalog>();
   const [error, setError] = useState('');
   const [level, setLevel] = useState('all');
@@ -32,33 +35,37 @@ export function DrsCatalogPanel({
   if (error) return <p role="alert">DRS catalogue unavailable: {error}</p>;
   if (!data) return <p>Loading DRS catalogue…</p>;
   const filtered = data.profiles.filter(
-    (p) => (showAll || p.supported) && (level === 'all' || String(p.level) === level),
+    (p) =>
+      (showAll || (source === 'synthetic' ? Boolean(p.laboratory) : p.supported)) &&
+      (level === 'all' || String(p.level) === level),
   );
   const pages = Math.max(1, Math.ceil(filtered.length / 12));
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * 12, currentPage * 12);
   const fleetAvailable = app.agents.some((a) => a.id === 'fleet' && a.available);
+  const canBench = canDo(app.role, 'bench', app.authRequired, app.userMode, app.capabilities);
   const editable = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
   return (
-    <section aria-label="DRS Fleet catalogue">
+    <section aria-label="DRS reference catalogue">
       <div className="card">
-        <h2>Choose a campaign profile</h2>
+        <h2>DRS scenario catalogue</h2>
         <p>
-          Fleet · bounded HTTP campaign{' '}
+          Complete reference · bounded laboratory approximations{' '}
           <HelpTip label="Campaign scope">
             The full reference catalogue includes unavailable generators. Executable profiles are
             bounded laboratory approximations, not a measured DRS level. The target, agents and
             shared limits are reviewed before explicit confirmation.
           </HelpTip>
         </p>
-        {!fleetAvailable && (
+        {source === 'fleet' && !fleetAvailable && (
           <p role="status">
             Fleet generator unavailable. Check Infrastructure before preparing a campaign.
           </p>
         )}
         {!filtered.length && (
           <p role="status">
-            No executable profile at this level. Choose another level or show the full catalogue.
+            No matching approximation at this level. Show the full catalogue to see all
+            requirements.
           </p>
         )}
         <details>
@@ -87,6 +94,20 @@ export function DrsCatalogPanel({
         </details>
       </div>
       <div className="drs-catalog-controls">
+        <label>
+          Execution source
+          <select
+            value={source}
+            onChange={(e) => {
+              setSource(e.target.value);
+              setPage(1);
+              setPrepared(undefined);
+            }}
+          >
+            <option value="synthetic">Bounded synthetic bench</option>
+            <option value="fleet">HTTP Fleet</option>
+          </select>
+        </label>
         <label>
           <input
             type="checkbox"
@@ -133,18 +154,72 @@ export function DrsCatalogPanel({
           Next vectors
         </button>
       </div>
+      {prepared && (
+        <section aria-label="Prepared synthetic approximation">
+          <h3>{prepared.name}</h3>
+          <p role="status">
+            Partial shape only · not a DRS verdict. Uses the isolated lab target, not the client
+            URL.
+          </p>
+          <button className="btn" onClick={() => setPrepared(undefined)}>
+            Close preparation
+          </button>
+          <BenchCard key={prepared.id} initialScenario={prepared.scenarioId} />
+        </section>
+      )}
       <div className="drs-catalog-grid">
         {visible.map((p) => (
           <article className="card" key={p.id}>
-            <span className={`engine-badge ${p.supported ? 'ok' : 'no'}`}>
+            <span
+              className={`engine-badge ${(source === 'synthetic' ? Boolean(p.laboratory) : p.supported) ? 'ok' : 'no'}`}
+            >
               DRS {p.level ?? '—'} ·{' '}
-              {p.supported ? 'GET laboratory approximation' : 'Generator missing'}
+              {source === 'synthetic'
+                ? p.laboratory
+                  ? 'Partial synthetic shape'
+                  : 'Reference only'
+                : p.supported
+                  ? 'GET laboratory approximation'
+                  : 'Generator missing'}
             </span>
             <h3>{p.name}</h3>
             <p className="hint">Reference level {p.level}; this is not a measured score.</p>
             <p>{p.summary}</p>
-            <p className="hint">{p.reason}</p>
-            {editable && (
+            <p className="hint">
+              {source === 'synthetic'
+                ? 'Synthetic scenarios reproduce selected shapes only, not the full DRS exposure.'
+                : p.reason}
+            </p>
+            {source === 'synthetic' && (
+              <>
+                {p.laboratory ? (
+                  <>
+                    <p className="hint">{p.laboratory.representedDimensions.join('; ')}</p>
+                    <HelpTip label="Synthetic limitations">
+                      {p.laboratory.missingDimensions.join('; ')}. Actual received counters are
+                      never multiplied for scoring.
+                    </HelpTip>
+                    {canBench && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={() =>
+                          setPrepared({
+                            id: p.id,
+                            name: p.name,
+                            scenarioId: p.laboratory!.scenarioId,
+                          })
+                        }
+                      >
+                        Prepare synthetic scenario
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className="hint">No matching synthetic shape. Remains not evaluated.</p>
+                )}
+              </>
+            )}
+            {source === 'fleet' && editable && (
               <button
                 className="btn btn-primary"
                 disabled={!p.supported || !fleetAvailable}

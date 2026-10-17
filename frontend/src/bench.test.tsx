@@ -90,6 +90,7 @@ vi.mock('./api.js', async (orig) => {
   return { ...actual, api: fakeApi };
 });
 
+const { BenchCard } = await import('./bench-card.js');
 const { SettingsPage } = await import('./pages.js');
 
 describe('Network bench cockpit (Settings) — DRS matrix', () => {
@@ -100,6 +101,17 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
       authRequired: true,
       identity: { email: 'ciso@wedos', role: 'ciso' },
     });
+  });
+
+  it('preselects a requested shape without dispatch and never substitutes a missing shape', async () => {
+    const { unmount } = renderWithRouter(<BenchCard initialScenario="udp_multivector" />);
+    expect(await screen.findByLabelText(/Reproducible vector/)).toHaveValue('udp_multivector');
+    expect(fakeApi.createBenchRun).not.toHaveBeenCalled();
+    unmount();
+    renderWithRouter(<BenchCard initialScenario="unregistered" />);
+    await waitFor(() => expect(screen.getByText(/Request run/)).toBeDisabled());
+    expect(screen.getByLabelText(/Reproducible vector/)).toHaveValue('');
+    expect(fakeApi.createBenchRun).not.toHaveBeenCalled();
   });
 
   it('shows the CISO the DRS coverage matrix and a completed verdict', async () => {

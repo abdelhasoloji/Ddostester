@@ -66,7 +66,7 @@ function methodPill(m?: CoverageMethod) {
   );
 }
 
-export function BenchCard() {
+export function BenchCard({ initialScenario = '' }: { initialScenario?: string } = {}) {
   const app = useApp();
   const canBench = canDo(app.role, 'bench', app.authRequired, app.userMode, app.capabilities);
   const [cat, setCat] = useState<BenchCatalogue | null>(null);
@@ -114,7 +114,11 @@ export function BenchCard() {
         const c = await api.benchScenarios();
         if (!alive) return;
         setCat(c);
-        setScenario(c.scenarios.find((s) => s.reproducible)?.id ?? '');
+        setScenario(
+          initialScenario
+            ? (c.scenarios.find((s) => s.id === initialScenario && s.reproducible)?.id ?? '')
+            : (c.scenarios.find((s) => s.reproducible)?.id ?? ''),
+        );
         setRecVector(c.scenarios.find((s) => !s.reproducible)?.id ?? c.scenarios[0]?.id ?? '');
       } catch {
         /* no access / not configured */
@@ -134,7 +138,7 @@ export function BenchCard() {
     return () => {
       alive = false;
     };
-  }, [canBench]);
+  }, [canBench, initialScenario]);
 
   // Poll while a run is still in flight, so the runner's verdict lands in view.
   const pending = runs.some((r) => r.status === 'REQUESTED' || r.status === 'CLAIMED');
@@ -279,6 +283,11 @@ export function BenchCard() {
             value={scenario}
             onChange={(e) => setScenario(e.target.value)}
           >
+            {!scenario && (
+              <option value="">
+                {initialScenario ? 'Requested scenario unavailable' : 'Choose a scenario'}
+              </option>
+            )}
             {runnable.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.id} — DRS {s.drs}
