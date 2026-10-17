@@ -1,0 +1,180 @@
+{
+  "suiteId": "7347851d-3b8c-4352-9193-51be5adebd92",
+  "collection": "read-only retained measurements",
+  "targetReceivedLoadVerified": false,
+  "trafficGeneratedByReview": false,
+  "steps": [
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 SlowLoris (DRS3)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 10,
+      "appliedPeakRps": 10,
+      "generatorReportedMeanRps": 0.83,
+      "generatorReportedStatusCounts": {},
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "builtin-http",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 GET-Flood (DRS3)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 400,
+      "appliedPeakRps": 400,
+      "generatorReportedMeanRps": 396.85,
+      "generatorReportedStatusCounts": {
+        "2xx": 47986
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "vegeta",
+      "requestedEndpoints": []
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 GET-Random-Flood (DRS3)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 500,
+      "appliedPeakRps": 500,
+      "generatorReportedMeanRps": 63.17,
+      "generatorReportedStatusCounts": {
+        "2xx": 7484
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "builtin-http",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 GET /VALID_RANDOM (DRS4)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 500,
+      "appliedPeakRps": 500,
+      "generatorReportedMeanRps": 492.24,
+      "generatorReportedStatusCounts": {
+        "2xx": 59066
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "builtin-http",
+      "requestedEndpoints": ["http://46.28.109.92/", "http://46.28.109.92/login.php"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 POST-Flood (DRS4)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 400,
+      "appliedPeakRps": 400,
+      "generatorReportedMeanRps": 63.47,
+      "generatorReportedStatusCounts": {
+        "2xx": 7685
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "vegeta",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 HTTP/2 GET-Flood (DRS4)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 800,
+      "appliedPeakRps": 800,
+      "generatorReportedMeanRps": 61.49,
+      "generatorReportedStatusCounts": {},
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "k6",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 HTTP/2 Rapid Reset \u2014 bounded (DRS4)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 800,
+      "appliedPeakRps": 800,
+      "generatorReportedMeanRps": 64.17,
+      "generatorReportedStatusCounts": {},
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "k6",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 HTTP/2 Continuation \u2014 header pressure (DRS4)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 400,
+      "appliedPeakRps": 400,
+      "generatorReportedMeanRps": 63.66,
+      "generatorReportedStatusCounts": {},
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 24,
+      "probeAvailable": 24,
+      "recordedEngine": "k6",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 Login/account POST-Flood (DRS5)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 500,
+      "appliedPeakRps": 500,
+      "generatorReportedMeanRps": 11.93,
+      "generatorReportedStatusCounts": {
+        "0xx": 2145,
+        "4xx": 15
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 36,
+      "probeAvailable": 36,
+      "recordedEngine": "vegeta",
+      "requestedEndpoints": ["http://46.28.109.92/login.php"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 L7 MultiVector (DRS5)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 800,
+      "appliedPeakRps": 33,
+      "generatorReportedMeanRps": 24.17,
+      "generatorReportedStatusCounts": {
+        "2xx": 2162
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 36,
+      "probeAvailable": 36,
+      "recordedEngine": "builtin-http",
+      "requestedEndpoints": ["http://46.28.109.92/", "http://46.28.109.92/login.php"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 THOR / PulseWave \u2014 synchronized (DRS5)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 1000,
+      "appliedPeakRps": 1000,
+      "generatorReportedMeanRps": 732.52,
+      "generatorReportedStatusCounts": {},
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 36,
+      "probeAvailable": 36,
+      "recordedEngine": "k6",
+      "requestedEndpoints": ["http://46.28.109.92/api/search.php?q=shieldtest"]
+    },
+    {
+      "name": "Pre-test \u2014 DRS L7 playbook (P26-20371) \u2014 MultiTarget / carpet-bombing (DRS5)",
+      "status": "COMPLETED",
+      "requestedPeakRps": 800,
+      "appliedPeakRps": 336,
+      "generatorReportedMeanRps": 245.01,
+      "generatorReportedStatusCounts": {
+        "2xx": 22109,
+        "5xx": 21706
+      },
+      "probeUrl": "http://46.28.109.92/",
+      "probeSamples": 36,
+      "probeAvailable": 36,
+      "recordedEngine": "builtin-http",
+      "requestedEndpoints": ["http://46.28.109.92/", "http://46.28.109.92/login.php"]
+    }
+  ]
+}
