@@ -250,3 +250,79 @@ it('keeps all 60 scenario identities visible and separates simulations from meas
   expect(screen.getAllByText('2.00 Mbit/s received')).toHaveLength(15);
   expect(screen.queryByText('Simulated lifecycle complete')).not.toBeInTheDocument();
 });
+
+it('keeps results collapsed and controls reachable, while foregrounding the claimed scenario', async () => {
+  const view = snapshot('RUNNING');
+  view.campaign.syntheticJourney!.steps[0].name = 'Current bounded scenario';
+  vi.mocked(api.syntheticCampaign).mockResolvedValue(view);
+  render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByRole('heading', { name: 'Current bounded scenario' });
+  expect(screen.getByText('All scenario results').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByRole('button', { name: 'Stop synthetic campaign' })).toBeEnabled();
+  fireEvent.click(screen.getByText('All scenario results'));
+  expect(screen.getByText('All scenario results').closest('details')).toHaveAttribute('open');
+});
+
+it('does not turn TCP counts or a simulated result into a received-load chart', async () => {
+  const view = snapshot('COMPLETED');
+  view.runs[0]!.verdict = {
+    schema: 'v1',
+    class: 'C',
+    connections: { accepted: 42 },
+    target: { avgBps: 999999999 },
+  };
+  vi.mocked(api.syntheticCampaign).mockResolvedValue(view);
+  const mounted = render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByRole('link', { name: 'Open final report' });
+  expect(screen.getByLabelText('Campaign observations')).toHaveTextContent(
+    '42connections accepted',
+  );
+  expect(screen.queryByText('Received load by scenario')).not.toBeInTheDocument();
+  mounted.unmount();
+  view.campaign.syntheticJourney!.steps[0].execution = 'SIMULATION';
+  render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByRole('link', { name: 'Open final report' });
+  expect(screen.getByLabelText('Campaign observations')).toHaveTextContent(
+    'No settled measurement yet',
+  );
+  expect(screen.queryByText('Received load by scenario')).not.toBeInTheDocument();
+});
+
+it('uses persisted finish time for elapsed duration and shows a held next scenario when paused', async () => {
+  const view = snapshot('COMPLETED');
+  Object.assign(view.campaign.syntheticJourney!, {
+    startedAt: '2026-10-17T00:00:00Z',
+    finishedAt: '2026-10-17T00:02:43Z',
+  });
+  vi.mocked(api.syntheticCampaign).mockResolvedValue(view);
+  const mounted = render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByText('2m 43s');
+  expect(screen.getByRole('heading', { name: 'Execution complete' })).toBeInTheDocument();
+  mounted.unmount();
+  const paused = snapshot('PAUSED');
+  paused.runs[0] = null;
+  vi.mocked(api.syntheticCampaign).mockResolvedValue(paused);
+  render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByRole('heading', { name: 'Next scenario on hold' });
+  expect(screen.getByRole('button', { name: 'Resume synthetic campaign' })).toBeEnabled();
+});

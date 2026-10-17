@@ -5,6 +5,7 @@ import { useApp, canDo } from './context.js';
 import { Modal } from './modal.js';
 import { HelpTip } from './help-tip.js';
 import './campaign-manager.css';
+import { SyntheticStage } from './synthetic-stage.js';
 const active = (state: string) => ['RUNNING', 'PAUSED', 'STOPPING'].includes(state);
 export function SyntheticWorkspace() {
   const app = useApp(),
@@ -90,15 +91,17 @@ export function SyntheticWorkspace() {
           <SyntheticTheater id={id} />
         </>
       ) : canCreate ? (
-        <div className="card">
-          <h2>Synthetic campaign</h2>
+        <div className="card synthetic-setup">
+          <span className="synthetic-eyebrow">PREPARE YOUR CAMPAIGN</span>
+          <h2>One plan. Every scenario.</h2>
+          <p className="hint">Choose your DRS objective, review the chain, then launch.</p>
           <div className="manager-controls">
             <label>
               Campaign name
               <input value={name} maxLength={160} onChange={(e) => setName(e.target.value)} />
             </label>
             <label>
-              Target DRS score
+              Target DRS level
               <select value={level} onChange={(e) => setLevel(Number(e.target.value))}>
                 {[1, 2, 3, 4, 5].map((l) => (
                   <option key={l} value={l}>
@@ -135,8 +138,10 @@ export function SyntheticWorkspace() {
               establishes full measured DRS qualification.
             </HelpTip>
           </p>
-          <details>
-            <summary>Execution chain</summary>
+          <details className="synthetic-details">
+            <summary>
+              Execution chain <span>{plan?.rows.length ?? 0} scenarios</span>
+            </summary>
             <ol>
               {plan?.rows.map((r) => (
                 <li key={r.id}>
@@ -167,7 +172,7 @@ export function SyntheticWorkspace() {
         <p>Read-only campaign history.</p>
       )}
       {error && <p role="alert">{error}</p>}
-      <details>
+      <details className="synthetic-details">
         <summary>Saved synthetic campaigns</summary>
         {app.campaigns
           .filter((c) => c.syntheticJourney)
@@ -268,11 +273,14 @@ export function SyntheticTheater({ id }: { id: string }) {
     (r) => r.number === c.drsDocument?.currentRevision,
   )?.finalizedAt;
   return (
-    <section className="card" aria-label="Synthetic Run Theater">
-      <h2>{c.name}</h2>
+    <section className="card synthetic-theater" aria-label="Synthetic Run Theater">
+      <header className="synthetic-heading">
+        <h2>{c.name}</h2>
+        <span className="synthetic-badge">Laboratory · partial evidence</span>
+      </header>
       <p>
-        <b>{j.state}</b> · objective DRS {j.definition.reference.targetLevel} · {done}/
-        {j.steps.length} scenarios settled{' '}
+        Objective DRS {j.definition.reference.targetLevel} · {done}/{j.steps.length} scenarios
+        settled{' '}
         <HelpTip label="Observation meaning">
           Simulation emits no traffic and measures no service behavior. Lab measurement describes
           only the registered partial shape. Neither result PASSes an official DRS vector. Stop
@@ -286,81 +294,7 @@ export function SyntheticTheater({ id }: { id: string }) {
         </p>
       )}
       <progress aria-label="Synthetic sequence progress" value={done} max={j.steps.length} />
-      <p>
-        {j.definition.labTarget} · interval {j.definition.reference.intervalSec}s
-      </p>
-      {j.nextAt && j.state === 'RUNNING' && j.nextAt > now && (
-        <p role="status">Next scenario in {Math.max(0, Math.ceil((j.nextAt - now) / 1000))}s</p>
-      )}
-      {j.state === 'STOPPING' && (
-        <p role="status">
-          No next scenario will launch. Waiting for the current bounded scenario to settle.
-        </p>
-      )}
-      {error && <p role="alert">Live state unavailable: {error}</p>}
-      {j.definition.entries && (
-        <label>
-          Show scenarios{' '}
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="ALL">All scenarios</option>
-            <option value="LAB_MEASUREMENT">Lab measurements</option>
-            <option value="SIMULATION">Simulations</option>
-          </select>
-        </label>
-      )}
-      <ol className="campaign-chain" aria-label="Scenario results">
-        {j.steps.map((s, i) => {
-          const r = data.runs[i];
-          if (filter !== 'ALL' && s.execution !== filter) return null;
-          const simulation = s.execution === 'SIMULATION';
-          return (
-            <li
-              key={s.vectorId ?? s.scenarioId}
-              className={r?.status === 'CLAIMED' ? 'is-running' : ''}
-            >
-              <span>
-                <b>{s.name ?? s.scenarioId}</b>
-                {s.vectorId && (
-                  <small>
-                    {' '}
-                    · DRS {s.level} · {s.vectorId.replace('drs-3.00.00-', '')}
-                  </small>
-                )}
-                <br />
-                {s.execution && (
-                  <strong>
-                    {simulation ? 'SIMULATION · NO TRAFFIC' : 'LAB MEASUREMENT · PARTIAL SHAPE'}{' '}
-                    ·{' '}
-                  </strong>
-                )}
-                {s.result?.outcome ?? r?.status ?? 'NOT_STARTED'}
-                {r?.error && ' · ' + r.error}
-                <HelpTip label={'Scenario details ' + (s.vectorId ?? s.scenarioId)}>
-                  {s.result?.reason ??
-                    (simulation
-                      ? 'Reference lifecycle simulation, no traffic or measured service behavior.'
-                      : 'Actual received counters for a bounded shape; full vector semantics, standard load and independent DRS evidence are not demonstrated.')}
-                </HelpTip>
-              </span>
-              <span>
-                {simulation
-                  ? s.result?.kind === 'SIMULATION'
-                    ? 'Simulated lifecycle complete'
-                    : 'No measurement'
-                  : r?.verdict?.connections
-                    ? `${r.verdict.connections.accepted ?? '—'} connections accepted`
-                    : r?.verdict?.target?.avgBps !== undefined
-                      ? `${(r.verdict.target.avgBps / 1e6).toFixed(2)} Mbit/s received`
-                      : s.result?.kind === 'NOT_EVALUATED'
-                        ? 'Not measured'
-                        : 'Awaiting runner observation'}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {j.reason && <p role="status">{j.reason}</p>}
-      <div className="btn-row">
+      <div className="btn-row synthetic-actions">
         {j.state === 'DRAFT' && canExecute && (
           <button
             className="btn btn-primary"
@@ -413,10 +347,88 @@ export function SyntheticTheater({ id }: { id: string }) {
           </>
         )}
       </div>
+      <SyntheticStage data={data} now={now} />
+      {j.state === 'STOPPING' && (
+        <p role="status">
+          No next scenario will launch. Waiting for the current bounded scenario to settle.
+        </p>
+      )}
+      {error && <p role="alert">Live state unavailable: {error}</p>}
+      <details className="synthetic-details">
+        <summary>
+          All scenario results <span>{j.steps.length} scenarios</span>
+        </summary>
+        {j.definition.entries && (
+          <label>
+            Show scenarios{' '}
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="ALL">All scenarios</option>
+              <option value="LAB_MEASUREMENT">Lab measurements</option>
+              <option value="SIMULATION">Simulations</option>
+            </select>
+          </label>
+        )}
+        <ol className="campaign-chain" aria-label="Scenario results">
+          {j.steps.map((s, i) => {
+            const r = data.runs[i];
+            if (filter !== 'ALL' && s.execution !== filter) return null;
+            const simulation = s.execution === 'SIMULATION';
+            return (
+              <li
+                key={s.vectorId ?? s.scenarioId}
+                className={r?.status === 'CLAIMED' ? 'is-running' : ''}
+              >
+                <span>
+                  <b>{s.name ?? s.scenarioId}</b>
+                  {s.vectorId && (
+                    <small>
+                      {' '}
+                      · DRS {s.level} · {s.vectorId.replace('drs-3.00.00-', '')}
+                    </small>
+                  )}
+                  <br />
+                  {s.execution && (
+                    <strong>
+                      {simulation ? 'SIMULATION · NO TRAFFIC' : 'LAB MEASUREMENT · PARTIAL SHAPE'}{' '}
+                      ·{' '}
+                    </strong>
+                  )}
+                  {s.result?.outcome ?? r?.status ?? 'NOT_STARTED'}
+                  {r?.error && ' · ' + r.error}
+                  <HelpTip label={'Scenario details ' + (s.vectorId ?? s.scenarioId)}>
+                    {s.result?.reason ??
+                      (simulation
+                        ? 'Reference lifecycle simulation, no traffic or measured service behavior.'
+                        : 'Actual received counters for a bounded shape; full vector semantics, standard load and independent DRS evidence are not demonstrated.')}
+                  </HelpTip>
+                </span>
+                <span>
+                  {simulation
+                    ? s.result?.kind === 'SIMULATION'
+                      ? 'Simulated lifecycle complete'
+                      : 'No measurement'
+                    : r?.verdict?.connections
+                      ? `${r.verdict.connections.accepted ?? '—'} connections accepted`
+                      : r?.verdict?.target?.avgBps !== undefined
+                        ? `${(r.verdict.target.avgBps / 1e6).toFixed(2)} Mbit/s received`
+                        : s.result?.kind === 'NOT_EVALUATED'
+                          ? 'Not measured'
+                          : 'Awaiting runner observation'}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </details>
+      {j.reason && <p role="status">{j.reason}</p>}
       {needsApproval && j.state === 'DRAFT' && (
         <p role="status">Separate campaign approval required before launch.</p>
       )}
-      {report && <p>Final report ready · partial laboratory evidence · no qualified DRS score.</p>}
+      {report && (
+        <p className="synthetic-report-note">
+          Final report ready · partial laboratory evidence · no qualified DRS score.
+        </p>
+      )}
       {confirm && (
         <Modal label="Confirm synthetic campaign" onClose={() => setConfirm(false)}>
           <h3>Review the bounded synthetic chain</h3>
