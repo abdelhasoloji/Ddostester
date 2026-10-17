@@ -1,6 +1,6 @@
 # DRS campaign management and Run Theater
 
-Source increment after build 486. Deployment identity is recorded separately in current setup.
+Deployed as build 489 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-catalog-deployment-checkpoint.json).
 
 ## Campaign workflow
 
