@@ -1,14 +1,16 @@
 # DRS campaign management and Run Theater
 
-Deployed as build 492 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-journey-deployment-checkpoint.json).
+Deployed as build 494 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](drs-60-deployment-checkpoint.json).
 
-## Per-reference synthetic journey v2 (new source)
+## Per-reference synthetic journey v2 (build 494)
 
 New campaigns retain every reference row through the chosen level, with a ceiling of level 5 / 60 steps. They no longer deduplicate shared presets: level 5 contains 15 separately measured partial-shape steps and 45 explicit no-traffic lifecycle simulations. These are 60 software scenario results, not 60 fully reproduced attack protocols or 60 qualified DRS verdicts.
 
 Each frozen entry retains its exact source vector, load/service requirements, ambiguity identifiers and hash. The 15 measured entries reuse only existing registered isolated runner presets with unchanged per-run bounds. Their actual received counters and unique run identifiers are retained separately for each reference row. Parameters copied from the standard are reference requirements; they are not silently sent as generator settings. The 45 simulated entries use `reference-lifecycle/1`: reference load, simulated baseline/exposure/recovery events and completion. This model sends no traffic and models no actual target behavior, availability, latency or mitigation. It cannot demonstrate resilience. Its received load remains null, not zero, and it creates no bench verdict, coverage measurement or DRS proof.
 
 The immutable chain and explicit approval cover the execution mode of every row. All 60 result slots are retained in the theater and final JSON/HTML, including NOT_EVALUATED on stop/error. The theater filters measured/simulated steps, shows counters by provenance and retains names, levels and source IDs. The HTML report has a compact per-scenario table and a collapsed frozen-reference archive. Finalization, quiet intervals, pause/stop, timeouts, restart behavior and audit remain governed. Existing v1 campaigns keep their original frozen plans and historical observations; creating a new campaign uses v2.
+
+[Local qualification](qa/drs-60-scenarios-2026-10-17/receipt.json) completed all 60 results (15 measured partial shapes, 45 lifecycle simulations), including reload, result filters and opening the final report. [Final-source readback](qa/drs-60-scenarios-2026-10-17/readback-build494.json) generated no additional traffic. Exact-source CI, native verification and deployment identity/preservation checks passed.
 
 The separate Fleet workflow and the level-6/7 reference catalogue are unchanged. No new network emitter, arbitrary destination, spoofing or public reflector is introduced.
 

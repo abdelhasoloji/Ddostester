@@ -1,0 +1,42 @@
+{
+  "sourceCommittedAs": "6c579dbac7ece74b7c839b0e474c7e088d248d2a",
+  "environment": "isolated localhost memory-store fixture",
+  "campaignId": "3311f182-9cf5-40f0-87bc-8fc710d18322",
+  "createdAndExplicitlyLaunchedFromUI": true,
+  "seededCampaign": false,
+  "serverOwnsSequenceAndFinalization": true,
+  "runnerOnlyClaimsExistingNamedPresets": true,
+  "loopbackOnly": true,
+  "intervalSec": 1,
+  "startedAt": "2026-10-17T08:24:50.825Z",
+  "finishedAt": "2026-10-17T08:27:34.804Z",
+  "elapsedSec": 163.979,
+  "state": "COMPLETED",
+  "scenarioResults": 60,
+  "distinctReferenceIds": 60,
+  "resultKinds": {
+    "LAB_MEASUREMENT": 15,
+    "SIMULATION": 45,
+    "NOT_EVALUATED": 0
+  },
+  "uniqueMeasuredRunIds": 15,
+  "report": {
+    "status": "PARTIAL",
+    "score": null,
+    "attachments": 15,
+    "proofs": 0,
+    "officialRowsPassed": 0,
+    "officialRowsUnknown": 60
+  },
+  "pageReloadDuringExecution": true,
+  "bothResultFiltersVerified": true,
+  "htmlReportOpenedFromTheater": true,
+  "generatorBudgetsChanged": false,
+  "productionMutated": false,
+  "limitations": [
+    "Simulations replay reference lifecycles only; no target service behavior, load or resilience measured",
+    "Measured rows represent existing bounded shapes, not complete DRS vector semantics or standard conditions",
+    "UI build metadata predates source commit; tested working tree committed as sourceCommittedAs",
+    "Production browser permission remains blocked; not bypassed"
+  ]
+}

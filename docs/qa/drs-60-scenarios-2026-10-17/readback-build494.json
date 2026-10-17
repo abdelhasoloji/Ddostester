@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "6c579dbac7ece74b7c839b0e474c7e088d248d2a",
+  "build": "494",
+  "kind": "read-only local archived-results readback",
+  "newTrafficGenerated": false,
+  "scenarioResults": 60,
+  "measuredPartialShapes": 15,
+  "noTrafficLifecycleSimulations": 45,
+  "state": "COMPLETED",
+  "notProductionBrowserVerification": true
+}
