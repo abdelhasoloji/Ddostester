@@ -1870,9 +1870,35 @@ export interface SyntheticJourney {
     reference: DrsSequencePlan;
     labTarget: string;
     scenarios: string[];
+    entries?: {
+      vectorId: string;
+      name: string;
+      level: number;
+      execution: 'LAB_MEASUREMENT' | 'SIMULATION';
+      scenarioId: string;
+      referenceHash: string;
+      referenceVector: Record<string, unknown>;
+    }[];
   };
   planHash: string;
-  steps: { scenarioId: string; runId?: string }[];
+  steps: {
+    scenarioId: string;
+    runId?: string;
+    vectorId?: string;
+    name?: string;
+    level?: number;
+    execution?: 'LAB_MEASUREMENT' | 'SIMULATION';
+    result?: {
+      kind: 'LAB_MEASUREMENT' | 'SIMULATION' | 'NOT_EVALUATED';
+      outcome: string;
+      at: string;
+      reason?: string;
+      receivedBps: number | null;
+      acceptedConnections?: number | null;
+      runId?: string;
+      drsScoreEligible: false;
+    };
+  }[];
   nextAt?: number;
   startedAt?: string;
   finishedAt?: string;

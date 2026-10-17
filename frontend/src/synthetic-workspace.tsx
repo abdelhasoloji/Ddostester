@@ -57,9 +57,7 @@ export function SyntheticWorkspace() {
       live = false;
     };
   }, [level, interval]);
-  const shapes = [
-    ...new Set(plan?.rows.flatMap((r) => (r.laboratory ? [r.laboratory.scenarioId] : [])) ?? []),
-  ];
+  const measuredSteps = plan?.rows.filter((r) => r.laboratory).length ?? 0;
   async function create() {
     setBusy(true);
     setError('');
@@ -102,7 +100,7 @@ export function SyntheticWorkspace() {
             <label>
               Target DRS score
               <select value={level} onChange={(e) => setLevel(Number(e.target.value))}>
-                {[1, 2, 3, 4, 5, 6, 7].map((l) => (
+                {[1, 2, 3, 4, 5].map((l) => (
                   <option key={l} value={l}>
                     DRS {l}
                   </option>
@@ -129,19 +127,22 @@ export function SyntheticWorkspace() {
             </label>
           </div>
           <p>
-            {plan?.rows.length ?? '—'} reference scenarios · {shapes.length} registered synthetic
-            shapes{' '}
+            {plan?.rows.length ?? '—'} scenarios · {measuredSteps} lab measurements ·{' '}
+            {(plan?.rows.length ?? 0) - measuredSteps} simulations{' '}
             <HelpTip label="Synthetic coverage">
-              Only the existing named shapes run, sequentially, with unchanged runner budgets.
-              Missing standard dimensions remain unevaluated. This is not measured DRS
-              qualification.
+              Each reference row has a separate result. Registered shapes use unchanged isolated
+              runner budgets; other rows replay their reference lifecycle without traffic. Neither
+              establishes full measured DRS qualification.
             </HelpTip>
           </p>
           <details>
             <summary>Execution chain</summary>
             <ol>
-              {shapes.map((s) => (
-                <li key={s}>{s}</li>
+              {plan?.rows.map((r) => (
+                <li key={r.id}>
+                  DRS {r.level} · {r.sourceVectorId} · {r.name} —{' '}
+                  {r.laboratory ? 'Lab measurement (partial shape)' : 'Simulation · no traffic'}
+                </li>
               ))}
             </ol>
           </details>
@@ -188,7 +189,8 @@ export function SyntheticTheater({ id }: { id: string }) {
     [stopping, setStopping] = useState(false),
     [confirm, setConfirm] = useState(false),
     [attested, setAttested] = useState(false),
-    [now, setNow] = useState(Date.now());
+    [now, setNow] = useState(Date.now()),
+    [filter, setFilter] = useState('ALL');
   const bench = canDo(app.role, 'bench', app.authRequired, app.userMode, app.capabilities),
     canExecute =
       bench &&
@@ -252,7 +254,14 @@ export function SyntheticTheater({ id }: { id: string }) {
     return <p role={error ? 'alert' : 'status'}>{error || 'Loading synthetic campaign…'}</p>;
   const c = data.campaign,
     j = c.syntheticJourney!;
-  const done = data.runs.filter((r) => r?.status === 'COMPLETED' || r?.status === 'FAILED').length;
+  const done = j.steps.filter((s, i) =>
+    s.result
+      ? s.result.kind !== 'NOT_EVALUATED' || !!s.result.runId
+      : ['COMPLETED', 'FAILED'].includes(data.runs[i]?.status ?? ''),
+  ).length;
+  const measured = j.steps.filter((s) => s.result?.kind === 'LAB_MEASUREMENT').length,
+    simulated = j.steps.filter((s) => s.result?.kind === 'SIMULATION').length,
+    unevaluated = j.steps.filter((s) => s.result?.kind === 'NOT_EVALUATED').length;
   const isActive = active(j.state),
     needsApproval = app.authRequired && app.userMode !== 'single' && c.status !== 'APPROVED';
   const report = c.drsDocument?.revisions.find(
@@ -265,11 +274,17 @@ export function SyntheticTheater({ id }: { id: string }) {
         <b>{j.state}</b> · objective DRS {j.definition.reference.targetLevel} · {done}/
         {j.steps.length} scenarios settled{' '}
         <HelpTip label="Observation meaning">
-          Only reported runner counters are displayed. A completed shape does not PASS an official
-          DRS vector. Stop prevents subsequent scenarios; a claimed scenario finishes within its
-          existing bound or becomes indeterminate on timeout.
+          Simulation emits no traffic and measures no service behavior. Lab measurement describes
+          only the registered partial shape. Neither result PASSes an official DRS vector. Stop
+          prevents subsequent scenarios; a claimed scenario finishes within its existing bound or
+          becomes indeterminate on timeout.
         </HelpTip>
       </p>
+      {j.definition.entries && (
+        <p aria-label="Synthetic result counts">
+          {measured} measured · {simulated} simulated · {unevaluated} not evaluated
+        </p>
+      )}
       <progress aria-label="Synthetic sequence progress" value={done} max={j.steps.length} />
       <p>
         {j.definition.labTarget} · interval {j.definition.reference.intervalSec}s
@@ -283,23 +298,62 @@ export function SyntheticTheater({ id }: { id: string }) {
         </p>
       )}
       {error && <p role="alert">Live state unavailable: {error}</p>}
-      <ol className="campaign-chain">
+      {j.definition.entries && (
+        <label>
+          Show scenarios{' '}
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="ALL">All scenarios</option>
+            <option value="LAB_MEASUREMENT">Lab measurements</option>
+            <option value="SIMULATION">Simulations</option>
+          </select>
+        </label>
+      )}
+      <ol className="campaign-chain" aria-label="Scenario results">
         {j.steps.map((s, i) => {
           const r = data.runs[i];
+          if (filter !== 'ALL' && s.execution !== filter) return null;
+          const simulation = s.execution === 'SIMULATION';
           return (
-            <li key={s.scenarioId} className={r?.status === 'CLAIMED' ? 'is-running' : ''}>
+            <li
+              key={s.vectorId ?? s.scenarioId}
+              className={r?.status === 'CLAIMED' ? 'is-running' : ''}
+            >
               <span>
-                <b>{s.scenarioId}</b>
+                <b>{s.name ?? s.scenarioId}</b>
+                {s.vectorId && (
+                  <small>
+                    {' '}
+                    · DRS {s.level} · {s.vectorId.replace('drs-3.00.00-', '')}
+                  </small>
+                )}
                 <br />
-                {r?.status ?? 'NOT_STARTED'}
+                {s.execution && (
+                  <strong>
+                    {simulation ? 'SIMULATION · NO TRAFFIC' : 'LAB MEASUREMENT · PARTIAL SHAPE'}{' '}
+                    ·{' '}
+                  </strong>
+                )}
+                {s.result?.outcome ?? r?.status ?? 'NOT_STARTED'}
                 {r?.error && ' · ' + r.error}
+                <HelpTip label={'Scenario details ' + (s.vectorId ?? s.scenarioId)}>
+                  {s.result?.reason ??
+                    (simulation
+                      ? 'Reference lifecycle simulation, no traffic or measured service behavior.'
+                      : 'Actual received counters for a bounded shape; full vector semantics, standard load and independent DRS evidence are not demonstrated.')}
+                </HelpTip>
               </span>
               <span>
-                {r?.verdict?.connections
-                  ? `${r.verdict.connections.accepted ?? '—'} connections accepted`
-                  : r?.verdict?.target?.avgBps !== undefined
-                    ? `${(r.verdict.target.avgBps / 1e6).toFixed(2)} Mbit/s received`
-                    : 'Awaiting runner observation'}
+                {simulation
+                  ? s.result?.kind === 'SIMULATION'
+                    ? 'Simulated lifecycle complete'
+                    : 'No measurement'
+                  : r?.verdict?.connections
+                    ? `${r.verdict.connections.accepted ?? '—'} connections accepted`
+                    : r?.verdict?.target?.avgBps !== undefined
+                      ? `${(r.verdict.target.avgBps / 1e6).toFixed(2)} Mbit/s received`
+                      : s.result?.kind === 'NOT_EVALUATED'
+                        ? 'Not measured'
+                        : 'Awaiting runner observation'}
               </span>
             </li>
           );
@@ -367,7 +421,7 @@ export function SyntheticTheater({ id }: { id: string }) {
         <Modal label="Confirm synthetic campaign" onClose={() => setConfirm(false)}>
           <h3>Review the bounded synthetic chain</h3>
           <p>
-            {j.steps.length} named scenarios · {j.definition.labTarget} · objective{' '}
+            {j.steps.length} reference scenarios · {j.definition.labTarget} · objective{' '}
             {j.definition.reference.targetLevel}
           </p>
           <label>

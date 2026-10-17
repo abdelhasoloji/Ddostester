@@ -60,6 +60,11 @@ if (process.env.REQUIRE_POSTGRES_TESTS === '1' && !url) throw Error('DATABASE_UR
     await restarted.tick();
     const saved = (await one.getCampaign(c.id))!;
     expect(saved.syntheticJourney!.state).toBe('CANCELLED');
+    expect(saved.syntheticJourney!.steps).toHaveLength(60);
+    expect(saved.syntheticJourney!.steps.every((s) => s.result?.kind === 'NOT_EVALUATED')).toBe(
+      true,
+    );
+    expect(saved.syntheticJourney!.definition.entries?.[59].referenceHash).toBeTruthy();
     expect(saved.drsDocument!.revisions[0].finalizedAt).toBeTruthy();
     expect(await one.listBenchRuns()).toHaveLength(1);
     expect(saved.syntheticJourney!.steps.filter((s) => s.runId)).toHaveLength(1);

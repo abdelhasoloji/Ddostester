@@ -342,6 +342,8 @@ export const DRS_SEQUENCE_LIMITS = { maxIntervalSec: 3600 } as const;
 
 /** The synthetic runner keeps its fixed named-scenario budgets; no rate overrides. */
 export const SYNTHETIC_JOURNEY_LIMITS = {
+  maxLevel: 5,
+  maxSteps: 60,
   maxActive: 1,
   queueTimeoutSec: 120,
   resultTimeoutSec: 180,

@@ -113,7 +113,7 @@ it('creates a bounded draft then requires explicit reviewed launch confirmation'
       <SyntheticWorkspace />
     </MemoryRouter>,
   );
-  await screen.findByText(/1 registered synthetic shapes/);
+  await screen.findByText(/1 lab measurements/);
   fireEvent.click(screen.getByLabelText(/I authorize/));
   fireEvent.click(screen.getByRole('button', { name: 'Create synthetic campaign' }));
   await screen.findByRole('button', { name: 'Review and launch synthetic campaign' });
@@ -198,4 +198,55 @@ it('keeps viewers read-only while retaining finalized reports', async () => {
   expect(
     screen.queryByRole('button', { name: /Pause|Stop|Launch|Resume/ }),
   ).not.toBeInTheDocument();
+});
+
+it('keeps all 60 scenario identities visible and separates simulations from measured counters', async () => {
+  const view = snapshot('COMPLETED'),
+    j = view.campaign.syntheticJourney!;
+  j.schema = 'shieldtester.synthetic-journey/v2';
+  j.steps = Array.from({ length: 60 }, (_, i) => ({
+    scenarioId: i < 15 ? 'udp_maxpackets' : 'reference-' + i,
+    vectorId: 'vector-' + i,
+    name: 'Scenario ' + i,
+    level: i < 28 ? 4 : 5,
+    execution: i < 15 ? ('LAB_MEASUREMENT' as const) : ('SIMULATION' as const),
+    result: {
+      kind: i < 15 ? ('LAB_MEASUREMENT' as const) : ('SIMULATION' as const),
+      outcome: i < 15 ? 'OBSERVED' : 'REFERENCE_LIFECYCLE_REPLAYED',
+      at: 'fixture',
+      receivedBps: i < 15 ? 2000000 : null,
+      drsScoreEligible: false as const,
+    },
+  }));
+  j.definition.entries = j.steps.map((s) => ({
+    vectorId: s.vectorId!,
+    name: s.name!,
+    level: s.level!,
+    execution: s.execution!,
+    scenarioId: s.scenarioId,
+    referenceHash: 'fixture',
+    referenceVector: {},
+  }));
+  view.runs = j.steps.map((_, i) =>
+    i < 15 ? { ...snapshot('COMPLETED').runs[0]!, id: 'run-' + i } : null,
+  );
+  vi.mocked(api.syntheticCampaign).mockResolvedValue(view);
+  render(
+    <MemoryRouter>
+      <SyntheticTheater id="campaign" />
+    </MemoryRouter>,
+  );
+  await screen.findByText(/60\/60 scenarios settled/);
+  expect(screen.getByLabelText('Synthetic result counts')).toHaveTextContent(
+    '15 measured · 45 simulated · 0 not evaluated',
+  );
+  expect(screen.getAllByText('Simulated lifecycle complete')).toHaveLength(45);
+  fireEvent.change(screen.getByLabelText('Show scenarios'), { target: { value: 'SIMULATION' } });
+  expect(screen.queryByText('2.00 Mbit/s received')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Simulated lifecycle complete')).toHaveLength(45);
+  fireEvent.change(screen.getByLabelText('Show scenarios'), {
+    target: { value: 'LAB_MEASUREMENT' },
+  });
+  expect(screen.getAllByText('2.00 Mbit/s received')).toHaveLength(15);
+  expect(screen.queryByText('Simulated lifecycle complete')).not.toBeInTheDocument();
 });

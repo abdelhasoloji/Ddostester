@@ -2,9 +2,15 @@ import { randomUUID } from 'node:crypto';
 import type { Store } from '../../store/types.js';
 import type { Campaign } from '../campaigns/model.js';
 import type { BenchRun } from './model.js';
-import { BENCH_SCENARIOS } from './model.js';
+import {
+  syntheticDefinition,
+  legacySyntheticDefinition,
+  simulateReference,
+  type SyntheticDefinition,
+  type SyntheticStep,
+} from './scenario-plan.js';
+export { syntheticDefinition } from './scenario-plan.js';
 import { SYNTHETIC_JOURNEY_LIMITS as LIMITS } from '../../config/limits.js';
-import { drsSequencePlan } from '../drs/sequence.js';
 import { digest } from '../drs/reference.js';
 import { ensure, planDigest } from '../drs/model.js';
 import { defaultPlan, createRevision, currentRevision, freeze, finalize } from '../drs/workflow.js';
@@ -13,11 +19,11 @@ import { benchAttachment } from '../drs/attachments.js';
 export type SyntheticState =
   'DRAFT' | 'RUNNING' | 'PAUSED' | 'STOPPING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 export interface SyntheticJourney {
-  schema: 'shieldtester.synthetic-journey/v1';
+  schema: 'shieldtester.synthetic-journey/v1' | 'shieldtester.synthetic-journey/v2';
   state: SyntheticState;
-  definition: ReturnType<typeof syntheticDefinition>;
+  definition: SyntheticDefinition;
   planHash: string;
-  steps: { scenarioId: string; runId?: string }[];
+  steps: SyntheticStep[];
   nextAt?: number;
   startedAt?: string;
   finishedAt?: string;
@@ -25,17 +31,21 @@ export interface SyntheticJourney {
 }
 export const syntheticActive = (state: SyntheticState) =>
   ['RUNNING', 'PAUSED', 'STOPPING'].includes(state);
-export function syntheticDefinition(level: number, intervalSec: number, labTarget: string) {
-  const reference = drsSequencePlan(level, intervalSec);
-  const scenarios = [
-    ...new Set(reference.rows.flatMap((r) => (r.laboratory ? [r.laboratory.scenarioId] : []))),
-  ];
-  ensure(scenarios.length > 0, 'No registered synthetic shape at this level');
-  ensure(
-    scenarios.every((id) => BENCH_SCENARIOS.some((s) => s.id === id && s.reproducible)),
-    'Synthetic scenario unavailable',
+function validBindings(j: SyntheticJourney) {
+  const entries = j.definition.entries;
+  return (
+    !entries ||
+    (entries.length === j.steps.length &&
+      entries.every((e, i) => {
+        const s = j.steps[i];
+        return (
+          e.vectorId === s.vectorId &&
+          e.scenarioId === s.scenarioId &&
+          e.execution === s.execution &&
+          e.referenceHash === digest(e.referenceVector)
+        );
+      }))
   );
-  return { schema: 'shieldtester.synthetic-plan/v1' as const, reference, labTarget, scenarios };
 }
 async function record(tx: Store, c: Campaign, actor: string, detail: string) {
   await tx.saveAudit({
@@ -93,11 +103,17 @@ export class SyntheticCoordinator {
       ...LIMITS.assessmentBudget,
       drsMode: 'synthetic-lab',
       syntheticJourney: {
-        schema: 'shieldtester.synthetic-journey/v1',
+        schema: 'shieldtester.synthetic-journey/v2',
         state: 'DRAFT',
         definition,
         planHash: digest(definition),
-        steps: definition.scenarios.map((scenarioId) => ({ scenarioId })),
+        steps: definition.entries!.map(({ vectorId, name, level, execution, scenarioId }) => ({
+          vectorId,
+          name,
+          level,
+          execution,
+          scenarioId,
+        })),
       },
     };
     const plan = defaultPlan(c, 'synthetic-lab');
@@ -106,7 +122,7 @@ export class SyntheticCoordinator {
     plan.services[0].journey = 'Isolated named traffic-shape diagnostics';
     plan.sources[0].resourceId = 'isolated-bench-runner';
     plan.sources[0].position = 'Isolated synthetic bench';
-    plan.componentVersions.syntheticContract = 'registered-scenarios/v1';
+    plan.componentVersions.syntheticContract = 'reference-steps/v2';
     c.drsDocument = createRevision(undefined, plan, actor);
     await this.store.transaction(async (tx) => {
       await tx.saveCampaign(c);
@@ -151,7 +167,7 @@ export class SyntheticCoordinator {
         );
         ensure(
           digest(
-            syntheticDefinition(
+            (j.definition.entries ? syntheticDefinition : legacySyntheticDefinition)(
               j.definition.reference.targetLevel,
               j.definition.reference.intervalSec,
               j.definition.labTarget,
@@ -159,6 +175,7 @@ export class SyntheticCoordinator {
           ) === j.planHash,
           'Reference/capability changed; create a new campaign',
         );
+        ensure(validBindings(j), 'Synthetic reference step binding changed');
         ensure(c.authorized === true, 'Laboratory authorization missing');
         if (options.requireApproval)
           ensure(
@@ -263,6 +280,7 @@ export class SyntheticCoordinator {
             r = currentRevision(c.drsDocument),
             now = this.now();
           if (
+            !validBindings(j) ||
             c.archived ||
             !this.enabled() ||
             !this.targets.includes(j.definition.labTarget) ||
@@ -308,13 +326,43 @@ export class SyntheticCoordinator {
                 j.nextAt = now + j.definition.reference.intervalSec * 1000;
                 await record(tx, c, 'system', 'Synthetic observation archived ' + run.id);
               }
+              if (run.status === 'COMPLETED')
+                step.result ??= {
+                  kind: 'LAB_MEASUREMENT',
+                  outcome: run.verdict?.outcome ?? 'COMPLETED',
+                  at: run.completedAt ?? new Date(now).toISOString(),
+                  runId: run.id,
+                  referenceHash: j.definition.entries?.find((e) => e.vectorId === step.vectorId)
+                    ?.referenceHash,
+                  receivedBps: run.verdict?.target?.avgBps ?? null,
+                  acceptedConnections: run.verdict?.connections?.accepted ?? null,
+                  drsScoreEligible: false,
+                };
               if (run.status === 'FAILED') {
                 failed = true;
+                step.result ??= {
+                  kind: 'NOT_EVALUATED',
+                  outcome: 'RUNNER_FAILED',
+                  at: new Date(now).toISOString(),
+                  runId: run.id,
+                  reason: run.error,
+                  receivedBps: null,
+                  drsScoreEligible: false,
+                };
                 j.reason ??= run.error;
               }
             }
-          const remaining = j.steps.find((s) => !s.runId);
+          const remaining = j.steps.find((s) => !s.runId && !s.result);
           if (!waiting && (j.state === 'STOPPING' || failed || !remaining)) {
+            for (const step of j.steps)
+              step.result ??= {
+                kind: 'NOT_EVALUATED',
+                outcome: 'NOT_EXECUTED',
+                at: new Date(now).toISOString(),
+                reason: j.reason ?? 'Campaign stopped before this scenario',
+                receivedBps: null,
+                drsScoreEligible: false,
+              };
             if (!r.planHash) freeze(r, c);
             if (!r.finalizedAt) finalize(r);
             j.state = j.state === 'STOPPING' ? 'CANCELLED' : failed ? 'FAILED' : 'COMPLETED';
@@ -324,25 +372,32 @@ export class SyntheticCoordinator {
               j.reason ?? 'Synthetic sequence completed; DRS evidence remains partial';
             await record(tx, c, 'system', 'Synthetic final report ' + j.state);
           } else if (!waiting && remaining && j.state === 'RUNNING' && now >= (j.nextAt ?? 0)) {
-            const otherRuns = await tx.listBenchRuns(1, true);
-            if (!otherRuns.some((x) => x.status === 'REQUESTED' || x.status === 'CLAIMED')) {
-              const run: BenchRun = {
-                id: randomUUID(),
-                scenario: remaining.scenarioId,
-                labTarget: j.definition.labTarget,
-                status: 'REQUESTED',
-                requestedBy: c.createdBy,
-                requestedAt: new Date(now).toISOString(),
-              };
-              await tx.createBenchRun(run);
-              remaining.runId = run.id;
-              j.nextAt = undefined;
-              await record(
-                tx,
-                c,
-                'system',
-                'Synthetic scenario queued ' + run.scenario + ' ' + run.id,
-              );
+            if (remaining.execution === 'SIMULATION') {
+              const entry = j.definition.entries!.find((e) => e.vectorId === remaining.vectorId)!;
+              remaining.result = simulateReference(entry, new Date(now).toISOString());
+              j.nextAt = now + j.definition.reference.intervalSec * 1000;
+              await record(tx, c, 'system', 'Synthetic simulation settled ' + entry.vectorId);
+            } else {
+              const otherRuns = await tx.listBenchRuns(1, true);
+              if (!otherRuns.some((x) => x.status === 'REQUESTED' || x.status === 'CLAIMED')) {
+                const run: BenchRun = {
+                  id: randomUUID(),
+                  scenario: remaining.scenarioId,
+                  labTarget: j.definition.labTarget,
+                  status: 'REQUESTED',
+                  requestedBy: c.createdBy,
+                  requestedAt: new Date(now).toISOString(),
+                };
+                await tx.createBenchRun(run);
+                remaining.runId = run.id;
+                j.nextAt = undefined;
+                await record(
+                  tx,
+                  c,
+                  'system',
+                  'Synthetic scenario queued ' + run.scenario + ' ' + run.id,
+                );
+              }
             }
           }
           await tx.saveCampaign(c);

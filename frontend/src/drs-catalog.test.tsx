@@ -76,7 +76,7 @@ it('shows the full DRS reference by default and only permits supported Fleet con
   expect(screen.getByText(/registry capacity/)).toBeInTheDocument();
 });
 
-it('prepares only an explicit registered synthetic shape without dispatching or replaying the client target', async () => {
+it('prepares both measured partial shapes and explicit simulations without dispatching the client target', async () => {
   const dispatch = vi.spyOn(api, 'createBenchRun');
   vi.spyOn(api, 'drsCatalog').mockResolvedValue({
     version: '3.00.00',
@@ -118,11 +118,14 @@ it('prepares only an explicit registered synthetic shape without dispatching or 
   await screen.findByText('NTP Reflection Flood');
   expect(screen.getByText('TCP RST Flood')).toBeInTheDocument();
   expect(
-    screen.getByText('No matching synthetic shape. Remains not evaluated.'),
+    screen.getByText(
+      'Reference lifecycle simulation only. No traffic or measured service behavior.',
+    ),
   ).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Prepare synthetic campaign' })).toHaveAttribute(
+  expect(screen.getAllByRole('link', { name: 'Prepare synthetic campaign' })[0]).toHaveAttribute(
     'href',
     '/campaigns?tab=manager&source=synthetic&level=3',
   );
+  expect(screen.getAllByRole('link', { name: 'Prepare synthetic campaign' })).toHaveLength(2);
   expect(dispatch).not.toHaveBeenCalled();
 });

@@ -2,7 +2,17 @@
 
 Deployed as build 492 on 17 October 2026. Exact source, preservation checks and delivery evidence are recorded in [current setup](current-setup.md) and the [deployment receipt](synthetic-journey-deployment-checkpoint.json).
 
-## Automatic bounded synthetic journey (build 492, 17 October)
+## Per-reference synthetic journey v2 (new source)
+
+New campaigns retain every reference row through the chosen level, with a ceiling of level 5 / 60 steps. They no longer deduplicate shared presets: level 5 contains 15 separately measured partial-shape steps and 45 explicit no-traffic lifecycle simulations. These are 60 software scenario results, not 60 fully reproduced attack protocols or 60 qualified DRS verdicts.
+
+Each frozen entry retains its exact source vector, load/service requirements, ambiguity identifiers and hash. The 15 measured entries reuse only existing registered isolated runner presets with unchanged per-run bounds. Their actual received counters and unique run identifiers are retained separately for each reference row. Parameters copied from the standard are reference requirements; they are not silently sent as generator settings. The 45 simulated entries use `reference-lifecycle/1`: reference load, simulated baseline/exposure/recovery events and completion. This model sends no traffic and models no actual target behavior, availability, latency or mitigation. It cannot demonstrate resilience. Its received load remains null, not zero, and it creates no bench verdict, coverage measurement or DRS proof.
+
+The immutable chain and explicit approval cover the execution mode of every row. All 60 result slots are retained in the theater and final JSON/HTML, including NOT_EVALUATED on stop/error. The theater filters measured/simulated steps, shows counters by provenance and retains names, levels and source IDs. The HTML report has a compact per-scenario table and a collapsed frozen-reference archive. Finalization, quiet intervals, pause/stop, timeouts, restart behavior and audit remain governed. Existing v1 campaigns keep their original frozen plans and historical observations; creating a new campaign uses v2.
+
+The separate Fleet workflow and the level-6/7 reference catalogue are unchanged. No new network emitter, arbitrary destination, spoofing or public reflector is introduced.
+
+## Legacy five-shape journey (build 492, 17 October)
 
 The default manager now offers the isolated synthetic bench alongside HTTP Fleet. Select an objective and quiet interval, keep the configured isolated target, authorize the laboratory plan, create the draft, then review and explicitly launch its exact hash. Creation sends no traffic. Team mode retains separate approval; single mode retains owner confirmation.
 

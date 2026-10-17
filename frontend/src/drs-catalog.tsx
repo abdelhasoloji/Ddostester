@@ -35,7 +35,7 @@ export function DrsCatalogPanel({
   if (!data) return <p>Loading DRS catalogue…</p>;
   const filtered = data.profiles.filter(
     (p) =>
-      (showAll || (source === 'synthetic' ? Boolean(p.laboratory) : p.supported)) &&
+      (showAll || (source === 'synthetic' ? (p.level ?? Infinity) <= 5 : p.supported)) &&
       (level === 'all' || String(p.level) === level),
   );
   const pages = Math.max(1, Math.ceil(filtered.length / 12));
@@ -156,13 +156,15 @@ export function DrsCatalogPanel({
         {visible.map((p) => (
           <article className="card" key={p.id}>
             <span
-              className={`engine-badge ${(source === 'synthetic' ? Boolean(p.laboratory) : p.supported) ? 'ok' : 'no'}`}
+              className={`engine-badge ${(source === 'synthetic' ? (p.level ?? Infinity) <= 5 : p.supported) ? 'ok' : 'no'}`}
             >
               DRS {p.level ?? '—'} ·{' '}
               {source === 'synthetic'
                 ? p.laboratory
-                  ? 'Partial synthetic shape'
-                  : 'Reference only'
+                  ? 'Lab measurement · partial shape'
+                  : (p.level ?? Infinity) <= 5
+                    ? 'Simulation · no traffic'
+                    : 'Reference only'
                 : p.supported
                   ? 'GET laboratory approximation'
                   : 'Generator missing'}
@@ -184,17 +186,19 @@ export function DrsCatalogPanel({
                       {p.laboratory.missingDimensions.join('; ')}. Actual received counters are
                       never multiplied for scoring.
                     </HelpTip>
-                    {canBench && (
-                      <Link
-                        className="btn btn-primary"
-                        to={'/campaigns?tab=manager&source=synthetic&level=' + p.level}
-                      >
-                        Prepare synthetic campaign
-                      </Link>
-                    )}
                   </>
                 ) : (
-                  <p className="hint">No matching synthetic shape. Remains not evaluated.</p>
+                  <p className="hint">
+                    Reference lifecycle simulation only. No traffic or measured service behavior.
+                  </p>
+                )}
+                {canBench && (p.level ?? Infinity) <= 5 && (
+                  <Link
+                    className="btn btn-primary"
+                    to={'/campaigns?tab=manager&source=synthetic&level=' + p.level}
+                  >
+                    Prepare synthetic campaign
+                  </Link>
                 )}
               </>
             )}

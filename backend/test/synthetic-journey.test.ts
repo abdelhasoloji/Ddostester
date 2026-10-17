@@ -1,3 +1,5 @@
+import { legacySyntheticDefinition } from '../src/modules/bench/scenario-plan.js';
+import { digest } from '../src/modules/drs/reference.js';
 import { expect, it } from 'vitest';
 import { MemoryStore } from '../src/store/memory.js';
 import { SyntheticCoordinator } from '../src/modules/bench/journey.js';
@@ -26,6 +28,7 @@ async function complete(store: Store, run: BenchRun) {
     }),
   );
 }
+/** Compatibility coverage: historical v1 plans are not rewritten into 60-step plans. */
 function fixture() {
   const store = new MemoryStore();
   let now = Date.now(),
@@ -36,6 +39,21 @@ function fixture() {
     ['127.0.0.1'],
     () => now,
   );
+  const create = coordinator.create.bind(coordinator);
+  coordinator.create = async (...args) => {
+    const c = await create(...args),
+      j = c.syntheticJourney!;
+    j.schema = 'shieldtester.synthetic-journey/v1';
+    j.definition = legacySyntheticDefinition(
+      args[0].targetLevel,
+      args[0].intervalSec,
+      args[0].labTarget,
+    );
+    j.planHash = digest(j.definition);
+    j.steps = j.definition.scenarios.map((scenarioId) => ({ scenarioId }));
+    await store.saveCampaign(c);
+    return c;
+  };
   return {
     store,
     coordinator,
