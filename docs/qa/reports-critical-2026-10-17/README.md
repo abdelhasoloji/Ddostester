@@ -21,3 +21,11 @@ The retained 12-step lab dataset was regenerated into 12 individual reports, a s
 The archived dataset remains a bounded laboratory observation. It does not establish HTTP/2 support, a measured DRS 5 score, public-source diversity or an 800 req/s capacity result. Source implementation, rendered QA and actual deployment receipts are recorded separately.
 
 Reproduce after building: `node scripts/qa/render-reports.mjs /tmp/reports-critical-preview`. The tool reads the retained dataset and renders files only; it does not start a campaign.
+
+## Delivery status
+
+Candidate build 485 (`0b5f403e396133f8e7763f9d7eae00fad8128d1c`) is prepared. Production remains build 483 because suite `7347851d-3b8c-4352-9193-51be5adebd92` is actively executing 120-second steps. No restart or campaign stop was performed. Twelve campaigns were created after the backup baseline: refresh preservation and authenticated-backup checks after the suite finishes before promotion. `delivery-status.json` records this distinction.
+
+The restored-copy compatibility check regenerated 227 retained individual reports, 50 suite reports and the portfolio report without errors or database mutation. This check predates the active 12-step suite; it does not claim to have reviewed that unfinished execution.
+
+Validation totals: 1,263 backend and 470 frontend tests passed locally, with 133 targeted tests passing on the native Linux candidate. Exact-source CI run: https://github.com/abdelhasoloji/Ddostester/actions/runs/39060734972 (status tracked separately in `delivery-status.json`).
