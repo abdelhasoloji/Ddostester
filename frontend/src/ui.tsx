@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
-import { LiveLineChart } from './live-chart.js';
+import { RunGraphs } from './run-graphs.js';
+export { theaterPanels, hasLiveGenerator, panelsXMax } from './theater-graphs.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { MitigationPanel } from './mitigation-panel.js';
 import { FleetEvidencePanel } from './fleet-evidence.js';
@@ -303,6 +304,7 @@ export function protectionBadgeTitle(
 export function RunTheater({
   fleet,
   fleetDeviceCount,
+  configuredRps,
   campaignId,
   name,
   target,
@@ -312,6 +314,7 @@ export function RunTheater({
   killing,
 }: {
   fleet?: boolean;
+  configuredRps?: number;
   fleetDeviceCount?: number;
   campaignId: string;
   name: string;
@@ -353,6 +356,10 @@ export function RunTheater({
             probe5xx: prb?.errorRate5xx ?? 0,
             availPct: prb?.samples ? Math.round((prb.available / prb.samples) * 1000) / 10 : 100,
             probeP95: prb?.latencyMs?.p95,
+            probeAvailable: prb?.available,
+            probeLatencyMs: prb?.latencyMs,
+            probeEndpoints: prb?.endpoints,
+            statusCounts: d.statusCounts,
           };
           // Keep one point per elapsed second (SSE may push several per second):
           // replace the last when the second repeats, else append.
@@ -641,7 +648,14 @@ export function RunTheater({
             Probe: {p.probe?.samples ?? 0} observations · cumulative metrics
           </p>
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels timeline={series} vector={vector} />
+            <RunGraphs
+              key={campaignId + ':' + vector}
+              timeline={series}
+              vector={vector}
+              scope={campaignId}
+              live
+              configuredRps={configuredRps}
+            />
           </div>
         </>
       )}
@@ -773,7 +787,7 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
             ))}
         </div>
       )}
-      <RunTimeline samples={p.timeline ?? []} pending />
+      <RunTimeline samples={p.timeline ?? []} scope={campaignId} pending />
     </div>
   );
 }
@@ -1065,156 +1079,6 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
  * mis-scale and lag the run (flat lines while the tiles read correctly). The
  * "Open in Grafana" deep-link still offers the full Prometheus dashboard.
  */
-export interface TheaterPanel {
-  label: string;
-  series: ChartSeries[];
-  yRange?: [number, number];
-  yFromZero?: boolean;
-}
-
-/** Prefer explicit provenance; historical all-zero external samples remain unknown. */
-export function hasLiveGenerator(samples: RunSample[]): boolean {
-  return samples.some((s) => s.generatorObserved ?? (s.sent > 0 || s.rps > 0));
-}
-
-/** Cumulative generator rates and probe observations, shared by live and replay views.
- * Successful responses use their own counter, never sent minus failed (in-flight
- * requests have no successful outcome). No incoming load/mitigation is inferred. */
-export function theaterPanels(samples: RunSample[], vector?: string): TheaterPanel[] {
-  const avail: [number, number][] = [];
-  const p95: [number, number][] = [];
-  for (const s of samples) {
-    if (s.probeSamples !== 0) avail.push([s.t, s.availPct]);
-    if (s.probeSamples !== 0 && s.probeP95 != null) p95.push([s.t, s.probeP95]);
-  }
-  const availabilityPanel: TheaterPanel = {
-    label: 'Legitimate availability (%)',
-    yRange: [0, 100],
-    series: [{ label: 'probe avail %', points: avail, color: '#10b981' }],
-  };
-
-  if (vector === 'http-slowloris' || samples.some((s) => s.sampleUnit === 'connections')) {
-    const observed = samples.filter((s) => s.generatorObserved ?? s.sent > 0);
-    return [
-      {
-        label: 'Connections (count)',
-        yFromZero: true,
-        series: [
-          { label: 'opened', points: observed.map((s) => [s.t, s.sent]), color: '#3b82f6' },
-          {
-            label: 'held',
-            points: observed.map((s) => [s.t, s.successful ?? Math.max(0, s.sent - s.failed)]),
-            color: '#10b981',
-          },
-          { label: 'closed', points: observed.map((s) => [s.t, s.failed]), color: '#f59e0b' },
-        ],
-      },
-      availabilityPanel,
-      {
-        label: 'Legitimate latency p95 (ms)',
-        yFromZero: true,
-        series: [{ label: 'probe p95', points: p95, color: '#3b82f6' }],
-      },
-    ];
-  }
-  if (!hasLiveGenerator(samples)) {
-    // External engine: no live generator stream. Show what IS measured live.
-    return [
-      availabilityPanel,
-      {
-        label: 'Legitimate latency p95 (ms)',
-        yFromZero: true,
-        series: [{ label: 'probe p95', points: p95, color: '#3b82f6' }],
-      },
-    ];
-  }
-
-  const offered: [number, number][] = [];
-  const origin: [number, number][] = [];
-  const absorbed: [number, number][] = [];
-  for (const s of samples) {
-    if (!(s.generatorObserved ?? (s.sent > 0 || s.rps > 0))) continue;
-    const success = s.sent > 0 && s.successful != null ? s.successful / s.sent : undefined;
-    offered.push([s.t, s.rps]);
-    if (success != null) origin.push([s.t, s.rps * success]);
-    absorbed.push([s.t, s.sent > 0 ? (s.failed / s.sent) * 100 : 0]);
-  }
-  return [
-    {
-      label: 'Mean offered vs successful-response RPS',
-      yFromZero: true,
-      series: [
-        { label: 'offered', points: offered, color: '#3b82f6' },
-        { label: 'successful responses', points: origin, color: '#10b981' },
-      ],
-    },
-    {
-      label: 'Generator failures (%)',
-      yRange: [0, 100],
-      series: [{ label: 'generator failures %', points: absorbed, color: '#f59e0b' }],
-    },
-    availabilityPanel,
-  ];
-}
-
-/** The shared x-domain max for the Run-Theater panels: the largest elapsed
- *  second across the samples (never below 1). Every panel is drawn on [0, this]
- *  so they stay aligned and no line is ever plotted past the frame. NOT rounded
- *  — a rounded-down max would clip the last point. Pure, so it is unit-tested. */
-export function panelsXMax(samples: RunSample[]): number {
-  return Math.max(1, ...samples.map((s) => s.t));
-}
-
-function RunMetricsPanels({
-  timeline,
-  vector,
-  live = true,
-}: {
-  timeline: RunSample[];
-  vector?: string;
-  live?: boolean;
-}) {
-  const panels = theaterPanels(timeline, vector);
-  const enough = timeline.length >= 2;
-  const xMax = panelsXMax(timeline);
-  const tMax = enough ? Math.round(xMax) : 0;
-  return (
-    <div className="run-metrics">
-      <div className="run-metrics-head">
-        {/* The Grafana deep-link lives once at the top of the page ("Open this run
-            in Grafana"); no second link here. */}
-        <div className="posture-title">
-          Run graphs · {live ? 'live' : 'recorded'}
-          {enough ? ` · over ${tMax}s` : ''}
-        </div>
-      </div>
-      <div className="run-metrics-grid">
-        {panels.map((p) => (
-          <div key={p.label} className="run-metrics-panel">
-            <div
-              className="rmp-title"
-              title="Cumulative measurements since generator start. Missing telemetry is not zero. Probe points update only when a transaction completes."
-            >
-              {p.label}
-            </div>
-            {enough ? (
-              <LiveLineChart
-                series={p.series}
-                height={140}
-                xDomain={[0, xMax]}
-                yRange={p.yRange}
-                stepped
-              />
-            ) : (
-              <div className="timeline-pending hint">Collecting samples…</div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** Per-run time-series (client-side, every engine): requests/s and probe 5xx
  *  over elapsed seconds, rendered with uPlot so it matches the other charts. */
 function RunTimeline({
@@ -1222,7 +1086,17 @@ function RunTimeline({
   vector,
   csvHref,
   pending,
+  scope = 'unscoped',
+  configuredRps,
+  baselineP95,
+  targetTelemetry,
+  startedAt,
 }: {
+  scope?: string;
+  configuredRps?: number;
+  baselineP95?: number;
+  targetTelemetry?: CampaignRun['targetTelemetry'];
+  startedAt?: string;
   samples: RunSample[];
   vector?: string;
   csvHref?: string;
@@ -1243,7 +1117,17 @@ function RunTimeline({
   }
   return (
     <div className="posture">
-      <RunMetricsPanels timeline={samples} vector={vector} live={!!pending} />
+      <RunGraphs
+        key={scope + ':' + vector}
+        timeline={samples}
+        vector={vector}
+        live={!!pending}
+        scope={scope}
+        configuredRps={configuredRps}
+        baselineP95={baselineP95}
+        targetTelemetry={targetTelemetry}
+        startedAt={startedAt}
+      />
       {csvHref && (
         <a href={csvHref} target="_blank" rel="noreferrer">
           CSV ↗
@@ -1491,6 +1375,11 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       {run.timeline && (
         <RunTimeline
           samples={run.timeline}
+          scope={run.campaignId}
+          configuredRps={run.generator.config?.maxRps}
+          baselineP95={run.baseline?.latencyMs.p95}
+          targetTelemetry={run.targetTelemetry}
+          startedAt={run.generator.startedAt}
           vector={run.assessment?.isSlowConnection ? 'http-slowloris' : undefined}
           csvHref={runTimelineCsvUrl(run.runId)}
         />

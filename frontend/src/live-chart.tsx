@@ -68,8 +68,10 @@ export function LiveLineChart({
   xDomain,
   yRange,
   stepped = false,
+  pointsOnly = false,
 }: {
   series: ChartSeries[];
+  pointsOnly?: boolean;
   stepped?: boolean;
   height?: number;
   /** Shared numeric x-domain [min, max] — never derived from the data, so
@@ -173,7 +175,7 @@ export function LiveLineChart({
         <line className="lc-axis" x1={padL} x2={w - padR} y1={syL(leftBot)} y2={syL(leftBot)} />
 
         {/* area fill under the primary left series */}
-        {left[0] && left[0].points.length > 1 && (
+        {!pointsOnly && left[0] && left[0].points.length > 1 && (
           <path
             className="lc-area"
             d={
@@ -195,13 +197,26 @@ export function LiveLineChart({
             const lastX = s.points.length ? s.points[s.points.length - 1][0] : x1;
             return (
               <g key={`${s.label}:${s.axis ?? 'left'}`}>
-                <path
-                  className="lc-line"
-                  d={pathFor(s.points as [number, number | null][], sx, sy, stepped)}
-                  stroke={s.color ?? '#3b82f6'}
-                  fill="none"
-                />
-                {last != null && (
+                {!pointsOnly && (
+                  <path
+                    className="lc-line"
+                    d={pathFor(s.points as [number, number | null][], sx, sy, stepped)}
+                    stroke={s.color ?? '#3b82f6'}
+                    fill="none"
+                  />
+                )}
+                {pointsOnly &&
+                  s.points.map(([x, y]) => (
+                    <circle
+                      key={x}
+                      className="lc-dot"
+                      cx={sx(x)}
+                      cy={sy(y)}
+                      r={3}
+                      fill={s.color ?? '#3b82f6'}
+                    />
+                  ))}
+                {!pointsOnly && last != null && (
                   <circle
                     className="lc-dot"
                     cx={sx(lastX)}

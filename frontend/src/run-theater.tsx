@@ -4,6 +4,7 @@ import { useApp } from './context.js';
 import { api } from './api.js';
 import type { Campaign, CampaignStatus, ReconReport, SuiteSequenceState } from './api.js';
 import { RunTheater, RunVerdictLine, AbsorptionWidget, WrsPill, wrsClass, hostOf } from './ui.js';
+import { RunGraphs } from './run-graphs.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { ReconDetailModal } from './recon-detail.js';
 import { BenchCard } from './bench-card.js';
@@ -280,6 +281,7 @@ function SuiteTheater({
       {runningStep ? (
         <RunTheater
           campaignId={runningStep.id}
+          configuredRps={runningStep.maxRps}
           name={shortStepName(runningStep.name)}
           target={runningStep.target}
           engine={runningStep.agent}
@@ -503,6 +505,18 @@ export function RunTheaterPage() {
                   ⚑ The edge served its own error page under load — captured in the report.
                 </p>
               )}
+              {finishedRun.timeline && (
+                <RunGraphs
+                  key={finishedCampaign.id + ':' + finishedCampaign.vector}
+                  timeline={finishedRun.timeline}
+                  scope={finishedCampaign.id}
+                  configuredRps={finishedCampaign.maxRps}
+                  baselineP95={finishedRun.baseline?.latencyMs.p95}
+                  targetTelemetry={finishedRun.targetTelemetry}
+                  startedAt={finishedRun.generator.startedAt}
+                  vector={finishedCampaign.vector}
+                />
+              )}
               <AbsorptionWidget run={finishedRun} />
               <p className="run-complete-cta-label">
                 Push further — build the next campaign from what this run found:
@@ -562,6 +576,7 @@ export function RunTheaterPage() {
               ) : (
                 <RunTheater
                   campaignId={current.id}
+                  configuredRps={current.maxRps}
                   name={current.name}
                   target={current.target}
                   vector={current.vector}

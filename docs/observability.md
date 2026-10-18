@@ -1,5 +1,9 @@
 # Observability and evidence provenance
 
+## Individual Run Theater graphs — 18 October 2026
+
+Source now provides four compact graph cards, an evidence-aware catalogue, individual expanded views, pause, custom time ranges, URL/series filters, CSV and campaign-scoped links. Interval rates use counter differences; probe checks are observed points, and latency remains explicitly cumulative. Missing instrumentation stays unavailable. Live and retained replay share the same renderer. No account, execution-limit or Pod configuration changes. Local journey and delivery status: [acceptance record](qa/run-graph-explorer-2026-10-18/README.md).
+
 The API exposes Prometheus `/metrics`, structured run lifecycle/error logs, audit, campaign/run progress and diagnostic exports. The UI provides Run Theater charts and a compact live Fleet count; per-agent receipts belong to Fleet. Data gaps are shown as unknown rather than healthy/zero.
 
 `deploy/monitoring/` contains control-plane dashboards/rules; `deploy/kubernetes/monitoring/` contains the private HTTP-lab Prometheus/Grafana manifests and rule tests. The separate synthetic bench has its own metrics/monitoring stack. Provider configuration, scrape success and independent DRS measurement are different facts.

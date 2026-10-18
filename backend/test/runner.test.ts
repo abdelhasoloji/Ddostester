@@ -50,8 +50,17 @@ describe('executeCampaign — run time-series', () => {
     const s = run.timeline![0];
     expect(s.t).toBeGreaterThanOrEqual(0);
     expect(s.sampleUnit).toBe('requests');
-    expect(s.probeSamples).toBeGreaterThan(0);
-    expect(s.probeP95).toBeGreaterThanOrEqual(0);
+    const observedProbe = run.timeline!.find((tick) => (tick.probeSamples ?? 0) > 0)!;
+    expect(observedProbe).toBeDefined();
+    expect(observedProbe.probeP95).toBeGreaterThanOrEqual(0);
+    expect(observedProbe.probeAvailable).toBe(observedProbe.probeSamples);
+    expect(observedProbe.probeLatencyMs?.p50).toBeGreaterThanOrEqual(0);
+    expect(observedProbe.probeLatencyMs?.p99).toBeGreaterThanOrEqual(
+      observedProbe.probeLatencyMs!.p50,
+    );
+    const observedGenerator = run.timeline!.find((tick) => tick.statusCounts)!;
+    expect(observedGenerator).toBeDefined();
+    expect(Object.keys(observedGenerator.statusCounts!)).toEqual(['2xx', '3xx', '4xx', '5xx']);
     expect(typeof s.generatorObserved).toBe('boolean');
     expect(s.availPct).toBeGreaterThanOrEqual(0);
     expect(s.availPct).toBeLessThanOrEqual(100);

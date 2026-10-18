@@ -43,6 +43,11 @@ export interface RunSample {
   successful?: number;
   probeSamples?: number;
   probeP95?: number;
+  /** Cumulative snapshots, not interpolated transactions. */
+  probeAvailable?: number;
+  probeLatencyMs?: { p50: number; p95: number; p99: number };
+  probeEndpoints?: { url: string; samples: number; available: number }[];
+  statusCounts?: Record<string, number>;
   sampleUnit?: 'requests' | 'connections';
   /** Seconds since the run started. */
   t: number;
@@ -485,6 +490,20 @@ export async function executeCampaign(
           generatorObserved,
           successful: gen?.successful,
           probeSamples: pm.samples,
+          probeAvailable: pm.available,
+          probeLatencyMs: pm.samples > 0 ? { ...pm.latencyMs } : undefined,
+          probeEndpoints: pm.endpoints?.map((endpoint) => ({ ...endpoint })),
+          statusCounts: gen?.statusCounts
+            ? Object.fromEntries(
+                ['2xx', '3xx', '4xx', '5xx'].map((family) => [
+                  family,
+                  Object.entries(gen?.statusCounts ?? {}).reduce(
+                    (sum, [code, count]) => sum + (code[0] === family[0] ? count : 0),
+                    0,
+                  ),
+                ]),
+              )
+            : undefined,
           probeP95: pm.samples > 0 ? pm.latencyMs.p95 : undefined,
           sampleUnit: campaign.vector === 'http-slowloris' ? 'connections' : 'requests',
           rps: gen?.actualRps ?? 0,

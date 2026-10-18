@@ -6,13 +6,22 @@ import globals from 'globals';
 export default tseslint.config(
   // `.agent-worktrees/` holds ephemeral agent worktrees (full repo checkouts); never lint
   // a second copy of the tree.
-  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**', '**/*.d.ts', '.agent-worktrees/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      'coverage/**',
+      '**/*.d.ts',
+      '.agent-worktrees/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: [
       'backend/**/*.{ts,mjs}',
       'lab/**/*.mjs',
+      'docs/qa/**/*.mjs',
       'scripts/**/*.mjs',
       'deploy/**/*.{mjs,js,cjs}',
       'eslint.config.js',

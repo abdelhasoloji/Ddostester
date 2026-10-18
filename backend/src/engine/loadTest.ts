@@ -234,6 +234,11 @@ export interface LoadProgress {
     successful?: number;
     probeSamples?: number;
     probeP95?: number;
+    /** Cumulative snapshots, not interpolated transactions. */
+    probeAvailable?: number;
+    probeLatencyMs?: { p50: number; p95: number; p99: number };
+    probeEndpoints?: { url: string; samples: number; available: number }[];
+    statusCounts?: Record<string, number>;
     sampleUnit?: 'requests' | 'connections';
     t: number;
     rps: number;

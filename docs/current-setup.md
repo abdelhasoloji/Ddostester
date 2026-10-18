@@ -1,5 +1,9 @@
 # Current setup — observed 15 October 2026
 
+## Individual Run Theater graphs — 18 October 2026
+
+Source now provides four compact graph cards, an evidence-aware catalogue, individual expanded views, pause, custom time ranges, URL/series filters, CSV and campaign-scoped links. Interval rates use counter differences; probe checks are observed points, and latency remains explicitly cumulative. Missing instrumentation stays unavailable. Live and retained replay share the same renderer. No account, execution-limit or Pod configuration changes. Local journey and delivery status: [acceptance record](qa/run-graph-explorer-2026-10-18/README.md).
+
 ## Full ZeroBS suite check — 17 October 2026
 
 The isolated 12-step original-duration suite was attempted once: four completed runs, four automatic availability stops and four k6 output-budget failures. All approval/execution bounds remained in force. The consolidated report has four inconclusive rows, but incorrectly renders missing measurements as zero; engine failures also remain APPROVED/queued in campaign tracking. This is not a validated full suite. Target health recovered and three Pod identities/readiness are preserved. Production stays build 476; the UI simplification remains local source. See [evidence and defects](qa/zerobs-full-2026-10-17/README.md).

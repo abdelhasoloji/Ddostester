@@ -382,7 +382,7 @@ describe('Run Theater', () => {
     expect(screen.getByText('Currently held')).toBeInTheDocument();
     expect(screen.getByText('Connections closed')).toBeInTheDocument();
     expect(screen.queryByText('Offered')).not.toBeInTheDocument();
-    expect(screen.getByText('300')).toBeInTheDocument(); // opened
+    expect(screen.getByText('Connections opened').parentElement).toHaveTextContent('300'); // opened
     expect(screen.getByText(/98%/)).toBeInTheDocument(); // 295/300 shed
   });
 
