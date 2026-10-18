@@ -1,5 +1,9 @@
 # Current implementation and remaining work
 
+## Report evidence coverage follow-up — source, 18 October 2026
+
+The consolidated report now distinguishes planned scenarios from retained run evidence in its cover and summary. Inconclusive scenarios are no longer universally described as rate shortfalls: missing evidence and execution failures remain distinct in their details. A retained run must match both the campaign's run ID and campaign ID before it contributes to the report. Production remains verified build 496 until this source increment passes delivery gates. No generators, traffic limits, accounts or Pods change.
+
 ## Current release and measurement consistency — 18 October 2026
 
 Production delivery is verified as build **496**, commit `e1d6b126a2ebd1c91c093c346c9439fdaeabbe89`, promoted at 16:39:52 UTC. The [delivery receipt](qa/report-theater-consistency-2026-10-18/deployment.json) records matching API/UI identity, four green exact-source CI jobs, authenticated backup recovery, preserved history and three unchanged Ready Pods. Single-owner policy and the legacy campaign catalogue are unchanged. Older release statements below are historical observations, not the current release.

@@ -231,7 +231,8 @@ export function renderSuiteReportHtml(
   // Per-vector assessment from the REAL run — the assessment engine is the single
   // source of truth so the narrative can never drift from what happened.
   const steps = suite.members.map((m) => {
-    const run = m.runId ? runById.get(m.runId) : undefined;
+    const candidate = m.runId ? runById.get(m.runId) : undefined;
+    const run = candidate?.campaignId === m.id ? candidate : undefined;
     const context = {
       shape: stepLabel(suite.suiteName, m.name),
       drs: drsOf(m.name),
@@ -261,21 +262,23 @@ export function renderSuiteReportHtml(
   const avg = sa.avgWrs ?? 0;
   const worstLevel = sa.worstLevel;
 
+  const retained = steps.filter((s) => s.run).length;
+  const coverage = `${retained}/${suite.total} scenarios have retained run evidence; ${suite.total - retained} have no retained run evidence.`;
   const narrative = scored.length
-    ? `On <b>${date}</b>, WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against <b>${esc(host)}</b> (the live target) — <b>${suite.total}</b> attack vectors, up to <b>DRS ${sa.maxDrs}</b>. ` +
+    ? `On <b>${date}</b>, WEDOS ShieldTest recorded a bounded Layer-7 assessment plan for <b>${esc(host)}</b> — <b>${suite.total}</b> reference scenarios. Reference labels extend to DRS ${sa.maxDrs}; they do not establish measured coverage. ` +
       `<b>${sa.held}/${suite.total}</b> vectors held at their delivered rate` +
       (sa.partial ? `, <b>${sa.partial}</b> caused partial impact` : '') +
       (sa.breached ? `, <b>${sa.breached}</b> met the probe-failure criteria` : '') +
       (sa.inconclusive
-        ? `, and <b>${sa.inconclusive}</b> were inconclusive (under-delivered or degraded — not a valid test at the target rate)`
+        ? `, and <b>${sa.inconclusive}</b> were inconclusive (missing, insufficient or degraded evidence — resilience is unproven)`
         : '') +
       `. Overall risk is <b>${displayedRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
       (sa.breached
         ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} met the probe-failure criteria; these observations do not establish outage duration or business impact.`
         : sa.inconclusive
-          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so ${sa.inconclusive === 1 ? 'its' : 'their'} resilience is unproven — qualify the generator, target protocol and instrumentation before repeating.`
+          ? `Note: ${sa.inconclusive} scenario${sa.inconclusive === 1 ? '' : 's'} cannot establish resilience. Inspect each scenario’s evidence and execution diagnostic before drawing a conclusion.`
           : `Completed legitimate probe transactions held; intervals between observations remain unmeasured.`)
-    : 'No scored attacks yet.';
+    : 'No usable scored observations are available; no resilience conclusion is established.';
 
   // Per-tier (DRS) worst-case verdict.
   const byDrs = new Map<string, typeof steps>();
@@ -377,9 +380,9 @@ export function renderSuiteReportHtml(
     docHead(`WEDOS ShieldTest — ${esc(host)} L7 resilience`) +
     coverBand(
       `DDoS resilience assessment — Layer 7`,
-      `Target ${esc(host)} · ${suite.total} attack vectors · ${date} · WEDOS ShieldTest · confidential`,
+      `Target ${esc(host)} · ${suite.total} planned scenarios · ${date} · WEDOS ShieldTest · confidential`,
     ) +
-    `<h2>Management summary</h2><p class="lead">${narrative}</p>${grafanaBanner}
+    `<h2>Management summary</h2><p class="lead">${narrative}</p><p><b>Evidence coverage:</b> ${coverage} Retained records may still be inconclusive.</p>${grafanaBanner}
 <div class="scorecard">
   <div>${sa.avgWrs == null ? '<p>No measured score</p>' : gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: sa.inconclusive ? REPORT_COLORS.muted : scoreColor(avg) })}
     <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic average · not a DRS score</div></div>

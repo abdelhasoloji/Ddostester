@@ -66,6 +66,26 @@ describe('buildSuites', () => {
 });
 
 describe('renderSuiteReportHtml', () => {
+  it('distinguishes planned scenarios from missing execution evidence in the summary', () => {
+    const [suite] = buildSuites([
+      campaign({
+        suiteId: 'missing',
+        status: 'APPROVED',
+        statusDetail: 'Last run failed (reference retained); review before retrying.',
+      }),
+      campaign({ suiteId: 'missing', status: 'PENDING_APPROVAL' }),
+    ]);
+    const html = renderSuiteReportHtml(suite);
+    expect(html).toContain('2 planned scenarios');
+    expect(html).toContain(
+      '0/2 scenarios have retained run evidence; 2 have no retained run evidence.',
+    );
+    expect(html).toContain('No usable scored observations');
+    expect(html).toContain('Last run failed');
+    expect(html).not.toContain('never reached the intended intensity');
+    expect(html).not.toContain('(the live target)');
+  });
+
   it('renders target, aggregate and one row per step', () => {
     const [s] = buildSuites([
       campaign({
@@ -198,6 +218,17 @@ describe('renderSuiteReportHtml', () => {
       },
     ] as unknown as Parameters<typeof renderSuiteReportHtml>[1];
     const html = renderSuiteReportHtml(s, runs);
+    expect(html).toContain(
+      '1/1 scenarios have retained run evidence; 0 have no retained run evidence.',
+    );
+    const mismatched = renderSuiteReportHtml(
+      s,
+      runs?.map((r) => ({ ...r, campaignId: 'other' })),
+    );
+    expect(mismatched).toContain(
+      '0/1 scenarios have retained run evidence; 1 have no retained run evidence.',
+    );
+    expect(mismatched).not.toContain('Emitted requests per interval (req/s)');
     expect(html).toContain('Emitted requests per interval (req/s)');
     expect(html).toContain('Probe availability (cumulative %;');
     expect(html).toContain('chart-timeline'); // an inline SVG, not just a link
