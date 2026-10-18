@@ -13,7 +13,7 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 type Labels = Record<string, string>;
 
 function labelKey(labels?: Labels): string {
-  if (!labels) return '';
+  if (!labels || Object.keys(labels).length === 0) return '';
   return JSON.stringify(
     Object.keys(labels)
       .sort()
