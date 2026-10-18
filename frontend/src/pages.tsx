@@ -1073,7 +1073,25 @@ export function SuiteRunBanner() {
                           className="btn btn-sm btn-primary"
                           disabled={isBusy}
                           onClick={() =>
-                            act(g.suiteId, () => api.resumeSuite(g.suiteId), 'Assessment resumed.')
+                            act(
+                              g.suiteId,
+                              () => {
+                                if (app.approvalPolicy !== 'confirmation')
+                                  return api.resumeSuite(g.suiteId);
+                                const pending = g.members.filter(
+                                  (c) => c.status === 'PENDING_APPROVAL',
+                                );
+                                if (
+                                  pending.length &&
+                                  !window.confirm(
+                                    `Confirm modified steps?\n${pending.map((c) => `${c.name}: ${c.maxRps} req/s, ${c.concurrency} concurrent, ${c.maxDurationSec}s`).join('\n')}`,
+                                  )
+                                )
+                                  return Promise.resolve();
+                                return api.resumeSuite(g.suiteId, pending.length > 0, pending);
+                              },
+                              'Assessment resumed.',
+                            )
                           }
                           title="Resume the sequence"
                         >

@@ -1,5 +1,9 @@
 # Current implementation and remaining work
 
+## Operator review between steps — source, 18 October 2026
+
+Legacy HTTP suites launched from the UI now pause between runnable steps. Theater exposes pause/resume and unstarted-step parameter editing with current server bounds and phase totals. Saves invalidate approvals, are audited transactionally and require renewed approval or exact-budget owner confirmation. Active steps, historical runs and frozen DRS/Fleet plans remain protected. See [contract and local acceptance](qa/step-review-2026-10-18/README.md). Not yet deployed; verified production remains build 496.
+
 ## Ten focused code reviews — source, 18 October 2026
 
 Six defects corrected across CSV export security, metric catalogue validation, memory transaction lock release, monitoring series identity, non-finite monitoring observations and optional PDF fallback. Shared CSV protection and snapshot field inventory reduce duplication. See the [ten-review record](qa/code-review-10-2026-10-18.md) for inspected paths, tests, unchanged policies and remaining limitations. This source work is not yet deployed; production remains build 496.

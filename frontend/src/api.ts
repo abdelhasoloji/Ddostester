@@ -1,3 +1,4 @@
+import { parameterBudget } from '../../backend/src/modules/campaigns/parameter-budget.js';
 import { lsGet, lsSet, lsRemove } from './storage.js';
 
 export interface FleetDeviceInput {
@@ -1315,14 +1316,34 @@ export const api = {
     post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
       reason,
     }),
+  campaignParameters: (id: string) =>
+    get<{
+      campaign: Campaign;
+      revision: string;
+      limits: HardCaps;
+      builtin: { rps: number; concurrency: number };
+    }>(`/api/campaigns/${id}/parameters`),
+  updateCampaignParameters: (
+    id: string,
+    input: {
+      revision: string;
+      maxRps: number;
+      concurrency: number;
+      maxDurationSec: number;
+      scenario?: { maxRps: number; durationSec: number }[];
+    },
+  ) => post<Campaign>(`/api/campaigns/${id}/parameters`, input),
   runSuite: (id: string, confirmed = false) =>
-    post<{ suiteId: string; steps: number; started: boolean }>(
-      `/api/suites/${id}/run`,
-      confirmed ? { confirmed: true } : undefined,
-    ),
+    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`, {
+      confirmed,
+      pauseBetweenSteps: true,
+    }),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
-  resumeSuite: (id: string) =>
-    post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
+  resumeSuite: (id: string, confirmed = false, reviewedSteps?: Campaign[]) =>
+    post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`, {
+      confirmed,
+      reviewedSteps: reviewedSteps?.map(parameterBudget),
+    }),
   cancelSuite: (id: string) =>
     post<{ suiteId: string; cancelled: boolean; killedCurrent: boolean }>(
       `/api/suites/${id}/cancel`,
@@ -1587,6 +1608,7 @@ export interface GapAnalysis {
 /** Live control state of an in-flight suite sequence (GET /api/suites/sequences). */
 export interface SuiteSequenceState {
   paused: boolean;
+  pauseBetweenSteps?: boolean;
   current?: string;
   started: number;
   total: number;

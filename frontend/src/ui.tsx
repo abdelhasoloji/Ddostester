@@ -1,3 +1,4 @@
+import { CampaignParameters } from './campaign-parameters.js';
 import { FleetCampaignLive } from './fleet-campaign-live.js';
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -906,6 +907,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
             </button>
           )}
 
+          <CampaignParameters campaign={c} disabled={!!isBusy} />
           {app.approvalPolicy !== 'confirmation' &&
             c.status === 'PENDING_APPROVAL' &&
             canDo(role, 'approve', ar, app.userMode, app.capabilities) && (

@@ -401,6 +401,36 @@ describe('Run Theater', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
+  it('keeps a focused queued step inside its paused suite without a false baseline panel', async () => {
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: true, pauseBetweenSteps: true, started: 1, total: 2 } },
+    });
+    currentApp = makeApp({
+      campaigns: [
+        { ...scoredCampaign, id: 'first', suiteId: 'S1', suiteOrder: 0, status: 'COMPLETED' },
+        {
+          ...scoredCampaign,
+          id: 'next',
+          suiteId: 'S1',
+          suiteOrder: 1,
+          status: 'APPROVED',
+          runId: undefined,
+          wrs: undefined,
+        },
+      ],
+    });
+    render(
+      <MemoryRouter initialEntries={['/theater?run=next']}>
+        <RunTheaterPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Resume next step' })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/CAPTURING BASELINE/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Kill/ })).toBeNull();
+  });
+
   it('shows failed execution as attempted with a report instead of queued', async () => {
     fakeApi.suiteSequences.mockResolvedValue({
       sequences: { S1: { paused: false, started: 1, total: 1 } },

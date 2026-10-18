@@ -1,3 +1,4 @@
+import { CampaignParameters } from './campaign-parameters.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from './context.js';
@@ -140,6 +141,44 @@ function SuiteTheater({
    *  whole time, which would keep the kill switch disabled throughout the run). */
   killing: Record<string, boolean>;
 }) {
+  const app = useApp();
+  const [controlBusy, setControlBusy] = useState(false);
+  const control = async (resume: boolean) => {
+    const id = members[0]?.suiteId;
+    if (!id || controlBusy) return;
+    const confirmation =
+      resume &&
+      app.approvalPolicy === 'confirmation' &&
+      members.some((c) => c.status === 'PENDING_APPROVAL');
+    if (
+      confirmation &&
+      !window.confirm(
+        `Confirm modified steps?\n${members
+          .filter((c) => c.status === 'PENDING_APPROVAL')
+          .map(
+            (c) =>
+              `${c.name}: ${c.maxRps} req/s, ${c.concurrency} concurrent, ${c.maxDurationSec}s`,
+          )
+          .join('\n')}`,
+      )
+    )
+      return;
+    setControlBusy(true);
+    try {
+      if (resume)
+        await api.resumeSuite(
+          id,
+          confirmation,
+          members.filter((c) => c.status === 'PENDING_APPROVAL'),
+        );
+      else await api.pauseSuite(id);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setControlBusy(false);
+    }
+  };
   const ordered = useMemo(
     () => [...members].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0)),
     [members],
@@ -216,6 +255,18 @@ function SuiteTheater({
         </div>
       </div>
 
+      {seq && (!app.authRequired || app.capabilities.includes('campaign:kill')) && (
+        <div className="actions">
+          <button
+            className="btn btn-sm"
+            disabled={controlBusy || (!!seq.current && seq.paused)}
+            onClick={() => void control(!!seq.paused)}
+          >
+            {seq.paused ? 'Resume next step' : 'Pause after this step'}
+          </button>
+          {seq.pauseBetweenSteps && <span className="hint">Review between each step</span>}
+        </div>
+      )}
       <ReconStrip recon={recon} loading={reconLoading} onOpen={() => setReconOpen(true)} />
       {reconOpen && recon && <ReconDetailModal recon={recon} onClose={() => setReconOpen(false)} />}
 
@@ -255,6 +306,10 @@ function SuiteTheater({
                 <div className="step-name" title={c.name}>
                   {shortStepName(c.name)}
                 </div>
+                <CampaignParameters
+                  campaign={c}
+                  disabled={!!seq && (!seq.paused || !!seq.current || !!seq.gateStartedAt)}
+                />
                 {failed ? (
                   <span className="step-tag" title={c.statusDetail}>
                     Execution failed
@@ -269,7 +324,11 @@ function SuiteTheater({
                   <span className="step-tag gate">recovering…</span>
                 ) : (
                   <span className="step-tag">
-                    {isDone ? c.status.toLowerCase().replaceAll('_', ' ') : 'queued'}
+                    {isDone
+                      ? c.status.toLowerCase().replaceAll('_', ' ')
+                      : seq?.paused && nextStep?.id === c.id
+                        ? 'awaiting review'
+                        : 'queued'}
                   </span>
                 )}
               </div>
@@ -325,7 +384,10 @@ function SuiteTheater({
         <div className="gate-card paused">
           <div className="gate-text">
             <div className="gate-title">Sequence paused</div>
-            <p className="hint">Resume from the campaigns view to continue the remaining steps.</p>
+            <p className="hint">
+              Review the next step parameters, then resume here. Changes require approval or
+              confirmation.
+            </p>
           </div>
         </div>
       ) : (
@@ -389,7 +451,12 @@ export function RunTheaterPage() {
   // the progress stream and refresh recover the current server state.
   const focusCampaign =
     focusRun && !runningStandalone.some((c) => c.id === focusRun)
-      ? app.campaigns.find((c) => c.id === focusRun && !TERMINAL_STATUSES.has(c.status))
+      ? app.campaigns.find(
+          (c) =>
+            c.id === focusRun &&
+            !TERMINAL_STATUSES.has(c.status) &&
+            !(hasSuite && c.suiteId === activeSuiteId),
+        )
       : undefined;
   const standalone = focusCampaign ? [focusCampaign, ...runningStandalone] : runningStandalone;
   // When the focused run has just FINISHED, keep it on stage as a completion card

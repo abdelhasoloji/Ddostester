@@ -7,6 +7,7 @@ export interface AuditEntry {
     | 'store.mutate'
     | 'campaign.reconcile'
     | 'campaign.create'
+    | 'campaign.update'
     | 'campaign.approve'
     | 'campaign.ciso_approve'
     | 'campaign.reject'

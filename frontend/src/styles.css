@@ -7816,3 +7816,51 @@ table.remediations td {
     flex-basis: 100%;
   }
 }
+
+/* Pre-step review: aligned fields with their server-provided bounds. */
+.parameter-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.parameter-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.parameter-fields label {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+.parameter-fields input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.parameter-fields small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.parameter-phase {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.parameter-phase legend {
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+.parameter-form .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+@media (max-width: 480px) {
+  .parameter-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
