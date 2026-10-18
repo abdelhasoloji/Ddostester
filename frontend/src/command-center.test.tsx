@@ -288,6 +288,21 @@ describe('Run Theater', () => {
     expect(screen.getByText('Generator failures')).toBeInTheDocument();
     expect(screen.getByText('Successful responses')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument(); // 800/1000 offered → 80% absorbed
+    act(() => {
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 500,
+          successful: 498,
+          failed: 2,
+          elapsedSec: 10,
+          actualRps: 50,
+          maxDurationSec: 60,
+          probe: { samples: 5, available: 5, errorRate5xx: 0 },
+        }),
+      });
+    });
+    expect(screen.getByText('0.4')).toBeInTheDocument();
   });
 
   it('does not claim a service outage from generator failures when the probe is healthy', () => {

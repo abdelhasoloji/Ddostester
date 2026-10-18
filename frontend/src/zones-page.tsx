@@ -426,7 +426,9 @@ function TargetsPanel() {
           <form className="target-form" onSubmit={submit}>
             <div className="target-form-grid">
               <label>
-                Host <span className="req">*</span>
+                <span>
+                  Host <span className="req">*</span>
+                </span>
                 <input
                   value={form.host}
                   onChange={(e) => setForm({ ...form, host: e.target.value })}

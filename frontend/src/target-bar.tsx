@@ -55,7 +55,7 @@ export function TargetBar({
       {allowed.length > 0 && (
         <div className="recon-allowed">
           <span className="recon-allowed-label">Allowed</span>
-          {allowed.map((h) => (
+          {[...new Set(allowed)].map((h) => (
             <button
               key={h}
               type="button"

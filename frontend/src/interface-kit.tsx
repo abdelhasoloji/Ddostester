@@ -1,15 +1,69 @@
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export function HelpTip({ text, label = 'More information' }: { text: string; label?: string }) {
   const id = useId();
+  const anchor = useRef<HTMLSpanElement>(null);
+  const bubble = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 8, top: 8 });
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const a = anchor.current?.getBoundingClientRect();
+      const b = bubble.current?.getBoundingClientRect();
+      if (!a || !b) return;
+      setPosition({
+        left: Math.max(8, Math.min(a.right - b.width, window.innerWidth - b.width - 8)),
+        top: Math.max(
+          8,
+          a.bottom + b.height + 16 > window.innerHeight ? a.top - b.height - 8 : a.bottom + 8,
+        ),
+      });
+    };
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopImmediatePropagation();
+        setOpen(false);
+      }
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('keydown', dismiss, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('keydown', dismiss, true);
+    };
+  }, [open, text]);
   return (
-    <span className="help-tip">
-      <button type="button" aria-label={label} aria-describedby={id}>
+    <span
+      className="help-tip"
+      ref={anchor}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label={label}
+        aria-describedby={open ? id : undefined}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+      >
         ?
       </button>
-      <span id={id} role="tooltip">
-        {text}
-      </span>
+      {open &&
+        createPortal(
+          <span ref={bubble} className="help-tooltip" id={id} role="tooltip" style={position}>
+            {text}
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }

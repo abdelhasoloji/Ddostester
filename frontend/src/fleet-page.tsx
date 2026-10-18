@@ -137,6 +137,7 @@ export function FleetPage() {
           <h2>IoT devices</h2>
           {editable && (
             <button
+              className="btn btn-sm"
               onClick={() => {
                 setEditing(undefined);
                 setDraft({ ...blank });
@@ -178,11 +179,19 @@ export function FleetPage() {
                   ))}
                 </select>
               </label>
-              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              <button
+                className="btn btn-sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 Previous page
               </button>
               <span>Page {page}</span>
-              <button disabled={page * 100 >= total} onClick={() => setPage((p) => p + 1)}>
+              <button
+                className="btn btn-sm"
+                disabled={page * 100 >= total}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 Next page
               </button>
             </>
@@ -208,6 +217,7 @@ export function FleetPage() {
             </select>
           </label>
           <button
+            className="btn btn-sm"
             disabled={busy || loading}
             onClick={() => {
               setError('');
@@ -273,6 +283,7 @@ export function FleetPage() {
                       {editable ? (
                         <>
                           <button
+                            className="btn btn-sm"
                             aria-label={`Edit ${device.name}`}
                             onClick={() => {
                               setEditing(device.id);
@@ -290,6 +301,7 @@ export function FleetPage() {
                             Edit
                           </button>{' '}
                           <button
+                            className="btn btn-sm"
                             aria-label={`Remove ${device.name}`}
                             onClick={() => setRemoving(device)}
                           >
@@ -362,10 +374,15 @@ export function FleetPage() {
                 />
               </label>
             </div>
-            <button type="submit" disabled={busy}>
+            <button className="btn btn-sm" type="submit" disabled={busy}>
               {busy ? 'Saving…' : 'Save device'}
             </button>{' '}
-            <button type="button" disabled={busy} onClick={() => setDraft(null)}>
+            <button
+              className="btn btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => setDraft(null)}
+            >
               Cancel
             </button>
           </form>
@@ -375,10 +392,10 @@ export function FleetPage() {
         <section className="card" aria-label="Confirm removal">
           <h2>Remove {removing.name}?</h2>
           <p>This removes the inventory record. It does not stop or delete a running agent.</p>
-          <button disabled={busy} onClick={() => void remove()}>
+          <button className="btn btn-sm" disabled={busy} onClick={() => void remove()}>
             Confirm removal
           </button>{' '}
-          <button disabled={busy} onClick={() => setRemoving(null)}>
+          <button className="btn btn-sm" disabled={busy} onClick={() => setRemoving(null)}>
             Cancel
           </button>
         </section>

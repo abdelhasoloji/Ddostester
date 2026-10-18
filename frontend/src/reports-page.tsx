@@ -74,7 +74,7 @@ export function ReportsPage() {
       <section className="card">
         <h2>Aggregated compliance</h2>
         <p>Exports contain the retained observations and their measurement limits.</p>
-        <div className="row">
+        <div className="btn-row">
           <a className="btn" href={complianceUrl()} target="_blank" rel="noreferrer">
             Open compliance report
           </a>

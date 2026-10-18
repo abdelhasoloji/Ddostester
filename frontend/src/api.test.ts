@@ -25,7 +25,7 @@ function stubFetch(body: unknown, init: { ok?: boolean; status?: number } = {}):
     statusText: 'Status',
     json: () => Promise.resolve(body),
   });
-  global.fetch = fn as unknown as typeof fetch;
+  globalThis.fetch = fn as unknown as typeof fetch;
   return fn;
 }
 function lastCall(fn: Mock): [string, Record<string, unknown> | undefined] {
@@ -124,7 +124,7 @@ describe('json() error handling', () => {
       statusText: 'Boom',
       json: () => Promise.reject(new Error('not json')),
     });
-    global.fetch = fn as unknown as typeof fetch;
+    globalThis.fetch = fn as unknown as typeof fetch;
     await expect(api.listCampaigns()).rejects.toThrow('Boom');
   });
 });
