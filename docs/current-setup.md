@@ -1,4 +1,14 @@
-# Current setup — observed 15 October 2026
+# Current setup — observed 18 October 2026
+
+## Current release and measurement consistency — 18 October 2026
+
+Production was checked again at 16:22 UTC: build **495**, commit `be43eedcc388a19b103063fe625192688f1a267e`, single-owner account policy and legacy campaign catalogue. The [delivery receipt](qa/run-graph-explorer-2026-10-18/deployment.json) records its verified backup/recovery, unchanged history and three online agents. Older release statements below are dated historical observations.
+
+The next source increment shares interval-rate, finalized-failure and probe-observation transformations between Theater and individual/suite reports. Missing counters/reset intervals break curves; monitored checks are dots rather than continuous uptime. Historical cumulative data remains explicitly labelled. Source presence alone does not confirm deployment; see [acceptance](qa/report-theater-consistency-2026-10-18/README.md).
+
+The twelve-step historical suite has eight retained runs and four missing engine reports. Re-rendering those observations does not replay the generators or establish DRS 5 coverage. Physical qualification still requires independent received-load evidence, functional journeys, recovery and calibrated capacity.
+
+Rancher admission remains unavailable from this workstation at this checkpoint: `rancher.wedos.global` resolves to `10.20.0.252`, routed through `en0` via the home gateway; TCP/443 timed out and no local Kubernetes context exists. No ac02 deployment was attempted. Browser permission for the production application remains a separate unresolved constraint.
 
 ## Individual Run Theater graphs — 18 October 2026
 
@@ -59,7 +69,7 @@ This is a dated deployment observation, not a promise that an IP, Pod or release
 | Mac workstation | Source, development, kind laboratory manifests and private release/evidence archives                      | Local development and isolated tests; no current parity claim with Linux                  |
 | `46.28.109.92`  | Dedicated authorized HTTP test target for earlier diagnostics                                             | Admission requires application allowlist, approved origins and worker/network policy      |
 
-The latest verified production API/UI is Git build **466**, commit `8cec20c1ae59bb27135ec0e9fbfeb063a6985081`, at `/home/shieldtest/ddostester-releases/release-8cec20c.8C5Z1e/backend`, promoted at 18:58 UTC on 15 October. API/UI identities match and all four CI jobs plus native lint/typecheck/tests/build passed. The earlier archive build 463 used a different counter; compare full source identities. Health reports PostgreSQL, single mode, `single_admin`, DRS workflow enabled and built-in HTTP default. Protection-provider configuration is enabled; target telemetry and remote-probe flags are false. These flags do not establish independent DRS protection-entry evidence.
+At the historical 15 October checkpoint, the production API/UI was Git build **466**, commit `8cec20c1ae59bb27135ec0e9fbfeb063a6985081`, at `/home/shieldtest/ddostester-releases/release-8cec20c.8C5Z1e/backend`, promoted at 18:58 UTC on 15 October. API/UI identities match and all four CI jobs plus native lint/typecheck/tests/build passed. The earlier archive build 463 used a different counter; compare full source identities. Health reports PostgreSQL, single mode, `single_admin`, DRS workflow enabled and built-in HTTP default. Protection-provider configuration is enabled; target telemetry and remote-probe flags are false. These flags do not establish independent DRS protection-entry evidence.
 
 At promotion, all 11 accounts (sole administrator `abdelha@wedos`), 284 campaign records, settings and three Fleet identities were preserved; all three agents were online. Campaign history includes the earlier failed private acceptance and the retained offline simulation. Counts and older delivery sections below are dated checkpoints, not live counters.
 

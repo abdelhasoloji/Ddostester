@@ -1,0 +1,95 @@
+{
+  "mode": "retained-evidence-replay",
+  "newCampaignsExecuted": 0,
+  "externalTrafficGenerated": false,
+  "sourceHashes": {
+    "campaigns": "3c3a337a0471c041e118c6a95321ef7cbac0be3e12ac663da3b93ab67eaf762a",
+    "runs": "0f3f90f52453c93403204f31fa8a3532ba2b517fe4131bf38aa91a41ed75ac68"
+  },
+  "rows": [
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — MultiTarget / carpet-bombing (DRS5)",
+      "recordedStatus": "KILLED_AUTO",
+      "hasRetainedRun": true,
+      "probeObservations": 19,
+      "availability": 68.42105263157895
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — THOR / PulseWave — synchronized (DRS5)",
+      "recordedStatus": "APPROVED",
+      "hasRetainedRun": false,
+      "probeObservations": null,
+      "availability": null
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — L7 MultiVector (DRS5)",
+      "recordedStatus": "KILLED_AUTO",
+      "hasRetainedRun": true,
+      "probeObservations": 7,
+      "availability": 14.285714285714286
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — Login/account POST-Flood (DRS5)",
+      "recordedStatus": "KILLED_AUTO",
+      "hasRetainedRun": true,
+      "probeObservations": 7,
+      "availability": 14.285714285714286
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — HTTP/2 Continuation — header pressure (DRS4)",
+      "recordedStatus": "APPROVED",
+      "hasRetainedRun": false,
+      "probeObservations": null,
+      "availability": null
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — HTTP/2 Rapid Reset — bounded (DRS4)",
+      "recordedStatus": "APPROVED",
+      "hasRetainedRun": false,
+      "probeObservations": null,
+      "availability": null
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — HTTP/2 GET-Flood (DRS4)",
+      "recordedStatus": "APPROVED",
+      "hasRetainedRun": false,
+      "probeObservations": null,
+      "availability": null
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — POST-Flood (DRS4)",
+      "recordedStatus": "KILLED_AUTO",
+      "hasRetainedRun": true,
+      "probeObservations": 7,
+      "availability": 14.285714285714286
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — GET /VALID_RANDOM (DRS4)",
+      "recordedStatus": "COMPLETED",
+      "hasRetainedRun": true,
+      "probeObservations": 24,
+      "availability": 87.5
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — GET-Random-Flood (DRS3)",
+      "recordedStatus": "COMPLETED",
+      "hasRetainedRun": true,
+      "probeObservations": 24,
+      "availability": 87.5
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — GET-Flood (DRS3)",
+      "recordedStatus": "COMPLETED",
+      "hasRetainedRun": true,
+      "probeObservations": 24,
+      "availability": 100
+    },
+    {
+      "name": "Pre-test — DRS L7 playbook (P26-20371) — SlowLoris (DRS3)",
+      "recordedStatus": "COMPLETED",
+      "hasRetainedRun": true,
+      "probeObservations": 24,
+      "availability": 100
+    }
+  ]
+}

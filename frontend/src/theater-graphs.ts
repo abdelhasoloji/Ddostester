@@ -1,3 +1,10 @@
+import {
+  cleanTimeline,
+  counterIntervals,
+  finalizedFailureIntervals,
+  probeCheckIntervals,
+  plotSeries,
+} from '../../backend/src/modules/reports/timeline-series.js';
 import type { ChartSeries } from './PromChart.js';
 import type { RunSample, CampaignRun } from './api.js';
 export interface TheaterPanel {
@@ -119,38 +126,15 @@ export interface GraphContext {
   startedAt?: string;
 }
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
-const observed = (s: RunSample) => s.generatorObserved ?? (s.sent > 0 || s.rps > 0);
-/** Counter deltas require two observed snapshots and monotonic counters. Never
- * turn a reset, missing counter or duplicate timestamp into measured zero. */
+/** Public numeric-only adapter retained for existing graph consumers. */
 export function intervalPoints(
   samples: RunSample[],
   read: (s: RunSample) => number | undefined,
 ): [number, number][] {
-  const points: [number, number][] = [];
-  for (let i = 1; i < samples.length; i++) {
-    const a = samples[i - 1],
-      b = samples[i];
-    const av = read(a),
-      bv = read(b),
-      dt = b.t - a.t;
-    if (
-      observed(a) &&
-      observed(b) &&
-      av != null &&
-      bv != null &&
-      Number.isFinite(av) &&
-      Number.isFinite(bv) &&
-      dt > 0 &&
-      bv >= av
-    )
-      points.push([b.t, (bv - av) / dt]);
-  }
-  return points;
+  return plotSeries(counterIntervals(samples, read)).points;
 }
 export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunGraph[] {
-  const samples = [
-    ...new Map(input.filter((s) => Number.isFinite(s.t) && s.t >= 0).map((s) => [s.t, s])).values(),
-  ].sort((a, b) => a.t - b.t);
+  const samples = cleanTimeline(input);
   const slow =
     ctx.vector === 'http-slowloris' || samples.some((s) => s.sampleUnit === 'connections');
   const series = (label: string, points: [number, number][], n = 0): ChartSeries => ({
@@ -159,16 +143,17 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
     color: colors[n],
   });
   const graphs: RunGraph[] = [];
+  const rateSeries = (
+    label: string,
+    read: (s: RunSample) => number | undefined,
+    n = 0,
+  ): ChartSeries => ({
+    ...series(label, [], n),
+    ...plotSeries(counterIntervals(samples, read)),
+  });
   const load = [
-    series(
-      'Emitted',
-      intervalPoints(samples, (s) => s.sent),
-    ),
-    series(
-      'Successful responses',
-      intervalPoints(samples, (s) => s.successful),
-      1,
-    ),
+    rateSeries('Emitted', (s) => s.sent),
+    rateSeries('Successful responses', (s) => s.successful, 1),
   ];
   if (ctx.configuredRps != null && samples.length)
     load.push(
@@ -194,28 +179,8 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
         : undefined,
   });
 
-  const urls = ctx.probeUrl;
-  const probe = (s: RunSample) =>
-    urls
-      ? s.probeEndpoints?.find((e) => e.url === urls)
-      : { samples: s.probeSamples, available: s.probeAvailable };
-  const exact = samples.some((s) => probe(s)?.available != null);
-  const availability: [number, number][] = [];
-  let previous: { samples: number; available: number } | undefined;
-  let previousSamples: number | undefined;
-  for (const s of samples) {
-    const p = probe(s);
-    if (p?.samples == null || p.samples <= 0 || p.samples === previousSamples) continue;
-    previousSamples = p.samples;
-    if (exact && p.available != null) {
-      if (previous && p.samples > previous.samples && p.available >= previous.available) {
-        const success = p.available - previous.available,
-          count = p.samples - previous.samples;
-        if (success <= count) availability.push([s.t, (100 * success) / count]);
-      }
-      previous = { samples: p.samples, available: p.available };
-    } else if (!urls && !exact && Number.isFinite(s.availPct)) availability.push([s.t, s.availPct]);
-  }
+  const { exact, rows: probeRows } = probeCheckIntervals(samples, ctx.probeUrl);
+  const availability = plotSeries(probeRows).points;
   graphs.push({
     id: 'availability',
     label: 'Monitored checks',
@@ -278,21 +243,20 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
       ? undefined
       : 'Probe latency samples are not available.',
   });
-  const errors: [number, number][] = [];
-  for (let i = 1; i < samples.length; i++) {
-    const a = samples[i - 1],
-      b = samples[i];
-    if (!observed(a) || !observed(b) || b.t <= a.t || a.successful == null || b.successful == null)
-      continue;
-    const bad = b.failed - a.failed,
-      ok = b.successful - a.successful;
-    if (bad >= 0 && ok >= 0 && bad + ok > 0) errors.push([b.t, (100 * bad) / (bad + ok)]);
-  }
+  const failureSeries = plotSeries(finalizedFailureIntervals(samples));
+  const errors = failureSeries.points;
   graphs.push({
     id: 'errors',
     label: 'Finalized request failures',
     unit: '%',
-    series: slow ? [] : [series('Failures / finalized outcomes', errors, 2)],
+    series: slow
+      ? []
+      : [
+          {
+            ...series('Failures / finalized outcomes', errors, 2),
+            breakBefore: failureSeries.breakBefore,
+          },
+        ],
     yRange: [0, 100],
     note: 'Failed outcomes divided by successful plus failed outcomes in the same interval. In-flight requests are excluded. HTTP errors and transport errors require additional categorization; failures do not prove filtering.',
     unavailable: slow
@@ -302,16 +266,15 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
         : 'Two observed snapshots with finalized outcomes are required.',
   });
   const statuses = ['2', '3', '4', '5'].map((prefix, i) =>
-    series(
+    rateSeries(
       prefix + 'xx',
-      intervalPoints(samples, (s) =>
+      (s) =>
         s.statusCounts
           ? Object.entries(s.statusCounts).reduce(
               (n, [k, v]) => n + (k.startsWith(prefix) ? v : 0),
               0,
             )
           : undefined,
-      ),
       i,
     ),
   );

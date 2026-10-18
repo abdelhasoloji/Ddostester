@@ -198,7 +198,7 @@ describe('renderSuiteReportHtml', () => {
       },
     ] as unknown as Parameters<typeof renderSuiteReportHtml>[1];
     const html = renderSuiteReportHtml(s, runs);
-    expect(html).toContain('Mean offered request rate since generator start (req/s)');
+    expect(html).toContain('Emitted requests per interval (req/s)');
     expect(html).toContain('Probe availability (cumulative %;');
     expect(html).toContain('chart-timeline'); // an inline SVG, not just a link
   });

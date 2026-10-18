@@ -1,5 +1,15 @@
 # Current implementation and remaining work
 
+## Current release and measurement consistency — 18 October 2026
+
+Production was checked again at 16:22 UTC: build **495**, commit `be43eedcc388a19b103063fe625192688f1a267e`, single-owner account policy and legacy campaign catalogue. The [delivery receipt](qa/run-graph-explorer-2026-10-18/deployment.json) records its verified backup/recovery, unchanged history and three online agents. Older release statements below are dated historical observations.
+
+The next source increment shares interval-rate, finalized-failure and probe-observation transformations between Theater and individual/suite reports. Missing counters/reset intervals break curves; monitored checks are dots rather than continuous uptime. Historical cumulative data remains explicitly labelled. Source presence alone does not confirm deployment; see [acceptance](qa/report-theater-consistency-2026-10-18/README.md).
+
+The twelve-step historical suite has eight retained runs and four missing engine reports. Re-rendering those observations does not replay the generators or establish DRS 5 coverage. Physical qualification still requires independent received-load evidence, functional journeys, recovery and calibrated capacity.
+
+Rancher admission remains unavailable from this workstation at this checkpoint: `rancher.wedos.global` resolves to `10.20.0.252`, routed through `en0` via the home gateway; TCP/443 timed out and no local Kubernetes context exists. No ac02 deployment was attempted. Browser permission for the production application remains a separate unresolved constraint.
+
 ## Individual Run Theater graphs — 18 October 2026
 
 Source now provides four compact graph cards, an evidence-aware catalogue, individual expanded views, pause, custom time ranges, URL/series filters, CSV and campaign-scoped links. Interval rates use counter differences; probe checks are observed points, and latency remains explicitly cumulative. Missing instrumentation stays unavailable. Live and retained replay share the same renderer. No account, execution-limit or Pod configuration changes. Local journey and delivery status: [acceptance record](qa/run-graph-explorer-2026-10-18/README.md).

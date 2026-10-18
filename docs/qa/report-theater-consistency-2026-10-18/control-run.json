@@ -1,0 +1,539 @@
+{
+  "runId": "9499f9db-2098-4173-a9f4-16c80a86848e",
+  "campaignId": "graphs-local",
+  "status": "COMPLETED",
+  "generator": {
+    "id": "9499f9db-2098-4173-a9f4-16c80a86848e",
+    "config": {
+      "execution": {
+        "engine": "builtin-http",
+        "runtime": "v22.23.3",
+        "sourceRef": "be43eed",
+        "probeUrl": "http://127.0.0.1:18120/health",
+        "probeUrls": ["http://127.0.0.1:18120/secondary"],
+        "probeVantage": "local"
+      },
+      "url": "http://127.0.0.1:18120/load",
+      "method": "GET",
+      "headers": { "X-WEDOS-TEST": "graphs-local:1792340622120" },
+      "concurrency": 2,
+      "durationSec": 20,
+      "maxRps": 20,
+      "slowloris": false,
+      "authorized": true
+    },
+    "startedAt": "2026-10-18T16:23:46.166Z",
+    "finishedAt": "2026-10-18T16:24:06.169Z",
+    "totalRequests": 400,
+    "latencyHistogram": {
+      "boundsMs": [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000],
+      "counts": [142, 248, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "count": 400,
+      "sumMs": 634.6892059999554
+    },
+    "successful": 384,
+    "failed": 16,
+    "statusCounts": { "2xx": 384, "5xx": 16 },
+    "latencyMs": {
+      "min": 0.259249999999156,
+      "max": 8.346165999999357,
+      "mean": 1.59,
+      "p50": 1.18,
+      "p95": 4.17,
+      "p99": 5.6
+    },
+    "actualRps": 20,
+    "errors": {},
+    "assertionsChecked": 0,
+    "assertionFailures": 0,
+    "hardStopped": false
+  },
+  "probe": {
+    "endpoints": [
+      { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+      { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+    ],
+    "samples": 4,
+    "available": 4,
+    "errorRate5xx": 0,
+    "latencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+    "successful": 4,
+    "health": "ok",
+    "windowAvailPct": 100
+  },
+  "probeContended": false,
+  "measurementPolicy": "multi-route-probe-v2",
+  "breakingPoint": { "reached": false, "sustainedRps": 20 },
+  "wrs": {
+    "detection": 95,
+    "mitigation": 93.33,
+    "availability": 100,
+    "collateral": 100,
+    "wrs": 97,
+    "level": "A+",
+    "estimated": true
+  },
+  "posture": {
+    "waf": false,
+    "cdn": false,
+    "rateLimiting": false,
+    "loadBalancer": false,
+    "hsts": false,
+    "securityHeaders": [],
+    "signals": []
+  },
+  "timeline": [
+    {
+      "t": 1,
+      "generatorObserved": false,
+      "probeSamples": 1,
+      "probeAvailable": 1,
+      "probeLatencyMs": { "p50": 13.33, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 1, "available": 1 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 1, "available": 1 }
+      ],
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 0,
+      "sent": 0,
+      "failed": 0,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 2,
+      "generatorObserved": true,
+      "successful": 20,
+      "probeSamples": 1,
+      "probeAvailable": 1,
+      "probeLatencyMs": { "p50": 13.33, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 1, "available": 1 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 1, "available": 1 }
+      ],
+      "statusCounts": { "2xx": 20, "3xx": 0, "4xx": 0, "5xx": 0 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 20,
+      "failed": 0,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 3,
+      "generatorObserved": true,
+      "successful": 39,
+      "probeSamples": 1,
+      "probeAvailable": 1,
+      "probeLatencyMs": { "p50": 13.33, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 1, "available": 1 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 1, "available": 1 }
+      ],
+      "statusCounts": { "2xx": 39, "3xx": 0, "4xx": 0, "5xx": 1 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.99,
+      "sent": 40,
+      "failed": 1,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 4,
+      "generatorObserved": true,
+      "successful": 58,
+      "probeSamples": 1,
+      "probeAvailable": 1,
+      "probeLatencyMs": { "p50": 13.33, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 1, "available": 1 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 1, "available": 1 }
+      ],
+      "statusCounts": { "2xx": 58, "3xx": 0, "4xx": 0, "5xx": 2 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 60,
+      "failed": 2,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 5,
+      "generatorObserved": true,
+      "successful": 77,
+      "probeSamples": 1,
+      "probeAvailable": 1,
+      "probeLatencyMs": { "p50": 13.33, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 1, "available": 1 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 1, "available": 1 }
+      ],
+      "statusCounts": { "2xx": 77, "3xx": 0, "4xx": 0, "5xx": 3 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.97,
+      "sent": 80,
+      "failed": 3,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 6,
+      "generatorObserved": true,
+      "successful": 96,
+      "probeSamples": 2,
+      "probeAvailable": 2,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 2, "available": 2 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 2, "available": 2 }
+      ],
+      "statusCounts": { "2xx": 96, "3xx": 0, "4xx": 0, "5xx": 4 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.97,
+      "sent": 100,
+      "failed": 4,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 7,
+      "generatorObserved": true,
+      "successful": 116,
+      "probeSamples": 2,
+      "probeAvailable": 2,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 2, "available": 2 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 2, "available": 2 }
+      ],
+      "statusCounts": { "2xx": 116, "3xx": 0, "4xx": 0, "5xx": 4 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.96,
+      "sent": 120,
+      "failed": 4,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 8,
+      "generatorObserved": true,
+      "successful": 135,
+      "probeSamples": 2,
+      "probeAvailable": 2,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 2, "available": 2 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 2, "available": 2 }
+      ],
+      "statusCounts": { "2xx": 135, "3xx": 0, "4xx": 0, "5xx": 5 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.97,
+      "sent": 140,
+      "failed": 5,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 9,
+      "generatorObserved": true,
+      "successful": 156,
+      "probeSamples": 2,
+      "probeAvailable": 2,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 2, "available": 2 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 2, "available": 2 }
+      ],
+      "statusCounts": { "2xx": 156, "3xx": 0, "4xx": 0, "5xx": 6 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 20.22,
+      "sent": 162,
+      "failed": 6,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 10,
+      "generatorObserved": true,
+      "successful": 173,
+      "probeSamples": 2,
+      "probeAvailable": 2,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 2, "available": 2 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 2, "available": 2 }
+      ],
+      "statusCounts": { "2xx": 173, "3xx": 0, "4xx": 0, "5xx": 7 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.97,
+      "sent": 180,
+      "failed": 7,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 11,
+      "generatorObserved": true,
+      "successful": 192,
+      "probeSamples": 3,
+      "probeAvailable": 3,
+      "probeLatencyMs": { "p50": 5.31, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 3, "available": 3 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 3, "available": 3 }
+      ],
+      "statusCounts": { "2xx": 192, "3xx": 0, "4xx": 0, "5xx": 8 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.97,
+      "sent": 200,
+      "failed": 8,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 12,
+      "generatorObserved": true,
+      "successful": 213,
+      "probeSamples": 3,
+      "probeAvailable": 3,
+      "probeLatencyMs": { "p50": 5.31, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 3, "available": 3 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 3, "available": 3 }
+      ],
+      "statusCounts": { "2xx": 213, "3xx": 0, "4xx": 0, "5xx": 8 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 20.07,
+      "sent": 221,
+      "failed": 8,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 13,
+      "generatorObserved": true,
+      "successful": 231,
+      "probeSamples": 3,
+      "probeAvailable": 3,
+      "probeLatencyMs": { "p50": 5.31, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 3, "available": 3 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 3, "available": 3 }
+      ],
+      "statusCounts": { "2xx": 231, "3xx": 0, "4xx": 0, "5xx": 9 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 240,
+      "failed": 9,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 14,
+      "generatorObserved": true,
+      "successful": 252,
+      "probeSamples": 3,
+      "probeAvailable": 3,
+      "probeLatencyMs": { "p50": 5.31, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 3, "available": 3 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 3, "available": 3 }
+      ],
+      "statusCounts": { "2xx": 252, "3xx": 0, "4xx": 0, "5xx": 10 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 20.14,
+      "sent": 262,
+      "failed": 10,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 15,
+      "generatorObserved": true,
+      "successful": 269,
+      "probeSamples": 3,
+      "probeAvailable": 3,
+      "probeLatencyMs": { "p50": 5.31, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 3, "available": 3 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 3, "available": 3 }
+      ],
+      "statusCounts": { "2xx": 269, "3xx": 0, "4xx": 0, "5xx": 11 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 280,
+      "failed": 11,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 16,
+      "generatorObserved": true,
+      "successful": 288,
+      "probeSamples": 4,
+      "probeAvailable": 4,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+      ],
+      "statusCounts": { "2xx": 288, "3xx": 0, "4xx": 0, "5xx": 12 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 300,
+      "failed": 12,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 17,
+      "generatorObserved": true,
+      "successful": 308,
+      "probeSamples": 4,
+      "probeAvailable": 4,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+      ],
+      "statusCounts": { "2xx": 308, "3xx": 0, "4xx": 0, "5xx": 12 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 320,
+      "failed": 12,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 18,
+      "generatorObserved": true,
+      "successful": 327,
+      "probeSamples": 4,
+      "probeAvailable": 4,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+      ],
+      "statusCounts": { "2xx": 327, "3xx": 0, "4xx": 0, "5xx": 13 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 340,
+      "failed": 13,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 19,
+      "generatorObserved": true,
+      "successful": 346,
+      "probeSamples": 4,
+      "probeAvailable": 4,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+      ],
+      "statusCounts": { "2xx": 346, "3xx": 0, "4xx": 0, "5xx": 14 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 360,
+      "failed": 14,
+      "probe5xx": 0,
+      "availPct": 100
+    },
+    {
+      "t": 20,
+      "generatorObserved": true,
+      "successful": 365,
+      "probeSamples": 4,
+      "probeAvailable": 4,
+      "probeLatencyMs": { "p50": 5.3, "p95": 13.33, "p99": 13.33 },
+      "probeEndpoints": [
+        { "url": "http://127.0.0.1:18120/health", "samples": 4, "available": 4 },
+        { "url": "http://127.0.0.1:18120/secondary", "samples": 4, "available": 4 }
+      ],
+      "statusCounts": { "2xx": 365, "3xx": 0, "4xx": 0, "5xx": 15 },
+      "probeP95": 13.33,
+      "sampleUnit": "requests",
+      "rps": 19.98,
+      "sent": 380,
+      "failed": 15,
+      "probe5xx": 0,
+      "availPct": 100
+    }
+  ],
+  "baseline": { "samples": 3, "availabilityPct": 100, "latencyMs": { "p50": 6.19, "p95": 17.43 } },
+  "probeBaselines": [
+    {
+      "url": "http://127.0.0.1:18120/secondary",
+      "metrics": {
+        "samples": 3,
+        "availabilityPct": 66.7,
+        "latencyMs": { "p50": 2.78, "p95": 3.76 }
+      }
+    }
+  ],
+  "engine": "builtin-http",
+  "absorption": {
+    "configuredRps": 20,
+    "expectedRps": 20,
+    "achievedRps": 20,
+    "originRps": 19.2,
+    "absorbedRatio": 0.04,
+    "absorbedPct": 4,
+    "totalRequests": 400,
+    "offeredShortfall": 0,
+    "rejectedRatio": 0.04,
+    "tarpitRatio": 0
+  },
+  "confidence": { "degraded": false, "reasons": [], "peakEventLoopLagMs": 21.728049363228703 },
+  "assessment": {
+    "shape": "Local graph qualification",
+    "drs": "—",
+    "status": "COMPLETED",
+    "vector": "http-get",
+    "isSlowConnection": false,
+    "configuredRps": 20,
+    "expectedRps": 20,
+    "achievedRps": 20,
+    "originRps": 19,
+    "deliveryRatio": 1,
+    "underDelivered": false,
+    "availabilityPct": 100,
+    "absorbedPct": 4,
+    "rejectedPct": 4,
+    "tarpitPct": 0,
+    "wrs": 97,
+    "level": "A+",
+    "mechanism": "served",
+    "verdict": "inconclusive",
+    "confident": false,
+    "caveats": [
+      "Availability counts complete probe cycles: every monitored GET check must succeed. It does not validate authenticated or POST transactions. Baseline latency on the primary URL is not comparable with the maximum latency across these checks.",
+      "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+      "Baseline observations for the monitored routes or resource diagnostics are incomplete or unhealthy; no reliable pre-load comparison is available."
+    ],
+    "observation": "Successful HTTP responses: ~19 req/s; generator failure ratio: 4% (origin/edge attribution requires telemetry); legitimate availability held at 100%. WRS 97 (A+).",
+    "label": "inconclusive"
+  }
+}

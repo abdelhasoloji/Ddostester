@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShieldTest report — Local graph qualification</title><style>
+ :root{--brand:#003484;--ink:#1a1d21;--muted:#6b7280;--surface:#fff;--surface-2:#f6f8fb;--border:#e4e8ef;
+  --good:#0f8a5f;--good-bg:#e8f6f0;--warn:#b8860b;--warn-bg:#fdf6e3;--crit:#c23b34;--crit-bg:#fdeceb;--neutral:#6b7280;--neutral-bg:#f0f2f5;}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;color:var(--ink);background:#eef1f5}
+ .page{max-width:920px;margin:0 auto;padding:0 1.5rem 3rem}
+ .cover{background:linear-gradient(120deg,#003484,#0a4aa0);color:#fff;padding:1.4rem 1.5rem;margin:0 -1.5rem 1.5rem;border-bottom:4px solid #f5a623}
+ .cover .top{display:flex;align-items:center;gap:.6rem}
+ .cover h1{font-size:1.35rem;margin:.1rem 0 0;font-weight:800;letter-spacing:.2px}
+ .cover .sub{opacity:.9;font-size:.9rem;margin-top:.3rem}
+ .cover .wm{font-weight:800}
+ .cover .conf{display:inline-block;margin-top:.6rem;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.16);padding:.15rem .5rem;border-radius:4px}
+ h2{color:var(--brand);font-size:1.05rem;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--border)}
+ h3{font-size:.95rem;margin:1rem 0 .4rem}
+ p{margin:.5rem 0}
+ .muted{color:var(--muted)}
+ .lead{font-size:1rem;line-height:1.6;background:var(--surface-2);border-left:3px solid var(--brand);padding:.8rem 1rem;border-radius:0 8px 8px 0}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0;background:var(--surface)}
+ th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+ thead th,table.kvs th{background:var(--surface-2);font-weight:600}
+ td.note{color:#444;font-size:.85rem;max-width:280px}
+ .grid{display:grid;gap:1rem}
+ .cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:.8rem 0}
+ .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+ .card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+ .card .v{font-size:1.5rem;font-weight:800;color:var(--ink);margin-top:.15rem}
+ .card .v.sm{font-size:1.05rem}
+ .scorecard{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+ .scorecard .pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.2rem}
+ .figure{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;margin:.6rem 0}
+ .figure .cap{font-size:.8rem;color:var(--muted);margin-bottom:.4rem}
+ .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+ .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.8rem;font-weight:700;padding:.2rem .6rem;border-radius:999px}
+ .p-good{color:var(--good);background:var(--good-bg)} .p-warn{color:var(--warn);background:var(--warn-bg)}
+ .p-crit{color:var(--crit);background:var(--crit-bg)} .p-neutral{color:var(--neutral);background:var(--neutral-bg)}
+ .callout{border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;font-size:.9rem;border:1px solid}
+ .callout.kill{border-color:#e8b4b0;background:var(--crit-bg);color:#8a221c;font-weight:600}
+ .callout.info{border-color:var(--border);background:var(--surface-2);color:#444}
+ .callout.warn{border-color:#e6d59a;background:var(--warn-bg);color:#7a5c07}
+ .chart-empty{color:var(--muted);font-size:.86rem;padding:1rem;text-align:center;background:var(--surface-2);border-radius:8px}
+ .r-low,.v-held{color:var(--good);font-weight:700}.r-med,.v-partial{color:var(--warn);font-weight:700}
+ .r-crit,.v-fail{color:var(--crit);font-weight:700}.v-aborted{color:var(--muted);font-weight:700}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+ .print-foot{display:none}
+ @page{size:A4;margin:16mm 14mm 20mm}
+ @media print{
+  .print-btn{display:none} body{background:#fff;font-size:10.5pt} .page{max-width:none;padding:0}
+  .cover{margin:0 0 1rem;break-after:avoid} .card,.scorecard,.figure{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{break-before:page;padding-top:.2rem} h2:first-of-type{break-before:auto}
+  h3{break-after:avoid} .figure,.scorecard,.card,tr,.callout{break-inside:avoid} table{break-inside:auto}
+  thead{display:table-header-group} a{color:inherit;text-decoration:none}
+  .print-foot{display:block;position:fixed;bottom:6mm;left:0;right:0;text-align:center;font-size:8pt;color:#8a8f99}
+ }
+ @media(max-width:640px){.two-col{grid-template-columns:1fr}.scorecard{grid-template-columns:1fr;text-align:center}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button><div class="page"><div class="cover"><div class="top"><svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="wl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#wl)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wm">WEDOS ShieldTest</span></div>
+  <h1>Campaign resilience report — Local graph qualification</h1>
+  <div class="sub">Run b9a2e904 · generated 2026-10-18 16:27 UTC</div>
+  <span class="conf">Confidential — WEDOS internal</span></div><p class="lead">Under a bounded HTTP load configured at up to <b>20 req/s</b> for a configured <b>20s</b> against <b>127.0.0.1</b>, the recorded legacy diagnostic is <b>WRS 84.5 (B)</b> — verdict <b>partial</b>, RiskLevel <b>Critical</b>. Successful HTTP responses: ~19 req/s; generator failure ratio: 4% (origin/edge attribution requires telemetry); legitimate availability dipped to 75%. WRS 84.5 (B).</p><h2>At a glance</h2>
+<div class="scorecard">
+  <div><svg viewBox="0 0 200 118" width="200" role="img" aria-label="score 84.5 of 100" class="chart-gauge">
+  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#e4e8ef" stroke-width="14" stroke-linecap="round"/>
+  <path d="M 16 100 A 84 84 0 0 1 174.2 60.7" fill="none" stroke="#0f8a5f" stroke-width="14" stroke-linecap="round"/>
+  <text x="100" y="86" text-anchor="middle" font-size="40" font-weight="800" fill="#0f8a5f">84.5</text>
+  <text x="100" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#6b7280">Grade B</text>
+</svg>
+    <div style="text-align:center;font-size:.75rem;color:#6b7280">Legacy WRS diagnostic · not a DRS score</div></div>
+  <div>
+    <div class="pills"><span class="pill p-warn">partial</span> <span class="pill p-crit">Critical</span> <span class="pill p-good">COMPLETED</span> <span class="pill p-neutral">WRS estimated</span></div>
+    <div class="grid cards" style="margin-top:.7rem">
+      <div class="card"><div class="k">Monitored checks</div><div class="v">75.0% (4 observations)</div></div>
+      <div class="card"><div class="k">Configured load</div><div class="v">20 req/s</div></div>
+      <div class="card"><div class="k">Max recorded mean rate</div><div class="v">20.31 req/s</div></div>
+      <div class="card"><div class="k">Configured duration</div><div class="v">20s</div></div>
+      <div class="card"><div class="k">Requests (ok)</div><div class="v sm">400 (384)</div></div>
+    </div>
+  </div>
+</div><h2>Generator observations</h2>
+<p class="muted">Generator observations. Successful responses may come from cache or edge; failures do not by themselves prove protection absorption.</p>
+<div class="grid cards">
+  <div class="card"><div class="k">Configured</div><div class="v">20 req/s</div></div>
+  <div class="card"><div class="k">Offered (sent)</div><div class="v">20.0 req/s</div></div>
+  <div class="card"><div class="k">Successful responses</div><div class="v">19.2 req/s</div></div>
+  <div class="card"><div class="k">Generator failures</div><div class="v">4%</div></div>
+</div>
+<p class="muted" style="margin-top:.6rem">Observed HTTP failures, transport failures and offered-rate shortfall:</p>
+<div class="grid cards">
+  <div class="card"><div class="k">HTTP failures (4xx/5xx)</div><div class="v">4.0%</div></div>
+  <div class="card"><div class="k">Transport failures (timeout/abort)</div><div class="v">0.0%</div></div>
+  <div class="card"><div class="k">Offered shortfall</div><div class="v">0.0%</div></div>
+</div>
+<p class="muted" style="font-size:.82rem">HTTP failures and transport failures identify outcomes, not their cause. Edge absorption and origin impact require corroborating telemetry. Offered shortfall indicates generator under-delivery.</p><h2>Traffic over time</h2><div class="figure"><div class="cap">Emitted requests per interval (req/s)</div><svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Emitted requests per interval (req/s)" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
+  <line x1="44" y1="124" x2="626" y2="124" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="128" text-anchor="end" font-size="11" fill="#6b7280">0</text><line x1="44" y1="96.5" x2="626" y2="96.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="100.5" text-anchor="end" font-size="11" fill="#6b7280">6.3</text><line x1="44" y1="69" x2="626" y2="69" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="73" text-anchor="end" font-size="11" fill="#6b7280">12.5</text><line x1="44" y1="41.5" x2="626" y2="41.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="45.5" text-anchor="end" font-size="11" fill="#6b7280">18.8</text><line x1="44" y1="14" x2="626" y2="14" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="18" text-anchor="end" font-size="11" fill="#6b7280">25</text>
+  <path d="M 131.3 36 H 160.4 V 36 H 189.5 V 36 H 218.6 V 36 H 247.7 V 27.2 H 276.8 V 36 H 305.9 V 44.8 H 335 V 36 H 364.1 V 36 H 393.2 V 36 H 422.3 V 36 H 451.4 V 36 H 480.5 V 36 H 509.6 V 36 H 538.7 V 36 H 567.8 V 36 H 596.9 V 36 H 626 V 36 L 626 124 L 131.3 124 Z" fill="transparent" stroke="none"/><path d="M 131.3 36 H 160.4 V 36 H 189.5 V 36 H 218.6 V 36 H 247.7 V 27.2 H 276.8 V 36 H 305.9 V 44.8 H 335 V 36 H 364.1 V 36 H 393.2 V 36 H 422.3 V 36 H 451.4 V 36 H 480.5 V 36 H 509.6 V 36 H 538.7 V 36 H 567.8 V 36 H 596.9 V 36 H 626 V 36" fill="none" stroke="#003484" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="44" y="142" text-anchor="start" font-size="11" fill="#6b7280">0s</text><text x="335" y="142" text-anchor="middle" font-size="11" fill="#6b7280">10s</text><text x="626" y="142" text-anchor="end" font-size="11" fill="#6b7280">20s</text>
+  <text x="44" y="12" text-anchor="start" font-size="10" fill="#6b7280"> req/s</text>
+</svg></div><div class="figure"><div class="cap">Successful responses per interval (req/s; not target receipts)</div><svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Successful responses per interval (req/s; not target receipts)" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
+  <line x1="44" y1="124" x2="626" y2="124" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="128" text-anchor="end" font-size="11" fill="#6b7280">0</text><line x1="44" y1="96.5" x2="626" y2="96.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="100.5" text-anchor="end" font-size="11" fill="#6b7280">6.3</text><line x1="44" y1="69" x2="626" y2="69" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="73" text-anchor="end" font-size="11" fill="#6b7280">12.5</text><line x1="44" y1="41.5" x2="626" y2="41.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="45.5" text-anchor="end" font-size="11" fill="#6b7280">18.8</text><line x1="44" y1="14" x2="626" y2="14" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="18" text-anchor="end" font-size="11" fill="#6b7280">25</text>
+  <path d="M 131.3 40.4 H 160.4 V 40.4 H 189.5 V 40.4 H 218.6 V 40.4 H 247.7 V 27.2 H 276.8 V 40.4 H 305.9 V 49.2 H 335 V 40.4 H 364.1 V 40.4 H 393.2 V 36 H 422.3 V 40.4 H 451.4 V 40.4 H 480.5 V 40.4 H 509.6 V 40.4 H 538.7 V 36 H 567.8 V 40.4 H 596.9 V 40.4 H 626 V 40.4 L 626 124 L 131.3 124 Z" fill="transparent" stroke="none"/><path d="M 131.3 40.4 H 160.4 V 40.4 H 189.5 V 40.4 H 218.6 V 40.4 H 247.7 V 27.2 H 276.8 V 40.4 H 305.9 V 49.2 H 335 V 40.4 H 364.1 V 40.4 H 393.2 V 36 H 422.3 V 40.4 H 451.4 V 40.4 H 480.5 V 40.4 H 509.6 V 40.4 H 538.7 V 36 H 567.8 V 40.4 H 596.9 V 40.4 H 626 V 40.4" fill="none" stroke="#003484" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="44" y="142" text-anchor="start" font-size="11" fill="#6b7280">0s</text><text x="335" y="142" text-anchor="middle" font-size="11" fill="#6b7280">10s</text><text x="626" y="142" text-anchor="end" font-size="11" fill="#6b7280">20s</text>
+  <text x="44" y="12" text-anchor="start" font-size="10" fill="#6b7280"> req/s</text>
+</svg></div><div class="figure"><div class="cap">Finalized request failures per interval (%)</div><svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Finalized request failures per interval (%)" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
+  <line x1="44" y1="124" x2="626" y2="124" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="128" text-anchor="end" font-size="11" fill="#6b7280">0</text><line x1="44" y1="96.5" x2="626" y2="96.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="100.5" text-anchor="end" font-size="11" fill="#6b7280">25</text><line x1="44" y1="69" x2="626" y2="69" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="73" text-anchor="end" font-size="11" fill="#6b7280">50</text><line x1="44" y1="41.5" x2="626" y2="41.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="45.5" text-anchor="end" font-size="11" fill="#6b7280">75</text><line x1="44" y1="14" x2="626" y2="14" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="18" text-anchor="end" font-size="11" fill="#6b7280">100</text>
+  <path d="M 131.3 118.5 H 160.4 V 118.5 H 189.5 V 118.5 H 218.6 V 118.5 H 247.7 V 124 H 276.8 V 118.5 H 305.9 V 117.9 H 335 V 118.5 H 364.1 V 118.5 H 393.2 V 124 H 422.3 V 118.5 H 451.4 V 118.5 H 480.5 V 118.5 H 509.6 V 118.5 H 538.7 V 124 H 567.8 V 118.5 H 596.9 V 118.5 H 626 V 118.5 L 626 124 L 131.3 124 Z" fill="transparent" stroke="none"/><path d="M 131.3 118.5 H 160.4 V 118.5 H 189.5 V 118.5 H 218.6 V 118.5 H 247.7 V 124 H 276.8 V 118.5 H 305.9 V 117.9 H 335 V 118.5 H 364.1 V 118.5 H 393.2 V 124 H 422.3 V 118.5 H 451.4 V 118.5 H 480.5 V 118.5 H 509.6 V 118.5 H 538.7 V 124 H 567.8 V 118.5 H 596.9 V 118.5 H 626 V 118.5" fill="none" stroke="#003484" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="44" y="142" text-anchor="start" font-size="11" fill="#6b7280">0s</text><text x="335" y="142" text-anchor="middle" font-size="11" fill="#6b7280">10s</text><text x="626" y="142" text-anchor="end" font-size="11" fill="#6b7280">20s</text>
+  <text x="44" y="12" text-anchor="start" font-size="10" fill="#6b7280">%</text>
+</svg></div><div class="figure"><div class="cap">Monitored checks (%; 4 completed observations)</div><svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Monitored checks (%; 4 completed observations)" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
+  <line x1="44" y1="124" x2="626" y2="124" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="128" text-anchor="end" font-size="11" fill="#6b7280">0</text><line x1="44" y1="96.5" x2="626" y2="96.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="100.5" text-anchor="end" font-size="11" fill="#6b7280">25</text><line x1="44" y1="69" x2="626" y2="69" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="73" text-anchor="end" font-size="11" fill="#6b7280">50</text><line x1="44" y1="41.5" x2="626" y2="41.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="45.5" text-anchor="end" font-size="11" fill="#6b7280">75</text><line x1="44" y1="14" x2="626" y2="14" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="18" text-anchor="end" font-size="11" fill="#6b7280">100</text>
+  <circle cx="73.1" cy="14" r="3" fill="#003484"/><circle cx="218.6" cy="124" r="3" fill="#003484"/><circle cx="364.1" cy="14" r="3" fill="#003484"/><circle cx="509.6" cy="14" r="3" fill="#003484"/>
+  <text x="44" y="142" text-anchor="start" font-size="11" fill="#6b7280">0s</text><text x="335" y="142" text-anchor="middle" font-size="11" fill="#6b7280">10s</text><text x="626" y="142" text-anchor="end" font-size="11" fill="#6b7280">20s</text>
+  <text x="44" y="12" text-anchor="start" font-size="10" fill="#6b7280">%</text>
+</svg></div><div class="figure"><div class="cap">Probe latency p95 (cumulative ms over completed observations)</div><svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Probe latency p95 (cumulative ms over completed observations)" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
+  <line x1="44" y1="124" x2="626" y2="124" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="128" text-anchor="end" font-size="11" fill="#6b7280">0</text><line x1="44" y1="96.5" x2="626" y2="96.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="100.5" text-anchor="end" font-size="11" fill="#6b7280">2.3</text><line x1="44" y1="69" x2="626" y2="69" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="73" text-anchor="end" font-size="11" fill="#6b7280">4.5</text><line x1="44" y1="41.5" x2="626" y2="41.5" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="45.5" text-anchor="end" font-size="11" fill="#6b7280">6.8</text><line x1="44" y1="14" x2="626" y2="14" stroke="#e4e8ef" stroke-width="1"/><text x="38" y="18" text-anchor="end" font-size="11" fill="#6b7280">9</text>
+  <circle cx="73.1" cy="50.1" r="3" fill="#003484"/><circle cx="218.6" cy="25.4" r="3" fill="#003484"/><circle cx="364.1" cy="25.4" r="3" fill="#003484"/><circle cx="509.6" cy="25.4" r="3" fill="#003484"/>
+  <text x="44" y="142" text-anchor="start" font-size="11" fill="#6b7280">0s</text><text x="335" y="142" text-anchor="middle" font-size="11" fill="#6b7280">10s</text><text x="626" y="142" text-anchor="end" font-size="11" fill="#6b7280">20s</text>
+  <text x="44" y="12" text-anchor="start" font-size="10" fill="#6b7280"> ms</text>
+</svg></div><p class="muted">Time axis: seconds from load start. Rates use differences between observed counters. Probe dots show completed observations, not continuous uptime or per-second latency distributions. Missing data stays unobserved; counter resets break the trace. HTTP outcomes do not establish functional journeys, target receipts or protection filtering.</p><h2>Resiliency score breakdown</h2>
+<div class="figure"><div class="cap">The four legacy WRS components (0–100). Detection & Mitigation (*) are estimated — no protection source reported real timings.</div>
+  <svg viewBox="0 0 640 152" width="100%" role="img" class="chart-hbars" preserveAspectRatio="xMidYMid meet"><text x="0" y="19" font-size="13" fill="#1a1d21">Detection *</text>
+  <rect x="150" y="4" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="4" width="406.6" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="19" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">95.00</text><text x="0" y="57" font-size="13" fill="#1a1d21">Mitigation *</text>
+  <rect x="150" y="42" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="42" width="399.5" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="57" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">93.33</text><text x="0" y="95" font-size="13" fill="#1a1d21">Availability</text>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="80" width="321" height="22" rx="4" fill="#b8860b"/>
+  <text x="640" y="95" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">75.00</text><text x="0" y="133" font-size="13" fill="#1a1d21">Collateral</text>
+  <rect x="150" y="118" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="118" width="321" height="22" rx="4" fill="#b8860b"/>
+  <text x="640" y="133" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">75.00</text></svg></div><div class="callout info">* Without a protection integration, Detection and Mitigation are held constant, so the WRS mostly reflects measured Availability and Collateral damage. Wire a protection source for real TTD/TTM (see methodology §3.2).</div><h2>Latency profile</h2>
+<div class="two-col">
+  <div class="figure"><div class="cap">Load generator latency</div><p class="muted">Legacy aggregate: finalized latency sample count was not recorded.</p><svg viewBox="0 0 640 114" width="100%" role="img" class="chart-hbars" preserveAspectRatio="xMidYMid meet"><text x="0" y="19" font-size="13" fill="#1a1d21">p50</text>
+  <rect x="150" y="4" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="4" width="21.2" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="19" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">0.44 ms</text><text x="0" y="57" font-size="13" fill="#1a1d21">p95</text>
+  <rect x="150" y="42" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="42" width="96.9" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="57" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">2.01 ms</text><text x="0" y="95" font-size="13" fill="#1a1d21">p99</text>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="80" width="219.9" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="95" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">4.56 ms</text></svg></div>
+  <div class="figure"><div class="cap">Legitimate probe latency</div><svg viewBox="0 0 640 114" width="100%" role="img" class="chart-hbars" preserveAspectRatio="xMidYMid meet"><text x="0" y="19" font-size="13" fill="#1a1d21">p50</text>
+  <rect x="150" y="4" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="4" width="68.9" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="19" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">1.43 ms</text><text x="0" y="57" font-size="13" fill="#1a1d21">p95</text>
+  <rect x="150" y="42" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="42" width="389.1" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="57" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">8.07 ms</text><text x="0" y="95" font-size="13" fill="#1a1d21">p99</text>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="80" width="389.1" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="95" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">8.07 ms</text></svg></div>
+</div><h2>Weaknesses &amp; recommended remediations</h2>
+<table class="kvs remediations"><thead><tr><th>Severity</th><th>Weakness (observed)</th><th>Recommended remediation</th></tr></thead><tbody><tr><td><span class="pill p-warn">high</span></td><td>Legitimate availability degraded to 75% during the run — completed probe transactions failed; real-user impact and outage duration require corroboration.</td><td>Check the probe path and resource health, then correlate target and protection telemetry before changing capacity or filtering.</td></tr><tr><td><span class="pill p-warn">medium</span></td><td>Legitimate probe degradation was observed (collateral score 75/100); the cause requires independent telemetry.</td><td>Investigate legitimate probe failures with independent origin and protection logs before changing mitigation rules; this diagnostic does not determine DRS compliance.</td></tr><tr><td><span class="pill p-neutral">low</span></td><td>Detection and mitigation are estimated — no protection source reported real timings, so the score is not authoritative.</td><td>Connect and validate protection telemetry for reported detection/mitigation times, then reconcile it with independent probe and received-load evidence. This alone does not establish DRS compliance.</td></tr></tbody></table><h3>Evidence traceability</h3><table class="kvs"><tr><th>Run ID</th><td>b9a2e904-b4b0-4a70-9436-3f719b8d4039</td></tr><tr><th>Campaign ID</th><td>graphs-local</td></tr><tr><th>Generator window (recorded)</th><td>2026-10-18T16:25:09.467Z → 2026-10-18T16:25:29.468Z</td></tr><tr><th>Recorded engine / runtime</th><td>builtin-http / v22.23.3</td></tr><tr><th>Recorded collection source</th><td>be43eed</td></tr><tr><th>Probe vantage (recorded)</th><td>local</td></tr><tr><th>Report renderer</th><td>0.2.0+495 · be43eed</td></tr></table><p class="muted">Recorded identifiers are not independent provenance verification. Regenerating a report changes its presentation, not the archived measurements or collection version.</p><h2>Run detail</h2>
+<table class="kvs">
+ 
+ <tr><th>DRS assessment</th><td>NOT_EVALUATED — no independent frozen DRS evidence archive. WRS is a separate diagnostic.</td></tr>
+ <tr><th>Campaign</th><td>Local graph qualification <span class="muted">(graphs-local)</span></td></tr>
+ <tr><th>Target</th><td>http://127.0.0.1:18120/load</td></tr>
+ <tr><th>Vector</th><td>http-get (bounded application HTTP)</td></tr>
+ <tr><th>Author / Approver</th><td>local / reviewer</td></tr>
+ <tr><th>Requests (success / fail)</th><td>400 (384 / 16)</td></tr>
+ 
+ 
+ 
+ <tr><th>Failure breakdown</th><td>16 HTTP failures (4xx/5xx) · 0 transport failures (cause unproven)</td></tr>
+ <tr><th>Configured / achieved rate</th><td>20 req/s configured · 20 req/s mean · 20.31 req/s maximum recorded mean (not instantaneous peak)</td></tr>
+ 
+ 
+ 
+ <tr><th>Monitored GET checks</th><td>http://127.0.0.1:18120/health: 4/4<br>http://127.0.0.1:18120/secondary: 3/4<br>Aggregate availability counts cycles where every check succeeded; it is not a full functional journey.</td></tr>
+ <tr><th>Probe availability</th><td>3/4 completed samples · 25% 5xx</td></tr>
+ 
+</table><h3>Protection posture (inferred)</h3><table class="kvs">
+ <tr><th>WAF</th><td>not detected</td></tr>
+ <tr><th>CDN</th><td>not detected</td></tr>
+ <tr><th>Rate limiting</th><td>not detected</td></tr>
+ <tr><th>Load balancer</th><td>not detected</td></tr>
+ <tr><th>HSTS / headers</th><td>not set · —</td></tr>
+</table><p class="muted">Inferred passively from the legitimate probe's own responses (no scanning).</p><p class="muted" style="margin-top:2rem">Traceable report — WEDOS internal use only. Bounded application HTTP generator (GET/POST, rate-capped, allowlisted); no volumetric, amplification or spoofing vector is implemented by this control plane. See <em>docs/assessment-methodology.md</em>.</p><div class="print-foot">Confidential — WEDOS ShieldTest · internal use only · must not be disclosed to third parties</div></div></body></html>

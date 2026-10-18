@@ -26,11 +26,11 @@ describe('faithful report timelines', () => {
         sample(20, { generatorObserved: true, probeSamples: 4, probeP95: 15 }),
       ]),
     );
-    expect(html).toContain('Mean offered request rate');
+    expect(html).toContain('Emitted requests per interval');
     expect(html).toContain('4 completed observations');
     expect(html).toContain('Probe latency p95');
     expect(html).not.toContain('timeline not measured');
-    expect(html).toMatch(/H [\d.]+ V [\d.]+/);
+    expect(html).toContain('<circle');
   });
   it('uses connection units and excludes unobserved initial points', () => {
     const html = evidenceCharts(
@@ -66,11 +66,13 @@ it('exports unknown timeline measurements as blank fields without erasing a meas
 it('keeps an internal measurement gap instead of joining two observed segments', () => {
   const html = evidenceCharts(
     run([
-      sample(1, { generatorObserved: true, rps: 10 }),
-      sample(2, { generatorObserved: true, rps: 12 }),
+      sample(0, { generatorObserved: true, rps: 0, sent: 0 }),
+      sample(1, { generatorObserved: true, rps: 10, sent: 10 }),
+      sample(2, { generatorObserved: true, rps: 12, sent: 24 }),
       sample(3, { generatorObserved: false }),
-      sample(4, { generatorObserved: true, rps: 8 }),
-      sample(5, { generatorObserved: true, rps: 9 }),
+      sample(4, { generatorObserved: true, rps: 8, sent: 32 }),
+      sample(5, { generatorObserved: true, rps: 9, sent: 45 }),
+      sample(6, { generatorObserved: true, rps: 9, sent: 54 }),
     ]),
   );
   const firstFigure = html.split('</div></div>')[0];
@@ -88,4 +90,19 @@ it('does not export a legacy placeholder availability when the run has no probe 
     .map((s) => s.split(','));
   for (const key of ['availPct', 'probe5xxPct', 'probeP95Ms', 'successful'])
     expect(v[h.indexOf(key)]).toBe('');
+});
+
+it('shows completed probe checks as points, not a continuous healthy line', () => {
+  const html = evidenceCharts(
+    run([
+      sample(0, { probeSamples: 0, probeAvailable: 0 }),
+      sample(1, { probeSamples: 1, probeAvailable: 1 }),
+      sample(2, { probeSamples: 1, probeAvailable: 1 }),
+      sample(3, { probeSamples: 2, probeAvailable: 1 }),
+    ]),
+  );
+  const figure = html.slice(html.indexOf('Monitored checks'), html.indexOf('Probe latency'));
+  expect(figure.match(/<circle /g)).toHaveLength(2);
+  expect(figure).not.toContain('<path');
+  expect(html).toContain('not continuous uptime');
 });

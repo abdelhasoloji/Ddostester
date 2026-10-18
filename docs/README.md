@@ -1,6 +1,6 @@
 # ShieldTester documentation
 
-Current product and setup, reconciled on 14 October 2026. The source and `/health` identify implementation and deployed release; [current setup](current-setup.md) distinguishes them. A reference file or passing fixture does not establish a live integration.
+Current product and setup, with dated implementation and deployment observations. The source and `/health` identify implementation and deployed release; [current setup](current-setup.md) distinguishes them. A reference file or passing fixture does not establish a live integration.
 
 | Topic                                             | Read                                                                                                                                                  |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |

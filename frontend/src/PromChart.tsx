@@ -17,6 +17,8 @@ export interface ChartSeries {
   label: string;
   /** [x, value] pairs — x is unix seconds (timeAxis) or an elapsed count. */
   points: [number, number][];
+  /** Start a fresh stroke at these observed timestamps after missing evidence. */
+  breakBefore?: number[];
   color?: string;
   /** Which y-scale to bind to (default 'left'). */
   axis?: 'left' | 'right';

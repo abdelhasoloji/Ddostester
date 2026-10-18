@@ -1,0 +1,23 @@
+{
+  "scope": "loopback-only",
+  "configuredRps": 20,
+  "durationSeconds": 20,
+  "status": "COMPLETED",
+  "requests": 400,
+  "successful": 384,
+  "failed": 16,
+  "probeSamples": 4,
+  "probeAvailable": 3,
+  "availabilityPct": 75,
+  "checkObservations": [
+    [1, 100],
+    [6, 0],
+    [11, 100],
+    [16, 100]
+  ],
+  "primaryStayedHealthy": true,
+  "secondaryFailureObserved": true,
+  "externalTrafficGenerated": false,
+  "firstRetainedCounterIncluded": true,
+  "rawRunUnchanged": true
+}

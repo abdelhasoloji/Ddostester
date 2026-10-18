@@ -87,6 +87,7 @@ export function timelineSvg(
     height?: number;
     xMax?: number;
     stepped?: boolean;
+    pointsOnly?: boolean;
   } = {},
 ): string {
   const W = 640;
@@ -131,6 +132,10 @@ export function timelineSvg(
         )
         .join(' ');
       const area = `${line} L ${r1(X(part[part.length - 1].t))} ${r1(padT + plotH)} L ${r1(X(part[0].t))} ${r1(padT + plotH)} Z`;
+      if (opts.pointsOnly)
+        return part
+          .map((p) => `<circle cx="${r1(X(p.t))}" cy="${r1(Y(p.y))}" r="3" fill="${color}"/>`)
+          .join('');
       return part.length === 1
         ? `<circle cx="${r1(X(part[0].t))}" cy="${r1(Y(part[0].y))}" r="3" fill="${color}"/>`
         : `<path d="${area}" fill="${fill}" stroke="none"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;

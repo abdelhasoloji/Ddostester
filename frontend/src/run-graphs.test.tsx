@@ -54,7 +54,10 @@ describe('evidence-based graph transformations', () => {
       (g) => g.id === 'availability',
     )!;
     expect(g.pointsOnly).toBe(true);
-    expect(g.series[0].points).toEqual([[3, 0]]);
+    expect(g.series[0].points).toEqual([
+      [1, 100],
+      [3, 0],
+    ]);
   });
   it('does not invent percentiles, target metrics or source diversity from generator results', () => {
     const old = samples.map((s) => ({ ...s, probeLatencyMs: undefined, probeP95: undefined }));
@@ -121,6 +124,27 @@ describe('individual graph workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close graph' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+  it('breaks visible rate strokes across unavailable measurements instead of implying delivery', () => {
+    render(
+      <MemoryRouter>
+        <RunGraphs
+          timeline={[
+            tick(0, 0, 0, 0),
+            tick(1, 10, 10, 0),
+            { ...tick(2, 20, 20, 0), generatorObserved: false },
+            tick(3, 30, 30, 0),
+            tick(4, 40, 40, 0),
+          ]}
+          scope="gapped"
+        />
+      </MemoryRouter>,
+    );
+    const card = screen.getByRole('button', { name: 'Open Load per interval' }).closest('article')!;
+    const path = card.querySelector('.lc-line')!.getAttribute('d')!;
+    expect(path.match(/M/g)).toHaveLength(2);
+    expect(card.querySelector('.lc-area')).toBeNull();
+    expect(card.querySelectorAll('.lc-dot').length).toBeGreaterThanOrEqual(2);
   });
   it('reopens a graph from a deep link and exposes URL selection, thresholds and unavailable instrumentation', () => {
     render(
