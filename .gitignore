@@ -21,3 +21,6 @@ playwright-report/
 
 # Workstation metadata
 .DS_Store
+
+# Per-site worker inputs (may name internal addresses; never commit)
+deploy/kubernetes/site-worker/site.env
