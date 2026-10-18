@@ -2,6 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { metrics } from '../src/modules/metrics/runtime.js';
 
 describe('runtime metrics registry', () => {
+  it('keeps delimiter-containing label sets distinct and clears only the requested series', () => {
+    metrics.setGauge('test_collision', 'labels', 1, { a: 'x,b=y' });
+    metrics.setGauge('test_collision', 'labels', 2, { a: 'x', b: 'y' });
+    expect(metrics.render()).toContain('test_collision{a="x,b=y"} 1');
+    expect(metrics.render()).toContain('test_collision{a="x",b="y"} 2');
+    metrics.clearGauge('test_collision', { a: 'x,b=y' });
+    expect(metrics.render()).not.toContain('test_collision{a="x,b=y"}');
+    expect(metrics.render()).toContain('test_collision{a="x",b="y"} 2');
+  });
   it('renders counters, gauges and summaries in Prometheus text', () => {
     metrics.inc('test_things_total', 'A test counter', { kind: 'a' });
     metrics.inc('test_things_total', 'A test counter', { kind: 'a' });

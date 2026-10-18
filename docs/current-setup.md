@@ -1,5 +1,9 @@
 # Current setup — observed 18 October 2026
 
+## Ten focused code reviews — source, 18 October 2026
+
+Six defects corrected across CSV export security, metric catalogue validation, memory transaction lock release, monitoring series identity, non-finite monitoring observations and optional PDF fallback. Shared CSV protection and snapshot field inventory reduce duplication. See the [ten-review record](qa/code-review-10-2026-10-18.md) for inspected paths, tests, unchanged policies and remaining limitations. This source work is not yet deployed; production remains build 496.
+
 ## Report evidence coverage follow-up — source, 18 October 2026
 
 The consolidated report now distinguishes planned scenarios from retained run evidence in its cover and summary. Inconclusive scenarios are no longer universally described as rate shortfalls: missing evidence and execution failures remain distinct in their details. A retained run must match both the campaign's run ID and campaign ID before it contributes to the report. Production remains verified build 496 until this source increment passes delivery gates. No generators, traffic limits, accounts or Pods change.

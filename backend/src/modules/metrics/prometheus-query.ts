@@ -104,6 +104,8 @@ export async function queryRange(
       labels: r.metric ?? {},
       points: (r.values ?? []).map(([t, v]) => [Number(t), Number(v)] as [number, number]),
     }));
+    if (series.some((s) => s.points.some(([t, v]) => !Number.isFinite(t) || !Number.isFinite(v))))
+      return { status: 'error', series: [], error: 'Non-finite monitoring observation' };
     return { status: 'ok', series };
   } catch (err) {
     return { status: 'error', series: [], error: (err as Error).message };

@@ -14,10 +14,11 @@ type Labels = Record<string, string>;
 
 function labelKey(labels?: Labels): string {
   if (!labels) return '';
-  return Object.keys(labels)
-    .sort()
-    .map((k) => `${k}=${labels[k]}`)
-    .join(',');
+  return JSON.stringify(
+    Object.keys(labels)
+      .sort()
+      .map((k) => [k, labels[k]]),
+  );
 }
 function escapeLabel(v: string): string {
   return v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ');

@@ -11,6 +11,20 @@ import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
+const SNAPSHOT_KEYS = [
+  'campaigns',
+  'fleetDevices',
+  'runs',
+  'audit',
+  'users',
+  'accountPolicy',
+  'playbooks',
+  'targets',
+  'limits',
+  'benchRuns',
+  'benchCoverage',
+] as const;
+
 export class MemoryStore implements Store {
   private fleetDevices = new Map<string, FleetDevice>();
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
@@ -130,38 +144,14 @@ export class MemoryStore implements Store {
       release = resolve;
     });
     await previous;
-    const tx = Object.create(this) as MemoryStore;
-    tx.transactional = true;
-    for (const key of [
-      'campaigns',
-      'fleetDevices',
-      'runs',
-      'audit',
-      'users',
-      'accountPolicy',
-      'playbooks',
-      'targets',
-      'limits',
-      'benchRuns',
-      'benchCoverage',
-    ] as const) {
-      (tx as unknown as Record<string, unknown>)[key] = structuredClone(this[key]);
-    }
     try {
+      const tx = Object.create(this) as MemoryStore;
+      tx.transactional = true;
+      for (const key of SNAPSHOT_KEYS) {
+        (tx as unknown as Record<string, unknown>)[key] = structuredClone(this[key]);
+      }
       const result = await fn(tx);
-      for (const key of [
-        'campaigns',
-        'fleetDevices',
-        'runs',
-        'audit',
-        'users',
-        'accountPolicy',
-        'playbooks',
-        'targets',
-        'limits',
-        'benchRuns',
-        'benchCoverage',
-      ] as const) {
+      for (const key of SNAPSHOT_KEYS) {
         (this as unknown as Record<string, unknown>)[key] = tx[key];
       }
       return result;

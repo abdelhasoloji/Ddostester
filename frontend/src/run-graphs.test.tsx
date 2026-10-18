@@ -21,6 +21,18 @@ const tick = (t: number, sent: number, successful: number, failed: number): RunS
   probeP95: 20,
 });
 const samples = [tick(1, 10, 10, 0), tick(2, 40, 38, 2)];
+it('neutralizes whitespace-prefixed spreadsheet formulas in graph labels', () => {
+  const csv = graphCsv({
+    id: 'safe',
+    label: 'Safe',
+    unit: 'req/s',
+    note: '',
+    series: [{ label: '  =1+1', points: [[0, -1]] }],
+  });
+  expect(csv).toContain('"\'  =1+1"');
+  expect(csv).toContain('"-1"');
+});
+
 beforeEach(() => localStorage.clear());
 describe('evidence-based graph transformations', () => {
   it('shows interval bursts rather than hiding them in cumulative means, excluding resets and unobserved ticks', () => {

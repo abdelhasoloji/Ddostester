@@ -1,3 +1,4 @@
+import { spreadsheetValue } from '../../backend/src/util/csv.js';
 import {
   cleanTimeline,
   counterIntervals,
@@ -368,12 +369,7 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
   return graphs;
 }
 export function graphCsv(graph: RunGraph): string {
-  const escape = (value: unknown) =>
-    '"' +
-    String(value)
-      .replace(/^[=+@-]/, "'$&")
-      .replaceAll('"', '""') +
-    '"';
+  const escape = (value: unknown) => '"' + spreadsheetValue(value).replaceAll('"', '""') + '"';
   return [
     'elapsed_seconds,series,value,unit',
     ...graph.series.flatMap((s) =>

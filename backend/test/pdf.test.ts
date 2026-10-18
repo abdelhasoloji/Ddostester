@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { htmlToPdf, pdfAvailable } from '../src/modules/reports/pdf.js';
 
 describe('htmlToPdf', () => {
+  it('degrades gracefully when the optional module loader rejects', async () => {
+    const load = async () => {
+      throw new Error('optional dependency unavailable');
+    };
+    expect(await htmlToPdf('<h1>x</h1>', load)).toBeNull();
+    expect(await pdfAvailable(load)).toBe(false);
+  });
   it('returns null when no headless browser is available', async () => {
     const out = await htmlToPdf('<h1>x</h1>', async () => null);
     expect(out).toBeNull();

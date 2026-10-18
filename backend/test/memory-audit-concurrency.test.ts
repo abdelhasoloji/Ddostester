@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { MemoryStore } from '../src/store/memory.js';
 import { verifyChain } from '../src/modules/audit/integrity.js';
@@ -35,4 +35,19 @@ it('does not overwrite a concurrently appended audit when a snapshot commits', a
   const chain = await store.listAuditChain();
   expect(chain.map((e) => e.actor)).toEqual(['inside', 'outside']);
   expect(verifyChain(chain).ok).toBe(true);
+});
+
+it('releases transaction serialization when snapshot preparation fails', async () => {
+  const store = new MemoryStore();
+  const clone = vi.spyOn(globalThis, 'structuredClone').mockImplementationOnce(() => {
+    throw new Error('snapshot unavailable');
+  });
+  try {
+    await expect(store.transaction(async () => true)).rejects.toThrow('snapshot unavailable');
+  } finally {
+    clone.mockRestore();
+  }
+  await expect(store.transaction(async () => 'subsequent transaction')).resolves.toBe(
+    'subsequent transaction',
+  );
 });

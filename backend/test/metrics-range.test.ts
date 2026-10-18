@@ -21,6 +21,8 @@ describe('series-catalog', () => {
 
   it('refuses an unknown series and a per-run series with no target', () => {
     expect(resolveSeries('nope', 'bank.cz')).toBeNull();
+    for (const key of ['toString', 'constructor', '__proto__'])
+      expect(resolveSeries(key, 'bank.cz')).toBeNull();
     expect(resolveSeries('run_rps')).toBeNull(); // needs a target
   });
 
@@ -42,6 +44,23 @@ describe('series-catalog', () => {
 });
 
 describe('queryRange', () => {
+  it('rejects non-finite monitoring observations instead of serializing them as null', async () => {
+    for (const value of ['NaN', '+Inf', '-Inf']) {
+      const fetchImpl: FetchLike = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 'success', data: { result: [{ values: [[0, value]] }] } }),
+      });
+      const result = await queryRange(
+        'http://prom',
+        'up',
+        { startS: 0, endS: 60, stepS: 15 },
+        { fetchImpl },
+      );
+      expect(result.status).toBe('error');
+      expect(result.series).toEqual([]);
+    }
+  });
   const range = { startS: 0, endS: 60, stepS: 15 };
 
   it('reports unavailable with no base URL', async () => {
@@ -143,6 +162,14 @@ describe('GET /api/metrics/range', () => {
       // prometheusUrl intentionally unset → graceful 'unavailable'
     });
     app = built.app;
+  });
+
+  it('rejects inherited property names through the HTTP boundary', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/metrics/range?series=constructor',
+    });
+    expect(response.statusCode).toBe(400);
   });
 
   it('400s an unknown series', async () => {
