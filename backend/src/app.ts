@@ -73,7 +73,7 @@ import {
   withinCeiling,
   remoteProbeFromEnv,
 } from './config/limits.js';
-import { highRateEngineUpgrade } from './modules/campaigns/engine-route.js';
+import { highRateEngineUpgrade, builtinUnderDeliveryReason } from './modules/campaigns/engine-route.js';
 import type { HardCaps } from './config/limits.js';
 import {
   BENCH_SCENARIOS,
@@ -159,10 +159,10 @@ export interface BuildOptions {
   /** Load agent (default: built-in bounded HTTP generator). */
   agent?: AttackAgent;
   /**
-   * Auto-route a high-rate simple flood off the built-in engine (which caps
-   * ~150 rps) onto an available out-of-process engine so it delivers the
-   * configured rate. Default true; set false to pin every run to its chosen
-   * engine (e.g. for deterministic tests).
+   * Auto-route a high-rate simple flood off the built-in engine (whose measured
+   * ceiling is `BUILTIN_RPS_CEILING`) onto an available out-of-process engine so
+   * it delivers the configured rate. Default true; set false to pin every run to
+   * its chosen engine (e.g. for deterministic tests).
    */
   autoRouteHighRps?: boolean;
   /** Notification sink (default: no-op — notifications are opt-in). */
@@ -691,11 +691,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       await store.saveCampaign(c);
       onStarted?.();
       let runAgent = await resolveCampaignAgent(c.agent, agent);
-      // Measurement fidelity: the in-process built-in generator caps out ~150 rps
-      // and silently under-delivers above it. When a high-rate simple flood would
-      // run on the built-in engine, auto-route it to an out-of-process engine
-      // (vegeta/k6) that can actually deliver the configured rate — but only if
-      // that engine is installed; otherwise keep built-in (still bounded/safe,
+      // Measurement fidelity: the in-process built-in generator caps out at
+      // BUILTIN_RPS_CEILING and silently under-delivers above it. When a
+      // high-rate simple flood would run on the built-in engine, auto-route it
+      // to an out-of-process engine (vegeta/k6) that can actually deliver the
+      // configured rate — but only if that engine is installed; otherwise keep
+      // built-in (still bounded/safe,
       // just rate-limited). See modules/campaigns/engine-route.ts.
       if (!c.agent && (opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
         const upgradeId = highRateEngineUpgrade(
@@ -724,6 +725,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           }
         }
       }
+      // Delivery fidelity (a measurement rule, NOT a safety cap): the in-process
+      // engine is measured at BUILTIN_RPS_CEILING / BUILTIN_CONCURRENCY_CEILING and
+      // silently under-delivers above it. When the high-rate upgrade could not
+      // hand the run to an out-of-process engine — the shape is built-in-only
+      // (dataset, body assertion, slowloris) or the binary is not installed —
+      // refusing is the
+      // honest outcome: the campaign would otherwise be graded on traffic that
+      // never arrived. `calibrate: true` is the explicit opt-in that measures the
+      // delivered amplitude and records it as calibrated instead.
+      const underDelivery = builtinUnderDeliveryReason(
+        c,
+        runAgent.name,
+        BUILTIN_RPS_CEILING,
+        BUILTIN_CONCURRENCY_CEILING,
+      );
+      if (underDelivery) throw new CampaignError(underDelivery);
       // Track the worst event-loop lag seen during the run so we can flag the WRS
       // as measurement-degraded if the generator host was itself struggling.
       let peakEventLoopLagMs = 0;

@@ -987,16 +987,23 @@ export interface LiveProgressData {
 /**
  * The server's HARD_CAPS, delivered by `/health`. The backend
  * (`backend/src/config/limits.ts`) is the single source of truth; the frontend
- * never hardcodes these — it displays whatever the server reports. `DEFAULT_CAPS`
- * is a pre-load fallback for inline hints only; the backend always enforces the
- * real caps regardless.
+ * never hardcodes these — it displays whatever the server reports.
+ * `PLACEHOLDER_CAPS` is a pre-load placeholder for inline hints only; the backend
+ * always enforces the real caps regardless.
  */
 export interface HardCaps {
   maxRps: number;
   maxConcurrency: number;
   maxDurationSec: number;
 }
-export const DEFAULT_CAPS: HardCaps = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
+/**
+ * Pre-/health placeholder ONLY — deliberately conservative, never a copy of the
+ * server ceiling. `hardCaps` from /health replaces it as soon as the first call
+ * succeeds, and the backend enforces the real caps regardless. Keeping it small
+ * guarantees that a failed /health call can never advertise a budget the server
+ * would refuse.
+ */
+export const PLACEHOLDER_CAPS: HardCaps = { maxRps: 10, maxConcurrency: 5, maxDurationSec: 60 };
 
 /** Assistant GPU-pod power state (RunPod stop/resume). */
 export type PodState = 'RUNNING' | 'STARTING' | 'STOPPED' | 'UNKNOWN';

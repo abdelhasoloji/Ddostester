@@ -80,3 +80,32 @@ export function highRateEngineUpgrade(
   // built-in ceiling that pinned them to ~17% delivery.
   return 'vegeta';
 }
+
+/**
+ * Delivery-fidelity guard (not a safety cap).
+ *
+ * The built-in engine is measured at ~150 rps / 300 concurrent. When the
+ * high-rate upgrade above cannot hand the run to an out-of-process engine — the
+ * shape is built-in-only (dataset, body assertion, slowloris) or the binary is
+ * not installed — the campaign would be graded on traffic that never arrived.
+ * Returns the operator-facing reason to refuse, or null when the run is
+ * deliverable. `calibrate: true` is the explicit opt-in: it measures the
+ * delivered amplitude and records it as calibrated instead of silently passing.
+ */
+export function builtinUnderDeliveryReason(
+  c: { maxRps: number; concurrency: number; calibrate?: boolean },
+  engineName: string,
+  ceilingRps: number,
+  ceilingConcurrency: number,
+): string | null {
+  if (engineName !== 'builtin-http') return null;
+  if (c.calibrate === true) return null;
+  if (c.maxRps <= ceilingRps && c.concurrency <= ceilingConcurrency) return null;
+  return (
+    `This run asks for ${c.maxRps} rps / ${c.concurrency} concurrent on the built-in engine, ` +
+    `whose measured ceiling is ${ceilingRps} rps / ${ceilingConcurrency} concurrent; it would ` +
+    `silently under-deliver and grade the target on traffic that never arrived. Install ` +
+    `vegeta/k6 for the high-rate engine, lower the rate, or set calibrate: true to measure and ` +
+    `record the delivered amplitude.`
+  );
+}

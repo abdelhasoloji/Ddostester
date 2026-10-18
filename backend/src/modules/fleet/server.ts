@@ -3,13 +3,14 @@ import { createHash } from 'node:crypto';
 import Fastify from 'fastify';
 import type { TLSSocket } from 'node:tls';
 import type { FleetCoordinator } from './coordinator.js';
+import { agentIdsOf, siteOf, type FleetSite } from './sites.js';
 import { FLEET_LIMITS } from '../../config/limits.js';
 
 /** A separate mTLS-only agent surface. It cannot create campaigns or assign budgets. */
 export function buildFleetServer(
   coordinator: FleetCoordinator,
   tls: { key: Buffer; cert: Buffer; ca: Buffer },
-  agentIds: readonly string[],
+  sites: readonly FleetSite[],
   revokedCertificateSha256: readonly string[] = [],
 ) {
   if (
@@ -19,11 +20,12 @@ export function buildFleetServer(
     throw new Error('Invalid revoked certificate fingerprints');
   const revoked = new Set(revokedCertificateSha256.map((hash) => hash.toLowerCase()));
   if (
-    !agentIds.length ||
-    agentIds.length > FLEET_LIMITS.maxAgents ||
-    new Set(agentIds).size !== agentIds.length
+    !sites.length ||
+    sites.length > FLEET_LIMITS.maxAgents ||
+    new Set(agentIdsOf(sites)).size !== sites.length
   )
     throw new Error('Invalid agent registry');
+  const agentIds = agentIdsOf(sites);
   const app = Fastify({
     https: { ...tls, requestCert: true, rejectUnauthorized: true, minVersion: 'TLSv1.2' },
     bodyLimit: FLEET_LIMITS.maxMessageBytes,
@@ -31,12 +33,19 @@ export function buildFleetServer(
   });
   app.addHook('preHandler', async (request, reply) => {
     const socket = request.raw.socket as TLSSocket;
-    const identity = socket.getPeerCertificate()?.subject?.CN;
-    if (!socket.authorized || typeof identity !== 'string' || !agentIds.includes(identity))
+    const peer = socket.getPeerCertificate();
+    const agentId = peer?.subject?.CN;
+    if (!socket.authorized || typeof agentId !== 'string' || !agentIds.includes(agentId))
       return reply.code(403).send({ error: 'Unregistered agent identity' });
-    const raw = socket.getPeerCertificate().raw;
+    const raw = peer.raw;
     if (!raw || revoked.has(createHash('sha256').update(raw).digest('hex')))
       return reply.code(403).send({ error: 'Revoked agent certificate' });
+    // Presence/expiry bookkeeping must never refuse an otherwise valid request.
+    const expiresAt = Date.parse(peer.valid_to);
+    if (Number.isFinite(expiresAt)) {
+      const site = siteOf(sites, agentId);
+      if (site) void coordinator.recordPresence(agentId, site, expiresAt).catch(() => undefined);
+    }
   });
   const base = {
     type: 'object',
@@ -45,6 +54,12 @@ export function buildFleetServer(
     properties: { runId: { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,128}$' } },
   };
   const identity = (socket: TLSSocket) => socket.getPeerCertificate().subject.CN as string;
+  // Work discovery for a resident site worker: the certificate identity asks for
+  // the shard already planned for it, without having to know the runId. The queue
+  // is fleet_shards_v1 (PENDING rows); there is no second work table.
+  app.get('/internal/fleet/work', async (request) => ({
+    assignment: await coordinator.claimNext(identity(request.raw.socket as TLSSocket)),
+  }));
   app.post<{ Body: { runId: string } }>(
     '/internal/fleet/claim',
     { schema: { body: base } },

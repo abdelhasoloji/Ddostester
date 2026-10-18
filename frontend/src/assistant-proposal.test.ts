@@ -4,8 +4,9 @@ import {
   extractProposals,
   proposalOverCaps,
   proposalToSeed,
-  PROPOSAL_CAPS,
 } from './assistant-proposal.js';
+
+const CEILING = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
 
 const good = JSON.stringify({
   name: 'Baseline burst',
@@ -58,15 +59,15 @@ describe('caps + seed', () => {
     const p = parseProposal(
       JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }),
     )!;
-    expect(proposalOverCaps(p).sort()).toEqual(['concurrency', 'maxDurationSec', 'maxRps']);
+    expect(proposalOverCaps(p, CEILING).sort()).toEqual(['concurrency', 'maxDurationSec', 'maxRps']);
   });
   it('clamps the seed to the ceiling', () => {
     const p = parseProposal(
       JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }),
     )!;
-    const s = proposalToSeed(p);
-    expect(s.maxRps).toBe(PROPOSAL_CAPS.maxRps);
-    expect(s.concurrency).toBe(PROPOSAL_CAPS.concurrency);
-    expect(s.maxDurationSec).toBe(PROPOSAL_CAPS.maxDurationSec);
+    const s = proposalToSeed(p, CEILING);
+    expect(s.maxRps).toBe(CEILING.maxRps);
+    expect(s.concurrency).toBe(CEILING.maxConcurrency);
+    expect(s.maxDurationSec).toBe(CEILING.maxDurationSec);
   });
 });

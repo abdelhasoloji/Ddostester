@@ -9,10 +9,18 @@ import { AgentError } from './types.js';
 import { validateConfig, type LoadProgress } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
-import { KubernetesJobs } from '../modules/fleet/kubernetes.js';
+import { createFleetExecutor, type FleetExecutor } from '../modules/fleet/executor.js';
+import { parseFleetSites } from '../modules/fleet/sites.js';
 import { summarizeFleet } from '../modules/fleet/summary.js';
 import { cleanupFleet } from '../modules/fleet/cleanup.js';
 export class FleetHttpAgent implements AttackAgent {
+  /**
+   * The site that provides execution capacity. Defaults to the local in-cluster
+   * executor; a remote site supplies its own implementation without touching
+   * this class (M2.2).
+   */
+  constructor(private readonly executor?: FleetExecutor) {}
+
   readonly name = 'kubernetes-fleet';
   readonly multiPhase = false;
   readonly flowCapable = false;
@@ -23,6 +31,7 @@ export class FleetHttpAgent implements AttackAgent {
   async available(): Promise<boolean> {
     return (
       process.env.FLEET_ENABLED === '1' &&
+      !!process.env.FLEET_SITES &&
       !!process.env.FLEET_AGENT_IMAGE &&
       !!process.env.DATABASE_URL &&
       !!process.env.KUBERNETES_SERVICE_HOST
@@ -78,7 +87,7 @@ export class FleetHttpAgent implements AttackAgent {
       lock_timeout: 1500,
     });
     const coordinator = new FleetCoordinator(pool);
-    const jobs = new KubernetesJobs('ddostester-lab', process.env.FLEET_AGENT_IMAGE!);
+    const jobs = this.executor ?? createFleetExecutor(process.env);
     const names: string[] = [];
     const runId = randomUUID();
     const startedAt = new Date().toISOString();
@@ -128,11 +137,13 @@ export class FleetHttpAgent implements AttackAgent {
       if (!(await authorized()))
         throw new AgentError('Fleet operator session or current limits are invalid');
       await coordinator.init();
+      const sites = parseFleetSites(process.env.FLEET_SITES ?? '');
       await coordinator.plan(
         {
           runId,
           campaignId,
-          agentIds: ['one', 'two', 'three'],
+          agentIds: sites.map((entry) => entry.agentId),
+          sites,
           target: config.url,
           maxRps: config.maxRps,
           concurrency: config.concurrency,

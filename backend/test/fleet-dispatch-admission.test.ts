@@ -15,6 +15,7 @@ let release: (() => void) | undefined;
 beforeEach(() => {
   vi.stubEnv('FLEET_ENABLED', '1');
   vi.stubEnv('FLEET_AGENT_IMAGE', 'fixture@sha256:inert');
+  vi.stubEnv('FLEET_SITES', 'one@lab,two@lab,three@lab');
   vi.stubEnv('DATABASE_URL', 'postgres://never-connect.invalid/fixture');
   vi.stubEnv('KUBERNETES_SERVICE_HOST', 'never-connect.invalid');
   vi.spyOn(pg, 'Pool').mockImplementation(function () {
@@ -29,7 +30,12 @@ afterEach(() => {
 });
 it('advertises unavailable configuration and rejects it without falling back to local generation', async () => {
   const agent = new FleetHttpAgent();
-  for (const key of ['FLEET_AGENT_IMAGE', 'DATABASE_URL', 'KUBERNETES_SERVICE_HOST']) {
+  for (const key of [
+    'FLEET_SITES',
+    'FLEET_AGENT_IMAGE',
+    'DATABASE_URL',
+    'KUBERNETES_SERVICE_HOST',
+  ]) {
     const previous = process.env[key]!;
     vi.stubEnv(key, '');
     expect(await agent.available()).toBe(false);

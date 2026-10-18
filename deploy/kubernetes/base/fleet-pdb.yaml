@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: lab-fleet
+spec:
+  # With three coordination replicas, one voluntary eviction (node drain) is
+  # tolerated; the Service still has two endpoints to serve agent claims.
+  minAvailable: 2
+  selector:
+    matchLabels: { app: lab-fleet }

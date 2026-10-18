@@ -1,4 +1,4 @@
-import { latencyHistogram } from './stats.js';
+import { LatencyRecorder } from './stats.js';
 import { LATENCY_BUCKETS_MS } from '../config/limits.js';
 import { readBoundedBody } from '../util/http-body.js';
 import { IO_LIMITS } from '../config/limits.js';
@@ -14,7 +14,6 @@ import {
   MAX_USER_AGENTS,
 } from './types.js';
 import { substitute, extractValue } from './correlation.js';
-import { percentile } from './stats.js';
 
 export class TargetNotAllowedError extends Error {}
 export class InvalidConfigError extends Error {}
@@ -285,6 +284,40 @@ export async function runLoadTest(
   // unchanged: the Agent inherits the process-wide NODE_TLS_REJECT_UNAUTHORIZED
   // (INSECURE_TLS), like global fetch.
   const dispatcher = new Agent({ connections: config.concurrency });
+  // ONE timeout sweeper for the whole run, instead of one setTimeout + one
+  // AbortSignal.any per request. At the 2,000 rps ceiling the per-request version
+  // created ~2,000 timers and ~2,000 composed signals per second on the same
+  // event loop that drives the flood. This keeps allocation flat and aborts an
+  // expired request within SWEEP_MS. The kill switch is a single listener that
+  // aborts every in-flight controller, so no composed signal is needed either.
+  const SWEEP_MS = 20;
+  const inFlight = new Map<AbortController, number>(); // controller -> deadline
+  let sweeper: ReturnType<typeof setInterval> | undefined;
+  const sweep = (): void => {
+    const now = performance.now();
+    for (const [controller, expiresAt] of inFlight) {
+      if (expiresAt <= now) {
+        controller.abort();
+        inFlight.delete(controller);
+      }
+    }
+    if (inFlight.size === 0 && sweeper) {
+      clearInterval(sweeper);
+      sweeper = undefined;
+    }
+  };
+  const trackRequest = (controller: AbortController): void => {
+    inFlight.set(controller, performance.now() + timeoutMs);
+    sweeper ??= setInterval(sweep, SWEEP_MS);
+    sweeper.unref?.();
+  };
+  const abortInFlight = (): void => {
+    for (const controller of inFlight.keys()) controller.abort();
+  };
+  if (killSignal) {
+    if (killSignal.aborted) abortInFlight();
+    else killSignal.addEventListener('abort', abortInFlight, { once: true });
+  }
   // Phases: by default a single phase (durationSec @ maxRps).
   const phases = config.phases?.length
     ? config.phases
@@ -308,7 +341,9 @@ export async function runLoadTest(
     return phases[phases.length - 1].maxRps;
   }
 
-  const latencies: number[] = [];
+  // Latencies are recorded through a streaming histogram: O(1) ingest, and the
+  // live tick never sorts the sample set on the generator's own event loop.
+  const latencyStats = new LatencyRecorder(LATENCY_BUCKETS_MS);
   const statusCounts: Record<string, number> = {};
   const errors: Record<string, number> = {};
   let successful = 0;
@@ -330,41 +365,39 @@ export async function runLoadTest(
     return `${u}${sep}_cb=${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
   };
 
-  // Throttle: never exceed maxRps requests per second (global).
-  let windowStart = performance.now();
-  let windowCount = 0;
-  let lastPermit: number | undefined;
+  // Throttle: one global SMOOTH pacer. Every waiter atomically claims the next
+  // permit time on an ideal clock, then sleeps until its own slot. The previous
+  // implementation released `maxRps` permits at each 1-second window boundary —
+  // a burst followed by idle, which is not the configured rate and can trip an
+  // edge rule that a faithfully spaced run would not. Claiming on an ideal clock
+  // keeps the long-run rate exact even when a timer fires late, and
+  // `max(claimedAt, …)` prevents a catch-up burst after a stall.
+  const PACING_SLICE_MS = 25;
+  const PACING_JITTER_MS = 2;
+  let nextPermitAt = startedMonotonic;
 
   async function reserveSlot(): Promise<boolean> {
-    while (!shouldStop()) {
-      const now = performance.now();
-      const rate = currentMaxRps();
-      if (!Number.isInteger(rate)) {
-        // Integer counters must not round a fractional cap up to the next request.
-        const due = (lastPermit ?? startedMonotonic) + 1000 / rate;
-        if (now >= due) {
-          lastPermit = now;
-          return true;
-        }
-        await new Promise((r) =>
-          setTimeout(r, Math.max(1, Math.min(100, due - now, deadline - now))),
-        );
-        continue;
-      }
-      if (now - windowStart >= 1000) {
-        windowStart = now;
-        windowCount = 0;
-      }
-      if (windowCount < rate) {
-        windowCount++;
-        lastPermit = now;
-        return true;
-      }
-      await new Promise((r) =>
-        setTimeout(r, Math.max(1, Math.min(1000 - (now - windowStart), deadline - now))),
+    const interval = 1000 / currentMaxRps();
+    const claimedAt = performance.now();
+    // Read-and-advance with no await between them: atomic on the single event
+    // loop, so two concurrent workers can never claim the same slot.
+    const slotAt = Math.max(nextPermitAt, claimedAt);
+    nextPermitAt = slotAt + interval;
+    // A permit scheduled at or after the run deadline can never be spent. Without
+    // this, the sub-jitter release below could fire one extra request in the last
+    // millisecond of the run (maxRps 1: slots at t=0 and t=1000 for a 1000 ms run).
+    if (slotAt >= deadline) return false;
+    for (;;) {
+      if (shouldStop()) return false;
+      const remaining = slotAt - performance.now();
+      // Sub-jitter slots are released immediately: setTimeout cannot resolve
+      // faster than ~1 ms, and waiting would only add jitter, not accuracy.
+      if (remaining <= PACING_JITTER_MS) return true;
+      // Bounded slices keep a kill or a phase deadline responsive mid-wait.
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, Math.min(remaining - PACING_JITTER_MS, PACING_SLICE_MS)),
       );
     }
-    return false;
   }
 
   // A single bounded HTTP request (counts toward the global rate cap). Returns
@@ -378,15 +411,10 @@ export async function runLoadTest(
   ): Promise<{ bodyText: string; headers: Record<string, string> } | null> {
     if (shouldStop() || config.requestPermit?.() === false) return null;
     const t0 = performance.now();
+    // The sweeper enforces the per-request timeout and the kill switch aborts
+    // this controller directly, so the fetch only needs its own signal.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    // Abort an in-flight request immediately when the kill switch fires (manual
-    // stop, suite cancel, or the time-based timeout) — don't wait out its own
-    // per-request timeout. Without this a killed run keeps draining requests for
-    // up to `timeoutMs` against a tarpitting target.
-    const reqSignal = killSignal
-      ? AbortSignal.any([controller.signal, killSignal])
-      : controller.signal;
+    trackRequest(controller);
     // Rotate the User-Agent per request when a set is configured.
     let sendHeaders = headers ?? config.headers;
     if (userAgents) {
@@ -405,7 +433,7 @@ export async function runLoadTest(
         method,
         headers: sendHeaders,
         body: method === 'GET' || method === 'HEAD' ? undefined : body,
-        signal: reqSignal,
+        signal: controller.signal,
         // Never auto-follow redirects: a 3xx to an off-allowlist host would
         // otherwise escape the allowlist (SSRF). A redirect is measured as the
         // 3xx it is, against the allowlisted host we were told to hit.
@@ -431,7 +459,7 @@ export async function runLoadTest(
           IO_LIMITS.responseBytes,
           false,
         ); // drain to free the connection
-      latencies.push(latency);
+      latencyStats.observe(latency);
       sent++;
       const bucket = `${Math.floor(res.status / 100)}xx`;
       statusCounts[bucket] = (statusCounts[bucket] ?? 0) + 1;
@@ -458,7 +486,7 @@ export async function runLoadTest(
       errors[name] = (errors[name] ?? 0) + 1;
       return null;
     } finally {
-      clearTimeout(timer);
+      inFlight.delete(controller);
     }
   }
 
@@ -535,10 +563,9 @@ export async function runLoadTest(
   if (onProgress) {
     progressTimer = setInterval(() => {
       const elapsed = (Date.now() - startedAt.getTime()) / 1000;
-      // Percentiles over the samples collected so far. Sorting a copy each tick
-      // mirrors the final computation; the cost is bounded by the run's rate cap
-      // and the timer is unref'd so it never keeps the process alive.
-      const snap = [...latencies].sort((a, b) => a - b);
+      // Cumulative tail latency straight from the histogram buckets: O(buckets)
+      // per tick instead of copying and sorting every sample collected so far.
+      // The final report still computes exact nearest-rank percentiles.
       onProgress({
         runId: id,
         sent,
@@ -547,9 +574,9 @@ export async function runLoadTest(
         elapsedSec: Number(elapsed.toFixed(1)),
         actualRps: Number((sent / Math.max(elapsed, 0.001)).toFixed(2)),
         latencyMs: {
-          p50: Number(percentile(snap, 50).toFixed(2)),
-          p95: Number(percentile(snap, 95).toFixed(2)),
-          p99: Number(percentile(snap, 99).toFixed(2)),
+          p50: latencyStats.livePercentile(50),
+          p95: latencyStats.livePercentile(95),
+          p99: latencyStats.livePercentile(99),
         },
         statusCounts: { ...statusCounts },
       });
@@ -603,13 +630,15 @@ export async function runLoadTest(
     // Release the generator pool's sockets. `destroy()` (not `close()`) so any
     // request stranded on a tarpitting target is aborted immediately rather than
     // waited on — the run has already settled its metrics by here.
+    if (sweeper) clearInterval(sweeper);
+    if (killSignal) killSignal.removeEventListener('abort', abortInFlight);
     await dispatcher.destroy().catch(() => undefined);
   }
 
   const finishedAt = new Date();
-  const sorted = [...latencies].sort((a, b) => a - b);
   const elapsedSec = (performance.now() - startedMonotonic) / 1000;
-  const mean = sorted.length ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
+  // One sort, once, at settle time: the reported percentiles stay exact.
+  const latencySummary = latencyStats.finalize();
 
   return {
     id,
@@ -617,18 +646,11 @@ export async function runLoadTest(
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     totalRequests: sent,
-    latencyHistogram: latencyHistogram(latencies, LATENCY_BUCKETS_MS),
+    latencyHistogram: latencyStats.histogram(),
     successful,
     failed,
     statusCounts,
-    latencyMs: {
-      min: sorted[0] ?? 0,
-      max: sorted[sorted.length - 1] ?? 0,
-      mean: Number(mean.toFixed(2)),
-      p50: Number(percentile(sorted, 50).toFixed(2)),
-      p95: Number(percentile(sorted, 95).toFixed(2)),
-      p99: Number(percentile(sorted, 99).toFixed(2)),
-    },
+    latencyMs: latencySummary,
     actualRps: Number((sent / Math.max(elapsedSec, 0.001)).toFixed(2)),
     errors,
     assertionsChecked,

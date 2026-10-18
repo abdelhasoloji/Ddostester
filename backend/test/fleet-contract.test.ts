@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
+import { FLEET_LIMITS, HARD_CAPS } from '../src/config/limits.js';
 import {
+  assertAggregateBudget,
   assignmentHash,
+  authorizedEnvelope,
   splitBudget,
   validateAssignment,
   type AssignmentInput,
@@ -81,5 +85,91 @@ describe('fleet contract before any transport', () => {
     }
     expect(() => splitBudget(2001, 3, 3)).toThrow();
     expect(() => splitBudget(2, 3, 3)).toThrow();
+  });
+});
+
+describe('multi-site aggregate budget (M2.4)', () => {
+  const policy = {
+    maxRps: HARD_CAPS.maxRps,
+    maxConcurrency: HARD_CAPS.maxConcurrency,
+    maxDurationSec: HARD_CAPS.maxDurationSec,
+  };
+
+  it('bounds the envelope by the smallest of HARD_CAPS, the fleet envelope and policy', () => {
+    expect(authorizedEnvelope(policy)).toEqual({
+      maxRps: FLEET_LIMITS.maxRps,
+      maxConcurrency: FLEET_LIMITS.maxConcurrency,
+      maxDurationSec: FLEET_LIMITS.maxDurationSec,
+    });
+    expect(
+      authorizedEnvelope({ maxRps: 10, maxConcurrency: 4, maxDurationSec: 30 }),
+    ).toEqual({ maxRps: 10, maxConcurrency: 4, maxDurationSec: 30 });
+    expect(() =>
+      authorizedEnvelope({ maxRps: HARD_CAPS.maxRps + 1, maxConcurrency: 1, maxDurationSec: 1 }),
+    ).toThrow('Invalid operational caps');
+  });
+
+  it('accepts a divided aggregate that conserves and fits the envelope', () => {
+    const envelope = authorizedEnvelope(policy);
+    const shards = splitBudget(12, 6, 3);
+    expect(() =>
+      assertAggregateBudget({ maxRps: 12, concurrency: 6 }, shards, envelope),
+    ).not.toThrow();
+  });
+
+  it('refuses three sites each granted the full aggregate', () => {
+    const envelope = authorizedEnvelope(policy);
+    // The classic multi-site bug: every site is handed the whole budget.
+    const duplicated = [
+      { maxRps: 12, concurrency: 6 },
+      { maxRps: 12, concurrency: 6 },
+      { maxRps: 12, concurrency: 6 },
+    ];
+    expect(() =>
+      assertAggregateBudget({ maxRps: 12, concurrency: 6 }, duplicated, envelope),
+    ).toThrow('do not conserve');
+  });
+
+  it('refuses an aggregate above the authorized envelope', () => {
+    const envelope = authorizedEnvelope(policy);
+    const shards = splitBudget(FLEET_LIMITS.maxRps + 1, 6, 3);
+    expect(() =>
+      assertAggregateBudget(
+        { maxRps: FLEET_LIMITS.maxRps + 1, concurrency: 6 },
+        shards,
+        envelope,
+      ),
+    ).toThrow('exceeds authorized envelope');
+  });
+
+  it('refuses more shards than the fleet can run', () => {
+    const envelope = authorizedEnvelope(policy);
+    const shards = Array.from({ length: FLEET_LIMITS.maxAgents + 1 }, () => ({
+      maxRps: 1,
+      concurrency: 1,
+    }));
+    expect(() =>
+      assertAggregateBudget({ maxRps: shards.length, concurrency: shards.length }, shards, envelope),
+    ).toThrow('Invalid fleet shard count');
+  });
+
+  it('conserves the aggregate and never exceeds the envelope for any valid split', () => {
+    const envelope = authorizedEnvelope(policy);
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 3, max: FLEET_LIMITS.maxRps }),
+        fc.integer({ min: 3, max: FLEET_LIMITS.maxConcurrency }),
+        fc.integer({ min: 1, max: FLEET_LIMITS.maxAgents }),
+        (maxRps, concurrency, agents) => {
+          const rps = Math.max(maxRps, agents);
+          const conc = Math.max(concurrency, agents);
+          const shards = splitBudget(rps, conc, agents);
+          assertAggregateBudget({ maxRps: rps, concurrency: conc }, shards, envelope);
+          expect(shards.reduce((n, s) => n + s.maxRps, 0)).toBe(rps);
+          expect(shards.reduce((n, s) => n + s.concurrency, 0)).toBe(conc);
+          expect(Math.max(...shards.map((s) => s.maxRps))).toBeLessThanOrEqual(envelope.maxRps);
+        },
+      ),
+    );
   });
 });

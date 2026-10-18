@@ -9,3 +9,5 @@ resources:
   - database.yaml
   - control.yaml
   - fleet.yaml
+  # Three coordination replicas: one eviction tolerated (minAvailable: 2).
+  - fleet-pdb.yaml

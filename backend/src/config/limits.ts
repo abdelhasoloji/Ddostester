@@ -285,6 +285,14 @@ export const FLEET_LIMITS = Object.freeze({
   minDurationSec: 10,
   stopTimeoutMs: 8000,
   coordinationLock: 714211,
+  /**
+   * Transaction-scoped advisory lock serialising fleet schema creation across
+   * replicas. CREATE TABLE IF NOT EXISTS is idempotent but not atomic, so pods
+   * starting together can collide on the pg_type unique index. Distinct from the
+   * runtime lease (714210), the envelope lock (714211) and the assistant
+   * token-budget lock (714212).
+   */
+  schemaLock: 714213,
   heartbeatMs: 2000,
   leaseMs: 6000,
   stopGraceMs: 2000,

@@ -31,6 +31,22 @@ const shard = (agentId: string, latencies: number[]): FleetShardEvidence => ({
   },
 });
 describe('fleet evidence summary', () => {
+  it('preserves the originating site per shard', () => {
+    const at = new Date(Date.now() - 1000).toISOString();
+    const result = summarizeFleet('run', config, at, [
+      { ...shard('one', [10]), site: 'vps-lab' },
+      { ...shard('three', [20]), site: 'ac02' },
+    ]);
+    expect(
+      Object.fromEntries((result.fleet?.shards ?? []).map((entry) => [entry.agentId, entry.site])),
+    ).toEqual({ one: 'vps-lab', three: 'ac02' });
+  });
+  it('leaves site absent on historical evidence that predates it', () => {
+    const at = new Date(Date.now() - 1000).toISOString();
+    const result = summarizeFleet('run', config, at, [shard('one', [10])]);
+    expect(result.fleet?.shards[0].site).toBeUndefined();
+  });
+
   it('records counter coverage without inventing a lost agent result', () => {
     const result = summarizeFleet('run', config, new Date(Date.now() - 1000).toISOString(), [
       shard('one', [10, 20]),

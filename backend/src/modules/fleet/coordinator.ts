@@ -4,8 +4,11 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import type { IoTProfile } from '../../engine/iot-profile.js';
 import { FLEET_LIMITS, type HardCaps } from '../../config/limits.js';
+import type { FleetSite } from './sites.js';
 import {
+  assertAggregateBudget,
   assignmentHash,
+  authorizedEnvelope,
   splitBudget,
   validateAssignment,
   type FleetAssignment,
@@ -18,7 +21,15 @@ export class FleetCoordinator {
     private readonly now = Date.now,
   ) {}
   async init(): Promise<void> {
-    await this.pool.query(`CREATE TABLE IF NOT EXISTS fleet_runs_v1 (
+    // The fleet runs as several replicas behind one Service, so schema creation
+    // must be serialised: CREATE TABLE IF NOT EXISTS is idempotent but NOT
+    // atomic — two sessions can both miss the existence check and collide on the
+    // pg_type unique index — and a cold start has every replica racing at once.
+    // The advisory lock is transaction-scoped, so the losing replica waits on
+    // this line and then finds the schema already present instead of crashing.
+    await this.tx(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock($1)', [FLEET_LIMITS.schemaLock]);
+      await client.query(`CREATE TABLE IF NOT EXISTS fleet_runs_v1 (
       run_id text PRIMARY KEY, campaign_id text NOT NULL, deadline bigint NOT NULL,
       state text NOT NULL CHECK (state IN ('RUNNING','STOPPING','SETTLED')));
       CREATE TABLE IF NOT EXISTS fleet_shards_v1 (
@@ -30,13 +41,22 @@ export class FleetCoordinator {
       ALTER TABLE fleet_shards_v1 ADD COLUMN IF NOT EXISTS progress_at bigint;
       ALTER TABLE fleet_runs_v1 ADD COLUMN IF NOT EXISTS control_lease_until bigint NOT NULL DEFAULT 0;
       ALTER TABLE fleet_runs_v1 ADD COLUMN IF NOT EXISTS expected_agents integer
-        CHECK (expected_agents BETWEEN 1 AND 3);`);
+        CHECK (expected_agents BETWEEN 1 AND 3);
+      ALTER TABLE fleet_shards_v1 ADD COLUMN IF NOT EXISTS site text NOT NULL DEFAULT 'local';
+      CREATE TABLE IF NOT EXISTS fleet_agent_presence_v1 (
+      agent_id text PRIMARY KEY, site text NOT NULL DEFAULT 'local',
+      cert_expires_at bigint NOT NULL, last_seen bigint NOT NULL);
+      ALTER TABLE fleet_agent_presence_v1
+        ADD COLUMN IF NOT EXISTS site text NOT NULL DEFAULT 'local';`);
+    });
   }
   async plan(
     input: {
       runId: string;
       campaignId: string;
       agentIds: string[];
+      /** Agent→site provenance. Defaults to `local` for a single-site caller. */
+      sites?: FleetSite[];
       target: string;
       maxRps: number;
       concurrency: number;
@@ -47,6 +67,15 @@ export class FleetCoordinator {
     policy: { allowedHosts: string[]; allowedPorts: number[]; caps: HardCaps },
   ): Promise<void> {
     if (new Set(input.agentIds).size !== input.agentIds.length) throw new Error('Duplicate agents');
+    // Provenance only: the site travels in the shard row, never in the signed
+    // assignment (whose key set is strict and must not grow silently).
+    const sites =
+      input.sites ?? input.agentIds.map((agentId) => ({ agentId, site: 'local' }));
+    if (
+      sites.length !== input.agentIds.length ||
+      sites.some((entry, index) => entry.agentId !== input.agentIds[index])
+    )
+      throw new Error('Site registry does not match agents');
     const budgets = splitBudget(input.maxRps, input.concurrency, input.agentIds.length);
     const now = this.now();
     const deadline = now + input.durationSec * 1000;
@@ -74,9 +103,14 @@ export class FleetCoordinator {
         { ...policy, agentId, now },
       );
     });
-    // Check the parent's envelope, not just the divided shards.
-    if (input.maxRps > policy.caps.maxRps || input.concurrency > policy.caps.maxConcurrency)
-      throw new Error('Aggregate budget exceeds policy');
+    // Check the parent's envelope, not just the divided shards, and prove the
+    // shards conserve it: adding sites may DIVIDE the authorized aggregate, never
+    // multiply it. A remote executor receiving its shard cannot mint a new budget.
+    assertAggregateBudget(
+      { maxRps: input.maxRps, concurrency: input.concurrency },
+      budgets,
+      authorizedEnvelope(policy.caps),
+    );
     await this.tx(async (c) => {
       await c.query('SELECT pg_advisory_xact_lock($1)', [FLEET_LIMITS.coordinationLock]);
       const active = await c.query(
@@ -98,10 +132,10 @@ export class FleetCoordinator {
           assignments.length,
         ],
       );
-      for (const assignment of assignments)
+      for (const [index, assignment] of assignments.entries())
         await c.query(
-          'INSERT INTO fleet_shards_v1(run_id,agent_id,assignment,state) VALUES($1,$2,$3,$4)',
-          [input.runId, assignment.agentId, JSON.stringify(assignment), 'PENDING'],
+          'INSERT INTO fleet_shards_v1(run_id,agent_id,site,assignment,state) VALUES($1,$2,$3,$4,$5)',
+          [input.runId, assignment.agentId, sites[index].site, JSON.stringify(assignment), 'PENDING'],
         );
     });
   }
@@ -249,6 +283,7 @@ export class FleetCoordinator {
     state: string;
     shards: {
       agentId: string;
+      site: string;
       state: string;
       attemptId: string;
       leaseUntil: number;
@@ -277,6 +312,7 @@ export class FleetCoordinator {
       );
       const shards = rows.rows.map((row) => ({
         agentId: row.agent_id as string,
+        site: row.site as string,
         state: row.state as string,
         attemptId: row.assignment.attemptId as string,
         leaseUntil: row.assignment.leaseUntil as number,
@@ -296,6 +332,62 @@ export class FleetCoordinator {
       }
       return { state: run.rows[0].state as string, shards };
     });
+  }
+  private static assertAgentId(agentId: string): void {
+    if (typeof agentId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(agentId))
+      throw new Error('Invalid agent identity');
+  }
+  /**
+   * Records that a certificate identity was just seen and when that certificate
+   * expires. Written on every authenticated fleet request, so this is
+   * observability, never authorization: the caller ignores failures and the
+   * certificate's own validity is all that is stored (no key material).
+   */
+  async recordPresence(agentId: string, site: string, certExpiresAt: number): Promise<void> {
+    FleetCoordinator.assertAgentId(agentId);
+    if (typeof site !== 'string' || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(site))
+      throw new Error('Invalid site identity');
+    if (!Number.isSafeInteger(certExpiresAt) || certExpiresAt < 0)
+      throw new Error('Invalid certificate expiry');
+    await this.pool.query(
+      `INSERT INTO fleet_agent_presence_v1(agent_id,site,cert_expires_at,last_seen)
+       VALUES($1,$2,$3,$4)
+       ON CONFLICT (agent_id) DO UPDATE
+       SET site=EXCLUDED.site, cert_expires_at=EXCLUDED.cert_expires_at,
+           last_seen=EXCLUDED.last_seen`,
+      [agentId, site, certExpiresAt, this.now()],
+    );
+  }
+  /** Last known certificate expiry per agent identity, for status reporting. */
+  async presence(): Promise<
+    { agentId: string; site: string; certExpiresAt: number; lastSeen: number }[]
+  > {
+    const result = await this.pool.query(
+      'SELECT agent_id,site,cert_expires_at,last_seen FROM fleet_agent_presence_v1 ORDER BY agent_id',
+    );
+    return result.rows.map((row) => ({
+      agentId: row.agent_id as string,
+      site: row.site as string,
+      certExpiresAt: Number(row.cert_expires_at),
+      lastSeen: Number(row.last_seen),
+    }));
+  }
+  /**
+   * Work discovery for a resident site worker: claim the shard already planned
+   * for this agent identity without knowing the runId. The queue is
+   * `fleet_shards_v1` itself (PENDING rows) — there is no second work table to
+   * drift out of sync. A completed, stopped or expired run yields null.
+   */
+  async claimNext(agentId: string): Promise<FleetAssignment | null> {
+    FleetCoordinator.assertAgentId(agentId);
+    const active = await this.pool.query(
+      `SELECT run_id FROM fleet_runs_v1
+       WHERE state='RUNNING' AND deadline > $1 AND control_lease_until > $1
+       ORDER BY deadline DESC LIMIT 1`,
+      [this.now()],
+    );
+    const runId = active.rows[0]?.run_id as string | undefined;
+    return runId ? this.claim(runId, agentId) : null;
   }
   private async tx<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();

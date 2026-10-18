@@ -33,6 +33,9 @@ spec:
             - { name: TARGET_TELEMETRY_METRICS_URL, value: 'http://lab-target:9101/metrics.json' }
             - { name: PROBE_INTERVAL_MS, value: '1000' }
             - { name: ALLOWED_TARGETS, value: lab-target }
+            # Same registry the fleet server enforces: the control plane records each
+            # shard's site at plan time.
+            - { name: FLEET_SITES, value: 'one@vps-lab,two@vps-lab,three@vps-lab' }
             - { name: PROBE_AGENT_URL, value: 'http://lab-probe:8099/probe' }
             - name: PROBE_AGENT_TOKEN
               valueFrom:

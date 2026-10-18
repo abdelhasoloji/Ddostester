@@ -1,3 +1,26 @@
+/**
+ * DRS ASSESSMENT STATE MACHINE — not a traffic generator.
+ *
+ * This file sequences a frozen DRS revision (CAPACITY_CHECK → BASELINE →
+ * LEVEL_EXECUTION → RECOVERY → EVIDENCE_VALIDATION → LEVEL_CALCULATION). It
+ * never opens a socket: capacity, injection and observation all arrive through
+ * the `DrsGeneratorPort` / `DrsEvidencePort` adapters implemented by the caller.
+ *
+ * The synthetic HTTP generator lives in `engine/loadTest.ts` plus the adapters
+ * in `agents/`; every rate, concurrency and duration ceiling lives in
+ * `config/limits.ts`. Nothing here can raise those ceilings — this file only
+ * REJECTS a plan that exceeds them (`ensure(...)`, "Execution envelope exceeds
+ * immutable Fleet ceiling").
+ *
+ * Physical dispatch here is limited to bounded HTTP GET vectors (`…51002`).
+ * Every other standard line is reference/import-only, whatever an adapter claims.
+ *
+ * Wiring: the running control plane drives revisions through the transitions in
+ * `workflow.ts` (see `app.runCampaign` and `routes/drs-routes.ts`). No production
+ * module imports this orchestrator today; only `test/drs-orchestrator.test.ts`
+ * exercises it. It is the complete sequenced path still awaiting bound ports, so
+ * treat it as the reference state machine, not as the executed engine.
+ */
 import { FLEET_LIMITS, DRS_EVIDENCE_LIMITS } from '../../config/limits.js';
 import { drsReference } from './reference.js';
 import { ensure, planDigest } from './model.js';

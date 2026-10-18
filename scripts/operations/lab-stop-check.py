@@ -14,7 +14,8 @@ parser.add_argument('origin')
 parser.add_argument('credentials')
 parser.add_argument('kubeconfig')
 parser.add_argument('evidence_directory')
-parser.add_argument('--mode', choices=['manual', 'coordinator-outage', 'policy-removal', 'control-crash'], default='manual')
+parser.add_argument('--mode', choices=['manual', 'coordinator-outage', 'coordinator-degraded',
+    'coordinator-restart', 'policy-removal', 'control-crash'], default='manual')
 parser.add_argument('--ssh-key', help='Private Linux lab host key; required for policy-removal rollback')
 args = parser.parse_args()
 origin = urlsplit(args.origin)
@@ -30,10 +31,10 @@ def preserve(name, value):
     fd = os.open(directory / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, 'w') as output: json.dump(value, output)
 server_override = None
-def kube(*arguments):
+def kube(*arguments, timeout=20):
     return subprocess.check_output(['kubectl', '--kubeconfig', args.kubeconfig,
         *(['--server', server_override] if server_override else []),
-        '-n', 'ddostester-lab', *arguments], text=True, timeout=20)
+        '-n', 'ddostester-lab', *arguments], text=True, timeout=timeout)
 context = kube('config', 'current-context').strip()
 if context not in {'kind-ddostester-lab', 'k3d-ddostester-linux-lab'}:
     raise RuntimeError('Only the identified private laboratory contexts are accepted')
@@ -64,10 +65,61 @@ def rows(campaign_id):
         except ValueError: continue
         if row.get('run', '').startswith(campaign_id + ':'): result.append(row)
     return result
+def coordinator_state():
+    """Replica count, live pod names and the Service's ready endpoint names."""
+    deployment = json.loads(kube('get', 'deployment', 'lab-fleet', '-o', 'json'))
+    replicas = deployment['spec']['replicas']
+    pods = sorted(item['metadata']['name'] for item in
+        json.loads(kube('get', 'pods', '-l', 'app=lab-fleet', '-o', 'json'))['items'])
+    endpoints = []
+    for subset in json.loads(kube('get', 'endpoints', 'lab-fleet', '-o', 'json')).get('subsets') or []:
+        for address in subset.get('addresses') or []:
+            name = (address.get('targetRef') or {}).get('name')
+            if name: endpoints.append(name)
+    return replicas, pods, sorted(endpoints)
+def coordinator_restart_idle():
+    """(B) Delete one IDLE coordinator pod and prove the Service stays available.
+
+    Nothing generates load here. The assertions are that the ready endpoint list
+    never drops below replicas-1 while the replacement starts, and that full
+    readiness is restored so the run that follows starts against a healthy fleet.
+    """
+    replicas, pods, endpoints = coordinator_state()
+    if not isinstance(replicas, int) or replicas < 2:
+        raise RuntimeError('Coordinator restart requires at least two replicas')
+    if len(pods) != replicas or len(endpoints) != replicas:
+        raise RuntimeError('Coordinator inventory is not fully ready before restart')
+    victim = pods[0]
+    preserve('coordinator-restart-before.json', {'replicas': replicas, 'pods': pods,
+        'endpoints': endpoints, 'pod': victim})
+    kube('delete', 'pod', victim, '--wait=false')
+    minimum = len(endpoints)
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        current = coordinator_state()[2]
+        minimum = min(minimum, len(current))
+        if victim not in current and len(current) >= replicas - 1: break
+        time.sleep(0.25)
+    else:
+        raise RuntimeError('Coordinator endpoints dropped below the tolerated loss')
+    if minimum < replicas - 1:
+        raise RuntimeError('Coordinator Service lost more than one endpoint')
+    kube('rollout', 'status', 'deployment/lab-fleet', '--timeout=110s', timeout=125)
+    ready = coordinator_state()[2]
+    if len(ready) < replicas:
+        raise RuntimeError('Coordinator did not return to full readiness after restart')
+    evidence = {'pod': victim, 'replicas': replicas, 'endpointsBefore': len(endpoints),
+        'endpointsMinimum': minimum, 'endpointsAfter': len(ready), 'runFollowsRestart': True}
+    preserve('coordinator-restart.json', evidence)
+    return evidence
 token = call('POST', '/api/auth/login', {'email': 'abdelha@wedos', 'password': credentials['owner-password']})['token']
 limits = call('GET', '/api/limits')['effective']
 if not (3 <= limits['maxRps'] <= 15 and 3 <= limits['maxConcurrency'] <= 6 and 30 <= limits['maxDurationSec'] <= 60):
     raise RuntimeError('Private laboratory limits required')
+# (B) runs before the campaign: the pod churn must not disturb the run that follows.
+restart_evidence = None
+if args.mode == 'coordinator-restart':
+    restart_evidence = coordinator_restart_idle()
 campaign = call('POST', '/api/campaigns', {'name': 'Private fleet manual stop',
     'target': 'http://lab-target:8080/health', 'probeUrl': 'http://lab-target:8080/health',
     'probeVantage': 'remote', 'vector': 'http-get', 'agent': 'fleet', 'maxRps': 3,
@@ -85,25 +137,53 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
     anchor = clock()  # Target clock before dispatch: conservative elapsed upper bound.
     preserve('stop-anchor.json', anchor)
     restore = False
+    restored_replicas = None
+    restore_degraded = False
     restore_policy = None
     try:
         if args.mode == 'manual':
             acknowledgement = call('POST', '/api/campaigns/' + campaign['id'] + '/kill', {})
         elif args.mode == 'coordinator-outage':
             deployment = json.loads(kube('get', 'deployment', 'lab-fleet', '-o', 'json'))
-            if deployment['spec']['replicas'] != 1:
-                raise RuntimeError('Coordinator must have exactly one replica before outage')
-            preserve('coordinator-before.json', {'uid': deployment['metadata']['uid'], 'replicas': 1})
+            replicas = deployment['spec']['replicas']
+            if not isinstance(replicas, int) or replicas < 1:
+                raise RuntimeError('Coordinator replica count unavailable before outage')
+            # This scenario removes the WHOLE coordination surface, not one pod:
+            # while any replica survives the agents keep renewing their leases,
+            # so a one-pod loss is an availability test with a different (and
+            # non-deterministic) assertion. The replica count is preserved and
+            # restored verbatim so the recipe works at 1 or 3 replicas.
+            preserve('coordinator-before.json', {'uid': deployment['metadata']['uid'], 'replicas': replicas})
             restore = True  # Restore even if the API reply is lost after accepting scale.
+            restored_replicas = replicas
             kube('scale', 'deployment/lab-fleet', '--replicas=0')
-            acknowledgement = {'status': 'coordinator-scaled-to-zero'}
+            acknowledgement = {'status': 'coordinator-scaled-to-zero', 'replicasBefore': replicas}
+        elif args.mode == 'coordinator-degraded':
+            # (A) Lose exactly ONE coordinator mid-run. The Service keeps the other
+            # replicas, so this deliberately probes the fail-closed contract: an
+            # agent that loses its heartbeat must stop rather than report a partial
+            # measurement as success. Either outcome is accepted, but only those two.
+            replicas, pods, endpoints = coordinator_state()
+            if not isinstance(replicas, int) or replicas < 2:
+                raise RuntimeError('Coordinator degradation requires at least two replicas')
+            if len(pods) != replicas:
+                raise RuntimeError('Coordinator inventory is not complete before degradation')
+            victim = pods[0]
+            restore_degraded = True
+            kube('delete', 'pod', victim, '--wait=false')
+            acknowledgement = {'status': 'coordinator-pod-deleted', 'pod': victim,
+                'replicasBefore': replicas, 'endpointsBefore': len(endpoints)}
+        elif args.mode == 'coordinator-restart':
+            # The disruption already happened BEFORE dispatch (see above), against an
+            # idle fleet; the following run must be completely unaffected.
+            acknowledgement = {'status': 'coordinator-restarted-before-dispatch'}
         elif args.mode == 'control-crash':
             acknowledgement = json.loads(subprocess.check_output(['ssh', '-i', args.ssh_key,
                 '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=12',
                 'root@31.31.74.187', 'python3 /usr/local/lib/ddostester-lab/linux-control-crash.py '
                 '/var/lib/ddostester-linux-lab-attempt-03'], text=True, timeout=20))
             if acknowledgement.get('crashed') is not True: raise RuntimeError('Control crash not confirmed')
-        else:
+        elif args.mode == 'policy-removal':
             armed = json.loads(subprocess.check_output(['ssh', '-i', args.ssh_key,
                 '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=12',
                 'root@31.31.74.187', 'python3 /usr/local/lib/ddostester-lab/linux-policy-rollback.py '
@@ -133,7 +213,11 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             else:
                 raise RuntimeError('Execution did not interrupt after control crash')
         else:
-            result = future.result(timeout=20)
+            # The stop scenarios settle almost immediately after the act at the
+            # anchor, but a run that SURVIVES a single-replica loss (and any run
+            # after an idle restart) completes its full maxDurationSec of 30 s.
+            settle = 90 if args.mode in {'coordinator-degraded', 'coordinator-restart'} else 20
+            result = future.result(timeout=settle)
             preserve('run.json', result)
         time.sleep(9)
         after = clock()
@@ -142,8 +226,13 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         preserve('after-anchor.json', after)
     finally:
         if restore:
-            kube('scale', 'deployment/lab-fleet', '--replicas=1')
-            kube('rollout', 'status', 'deployment/lab-fleet', '--timeout=15s')
+            kube('scale', 'deployment/lab-fleet', '--replicas=' + str(restored_replicas))
+            kube('rollout', 'status', 'deployment/lab-fleet', '--timeout=110s', timeout=125)
+        if restore_degraded:
+            kube('rollout', 'status', 'deployment/lab-fleet', '--timeout=110s', timeout=125)
+            replicas_now, _, endpoints_now = coordinator_state()
+            if len(endpoints_now) < replicas_now:
+                raise RuntimeError('Coordinator did not recover to full readiness after degradation')
         if restore_policy:
             subprocess.run(['kubectl', '--kubeconfig', args.kubeconfig, '-n', 'ddostester-lab',
                 '--server', server_override,
@@ -198,15 +287,35 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         raise RuntimeError('Missing private source receipt evidence')
     last_start = max((row['epochSec'] - row['durationSec']) * 1000 for row in receipts)
     delay = max(0, last_start - anchor['wallMs'])
-    if delay > 8000:
+    fleet_result = result['generator']['fleet']
+    shard_states = [shard['state'] for shard in fleet_result['shards']]
+    # The 8 s bound is a STOP guarantee: it only means something when the act at
+    # the anchor is expected to halt generation. A restart that precedes the run
+    # stops nothing, and losing one replica may legitimately complete the run.
+    stops_generation = args.mode in {'manual', 'coordinator-outage', 'policy-removal'} or (
+        args.mode == 'coordinator-degraded' and fleet_result['measurementComplete'] is False)
+    if stops_generation and delay > 8000:
         raise RuntimeError('Stop timing guarantee not proven; evidence retained')
     if args.mode == 'manual' and (acknowledgement.get('status') != 'KILLED_MANUAL' or result['status'] != 'KILLED_MANUAL'):
         raise RuntimeError('Manual stop status not proven; evidence retained')
-    if args.mode != 'manual' and (result['generator']['fleet']['measurementComplete'] is not False
-            or not any(shard['state'] == 'LOST' for shard in result['generator']['fleet']['shards'])):
+    if args.mode in {'coordinator-outage', 'policy-removal'} and (
+            fleet_result['measurementComplete'] is not False or 'LOST' not in shard_states):
         raise RuntimeError('Coordinator outage not represented as incomplete evidence')
+    if args.mode == 'coordinator-degraded':
+        # Exactly two acceptable outcomes, never a silent success on partial data:
+        # a complete measurement with three SUCCEEDED shards, or an incomplete one
+        # that names the shard which lost control.
+        if fleet_result['measurementComplete'] is True:
+            if any(state != 'SUCCEEDED' for state in shard_states):
+                raise RuntimeError('Complete fleet measurement with a non-succeeded shard')
+        elif not any(state in {'LOST', 'STOPPED', 'FAILED'} for state in shard_states):
+            raise RuntimeError('Incomplete fleet measurement without an attributable shard')
+    if args.mode == 'coordinator-restart' and fleet_result['measurementComplete'] is not True:
+        raise RuntimeError('Idle coordinator restart disturbed the following run')
     proof = {'scenario': args.mode, 'runId': result['runId'], 'lastRequestAfterAnchorMs': round(delay),
         'observation': 'target-clock-before-dispatch-upper-bound', 'sources': len({row['source'] for row in receipts}),
-        'clockDriftMs': drift, 'shardStates': [shard['state'] for shard in result['generator']['fleet']['shards']]}
+        'clockDriftMs': drift, 'measurementComplete': fleet_result['measurementComplete'],
+        'shardStates': shard_states}
+    if restart_evidence: proof['coordinatorRestart'] = restart_evidence
     preserve('stop-proof.json', proof)
     print(json.dumps(proof))

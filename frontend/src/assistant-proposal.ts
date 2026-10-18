@@ -18,9 +18,7 @@
  */
 
 import type { CampaignFormSeed } from './campaign-form.js';
-
-/** Display-time mirror of the frozen server ceiling (HARD_CAPS). */
-export const PROPOSAL_CAPS = { maxRps: 2000, concurrency: 500, maxDurationSec: 900 } as const;
+import type { HardCaps } from './api.js';
 
 export interface AssistantProposal {
   name: string;
@@ -88,11 +86,11 @@ export function extractProposals(content: string): {
 }
 
 /** Names of the bounds a proposal pushes past the frozen ceiling (display only). */
-export function proposalOverCaps(p: AssistantProposal): string[] {
+export function proposalOverCaps(p: AssistantProposal, ceiling: HardCaps): string[] {
   const over: string[] = [];
-  if (p.maxRps > PROPOSAL_CAPS.maxRps) over.push('maxRps');
-  if (p.concurrency > PROPOSAL_CAPS.concurrency) over.push('concurrency');
-  if (p.maxDurationSec > PROPOSAL_CAPS.maxDurationSec) over.push('maxDurationSec');
+  if (p.maxRps > ceiling.maxRps) over.push('maxRps');
+  if (p.concurrency > ceiling.maxConcurrency) over.push('concurrency');
+  if (p.maxDurationSec > ceiling.maxDurationSec) over.push('maxDurationSec');
   return over;
 }
 
@@ -101,14 +99,14 @@ export function proposalOverCaps(p: AssistantProposal): string[] {
  * create flow. Values are clamped to the display ceiling as a courtesy; the
  * authoritative clamp is server-side and non-bypassable.
  */
-export function proposalToSeed(p: AssistantProposal): Partial<CampaignFormSeed> {
+export function proposalToSeed(p: AssistantProposal, ceiling: HardCaps): Partial<CampaignFormSeed> {
   const clamp = (v: number, ceil: number) => Math.max(1, Math.min(v, ceil));
   return {
     name: p.name,
     target: p.target,
     vector: p.vector,
-    maxRps: clamp(p.maxRps, PROPOSAL_CAPS.maxRps),
-    concurrency: clamp(p.concurrency, PROPOSAL_CAPS.concurrency),
-    maxDurationSec: clamp(p.maxDurationSec, PROPOSAL_CAPS.maxDurationSec),
+    maxRps: clamp(p.maxRps, ceiling.maxRps),
+    concurrency: clamp(p.concurrency, ceiling.maxConcurrency),
+    maxDurationSec: clamp(p.maxDurationSec, ceiling.maxDurationSec),
   };
 }
