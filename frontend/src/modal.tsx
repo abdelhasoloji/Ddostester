@@ -49,7 +49,7 @@ export function Modal({
           'button, [href], input, select, textarea, [tabindex]',
         ),
       ].filter((el) => el.tabIndex >= 0 && !el.hasAttribute('disabled') && !el.closest('[hidden]'));
-    (controls().find((el) => !el.closest('.help-tip')) ?? dialog).focus();
+    (controls().find((el) => !el.closest('.help-tip')) ?? dialog).focus({ preventScroll: true });
     const trap = (event: KeyboardEvent) => {
       if (event.key !== 'Tab') return;
       const items = controls();
@@ -69,7 +69,7 @@ export function Modal({
     return () => {
       document.body.style.overflow = overflow;
       dialog.removeEventListener('keydown', trap);
-      if (previous?.isConnected) previous.focus();
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
   return createPortal(

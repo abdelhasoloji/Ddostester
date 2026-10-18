@@ -38,3 +38,7 @@ This verifies the routed screens and principal presentation paths. Real provider
 - Frontend TypeScript check passed after replacing obsolete test globals.
 - ESLint on changed components/tests passed; production frontend build passed (existing large-bundle advisory remains).
 - Earlier attempts before the workstation restart timed out; successful results above supersede those infrastructure failures.
+
+## Deep-scroll popup regression
+
+The composed-template generator dialog was opened after scrolling over 2,100px down the catalogue. It remained inside the visible 934px-high viewport (top 191.5px, bottom 742.5px), attached directly to `BODY`, with background scrolling locked. See `popup-deep-scroll-check.json` and `popup-after-deep-scroll.jpg`. Initial focus and trigger restoration now use `preventScroll` so focus handling does not move the underlying document. This is a local verification; the old deployed bundle is not changed by a local commit.
