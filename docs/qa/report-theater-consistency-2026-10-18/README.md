@@ -6,7 +6,7 @@ The SVG renderer breaks rate strokes across gaps and shows individual probe obse
 
 `replay-retained.mjs` reads the archived twelve-step suite, renders its eight retained individual reports and consolidated twelve-row report, rejects invalid serialized measurements and preserves four missing run records as unknown. It never calls the execution API. `historical-replay.json` records input hashes and the historical statuses. The HTML is a newly rendered historical report, not a new campaign or a measured DRS 5 result.
 
-`local-journey.mjs` is a disposable loopback-only memory fixture with a 20 RPS / 20 second campaign. Production credentials/storage are not used. Qualification results are recorded after the browser journey. The existing production build 495 is independently recorded in the preceding delivery receipt; source changes here are initially unreleased.
+`local-journey.mjs` is a disposable loopback-only memory fixture with a 20 RPS / 20 second campaign. Production credentials/storage are not used. Qualification results are recorded after the browser journey. This increment was delivered as build 496; [deployment.json](deployment.json) records the exact source and delivery gates. [Five-pass review](five-pass-review.md) records the follow-up checks.
 
 Remaining infrastructure prerequisites: a routed WEDOS VPN path and an ac02 kubeconfig/project context, independent target/entry measurements and calibration. The latest Mac check resolved Rancher to 10.20.0.252 but routed through en0; HTTPS timed out and no local Kubernetes context was available. No Kubernetes objects were created or modified.
 

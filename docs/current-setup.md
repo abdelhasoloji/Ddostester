@@ -2,9 +2,9 @@
 
 ## Current release and measurement consistency — 18 October 2026
 
-Production was checked again at 16:22 UTC: build **495**, commit `be43eedcc388a19b103063fe625192688f1a267e`, single-owner account policy and legacy campaign catalogue. The [delivery receipt](qa/run-graph-explorer-2026-10-18/deployment.json) records its verified backup/recovery, unchanged history and three online agents. Older release statements below are dated historical observations.
+Production delivery is verified as build **496**, commit `e1d6b126a2ebd1c91c093c346c9439fdaeabbe89`, promoted at 16:39:52 UTC. The [delivery receipt](qa/report-theater-consistency-2026-10-18/deployment.json) records matching API/UI identity, four green exact-source CI jobs, authenticated backup recovery, preserved history and three unchanged Ready Pods. Single-owner policy and the legacy campaign catalogue are unchanged. Older release statements below are historical observations, not the current release.
 
-The next source increment shares interval-rate, finalized-failure and probe-observation transformations between Theater and individual/suite reports. Missing counters/reset intervals break curves; monitored checks are dots rather than continuous uptime. Historical cumulative data remains explicitly labelled. Source presence alone does not confirm deployment; see [acceptance](qa/report-theater-consistency-2026-10-18/README.md).
+The deployed increment shares interval-rate, finalized-failure and probe-observation transformations between Theater and individual/suite reports. Missing counters/reset intervals break curves; monitored checks are dots rather than continuous uptime. Historical cumulative data remains explicitly labelled. The [five-pass review](qa/report-theater-consistency-2026-10-18/five-pass-review.md) distinguishes verified behavior from external prerequisites.
 
 The twelve-step historical suite has eight retained runs and four missing engine reports. Re-rendering those observations does not replay the generators or establish DRS 5 coverage. Physical qualification still requires independent received-load evidence, functional journeys, recovery and calibrated capacity.
 
