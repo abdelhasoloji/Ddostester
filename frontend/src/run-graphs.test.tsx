@@ -77,6 +77,11 @@ describe('evidence-based graph transformations', () => {
     }));
     const latency = buildRunGraphs(multi, { baselineP95: 15 }).find((g) => g.id === 'latency')!;
     expect(latency.series.map((s) => s.label)).not.toContain('Pre-load baseline p95');
+    const historical = buildRunGraphs(
+      samples.map((s) => ({ ...s, probeEndpoints: undefined })),
+      { baselineP95: 15 },
+    ).find((g) => g.id === 'latency')!;
+    expect(historical.series.map((s) => s.label)).not.toContain('Pre-load baseline p95');
   });
   it('does not map connection counters to request rate or failures', () => {
     const graphs = buildRunGraphs(samples, { vector: 'http-slowloris' });

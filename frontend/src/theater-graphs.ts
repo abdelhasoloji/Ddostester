@@ -255,7 +255,7 @@ export function buildRunGraphs(input: RunSample[], ctx: GraphContext = {}): RunG
     .filter((s) => s.points.length);
   if (
     ctx.baselineP95 != null &&
-    samples.length &&
+    samples.some((s) => s.probeEndpoints?.length === 1) &&
     !samples.some((s) => (s.probeEndpoints?.length ?? 0) > 1)
   )
     latency.push(
