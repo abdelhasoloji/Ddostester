@@ -44,3 +44,15 @@ export function agentIdsOf(sites: readonly FleetSite[]): string[] {
 export function siteOf(sites: readonly FleetSite[], agentId: string): string | undefined {
   return sites.find((entry) => entry.agentId === agentId)?.site;
 }
+
+/**
+ * The agents THIS cluster must start jobs for: those whose registry site matches
+ * the local site. A remote site's agents are dispatched by its own resident
+ * worker, so creating a local job for them would race the remote claim — and
+ * because `claim` is atomic, whichever loses silently gets no work. Returning an
+ * empty list is legitimate (a control plane whose agents all live elsewhere).
+ */
+export function localAgents(sites: readonly FleetSite[], localSite: string): FleetSite[] {
+  if (!ID.test(localSite)) throw new Error('Invalid local site');
+  return sites.filter((entry) => entry.site === localSite);
+}

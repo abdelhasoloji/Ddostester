@@ -36,6 +36,7 @@ spec:
             # Same registry the fleet server enforces: the control plane records each
             # shard's site at plan time.
             - { name: FLEET_SITES, value: 'one@vps-lab,two@vps-lab,three@vps-lab' }
+            - { name: FLEET_LOCAL_SITE, value: vps-lab }
             - { name: PROBE_AGENT_URL, value: 'http://lab-probe:8099/probe' }
             - name: PROBE_AGENT_TOKEN
               valueFrom:

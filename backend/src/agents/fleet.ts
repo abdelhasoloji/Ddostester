@@ -10,7 +10,7 @@ import { validateConfig, type LoadProgress } from '../engine/loadTest.js';
 import type { LoadTestConfig, LoadTestResult } from '../engine/types.js';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
 import { createFleetExecutor, type FleetExecutor } from '../modules/fleet/executor.js';
-import { parseFleetSites } from '../modules/fleet/sites.js';
+import { localAgents, parseFleetSites } from '../modules/fleet/sites.js';
 import { summarizeFleet } from '../modules/fleet/summary.js';
 import { cleanupFleet } from '../modules/fleet/cleanup.js';
 export class FleetHttpAgent implements AttackAgent {
@@ -32,6 +32,7 @@ export class FleetHttpAgent implements AttackAgent {
     return (
       process.env.FLEET_ENABLED === '1' &&
       !!process.env.FLEET_SITES &&
+      !!process.env.FLEET_LOCAL_SITE &&
       !!process.env.FLEET_AGENT_IMAGE &&
       !!process.env.DATABASE_URL &&
       !!process.env.KUBERNETES_SERVICE_HOST
@@ -138,6 +139,9 @@ export class FleetHttpAgent implements AttackAgent {
         throw new AgentError('Fleet operator session or current limits are invalid');
       await coordinator.init();
       const sites = parseFleetSites(process.env.FLEET_SITES ?? '');
+      // Only this site's agents get a local job: a remote agent's shard belongs to
+      // its resident worker, and racing it here would starve that site.
+      const runnerAgents = localAgents(sites, process.env.FLEET_LOCAL_SITE ?? '');
       await coordinator.plan(
         {
           runId,
@@ -173,7 +177,7 @@ export class FleetHttpAgent implements AttackAgent {
             renewal = undefined;
           });
       }, FLEET_LIMITS.heartbeatMs);
-      for (const agentId of ['one', 'two', 'three']) {
+      for (const { agentId } of runnerAgents) {
         if (signal?.aborted || controlLost) {
           stopping = true;
           await coordinator.stop(runId);

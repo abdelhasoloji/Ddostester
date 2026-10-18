@@ -106,6 +106,7 @@ spec:
             # certificate CN stays the agent id; the site is provenance and the
             # admission label for a remote worker.
             - { name: FLEET_SITES, value: 'one@vps-lab,two@vps-lab,three@vps-lab' }
+            - { name: FLEET_LOCAL_SITE, value: vps-lab }
             - { name: FLEET_TLS_KEY, value: /etc/fleet-identity/tls.key }
             - { name: FLEET_TLS_CERT, value: /etc/fleet-identity/tls.crt }
             - { name: FLEET_TLS_CA, value: /etc/fleet-identity/ca.crt }

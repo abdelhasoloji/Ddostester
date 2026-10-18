@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FLEET_LIMITS } from '../src/config/limits.js';
-import { agentIdsOf, parseFleetSites, siteOf } from '../src/modules/fleet/sites.js';
+import { agentIdsOf, localAgents, parseFleetSites, siteOf } from '../src/modules/fleet/sites.js';
 
 describe('fleet site registry (M2.3)', () => {
   it('parses one agent per site', () => {
@@ -42,5 +42,22 @@ describe('fleet site registry (M2.3)', () => {
   it('caps the registry at the same bound the budget split uses', () => {
     const tooMany = Array.from({ length: FLEET_LIMITS.maxAgents + 1 }, (_, i) => `a${i}@lab`);
     expect(() => parseFleetSites(tooMany.join(','))).toThrow('Invalid fleet site registry');
+  });
+});
+
+describe('local job dispatch (M2.5 prerequisite)', () => {
+  const sites = parseFleetSites('one@vps-lab,two@vps-lab,three@ac02');
+
+  it('starts jobs only for agents registered on this site', () => {
+    expect(localAgents(sites, 'vps-lab').map((entry) => entry.agentId)).toEqual(['one', 'two']);
+    expect(localAgents(sites, 'ac02').map((entry) => entry.agentId)).toEqual(['three']);
+  });
+
+  it('returns nothing when no agent lives here', () => {
+    expect(localAgents(sites, 'elsewhere')).toEqual([]);
+  });
+
+  it('rejects an invalid local site', () => {
+    expect(() => localAgents(sites, '')).toThrow('Invalid local site');
   });
 });
