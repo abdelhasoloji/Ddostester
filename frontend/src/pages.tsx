@@ -946,6 +946,9 @@ export function SuiteRunBanner() {
   const canExec = canDo(app.role, 'execute', app.authRequired, app.userMode, app.capabilities);
   const canRun = canApprove || canExec;
   const [busy, setBusy] = useState<string | null>(null);
+  // Per-run review gate. Off by default: an assessment advances on its own
+  // unless the operator explicitly asks to inspect between steps.
+  const [pauseBetween, setPauseBetween] = useState(false);
   const [sequences, setSequences] = useState<Record<string, SuiteSequenceState>>({});
   const groups = useMemo(() => groupSuites(app.campaigns), [app.campaigns]);
   // The banner is only for suites that are ACTIVELY sequencing (a step in flight
@@ -1014,6 +1017,14 @@ export function SuiteRunBanner() {
               </div>
               {canRun && (
                 <div className="suite-banner-actions">
+                  <label className="hint" style={{ display: 'inline-flex', gap: '.35rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={pauseBetween}
+                      onChange={(e) => setPauseBetween(e.target.checked)}
+                    />
+                    Pause between steps
+                  </label>
                   {!sequencing ? (
                     canApprove && g.pending > 0 ? (
                       <button
@@ -1054,9 +1065,11 @@ export function SuiteRunBanner() {
                                 )
                               )
                                 return Promise.resolve();
-                              return app.approvalPolicy === 'confirmation'
-                                ? api.runSuite(g.suiteId, true)
-                                : api.runSuite(g.suiteId);
+                              return api.runSuite(
+                                g.suiteId,
+                                app.approvalPolicy === 'confirmation',
+                                pauseBetween,
+                              );
                             },
                             'Assessment started — approved steps run in order.',
                           )
