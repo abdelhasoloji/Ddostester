@@ -1,0 +1,32 @@
+{
+  "target": "http://127.0.0.1:55473/",
+  "configuredRps": 1000,
+  "seconds": 180,
+  "concurrency": 100,
+  "achievedRps": 999.48,
+  "elapsedSec": 180.03,
+  "delivery": 0.999,
+  "requests": 179916,
+  "failed": 0,
+  "latencyMs": {
+    "min": 0.0664589999942109,
+    "max": 161.76162499999919,
+    "mean": 0.66,
+    "p50": 0.17,
+    "p95": 1.26,
+    "p99": 9.44
+  },
+  "eventLoopLagMs": {
+    "p50": 20.07,
+    "p95": 21,
+    "max": 92.08
+  },
+  "burstinessPer100ms": {
+    "expected": 100,
+    "peak": 197,
+    "ratio": 1.97
+  },
+  "note": "Above 150 rps the platform routes to vegeta/k6; this measures the built-in engine's ceiling, not the pacer.",
+  "verdict": "PASS",
+  "failures": []
+}
