@@ -6,8 +6,10 @@ import type { Campaign } from './api.js';
 let currentApp: ReturnType<typeof makeApp>;
 const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
   executeDrsPlan: ReturnType<typeof vi.fn>;
+  drsCampaignReport: ReturnType<typeof vi.fn>;
 };
 fakeApi.executeDrsPlan = vi.fn();
+fakeApi.drsCampaignReport = vi.fn();
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -52,6 +54,7 @@ const drsCampaign = (over: Partial<Campaign> = {}): Campaign =>
 
 beforeEach(() => {
   fakeApi.executeDrsPlan.mockReset();
+  fakeApi.drsCampaignReport.mockReset();
 });
 
 describe('DRS workspace', () => {
@@ -94,5 +97,47 @@ describe('DRS workspace', () => {
     currentApp = makeApp({ campaigns: [] });
     renderWithRouter(<DrsPage />);
     expect(screen.getByText(/No DRS plan yet/)).toBeTruthy();
+  });
+});
+
+describe('DRS verdict and requirement gaps', () => {
+  it('shows the assessment and the unmet requirement when a report exists', async () => {
+    const done = drsCampaign();
+    (done.drsDocument!.revisions[0] as unknown as { finalizedAt: string }).finalizedAt =
+      '2026-10-19T20:00:00.000Z';
+    currentApp = makeApp({ campaigns: [done] });
+    fakeApi.drsCampaignReport.mockResolvedValue({
+      revision: 1,
+      reference: {
+        standardVersion: '3.00.00',
+        engineVersion: 'e',
+        catalogueHash: 'h',
+        interpretationProfile: 'i',
+      },
+      assessment: {
+        label: 'Measured DRS assessment',
+        status: 'PARTIAL',
+        score: null,
+        terminalLevel: 1,
+        terminalOutcome: 'PARTIAL',
+        reservations: [],
+        levels: [],
+        requirementGaps: [
+          {
+            vectorId: 'drs-3.00.00-151002',
+            level: 1,
+            dimension: 'sources',
+            required: '1000 independent bots',
+            achieved: '1 observed source(s), 1 generator(s)',
+            met: false,
+          },
+        ],
+      },
+    });
+    renderWithRouter(<DrsPage />);
+    expect(await screen.findByText(/PARTIAL · PARTIAL/)).toBeTruthy();
+    fireEvent.click(screen.getByText('DRS L1 — staging'));
+    expect(await screen.findByText('1000 independent bots')).toBeTruthy();
+    expect(screen.getByText('no')).toBeTruthy();
   });
 });
