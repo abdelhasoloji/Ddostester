@@ -44,7 +44,15 @@ RELEASE="$(mktemp -d "$RELEASES/release-${SHORT}.XXXXXX")"
 git archive "$REV" | tar -x -C "$RELEASE"
 cd "$RELEASE"
 npm ci --ignore-scripts
-SHIELDTEST_COMMIT="$REV" SHIELDTEST_BUILD="$BUILD" npm run verify
+if [ "${DEPLOY_FULL_VERIFY:-0}" = "1" ]; then
+  # Paranoid mode: re-run the whole suite on the host even though CI gated this commit.
+  SHIELDTEST_COMMIT="$REV" SHIELDTEST_BUILD="$BUILD" npm run verify
+else
+  # CI already ran lint, typecheck and both suites on this exact commit. Re-running them
+  # here doubled the deploy on a smaller VM and added no signal; the host only builds the
+  # artifact it is about to promote.
+  SHIELDTEST_COMMIT="$REV" SHIELDTEST_BUILD="$BUILD" npm run build
+fi
 node scripts/release-manifest.mjs
 # The service may run under a different, unprivileged account. No runtime secrets are copied.
 chmod -R a+rX "$RELEASE"
