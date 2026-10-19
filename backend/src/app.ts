@@ -10,6 +10,9 @@ import { runAttachment } from './modules/drs/attachments.js';
 import { assessDrs } from './modules/drs/scoring.js';
 import { registerDrsRoutes } from './routes/drs-routes.js';
 import { drsReport } from './modules/drs/report.js';
+import { drsReference } from './modules/drs/reference.js';
+import { deriveEnvelope, levelReachability, parseQuantity } from './modules/drs/capacity.js';
+import { parseCalibration, CalibrationError } from './modules/drs/calibration.js';
 import { drsWorkflow, drsCatalog } from './modules/drs/catalog.js';
 import { registerFleetMissionRoutes } from './routes/fleet-mission-routes.js';
 import {
@@ -2321,6 +2324,69 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return fail(err, reply);
     }
   });
+
+  // Measured capacity and the envelope it implies. The service ceiling defaults to the
+  // immutable cap, so nothing escalates unless an operator sets SERVICE_CEILING_RPS.
+  app.get('/api/drs/capacity', { preHandler: guard('campaign:read') }, async (req) => {
+    const q = req.query as Record<string, string | undefined>;
+    const num = (raw: string | undefined, fallback: number) => {
+      const x = Number(raw);
+      return Number.isFinite(x) && x > 0 ? x : fallback;
+    };
+    const ceiling = {
+      maxRps: num(process.env.SERVICE_CEILING_RPS, HARD_CAPS.maxRps),
+      maxConcurrency: num(process.env.SERVICE_CEILING_CONCURRENCY, HARD_CAPS.maxConcurrency),
+      maxDurationSec: HARD_CAPS.maxDurationSec,
+    };
+    const scope = {
+      maxRps: num(q.rps, ceiling.maxRps),
+      maxConcurrency: num(q.concurrency, ceiling.maxConcurrency),
+      maxDurationSec: num(q.duration, ceiling.maxDurationSec),
+      targets: [] as string[],
+    };
+    const calibrations = await store.listAgentCalibrations();
+    const envelope = deriveEnvelope({
+      scope,
+      agents: calibrations.map((c) => ({
+        id: c.agentId,
+        measuredTps: c.measuredTps,
+        measuredConcurrency: c.measuredConcurrency,
+        measuredAt: c.measuredAt,
+        conditions: c.conditions,
+      })),
+      ceiling,
+    });
+    return {
+      ceiling,
+      scope,
+      envelope,
+      calibrations,
+      reachability: levelReachability(drsReference().vectors, envelope, {
+        quantity: parseQuantity,
+      }),
+    };
+  });
+
+  app.post(
+    '/api/drs/calibrations',
+    { preHandler: guard('campaign:approve') },
+    async (req, reply) => {
+      try {
+        const calibration = parseCalibration(req.body);
+        await store.saveAgentCalibration(calibration);
+        await audit(
+          req,
+          'drs.calibration',
+          calibration.agentId,
+          `${calibration.measuredTps} rps / ${calibration.measuredConcurrency} concurrent`,
+        );
+        return reply.code(201).send(calibration);
+      } catch (err) {
+        if (err instanceof CalibrationError) return reply.code(400).send({ error: err.message });
+        throw err;
+      }
+    },
+  );
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();

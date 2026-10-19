@@ -25,6 +25,7 @@ import type {
   CoverageMethod,
 } from '../modules/bench/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
+import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const { Pool } = pg;
@@ -233,6 +234,13 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     id: 8,
     sql: `CREATE TABLE IF NOT EXISTS fleet_devices_v1 (id text PRIMARY KEY, data jsonb NOT NULL);`,
   },
+  {
+    id: 9,
+    sql: `CREATE TABLE IF NOT EXISTS fleet_agent_capacity_v1 (
+      agent_id text PRIMARY KEY,
+      data jsonb NOT NULL
+    );`,
+  },
 ];
 
 /** settings key for the CISO-managed operational limits. */
@@ -266,6 +274,22 @@ export class PostgresStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     await this.pool.query('DELETE FROM fleet_devices_v1 WHERE id=$1', [id]);
   }
+  async listAgentCalibrations(): Promise<AgentCalibration[]> {
+    const r = await this.pool.query<{ data: AgentCalibration }>(
+      'SELECT data FROM fleet_agent_capacity_v1 ORDER BY agent_id',
+    );
+    return r.rows.map((row) => row.data);
+  }
+  async saveAgentCalibration(c: AgentCalibration): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO fleet_agent_capacity_v1(agent_id,data) VALUES($1,$2) ON CONFLICT(agent_id) DO UPDATE SET data=$2',
+      [c.agentId, JSON.stringify(c)],
+    );
+  }
+  async deleteAgentCalibration(agentId: string): Promise<void> {
+    await this.pool.query('DELETE FROM fleet_agent_capacity_v1 WHERE agent_id=$1', [agentId]);
+  }
+
   readonly backend = 'postgres' as const;
   private pool: pg.Pool;
   private transactionClient?: pg.PoolClient;

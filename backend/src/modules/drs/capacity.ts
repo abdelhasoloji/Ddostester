@@ -15,6 +15,15 @@
  * silently under-delivers.
  */
 
+/** Parse an archived quantity like "200K", "25M" or "100G" into a number. */
+export function parseQuantity(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const m = /^(\d+(?:\.\d+)?)([KMGTP]?)$/.exec(raw.trim());
+  return m
+    ? Number(m[1]) * ({ '': 1, K: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15 }[m[2]] ?? NaN)
+    : null;
+}
+
 export interface AgentCapacity {
   id: string;
   /** Requests per second the agent actually sustained in its calibration run. */

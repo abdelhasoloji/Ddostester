@@ -50,7 +50,8 @@ export interface AuditEntry {
     | 'target.request_auth'
     | 'target.authorize'
     | 'target.revoke'
-    | 'target.delete';
+    | 'target.delete'
+    | 'drs.calibration';
   campaignId?: string;
   detail?: string;
   /**
