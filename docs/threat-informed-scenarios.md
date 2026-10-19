@@ -8,12 +8,12 @@ independent probe.
 
 Each such template carries a `threat` block:
 
-| Field | Meaning |
-| --- | --- |
-| `technique` | the pattern being approximated |
+| Field                  | Meaning                                     |
+| ---------------------- | ------------------------------------------- |
+| `technique`            | the pattern being approximated              |
 | `source` / `reference` | public reporting, not internal intelligence |
-| `measures` | the resilience question the run answers |
-| `notReproduced` | the harmful mechanism deliberately left out |
+| `measures`             | the resilience question the run answers     |
+| `notReproduced`        | the harmful mechanism deliberately left out |
 
 ## What exists
 
@@ -21,12 +21,12 @@ The catalogue carries 20 threat-informed templates (`GET /api/playbooks`, or the
 **Threat-informed** category in the UI). Examples, including the cache-busted L7
 pattern added for the hacktivist HTTP-flood case:
 
-| Template | Pattern | What it measures |
-| --- | --- | --- |
-| `threat-l7-signature-evasion` | randomized L7 flood over several endpoints with rotating User-Agent | WAF / rate-limit efficacy against fingerprint and endpoint spread |
+| Template                       | Pattern                                                                                    | What it measures                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `threat-l7-signature-evasion`  | randomized L7 flood over several endpoints with rotating User-Agent                        | WAF / rate-limit efficacy against fingerprint and endpoint spread        |
 | `threat-l7-cache-busted-flood` | the same, plus a unique query token per request and a POST burst on the login/session path | origin exposure and rate-limit behaviour when the edge cache is bypassed |
-| `threat-http2-burst` | sustained h2 request rate | the HTTP/2 request path |
-| `threat-cache-key-stress` | cache-key pressure | cache policy under unique URLs |
+| `threat-http2-burst`           | sustained h2 request rate                                                                  | the HTTP/2 request path                                                  |
+| `threat-cache-key-stress`      | cache-key pressure                                                                         | cache policy under unique URLs                                           |
 
 ## What none of them reproduce
 

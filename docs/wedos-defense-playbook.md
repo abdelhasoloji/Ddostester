@@ -11,11 +11,11 @@ egress address.
 
 ## 1. What to run
 
-| Scenario | Template | Steps |
-| --- | --- | --- |
+| Scenario                      | Template                       | Steps                                                                                                                                   |
+| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Cache-busted multi-path flood | `threat-l7-cache-busted-flood` | baseline → cache-busted GET wave (5 paths, rotating browser UA, `parallelism: 3`) → login/session POST burst → non-browser client burst |
-| Randomised multi-path flood | `threat-l7-signature-evasion` | baseline → wave with rotating UA |
-| DRS 3→5 rehearsal | `pretest-cra-l7` | ordered DRS L7 lines, terminal level 5 |
+| Randomised multi-path flood   | `threat-l7-signature-evasion`  | baseline → wave with rotating UA                                                                                                        |
+| DRS 3→5 rehearsal             | `pretest-cra-l7`               | ordered DRS L7 lines, terminal level 5                                                                                                  |
 
 The cache-busted template is the closest match to a cache-evading L7 flood: a
 unique query token per request means the edge cannot absorb the run, so the
@@ -34,13 +34,13 @@ rules, a different detection path from browser blending.
 
 ## 3. Reading the result
 
-| Signal | Meaning |
-| --- | --- |
-| `absorption.absorbedRatio` | share of the offered load the edge did not pass through (rejected or tarpitted) |
-| `rejectedRatio` | fraction answered with 4xx/5xx — the WAF or rate limiter refusing |
-| `tarpitRatio` | fraction held until timeout/abort — connection-level shedding, not a policy answer |
-| probe availability / p95 | whether legitimate traffic still worked **while** the flood ran |
-| `confidence.degraded` | the generator host was itself the bottleneck; the number is not about the target |
+| Signal                     | Meaning                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| `absorption.absorbedRatio` | share of the offered load the edge did not pass through (rejected or tarpitted)    |
+| `rejectedRatio`            | fraction answered with 4xx/5xx — the WAF or rate limiter refusing                  |
+| `tarpitRatio`              | fraction held until timeout/abort — connection-level shedding, not a policy answer |
+| probe availability / p95   | whether legitimate traffic still worked **while** the flood ran                    |
+| `confidence.degraded`      | the generator host was itself the bottleneck; the number is not about the target   |
 
 A WAF that blocks every request but also blocks the probe is not a pass: the
 verdict counts legitimate availability, not just blocked volume.

@@ -59,7 +59,11 @@ describe('caps + seed', () => {
     const p = parseProposal(
       JSON.stringify({ target: 'https://x', maxRps: 5000, concurrency: 999, maxDurationSec: 3600 }),
     )!;
-    expect(proposalOverCaps(p, CEILING).sort()).toEqual(['concurrency', 'maxDurationSec', 'maxRps']);
+    expect(proposalOverCaps(p, CEILING).sort()).toEqual([
+      'concurrency',
+      'maxDurationSec',
+      'maxRps',
+    ]);
   });
   it('clamps the seed to the ceiling', () => {
     const p = parseProposal(

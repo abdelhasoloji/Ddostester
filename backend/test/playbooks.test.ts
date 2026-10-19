@@ -206,9 +206,9 @@ describe('playbooks', () => {
   it('rejects an empty, blank or oversized explicit User-Agent set', () => {
     const step = { maxRps: 1, concurrency: 1, maxDurationSec: 10, profile: 'constant' as const };
     for (const userAgents of [[], [''], ['  '], Array.from({ length: 51 }, (_, i) => 'ua' + i)])
-      expect(() =>
-        validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents }] }),
-      ).toThrow(PlaybookError);
+      expect(() => validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents }] })).toThrow(
+        PlaybookError,
+      );
     expect(() =>
       validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents: ['curl/8.6.0'] }] }),
     ).not.toThrow();

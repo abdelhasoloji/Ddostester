@@ -6,18 +6,17 @@ ShieldTester governs authorized bounded HTTP tests and evidence. It contains a c
 
 Resolve ambiguity here rather than from a filename:
 
-| Concept | File |
-| --- | --- |
-| Synthetic HTTP generator (the "amplifier") | `backend/src/engine/loadTest.ts` |
-| Slow-header probe, and the only raw TCP connect | `backend/src/engine/slowloris.ts` |
-| External tool adapters (vegeta, k6, locust, jmeter, gatling) | `backend/src/agents/` |
-| Every rate/concurrency/duration ceiling | `backend/src/config/limits.ts` (`HARD_CAPS`, `BUILTIN_*_CEILING`, `FLEET_LIMITS`) |
-| High-rate routing above the built-in ceiling | `backend/src/modules/campaigns/engine-route.ts` |
-| DRS assessment state machine (no sockets) | `backend/src/modules/drs/orchestrator.ts` |
-| DRS draft/freeze/evidence/finalize transitions | `backend/src/modules/drs/workflow.ts` |
+| Concept                                                      | File                                                                              |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Synthetic HTTP generator (the "amplifier")                   | `backend/src/engine/loadTest.ts`                                                  |
+| Slow-header probe, and the only raw TCP connect              | `backend/src/engine/slowloris.ts`                                                 |
+| External tool adapters (vegeta, k6, locust, jmeter, gatling) | `backend/src/agents/`                                                             |
+| Every rate/concurrency/duration ceiling                      | `backend/src/config/limits.ts` (`HARD_CAPS`, `BUILTIN_*_CEILING`, `FLEET_LIMITS`) |
+| High-rate routing above the built-in ceiling                 | `backend/src/modules/campaigns/engine-route.ts`                                   |
+| DRS assessment state machine (no sockets)                    | `backend/src/modules/drs/orchestrator.ts`                                         |
+| DRS draft/freeze/evidence/finalize transitions               | `backend/src/modules/drs/workflow.ts`                                             |
 
 No module defines its own copy of a cap: they import from `config/limits.ts`. A change to a ceiling is a reviewed security change, not a tuning parameter.
-
 
 The [companion lab](https://github.com/abdelhasoloji/shieldtest-lab) contains a confined synthetic UDP/TCP measurement model. Its JSON traffic-shape profiles are not real public reflector protocols. Compose uses an internal network; the address guard accepts private/loopback IPv4 and optionally narrows it to a lab prefix. The default Compose prefix is `192.168.100.`. Do not describe the standalone base guard as an unconditional fixed-/24 rule: it first validates RFC1918/loopback.
 

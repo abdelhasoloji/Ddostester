@@ -13,12 +13,16 @@ describe('FleetExecutor port (M2.1)', () => {
 
   it('refuses a mutable image tag', () => {
     expect(() =>
-      createFleetExecutor({ FLEET_AGENT_IMAGE: 'ddostester-lab-control:latest' } as NodeJS.ProcessEnv),
+      createFleetExecutor({
+        FLEET_AGENT_IMAGE: 'ddostester-lab-control:latest',
+      } as NodeJS.ProcessEnv),
     ).toThrow(/immutable local agent image/);
   });
 
   it('requires an image', () => {
-    expect(() => createFleetExecutor({} as NodeJS.ProcessEnv)).toThrow('FLEET_AGENT_IMAGE required');
+    expect(() => createFleetExecutor({} as NodeJS.ProcessEnv)).toThrow(
+      'FLEET_AGENT_IMAGE required',
+    );
   });
 
   it('pins the dedicated lab namespace', () => {

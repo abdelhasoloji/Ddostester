@@ -219,8 +219,9 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
             </li>
             <li>
               Hard caps on every run: ≤ {app.hardCapsCeiling.maxRps} rps, ≤{' '}
-              {app.hardCapsCeiling.maxConcurrency} concurrent, ≤ {app.hardCapsCeiling.maxDurationSec}{' '}
-              s (absolute per-run timeout) — reported by this server, not hardcoded here.
+              {app.hardCapsCeiling.maxConcurrency} concurrent, ≤{' '}
+              {app.hardCapsCeiling.maxDurationSec} s (absolute per-run timeout) — reported by this
+              server, not hardcoded here.
             </li>
             <li>
               The manual <b>kill switch</b> is always available during a run — use it if the target

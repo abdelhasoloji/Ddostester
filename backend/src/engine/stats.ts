@@ -108,8 +108,7 @@ export class LatencyRecorder {
     let seen = 0;
     for (let bucket = 0; bucket < this.counts.length; bucket++) {
       seen += this.counts[bucket];
-      if (seen >= rank)
-        return Number((this.boundsMs[bucket] ?? this.highest).toFixed(2));
+      if (seen >= rank) return Number((this.boundsMs[bucket] ?? this.highest).toFixed(2));
     }
     return Number(this.highest.toFixed(2));
   }

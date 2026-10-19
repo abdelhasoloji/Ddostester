@@ -69,8 +69,7 @@ export class FleetCoordinator {
     if (new Set(input.agentIds).size !== input.agentIds.length) throw new Error('Duplicate agents');
     // Provenance only: the site travels in the shard row, never in the signed
     // assignment (whose key set is strict and must not grow silently).
-    const sites =
-      input.sites ?? input.agentIds.map((agentId) => ({ agentId, site: 'local' }));
+    const sites = input.sites ?? input.agentIds.map((agentId) => ({ agentId, site: 'local' }));
     if (
       sites.length !== input.agentIds.length ||
       sites.some((entry, index) => entry.agentId !== input.agentIds[index])
@@ -135,7 +134,13 @@ export class FleetCoordinator {
       for (const [index, assignment] of assignments.entries())
         await c.query(
           'INSERT INTO fleet_shards_v1(run_id,agent_id,site,assignment,state) VALUES($1,$2,$3,$4,$5)',
-          [input.runId, assignment.agentId, sites[index].site, JSON.stringify(assignment), 'PENDING'],
+          [
+            input.runId,
+            assignment.agentId,
+            sites[index].site,
+            JSON.stringify(assignment),
+            'PENDING',
+          ],
         );
     });
   }

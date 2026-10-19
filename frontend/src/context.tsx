@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setToken, getToken, PLACEHOLDER_CAPS, getGrafanaBase, setGrafanaBase } from './api.js';
+import {
+  api,
+  setToken,
+  getToken,
+  PLACEHOLDER_CAPS,
+  getGrafanaBase,
+  setGrafanaBase,
+} from './api.js';
 import type {
   AgentInfo,
   Campaign,

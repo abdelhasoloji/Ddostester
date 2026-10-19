@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { highRateEngineUpgrade, builtinUnderDeliveryReason } from '../src/modules/campaigns/engine-route.js';
+import {
+  highRateEngineUpgrade,
+  builtinUnderDeliveryReason,
+} from '../src/modules/campaigns/engine-route.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 
 const CEIL = 150;
@@ -150,7 +153,8 @@ describe('builtinUnderDeliveryReason (refuse, never silently under-deliver)', ()
 
   it('never blocks an out-of-process or fleet engine', () => {
     for (const engine of ['vegeta', 'k6', 'kubernetes-fleet', 'locust'])
-      expect(builtinUnderDeliveryReason({ maxRps: 800, concurrency: 200 }, engine, CEIL, CONC))
-        .toBeNull();
+      expect(
+        builtinUnderDeliveryReason({ maxRps: 800, concurrency: 200 }, engine, CEIL, CONC),
+      ).toBeNull();
   });
 });

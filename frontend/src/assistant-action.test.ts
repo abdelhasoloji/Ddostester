@@ -62,9 +62,7 @@ describe('extractActions — types', () => {
   });
 
   it('parses open into a navigate action against a known screen', () => {
-    const { actions } = extract(
-      block({ type: 'open', screen: 'theater', label: 'Review run' }),
-    );
+    const { actions } = extract(block({ type: 'open', screen: 'theater', label: 'Review run' }));
     const a = actions[0];
     expect(a.kind).toBe('navigate');
     if (a.kind === 'navigate') {

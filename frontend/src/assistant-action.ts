@@ -29,11 +29,7 @@
 import type { CampaignFormSeed } from './campaign-form.js';
 import type { DraftTarget } from './context.js';
 import type { HardCaps } from './api.js';
-import {
-  parseProposal,
-  proposalToSeed,
-  proposalOverCaps,
-} from './assistant-proposal.js';
+import { parseProposal, proposalToSeed, proposalOverCaps } from './assistant-proposal.js';
 
 /** The governed screens an `open` action may route to. */
 export const SCREENS: Record<string, string> = {
@@ -89,7 +85,11 @@ function campaignAction(o: Record<string, unknown>, ceiling: HardCaps): Assistan
     rows: [
       { label: 'Target', value: p.target, mono: true },
       { label: 'Vector', value: p.vector },
-      { label: 'Max RPS', value: String(p.maxRps), over: proposalOverCaps(p, ceiling).includes('maxRps') },
+      {
+        label: 'Max RPS',
+        value: String(p.maxRps),
+        over: proposalOverCaps(p, ceiling).includes('maxRps'),
+      },
       {
         label: 'Concurrency',
         value: String(p.concurrency),
@@ -238,4 +238,3 @@ export function extractActions(
   });
   return { text: text.replace(/\n{3,}/g, '\n\n').trim(), actions };
 }
-

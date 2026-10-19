@@ -12,9 +12,9 @@ it('refuses malformed or excessive revocation configuration before opening TLS',
   const coordinator = {} as FleetCoordinator;
   const tls = { key: Buffer.alloc(0), cert: Buffer.alloc(0), ca: Buffer.alloc(0) };
   for (const fingerprints of [['short'], ['g'.repeat(64)], Array(129).fill('a'.repeat(64))]) {
-    expect(() => buildFleetServer(coordinator, tls, [{ agentId: 'one', site: 'vps-lab' }], fingerprints)).toThrow(
-      'Invalid revoked certificate fingerprints',
-    );
+    expect(() =>
+      buildFleetServer(coordinator, tls, [{ agentId: 'one', site: 'vps-lab' }], fingerprints),
+    ).toThrow('Invalid revoked certificate fingerprints');
   }
 });
 
@@ -24,9 +24,7 @@ describe('real TLS agent authentication (loopback only)', () => {
   let app: ReturnType<typeof buildFleetServer>;
   const clients: Agent[] = [];
   const claim = vi.fn(async () => null);
-  const presence = vi.fn(
-    async (_agentId: string, _site: string, _expiresAt: number) => undefined,
-  );
+  const presence = vi.fn(async (_agentId: string, _site: string, _expiresAt: number) => undefined);
   const nextWork = vi.fn(async (_agentId: string): Promise<null | { runId: string }> => null);
   const openssl = (args: string[]) => {
     const result = spawnSync('openssl', args, { cwd: dir, timeout: 10000, stdio: 'ignore' });

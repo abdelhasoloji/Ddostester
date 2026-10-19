@@ -101,9 +101,11 @@ describe('multi-site aggregate budget (M2.4)', () => {
       maxConcurrency: FLEET_LIMITS.maxConcurrency,
       maxDurationSec: FLEET_LIMITS.maxDurationSec,
     });
-    expect(
-      authorizedEnvelope({ maxRps: 10, maxConcurrency: 4, maxDurationSec: 30 }),
-    ).toEqual({ maxRps: 10, maxConcurrency: 4, maxDurationSec: 30 });
+    expect(authorizedEnvelope({ maxRps: 10, maxConcurrency: 4, maxDurationSec: 30 })).toEqual({
+      maxRps: 10,
+      maxConcurrency: 4,
+      maxDurationSec: 30,
+    });
     expect(() =>
       authorizedEnvelope({ maxRps: HARD_CAPS.maxRps + 1, maxConcurrency: 1, maxDurationSec: 1 }),
     ).toThrow('Invalid operational caps');
@@ -134,11 +136,7 @@ describe('multi-site aggregate budget (M2.4)', () => {
     const envelope = authorizedEnvelope(policy);
     const shards = splitBudget(FLEET_LIMITS.maxRps + 1, 6, 3);
     expect(() =>
-      assertAggregateBudget(
-        { maxRps: FLEET_LIMITS.maxRps + 1, concurrency: 6 },
-        shards,
-        envelope,
-      ),
+      assertAggregateBudget({ maxRps: FLEET_LIMITS.maxRps + 1, concurrency: 6 }, shards, envelope),
     ).toThrow('exceeds authorized envelope');
   });
 
@@ -149,7 +147,11 @@ describe('multi-site aggregate budget (M2.4)', () => {
       concurrency: 1,
     }));
     expect(() =>
-      assertAggregateBudget({ maxRps: shards.length, concurrency: shards.length }, shards, envelope),
+      assertAggregateBudget(
+        { maxRps: shards.length, concurrency: shards.length },
+        shards,
+        envelope,
+      ),
     ).toThrow('Invalid fleet shard count');
   });
 

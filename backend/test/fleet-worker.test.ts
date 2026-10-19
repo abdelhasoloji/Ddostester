@@ -72,7 +72,11 @@ describe('resident worker loop (M2.2)', () => {
     const stop = new AbortController();
     const began = Date.now();
     const pending = runWorkerLoop(
-      { poll: async () => null, execute: async () => ({ state: 'FAILED', reason: 'x' }), report: async () => true },
+      {
+        poll: async () => null,
+        execute: async () => ({ state: 'FAILED', reason: 'x' }),
+        report: async () => true,
+      },
       { pollMs: 10_000, signal: stop.signal },
     );
     setTimeout(() => stop.abort(), 20);

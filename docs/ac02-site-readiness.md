@@ -51,10 +51,10 @@ kubectl -n <namespace> create secret generic fleet-three \
 
 The worker only dials out; the site needs no inbound port. Two viable paths:
 
-| Path | What it needs | Trade-off |
-| --- | --- | --- |
+| Path                                | What it needs                                                       | Trade-off                                           |
+| ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
 | WireGuard / Tailscale (recommended) | a private address for the coordinator, e.g. `https://10.x.x.x:8443` | no public exposure; SAN carries the private name/IP |
-| Public DNS | `A` record, firewall allow on 8443, strict mTLS | exposed surface; restrict by source IP if possible |
+| Public DNS                          | `A` record, firewall allow on 8443, strict mTLS                     | exposed surface; restrict by source IP if possible  |
 
 Whichever you choose, the coordinator certificate must carry the **exact host** the
 worker uses in `FLEET_CONTROL_URL`, because the client runs
@@ -71,16 +71,16 @@ VPN, the tunnel is the control.
 
 ## 4. Values to supply before the manifest
 
-| # | Value | Format | Drives |
-| --- | --- | --- | --- |
-| 1 | Coordinator URL | `https://<host>:8443` | `FLEET_CONTROL_URL`, SAN |
-| 2 | Agent(s) at this site | `three@ac02` | `FLEET_AGENT_ID`, `FLEET_SITES` |
-| 3 | Namespace | `<namespace>` | every object's metadata, quota, RBAC |
-| 4 | Egress | `TCP 8443 → <coordinator>`, DNS | NetworkPolicy |
-| 5 | Image | `<registry>/…@sha256:<64 hex>` | container image |
-| 6 | Identity Secret | `fleet-three` | volume mount |
-| 7 | Resources | e.g. requests `100m/128Mi`, limits `500m/256Mi` | quota fit |
-| 8 | Cluster type/version | k3s / kind / managed | API fields, probe style |
+| #   | Value                 | Format                                          | Drives                               |
+| --- | --------------------- | ----------------------------------------------- | ------------------------------------ |
+| 1   | Coordinator URL       | `https://<host>:8443`                           | `FLEET_CONTROL_URL`, SAN             |
+| 2   | Agent(s) at this site | `three@ac02`                                    | `FLEET_AGENT_ID`, `FLEET_SITES`      |
+| 3   | Namespace             | `<namespace>`                                   | every object's metadata, quota, RBAC |
+| 4   | Egress                | `TCP 8443 → <coordinator>`, DNS                 | NetworkPolicy                        |
+| 5   | Image                 | `<registry>/…@sha256:<64 hex>`                  | container image                      |
+| 6   | Identity Secret       | `fleet-three`                                   | volume mount                         |
+| 7   | Resources             | e.g. requests `100m/128Mi`, limits `500m/256Mi` | quota fit                            |
+| 8   | Cluster type/version  | k3s / kind / managed                            | API fields, probe style              |
 
 ## 5. What the manifest will contain
 

@@ -34,7 +34,7 @@ A remote cluster needs a registry. Two ways, in order of preference.
 
 ### Option A — publish from GitHub Actions (no token)
 
-Actions → **Publish worker image** → *Run workflow*. The run summary prints:
+Actions → **Publish worker image** → _Run workflow_. The run summary prints:
 
 ```
 FLEET_WORKER_IMAGE=ghcr.io/<owner>/ddostester-lab-control@sha256:...
@@ -79,7 +79,7 @@ Notes:
   `standards/` and `scripts/`.
 - Use the **digest**: a tag can be repointed, and the fleet policy is written in
   terms of immutable references.
-- This image is for the *worker*. The coordinator's own `FLEET_AGENT_IMAGE` (used
+- This image is for the _worker_. The coordinator's own `FLEET_AGENT_IMAGE` (used
   to create local Jobs) is validated against the local registry pattern and does
   not need to change for a remote site.
 
@@ -98,10 +98,10 @@ renewal is manual; the coordinator reports `expiring` at 7 days in
 
 WireGuard is the recommended path (private addresses, no public surface):
 
-| Node | WireGuard address | Role |
-| --- | --- | --- |
-| amplification VPS | `10.8.0.1` | coordinator `:8443` |
-| ac02 | `10.8.0.2` | worker |
+| Node              | WireGuard address | Role                |
+| ----------------- | ----------------- | ------------------- |
+| amplification VPS | `10.8.0.1`        | coordinator `:8443` |
+| ac02              | `10.8.0.2`        | worker              |
 
 The coordinator certificate must carry the **exact host** used in
 `FLEET_CONTROL_URL`. Re-issue it from the existing CA (the script preserves every

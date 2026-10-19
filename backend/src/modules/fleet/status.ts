@@ -52,7 +52,8 @@ export async function inspectFleet(pool: pg.Pool, now = Date.now()) {
   const run = result.rows[0];
   // Presence is advisory: a node that has not yet migrated has no presence table,
   // and a status read must not fail because of optional observability.
-  let presence: { agent_id: string; site: string; cert_expires_at: string; last_seen: string }[] = [];
+  let presence: { agent_id: string; site: string; cert_expires_at: string; last_seen: string }[] =
+    [];
   try {
     presence = (
       await pool.query(
