@@ -10,9 +10,12 @@ permissions:
 
 # One run per ref: a new push to a PR cancels the superseded run (faster
 # feedback, less waste). main runs are keyed per-SHA so none are cancelled.
+# Superseded runs are cancelled on main too. Rapid merges used to queue every CI run,
+# delaying the run whose success triggers the deploy; a newer commit contains the older
+# one, so cancelling the stale run loses no evidence and frees the runner.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # The work is split into jobs that run in parallel instead of one long
 # sequential job. Wall-clock is now the SLOWEST job (the backend suite, whose
