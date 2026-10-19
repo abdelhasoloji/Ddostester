@@ -36,6 +36,20 @@ Mutations except revision creation require `revisionId` to reject stale clients.
 
 Independent entry/origin endpoints and real functional/calibration collectors need to be bound to the declared instrumentation before an evaluation can establish those dimensions. The default capacity response explicitly says physical execution is not qualified; the lab profile does not silently substitute other generators or create public reflectors.
 
+### Requirement gaps are structured, not prose
+
+`assessDrs` returns `requirementGaps`: one entry per vector and dimension (`load`,
+`sources`, `persistence`) with the archived requirement, the recorded value and a
+boolean. `qualify` already refused to pass a vector whose load, source diversity or
+persistence fell short, but it only said so in a sentence; a report could not show the
+distance. The DRS report now renders the table, and the assessment adds a reservation
+stating how many requirements were missed and that no level is certified as a result.
+
+Even DRS level 1 requires 100 Mbps / 25k pps / 500 tps, 10 independent bots and one
+hour of persistence. The platform's frozen DRS budget is 15 rps and three agents, so
+every level currently reports its gap explicitly rather than an unexplained
+INCONCLUSIVE.
+
 ## Reference and reproducibility
 
 The pinned DRS 3.00.00 reference was published on 4 August 2026. It contains 37 type definitions and 131 vector rows, distributed by level as 2, 3, 7, 16, 32, 34 and 37. There are 140 recorded anomalies or interpretation choices, not 140 resolved defects.
