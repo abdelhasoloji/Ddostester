@@ -89,19 +89,23 @@ const roleDescription: Record<Role, string> = {
 // campaign needs (Templates, Plan, the guide) lives inside the Campaigns
 // workspace, so the sidebar stays a flat, focused list with Settings on it too.
 // One monochrome outline family across navigation and theme controls.
-const SPINE_NAV = [
+// The product is a DRS service: the spine is the client test, nothing else. Legacy
+// campaign, fleet and theatre tooling stays reachable — production still holds hundreds of
+// legacy campaigns — but it is out of the operating path.
+const DRS_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean }[] = [
+  { to: '/clients', label: 'Clients', icon: <LineIcon name="fleet" /> },
+  { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
+  { to: '/drs', label: 'Assessments', icon: <LineIcon name="shield" /> },
+  { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
+];
+const LEGACY_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean }[] = [
   { to: '/', label: 'Command Center', icon: <LineIcon name="home" />, end: true },
   { to: '/zones', label: 'Protected zones', icon: <LineIcon name="shield" /> },
   { to: '/campaigns', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
   { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
-  { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
-  { to: '/drs', label: 'DRS', icon: <LineIcon name="shield" /> },
-  { to: '/clients', label: 'Clients', icon: <LineIcon name="fleet" /> },
   { to: '/theater', label: 'Run Theater', icon: <LineIcon name="theater" /> },
   { to: '/reports', label: 'Results', icon: <LineIcon name="results" /> },
   { to: '/assistant', label: 'Assistant', icon: <LineIcon name="chat" /> },
-  // Prepare retired from the spine; the audit log now lives in Settings.
-  { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
 ];
 
 const THEME_OPTS: [Theme, React.ReactNode, string][] = [
@@ -711,7 +715,7 @@ export function Layout() {
             <NotificationsBell />
           </div>
           <nav className="nav">
-            {SPINE_NAV.map((n) => (
+            {DRS_NAV.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
@@ -719,6 +723,25 @@ export function Layout() {
                 className={({ isActive }) =>
                   `nav-link nav-link-primary${isActive ? ' active' : ''}`
                 }
+              >
+                <span className="nav-icon" aria-hidden="true">
+                  {n.icon}
+                </span>
+                {n.label}
+              </NavLink>
+            ))}
+            <div
+              className="hint"
+              style={{ margin: '1rem 0 .35rem', textTransform: 'uppercase', fontSize: '.7rem' }}
+            >
+              Legacy
+            </div>
+            {LEGACY_NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
               >
                 <span className="nav-icon" aria-hidden="true">
                   {n.icon}
