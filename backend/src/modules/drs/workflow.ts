@@ -2,6 +2,7 @@ import { getBuildInfo } from '../../version.js';
 import { randomUUID } from 'node:crypto';
 import type { Campaign } from '../campaigns/model.js';
 import { FLEET_LIMITS, DRS_EVIDENCE_LIMITS } from '../../config/limits.js';
+import { serviceCeiling } from '../../config/service-ceiling.js';
 import { digest, drsReference } from './reference.js';
 import {
   DrsError,
@@ -129,12 +130,16 @@ export function transition(r: DrsRevision, state: DrsState, detail: string) {
 export function freeze(r: DrsRevision, c: Campaign) {
   ensure(r.state === 'DRAFT', 'Only a draft revision can be frozen');
   const b = r.plan.budgets;
+  // The outer limit is the configured service ceiling (default: the immutable hard cap),
+  // not the conservative transport constant — otherwise every DRS plan above 15 rps
+  // would be impossible to freeze.
+  const ceiling = serviceCeiling();
   ensure(
-    b.maxRps <= Math.min(c.maxRps, FLEET_LIMITS.maxRps) &&
-      b.concurrency <= Math.min(c.concurrency, FLEET_LIMITS.maxConcurrency) &&
-      b.maxAgents <= FLEET_LIMITS.maxAgents &&
-      b.maxDurationSec <= Math.min(c.maxDurationSec, FLEET_LIMITS.maxDurationSec),
-    'Frozen execution budget exceeds campaign or Fleet limits',
+    b.maxRps <= Math.min(c.maxRps, ceiling.maxRps) &&
+      b.concurrency <= Math.min(c.concurrency, ceiling.maxConcurrency) &&
+      b.maxAgents <= ceiling.maxAgents &&
+      b.maxDurationSec <= Math.min(c.maxDurationSec, ceiling.maxDurationSec),
+    'Frozen execution budget exceeds campaign or service ceiling',
   );
   ensure(r.plan.exposureSec <= b.maxDurationSec, 'Exposure exceeds frozen duration ceiling');
   if (r.plan.mode !== 'engine-validation')

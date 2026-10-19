@@ -67,6 +67,7 @@ import type {
   CampaignStatus,
   ReconPostureSnapshot,
 } from './modules/campaigns/model.js';
+import { serviceCeiling } from './config/service-ceiling.js';
 import {
   HARD_CAPS,
   MAX_COMPOSITE_STEPS,
@@ -2341,11 +2342,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   async function currentEnvelope(
     overrides: { rps?: number; concurrency?: number; duration?: number } = {},
   ) {
-    const ceiling = {
-      maxRps: Number(process.env.SERVICE_CEILING_RPS) || HARD_CAPS.maxRps,
-      maxConcurrency: Number(process.env.SERVICE_CEILING_CONCURRENCY) || HARD_CAPS.maxConcurrency,
-      maxDurationSec: HARD_CAPS.maxDurationSec,
-    };
+    const ceiling = serviceCeiling();
     const scope = {
       maxRps: overrides.rps ?? ceiling.maxRps,
       maxConcurrency: overrides.concurrency ?? ceiling.maxConcurrency,
