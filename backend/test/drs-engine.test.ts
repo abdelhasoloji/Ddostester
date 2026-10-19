@@ -17,7 +17,7 @@ import {
   finalize,
   appendProof,
 } from '../src/modules/drs/workflow.js';
-import { validatePlan, validateEvidence } from '../src/modules/drs/model.js';
+import { validatePlan, validateEvidence, planDigest } from '../src/modules/drs/model.js';
 import { drsReportHtml } from '../src/modules/drs/report.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 const campaign: Campaign = {
@@ -530,5 +530,30 @@ describe('plan budgets derive from the measured envelope', () => {
     const plan = defaultPlan(campaign, 'synthetic-lab');
     expect(plan.budgets.maxRps).toBe(campaign.maxRps);
     expect(plan.capacity).toBeUndefined();
+  });
+});
+
+describe('DRS report states the capacity envelope', () => {
+  it('renders the bounding dimensions when a plan was clamped', () => {
+    const r = revision('synthetic-lab', 1);
+    r.plan.capacity = {
+      maxRps: 800,
+      maxConcurrency: 60,
+      agents: 2,
+      limitedBy: { rps: 'capacity', concurrency: 'scope' },
+      warnings: ['Scope asks for 2000 rps but admitted capacity is 800 rps.'],
+      assessedAt: '2026-10-19T20:00:00.000Z',
+    };
+    r.planHash = planDigest(r);
+    const html = drsReportHtml(r);
+    expect(html).toContain('Capacity envelope this plan was bounded by');
+    expect(html).toContain('800 rps');
+    expect(html).toContain('2</b> admitted agent(s)');
+    expect(html).toContain('admitted capacity is 800 rps');
+  });
+
+  it('says plainly when no envelope applied', () => {
+    const r = revision('synthetic-lab', 1);
+    expect(drsReportHtml(r)).toContain('No measured envelope applied');
   });
 });
