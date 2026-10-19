@@ -14,8 +14,22 @@ const fakeApi = {
   listUsers: vi.fn().mockResolvedValue([]),
   playbooks: vi.fn().mockResolvedValue([]),
   suites: vi.fn().mockResolvedValue([]),
-  // The client file is the landing page.
+  // The client file is the landing page, and it shows the current envelope.
   drsClients: vi.fn().mockResolvedValue({ clients: [] }),
+  drsCapacity: vi.fn().mockResolvedValue({
+    ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+    scope: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900, targets: [] },
+    envelope: {
+      maxRps: 0,
+      maxConcurrency: 0,
+      maxDurationSec: 900,
+      agents: 0,
+      limitedBy: { rps: 'capacity', concurrency: 'capacity' },
+      warnings: [],
+    },
+    calibrations: [],
+    reachability: [],
+  }),
   assistantStatus: vi
     .fn()
     .mockResolvedValue({ configured: false, model: 'qwen', podManaged: false }),

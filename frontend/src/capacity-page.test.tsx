@@ -4,12 +4,11 @@ import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 import type { DrsCapacityView } from './api.js';
 
 let currentApp: ReturnType<typeof makeApp>;
-const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
-  drsCapacity: ReturnType<typeof vi.fn>;
-  saveCalibration: ReturnType<typeof vi.fn>;
-};
-fakeApi.drsCapacity = vi.fn();
-fakeApi.saveCalibration = vi.fn();
+// makeApi provides drsCapacity; saveCalibration is page-specific.
+const fakeApi = makeApi();
+const drsCapacityMock = fakeApi.drsCapacity as unknown as ReturnType<typeof vi.fn>;
+const saveCalibrationMock = vi.fn();
+(fakeApi as unknown as { saveCalibration: unknown }).saveCalibration = saveCalibrationMock;
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -55,13 +54,13 @@ const view = (over: Partial<DrsCapacityView> = {}): DrsCapacityView => ({
 
 beforeEach(() => {
   currentApp = makeApp();
-  fakeApi.drsCapacity.mockReset();
-  fakeApi.saveCalibration.mockReset();
+  drsCapacityMock.mockReset();
+  saveCalibrationMock.mockReset();
 });
 
 describe('Capacity page', () => {
   it('shows the envelope, what bounds it and the per-level gap', async () => {
-    fakeApi.drsCapacity.mockResolvedValue(view());
+    drsCapacityMock.mockResolvedValue(view());
     renderWithRouter(<CapacityPage />);
     // The envelope and the service ceiling are both 2,000 in this fixture.
     expect(await screen.findAllByText('2,000')).toHaveLength(2);
@@ -73,7 +72,7 @@ describe('Capacity page', () => {
   });
 
   it('says the envelope is zero when nothing is calibrated', async () => {
-    fakeApi.drsCapacity.mockResolvedValue(
+    drsCapacityMock.mockResolvedValue(
       view({
         envelope: {
           maxRps: 0,
@@ -93,8 +92,8 @@ describe('Capacity page', () => {
   });
 
   it('records a calibration and reloads the envelope', async () => {
-    fakeApi.drsCapacity.mockResolvedValueOnce(view()).mockResolvedValue(view());
-    fakeApi.saveCalibration.mockResolvedValue({});
+    drsCapacityMock.mockResolvedValueOnce(view()).mockResolvedValue(view());
+    saveCalibrationMock.mockResolvedValue({});
     renderWithRouter(<CapacityPage />);
     await screen.findByText('dev-a');
     fireEvent.change(screen.getByPlaceholderText('site-a'), { target: { value: 'site-b' } });
@@ -102,16 +101,16 @@ describe('Capacity page', () => {
     fireEvent.change(numbers[0], { target: { value: '9000' } });
     fireEvent.change(numbers[1], { target: { value: '250' } });
     fireEvent.click(screen.getByRole('button', { name: /record/i }));
-    await waitFor(() => expect(fakeApi.saveCalibration).toHaveBeenCalledTimes(1));
-    const payload = fakeApi.saveCalibration.mock.calls[0][0];
+    await waitFor(() => expect(saveCalibrationMock).toHaveBeenCalledTimes(1));
+    const payload = saveCalibrationMock.mock.calls[0][0];
     expect(payload.agentId).toBe('site-b');
     expect(payload.measuredTps).toBe(9000);
     expect(payload.measuredConcurrency).toBe(250);
-    await waitFor(() => expect(fakeApi.drsCapacity).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(drsCapacityMock).toHaveBeenCalledTimes(2));
   });
 
   it('surfaces a load failure instead of an empty screen', async () => {
-    fakeApi.drsCapacity.mockRejectedValue(new Error('authentication required'));
+    drsCapacityMock.mockRejectedValue(new Error('authentication required'));
     renderWithRouter(<CapacityPage />);
     expect(await screen.findByRole('alert')).toHaveTextContent('authentication required');
   });
@@ -119,7 +118,7 @@ describe('Capacity page', () => {
 
 describe('DRS plan creation from the Capacity screen', () => {
   it('keeps the button disabled until the plan is authorized and justified', async () => {
-    fakeApi.drsCapacity.mockResolvedValue(view());
+    drsCapacityMock.mockResolvedValue(view());
     renderWithRouter(<CapacityPage />);
     await screen.findByText('dev-a');
     const button = screen.getByRole('button', { name: /create plan/i }) as HTMLButtonElement;
@@ -127,7 +126,7 @@ describe('DRS plan creation from the Capacity screen', () => {
   });
 
   it('posts the intent once authorized and reports the created plan', async () => {
-    fakeApi.drsCapacity.mockResolvedValue(view());
+    drsCapacityMock.mockResolvedValue(view());
     (fakeApi as unknown as { createDrsPlan: ReturnType<typeof vi.fn> }).createDrsPlan = vi
       .fn()
       .mockResolvedValue({ id: 'c1', name: 'DRS L1 — staging', status: 'PENDING_APPROVAL' });

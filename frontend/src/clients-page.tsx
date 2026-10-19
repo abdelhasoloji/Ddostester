@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type DrsClientView } from './api.js';
+import { api, type DrsCapacityView, type DrsClientView } from './api.js';
 import { useApp } from './context.js';
 import { LineIcon } from './interface-kit.js';
 
@@ -13,18 +13,21 @@ import { LineIcon } from './interface-kit.js';
 export function ClientsPage() {
   const app = useApp();
   const [clients, setClients] = useState<DrsClientView[] | null>(null);
+  const [capacity, setCapacity] = useState<DrsCapacityView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .drsClients()
-      .then((r) => {
+    Promise.all([
+      api.drsClients().then((r) => {
         if (!cancelled) setClients(r.clients);
-      })
-      .catch((err) => {
-        if (!cancelled) setError((err as Error).message);
-      });
+      }),
+      api.drsCapacity().then((r) => {
+        if (!cancelled) setCapacity(r);
+      }),
+    ]).catch((err) => {
+      if (!cancelled) setError((err as Error).message);
+    });
     return () => {
       cancelled = true;
     };
@@ -46,6 +49,14 @@ export function ClientsPage() {
       </div>
 
       {error && <p role="alert">{error}</p>}
+
+      {capacity && (
+        <p className="hint">
+          Capacity: <b>{capacity.envelope.maxRps.toLocaleString()} rps</b> ·{' '}
+          <b>{capacity.envelope.agents}</b> admitted agent(s) · bounded by{' '}
+          <b>{capacity.envelope.limitedBy.rps}</b> · <a href="/capacity">calibrate or inspect</a>
+        </p>
+      )}
 
       {clients && clients.length === 0 && (
         <p className="hint">
