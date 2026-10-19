@@ -23,6 +23,38 @@ const base: CampaignInput = {
   authorized: true,
 };
 
+describe('authoring-time delivery guard (M1.5)', () => {
+  const high = { ...base, maxRps: 800, concurrency: 100 };
+
+  it('refuses an explicit built-in pin above its measured ceiling', () => {
+    expect(() => createCampaign({ ...high, agent: 'builtin' }, allowed)).toThrow(
+      /silently under-deliver/,
+    );
+  });
+
+  it('allows the same configuration when calibration is requested', () => {
+    expect(() =>
+      createCampaign({ ...high, agent: 'builtin', calibrate: true }, allowed),
+    ).not.toThrow();
+  });
+
+  it('allows a simple flood that the router can hand to an external engine', () => {
+    expect(() => createCampaign(high, allowed)).not.toThrow();
+  });
+
+  it('refuses a built-in-only shape (response assertion) above the ceiling', () => {
+    expect(() => createCampaign({ ...high, assertion: { status: 200 } }, allowed)).toThrow(
+      /silently under-deliver/,
+    );
+  });
+
+  it('refuses a slowloris above the ceiling, which only the built-in engine runs', () => {
+    expect(() =>
+      createCampaign({ ...high, vector: 'http-slowloris', concurrency: 50 }, allowed),
+    ).toThrow(/silently under-deliver/);
+  });
+});
+
 describe('CAM workflow', () => {
   it('creates a PENDING_APPROVAL campaign', () => {
     const c = createCampaign(base, allowed);

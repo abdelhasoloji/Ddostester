@@ -50,10 +50,14 @@ verdict counts legitimate availability, not just blocked volume.
 The individual DRS L7 lines already exist at 500, 800 and 1,000 rps, and the
 composite `pretest-cra-l7` runs the ordered 3→5 sequence. Two mechanics matter:
 
-- The **built-in engine saturates near 150 rps** (`BUILTIN_RPS_CEILING`). A step
-  above that auto-routes to vegeta or k6; if it cannot be routed (a built-in-only
-  shape, or the binary missing) the run is **refused** rather than silently
-  under-delivered (`builtinUnderDeliveryReason`).
+- `BUILTIN_RPS_CEILING` (150 rps) is a **routing threshold**, not a hard engine
+  limit: above it a step auto-routes to vegeta or k6, and a step that cannot be
+  routed is refused rather than silently under-delivered
+  (`builtinUnderDeliveryReason`). Measured on loopback, the pacer itself delivers
+  1,000 rps cleanly (6,000 requests, 0 failed, max 59 ms event-loop lag), so the
+  150 figure reflects real-target conditions — TLS, remote latency, probe
+  contention — not the scheduler. Capacity is latency-bound: roughly
+  `concurrency / latency`.
 - High-rate lines carry `calibrate: true`: the run measures the deliverable rate
   and grades there. A reduced exposure stays inconclusive for the original
   conditions — it is not a pass.

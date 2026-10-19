@@ -1,10 +1,15 @@
 import { MAX_PROBE_URLS } from '../../config/limits.js';
 import { createRevision, defaultPlan } from '../drs/workflow.js';
 import { drsWorkflow, drsCatalog } from '../drs/catalog.js';
-import { FLEET_LIMITS } from '../../config/limits.js';
+import {
+  FLEET_LIMITS,
+  BUILTIN_RPS_CEILING,
+  BUILTIN_CONCURRENCY_CEILING,
+} from '../../config/limits.js';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { HARD_CAPS, MIN_RECURRENCE_MIN } from './model.js';
+import { builtinUnderDeliveryReason, highRateEngineUpgrade } from './engine-route.js';
 import type { HardCaps } from '../../config/limits.js';
 import type { Campaign, CampaignInput, CampaignStatus } from './model.js';
 import {
@@ -177,6 +182,29 @@ export function createCampaign(
     throw new CampaignError(
       `maxDurationSec must be an integer within [1, ${caps.maxDurationSec}].`,
     );
+  }
+
+  // Authoring guard (M1.5): refuse a configuration that can only run on the
+  // built-in engine above its measured ceiling. The runner refuses it anyway; here
+  // the operator sees it when saving instead of after approval. A shape the router
+  // CAN hand to an external engine is accepted — whether that binary is installed is
+  // a runtime fact the runner re-checks, so creation must not guess.
+  if (
+    (input.maxRps > BUILTIN_RPS_CEILING || input.concurrency > BUILTIN_CONCURRENCY_CEILING) &&
+    input.calibrate !== true
+  ) {
+    const engine =
+      input.agent ?? highRateEngineUpgrade(input, BUILTIN_RPS_CEILING, BUILTIN_CONCURRENCY_CEILING);
+    // The campaign stores the engine ID (`builtin`); the guard speaks the resolved
+    // agent name (`builtin-http`). Map the ID, and treat "no engine" as built-in.
+    const engineName = !engine || engine === 'builtin' ? 'builtin-http' : engine;
+    const underDelivery = builtinUnderDeliveryReason(
+      { maxRps: input.maxRps, concurrency: input.concurrency, calibrate: input.calibrate },
+      engineName,
+      BUILTIN_RPS_CEILING,
+      BUILTIN_CONCURRENCY_CEILING,
+    );
+    if (underDelivery) throw new CampaignError(underDelivery);
   }
 
   if (input.scheduledAt !== undefined && Number.isNaN(Date.parse(input.scheduledAt))) {

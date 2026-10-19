@@ -13,6 +13,8 @@ import {
   MAX_PLAYBOOK_STEPS as MAX_STEPS,
   MAX_PLAYBOOK_HEADERS as MAX_HEADERS,
   MAX_USER_AGENTS,
+  BUILTIN_RPS_CEILING,
+  BUILTIN_CONCURRENCY_CEILING,
 } from '../../config/limits.js';
 import type { HardCaps } from '../../config/limits.js';
 
@@ -2429,7 +2431,16 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   } catch {
     /* keep raw; createCampaign will reject an invalid target */
   }
-  const agent = isAvailable(step.agent) ? step.agent : undefined;
+  const pinned = isAvailable(step.agent) ? step.agent : undefined;
+  // A curated step pinned to the built-in engine ABOVE its measured ceiling is a
+  // stale default, not a user decision: honouring it makes the run undeliverable
+  // (and, since the under-delivery guard, refused at execution). Drop the pin so
+  // the router can hand the step to vegeta/k6 and deliver the declared rate. An
+  // explicit pin on a campaign created through the API is a user's choice and is
+  // still honoured — that path does not go through this seed.
+  const overBuiltinCeiling =
+    step.maxRps > BUILTIN_RPS_CEILING || step.concurrency > BUILTIN_CONCURRENCY_CEILING;
+  const agent = pinned === 'builtin' && overBuiltinCeiling ? undefined : pinned;
   // Custom per-step headers are attached only for the built-in engine (explicit
   // or default). UA rotation is handled separately below — vegeta rotates it too.
   const builtin = agent === 'builtin' || agent === undefined;
