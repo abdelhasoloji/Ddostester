@@ -93,3 +93,34 @@ reached. The ceiling moves; the guardrails do not disappear.
 Volumetric (Gbps/pps) and botnet IP diversity need transit capacity and routable
 addresses. A Kubernetes cluster behind one uplink can produce high RPS and many
 connections, and must then state its real numbers — not inherit zeroBS's.
+
+## Delivered
+
+| Capability                                                                      | Where                                                                              |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Requirement gaps as data (load, sources, persistence) with required vs recorded | `modules/drs/scoring.ts`, DRS report                                               |
+| Measured-capacity envelope, level reachability, service ceiling                 | `modules/drs/capacity.ts`, `config/service-ceiling.ts`                             |
+| Calibration registry (validated, audited, PostgreSQL + memory)                  | `modules/drs/calibration.ts`, migration 9                                          |
+| Client dossiers, capacity screen, DRS workspace, replay, verdict + gaps inline  | frontend pages                                                                     |
+| Plan authoring with frozen budgets and exclusions                               | `POST /api/drs/plans`                                                              |
+| Measured execution loop with sealed evidence                                    | `probe-collector.ts`, `engine-generator.ts`, `POST /api/campaigns/:id/drs/execute` |
+| Configurable baseline floor (default 300 s)                                     | `config/drs-baseline.ts`                                                           |
+| Kubernetes load plane renderer + offline validator                              | `deploy/kubernetes/load-plane/`                                                    |
+| CI/CD: deploy 11 min → 1 min 30 s, superseded runs cancelled                    | `deploy/update.sh`, `.github/workflows/ci.yml`                                     |
+
+Verified end to end on the development server: plan → 202 → baseline → real exposure →
+sealed proof (generator + user points, 22/22 verified transactions) → FINAL_REPORT in 16 s
+→ report `PARTIAL` with three unmet requirements stated with their numbers.
+
+## Remaining before a certifiable DRS test
+
+1. **Independent entry/origin witness** — the only path from PARTIAL to a measured verdict.
+   Requires target-side telemetry ingestion and sealed `entry`/`origin` points.
+2. **Source diversity** — DRS vectors ask for hundreds to thousands of independent bots; the
+   fleet admits what it can calibrate, and the gap must stay stated until the fleet is real.
+3. **Volumetric capacity** — `bps`/`pps` are out of reach of an application load plane behind
+   one uplink; that requirement stays unmet by design and is reported as such.
+4. **Deployed Kubernetes plane** — the manifests are rendered and validated offline but have
+   not been applied to a live cluster.
+5. **Certification** — explicitly out of scope: `certification: false` is part of every
+   assessment.
