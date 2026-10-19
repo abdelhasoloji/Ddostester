@@ -44,8 +44,8 @@ kubectl -n <namespace> create secret generic fleet-three \
 - Leaves last 14 days and **renewal is manual**. The coordinator records each
   agent's `valid_to` on every authenticated request and reports `expiring` at seven
   days in `/api/fleet/status`, so expiry is visible — but it is not automatic.
-- Register the agent once, in **one** place: `FLEET_SITES=three@ac02` on the control
-  plane and the fleet server.
+- Register the agent once, in **one** place: the `fleet-registry` ConfigMap
+  (`FLEET_SITES=…,three@ac02`), read by both the control plane and the fleet server.
 
 ## 3. Reachability and SAN
 
