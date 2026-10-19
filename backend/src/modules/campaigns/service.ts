@@ -106,6 +106,15 @@ export function createCampaign(
   }
   if (!input.name?.trim()) throw new CampaignError('Campaign name is required.');
   if (!input.createdBy?.trim()) throw new CampaignError('Author (createdBy) is required.');
+  if (input.client !== undefined) {
+    if (
+      typeof input.client !== 'string' ||
+      input.client.trim().length < 2 ||
+      input.client.trim().length > 80
+    )
+      throw new CampaignError('client must be 2–80 characters.');
+    input.client = input.client.trim();
+  }
 
   if (input.iotProfile !== undefined) {
     if (input.agent !== 'builtin' || input.vector !== 'http-post')

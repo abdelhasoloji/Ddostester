@@ -2493,6 +2493,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           maxDurationSec: exposureSec,
           authorized: b.authorized === true,
           drsMode: mode,
+          ...(text(b.client) ? { client: text(b.client) } : {}),
         },
         await effectiveAllowlist(),
         agentChoices(),
@@ -2579,6 +2580,48 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return reply.code(202).send({ campaignId: id, started: true, maxLevel: rev.plan.maxLevel });
     },
   );
+
+  // Client dossiers: the DRS assessments grouped by the client they belong to. The client
+  // is a display grouping, not an authorization boundary — the allowlist and approvals
+  // stay the gate.
+  app.get('/api/drs/clients', { preHandler: guard('campaign:read') }, async () => {
+    const campaigns = (await store.listCampaigns()).filter((c) => c.drsDocument);
+    const byClient = new Map<
+      string,
+      {
+        client: string;
+        assessments: number;
+        finalized: number;
+        targets: string[];
+        lastAt: string | null;
+        lastState: string;
+      }
+    >();
+    for (const c of campaigns) {
+      const name = c.client?.trim() || c.createdBy;
+      const doc = c.drsDocument!;
+      const rev = doc.revisions.find((r) => r.number === doc.currentRevision) ?? doc.revisions[0];
+      const entry = byClient.get(name) ?? {
+        client: name,
+        assessments: 0,
+        finalized: 0,
+        targets: [],
+        lastAt: null,
+        lastState: rev?.state ?? 'DRAFT',
+      };
+      entry.assessments += 1;
+      if (rev?.finalizedAt) entry.finalized += 1;
+      if (!entry.targets.includes(c.target)) entry.targets.push(c.target);
+      if (!entry.lastAt || (rev?.createdAt ?? '') > entry.lastAt) {
+        entry.lastAt = rev?.createdAt ?? null;
+        entry.lastState = rev?.state ?? 'DRAFT';
+      }
+      byClient.set(name, entry);
+    }
+    return {
+      clients: [...byClient.values()].sort((a, b) => a.client.localeCompare(b.client)),
+    };
+  });
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();

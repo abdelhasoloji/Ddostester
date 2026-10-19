@@ -70,6 +70,8 @@ export interface CampaignInput {
   /** Optional deterministic synthetic HTTP sensor journey, compiled before approval. */
   iotProfile?: import('../../engine/iot-profile.js').IoTProfile;
   name: string;
+  /** Client dossier this assessment belongs to (display grouping, not authorization). */
+  client?: string;
   description?: string;
   /** Target URL (must be in the allowlist). */
   target: string;
