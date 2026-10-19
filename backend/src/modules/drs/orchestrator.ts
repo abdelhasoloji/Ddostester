@@ -21,7 +21,8 @@
  * exercises it. It is the complete sequenced path still awaiting bound ports, so
  * treat it as the reference state machine, not as the executed engine.
  */
-import { FLEET_LIMITS, DRS_EVIDENCE_LIMITS } from '../../config/limits.js';
+import { DRS_EVIDENCE_LIMITS, FLEET_LIMITS } from '../../config/limits.js';
+import { serviceCeiling } from '../../config/service-ceiling.js';
 import { drsReference } from './reference.js';
 import { ensure, planDigest } from './model.js';
 import type { DrsRevision, DrsEvidence } from './model.js';
@@ -64,12 +65,15 @@ export async function orchestrateDrs(
 ): Promise<DrsAssessment> {
   ensure(r.planHash === planDigest(r) && !r.finalizedAt, 'Frozen active plan required');
   const b = r.plan.budgets;
+  // A frozen plan was already checked against the service ceiling; re-check here so a
+  // revision cannot be executed by a caller that bypassed freeze.
+  const ceiling = serviceCeiling();
   ensure(
-    b.maxRps <= FLEET_LIMITS.maxRps &&
-      b.concurrency <= FLEET_LIMITS.maxConcurrency &&
-      b.maxAgents <= FLEET_LIMITS.maxAgents &&
-      b.maxDurationSec <= FLEET_LIMITS.maxDurationSec,
-    'Execution envelope exceeds immutable Fleet ceiling',
+    b.maxRps <= ceiling.maxRps &&
+      b.concurrency <= ceiling.maxConcurrency &&
+      b.maxAgents <= ceiling.maxAgents &&
+      b.maxDurationSec <= ceiling.maxDurationSec,
+    'Execution envelope exceeds the service ceiling',
   );
   const save = () => ports.checkpoint(structuredClone(r));
   if (r.plan.mode === 'engine-validation') {
