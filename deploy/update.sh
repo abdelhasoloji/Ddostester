@@ -31,6 +31,14 @@ fi
 SHORT="$(git rev-parse --short "$REV")"
 BUILD="$(git rev-list --count "$REV")"
 RELEASES="${DEPLOY_RELEASES_DIR:-$(dirname "$REPO_DIR")/ddostester-releases}"
+# The default sits next to the deploy checkout. A promotion run as a different user
+# (typically root) leaves it owned by that user, and every later deploy then died on
+# `mktemp` with "Permission denied" before building anything. When the operator has
+# not pinned a directory, fall back to a path the deploy user owns instead of failing.
+if [ -z "${DEPLOY_RELEASES_DIR:-}" ] && ! { mkdir -p "$RELEASES" 2>/dev/null && [ -w "$RELEASES" ]; }; then
+  RELEASES="$HOME/.ddostester-releases"
+  echo "WARN: $(dirname "$REPO_DIR")/ddostester-releases is not writable; using $RELEASES" >&2
+fi
 mkdir -p "$RELEASES"
 RELEASE="$(mktemp -d "$RELEASES/release-${SHORT}.XXXXXX")"
 git archive "$REV" | tar -x -C "$RELEASE"
