@@ -42,6 +42,15 @@ export interface DrsPlan {
   exposureRationale: string;
   recoveryTimeoutSec: number;
   budgets: { maxRps: number; concurrency: number; maxAgents: number; maxDurationSec: number };
+  /** Envelope the budgets were derived from, recorded so the report can state it. */
+  capacity?: {
+    maxRps: number;
+    maxConcurrency: number;
+    agents: number;
+    limitedBy: { rps: string; concurrency: string };
+    warnings: string[];
+    assessedAt: string;
+  };
   stopConditions: string[];
   protectionConfiguration: string;
   componentVersions: Record<string, string>;

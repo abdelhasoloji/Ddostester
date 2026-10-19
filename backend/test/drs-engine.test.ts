@@ -508,3 +508,27 @@ describe('archived requirement versus recorded evidence', () => {
     expect(gaps.every((g) => g.met)).toBe(true);
   });
 });
+
+describe('plan budgets derive from the measured envelope', () => {
+  it('clamps the campaign request to what the fleet measured and records it', () => {
+    const plan = defaultPlan(campaign, 'synthetic-lab', {
+      maxRps: 800,
+      maxConcurrency: 60,
+      agents: 2,
+      limitedBy: { rps: 'capacity', concurrency: 'capacity' },
+      warnings: ['capped by the fleet'],
+      assessedAt: '2026-10-19T20:00:00.000Z',
+    });
+    expect(plan.budgets.maxRps).toBe(Math.min(campaign.maxRps, 800));
+    expect(plan.budgets.concurrency).toBe(Math.min(campaign.concurrency, 60));
+    expect(plan.budgets.maxAgents).toBeLessThanOrEqual(2);
+    expect(plan.capacity?.agents).toBe(2);
+    expect(plan.capacity?.warnings).toContain('capped by the fleet');
+  });
+
+  it('leaves the campaign budgets intact when nothing is calibrated', () => {
+    const plan = defaultPlan(campaign, 'synthetic-lab');
+    expect(plan.budgets.maxRps).toBe(campaign.maxRps);
+    expect(plan.capacity).toBeUndefined();
+  });
+});

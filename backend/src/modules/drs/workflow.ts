@@ -14,7 +14,11 @@ import {
 } from './model.js';
 import type { DrsDocument, DrsRevision, DrsPlan, DrsState, DrsEvidence, DrsMode } from './model.js';
 import { assessDrs } from './scoring.js';
-export function defaultPlan(c: Campaign, mode: DrsMode = c.drsMode ?? 'synthetic-lab'): DrsPlan {
+export function defaultPlan(
+  c: Campaign,
+  mode: DrsMode = c.drsMode ?? 'synthetic-lab',
+  capacity?: DrsPlan['capacity'],
+): DrsPlan {
   return {
     mode,
     maxLevel: 1,
@@ -59,12 +63,22 @@ export function defaultPlan(c: Campaign, mode: DrsMode = c.drsMode ?? 'synthetic
     exposureSec: c.maxDurationSec,
     exposureRationale: 'Bounded laboratory exposure; cannot establish full standard persistence',
     recoveryTimeoutSec: 300,
+    // Budgets are the campaign's request clamped to what the fleet measured. Without a
+    // positive envelope the campaign budgets stand: refusing here would block planning
+    // on a fleet that has not calibrated yet, and the run still refuses at execution.
     budgets: {
-      maxRps: c.maxRps,
-      concurrency: c.concurrency,
-      maxAgents: Math.min(c.fleetDeviceIds?.length ?? 1, FLEET_LIMITS.maxAgents),
+      maxRps: capacity?.maxRps ? Math.min(c.maxRps, capacity.maxRps) : c.maxRps,
+      concurrency: capacity?.maxConcurrency
+        ? Math.min(c.concurrency, capacity.maxConcurrency)
+        : c.concurrency,
+      maxAgents: Math.min(
+        c.fleetDeviceIds?.length ?? 1,
+        FLEET_LIMITS.maxAgents,
+        capacity?.agents ? Math.max(1, capacity.agents) : FLEET_LIMITS.maxAgents,
+      ),
       maxDurationSec: c.maxDurationSec,
     },
+    ...(capacity && capacity.maxRps > 0 ? { capacity } : {}),
     stopConditions: ['Campaign kill switch', 'Frozen budget exceeded', 'Probe unhealthy'],
     protectionConfiguration: 'Not recorded',
     componentVersions: {

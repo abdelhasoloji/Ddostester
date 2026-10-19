@@ -2311,11 +2311,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     try {
       const input = req.body as CampaignInput;
       if (req.authUser) input.createdBy = req.authUser.email;
+      // A DRS plan's budgets are clamped to the measured envelope, and the envelope is
+      // recorded on the plan so the report can state what bounded it.
+      const { envelope } = await currentEnvelope();
       const campaign = createCampaign(
         input,
         await effectiveAllowlist(),
         agentChoices(),
         effectiveCaps,
+        {
+          maxRps: envelope.maxRps,
+          maxConcurrency: envelope.maxConcurrency,
+          agents: envelope.agents,
+          limitedBy: envelope.limitedBy,
+          warnings: envelope.warnings,
+          assessedAt: new Date().toISOString(),
+        },
       );
       await store.saveCampaign(campaign);
       await audit(req, 'campaign.create', campaign.id, `${campaign.name} → ${campaign.target}`);
@@ -2325,23 +2336,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
   });
 
-  // Measured capacity and the envelope it implies. The service ceiling defaults to the
-  // immutable cap, so nothing escalates unless an operator sets SERVICE_CEILING_RPS.
-  app.get('/api/drs/capacity', { preHandler: guard('campaign:read') }, async (req) => {
-    const q = req.query as Record<string, string | undefined>;
-    const num = (raw: string | undefined, fallback: number) => {
-      const x = Number(raw);
-      return Number.isFinite(x) && x > 0 ? x : fallback;
-    };
+  // One definition of the current envelope, shared by the capacity view and by DRS
+  // campaign creation so a plan's budgets cannot exceed what the fleet measured.
+  async function currentEnvelope(
+    overrides: { rps?: number; concurrency?: number; duration?: number } = {},
+  ) {
     const ceiling = {
-      maxRps: num(process.env.SERVICE_CEILING_RPS, HARD_CAPS.maxRps),
-      maxConcurrency: num(process.env.SERVICE_CEILING_CONCURRENCY, HARD_CAPS.maxConcurrency),
+      maxRps: Number(process.env.SERVICE_CEILING_RPS) || HARD_CAPS.maxRps,
+      maxConcurrency: Number(process.env.SERVICE_CEILING_CONCURRENCY) || HARD_CAPS.maxConcurrency,
       maxDurationSec: HARD_CAPS.maxDurationSec,
     };
     const scope = {
-      maxRps: num(q.rps, ceiling.maxRps),
-      maxConcurrency: num(q.concurrency, ceiling.maxConcurrency),
-      maxDurationSec: num(q.duration, ceiling.maxDurationSec),
+      maxRps: overrides.rps ?? ceiling.maxRps,
+      maxConcurrency: overrides.concurrency ?? ceiling.maxConcurrency,
+      maxDurationSec: overrides.duration ?? ceiling.maxDurationSec,
       targets: [] as string[],
     };
     const calibrations = await store.listAgentCalibrations();
@@ -2355,6 +2363,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         conditions: c.conditions,
       })),
       ceiling,
+    });
+    return { ceiling, scope, envelope, calibrations };
+  }
+
+  // Measured capacity and the envelope it implies. The service ceiling defaults to the
+  // immutable cap, so nothing escalates unless an operator sets SERVICE_CEILING_RPS.
+  app.get('/api/drs/capacity', { preHandler: guard('campaign:read') }, async (req) => {
+    const q = req.query as Record<string, string | undefined>;
+    const num = (raw: string | undefined) => {
+      const x = Number(raw);
+      return Number.isFinite(x) && x > 0 ? x : undefined;
+    };
+    const { ceiling, scope, envelope, calibrations } = await currentEnvelope({
+      rps: num(q.rps),
+      concurrency: num(q.concurrency),
+      duration: num(q.duration),
     });
     return {
       ceiling,
