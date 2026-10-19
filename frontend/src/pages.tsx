@@ -99,7 +99,7 @@ const DRS_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean
   { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
 ];
 const LEGACY_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean }[] = [
-  { to: '/', label: 'Command Center', icon: <LineIcon name="home" />, end: true },
+  { to: '/legacy', label: 'Command Center', icon: <LineIcon name="home" /> },
   { to: '/zones', label: 'Protected zones', icon: <LineIcon name="shield" /> },
   { to: '/campaigns', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
   { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },

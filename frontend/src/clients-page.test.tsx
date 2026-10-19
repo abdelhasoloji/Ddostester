@@ -2,8 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
-const fakeApi = makeApi() as ReturnType<typeof makeApi> & { drsClients: ReturnType<typeof vi.fn> };
-fakeApi.drsClients = vi.fn();
+// makeApi already provides drsClients; reuse its mock instead of re-typing it.
+const fakeApi = makeApi();
+const drsClients = fakeApi.drsClients as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -18,7 +19,7 @@ const { ClientsPage } = await import('./clients-page.js');
 
 describe('client dossiers', () => {
   it('lists each client with its assessments, targets and last state', async () => {
-    fakeApi.drsClients.mockResolvedValue({
+    drsClients.mockResolvedValue({
       clients: [
         {
           client: 'acme',
@@ -37,13 +38,13 @@ describe('client dossiers', () => {
   });
 
   it('says there is no dossier yet', async () => {
-    fakeApi.drsClients.mockResolvedValue({ clients: [] });
+    drsClients.mockResolvedValue({ clients: [] });
     renderWithRouter(<ClientsPage />);
     expect(await screen.findByText(/No DRS assessment yet/)).toBeTruthy();
   });
 
   it('surfaces a load failure', async () => {
-    fakeApi.drsClients.mockRejectedValue(new Error('authentication required'));
+    drsClients.mockRejectedValue(new Error('authentication required'));
     renderWithRouter(<ClientsPage />);
     expect(await screen.findByRole('alert')).toHaveTextContent('authentication required');
   });
