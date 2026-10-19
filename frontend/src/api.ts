@@ -1254,6 +1254,11 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  cancelDrsPlan: (campaignId: string) =>
+    post<{ campaignId: string; cancelling: boolean }>(
+      `/api/campaigns/${encodeURIComponent(campaignId)}/drs/cancel`,
+      {},
+    ),
   replayDrsPlan: (campaignId: string) =>
     post<Campaign>(`/api/campaigns/${encodeURIComponent(campaignId)}/drs/replay`, {}),
   executeDrsPlan: (campaignId: string) =>

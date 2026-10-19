@@ -76,6 +76,19 @@ export function DrsPage() {
     };
   }, [rows, reports]);
 
+  const cancel = async (id: string) => {
+    setBusy(id + ':cancel');
+    try {
+      await api.cancelDrsPlan(id);
+      app.push('success', 'Cancellation requested — the exposure stops at the next checkpoint.');
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const replay = async (id: string) => {
     setBusy(id + ':replay');
     try {
@@ -188,6 +201,18 @@ export function DrsPage() {
                     >
                       {busy === campaign.id + ':replay' ? 'Replaying…' : 'Replay'}
                     </button>{' '}
+                    {!finalized && state !== 'PLAN_FROZEN' && state !== 'DRAFT' && (
+                      <button
+                        className="btn btn-sm"
+                        disabled={busy === campaign.id + ':cancel'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void cancel(campaign.id);
+                        }}
+                      >
+                        {busy === campaign.id + ':cancel' ? 'Cancelling…' : 'Cancel'}
+                      </button>
+                    )}{' '}
                     {!finalized && state === 'PLAN_FROZEN' && (
                       <button
                         className="btn btn-sm btn-primary"
