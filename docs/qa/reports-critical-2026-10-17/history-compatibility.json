@@ -1,0 +1,24 @@
+{
+  "compatibility": {
+    "reportCompatibility": {
+      "retainedRuns": 227,
+      "individualReports": 227,
+      "suiteReports": 50,
+      "portfolioReport": true
+    },
+    "classicApplicationReady": true,
+    "singleOwner": true,
+    "users": 11,
+    "campaigns": 289,
+    "fleet": 3,
+    "currentDatabaseUnchanged": true
+  },
+  "checkedAt": "2026-10-17T18:59:39.696Z",
+  "authenticatedRecovery": true,
+  "atomicRestore": true,
+  "preserved": {
+    "audit": true,
+    "infrastructure": true
+  },
+  "archiveSha256": "a2c0ae10e37bbfa3f4d31e926ed50026818cb4f253dedd795e83460a0dd08025"
+}

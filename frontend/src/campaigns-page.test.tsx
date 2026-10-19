@@ -1,5 +1,6 @@
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, render as renderBare } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 import type { Campaign, CampaignStatus } from './api.js';
 
@@ -153,6 +154,24 @@ describe('CampaignList — suite grouping', () => {
     await waitFor(() => expect(fakeApi.approveSuite).toHaveBeenCalledWith('suite-1'));
   });
 
+  it('does not claim approval when every step was skipped', async () => {
+    fakeApi.approveSuite = vi
+      .fn()
+      .mockResolvedValue({ suiteId: 'suite-1', approved: 0, skipped: 2 });
+    currentApp = makeApp({
+      role: 'ciso',
+      authRequired: true,
+      campaigns: [member(0, 'PENDING_APPROVAL'), member(1, 'PENDING_APPROVAL')],
+    });
+    renderWithRouter(<CampaignList />);
+    expandRow('Suite X');
+    fireEvent.click(screen.getByRole('button', { name: /Approve \/ Reject/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Approve \(/ }));
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith('error', '0 steps approved; 2 skipped.'),
+    );
+  });
+
   it('a CISO rejects a pending scenario with a reason via the same modal', async () => {
     fakeApi.rejectSuite = vi
       .fn()
@@ -265,4 +284,37 @@ describe('CampaignList — suite grouping', () => {
     fireEvent.keyDown(row, { key: ' ' });
     expect(document.querySelector('.ct-detail .campaign')).toBeNull();
   });
+});
+
+it('opens exact-host zone history including archives and lets the operator clear the scope', () => {
+  currentApp = makeApp({
+    campaigns: [
+      member(0, 'COMPLETED', {
+        name: 'Current bank campaign',
+        suiteId: undefined,
+        target: 'https://bank.cz/',
+      }),
+      member(1, 'COMPLETED', {
+        name: 'Archived bank campaign',
+        suiteId: undefined,
+        target: 'https://BANK.cz:8443/path',
+        archived: true,
+      }),
+      member(2, 'COMPLETED', {
+        name: 'Other customer campaign',
+        suiteId: undefined,
+        target: 'https://bank.cz.evil.example/',
+      }),
+    ],
+  });
+  renderBare(
+    <MemoryRouter initialEntries={['/campaigns?tab=history&host=bank.cz&archived=1']}>
+      <CampaignList />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText('Current bank campaign')).toBeInTheDocument();
+  expect(screen.getByText('Archived bank campaign')).toBeInTheDocument();
+  expect(screen.queryByText('Other customer campaign')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Host: bank.cz/ }));
+  expect(screen.getByText('Other customer campaign')).toBeInTheDocument();
 });

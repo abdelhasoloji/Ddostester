@@ -1,0 +1,411 @@
+Browser tab: 29, Title: "Resilience assessment — WEDOS ShieldTest", URL: "http://127.0.0.1:18097/api/reports/compliance".
+0 AXWebArea Resilience assessment — WEDOS ShieldTest, URL: 127.0.0.1:18097/api/reports/compliance
+	1 button Print / PDF
+	2 text WEDOS ShieldTest
+	3 heading Resilience assessment, Value: 1
+		4 text Resilience assessment
+	5 text Period origin → now · generated 2026-10-17 12:43 UTC
+	6 text CONFIDENTIAL — WEDOS INTERNAL
+	7 container
+		8 text No HTTP assessments were recorded in  origin → now . Network-bench evidence is summarized separately.
+	9 container
+		10 text Synthetic network bench:  12  retained laboratory observations;  3  state-table saturation outcomes;  9  unmitigated baselines. These observations do not establish a measured DRS score or successful protection.
+	11 heading At a glance, Value: 2
+		12 text At a glance
+	13 text HTTP WRS: not evaluated
+	14 text HTTP average across 0 runs
+	15 text 0 Critical
+	16 text 0 Medium
+	17 text 0 Low
+	18 text RUNS ASSESSED
+	19 text 0
+	20 text MINIMUM WRS
+	21 text —
+	22 text BELOW WRS 70
+	23 text 0
+	24 text INCONCLUSIVE (NOT VALID)
+	25 text 0
+	26 text DEGRADED MEASUREMENTS
+	27 text 0
+	28 text TARGETS
+	29 text 0
+	30 container
+		31 text WRS trend  —
+	32 heading Scope, Value: 2
+		33 text Scope
+	34 table
+		35 row
+			36 cell
+				37 text Runs assessed
+			38 cell
+				39 text 0
+		40 row
+			41 cell
+				42 text Targets
+			43 cell
+				44 text —
+		45 row
+			46 cell
+				47 text Load engines
+			48 cell
+				49 text —
+		50 row
+			51 cell
+				52 text HTTP method
+			53 cell
+				54 text Bounded HTTP (GET/POST), allowlisted, capped ≤ 2000 rps / 500 conc / 900 s
+		55 row
+			56 cell
+				57 text Network method
+			58 cell
+				59 text Bounded synthetic UDP shapes and real TCP connection pressure on the isolated lab; no HTTP WRS applies
+		60 row
+			61 cell
+				62 text DRS note
+			63 cell
+				64 text DRS 3.00.00 is evaluated only from frozen independent evidence; no DRS score is inferred from WRS or reference-level labels
+	65 heading Score & risk distribution, Value: 2
+		66 text Score & risk distribution
+	67 text Runs by WRS grade
+	68 text No runs in the period.
+	69 text Runs by RiskLevel
+	70 text No runs in the period.
+	71 heading Per-scenario results (Layer 7, bounded), Value: 2
+		72 text Per-scenario results (Layer 7, bounded)
+	73 table
+		74 row
+			75 cell
+				76 text #
+			77 cell
+				78 text Scenario
+			79 cell
+				80 text Target
+			81 cell
+				82 text Load rps (cfg→eff)
+			83 cell
+				84 text WRS
+			85 cell
+				86 text Mitigation
+			87 cell
+				88 text RiskLevel
+			89 cell
+				90 text Notes
+		91 row
+			92 cell
+				93 text No runs in the period.
+	94 container
+		95 text Volumetric / L3-L4 — class C, network bench.  UDP/TCP/ICMP floods, amplification, fragmentation and source spoofing are never run by this control plane. The UDP amplification and no-spoof TCP state-table shapes are measured on the isolated network bench; spoofing/GRE/fragmentation are covered by attestation or ingestion — see  drs-validation-policy.md  and the coverage matrix below.
+	96 heading Weaknesses & recommended remediations, Value: 2
+		97 text Weaknesses & recommended remediations
+	98 text No additional HTTP remediations were derived. This does not establish that targets held cleanly; inspect the per-scenario verdicts and network-bench evidence.
+	99 heading Network bench (class C) — DRS Volumetric coverage, Value: 2
+		100 text Network bench (class C) — DRS Volumetric coverage
+	101 text VECTORS
+	102 text 18
+	103 text MEASURED (LAB)
+	104 text 12
+	105 text COVERED (ANY METHOD)
+	106 text 12
+	107 text NEVER EMITTED
+	108 text 6
+	109 table
+		110 row
+			111 cell
+				112 text Vector
+			113 cell
+				114 text Proto
+			115 cell
+				116 text DRS
+			117 cell
+				118 text Bench
+			119 cell
+				120 text Coverage method
+			121 cell
+				122 text Latest evidence
+		123 row
+			124 cell
+				125 text udp_dns_reflection
+			126 cell
+				127 text UDP
+			128 cell
+				129 text 3
+			130 cell
+				131 text reproducible
+			132 cell
+				133 text MEASURED LAB
+			134 cell
+				135 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 40×.  · isolated-drs5-476
+		136 row
+			137 cell
+				138 text tcp_synflood
+			139 cell
+				140 text TCP
+			141 cell
+				142 text 3
+			143 cell
+				144 text reproducible
+			145 cell
+				146 text MEASURED LAB
+			147 cell
+				148 text STATE_TABLE_SATURATED  Bounded synthetic run (no-spoof) — state-table saturation 77.01% at peak 200 conns.  · isolated-drs5-476
+		149 row
+			150 cell
+				151 text udp_maxpackets
+			152 cell
+				153 text UDP
+			154 cell
+				155 text 3
+			156 cell
+				157 text reproducible
+			158 cell
+				159 text MEASURED LAB
+			160 cell
+				161 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 10×.  · isolated-drs5-476
+		162 row
+			163 cell
+				164 text tcp_maxpackets
+			165 cell
+				166 text TCP
+			167 cell
+				168 text 3
+			169 cell
+				170 text reproducible
+			171 cell
+				172 text MEASURED LAB
+			173 cell
+				174 text STATE_TABLE_SATURATED  Bounded synthetic run (no-spoof) — state-table saturation 58.62% at peak 300 conns.  · isolated-drs5-476
+		175 row
+			176 cell
+				177 text ip_spoofing
+			178 cell
+				179 text IP
+			180 cell
+				181 text 4
+			182 cell
+				183 text out of model
+			184 cell
+				185 text not covered
+			186 cell
+				187 text Source-IP spoofing is NEVER permitted here — the defining safety property of this bench.
+		188 row
+			189 cell
+				190 text udp_fragmentation
+			191 cell
+				192 text UDP
+			193 cell
+				194 text 4
+			195 cell
+				196 text out of model
+			197 cell
+				198 text not covered
+			199 cell
+				200 text Fragment crafting — outside the synthetic model (no raw packet crafting).
+		201 row
+			202 cell
+				203 text tcp_fragmentation
+			204 cell
+				205 text TCP
+			206 cell
+				207 text 4
+			208 cell
+				209 text out of model
+			210 cell
+				211 text not covered
+			212 cell
+				213 text TCP + fragment crafting — out of model.
+		214 row
+			215 cell
+				216 text udp_multivector
+			217 cell
+				218 text UDP
+			219 cell
+				220 text 4
+			221 cell
+				222 text reproducible
+			223 cell
+				224 text MEASURED LAB
+			225 cell
+				226 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 168.27×.  · isolated-drs5-476
+		227 row
+			228 cell
+				229 text tcp_multivector
+			230 cell
+				231 text TCP
+			232 cell
+				233 text 4
+			234 cell
+				235 text out of model
+			236 cell
+				237 text not covered
+			238 cell
+				239 text TCP multi-vector — out of model.
+		240 row
+			241 cell
+				242 text multiproto_multivector
+			243 cell
+				244 text Multi
+			245 cell
+				246 text 5
+			247 cell
+				248 text out of model
+			249 cell
+				250 text not covered
+			251 cell
+				252 text UDP+TCP+GRE mix — includes non-UDP, out-of-model vectors.
+		253 row
+			254 cell
+				255 text gre_packets
+			256 cell
+				257 text GRE
+			258 cell
+				259 text 5
+			260 cell
+				261 text out of model
+			262 cell
+				263 text not covered
+			264 cell
+				265 text GRE protocol packets — not a UDP amplification shape.
+		266 row
+			267 cell
+				268 text udp_ntp_reflection
+			269 cell
+				270 text UDP
+			271 cell
+				272 text 3
+			273 cell
+				274 text reproducible
+			275 cell
+				276 text MEASURED LAB
+			277 cell
+				278 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 300×.  · isolated-drs5-476
+		279 row
+			280 cell
+				281 text udp_ssdp_reflection
+			282 cell
+				283 text UDP
+			284 cell
+				285 text 3
+			286 cell
+				287 text reproducible
+			288 cell
+				289 text MEASURED LAB
+			290 cell
+				291 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 30×.  · isolated-drs5-476
+		292 row
+			293 cell
+				294 text udp_cldap_reflection
+			295 cell
+				296 text UDP
+			297 cell
+				298 text 4
+			299 cell
+				300 text reproducible
+			301 cell
+				302 text MEASURED LAB
+			303 cell
+				304 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 50×.  · isolated-drs5-476
+		305 row
+			306 cell
+				307 text udp_memcached_reflection
+			308 cell
+				309 text UDP
+			310 cell
+				311 text 4
+			312 cell
+				313 text reproducible
+			314 cell
+				315 text MEASURED LAB
+			316 cell
+				317 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 500×.  · isolated-drs5-476
+		318 row
+			319 cell
+				320 text quic_init_pressure
+			321 cell
+				322 text UDP
+			323 cell
+				324 text 4
+			325 cell
+				326 text reproducible
+			327 cell
+				328 text MEASURED LAB
+			329 cell
+				330 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 1×.  · isolated-drs5-476
+		331 row
+			332 cell
+				333 text tcp_conn_drain
+			334 cell
+				335 text TCP
+			336 cell
+				337 text 4
+			338 cell
+				339 text reproducible
+			340 cell
+				341 text MEASURED LAB
+			342 cell
+				343 text STATE_TABLE_SATURATED  Bounded synthetic run (no-spoof) — state-table saturation 57.26% at peak 200 conns.  · isolated-drs5-476
+		344 row
+			345 cell
+				346 text pulsewave_l34
+			347 cell
+				348 text UDP
+			349 cell
+				350 text 5
+			351 cell
+				352 text reproducible
+			353 cell
+				354 text MEASURED LAB
+			355 cell
+				356 text UNMITIGATED_BASELINE  Bounded synthetic run — amplification 132.41×.  · isolated-drs5-476
+	357 text Class C (network bench). Measured vectors are bounded, synthetic, no-spoof lab runs; the rest are covered by attestation, ingestion from the network team's bench, or modelling. Source-IP spoofing and raw floods are never emitted by construction.
+	358 heading Coverage by target, Value: 2
+		359 text Coverage by target
+	360 table
+		361 row
+			362 cell
+				363 text Target
+			364 cell
+				365 text Runs
+			366 cell
+				367 text Average WRS
+		368 row
+			369 cell
+				370 text —
+	371 heading Breakdown by status, Value: 2
+		372 text Breakdown by status
+	373 table
+		374 row
+			375 cell
+				376 text —
+			377 cell
+				378 text 0
+	379 heading Glossary, Value: 2
+		380 text Glossary
+	381 table
+		382 row
+			383 cell
+				384 text WRS / DRS
+			385 cell
+				386 text WRS is a separate 0–100 diagnostic. DRS 3.00.00 uses per-level vector ratios and independently archived evidence; missing scenarios produce partial or indeterminate coverage. No certification is issued.
+		387 row
+			388 cell
+				389 text RiskLevel
+			390 cell
+				391 text Low  availability held & WRS ≥ 80 ·  Medium  partial degradation or WRS 55–79 ·  Critical  target unavailable or WRS < 55.
+		392 row
+			393 cell
+				394 text Mitigation
+			395 cell
+				396 text Held  ≈100% available ·  Partial  some legitimate traffic lost ·  Failed  auto-killed (target down ≥30 s) ·  Aborted  manual stop.
+		397 row
+			398 cell
+				399 text TTD / TTM
+			400 cell
+				401 text Time-To-Detect / Time-To-Mitigate — populated from the run when a protection source or auto-kill timing is observed.
+		402 row
+			403 cell
+				404 text RPS
+			405 cell
+				406 text Requests per second (Layer 7).  cfg→eff  = configured cap → effective rate the target sustained; a large gap means the protection rate-limited or tarpitted the flood. Volumetric PPS is out of scope.
+	407 text Automatically generated resilience evidence. HTTP observations and synthetic network-bench evidence are separate scopes; missing evidence is not a success. WEDOS internal use.
+
+The focused UI element is 0 AXWebArea Resilience assessment — WEDOS ShieldTest, URL: 127.0.0.1:18097/api/reports/compliance

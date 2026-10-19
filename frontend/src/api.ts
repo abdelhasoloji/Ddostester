@@ -1,3 +1,4 @@
+import { parameterBudget } from '../../backend/src/modules/campaigns/parameter-budget.js';
 import { lsGet, lsSet, lsRemove } from './storage.js';
 
 export interface FleetDeviceInput {
@@ -202,16 +203,23 @@ export interface RequestStep {
 }
 
 export interface RunSample {
+  /** Explicit provenance; absent on historical samples. */
+  generatorObserved?: boolean;
+  successful?: number;
+  probeSamples?: number;
+  probeP95?: number;
+  /** Cumulative snapshots, not interpolated transactions. */
+  probeAvailable?: number;
+  probeLatencyMs?: { p50: number; p95: number; p99: number };
+  probeEndpoints?: { url: string; samples: number; available: number }[];
+  statusCounts?: Record<string, number>;
+  sampleUnit?: 'requests' | 'connections';
   t: number;
   rps: number;
   sent: number;
   failed: number;
   probe5xx: number;
   availPct: number;
-  /** Legitimate-probe p95 latency (ms) at this tick — a real LIVE signal for
-   *  every engine (external engines don't stream generator counts, but the probe
-   *  always runs), so the theater can show target health while a run is live. */
-  probeP95?: number;
 }
 
 export interface AgentInfo {
@@ -240,6 +248,8 @@ export interface EdgeErrorSignal {
   originIpLeaked?: string;
 }
 export interface RunAssessment {
+  expectedRps?: number;
+  isSlowConnection?: boolean;
   verdict: RunVerdict;
   mechanism: RunMechanism;
   /** One faithful sentence describing what happened. */
@@ -285,7 +295,7 @@ export interface CampaignRun {
       while the generator was serving it) — availability was taken from the
       generator's success ratio, not the probe's, and no false auto-kill fired. */
   probeContended?: boolean;
-  measurementPolicy?: 'independent-probe-v1';
+  measurementPolicy?: 'independent-probe-v1' | 'multi-route-probe-v2';
   /** Breaking point: the offered rps at which the target started failing en masse,
       and the highest rps it sustained cleanly. */
   breakingPoint?: {
@@ -296,6 +306,7 @@ export interface CampaignRun {
     sustainedRps: number;
   };
   generator: {
+    config?: { slowloris?: boolean; maxRps?: number };
     startedAt?: string;
     finishedAt?: string;
     fleet?: {
@@ -362,6 +373,7 @@ export interface CampaignRun {
     hardStopped?: boolean;
   };
   probe: {
+    endpoints?: { url: string; samples: number; available: number }[];
     quality?: {
       measuredSamples: number;
       totalSamples: number;
@@ -422,6 +434,8 @@ export interface CampaignRun {
     targetAttributed: boolean;
   };
   targetTelemetry?: {
+    receivedRequests?: number;
+    receiptComplete?: boolean;
     at: string;
     cpuPct?: number;
     conntrack?: number;
@@ -943,6 +957,7 @@ export function streamUrl(campaignId: string): string {
 }
 
 export interface LiveProgressData {
+  generatorObserved?: boolean;
   sent: number;
   successful: number;
   failed: number;
@@ -958,6 +973,7 @@ export interface LiveProgressData {
   /** Rolling last-60s per-second series for the live sparkline. */
   timeline?: RunSample[];
   probe?: {
+    endpoints?: { url: string; samples: number; available: number }[];
     samples: number;
     available: number;
     errorRate5xx: number;
@@ -971,16 +987,23 @@ export interface LiveProgressData {
 /**
  * The server's HARD_CAPS, delivered by `/health`. The backend
  * (`backend/src/config/limits.ts`) is the single source of truth; the frontend
- * never hardcodes these — it displays whatever the server reports. `DEFAULT_CAPS`
- * is a pre-load fallback for inline hints only; the backend always enforces the
- * real caps regardless.
+ * never hardcodes these — it displays whatever the server reports.
+ * `PLACEHOLDER_CAPS` is a pre-load placeholder for inline hints only; the backend
+ * always enforces the real caps regardless.
  */
 export interface HardCaps {
   maxRps: number;
   maxConcurrency: number;
   maxDurationSec: number;
 }
-export const DEFAULT_CAPS: HardCaps = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
+/**
+ * Pre-/health placeholder ONLY — deliberately conservative, never a copy of the
+ * server ceiling. `hardCaps` from /health replaces it as soon as the first call
+ * succeeds, and the backend enforces the real caps regardless. Keeping it small
+ * guarantees that a failed /health call can never advertise a budget the server
+ * would refuse.
+ */
+export const PLACEHOLDER_CAPS: HardCaps = { maxRps: 10, maxConcurrency: 5, maxDurationSec: 60 };
 
 /** Assistant GPU-pod power state (RunPod stop/resume). */
 export type PodState = 'RUNNING' | 'STARTING' | 'STOPPED' | 'UNKNOWN';
@@ -1300,14 +1323,34 @@ export const api = {
     post<{ suiteId: string; rejected: number; skipped: number }>(`/api/suites/${id}/reject`, {
       reason,
     }),
+  campaignParameters: (id: string) =>
+    get<{
+      campaign: Campaign;
+      revision: string;
+      limits: HardCaps;
+      builtin: { rps: number; concurrency: number };
+    }>(`/api/campaigns/${id}/parameters`),
+  updateCampaignParameters: (
+    id: string,
+    input: {
+      revision: string;
+      maxRps: number;
+      concurrency: number;
+      maxDurationSec: number;
+      scenario?: { maxRps: number; durationSec: number }[];
+    },
+  ) => post<Campaign>(`/api/campaigns/${id}/parameters`, input),
   runSuite: (id: string, confirmed = false) =>
-    post<{ suiteId: string; steps: number; started: boolean }>(
-      `/api/suites/${id}/run`,
-      confirmed ? { confirmed: true } : undefined,
-    ),
+    post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`, {
+      confirmed,
+      pauseBetweenSteps: true,
+    }),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
-  resumeSuite: (id: string) =>
-    post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`),
+  resumeSuite: (id: string, confirmed = false, reviewedSteps?: Campaign[]) =>
+    post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/resume`, {
+      confirmed,
+      reviewedSteps: reviewedSteps?.map(parameterBudget),
+    }),
   cancelSuite: (id: string) =>
     post<{ suiteId: string; cancelled: boolean; killedCurrent: boolean }>(
       `/api/suites/${id}/cancel`,
@@ -1572,6 +1615,7 @@ export interface GapAnalysis {
 /** Live control state of an in-flight suite sequence (GET /api/suites/sequences). */
 export interface SuiteSequenceState {
   paused: boolean;
+  pauseBetweenSteps?: boolean;
   current?: string;
   started: number;
   total: number;

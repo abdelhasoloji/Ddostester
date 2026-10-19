@@ -566,10 +566,13 @@ export class VegetaAgent implements AttackAgent {
           finishedAt: new Date().toISOString(),
         };
         if (!resultFiles.length) return emptyResult(meta);
-        // Recompute native quantiles from all observations, not phase quantiles.
+        // Parse retained observations after emission stops, including on kill.
+        // This offline helper has its own deadline: an aborted emission signal
+        // must not discard the evidence required for the final report.
         const report = await runProcess(this.bin, ['report', '-type', 'json', ...resultFiles], {
-          killSignal,
+          timeoutMs: IO_LIMITS.processReportMs,
         });
+        if (report.code !== 0) throw new AgentError('Vegeta evidence report failed');
         meta.finishedAt = new Date().toISOString();
         const combined = parseVegetaReport(JSON.parse(report.stdout || '{}'), meta);
         combined.actualRps = Number(

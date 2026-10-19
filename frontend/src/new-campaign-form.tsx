@@ -592,6 +592,8 @@ export function NewCampaignForm({
           // out-of-process engine, or not at all (built-in-only features pin it
           // to the built-in engine, which can't be routed away).
           const bc = app.builtinCeilings;
+          // Unknown until /health answers: no hint is better than a guessed one.
+          if (!bc) return null;
           const overRate = form.maxRps > bc.rps;
           const overConc = form.concurrency > bc.concurrency;
           if (!overRate && !overConc) return null;

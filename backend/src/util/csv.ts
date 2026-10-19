@@ -1,8 +1,14 @@
 /** Minimal, dependency-free CSV builder (RFC 4180 quoting). */
 
+/** Neutralize spreadsheet formulas in text, preserving actual numeric cells. */
+export function spreadsheetValue(value: unknown): string {
+  const text = value == null ? '' : String(value);
+  return typeof value === 'string' && /^(?:\s*[=+@-]|[\t\r])/.test(text) ? "'" + text : text;
+}
+
 /** Escapes one field: quote it when it contains a comma, quote or newline. */
 export function csvField(value: unknown): string {
-  const s = value == null ? '' : String(value);
+  const s = spreadsheetValue(value);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

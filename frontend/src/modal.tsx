@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
 /** Close the active dialog on Escape. Bound only while `active` is true. */
@@ -36,10 +37,47 @@ export function Modal({
   children: ReactNode;
 }) {
   useEscape(true, onClose);
-  return (
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = ref.current!;
+    const controls = () =>
+      [
+        ...dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]',
+        ),
+      ].filter((el) => el.tabIndex >= 0 && !el.hasAttribute('disabled') && !el.closest('[hidden]'));
+    (controls().find((el) => !el.closest('.help-tip')) ?? dialog).focus({ preventScroll: true });
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const items = controls();
+      const first = items[0] ?? dialog;
+      const last = items.at(-1) ?? dialog;
+      if (
+        !items.length ||
+        !dialog.contains(document.activeElement) ||
+        (event.shiftKey && document.activeElement === first) ||
+        (!event.shiftKey && document.activeElement === last)
+      ) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+    };
+    dialog.addEventListener('keydown', trap);
+    return () => {
+      document.body.style.overflow = overflow;
+      dialog.removeEventListener('keydown', trap);
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, []);
+  return createPortal(
     <div className="overlay" onClick={onClose}>
       <div
         className={`modal${className ? ` ${className}` : ''}`}
+        ref={ref}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -47,6 +85,7 @@ export function Modal({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

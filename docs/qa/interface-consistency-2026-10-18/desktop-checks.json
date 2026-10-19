@@ -1,0 +1,57 @@
+[
+  {
+    "screen": "overview",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "zones",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "templates",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "history",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "assessment",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "theater-completed",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "reports",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "fleet",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "assistant",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "settings",
+    "documentWidth": 1200,
+    "width": 1200
+  },
+  {
+    "screen": "account",
+    "documentWidth": 1200,
+    "width": 1200
+  }
+]

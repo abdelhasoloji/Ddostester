@@ -1,0 +1,37 @@
+{
+  "status": "ok",
+  "drsWorkflow": false,
+  "userMode": "single",
+  "accessContractVersion": 1,
+  "accountPolicy": "single_admin",
+  "version": {
+    "version": "0.2.0",
+    "build": "473",
+    "commit": "0e43cea0b5055806f71dbf337365b8dc4279f9ce",
+    "builtAt": "2026-10-17T11:39:39.177Z"
+  },
+  "requireCisoApproval": false,
+  "allowedTargets": [
+    "bank.cz",
+    "46.28.109.92",
+    "portal.preprod.cra-srp-pp.enisa.europa.eu",
+    "sandbox.trustena.lu"
+  ],
+  "labTargets": ["lab"],
+  "storage": "postgres",
+  "authRequired": true,
+  "agent": "builtin-http",
+  "notifications": [],
+  "protection": true,
+  "targetTelemetry": false,
+  "remoteProbe": false,
+  "tlsInsecure": false,
+  "hardCaps": { "maxRps": 2000, "maxConcurrency": 500, "maxDurationSec": 900 },
+  "hardCapsCeiling": { "maxRps": 2000, "maxConcurrency": 500, "maxDurationSec": 900 },
+  "builtinCeilings": { "rps": 150, "concurrency": 300 },
+  "metrics": {
+    "prometheus": true,
+    "grafanaUrl": "http://localhost:3000",
+    "runDashboardUid": "shieldtest-run"
+  }
+}

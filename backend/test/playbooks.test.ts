@@ -14,6 +14,26 @@ import { missingRequirements } from '../src/modules/campaigns/model.js';
 import { HARD_CAPS } from '../src/config/limits.js';
 
 const allowed = ['staging.example.com'];
+
+it('preserves explicit target selection through validation and recon for the ZeroBS GET line', () => {
+  const original = getPlaybook('cra-l7-get-flood')!;
+  const validated = validatePlaybookInput(original);
+  expect(validated.steps[0].focusDynamic).toBe(false);
+  const [campaign] = buildSuiteCampaigns(
+    validated,
+    {
+      target: 'https://staging.example.com/',
+      probeUrl: 'https://staging.example.com/',
+      createdBy: 'engineer',
+      recon: { paths: ['/', '/api/slow'], dynamicPaths: ['/api/slow'] },
+    },
+    [{ id: 'vegeta', available: true }],
+  );
+  expect(campaign.target).toBe('https://staging.example.com/');
+  expect(campaign.endpoints).toBeUndefined();
+  expect(campaign.noKeepAlive).toBeUndefined();
+  expect(campaign.concurrency).toBe(original.steps[0].concurrency);
+});
 const target = {
   target: 'https://staging.example.com/',
   probeUrl: 'https://staging.example.com/health',
@@ -183,6 +203,17 @@ describe('playbooks', () => {
     }
   });
 
+  it('rejects an empty, blank or oversized explicit User-Agent set', () => {
+    const step = { maxRps: 1, concurrency: 1, maxDurationSec: 10, profile: 'constant' as const };
+    for (const userAgents of [[], [''], ['  '], Array.from({ length: 51 }, (_, i) => 'ua' + i)])
+      expect(() => validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents }] })).toThrow(
+        PlaybookError,
+      );
+    expect(() =>
+      validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents: ['curl/8.6.0'] }] }),
+    ).not.toThrow();
+  });
+
   it('validatePlaybookInput rejects a name-less playbook, no steps, and over-cap steps', () => {
     expect(() =>
       validatePlaybookInput({ steps: [{ maxRps: 1, concurrency: 1, maxDurationSec: 1 }] }),
@@ -242,6 +273,63 @@ describe('threat-informed playbooks', () => {
       true,
     );
     expect(wave.userAgents?.length).toBeGreaterThan(1);
+  });
+
+  it('ships a cache-busted L7 pattern with UA rotation and a POST step', () => {
+    const pb = getPlaybook('threat-l7-cache-busted-flood')!;
+    expect(pb).toBeTruthy();
+    expect(pb.category).toBe('Threat-informed');
+    expect(pb.requires).toEqual(expect.arrayContaining(['waf', 'cache']));
+    const wave = pb.steps.find((step) => step.name.includes('Cache-busted'))!;
+    expect(wave).toMatchObject({ cacheBust: true, rotateUa: true, profile: 'wave' });
+    expect(wave.paths!.length).toBeGreaterThanOrEqual(5);
+    expect(wave.headers?.['accept-language']).toBeTruthy();
+    const post = pb.steps.find((step) => step.vector === 'http-post')!;
+    expect(post.cacheBust).toBe(true);
+    for (const step of pb.steps) {
+      expect(step.maxRps).toBeLessThanOrEqual(HARD_CAPS.maxRps);
+      expect(step.maxDurationSec).toBeLessThanOrEqual(HARD_CAPS.maxDurationSec);
+    }
+    // The template must state what it deliberately does not reproduce.
+    expect(pb.threat!.notReproduced).toMatch(/spoof/i);
+    expect(pb.threat!.notReproduced).toMatch(/botnet/i);
+  });
+
+  it('keeps step headers and explicit UA sets when vegeta is the engine', () => {
+    // The default fixture marks vegeta unavailable, which falls back to builtin and
+    // used to hide the header gate. This case pins vegeta as available.
+    const withVegeta = [
+      { id: 'builtin', available: true },
+      { id: 'vegeta', available: true },
+      { id: 'k6', available: true },
+    ];
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('threat-l7-cache-busted-flood')!,
+      target,
+      withVegeta,
+    );
+    const wave = inputs.find((input) => input.name.includes('Cache-busted'))!;
+    expect(wave.agent).toBe('vegeta');
+    expect(wave.headers?.['accept-language']).toBe('en-US,en;q=0.9');
+    expect(wave.userAgents?.length).toBeGreaterThan(1);
+    const clients = inputs.find((input) => input.name.includes('Non-browser'))!;
+    expect(clients.userAgents).toEqual(
+      expect.arrayContaining(['curl/8.6.0', 'python-requests/2.32.3']),
+    );
+    expect(clients.userAgents!.length).toBeGreaterThan(5);
+  });
+
+  it('resolves the cache-busted wave into bounded endpoints and a rotating UA set', () => {
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('threat-l7-cache-busted-flood')!,
+      target,
+      engines,
+    );
+    const wave = inputs.find((input) => input.name.includes('Cache-busted'))!;
+    expect(wave.endpoints?.length).toBe(5);
+    expect(wave.userAgents?.length).toBeGreaterThan(1);
+    expect(wave.cacheBust).toBe(true);
+    expect(wave.headers?.['accept']).toContain('text/html');
   });
 
   it('marks the DRS5 composite lines for closed-loop rate calibration (GEN-1)', () => {
@@ -716,4 +804,43 @@ describe('bank.cz connexes playbook (adjacent-scenario hypotheses)', () => {
       expect(['http-get', 'http-post', 'http-slowloris']).toContain(c.vector);
     }
   });
+});
+
+it('preserves the requested duration for rounded wave and ramp phases', () => {
+  for (const profile of ['wave', 'ramp'] as const) {
+    for (const duration of [1, 2, 3, 19, 20, 21, 120, 180]) {
+      const phases = buildScenario(profile, 400, duration)!;
+      expect(phases.reduce((sum, phase) => sum + phase.durationSec, 0)).toBe(duration);
+      expect(
+        phases.every((phase) => Number.isInteger(phase.durationSec) && phase.durationSec > 0),
+      ).toBe(true);
+    }
+  }
+});
+
+it('preserves intentional missing-resource paths and monitors functional routes separately', () => {
+  const pb = getPlaybook('pretest-cra-l7')!;
+  const campaigns = buildSuiteCampaigns(
+    pb,
+    {
+      ...target,
+      recon: {
+        paths: ['/', '/login.php', '/api/search.php'],
+        dynamicPaths: ['/api/search.php'],
+        loginPath: '/login.php',
+      },
+    },
+    engines,
+  );
+  const random = campaigns.find((c) => c.name.includes('GET-Random-Flood'))!;
+  expect(random.endpoints?.map((e) => new URL(e.url).pathname)).toEqual([
+    '/nonexistent-a1',
+    '/no/such/page',
+    '/api/does-not-exist',
+    '/random-9f2b',
+  ]);
+  expect(random.probeUrls).toBeUndefined();
+  const post = campaigns.find((c) => c.name.includes('POST-Flood (DRS4)'))!;
+  expect(post.probeUrls).toContain(target.probeUrl);
+  expect(post.probeUrls).toContain('https://staging.example.com/api/search.php');
 });

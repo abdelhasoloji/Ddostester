@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
 import { buildFleetServer } from '../modules/fleet/server.js';
+import { parseFleetSites } from '../modules/fleet/sites.js';
 const required = (name: string): string => {
   const value = process.env[name];
   if (!value) throw new Error(`${name} required`);
@@ -23,7 +24,7 @@ const app = buildFleetServer(
     cert: await readFile(required('FLEET_TLS_CERT')),
     ca: await readFile(required('FLEET_TLS_CA')),
   },
-  required('FLEET_AGENT_IDS').split(','),
+  parseFleetSites(required('FLEET_SITES')),
   (process.env.FLEET_REVOKED_CERT_SHA256 ?? '')
     .split(',')
     .map((value) => value.trim())

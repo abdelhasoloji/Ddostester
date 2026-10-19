@@ -1,9 +1,9 @@
 {
   "uid": "shieldtest-run",
-  "title": "ShieldTest · Run & Generator Outcomes",
+  "title": "ShieldTest \u00b7 Run & Generator Outcomes",
   "editable": false,
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "10s",
   "time": {
     "from": "now-15m",
@@ -38,7 +38,7 @@
     {
       "id": 100,
       "type": "row",
-      "title": "Live run — generator outcomes",
+      "title": "Live run \u2014 generator outcomes",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -49,7 +49,7 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Offered vs Successful-response RPS (live)",
+      "title": "Mean offered vs successful-response RPS (live)",
       "description": "Real-time, straight from the in-flight run (mirrors the app's Run Theater). Empty when no run is in flight.",
       "datasource": {
         "type": "prometheus",
@@ -68,7 +68,7 @@
             "uid": "prometheus"
           },
           "expr": "shieldtest_run_live_offered_rps{target=~\"$target\"}",
-          "legendFormat": "offered · {{target}}/{{vector}}",
+          "legendFormat": "offered \u00b7 {{target}}/{{vector}}",
           "refId": "A"
         },
         {
@@ -77,7 +77,7 @@
             "uid": "prometheus"
           },
           "expr": "shieldtest_run_live_successful_rps{target=~\"$target\"}",
-          "legendFormat": "successful responses · {{target}}/{{vector}}",
+          "legendFormat": "successful responses \u00b7 {{target}}/{{vector}}",
           "refId": "B"
         }
       ],
@@ -86,14 +86,16 @@
           "unit": "reqps",
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "fillOpacity": 0,
             "showPoints": "never",
             "lineWidth": 2,
             "stacking": {
               "mode": "none"
-            }
-          }
+            },
+            "spanNulls": false
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -112,7 +114,7 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Absorption decomposition — last settled run (%)",
+      "title": "Generator outcomes \u2014 last settled run (%)",
       "description": "Generator-side request failures, slow responses and offered-load shortfall. These observations do not establish edge absorption or origin receipt.",
       "datasource": {
         "type": "prometheus",
@@ -130,7 +132,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_failed_ratio_last{target=~\"$target\"}*100",
+          "expr": "shieldtest_run_failed_ratio_last{target=~\"$target\",vector!=\"http-slowloris\"}*100",
           "legendFormat": "generator failures",
           "refId": "A"
         },
@@ -139,8 +141,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_rejected_ratio_last{target=~\"$target\"}*100",
-          "legendFormat": "rejected (fast 4xx/5xx)",
+          "expr": "shieldtest_run_rejected_ratio_last{target=~\"$target\",vector!=\"http-slowloris\"}*100",
+          "legendFormat": "HTTP failures (cause unproven)",
           "refId": "B"
         },
         {
@@ -148,8 +150,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_tarpit_ratio_last{target=~\"$target\"}*100",
-          "legendFormat": "tarpit (held/slow)",
+          "expr": "shieldtest_run_tarpit_ratio_last{target=~\"$target\",vector!=\"http-slowloris\"}*100",
+          "legendFormat": "transport failures (cause unproven)",
           "refId": "C"
         },
         {
@@ -157,7 +159,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "shieldtest_run_offered_shortfall_last{target=~\"$target\"}*100",
+          "expr": "shieldtest_run_offered_shortfall_last{target=~\"$target\",vector!=\"http-slowloris\"}*100",
           "legendFormat": "offered shortfall",
           "refId": "D"
         }
@@ -167,14 +169,16 @@
           "unit": "percent",
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "fillOpacity": 30,
             "showPoints": "never",
             "lineWidth": 2,
             "stacking": {
               "mode": "normal"
-            }
-          }
+            },
+            "spanNulls": false
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -234,7 +238,8 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -297,7 +302,8 @@
                 "value": 75
               }
             ]
-          }
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -316,7 +322,7 @@
       "id": 12,
       "type": "stat",
       "title": "Generator failures % (live)",
-      "description": "",
+      "description": "Live cumulative generator failure fraction only. No fallback to an earlier run when current telemetry is absent.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -333,9 +339,11 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(shieldtest_run_live_failed_ratio{target=~\"$target\"})*100 or max(shieldtest_run_failed_ratio_last{target=~\"$target\"})*100",
+          "expr": "max(shieldtest_run_live_failed_ratio{target=~\"$target\"})*100",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -360,7 +368,8 @@
                 "value": 70
               }
             ]
-          }
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -378,7 +387,7 @@
     {
       "id": 13,
       "type": "stat",
-      "title": "Legit probe % (live)",
+      "title": "Probe availability % (live cumulative)",
       "description": "Live availability of the legitimate-traffic probe during the run.",
       "datasource": {
         "type": "prometheus",
@@ -398,7 +407,9 @@
           },
           "expr": "min(shieldtest_run_live_probe_avail_pct{target=~\"$target\"})",
           "legendFormat": "",
-          "refId": "A"
+          "refId": "A",
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -423,7 +434,8 @@
                 "value": 99
               }
             ]
-          }
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -452,7 +464,7 @@
     {
       "id": 20,
       "type": "timeseries",
-      "title": "Event-loop lag (ms) — measurement confidence",
+      "title": "Event-loop lag (ms) \u2014 measurement confidence",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -489,14 +501,16 @@
           "unit": "ms",
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "fillOpacity": 5,
             "showPoints": "never",
             "lineWidth": 2,
             "stacking": {
               "mode": "none"
-            }
-          }
+            },
+            "spanNulls": false
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -543,14 +557,16 @@
           "unit": "ms",
           "custom": {
             "drawStyle": "line",
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "fillOpacity": 0,
             "showPoints": "never",
             "lineWidth": 2,
             "stacking": {
               "mode": "none"
-            }
-          }
+            },
+            "spanNulls": false
+          },
+          "noValue": "Not measured"
         },
         "overrides": []
       },
@@ -566,5 +582,6 @@
         }
       }
     }
-  ]
+  ],
+  "description": "Cumulative generator outcomes and probe observations. Unknown live counters stay absent; final summaries do not reconstruct historical load."
 }

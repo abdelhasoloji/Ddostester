@@ -1,0 +1,16 @@
+{
+  "suiteId": "07fc0a22-46d2-4889-86fc-53088b76fbe7",
+  "template": "pretest-cra-l7",
+  "attempted": 12,
+  "completed": 4,
+  "autoKilled": 4,
+  "technicalFailures": 4,
+  "retainedRuns": 8,
+  "configuredDurationTotalSec": 1680,
+  "observedSequenceSec": 842.472,
+  "originalDurationsRetained": true,
+  "result": "NOT_VALIDATED",
+  "productionCampaign": false,
+  "targetRecoveredHttpStatus": 200,
+  "temporaryProcessesStopped": true
+}

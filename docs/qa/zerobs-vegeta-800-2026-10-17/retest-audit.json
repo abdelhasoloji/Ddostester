@@ -1,0 +1,94 @@
+[
+  {
+    "id": "d500113b-c7fd-403c-a99a-3d1e1c1d2030",
+    "at": "2026-10-17T10:57:21.608Z",
+    "actor": "dev",
+    "action": "campaign.execute",
+    "campaignId": "b0dace08-8005-4049-b604-d6c01fa37c0d",
+    "detail": "COMPLETED · WRS 59.5 (C)",
+    "prevHash": "3fb3eb5ac230b418c0fd2afa1d29c8b16dda71c4144f065a058d902db30a2e50",
+    "hash": "54a8e9502c825428b14805fe4fc1c71ba2560ed8847bfea4552c0521fffd489c"
+  },
+  {
+    "id": "0956d0be-938e-48b7-be6c-cd3677201931",
+    "at": "2026-10-17T10:57:21.607Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=b0dace08-8005-4049-b604-d6c01fa37c0d sha256=1d1a06150296f4c41611098fb65be3602821502ecb45f3efe24fbb150c307f0a",
+    "prevHash": "17ecbfb47eaa3725b5a690a2d7f11a8fb589dd103bb0b9c4fb8c4c9664125804",
+    "hash": "3fb3eb5ac230b418c0fd2afa1d29c8b16dda71c4144f065a058d902db30a2e50"
+  },
+  {
+    "id": "be90e3e9-fac4-4c02-8366-3298a44f14b3",
+    "at": "2026-10-17T10:57:21.605Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveRun entity=c46dffa2-cdb8-4b1f-b8a0-d8a5d1b1dfa8 sha256=f350f90924e82c108edfb98ff5ba9118524bbd4670b7b3fdcd2482af9c8102ed",
+    "prevHash": "e6e4aa42f8f7f3043799b757179d8e9837f3002289b8ef98a0cbafa0b52b0b53",
+    "hash": "17ecbfb47eaa3725b5a690a2d7f11a8fb589dd103bb0b9c4fb8c4c9664125804"
+  },
+  {
+    "id": "599827e2-ddfa-4a31-bb01-95822f1991f0",
+    "at": "2026-10-17T10:56:58.242Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=b0dace08-8005-4049-b604-d6c01fa37c0d sha256=3fece072b72f33bfce0ce61494f4b0ebecc045ae186287ea818644163293d9bb",
+    "prevHash": "714f443287e384e1f21f181bd433b0742629094f406d00496d4f48e898c2b509",
+    "hash": "e6e4aa42f8f7f3043799b757179d8e9837f3002289b8ef98a0cbafa0b52b0b53"
+  },
+  {
+    "id": "41cabb8b-f7c5-4435-a945-81572ce5ae90",
+    "at": "2026-10-17T10:56:58.241Z",
+    "actor": "dev",
+    "action": "campaign.execute",
+    "campaignId": "b0dace08-8005-4049-b604-d6c01fa37c0d",
+    "detail": "Execution intent persisted before transport preparation",
+    "prevHash": "f7455d15436c579270996c8f95ab14635e6827d75ccebadd964cfde47cf98bc4",
+    "hash": "714f443287e384e1f21f181bd433b0742629094f406d00496d4f48e898c2b509"
+  },
+  {
+    "id": "d99f20eb-67d6-4559-ae40-6d3b0132e743",
+    "at": "2026-10-17T10:56:58.233Z",
+    "actor": "dev",
+    "action": "suite.run",
+    "detail": "sequence start · 1 steps",
+    "prevHash": "68ca8f54c92556238efbe63432fb4728a8499786f251951ca246b4264f004a37",
+    "hash": "f7455d15436c579270996c8f95ab14635e6827d75ccebadd964cfde47cf98bc4"
+  },
+  {
+    "id": "df464ca8-c997-4171-8c02-5df0a3f9c6b7",
+    "at": "2026-10-17T10:56:39.873Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=b0dace08-8005-4049-b604-d6c01fa37c0d sha256=3baf4fb435c8d2b965b6c4aeaa6ee2948a9fd4bee74df0cc05cd72f1cd2bf322",
+    "prevHash": "5b7863490a9c60625977e2f66ed490e1337b5e639cfab8ad8275cb168202f50d",
+    "hash": "314f9600c8328d85df22956d19f9832cc00160f49cd4404d33c229ed0daf9fb4"
+  },
+  {
+    "id": "0ed67889-7d40-4150-bf98-feb01f8f0db3",
+    "at": "2026-10-17T10:56:39.873Z",
+    "actor": "dev",
+    "action": "campaign.approve",
+    "campaignId": "b0dace08-8005-4049-b604-d6c01fa37c0d",
+    "prevHash": "314f9600c8328d85df22956d19f9832cc00160f49cd4404d33c229ed0daf9fb4",
+    "hash": "68ca8f54c92556238efbe63432fb4728a8499786f251951ca246b4264f004a37"
+  },
+  {
+    "id": "2f9c1546-cb77-4f9a-acc6-d615f8ffc824",
+    "at": "2026-10-17T10:56:39.775Z",
+    "actor": "dev",
+    "action": "campaign.create",
+    "detail": "playbook \"ZeroBS GET qualification 800\" → 1 campaigns (suite 24a7e2af-89e7-4dc3-b915-5e7c4eeda5f8, recon-seeded)",
+    "prevHash": "897cd2b1ba5057c313fe0570077d99322acded225f64e856b1f9da377b24a3ce",
+    "hash": "5b7863490a9c60625977e2f66ed490e1337b5e639cfab8ad8275cb168202f50d"
+  },
+  {
+    "id": "13c1ca96-2e36-4e92-8cfe-d7cd41a73e26",
+    "at": "2026-10-17T10:56:39.774Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveCampaign entity=b0dace08-8005-4049-b604-d6c01fa37c0d sha256=628a75519aa8b895bd4ec3a8d16c96d1fc0783753466075450f5141799858684",
+    "prevHash": "GENESIS",
+    "hash": "897cd2b1ba5057c313fe0570077d99322acded225f64e856b1f9da377b24a3ce"
+  }
+]

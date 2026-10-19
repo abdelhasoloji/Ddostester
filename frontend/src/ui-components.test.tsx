@@ -173,7 +173,7 @@ describe('RunDetails', () => {
     };
     render(<RunDetails run={withAssessment} />);
     expect(screen.getByText('inconclusive')).toBeInTheDocument();
-    expect(screen.getByText(/mechanism:/)).toBeInTheDocument();
+    expect(screen.getByText(/observed:/)).toBeInTheDocument();
     expect(screen.getByText(/INCONCLUSIVE at full rate/)).toBeInTheDocument();
     expect(screen.getByText(/141\/800 req\/s/)).toBeInTheDocument();
   });
@@ -281,4 +281,23 @@ describe('CampaignCard — dual control (CISO gate)', () => {
     expect(screen.getByText(/CISO ✓/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Run$/ })).toBeInTheDocument();
   });
+});
+
+it('shows the actual monitored pages without claiming complete functional coverage', () => {
+  render(
+    <RunDetails
+      run={{
+        ...run,
+        probe: {
+          ...run.probe,
+          endpoints: [
+            { url: 'http://localhost/', samples: 10, available: 10 },
+            { url: 'http://localhost/login', samples: 10, available: 0 },
+          ],
+        },
+      }}
+    />,
+  );
+  expect(screen.getByText('Monitored pages (2)')).toBeInTheDocument();
+  expect(screen.getByText('http://localhost/login: 0/10 checks OK')).toBeInTheDocument();
 });

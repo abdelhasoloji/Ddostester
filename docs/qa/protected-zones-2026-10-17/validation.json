@@ -1,0 +1,32 @@
+{
+  "status": "LOCAL_IMPLEMENTED_NOT_DEPLOYED",
+  "baseCommit": "7d94f4db5a9b4b47b3f710f11295a455b47013d9",
+  "frontendDiffSha256": "6c108b3a006cf45779d615cc2a08a78dded01b3795dbb260bd6ea8f517474771",
+  "validation": {
+    "fullFrontendRegressionPassedBeforeFinalScopeRefinement": 474,
+    "finalTargetedPassed": 35,
+    "defaultAuthorizedFilterVerified": true,
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "visualReview": "isolated rendered React component fixtures, not production"
+  },
+  "coveredFlows": [
+    "registered/configured deduplication",
+    "authorization-based default and filters",
+    "metadata registration/edit/delete",
+    "request/authorize/revoke with existing capabilities",
+    "read-only role restrictions",
+    "exact-host campaign navigation including archives",
+    "template-only configuration without execution",
+    "live campaign links",
+    "independent registry/history error and retry handling",
+    "history search and pagination"
+  ],
+  "campaignHistoryMutated": false,
+  "externalCampaignsStarted": false,
+  "screenshots": {
+    "history-fixture.png": "f587ba18de086a9c8f07388ecc399fd355903c88ff5078401d036f40074f8096",
+    "current-fixture.png": "f728740f5fc458b5d083dd90cda342eb9be5ea57c53e5a89138e55287f13536d"
+  },
+  "fixtureNotice": "Images contain demonstration records. enisa-preprod.example and retired.example are placeholders, not configured production targets. Configured access and authorization are not live service-health measurements."
+}

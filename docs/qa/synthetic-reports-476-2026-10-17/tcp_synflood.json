@@ -1,0 +1,35 @@
+{
+  "scenario": "tcp_synflood",
+  "kind": "tcp",
+  "generator": {
+    "opened": 870,
+    "failed": 0,
+    "rateCps": 150
+  },
+  "target": {
+    "accepted": 200,
+    "refused": 670,
+    "concurrentPeak": 200,
+    "capacity": 200,
+    "saturationPct": 77.01
+  },
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "tcp-connection-pressure",
+    "scenario": "tcp_synflood",
+    "labTarget": "lab-target.internal",
+    "connections": {
+      "opened": 870,
+      "accepted": 200,
+      "refused": 670,
+      "concurrentPeak": 200,
+      "capacity": 200,
+      "saturationPct": 77.01
+    },
+    "outcome": "STATE_TABLE_SATURATED",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:42:13.371Z"
+  }
+}

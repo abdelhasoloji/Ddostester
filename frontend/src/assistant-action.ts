@@ -28,15 +28,8 @@
 
 import type { CampaignFormSeed } from './campaign-form.js';
 import type { DraftTarget } from './context.js';
-import {
-  parseProposal,
-  proposalToSeed,
-  proposalOverCaps,
-  PROPOSAL_CAPS,
-} from './assistant-proposal.js';
-
-/** Frozen ceiling mirror for limit suggestions (see backend HARD_CAPS). */
-export const LIMIT_CAPS = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 } as const;
+import type { HardCaps } from './api.js';
+import { parseProposal, proposalToSeed, proposalOverCaps } from './assistant-proposal.js';
 
 /** The governed screens an `open` action may route to. */
 export const SCREENS: Record<string, string> = {
@@ -79,7 +72,7 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';
 }
 
-function campaignAction(o: Record<string, unknown>): AssistantAction | null {
+function campaignAction(o: Record<string, unknown>, ceiling: HardCaps): AssistantAction | null {
   // Reuse the proposal validation (target + the three bounds).
   const p = parseProposal(JSON.stringify(o));
   if (!p) return null;
@@ -87,21 +80,25 @@ function campaignAction(o: Record<string, unknown>): AssistantAction | null {
     kind: 'campaign',
     title: p.name,
     rationale: p.rationale,
-    seed: proposalToSeed(p),
-    over: proposalOverCaps(p),
+    seed: proposalToSeed(p, ceiling),
+    over: proposalOverCaps(p, ceiling),
     rows: [
       { label: 'Target', value: p.target, mono: true },
       { label: 'Vector', value: p.vector },
-      { label: 'Max RPS', value: String(p.maxRps), over: proposalOverCaps(p).includes('maxRps') },
+      {
+        label: 'Max RPS',
+        value: String(p.maxRps),
+        over: proposalOverCaps(p, ceiling).includes('maxRps'),
+      },
       {
         label: 'Concurrency',
         value: String(p.concurrency),
-        over: proposalOverCaps(p).includes('concurrency'),
+        over: proposalOverCaps(p, ceiling).includes('concurrency'),
       },
       {
         label: 'Duration',
         value: `${p.maxDurationSec}s`,
-        over: proposalOverCaps(p).includes('maxDurationSec'),
+        over: proposalOverCaps(p, ceiling).includes('maxDurationSec'),
       },
     ],
   };
@@ -128,20 +125,20 @@ function targetAction(o: Record<string, unknown>): AssistantAction | null {
   };
 }
 
-function limitsAction(o: Record<string, unknown>): AssistantAction | null {
+function limitsAction(o: Record<string, unknown>, ceiling: HardCaps): AssistantAction | null {
   const maxRps = asInt(o.maxRps);
   const maxConcurrency = asInt(o.maxConcurrency);
   const maxDurationSec = asInt(o.maxDurationSec);
   if (maxRps == null && maxConcurrency == null && maxDurationSec == null) return null;
   const caps = {
-    maxRps: maxRps ?? LIMIT_CAPS.maxRps,
-    maxConcurrency: maxConcurrency ?? LIMIT_CAPS.maxConcurrency,
-    maxDurationSec: maxDurationSec ?? LIMIT_CAPS.maxDurationSec,
+    maxRps: maxRps ?? ceiling.maxRps,
+    maxConcurrency: maxConcurrency ?? ceiling.maxConcurrency,
+    maxDurationSec: maxDurationSec ?? ceiling.maxDurationSec,
   };
   const over: string[] = [];
-  if (caps.maxRps > LIMIT_CAPS.maxRps) over.push('maxRps');
-  if (caps.maxConcurrency > LIMIT_CAPS.maxConcurrency) over.push('maxConcurrency');
-  if (caps.maxDurationSec > LIMIT_CAPS.maxDurationSec) over.push('maxDurationSec');
+  if (caps.maxRps > ceiling.maxRps) over.push('maxRps');
+  if (caps.maxConcurrency > ceiling.maxConcurrency) over.push('maxConcurrency');
+  if (caps.maxDurationSec > ceiling.maxDurationSec) over.push('maxDurationSec');
   return {
     kind: 'limits',
     title: 'Operational limits',
@@ -178,27 +175,27 @@ function navigateAction(o: Record<string, unknown>): AssistantAction | null {
   };
 }
 
-function parseAction(o: Record<string, unknown>): AssistantAction | null {
+function parseAction(o: Record<string, unknown>, ceiling: HardCaps): AssistantAction | null {
   if (o.schema !== undefined && !['test-campaign', 'adjust-limits', 'open'].includes(str(o.type)))
     return null;
-  const action = parseLegacyAction(o);
+  const action = parseLegacyAction(o, ceiling);
   if (action && o.schema !== undefined) action.proposal = { ...o };
   return action;
 }
 
-function parseLegacyAction(o: Record<string, unknown>): AssistantAction | null {
+function parseLegacyAction(o: Record<string, unknown>, ceiling: HardCaps): AssistantAction | null {
   const type = str(o.type).toLowerCase();
   switch (type) {
     case 'test-campaign':
     case 'campaign':
     case 'proposal':
-      return campaignAction(o);
+      return campaignAction(o, ceiling);
     case 'register-target':
     case 'target':
       return targetAction(o);
     case 'adjust-limits':
     case 'limits':
-      return limitsAction(o);
+      return limitsAction(o, ceiling);
     case 'open':
     case 'navigate':
       return navigateAction(o);
@@ -212,7 +209,10 @@ function parseLegacyAction(o: Record<string, unknown>): AssistantAction | null {
  * reply. Returns the remaining prose and the parsed actions; invalid or
  * unclosed blocks are left untouched in the text.
  */
-export function extractActions(content: string): { text: string; actions: AssistantAction[] } {
+export function extractActions(
+  content: string,
+  ceiling: HardCaps,
+): { text: string; actions: AssistantAction[] } {
   const actions: AssistantAction[] = [];
   let text = content.replace(/```action[^\n]*\n([\s\S]*?)```/g, (whole, body: string) => {
     let o: unknown;
@@ -222,7 +222,7 @@ export function extractActions(content: string): { text: string; actions: Assist
       return whole;
     }
     if (!o || typeof o !== 'object') return whole;
-    const a = parseAction(o as Record<string, unknown>);
+    const a = parseAction(o as Record<string, unknown>, ceiling);
     if (!a) return whole;
     actions.push(a);
     return '';
@@ -231,12 +231,10 @@ export function extractActions(content: string): { text: string; actions: Assist
   text = text.replace(/```proposal[^\n]*\n([\s\S]*?)```/g, (whole, body: string) => {
     const p = parseProposal(body);
     if (!p) return whole;
-    const a = campaignAction(JSON.parse(body) as Record<string, unknown>);
+    const a = campaignAction(JSON.parse(body) as Record<string, unknown>, ceiling);
     if (!a) return whole;
     actions.push(a);
     return '';
   });
   return { text: text.replace(/\n{3,}/g, '\n\n').trim(), actions };
 }
-
-export { PROPOSAL_CAPS };

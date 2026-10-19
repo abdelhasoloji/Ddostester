@@ -84,6 +84,7 @@ export interface ResolvedSeries {
  * null when the key is unknown or a per-run series is missing its target.
  */
 export function resolveSeries(name: string, target?: string): ResolvedSeries | null {
+  if (!Object.hasOwn(SERIES_CATALOG, name)) return null;
   const def = SERIES_CATALOG[name];
   if (!def) return null;
   const t = (target ?? '').trim();

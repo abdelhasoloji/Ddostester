@@ -66,6 +66,26 @@ describe('buildSuites', () => {
 });
 
 describe('renderSuiteReportHtml', () => {
+  it('distinguishes planned scenarios from missing execution evidence in the summary', () => {
+    const [suite] = buildSuites([
+      campaign({
+        suiteId: 'missing',
+        status: 'APPROVED',
+        statusDetail: 'Last run failed (reference retained); review before retrying.',
+      }),
+      campaign({ suiteId: 'missing', status: 'PENDING_APPROVAL' }),
+    ]);
+    const html = renderSuiteReportHtml(suite);
+    expect(html).toContain('2 planned scenarios');
+    expect(html).toContain(
+      '0/2 scenarios have retained run evidence; 2 have no retained run evidence.',
+    );
+    expect(html).toContain('No usable scored observations');
+    expect(html).toContain('Last run failed');
+    expect(html).not.toContain('never reached the intended intensity');
+    expect(html).not.toContain('(the live target)');
+  });
+
   it('renders target, aggregate and one row per step', () => {
     const [s] = buildSuites([
       campaign({
@@ -93,6 +113,10 @@ describe('renderSuiteReportHtml', () => {
     expect(html).toContain('Layer 7 summary');
     expect(html).toContain('Verdict'); // verdict-driven summary
     expect(html).toContain('Glossary');
+    expect(html).toContain('DRS NOT_EVALUATED');
+    expect(html).toContain('Load (configured→mean)');
+    expect(html).not.toContain('took the target unavailable');
+    expect(html).not.toContain('Legitimate traffic held throughout');
     expect((html.match(/<tr>/g) ?? []).length).toBeGreaterThanOrEqual(3); // steps + glossary rows
   });
 
@@ -194,8 +218,19 @@ describe('renderSuiteReportHtml', () => {
       },
     ] as unknown as Parameters<typeof renderSuiteReportHtml>[1];
     const html = renderSuiteReportHtml(s, runs);
-    expect(html).toContain('Offered load across the run (req/s)');
-    expect(html).toContain('Legitimate-probe availability across the run (%)');
+    expect(html).toContain(
+      '1/1 scenarios have retained run evidence; 0 have no retained run evidence.',
+    );
+    const mismatched = renderSuiteReportHtml(
+      s,
+      runs?.map((r) => ({ ...r, campaignId: 'other' })),
+    );
+    expect(mismatched).toContain(
+      '0/1 scenarios have retained run evidence; 1 have no retained run evidence.',
+    );
+    expect(mismatched).not.toContain('Emitted requests per interval (req/s)');
+    expect(html).toContain('Emitted requests per interval (req/s)');
+    expect(html).toContain('Probe availability (cumulative %;');
     expect(html).toContain('chart-timeline'); // an inline SVG, not just a link
   });
 });
@@ -247,9 +282,11 @@ describe('renderSuiteCompareHtml', () => {
     expect(html).toContain('CRA L7');
     expect(html).toContain('bank.cz');
     // step 0 improved 60→85 and its verdict was fixed; step 1 regressed 80→75.
-    expect(html).toContain('1</b> step(s) improved');
-    expect(html).toContain('1</b> regressed');
-    expect(html).toContain('fixed');
+    expect(html).toContain('1</b> step score(s) increased');
+    expect(html).toContain('1</b> decreased');
+    expect(html).toContain('recorded SLO FAIL→PASS');
+    expect(html).toContain('Comparison inconclusive');
+    expect(html).not.toContain('means better protection');
     expect(html).toContain('worst-step WRS <b>60</b> → <b>75</b>');
   });
 
@@ -261,4 +298,31 @@ describe('renderSuiteCompareHtml', () => {
     expect(html).toContain('Suite comparison');
     expect(html).toContain('—'); // unscored side rendered as a dash
   });
+});
+
+it('retains execution diagnostics without fabricating missing measurements', () => {
+  const [suite] = buildSuites([
+    campaign({
+      suiteId: 'failed',
+      status: 'APPROVED',
+      statusDetail: 'Last run failed (reference diagnostic-123); review before retrying.',
+    }),
+  ]);
+  const html = renderSuiteReportHtml(suite, []);
+  expect(html).toContain('diagnostic-123');
+  expect(html).toContain('Not measured');
+  expect(html).not.toContain('availability dipped to 0%');
+});
+
+it('cannot report a suite-wide SLO pass from only one judged step', () => {
+  const [suite] = buildSuites([
+    campaign({
+      suiteId: 'partial-slo',
+      suiteOrder: 0,
+      status: 'COMPLETED',
+      acceptanceResult: { verdict: 'PASS' } as Campaign['acceptanceResult'],
+    }),
+    campaign({ suiteId: 'partial-slo', suiteOrder: 1, status: 'APPROVED' }),
+  ]);
+  expect(suite.verdict).toBeNull();
 });

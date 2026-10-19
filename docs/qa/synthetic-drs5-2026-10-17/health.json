@@ -1,0 +1,43 @@
+{
+  "status": "ok",
+  "drsWorkflow": false,
+  "userMode": "team",
+  "accessContractVersion": 1,
+  "accountPolicy": "legacy_team",
+  "version": {
+    "version": "0.2.0",
+    "build": "473",
+    "commit": "0e43cea0b5055806f71dbf337365b8dc4279f9ce",
+    "builtAt": "2026-10-17T11:39:39.177Z"
+  },
+  "requireCisoApproval": false,
+  "allowedTargets": ["10.98.215.52"],
+  "labTargets": ["127.0.0.1"],
+  "storage": "memory",
+  "authRequired": false,
+  "agent": "builtin-http",
+  "notifications": [],
+  "protection": false,
+  "targetTelemetry": false,
+  "remoteProbe": false,
+  "tlsInsecure": false,
+  "hardCaps": {
+    "maxRps": 2000,
+    "maxConcurrency": 500,
+    "maxDurationSec": 900
+  },
+  "hardCapsCeiling": {
+    "maxRps": 2000,
+    "maxConcurrency": 500,
+    "maxDurationSec": 900
+  },
+  "builtinCeilings": {
+    "rps": 150,
+    "concurrency": 300
+  },
+  "metrics": {
+    "prometheus": false,
+    "grafanaUrl": null,
+    "runDashboardUid": "shieldtest-run"
+  }
+}

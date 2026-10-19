@@ -1,0 +1,18 @@
+{
+  "candidateSource": "7a0ed66ee0820c05a5b703ed6c7c588a5bfdb09b",
+  "candidateBuild": 488,
+  "localBackendPassed": 1270,
+  "localFrontendPassed": 471,
+  "nativeTargetedPassed": 287,
+  "ciRun": 39069978751,
+  "localIntegration": "Healthy root with failing application route: per-route baseline, live endpoint counters, aggregate failure, no contention dismissal and final report verified",
+  "probeRegression": "Application failure triggers existing automatic stop; eight-URL ceiling and per-destination allowlist enforced",
+  "externalTrafficGenerated": false,
+  "activation": "NOT_DEPLOYED_ACTIVE_PRODUCTION_CAMPAIGN",
+  "ciStatus": "SUCCESS",
+  "liveBuild": "485",
+  "liveSource": "0b5f403e396133f8e7763f9d7eae00fad8128d1c",
+  "campaignCountAtGate": 305,
+  "runningAtGate": 1,
+  "preservationGate": "Refused before service restart: campaign and user records changed since backup; settings, Fleet identities, sole administrator and audit baseline preserved. Refresh backup after active execution finishes."
+}

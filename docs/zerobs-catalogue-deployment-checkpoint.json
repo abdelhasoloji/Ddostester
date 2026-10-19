@@ -1,0 +1,75 @@
+{
+  "checkedAt": "2026-10-17T10:13:46Z",
+  "branch": "codex/zerobs-classic-three-pods",
+  "profileCommit": "5ead909f8aaacc77b5a8e847781613f18e63ef2e",
+  "applicationBuild": "468",
+  "applicationSource": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+  "applicationCodeAndAssetsUnchanged": true,
+  "existingApplicationVerification": "docs/classic-main-deployment-checkpoint.json; exact-source CI 39022154991 and native verification",
+  "deploymentKind": "Runtime catalogue profile activation on existing verified immutable release",
+  "profile": {
+    "CAMPAIGN_CATALOG": "legacy",
+    "sha256": "1b18d3d70e0f715a1136f732ccb1d3b9c10c4489eecd646ddac2bae506c0d67d",
+    "environmentFile": "/etc/ddostester-zerobs-catalogue.env",
+    "systemdDropIn": "/etc/systemd/system/ddostester.service.d/50-zerobs-catalogue.conf"
+  },
+  "historicalCatalogue": {
+    "historicalReference": "d98db08",
+    "historicalTemplates": 43,
+    "currentTemplates": 43,
+    "allTemplateIdsAndStepsUnchanged": true,
+    "stepsSha256": "2e9d067d910376945d819884f7743f9e0bacb4e420c3fa782767a23b285c7151",
+    "zeroBsParentId": "pretest-cra-l7",
+    "parentSteps": [
+      "SlowLoris (DRS3)",
+      "GET-Flood (DRS3)",
+      "GET-Random-Flood (DRS3)",
+      "GET /VALID_RANDOM (DRS4)",
+      "POST-Flood (DRS4)",
+      "HTTP/2 GET-Flood (DRS4)",
+      "HTTP/2 Rapid Reset \u2014 bounded (DRS4)",
+      "HTTP/2 Continuation \u2014 header pressure (DRS4)",
+      "Login/account POST-Flood (DRS5)",
+      "L7 MultiVector (DRS5)",
+      "THOR / PulseWave \u2014 synchronized (DRS5)",
+      "MultiTarget / carpet-bombing (DRS5)"
+    ],
+    "singleLineIds": [
+      "cra-l7-slowloris",
+      "cra-l7-get-flood",
+      "cra-l7-get-random-flood",
+      "cra-l7-get-valid-random",
+      "cra-l7-post-flood",
+      "cra-l7-http-2-get-flood",
+      "cra-l7-http-2-rapid-reset-bounded",
+      "cra-l7-http-2-continuation-header-pressure",
+      "cra-l7-login-account-post-flood",
+      "cra-l7-l7-multivector",
+      "cra-l7-thor-pulsewave-synchronized",
+      "cra-l7-multitarget-carpet-bombing"
+    ]
+  },
+  "verification": {
+    "encryptedBackupAndAuthenticatedIsolatedRestore": "passed",
+    "sameApplicationInitializedOnRecoveredDatabase": "passed",
+    "apiAndUiManifestIdentity": "passed",
+    "externalMtlsHealth": "legacy catalogue, single mode, single_admin policy",
+    "ready": true,
+    "policyUnchangedExceptCatalogueSelection": true,
+    "usersCampaignsSettingsFleetUnchanged": true,
+    "auditPlaybooksInfrastructureHistoryUnchanged": true,
+    "preserved": {
+      "users": 11,
+      "campaigns": 284,
+      "fleetIdentities": 3
+    },
+    "soleAdmin": "abdelha@wedos",
+    "agentsOnline": 3,
+    "originalPodUidsAndIpsPreserved": true,
+    "existingProtectedRoutes": "401 unauthenticated"
+  },
+  "browserQualification": "Local read-only fixture: historical catalogue, parent playbook twelve steps, and generator-choice dialog. No draft created or campaign run; production-origin browser permission remains blocked. Production activation checked independently through SSH, release identity and external mTLS health.",
+  "productionCampaignsDispatched": 0,
+  "podsRolledOut": 0,
+  "rollbackRuntimeAndReleasePreserved": true
+}

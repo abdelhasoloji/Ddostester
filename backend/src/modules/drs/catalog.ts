@@ -1,7 +1,6 @@
 import { FLEET_LIMITS, FLEET_INVENTORY_LIMITS } from '../../config/limits.js';
 import { drsReference } from './reference.js';
 export const drsWorkflow = () => process.env.CAMPAIGN_CATALOG === 'drs-fleet';
-export const DRS_CATALOG_VERSION = '3.00.00';
 export function drsCatalog() {
   const { manifest, vectors } = drsReference();
   return {

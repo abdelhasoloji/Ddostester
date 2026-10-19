@@ -21,7 +21,7 @@ import type { PostureReport } from '../posture/analyze.js';
 import { detectEdgeError } from '../posture/edge-error.js';
 import type { EdgeErrorSignal } from '../posture/edge-error.js';
 import { percentile } from '../../engine/stats.js';
-import { PROBE_LIMITS, IO_LIMITS } from '../../config/limits.js';
+import { PROBE_LIMITS, IO_LIMITS, MAX_PROBE_URLS } from '../../config/limits.js';
 import type { ProbeLimits } from '../../config/limits.js';
 
 export interface ProbeSample {
@@ -46,6 +46,8 @@ export interface ProbeMetrics {
     eventLoopMeasuredSamples?: number;
     peakThrottledFraction: number | null;
   };
+  /** Aggregate samples are cycles: every monitored URL must succeed. */
+  endpoints?: { url: string; samples: number; available: number }[];
   samples: number;
   available: number;
   errorRate5xx: number;
@@ -95,6 +97,9 @@ function statusClass(status: number): string {
 
 export class Probe {
   private samples: ProbeSample[] = [];
+  private endpointCounts = new Map<string, { samples: number; available: number }>();
+  private readonly urls: string[];
+  private readonly qualities: ProbeQuality[] = [];
   private unavailableSince: number | null = null;
   /** A bounded set of response-header snapshots for posture inference. */
   private headerSnapshots: Record<string, string>[] = [];
@@ -134,10 +139,13 @@ export class Probe {
      * source IP. Absent = local vantage (direct fetch).
      */
     private readonly remote?: { agentUrl: string; token: string },
+    urls: string[] = [],
   ) {
     // Positional interval/timeout win (back-compat with existing callers/tests);
     // everything else comes from the merged limits.
     this.limits = { ...PROBE_LIMITS, ...limits, intervalMs, timeoutMs };
+    this.urls = [...new Set([url, ...urls])];
+    if (this.urls.length > MAX_PROBE_URLS) throw new Error('Too many probe URLs');
   }
 
   /**
@@ -190,17 +198,40 @@ export class Probe {
     let latencyMs = 0;
     let quality: ProbeQuality | undefined;
     try {
-      const r = this.remote
-        ? await this.acquireRemote(ac.signal, t0)
-        : await this.acquireLocal(ac.signal, t0);
-      ok = r.ok;
-      status = r.status;
-      latencyMs = r.latencyMs;
-      quality = 'quality' in r ? (r.quality as ProbeQuality | undefined) : undefined;
-      this.captureHeadersOnChange(status, r.headers);
-      // On an ERROR status, decode a bounded slice to detect an edge-served error
-      // page (origin buckling behind a healthy edge, a rate-limit or a challenge).
-      if (status >= 400 && r.body) this.captureEdgeError(status, r.body);
+      const checks = await Promise.all(
+        this.urls.map(async (url) => {
+          let result: {
+            ok: boolean;
+            status: number;
+            latencyMs: number;
+            quality?: ProbeQuality;
+            headers?: Headers;
+            body?: ArrayBuffer;
+          };
+          try {
+            result = this.remote
+              ? await this.acquireRemote(ac.signal, t0, url)
+              : await this.acquireLocal(ac.signal, t0, url);
+          } catch {
+            result = { ok: false, status: 0, latencyMs: performance.now() - t0 };
+          }
+          if (result.quality) this.qualities.push(result.quality);
+          const counts = this.endpointCounts.get(url) ?? { samples: 0, available: 0 };
+          counts.samples++;
+          if (result.ok) counts.available++;
+          this.endpointCounts.set(url, counts);
+          this.captureHeadersOnChange(result.status, result.headers);
+          if (result.status >= 400 && result.body)
+            this.captureEdgeError(result.status, result.body);
+          return result;
+        }),
+      );
+      // One cycle is healthy only if every configured functional check succeeds.
+      ok = checks.every((r) => r.ok);
+      status = (checks.find((r) => r.status >= 500) ?? checks.find((r) => !r.ok) ?? checks[0])
+        .status;
+      latencyMs = Math.max(...checks.map((r) => r.latencyMs));
+      quality = checks.find((r) => !r.ok)?.quality ?? checks[0].quality;
     } catch {
       ok = false;
       latencyMs = performance.now() - t0; // time to failure (timeout / network)
@@ -223,6 +254,7 @@ export class Probe {
   private async acquireLocal(
     signal: AbortSignal,
     t0: number,
+    url = this.url,
   ): Promise<{
     ok: boolean;
     status: number;
@@ -232,7 +264,7 @@ export class Probe {
   }> {
     // Dedicated dispatcher (see `dispatcher` field) so a saturated generator pool
     // can never starve the probe.
-    const res = await pooledFetch(this.url, {
+    const res = await pooledFetch(url, {
       signal,
       dispatcher: this.dispatcher,
       redirect: 'manual',
@@ -267,6 +299,7 @@ export class Probe {
   private async acquireRemote(
     signal: AbortSignal,
     t0: number,
+    url = this.url,
   ): Promise<{
     ok: boolean;
     status: number;
@@ -287,7 +320,7 @@ export class Probe {
         authorization: `Bearer ${remote.token}`,
       },
       body: JSON.stringify({
-        url: this.url,
+        url,
         timeoutMs: this.timeoutMs,
         schema: challenge.schema,
         requestId: challenge.requestId,
@@ -431,13 +464,17 @@ export class Probe {
     const server5xx = this.samples.filter((s) => s.status >= 500).length;
     const lat = this.samples.map((s) => s.latencyMs).sort((a, b) => a - b);
     const w = this.windowStats(Date.now());
-    const quality = this.samples.flatMap((sample) => (sample.quality ? [sample.quality] : []));
+    const quality = this.qualities;
     return {
       ...(this.remote
         ? {
-            quality: summarizeProbeQuality(quality, total),
+            quality: summarizeProbeQuality(quality, total * this.urls.length),
           }
         : {}),
+      endpoints: this.urls.map((url) => ({
+        url,
+        ...(this.endpointCounts.get(url) ?? { samples: 0, available: 0 }),
+      })),
       samples: total,
       available,
       errorRate5xx: total ? Number(((server5xx / total) * 100).toFixed(2)) : 0,

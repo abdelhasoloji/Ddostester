@@ -1,0 +1,650 @@
+[
+  {
+    "id": "4e8fe856-c81b-4eb7-bd55-c268be37dbda",
+    "at": "2026-10-17T12:26:24.023Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=dfa296cf-30e7-44ae-9c4e-90098b9678c4 sha256=fa9610c9db21cde31c17a67905937011bb253c96991ec469ad6e1e87943c501c",
+    "prevHash": "bdfe46e832563b66df77210abb998d118a6564165f0e71fb90cb2c8d907cd093",
+    "hash": "1d614de96426d4d22b7133e60c300a4e94a2f7495f01b31b6bee2e562a5c28d2"
+  },
+  {
+    "id": "a7e8f06a-f6bb-47db-9390-b6c981ed09a6",
+    "at": "2026-10-17T12:26:24.023Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/pulsewave_l34 @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 132.41x",
+    "prevHash": "1d614de96426d4d22b7133e60c300a4e94a2f7495f01b31b6bee2e562a5c28d2",
+    "hash": "e20dd60b9be10a4e7be7654c35c7f4c537f75a2830bac8b9ba02ee3d3f3e5e04"
+  },
+  {
+    "id": "110d8e21-392d-4a09-a625-570785d590f0",
+    "at": "2026-10-17T12:26:24.021Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=d07ce49c-2371-4fe6-b190-e51be7a6ddc6 sha256=eda19875e39f3724b21fa53f2ee9aa53040b9f6c9fe421739a80d85e372ca69b",
+    "prevHash": "c87088f2a875da71c3231096db1be5a9ab579a5f26daca547519fa7d708a8f97",
+    "hash": "bdfe46e832563b66df77210abb998d118a6564165f0e71fb90cb2c8d907cd093"
+  },
+  {
+    "id": "4113e23b-943e-472c-bd8b-d513bbd40432",
+    "at": "2026-10-17T12:26:15.561Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "66279232b07e03837428b925e0ba2c291802c04200f375e8c709b9a51ee60dae",
+    "hash": "c87088f2a875da71c3231096db1be5a9ab579a5f26daca547519fa7d708a8f97"
+  },
+  {
+    "id": "52197440-184b-437e-bfc1-21de3056b45d",
+    "at": "2026-10-17T12:26:15.552Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=d07ce49c-2371-4fe6-b190-e51be7a6ddc6 sha256=ac4df576ae31c87a800dbb2e5bd03e9d310c778a2f109e355b86111b1e90d077",
+    "prevHash": "73f6b51ac968710d5a5750777c006e042e4bc0b0ea99c407375a26c3de8fa38b",
+    "hash": "ec70c62ef92787cec5a5a525893cfe5083c892c2ac7cfae23f874d468b1ef023"
+  },
+  {
+    "id": "1da2e707-a67a-4204-8443-9de9b757cb00",
+    "at": "2026-10-17T12:26:15.552Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/pulsewave_l34 @ 127.0.0.1 → REQUESTED",
+    "prevHash": "ec70c62ef92787cec5a5a525893cfe5083c892c2ac7cfae23f874d468b1ef023",
+    "hash": "66279232b07e03837428b925e0ba2c291802c04200f375e8c709b9a51ee60dae"
+  },
+  {
+    "id": "add3bc2a-b381-43c3-b24f-dbe7137eb6cb",
+    "at": "2026-10-17T12:26:15.518Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=e8af9604-555d-4b5b-a0ac-8b0a4b278c90 sha256=000711060ea22987696ed08af13d05ba39c3721aa24bdbb57752cfd6dc374300",
+    "prevHash": "2ccd37525a0945dd300758879aec7b1d7ef2b78cc3919d4870004908e4898a06",
+    "hash": "26885d9eaad0f4229dc506ab638982121f78ee1a283429191153b7ce0ce94001"
+  },
+  {
+    "id": "ca0dab0f-ad49-449d-9ef3-16403870248f",
+    "at": "2026-10-17T12:26:15.518Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_multivector @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 168.27x",
+    "prevHash": "26885d9eaad0f4229dc506ab638982121f78ee1a283429191153b7ce0ce94001",
+    "hash": "73f6b51ac968710d5a5750777c006e042e4bc0b0ea99c407375a26c3de8fa38b"
+  },
+  {
+    "id": "9cf2ec89-01e7-4da8-b5f4-d75dd37db395",
+    "at": "2026-10-17T12:26:15.514Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=6256c045-2338-4508-bb09-f7936257d87a sha256=2fa214e7db5e2911ff1a441094a39ea69c2848a98e2d5051864430bdf53778d7",
+    "prevHash": "9622c23f9f4bae480be6b3abd052b08cf8b0c10d0fa0664e8e9eef30f305c477",
+    "hash": "2ccd37525a0945dd300758879aec7b1d7ef2b78cc3919d4870004908e4898a06"
+  },
+  {
+    "id": "e03cf037-4e67-4741-8b69-d11cce0a03d0",
+    "at": "2026-10-17T12:26:09.063Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "cdfdebdf4f89c697c26f420b838f6fa8c65bbc68f86da302b95aec2a4d077755",
+    "hash": "9622c23f9f4bae480be6b3abd052b08cf8b0c10d0fa0664e8e9eef30f305c477"
+  },
+  {
+    "id": "1dc5be54-8c90-4aaf-b190-a1b57d26ce83",
+    "at": "2026-10-17T12:26:09.057Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_multivector @ 127.0.0.1 → REQUESTED",
+    "prevHash": "a7b4fc28750dc97ee5dfdda5c9341abc012c61691ff66c0e51c70815d0d9ccb0",
+    "hash": "cdfdebdf4f89c697c26f420b838f6fa8c65bbc68f86da302b95aec2a4d077755"
+  },
+  {
+    "id": "0a0a07ad-d143-47a9-b6b1-8da2d97d0664",
+    "at": "2026-10-17T12:26:09.056Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=6256c045-2338-4508-bb09-f7936257d87a sha256=6af260a293d3e8674046726f0ed0ff903948d0e1750a6db5287bf97bef1001e2",
+    "prevHash": "9de21a898710e9d2d035e065fd4751c7812492502da87020da5b8f2f4d3f318c",
+    "hash": "a7b4fc28750dc97ee5dfdda5c9341abc012c61691ff66c0e51c70815d0d9ccb0"
+  },
+  {
+    "id": "4af7aeb3-8100-49ec-a9a6-b44ddb4d33b7",
+    "at": "2026-10-17T12:26:09.036Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=8c166cbd-6809-4a1a-aa60-875a7aa99222 sha256=f2009b42ff0ea01de876b2180d1bcbbd7c8cb0021b1e708b0e97fe51551247ac",
+    "prevHash": "ffc43daf51b3aae6c27fb462db0648ee48600252eaec9474b111c72d48ecfa23",
+    "hash": "4c43afd20301e68cad044c653002918106521fad3d9ae416e5bd2489ce2c1d8d"
+  },
+  {
+    "id": "8f340d45-79aa-47e8-b338-29089f523736",
+    "at": "2026-10-17T12:26:09.036Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_memcached_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 500x",
+    "prevHash": "4c43afd20301e68cad044c653002918106521fad3d9ae416e5bd2489ce2c1d8d",
+    "hash": "9de21a898710e9d2d035e065fd4751c7812492502da87020da5b8f2f4d3f318c"
+  },
+  {
+    "id": "a1f81dd4-3e33-4cad-b344-0a12e7ca706f",
+    "at": "2026-10-17T12:26:09.035Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=50d22498-b35a-4237-9e1e-dc09e43adc87 sha256=f96e3e3c66722ac676577615d74cd0e6a642fb30c30641a5a6db065ab1053a8f",
+    "prevHash": "4498725a748c54a3025101cc3ff3b5a565e11a2c1efdba6ba024e6ee484c118d",
+    "hash": "ffc43daf51b3aae6c27fb462db0648ee48600252eaec9474b111c72d48ecfa23"
+  },
+  {
+    "id": "1b05ec7d-fd8c-4fc0-b093-56133c38b041",
+    "at": "2026-10-17T12:26:02.599Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "2a2370b9afe682762a41d014886078dcfb075a80d9e4cc31752295011a5773fd",
+    "hash": "4498725a748c54a3025101cc3ff3b5a565e11a2c1efdba6ba024e6ee484c118d"
+  },
+  {
+    "id": "4e74e6c1-b25a-40cc-b8cf-09f2ef9c7f27",
+    "at": "2026-10-17T12:26:02.590Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=50d22498-b35a-4237-9e1e-dc09e43adc87 sha256=efb6423b7037912a23a1727cdb6244a7122a94ba6ae795e3da94718a76684b0c",
+    "prevHash": "27e8a61c7cc1b617c174c327eee3f13992369dc4c5de67e0abf0f4299e3bfd13",
+    "hash": "cf4ae00a13ec856e4684e70ffa36c3bcb8de0baf6d48656dd914dfd5cf7aae6e"
+  },
+  {
+    "id": "92a5c0c5-d20e-4d5e-9c05-864338e00a1f",
+    "at": "2026-10-17T12:26:02.590Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_memcached_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "cf4ae00a13ec856e4684e70ffa36c3bcb8de0baf6d48656dd914dfd5cf7aae6e",
+    "hash": "2a2370b9afe682762a41d014886078dcfb075a80d9e4cc31752295011a5773fd"
+  },
+  {
+    "id": "1ea89c21-d304-44b9-b438-badf3ce69a95",
+    "at": "2026-10-17T12:26:02.545Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=3cc5888a-0353-43b7-b863-20328300839c sha256=3578671f0ce21d7d415afe13c98750ff1d9cc1e7136b5899582b3353a8f34ca1",
+    "prevHash": "d1614800a1b8d2dc9f9094a793f2969adb4976288161c238d20074c6069f98fb",
+    "hash": "4b42c9b3b0b23b75bb0cfbe9c1e194adebbb1d9e562c66e4cf537988bd49af96"
+  },
+  {
+    "id": "bada8eee-3281-4cbb-954a-38d5b9a52799",
+    "at": "2026-10-17T12:26:02.545Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/tcp_conn_drain @ 127.0.0.1 → STATE_TABLE_SATURATED · amp ?x",
+    "prevHash": "4b42c9b3b0b23b75bb0cfbe9c1e194adebbb1d9e562c66e4cf537988bd49af96",
+    "hash": "27e8a61c7cc1b617c174c327eee3f13992369dc4c5de67e0abf0f4299e3bfd13"
+  },
+  {
+    "id": "81178f7e-f8b0-4b62-b5aa-236543688392",
+    "at": "2026-10-17T12:26:02.541Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=6bba09e2-d7b9-4697-9b8a-7da367c36cc7 sha256=fa0949382606a7fae08a8e09984c453c2e22ecb23812a696bd4b6fd961f0a725",
+    "prevHash": "8c1891c94806df0a6783e5f73f6c0445230314f0561ac9ea4b7af55b2aaeb313",
+    "hash": "d1614800a1b8d2dc9f9094a793f2969adb4976288161c238d20074c6069f98fb"
+  },
+  {
+    "id": "21b1d5f4-b36c-4adc-a4ea-76afd662183f",
+    "at": "2026-10-17T12:25:54.262Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "c102ba952ef9396e72d7ce7cfd6e01d2e7a24260ac0993b6e44cd91154b30000",
+    "hash": "8c1891c94806df0a6783e5f73f6c0445230314f0561ac9ea4b7af55b2aaeb313"
+  },
+  {
+    "id": "5138648b-8639-43fe-bffc-7130dc0d7a82",
+    "at": "2026-10-17T12:25:54.256Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/tcp_conn_drain @ 127.0.0.1 → REQUESTED",
+    "prevHash": "d3623812512ee401afe51646f9cec36812a867426b0f05257f7cb3184ab7de0e",
+    "hash": "c102ba952ef9396e72d7ce7cfd6e01d2e7a24260ac0993b6e44cd91154b30000"
+  },
+  {
+    "id": "898ab7a0-42c0-4a30-8971-0649d5f8126b",
+    "at": "2026-10-17T12:25:54.255Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=6bba09e2-d7b9-4697-9b8a-7da367c36cc7 sha256=8355d6cb490fd5b8a435ccd8feaefc8e6edb9d2877b4f39740ae07d36eb90e1d",
+    "prevHash": "5fbc42746fb242925206d6a4ead7a1c4c39192516ac55dc25e2bba991f65e4b2",
+    "hash": "d3623812512ee401afe51646f9cec36812a867426b0f05257f7cb3184ab7de0e"
+  },
+  {
+    "id": "6a8017f0-a208-4ffd-a2e2-b83c672b5dca",
+    "at": "2026-10-17T12:25:54.227Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/quic_init_pressure @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 1x",
+    "prevHash": "c88dca962064a1c86143bbf3cbbdd26293ff3e571c46009bcfdcc6eeeb6874a3",
+    "hash": "5fbc42746fb242925206d6a4ead7a1c4c39192516ac55dc25e2bba991f65e4b2"
+  },
+  {
+    "id": "a0b3d6ac-29c2-41a5-a6ad-4624abd9a73a",
+    "at": "2026-10-17T12:25:54.226Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=f506a47d-fd1a-4075-a5de-2f6431356cb9 sha256=7c3eced7fcdda74867ea63ac90fd36bd94ca82bd832387a3f7eddfd09c6b4c3c",
+    "prevHash": "e2b73b2196dccc7f881cc40e8e2e60730b1481e89e00eed66824c64448742609",
+    "hash": "c88dca962064a1c86143bbf3cbbdd26293ff3e571c46009bcfdcc6eeeb6874a3"
+  },
+  {
+    "id": "86d1cd0b-28b4-45de-a035-375bf4f70427",
+    "at": "2026-10-17T12:25:54.225Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=537230aa-8a45-4c1d-977e-9487535a530c sha256=299444bdf9a6764dd7685f13f37f4007a9c444b484ae39a7a1e5dda5deb78a42",
+    "prevHash": "1cfb32a6911775a748c643a2b5f250000d530e0561f507ad70741ae8e83c33a2",
+    "hash": "e2b73b2196dccc7f881cc40e8e2e60730b1481e89e00eed66824c64448742609"
+  },
+  {
+    "id": "cc1a744d-297d-43e7-a849-29c825c261ee",
+    "at": "2026-10-17T12:25:47.789Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "be13a8bd849f80434c85c6e5a08ae08bb0bf8ae34c3b8dcd1372bf371d6bc82d",
+    "hash": "1cfb32a6911775a748c643a2b5f250000d530e0561f507ad70741ae8e83c33a2"
+  },
+  {
+    "id": "028934cf-8a6b-4d96-80fc-4ab91f0d4611",
+    "at": "2026-10-17T12:25:47.778Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=537230aa-8a45-4c1d-977e-9487535a530c sha256=6a8fb3c281f4f2357ebd87516afcfa75e929683085872b41f8b797e9c92d8124",
+    "prevHash": "4ebb8c5edab02f4afeb0dbbffed022244f1171acd73f3fab62f876224d0d5a16",
+    "hash": "2e769238bf5c9a8e0de61f85a06dfaba76e46ccd7c3ae2c31dc1772e7ae83dd7"
+  },
+  {
+    "id": "fa3d33ed-73e7-4dbf-afb6-df747ef5d25d",
+    "at": "2026-10-17T12:25:47.778Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/quic_init_pressure @ 127.0.0.1 → REQUESTED",
+    "prevHash": "2e769238bf5c9a8e0de61f85a06dfaba76e46ccd7c3ae2c31dc1772e7ae83dd7",
+    "hash": "be13a8bd849f80434c85c6e5a08ae08bb0bf8ae34c3b8dcd1372bf371d6bc82d"
+  },
+  {
+    "id": "e8feb5c5-31b4-4aff-801f-2cde8b1591d8",
+    "at": "2026-10-17T12:25:47.751Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=73e92503-fa94-42f9-a147-8921b0e7a10d sha256=f963d2a0a0782c9bfa51d4bfde2152e325302c30f65b6ebc9c1850709b1632d4",
+    "prevHash": "78db55e5e5e06c5e7d9441ad4dccac85e47d39c23837c5de59adc2115bb31aa1",
+    "hash": "7e9eb6bd971dd932988726061531175eb13a7b9d44d12375de72f42392b60066"
+  },
+  {
+    "id": "0df6306d-9d1b-4b8c-9728-3b0825ec778c",
+    "at": "2026-10-17T12:25:47.751Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_cldap_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 50x",
+    "prevHash": "7e9eb6bd971dd932988726061531175eb13a7b9d44d12375de72f42392b60066",
+    "hash": "4ebb8c5edab02f4afeb0dbbffed022244f1171acd73f3fab62f876224d0d5a16"
+  },
+  {
+    "id": "58278983-6363-4431-be18-8cd219e5a510",
+    "at": "2026-10-17T12:25:47.750Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=f0a51f1a-e963-4079-9200-8e68bfcd1831 sha256=ee4c53c783e98050b9dc95a6d1647c7a1f21b7140709fd9689847c3c3e979bc2",
+    "prevHash": "0a0c5b62b549df15d3e866b6fd391c4005ff8cc8e434402666c6543e649e6218",
+    "hash": "78db55e5e5e06c5e7d9441ad4dccac85e47d39c23837c5de59adc2115bb31aa1"
+  },
+  {
+    "id": "9bad9745-0cbd-4eab-9231-af83ac1292e6",
+    "at": "2026-10-17T12:25:41.304Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "d37f332d81ff5e028b91fdfff2ca5dca05827ec613b09aceefa05ec9d9933604",
+    "hash": "0a0c5b62b549df15d3e866b6fd391c4005ff8cc8e434402666c6543e649e6218"
+  },
+  {
+    "id": "2511e243-c04c-472d-a344-d7f73f1474ce",
+    "at": "2026-10-17T12:25:41.292Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_cldap_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "027dc846d9b96ba1dd1ff8a60c371f216236d54e4b4d2e5b5666cf181a5166f1",
+    "hash": "d37f332d81ff5e028b91fdfff2ca5dca05827ec613b09aceefa05ec9d9933604"
+  },
+  {
+    "id": "c9742022-46f9-4572-9e00-e52e416f84c0",
+    "at": "2026-10-17T12:25:41.291Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=f0a51f1a-e963-4079-9200-8e68bfcd1831 sha256=7524bd1f1b0f4970bd8242a2d1b1a099e36490c881d77c5b7d6030085290b35c",
+    "prevHash": "cbeeab5437414b9302d40755650261a37b076f446ccb210ee2d808d17ca738c0",
+    "hash": "027dc846d9b96ba1dd1ff8a60c371f216236d54e4b4d2e5b5666cf181a5166f1"
+  },
+  {
+    "id": "dd05045e-6550-41a9-9fe9-e30eeb16159f",
+    "at": "2026-10-17T12:25:41.256Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/tcp_maxpackets @ 127.0.0.1 → STATE_TABLE_SATURATED · amp ?x",
+    "prevHash": "4fc7410e4755a7a1fbf075bb005cbbc7716fb512688426520685c6c5bba7eb4f",
+    "hash": "cbeeab5437414b9302d40755650261a37b076f446ccb210ee2d808d17ca738c0"
+  },
+  {
+    "id": "f23cfd21-7258-4036-b02f-8d180e5bc429",
+    "at": "2026-10-17T12:25:41.255Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=b11b6211-d60a-4f3c-9485-509931637d9b sha256=f70613c8e1a6cb82363880f901c7247abd2316cc73b677e19d593982c06b1ffc",
+    "prevHash": "adf08071f7fde2aca9f8f035ec344e1bc544fe9e7b1bc3591362cfc2500b3895",
+    "hash": "4fc7410e4755a7a1fbf075bb005cbbc7716fb512688426520685c6c5bba7eb4f"
+  },
+  {
+    "id": "09d606a8-5862-4102-9d68-fe5520a960d9",
+    "at": "2026-10-17T12:25:41.254Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=ca6efad0-47c9-4a47-ae65-5cd51aa67f2c sha256=a80e218f820b7767e3b7bcb57b355382c2e7e1e920827520a9835867609fc11d",
+    "prevHash": "bfda723bd80191b205cd87ec5c713dacebb0b23431bb780ca12f28e7d7ee211c",
+    "hash": "adf08071f7fde2aca9f8f035ec344e1bc544fe9e7b1bc3591362cfc2500b3895"
+  },
+  {
+    "id": "90c83dd4-693b-4d85-b3a0-3114ac27e957",
+    "at": "2026-10-17T12:25:34.979Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "f15bb9de63a30f6c07be9c3e2deeb5d38a84493c2d4cc322ea412e22f0cd4870",
+    "hash": "bfda723bd80191b205cd87ec5c713dacebb0b23431bb780ca12f28e7d7ee211c"
+  },
+  {
+    "id": "2516e17e-6695-4363-b57f-552467cc2891",
+    "at": "2026-10-17T12:25:34.970Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=ca6efad0-47c9-4a47-ae65-5cd51aa67f2c sha256=b25a742b26eb3dc9ecdd4cb4d8da05be3bd64a84d887b3c2abc745eab8a73b01",
+    "prevHash": "4d03e34e0e3844105ec7536468f43ff50516dc7244619d080d962a1d06bc19a5",
+    "hash": "2ed02003c3b30b9b72672c3fe471b7feb53d05eb18e61cea5901718f27601104"
+  },
+  {
+    "id": "aad141f0-58c2-4c4b-b625-2f8079615825",
+    "at": "2026-10-17T12:25:34.970Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/tcp_maxpackets @ 127.0.0.1 → REQUESTED",
+    "prevHash": "2ed02003c3b30b9b72672c3fe471b7feb53d05eb18e61cea5901718f27601104",
+    "hash": "f15bb9de63a30f6c07be9c3e2deeb5d38a84493c2d4cc322ea412e22f0cd4870"
+  },
+  {
+    "id": "e8e3b289-c8d8-419b-b093-b01729cc56da",
+    "at": "2026-10-17T12:25:34.938Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=5c9ba1f5-37d9-4849-a110-dd825c7a2b3b sha256=aa41f9f550d809a5116b649a66c8848014c9d721c6ceff4eb8a2ae53ebd4a89c",
+    "prevHash": "048bae17d6fbbaf91749769a6c82f4b9fb91fea5524ed55af813c4a081d750ea",
+    "hash": "a94272d4871385ebdaa3343ce660275fa8710ff9d838c0ee1fa72bea5b0556a9"
+  },
+  {
+    "id": "61c344db-df96-4463-a113-c4ef16b16127",
+    "at": "2026-10-17T12:25:34.938Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_ssdp_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 30x",
+    "prevHash": "a94272d4871385ebdaa3343ce660275fa8710ff9d838c0ee1fa72bea5b0556a9",
+    "hash": "4d03e34e0e3844105ec7536468f43ff50516dc7244619d080d962a1d06bc19a5"
+  },
+  {
+    "id": "dc03dd30-9639-49fe-a892-2148ec71972c",
+    "at": "2026-10-17T12:25:34.935Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=a5ad13b2-3d73-4429-a0f4-7226c20f24bb sha256=d69fd4ead99cf56439492cf4455a799b5377495aa490cb1f321e78d141ec67fb",
+    "prevHash": "6068b94dc505ac292d19af2d8f0ec641c943c8095aea60219ca9cd8c3af97661",
+    "hash": "048bae17d6fbbaf91749769a6c82f4b9fb91fea5524ed55af813c4a081d750ea"
+  },
+  {
+    "id": "6938885e-d7df-4665-84d7-14d35766e0e2",
+    "at": "2026-10-17T12:25:28.489Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "b87c4c01e3cfbef6755de9df6200f975c9b355b9aaf166fcfd48bdf7594d2025",
+    "hash": "6068b94dc505ac292d19af2d8f0ec641c943c8095aea60219ca9cd8c3af97661"
+  },
+  {
+    "id": "eb5d0e0d-4cee-4afe-b14d-01a734c6f2cd",
+    "at": "2026-10-17T12:25:28.483Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_ssdp_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "ff65929b1fe2feee55ba673ca4abe51dd20ad00b5ea3fa57fc8a48802adf05fc",
+    "hash": "b87c4c01e3cfbef6755de9df6200f975c9b355b9aaf166fcfd48bdf7594d2025"
+  },
+  {
+    "id": "44b3149d-bce9-4ce2-a468-85add562615b",
+    "at": "2026-10-17T12:25:28.482Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=a5ad13b2-3d73-4429-a0f4-7226c20f24bb sha256=198c8d685680e730b4be46aa79a4c567c4fe50ab5b60339d7d8d35a8b732620c",
+    "prevHash": "8724a17df1b661631f470165634679c6515b7f0a3baad40c2ef93513ae1358de",
+    "hash": "ff65929b1fe2feee55ba673ca4abe51dd20ad00b5ea3fa57fc8a48802adf05fc"
+  },
+  {
+    "id": "899b37ef-550d-431a-ba53-e7d8ab096ef5",
+    "at": "2026-10-17T12:25:28.460Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=9559807e-d0e5-4b4f-84a4-88ad9b5cba7e sha256=e84c93db040330c417f062dbafd0eeca6be936fe6d5d04bfa868a1f08e914051",
+    "prevHash": "e486aedf6859b0a880eb93c7608bbcbd1e131fb4d35d0348e05cdc6ebeac9cf4",
+    "hash": "b11ac82ecdc70d11bf05e6d3cdb40c33223a6f0d4abbf233c1a89f87f2018b03"
+  },
+  {
+    "id": "20244a6b-ea14-44a3-9895-531eecb955f4",
+    "at": "2026-10-17T12:25:28.460Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_maxpackets @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 10x",
+    "prevHash": "b11ac82ecdc70d11bf05e6d3cdb40c33223a6f0d4abbf233c1a89f87f2018b03",
+    "hash": "8724a17df1b661631f470165634679c6515b7f0a3baad40c2ef93513ae1358de"
+  },
+  {
+    "id": "4699e382-5b97-4af5-a471-7fa62023240d",
+    "at": "2026-10-17T12:25:28.459Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=2cb0e95f-1a89-4be8-98ae-2b625a667379 sha256=cdfb0c2052ec43e5d6df590eb478e99226850d6c49d863f866da0a602432a946",
+    "prevHash": "92d419efad75340702383248345557b63c0045334a44aa9c383018c445dbc3a9",
+    "hash": "e486aedf6859b0a880eb93c7608bbcbd1e131fb4d35d0348e05cdc6ebeac9cf4"
+  },
+  {
+    "id": "33e570cb-66fe-46b5-b020-c0b7f757b640",
+    "at": "2026-10-17T12:25:22.020Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "ca24de69c10f5ab0f38581dcb63a69daeb760d16a18703207ddbaf37b1393e0f",
+    "hash": "92d419efad75340702383248345557b63c0045334a44aa9c383018c445dbc3a9"
+  },
+  {
+    "id": "eead8488-5fe4-42c6-91ed-620ee756129b",
+    "at": "2026-10-17T12:25:22.002Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=2cb0e95f-1a89-4be8-98ae-2b625a667379 sha256=650fb137228475cac35177d1dfd6152ab135ed96076863be63ee6cc35b490683",
+    "prevHash": "3c2587a5cc971eec65a99663b871553f326158e40fa1f1cecaca4d9ef7df54f5",
+    "hash": "b79e9a49221128570f2d2b0e79b529334eb52bbd3f035b63d1d38bf86ef1e7e9"
+  },
+  {
+    "id": "50a7df6d-3ed3-4dcd-b91a-89445b540fb4",
+    "at": "2026-10-17T12:25:22.002Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_maxpackets @ 127.0.0.1 → REQUESTED",
+    "prevHash": "b79e9a49221128570f2d2b0e79b529334eb52bbd3f035b63d1d38bf86ef1e7e9",
+    "hash": "ca24de69c10f5ab0f38581dcb63a69daeb760d16a18703207ddbaf37b1393e0f"
+  },
+  {
+    "id": "b3516c8e-f35b-43c2-8d80-9b04a940fb65",
+    "at": "2026-10-17T12:25:21.956Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=fe3bf194-6591-4e8e-ab07-e4be569072c4 sha256=69e356feb1b1582054726446c7511f501d93ecee1d2a10f337b41f2b60f0bd06",
+    "prevHash": "ba27867ce3d5de156ec888317463553661a302f9cd5c1282483a38cde3fb9d30",
+    "hash": "2ecd339fd54a39d30294ec88aadebaec03d4ef435898f1b0346e7bd0f8d16834"
+  },
+  {
+    "id": "adb6dea1-4290-422c-98f8-a551409201d4",
+    "at": "2026-10-17T12:25:21.956Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/tcp_synflood @ 127.0.0.1 → STATE_TABLE_SATURATED · amp ?x",
+    "prevHash": "2ecd339fd54a39d30294ec88aadebaec03d4ef435898f1b0346e7bd0f8d16834",
+    "hash": "3c2587a5cc971eec65a99663b871553f326158e40fa1f1cecaca4d9ef7df54f5"
+  },
+  {
+    "id": "7890e3ab-c1a1-48bb-8667-458af2b65bb2",
+    "at": "2026-10-17T12:25:21.951Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=2e90a1d1-19c2-43bc-80eb-4451f45a6dec sha256=0d02bcf38251bbd10fa7431f86c602c8a88e50766b17188320d4f590afdacf87",
+    "prevHash": "17619e0a50da1585deab2eda613d8ad22de9176620ebcf31327f5043a9d666c5",
+    "hash": "ba27867ce3d5de156ec888317463553661a302f9cd5c1282483a38cde3fb9d30"
+  },
+  {
+    "id": "6bd88662-d013-4dff-bd75-6bddb8b6141e",
+    "at": "2026-10-17T12:25:15.643Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "238651f63d71c1bc819ac20e030a9f4ebbc6381afa3d4c13c84e3307d7896f8d",
+    "hash": "17619e0a50da1585deab2eda613d8ad22de9176620ebcf31327f5043a9d666c5"
+  },
+  {
+    "id": "81941c5c-6579-490d-b29a-ce09123a67e3",
+    "at": "2026-10-17T12:25:15.637Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/tcp_synflood @ 127.0.0.1 → REQUESTED",
+    "prevHash": "09bf1922c67e47c98b40447b3df543e90ff4ea9621bd25873fb3ad7f5ad8aa30",
+    "hash": "238651f63d71c1bc819ac20e030a9f4ebbc6381afa3d4c13c84e3307d7896f8d"
+  },
+  {
+    "id": "b42d4220-d192-476e-8349-e8267499410a",
+    "at": "2026-10-17T12:25:15.636Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=2e90a1d1-19c2-43bc-80eb-4451f45a6dec sha256=5693606526123c1acfec0e153c568d338cd225a8fffc45ae94ebd48b0fd42104",
+    "prevHash": "b249cf242e78472088497ca2dc79b4da2ee0e6dc8180238e84257ae39d4e3b31",
+    "hash": "09bf1922c67e47c98b40447b3df543e90ff4ea9621bd25873fb3ad7f5ad8aa30"
+  },
+  {
+    "id": "9d397bf3-2f70-412f-be4f-9191ce2e904d",
+    "at": "2026-10-17T12:25:15.599Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=d345d273-718a-47b0-bffa-527bd3e6b7e4 sha256=7d4c7c2e4a1dc1b28427dd3ef27b7148722b1ed1052cbd6bf52f2304f5677bd5",
+    "prevHash": "6849872d2165ddddf3d53412458ca37b2161adb2c2e4200879f727e076eddd84",
+    "hash": "e3ae9b15b9cecff3f75a43a5e1b6d0c649bf6dbd5707f57e8ad77991ecdd9502"
+  },
+  {
+    "id": "22089ffb-0fd2-4f37-8a52-b367e28b0fe5",
+    "at": "2026-10-17T12:25:15.599Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_ntp_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 300x",
+    "prevHash": "e3ae9b15b9cecff3f75a43a5e1b6d0c649bf6dbd5707f57e8ad77991ecdd9502",
+    "hash": "b249cf242e78472088497ca2dc79b4da2ee0e6dc8180238e84257ae39d4e3b31"
+  },
+  {
+    "id": "c7ec06de-c875-46c4-a84b-2fbc341aacd1",
+    "at": "2026-10-17T12:25:15.598Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=952c5649-6bb3-439d-89ef-ed277dd41704 sha256=7cba83a56f96ffe28d0c6bf062c1fef7dfe9ab4e056251c0096a10cef5117d5c",
+    "prevHash": "76e6e44e1ab0930a6d3676515c11954e2be4069401e600fbc1faaf5b977edcb3",
+    "hash": "6849872d2165ddddf3d53412458ca37b2161adb2c2e4200879f727e076eddd84"
+  },
+  {
+    "id": "ab379d15-fac2-456e-a0a7-9b11c1ab8457",
+    "at": "2026-10-17T12:25:09.157Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "7eb4f3145175f9d7635999250ad29a0d86de7c9c22d2eccbaf079fa8e51f2893",
+    "hash": "76e6e44e1ab0930a6d3676515c11954e2be4069401e600fbc1faaf5b977edcb3"
+  },
+  {
+    "id": "ae7ce9cc-cced-4c08-9f38-8af1bbe251a3",
+    "at": "2026-10-17T12:25:09.145Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=952c5649-6bb3-439d-89ef-ed277dd41704 sha256=5fcf40eab83ff8d6b2d651ef7f4a3918b455637fdfdeb89833e35835d3701e11",
+    "prevHash": "837f56be139f0086eb757dcc1b48b76e4de68020b5cab572c0b5af3046f4840e",
+    "hash": "3321e260fac44a93337a6bcec4d8880d80a1b388bfabbd19bece3390d0b6bf6a"
+  },
+  {
+    "id": "e56e1dbd-c7f5-4d8f-b754-98849428b97c",
+    "at": "2026-10-17T12:25:09.145Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_ntp_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "3321e260fac44a93337a6bcec4d8880d80a1b388bfabbd19bece3390d0b6bf6a",
+    "hash": "7eb4f3145175f9d7635999250ad29a0d86de7c9c22d2eccbaf079fa8e51f2893"
+  },
+  {
+    "id": "2574c84b-623a-46f7-a151-8dd90f9edb78",
+    "at": "2026-10-17T12:25:09.030Z",
+    "actor": "isolated-drs5-473",
+    "action": "bench.verdict",
+    "detail": "C/udp_dns_reflection @ 127.0.0.1 → UNMITIGATED_BASELINE · amp 40x",
+    "prevHash": "3e4152e81ed6371d1b5885012856ce4ff31f3badc121088e579e964acf157f80",
+    "hash": "837f56be139f0086eb757dcc1b48b76e4de68020b5cab572c0b5af3046f4840e"
+  },
+  {
+    "id": "e5634bb6-1543-4820-88e9-2f2b5f580f1b",
+    "at": "2026-10-17T12:25:09.029Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "saveBenchCoverage entity=8217277f-ffc5-41c6-a8fa-7b0f8502b509 sha256=b7dbc4ad9807e815acde1a0d910a53e873b7c4841d64953156c1fa07dc8c4bcf",
+    "prevHash": "9046c71c4f77ce65e0e8d8720ce0d4be16c41b9552e37eacdb9339c0e6bb05c8",
+    "hash": "3e4152e81ed6371d1b5885012856ce4ff31f3badc121088e579e964acf157f80"
+  },
+  {
+    "id": "e9efaf94-4274-4da5-aca0-a6a222dacc0d",
+    "at": "2026-10-17T12:25:09.028Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "setBenchRunResult entity=73b648ee-7e30-4e79-8e79-76f59fcb85bc sha256=6a5d575d2311e6019437d6c610f356deff39dc16999d3ca3e6b14b26855cfc8f",
+    "prevHash": "503ef2bd825c999cffa2bd5ba2fcf432ba27dcc3cc4417e5a9d7583017fc311a",
+    "hash": "9046c71c4f77ce65e0e8d8720ce0d4be16c41b9552e37eacdb9339c0e6bb05c8"
+  },
+  {
+    "id": "ccf03e06-518e-4ea8-98fb-eeecd2cb1713",
+    "at": "2026-10-17T12:25:02.555Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "claimNextBenchRun entity=isolated-drs5-473 sha256=a35092e9ff5b23349c715e8d9549a4334753dcc2374a4398d978396d283166ef",
+    "prevHash": "4b6df8a81c7dcb8c74ff98a2e6f38be53d0a61d2e2dff9eb079a467584c7f71a",
+    "hash": "503ef2bd825c999cffa2bd5ba2fcf432ba27dcc3cc4417e5a9d7583017fc311a"
+  },
+  {
+    "id": "877ea000-6de4-4a9a-8ab6-165638f0f338",
+    "at": "2026-10-17T12:24:51.920Z",
+    "actor": "dev",
+    "action": "bench.request",
+    "detail": "C/udp_dns_reflection @ 127.0.0.1 → REQUESTED",
+    "prevHash": "31ffd7b90a9ff46c3e727a80be6a0dce50b4c78f3ef6b957a256e37b52f7720b",
+    "hash": "4b6df8a81c7dcb8c74ff98a2e6f38be53d0a61d2e2dff9eb079a467584c7f71a"
+  },
+  {
+    "id": "0fbe5056-a9df-4791-9f8a-cd6bcb918d6c",
+    "at": "2026-10-17T12:24:51.919Z",
+    "actor": "system",
+    "action": "store.mutate",
+    "detail": "createBenchRun entity=73b648ee-7e30-4e79-8e79-76f59fcb85bc sha256=4d01bf3f847e481f585e202bf3f6b0bf5d4d865279fd17e095370b9bec309535",
+    "prevHash": "GENESIS",
+    "hash": "31ffd7b90a9ff46c3e727a80be6a0dce50b4c78f3ef6b957a256e37b52f7720b"
+  }
+]

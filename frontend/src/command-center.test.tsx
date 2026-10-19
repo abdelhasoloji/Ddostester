@@ -192,6 +192,29 @@ describe('Command Center', () => {
 });
 
 describe('Run Theater', () => {
+  it('keeps successful and offered rates aligned when the UI clock advances before generator counters', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING' }],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    act(() => {
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 6400,
+          successful: 6400,
+          failed: 0,
+          elapsedSec: 9,
+          actualRps: 800,
+          maxDurationSec: 20,
+          engine: 'vegeta',
+          probe: { samples: 5, available: 5, errorRate5xx: 0 },
+        }),
+      });
+    });
+    expect(screen.getByText('Successful responses').parentElement).toHaveTextContent('800');
+  });
   it('points to Campaigns when nothing is in flight', () => {
     currentApp = makeApp({ role: 'engineer', campaigns: [scoredCampaign] });
     renderWithRouter(<RunTheaterPage />);
@@ -265,8 +288,73 @@ describe('Run Theater', () => {
     expect(screen.getByText('Generator failures')).toBeInTheDocument();
     expect(screen.getByText('Successful responses')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument(); // 800/1000 offered → 80% absorbed
+    act(() => {
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 500,
+          successful: 498,
+          failed: 2,
+          elapsedSec: 10,
+          actualRps: 50,
+          maxDurationSec: 60,
+          probe: { samples: 5, available: 5, errorRate5xx: 0 },
+        }),
+      });
+    });
+    expect(screen.getByText('0.4')).toBeInTheDocument();
   });
 
+  it('does not claim a service outage from generator failures when the probe is healthy', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING' }],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    act(() =>
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 100,
+          successful: 0,
+          failed: 100,
+          generatorObserved: true,
+          elapsedSec: 10,
+          actualRps: 10,
+          maxDurationSec: 20,
+          statusCounts: { '5xx': 100 },
+          probe: { samples: 4, available: 4, health: 'ok' },
+        }),
+      }),
+    );
+    expect(screen.queryByText(/TARGET DOWN/)).toBeNull();
+    expect(screen.queryByText(/legitimate users can.t get through/)).toBeNull();
+    expect(screen.getByText(/a service outage is not established/)).toBeInTheDocument();
+  });
+  it('shows unknown generator counters from the first tick, including the warning banner', () => {
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [{ ...scoredCampaign, status: 'RUNNING' }],
+    });
+    const { container } = renderWithRouter(<RunTheaterPage />);
+    act(() =>
+      esInstances[0].onmessage?.({
+        data: JSON.stringify({
+          status: 'RUNNING',
+          sent: 0,
+          successful: 0,
+          failed: 0,
+          generatorObserved: false,
+          elapsedSec: 1,
+          actualRps: 0,
+          maxDurationSec: 20,
+          probe: { samples: 1, available: 0, health: 'critical' },
+        }),
+      }),
+    );
+    expect(container.querySelectorAll('.tm-na').length).toBe(3);
+    expect(container.querySelector('.td-stats')?.textContent).toContain('— generator failures');
+  });
   it('shows connection-hold cards (not request cards) for a slowloris run', () => {
     currentApp = makeApp({
       role: 'engineer',
@@ -292,9 +380,9 @@ describe('Run Theater', () => {
     // Slowloris story, not the request-rate cards.
     expect(screen.getByText('Connections opened')).toBeInTheDocument();
     expect(screen.getByText('Currently held')).toBeInTheDocument();
-    expect(screen.getByText('Shed by target')).toBeInTheDocument();
+    expect(screen.getByText('Connections closed')).toBeInTheDocument();
     expect(screen.queryByText('Offered')).not.toBeInTheDocument();
-    expect(screen.getByText('300')).toBeInTheDocument(); // opened
+    expect(screen.getByText('Connections opened').parentElement).toHaveTextContent('300'); // opened
     expect(screen.getByText(/98%/)).toBeInTheDocument(); // 295/300 shed
   });
 
@@ -311,6 +399,63 @@ describe('Run Theater', () => {
     expect(screen.getByText(/Live updates interrupted/)).toBeInTheDocument();
     expect(screen.queryByText(/Starting run…/)).not.toBeInTheDocument();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('keeps a focused queued step inside its paused suite without a false baseline panel', async () => {
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: true, pauseBetweenSteps: true, started: 1, total: 2 } },
+    });
+    currentApp = makeApp({
+      campaigns: [
+        { ...scoredCampaign, id: 'first', suiteId: 'S1', suiteOrder: 0, status: 'COMPLETED' },
+        {
+          ...scoredCampaign,
+          id: 'next',
+          suiteId: 'S1',
+          suiteOrder: 1,
+          status: 'APPROVED',
+          runId: undefined,
+          wrs: undefined,
+        },
+      ],
+    });
+    render(
+      <MemoryRouter initialEntries={['/theater?run=next']}>
+        <RunTheaterPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Resume next step' })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/CAPTURING BASELINE/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Kill/ })).toBeNull();
+  });
+
+  it('shows failed execution as attempted with a report instead of queued', async () => {
+    fakeApi.suiteSequences.mockResolvedValue({
+      sequences: { S1: { paused: false, started: 1, total: 1 } },
+    });
+    currentApp = makeApp({
+      role: 'engineer',
+      campaigns: [
+        {
+          ...scoredCampaign,
+          id: 'failed',
+          suiteId: 'S1',
+          suiteOrder: 0,
+          status: 'APPROVED',
+          wrs: undefined,
+          statusDetail: 'Last run failed (reference diag-123); review before retrying.',
+        },
+      ],
+    });
+    renderWithRouter(<RunTheaterPage />);
+    await waitFor(() => expect(screen.getByText('Execution failed')).toBeInTheDocument());
+    expect(screen.queryByText('queued')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open report' })).toHaveAttribute(
+      'href',
+      '/api/suites/S1/report',
+    );
   });
 
   it('keeps the suite surface between steps (recovery gate), not "no run"', async () => {

@@ -1,0 +1,136 @@
+{
+  "coverage": [
+    {
+      "id": "dfa296cf-30e7-44ae-9c4e-90098b9678c4",
+      "vector": "pulsewave_l34",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 5,
+      "summary": "Bounded synthetic run — amplification 132.41×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:26:24.021Z"
+    },
+    {
+      "id": "e8af9604-555d-4b5b-a0ac-8b0a4b278c90",
+      "vector": "udp_multivector",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 4,
+      "summary": "Bounded synthetic run — amplification 168.27×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:26:15.514Z"
+    },
+    {
+      "id": "8c166cbd-6809-4a1a-aa60-875a7aa99222",
+      "vector": "udp_memcached_reflection",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 4,
+      "summary": "Bounded synthetic run — amplification 500×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:26:09.035Z"
+    },
+    {
+      "id": "3cc5888a-0353-43b7-b863-20328300839c",
+      "vector": "tcp_conn_drain",
+      "method": "MEASURED_LAB",
+      "outcome": "STATE_TABLE_SATURATED",
+      "drs": 4,
+      "summary": "Bounded synthetic run (no-spoof) — state-table saturation 57.26% at peak 200 conns.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:26:02.541Z"
+    },
+    {
+      "id": "f506a47d-fd1a-4075-a5de-2f6431356cb9",
+      "vector": "quic_init_pressure",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 4,
+      "summary": "Bounded synthetic run — amplification 1×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:54.226Z"
+    },
+    {
+      "id": "73e92503-fa94-42f9-a147-8921b0e7a10d",
+      "vector": "udp_cldap_reflection",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 4,
+      "summary": "Bounded synthetic run — amplification 50×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:47.751Z"
+    },
+    {
+      "id": "b11b6211-d60a-4f3c-9485-509931637d9b",
+      "vector": "tcp_maxpackets",
+      "method": "MEASURED_LAB",
+      "outcome": "STATE_TABLE_SATURATED",
+      "drs": 3,
+      "summary": "Bounded synthetic run (no-spoof) — state-table saturation 58.62% at peak 300 conns.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:41.255Z"
+    },
+    {
+      "id": "5c9ba1f5-37d9-4849-a110-dd825c7a2b3b",
+      "vector": "udp_ssdp_reflection",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 3,
+      "summary": "Bounded synthetic run — amplification 30×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:34.937Z"
+    },
+    {
+      "id": "9559807e-d0e5-4b4f-84a4-88ad9b5cba7e",
+      "vector": "udp_maxpackets",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 3,
+      "summary": "Bounded synthetic run — amplification 10×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:28.460Z"
+    },
+    {
+      "id": "fe3bf194-6591-4e8e-ab07-e4be569072c4",
+      "vector": "tcp_synflood",
+      "method": "MEASURED_LAB",
+      "outcome": "STATE_TABLE_SATURATED",
+      "drs": 3,
+      "summary": "Bounded synthetic run (no-spoof) — state-table saturation 77.01% at peak 200 conns.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:21.951Z"
+    },
+    {
+      "id": "d345d273-718a-47b0-bffa-527bd3e6b7e4",
+      "vector": "udp_ntp_reflection",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 3,
+      "summary": "Bounded synthetic run — amplification 300×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:15.599Z"
+    },
+    {
+      "id": "8217277f-ffc5-41c6-a8fa-7b0f8502b509",
+      "vector": "udp_dns_reflection",
+      "method": "MEASURED_LAB",
+      "outcome": "UNMITIGATED_BASELINE",
+      "drs": 3,
+      "summary": "Bounded synthetic run — amplification 40×.",
+      "source": "isolated-drs5-473",
+      "recordedBy": "isolated-drs5-473",
+      "at": "2026-10-17T12:25:09.029Z"
+    }
+  ]
+}

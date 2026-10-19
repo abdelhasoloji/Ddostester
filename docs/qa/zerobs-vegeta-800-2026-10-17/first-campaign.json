@@ -1,0 +1,28 @@
+[
+  {
+    "name": "ZeroBS GET qualification 800",
+    "description": "Line 3 — steady HTTP GET flood on the main path.",
+    "target": "http://127.0.0.1:18082/",
+    "vector": "http-get",
+    "maxRps": 800,
+    "concurrency": 100,
+    "maxDurationSec": 20,
+    "probeUrl": "http://127.0.0.1:18082/",
+    "createdBy": "dev",
+    "authorized": true,
+    "agent": "vegeta",
+    "endpoints": [{ "url": "http://127.0.0.1:18082/api/search.php?q=shieldtest" }],
+    "noKeepAlive": true,
+    "calibrate": false,
+    "reconPosture": { "h2": false, "waf": false, "cache": false, "dynamic": true },
+    "suiteId": "59aeaad5-cc2e-470e-945a-efe1d6827a1e",
+    "suiteName": "ZeroBS GET qualification 800",
+    "suiteOrder": 0,
+    "id": "d19f9805-217e-462b-b392-fc8a71521b6c",
+    "status": "APPROVED",
+    "createdAt": "2026-10-17T10:54:01.919Z",
+    "approvedBy": "qualification-reviewer",
+    "approvalExpiresAt": "2026-10-18T10:54:20.913Z",
+    "statusDetail": "Last run failed (reference 0eef58d9-8253-42d8-8176-160bbc34521b); review before retrying."
+  }
+]

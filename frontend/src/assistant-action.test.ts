@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { extractActions, SCREENS, LIMIT_CAPS } from './assistant-action.js';
+import { extractActions, SCREENS } from './assistant-action.js';
+
+const CEILING = { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 };
+const extract = (content: string) => extractActions(content, CEILING);
 
 const block = (o: unknown) => '```action\n' + JSON.stringify(o) + '\n```';
 
 describe('extractActions — types', () => {
   it('parses a test-campaign into a campaign action with a seed', () => {
-    const { actions, text } = extractActions(
+    const { actions, text } = extract(
       'Plan:\n' +
         block({
           type: 'test-campaign',
@@ -30,7 +33,7 @@ describe('extractActions — types', () => {
   });
 
   it('parses register-target into a target draft', () => {
-    const { actions } = extractActions(
+    const { actions } = extract(
       block({
         type: 'register-target',
         host: 'staging.ex.com',
@@ -46,7 +49,7 @@ describe('extractActions — types', () => {
   });
 
   it('parses adjust-limits and flags over-ceiling values', () => {
-    const { actions } = extractActions(
+    const { actions } = extract(
       block({ type: 'adjust-limits', maxRps: 5000, maxConcurrency: 100, maxDurationSec: 300 }),
     );
     const a = actions[0];
@@ -55,14 +58,11 @@ describe('extractActions — types', () => {
       expect(a.caps.maxConcurrency).toBe(100);
       expect(a.over).toContain('maxRps');
       expect(a.over).not.toContain('maxConcurrency');
-      expect(LIMIT_CAPS.maxRps).toBe(2000);
     }
   });
 
   it('parses open into a navigate action against a known screen', () => {
-    const { actions } = extractActions(
-      block({ type: 'open', screen: 'theater', label: 'Review run' }),
-    );
+    const { actions } = extract(block({ type: 'open', screen: 'theater', label: 'Review run' }));
     const a = actions[0];
     expect(a.kind).toBe('navigate');
     if (a.kind === 'navigate') {
@@ -72,8 +72,8 @@ describe('extractActions — types', () => {
   });
 
   it('rejects an unknown screen and an unknown type', () => {
-    expect(extractActions(block({ type: 'open', screen: 'nope' })).actions).toHaveLength(0);
-    expect(extractActions(block({ type: 'delete-everything' })).actions).toHaveLength(0);
+    expect(extract(block({ type: 'open', screen: 'nope' })).actions).toHaveLength(0);
+    expect(extract(block({ type: 'delete-everything' })).actions).toHaveLength(0);
   });
 
   it('still accepts a legacy ```proposal``` block as a campaign', () => {
@@ -81,13 +81,13 @@ describe('extractActions — types', () => {
       '```proposal\n' +
       JSON.stringify({ target: 'https://x', maxRps: 20, concurrency: 5, maxDurationSec: 60 }) +
       '\n```';
-    const { actions } = extractActions(legacy);
+    const { actions } = extract(legacy);
     expect(actions).toHaveLength(1);
     expect(actions[0].kind).toBe('campaign');
   });
 
   it('leaves invalid JSON blocks untouched in the text', () => {
-    const { actions, text } = extractActions('```action\n{bad}\n```');
+    const { actions, text } = extract('```action\n{bad}\n```');
     expect(actions).toHaveLength(0);
     expect(text).toContain('```action');
   });

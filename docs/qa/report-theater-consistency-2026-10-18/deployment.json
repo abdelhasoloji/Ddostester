@@ -1,0 +1,104 @@
+{
+  "deployedAt": "2026-10-18T16:39:52.621Z",
+  "build": 496,
+  "commit": "e1d6b126a2ebd1c91c093c346c9439fdaeabbe89",
+  "apiUiIdentityVerified": true,
+  "ready": true,
+  "runtimeConfigurationUnchanged": true,
+  "authenticatedBackupRestore": true,
+  "preservation": {
+    "running": 0,
+    "historyPreserved": true,
+    "auditPreserved": true,
+    "counts": {
+      "users": 11,
+      "campaigns": 308,
+      "settings": 1,
+      "targets": 3,
+      "playbooks": 1,
+      "runs": 246,
+      "infrastructure_revisions_v1": 1
+    }
+  },
+  "productionCampaignLaunched": false,
+  "ci": {
+    "id": 39145374471,
+    "headSha": "e1d6b126a2ebd1c91c093c346c9439fdaeabbe89",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "postgres",
+        "conclusion": "success"
+      },
+      {
+        "name": "backend",
+        "conclusion": "success"
+      },
+      {
+        "name": "frontend",
+        "conclusion": "success"
+      },
+      {
+        "name": "quality",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "pods": [
+    {
+      "name": "lab-iot-01",
+      "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357",
+      "unchanged": true,
+      "ready": true
+    },
+    {
+      "name": "lab-iot-02",
+      "uid": "42b0ed77-1a8b-4581-8619-ab851332f211",
+      "unchanged": true,
+      "ready": true
+    },
+    {
+      "name": "lab-iot-03",
+      "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d",
+      "unchanged": true,
+      "ready": true
+    }
+  ],
+  "onlineAgentsAfterPromotion": 3,
+  "productionBrowserVerification": false,
+  "browserLimitation": "Saved production-origin permission; visual qualification completed on the loopback fixture.",
+  "localAcceptance": {
+    "scope": "loopback-only",
+    "configuredRps": 20,
+    "durationSeconds": 20,
+    "status": "COMPLETED",
+    "requests": 400,
+    "successful": 384,
+    "failed": 16,
+    "probeSamples": 4,
+    "probeAvailable": 3,
+    "availabilityPct": 75,
+    "checkObservations": [
+      [1, 100],
+      [6, 0],
+      [11, 100],
+      [16, 100]
+    ],
+    "primaryStayedHealthy": true,
+    "secondaryFailureObserved": true,
+    "externalTrafficGenerated": false,
+    "firstRetainedCounterIncluded": true,
+    "rawRunUnchanged": true
+  },
+  "historicalReview": {
+    "steps": 12,
+    "retainedRuns": 8,
+    "missingRuns": 4,
+    "newHistoricalCampaignsExecuted": 0
+  },
+  "localTests": {
+    "backendPassed": 1277,
+    "frontendPassed": 490
+  },
+  "remainingInfrastructure": "Rancher 10.20.0.252 routed through en0; HTTPS timeout and no local Kubernetes context."
+}

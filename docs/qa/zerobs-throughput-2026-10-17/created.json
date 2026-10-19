@@ -1,0 +1,48 @@
+{
+  "suiteId": "7dac665a-5cdc-4d23-b570-e91d1ce11bfe",
+  "campaigns": [
+    {
+      "name": "ZeroBS GET qualification 800",
+      "description": "Line 3 \u2014 steady HTTP GET flood on the main path.",
+      "target": "http://127.0.0.1:18082/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 100,
+      "maxDurationSec": 20,
+      "probeUrl": "http://127.0.0.1:18082/",
+      "createdBy": "dev",
+      "authorized": true,
+      "agent": "vegeta",
+      "calibrate": false,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "7dac665a-5cdc-4d23-b570-e91d1ce11bfe",
+      "suiteName": "ZeroBS GET qualification 800",
+      "suiteOrder": 0,
+      "id": "cedca87a-c7d5-45d4-8010-b955afe955f7",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T11:14:08.151Z"
+    }
+  ],
+  "recon": {
+    "seeded": true,
+    "go": true,
+    "suggestedPaths": [
+      "/",
+      "/api/search.php?q=shieldtest",
+      "/api/db.php?id=42",
+      "/api/products.php?page=2",
+      "/api/work.php?ms=250",
+      "/login.php",
+      "/account.php",
+      "/api/report.php",
+      "/api/echo.php",
+      "/api/cached.php"
+    ],
+    "loginPath": "/login.php"
+  }
+}

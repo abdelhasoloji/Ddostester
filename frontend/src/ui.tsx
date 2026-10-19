@@ -1,9 +1,11 @@
+import { CampaignParameters } from './campaign-parameters.js';
 import { FleetCampaignLive } from './fleet-campaign-live.js';
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { reportUrl, runTimelineCsvUrl, streamUrl } from './api.js';
 import { UplotChart, type ChartSeries } from './PromChart.js';
-import { LiveLineChart } from './live-chart.js';
+import { RunGraphs } from './run-graphs.js';
+export { theaterPanels, hasLiveGenerator, panelsXMax } from './theater-graphs.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { MitigationPanel } from './mitigation-panel.js';
 import { FleetEvidencePanel } from './fleet-evidence.js';
@@ -128,13 +130,11 @@ export function ConfidenceBadge({ run }: { run: CampaignRun }) {
   );
 }
 
-/**
- * Protection absorption widget: how much of the offered load the target's edge
- * absorbed (rate-limited / tarpitted / 4xx) vs let through to origin — the
- * product-level "protection working" signal, shown next to the WRS.
- */
+/** Generator request outcomes; connection holds have separate units and panels. */
 export function AbsorptionWidget({ run }: { run: CampaignRun }) {
   const g = run.generator;
+  if (g.config?.slowloris || run.timeline?.some((sample) => sample.sampleUnit === 'connections'))
+    return null;
   const a =
     run.absorption ??
     ({
@@ -290,8 +290,10 @@ export function protectionBadgeTitle(
     ? Math.round((p.probe.available / p.probe.samples) * 100)
     : null;
   if (vector === 'http-slowloris')
-    return `Slow connections: ${p?.sent ?? 0} opened, ${p?.failed ?? 0} closed. Independent probe availability: ${probeUp ?? 'unknown'}%.`;
-  return `Generator failures: ${absorbedPct}% (${p?.failed ?? 0}/${p?.sent ?? 0}). HTTP 4xx: ${p?.statusCounts?.['4xx'] ?? 0}; HTTP 5xx: ${p?.statusCounts?.['5xx'] ?? 0}. Independent probe availability: ${probeUp ?? 'unknown'}%. Edge absorption and origin impact require corroborating telemetry.`;
+    return `Slow connections: ${p?.sent ?? 0} opened, ${p?.failed ?? 0} closed. Probe availability: ${probeUp ?? 'unknown'}%.`;
+  if (p?.generatorObserved === false)
+    return `Generator counters unavailable live. Probe availability: ${probeUp ?? 'unknown'}%.`;
+  return `Generator failures: ${absorbedPct}% (${p?.failed ?? 0}/${p?.sent ?? 0}). HTTP 4xx: ${p?.statusCounts?.['4xx'] ?? 0}; HTTP 5xx: ${p?.statusCounts?.['5xx'] ?? 0}. Probe availability: ${probeUp ?? 'unknown'}%. Edge absorption and origin impact require corroborating telemetry.`;
 }
 
 /**
@@ -303,6 +305,7 @@ export function protectionBadgeTitle(
 export function RunTheater({
   fleet,
   fleetDeviceCount,
+  configuredRps,
   campaignId,
   name,
   target,
@@ -312,6 +315,7 @@ export function RunTheater({
   killing,
 }: {
   fleet?: boolean;
+  configuredRps?: number;
   fleetDeviceCount?: number;
   campaignId: string;
   name: string;
@@ -326,14 +330,11 @@ export function RunTheater({
   const [p, setP] = useState<LiveProgressData | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [errored, setErrored] = useState(false);
-  // Accumulate the chart series CLIENT-SIDE from the same live scalars the tiles
-  // use — one point per elapsed second, `t` strictly monotonic. This is the
-  // source of truth for the graphs: the server's `p.timeline` is unreliable for
-  // external engines (sparse samples, an early availability default of 100 while
-  // the probe has no data yet) which made the curves disagree with the tiles.
+  // Prefer server ticks: the same provenance and clock are persisted in the report.
   const [series, setSeries] = useState<RunSample[]>([]);
   useEffect(() => {
     setErrored(false);
+    setP(null);
     setSeries([]); // a fresh run → fresh series
     const es = new EventSource(streamUrl(campaignId));
     es.onmessage = (e) => {
@@ -346,16 +347,32 @@ export function RunTheater({
           const prb = d.probe;
           const sample: RunSample = {
             t: d.elapsedSec,
+            generatorObserved: d.generatorObserved,
+            successful: d.successful,
+            probeSamples: prb?.samples ?? 0,
+            sampleUnit: vector === 'http-slowloris' ? 'connections' : 'requests',
             rps: d.actualRps ?? 0,
             sent: d.sent ?? 0,
             failed: d.failed ?? 0,
             probe5xx: prb?.errorRate5xx ?? 0,
             availPct: prb?.samples ? Math.round((prb.available / prb.samples) * 1000) / 10 : 100,
             probeP95: prb?.latencyMs?.p95,
+            probeAvailable: prb?.available,
+            probeLatencyMs: prb?.latencyMs,
+            probeEndpoints: prb?.endpoints,
+            statusCounts: d.statusCounts,
           };
           // Keep one point per elapsed second (SSE may push several per second):
           // replace the last when the second repeats, else append.
           setSeries((prev) => {
+            if (
+              d.timeline?.length &&
+              d.timeline.some((tick: RunSample) => tick.generatorObserved !== undefined)
+            ) {
+              const ticks = new Map<number, RunSample>(prev.map((tick) => [tick.t, tick]));
+              for (const tick of d.timeline as RunSample[]) ticks.set(tick.t, tick);
+              return [...ticks.values()].sort((a, b) => a.t - b.t);
+            }
             const last = prev[prev.length - 1];
             if (last && last.t === sample.t) return [...prev.slice(0, -1), sample];
             return [...prev, sample];
@@ -375,11 +392,13 @@ export function RunTheater({
       setErrored(true);
     };
     return () => es.close();
-  }, [campaignId]);
+  }, [campaignId, vector]);
 
   const offered = p?.actualRps ?? 0;
-  const originRps = p && p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
-  const absorbedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 100) : 0;
+  // Use the generator snapshot's rate window, as the charts do. The display
+  // clock can be one tick ahead of an external generator's counters.
+  const originRps = p && p.sent > 0 ? offered * (p.successful / p.sent) : 0;
+  const absorbedPct = p && p.sent > 0 ? Math.round((p.failed / p.sent) * 10000) / 100 : 0;
   const pct = p
     ? Math.min(100, Math.round((p.elapsedSec / Math.max(p.maxDurationSec, 1)) * 100))
     : 0;
@@ -394,8 +413,9 @@ export function RunTheater({
   // settle. So offered/reached/absorbed would read a misleading 0 for the whole
   // run. Detect that (a few seconds in, still nothing sent) and show "—" plus a
   // note, rather than a fake zero — the live target health below is still real.
-  const genLive = !!p && (p.sent > 0 || (p.actualRps ?? 0) > 0);
-  const genPending = !!p && !isSlowloris && !genLive && p.elapsedSec >= 4;
+  const genLive = !!p && (p.generatorObserved ?? (p.sent > 0 || (p.actualRps ?? 0) > 0));
+  const genPending = !!p && !isSlowloris && !genLive;
+  const probeDown = !!p?.probe?.samples && p.probe.available / p.probe.samples < 0.5;
   // Protection state from the live signals — the legit probe decides whether a
   // high absorbed% is "protection engaging" (probe up) or the target being taken
   // down (probe down). Keeps the headline badge honest on an unprotected origin.
@@ -420,9 +440,13 @@ export function RunTheater({
           {badgeState === 'baseline'
             ? '● capturing baseline'
             : badgeState === 'overwhelmed'
-              ? '● target overwhelmed'
+              ? probeDown
+                ? '● probe availability impact'
+                : '● load errors / degradation'
               : badgeState === 'protecting'
-                ? '● protection engaging'
+                ? isSlowloris
+                  ? '● connections closing'
+                  : '● generator failures'
                 : '● running'}
         </span>
         {onKill && (
@@ -457,23 +481,28 @@ export function RunTheater({
         <>
           {badgeState === 'overwhelmed' && !isSlowloris && (
             <div className="target-down" role="status" aria-live="polite">
-              <div className="td-flash">⚠ TARGET DOWN</div>
+              <div className="td-flash">
+                {probeDown ? 'PROBE AVAILABILITY IMPACT' : 'LOAD ERRORS / DEGRADATION'}
+              </div>
               <div className="td-sub">
-                origin failing under load — legitimate users can&rsquo;t get through
+                {probeDown
+                  ? 'Fewer than half of the completed probe transactions succeeded.'
+                  : 'Generator failures or latency degradation; a service outage is not established.'}
               </div>
               <div className="td-stats">
                 <span>
                   <b>
-                    {p.probe?.samples ? Math.round((p.probe.available / p.probe.samples) * 100) : 0}
-                    %
+                    {p.probe?.samples
+                      ? `${Math.round((p.probe.available / p.probe.samples) * 100)}%`
+                      : '—'}
                   </b>{' '}
-                  legit availability
+                  monitored checks
                 </span>
                 <span>
-                  <b>{absorbedPct}%</b> failed / 5xx
+                  <b>{genPending ? '—' : `${absorbedPct}%`}</b> generator failures
                 </span>
                 <span>
-                  successful responses <b>{Math.round(originRps)}</b> rps
+                  successful responses <b>{genPending ? '—' : Math.round(originRps)}</b> rps
                 </span>
               </div>
             </div>
@@ -490,7 +519,7 @@ export function RunTheater({
                   <div className="tm-v good">{p.successful}</div>
                 </div>
                 <div className="theater-metric absorb">
-                  <div className="tm-k">Shed by target</div>
+                  <div className="tm-k">Connections closed</div>
                   <div className="tm-v warnv">
                     {p.failed} <small>· {shedPct}%</small>
                   </div>
@@ -498,7 +527,7 @@ export function RunTheater({
                     <div className="absorb-fill" style={{ width: `${Math.min(100, shedPct)}%` }} />
                   </div>
                   <div className="hint" style={{ marginTop: '.35rem' }}>
-                    high shed = good defense (target drops slow requests)
+                    Closure cause requires target telemetry.
                   </div>
                 </div>
               </>
@@ -567,8 +596,16 @@ export function RunTheater({
               </>
             )}
             <div className="theater-metric">
-              <div className="tm-k">
-                Legit probe
+              <div
+                className="tm-k"
+                title={
+                  p.probe?.endpoints
+                    ?.map((e) => `${e.url}: ${e.available}/${e.samples} successful GET checks`)
+                    .join('\n') ||
+                  'Availability of the configured probe URL only. Intervals between checks are not observed.'
+                }
+              >
+                Monitored checks
                 {p.probe?.health && p.probe.health !== 'ok' && (
                   <span className={`health-badge health-${p.probe.health}`}>
                     {p.probe.health === 'critical' ? '● critical' : '▲ degraded'}
@@ -580,17 +617,16 @@ export function RunTheater({
               >
                 {p.probe && p.probe.samples > 0
                   ? Math.round((p.probe.available / p.probe.samples) * 100)
-                  : 100}
-                <small>% up</small>
+                  : '—'}
+                <small>% cycles OK</small>
               </div>
             </div>
           </div>
 
           {genPending && (
             <p className="hint theater-gen-note" style={{ marginTop: '.6rem' }}>
-              ⧗ {eng ? <b>{eng}</b> : 'This engine'} runs out-of-process — offered &amp; absorbed
-              rates are computed when it settles. The live signals below (legitimate availability
-              and latency) are measured throughout.
+              {eng ? <b>{eng}</b> : 'Generator'} counters are unavailable live. Final rates arrive
+              at completion; the probe remains measured separately.
             </p>
           )}
 
@@ -606,8 +642,21 @@ export function RunTheater({
             </div>
           )}
 
+          <p
+            className="hint"
+            title="Availability and p95 are cumulative over completed probe transactions, not independent per-second observations."
+          >
+            Probe: {p.probe?.samples ?? 0} observations · cumulative metrics
+          </p>
           <div style={{ marginTop: '.8rem' }}>
-            <RunMetricsPanels timeline={series} />
+            <RunGraphs
+              key={campaignId + ':' + vector}
+              timeline={series}
+              vector={vector}
+              scope={campaignId}
+              live
+              configuredRps={configuredRps}
+            />
           </div>
         </>
       )}
@@ -739,7 +788,7 @@ function LiveProgress({ campaignId, agent }: { campaignId: string; agent?: strin
             ))}
         </div>
       )}
-      <RunTimeline samples={p.timeline ?? []} pending />
+      <RunTimeline samples={p.timeline ?? []} scope={campaignId} pending />
     </div>
   );
 }
@@ -858,6 +907,7 @@ export function CampaignCard({ c }: { c: Campaign }) {
             </button>
           )}
 
+          <CampaignParameters campaign={c} disabled={!!isBusy} />
           {app.approvalPolicy !== 'confirmation' &&
             c.status === 'PENDING_APPROVAL' &&
             canDo(role, 'approve', ar, app.userMode, app.capabilities) && (
@@ -1031,127 +1081,26 @@ function Metric({ label, children }: { label: string; children: React.ReactNode 
  * mis-scale and lag the run (flat lines while the tiles read correctly). The
  * "Open in Grafana" deep-link still offers the full Prometheus dashboard.
  */
-export interface TheaterPanel {
-  label: string;
-  series: ChartSeries[];
-  yRange?: [number, number];
-  yFromZero?: boolean;
-}
-
-/** Whether the generator streamed live counts in this run's samples. External
- *  engines (k6/vegeta/locust) run out-of-process and report nothing until settle,
- *  so `sent`/`rps` stay 0 for every tick — only the built-in engine streams them.
- *  Exported so the tiles and the panels agree on what is measurable live. */
-export function hasLiveGenerator(samples: RunSample[]): boolean {
-  return samples.some((s) => s.sent > 0 || s.rps > 0);
-}
-
-/**
- * Build the Run-Theater panels from the per-tick run samples. Pure, so it is
- * unit-tested. When the generator streams live counts (built-in engine) the
- * panels are offered-vs-origin RPS, edge-absorbed %, and availability — the
- * `sent`/`failed` cumulatives give the same ratios the tiles show. When it does
- * NOT (an external engine, out-of-process), those three would be flat-zero and
- * misleading, so the panels fall back to the two signals the probe measures live
- * for EVERY engine: legitimate availability and probe p95 latency. The offered/
- * absorbed figures are then computed at settle from the engine's own result.
- */
-export function theaterPanels(samples: RunSample[]): TheaterPanel[] {
-  const avail: [number, number][] = [];
-  const p95: [number, number][] = [];
-  for (const s of samples) {
-    avail.push([s.t, s.availPct]);
-    if (s.probeP95 != null) p95.push([s.t, s.probeP95]);
-  }
-  const availabilityPanel: TheaterPanel = {
-    label: 'Legitimate availability (%)',
-    yRange: [0, 100],
-    series: [{ label: 'probe avail %', points: avail, color: '#10b981' }],
-  };
-
-  if (!hasLiveGenerator(samples)) {
-    // External engine: no live generator stream. Show what IS measured live.
-    return [
-      availabilityPanel,
-      {
-        label: 'Legitimate latency p95 (ms)',
-        yFromZero: true,
-        series: [{ label: 'probe p95', points: p95, color: '#3b82f6' }],
-      },
-    ];
-  }
-
-  const offered: [number, number][] = [];
-  const origin: [number, number][] = [];
-  const absorbed: [number, number][] = [];
-  for (const s of samples) {
-    const success = s.sent > 0 ? Math.max(0, (s.sent - s.failed) / s.sent) : 1;
-    offered.push([s.t, s.rps]);
-    origin.push([s.t, s.rps * success]); // instantaneous rps reaching origin
-    absorbed.push([s.t, s.sent > 0 ? (s.failed / s.sent) * 100 : 0]);
-  }
-  return [
-    {
-      label: 'Offered vs successful-response RPS',
-      yFromZero: true,
-      series: [
-        { label: 'offered', points: offered, color: '#3b82f6' },
-        { label: 'successful responses', points: origin, color: '#10b981' },
-      ],
-    },
-    {
-      label: 'Generator failures (%)',
-      yRange: [0, 100],
-      series: [{ label: 'generator failures %', points: absorbed, color: '#f59e0b' }],
-    },
-    availabilityPanel,
-  ];
-}
-
-/** The shared x-domain max for the Run-Theater panels: the largest elapsed
- *  second across the samples (never below 1). Every panel is drawn on [0, this]
- *  so they stay aligned and no line is ever plotted past the frame. NOT rounded
- *  — a rounded-down max would clip the last point. Pure, so it is unit-tested. */
-export function panelsXMax(samples: RunSample[]): number {
-  return Math.max(1, ...samples.map((s) => s.t));
-}
-
-function RunMetricsPanels({ timeline }: { timeline: RunSample[] }) {
-  const panels = theaterPanels(timeline);
-  const enough = timeline.length >= 2;
-  const xMax = panelsXMax(timeline);
-  const tMax = enough ? Math.round(xMax) : 0;
-  return (
-    <div className="run-metrics">
-      <div className="run-metrics-head">
-        {/* The Grafana deep-link lives once at the top of the page ("Open this run
-            in Grafana"); no second link here. */}
-        <div className="posture-title">Run graphs · live{enough ? ` · over ${tMax}s` : ''}</div>
-      </div>
-      <div className="run-metrics-grid">
-        {panels.map((p) => (
-          <div key={p.label} className="run-metrics-panel">
-            <div className="rmp-title">{p.label}</div>
-            {enough ? (
-              <LiveLineChart series={p.series} height={140} xDomain={[0, xMax]} yRange={p.yRange} />
-            ) : (
-              <div className="timeline-pending hint">Collecting samples…</div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** Per-run time-series (client-side, every engine): requests/s and probe 5xx
  *  over elapsed seconds, rendered with uPlot so it matches the other charts. */
 function RunTimeline({
   samples,
+  vector,
   csvHref,
   pending,
+  scope = 'unscoped',
+  configuredRps,
+  baselineP95,
+  targetTelemetry,
+  startedAt,
 }: {
+  scope?: string;
+  configuredRps?: number;
+  baselineP95?: number;
+  targetTelemetry?: CampaignRun['targetTelemetry'];
+  startedAt?: string;
   samples: RunSample[];
+  vector?: string;
   csvHref?: string;
   /** Live run: show a "collecting" placeholder before the first points land,
       so an in-flight step never renders as a silent, empty chart. */
@@ -1168,29 +1117,24 @@ function RunTimeline({
       </div>
     );
   }
-  const xMax = Math.max(...samples.map((s) => s.t), 1);
-  const tMax = Math.round(xMax);
-  const series: ChartSeries[] = [
-    { label: 'requests/s', points: samples.map((s) => [s.t, s.rps]), color: '#3b82f6' },
-    {
-      label: 'probe 5xx %',
-      points: samples.map((s) => [s.t, s.probe5xx]),
-      color: '#ef4444',
-      axis: 'right',
-    },
-  ];
   return (
     <div className="posture">
-      <div className="posture-title">Run timeline</div>
-      <LiveLineChart series={series} height={150} xDomain={[0, xMax]} />
-      <div className="timeline-legend">
-        <span className="hint">over {tMax}s</span>
-        {csvHref && (
-          <a href={csvHref} target="_blank" rel="noreferrer">
-            CSV ↗
-          </a>
-        )}
-      </div>
+      <RunGraphs
+        key={scope + ':' + vector}
+        timeline={samples}
+        vector={vector}
+        live={!!pending}
+        scope={scope}
+        configuredRps={configuredRps}
+        baselineP95={baselineP95}
+        targetTelemetry={targetTelemetry}
+        startedAt={startedAt}
+      />
+      {csvHref && (
+        <a href={csvHref} target="_blank" rel="noreferrer">
+          CSV ↗
+        </a>
+      )}
     </div>
   );
 }
@@ -1206,9 +1150,10 @@ export function RunVerdictLine({ a }: { a: RunAssessment }) {
       : a.verdict === 'breached'
         ? 'var(--danger)'
         : 'var(--warning)';
-  const rate = a.configuredRps
-    ? ` · ${a.achievedRps}/${a.configuredRps} rps (${Math.round(a.deliveryRatio * 100)}%)`
-    : '';
+  const rate =
+    !a.isSlowConnection && a.configuredRps
+      ? ` · ${a.achievedRps}/${a.expectedRps ?? a.configuredRps} mean rps (${Math.round(a.deliveryRatio * 100)}%)`
+      : '';
   return (
     <div className="run-verdict" style={{ marginBottom: '.6rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
@@ -1216,7 +1161,19 @@ export function RunVerdictLine({ a }: { a: RunAssessment }) {
           {a.verdict}
         </span>
         <span className="hint">
-          mechanism: <b>{a.mechanism}</b>
+          observed:{' '}
+          <b>
+            {(
+              {
+                served: 'successful responses',
+                rejected: 'HTTP failures',
+                tarpitted: 'transport failures',
+                shed: 'connections closed',
+                blocked: 'unresolved failures',
+                unknown: 'unknown',
+              } as Record<string, string>
+            )[a.mechanism] ?? 'unknown'}
+          </b>
           {rate}
         </span>
       </div>
@@ -1265,6 +1222,8 @@ function EdgeErrorNote({ errors }: { errors: NonNullable<CampaignRun['edgeErrors
 
 export function RunDetails({ run }: { run: CampaignRun }) {
   const g = run.generator;
+  const slow =
+    run.assessment?.isSlowConnection || run.timeline?.some((s) => s.sampleUnit === 'connections');
   const reportedAgents =
     g.fleet?.counterCoverage?.reportedAgents ??
     g.fleet?.shards.filter((shard) => shard.result?.generator).length;
@@ -1275,10 +1234,26 @@ export function RunDetails({ run }: { run: CampaignRun }) {
       {run.assessment && <RunVerdictLine a={run.assessment} />}
       {run.edgeErrors && run.edgeErrors.length > 0 && <EdgeErrorNote errors={run.edgeErrors} />}
       <div className="metrics">
-        <Metric label={partialCounters ? 'Reported requests (partial)' : 'Requests'}>
+        <Metric
+          label={
+            slow
+              ? 'Connections opened'
+              : partialCounters
+                ? 'Reported requests (partial)'
+                : 'Requests'
+          }
+        >
           {counterValue(g.totalRequests)}
         </Metric>
-        <Metric label={partialCounters ? 'Reported outcomes (partial)' : 'Success / failures'}>
+        <Metric
+          label={
+            slow
+              ? 'Held / closed at completion'
+              : partialCounters
+                ? 'Reported outcomes (partial)'
+                : 'Success / failures'
+          }
+        >
           {counterValue(g.successful)} / {counterValue(g.failed)}
         </Metric>
         {g.assertionsChecked ? (
@@ -1286,13 +1261,17 @@ export function RunDetails({ run }: { run: CampaignRun }) {
             {g.assertionFailures ?? 0} / {g.assertionsChecked}
           </Metric>
         ) : null}
-        <Metric label={partialCounters ? 'Reported RPS (partial)' : 'Actual RPS'}>
-          {counterValue(g.actualRps)}
-        </Metric>
-        <Metric label={partialCounters ? 'Reported latency p95 (partial)' : 'Latency p95'}>
-          {g.latencySampleCount === 0 ? 'unknown' : `${counterValue(g.latencyMs.p95)} ms`}
-        </Metric>
-        <Metric label="Probe 5xx">{run.probe.errorRate5xx}%</Metric>
+        {!slow && (
+          <>
+            <Metric label={partialCounters ? 'Reported RPS (partial)' : 'Mean RPS'}>
+              {counterValue(g.actualRps)}
+            </Metric>
+            <Metric label={partialCounters ? 'Reported latency p95 (partial)' : 'Latency p95'}>
+              {g.latencySampleCount === 0 ? 'unknown' : `${counterValue(g.latencyMs.p95)} ms`}
+            </Metric>
+          </>
+        )}
+        <Metric label="Probe 5xx">{run.probe.samples ? `${run.probe.errorRate5xx}%` : '—'}</Metric>
         <Metric label="Probe availability">
           {run.probe.available}/{run.probe.samples}
         </Metric>
@@ -1312,6 +1291,18 @@ export function RunDetails({ run }: { run: CampaignRun }) {
             </span>
           ))}
         </div>
+      )}
+      {!!run.probe.endpoints?.length && (
+        <details className="hint" style={{ marginTop: '.5rem' }}>
+          <summary title="One successful cycle requires every monitored GET check to succeed. This does not verify a login or POST transaction.">
+            Monitored pages ({run.probe.endpoints.length})
+          </summary>
+          {run.probe.endpoints.map((e) => (
+            <div key={e.url}>
+              {e.url}: {e.available}/{e.samples} checks OK
+            </div>
+          ))}
+        </details>
       )}
       {run.baseline && (
         <div className="metrics" style={{ marginTop: '.5rem' }}>
@@ -1384,9 +1375,18 @@ export function RunDetails({ run }: { run: CampaignRun }) {
         </div>
       )}
       {run.timeline && (
-        <RunTimeline samples={run.timeline} csvHref={runTimelineCsvUrl(run.runId)} />
+        <RunTimeline
+          samples={run.timeline}
+          scope={run.campaignId}
+          configuredRps={run.generator.config?.maxRps}
+          baselineP95={run.baseline?.latencyMs.p95}
+          targetTelemetry={run.targetTelemetry}
+          startedAt={run.generator.startedAt}
+          vector={run.assessment?.isSlowConnection ? 'http-slowloris' : undefined}
+          csvHref={runTimelineCsvUrl(run.runId)}
+        />
       )}
-      <AbsorptionWidget run={run} />
+      {!slow && <AbsorptionWidget run={run} />}
       <FleetEvidencePanel run={run} />
       <ProbeQualityPanel probe={run.probe} />
       {run.recoveryBeforeRun && (

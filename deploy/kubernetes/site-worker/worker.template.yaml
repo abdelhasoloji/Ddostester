@@ -1,0 +1,98 @@
+# Substitution template — NOT applicable as-is.
+#
+#   set -a; . ./site.env; set +a
+#   envsubst < worker.template.yaml | kubectl apply -f -
+#
+# Every placeholder below is replaced from site.env (see site.env.example). Applying this
+# file directly would create objects named "${SITE_NAMESPACE}", so don't.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-worker-policy
+  namespace: ${SITE_NAMESPACE}
+data:
+  # The site's OWN trusted policy. The worker re-validates every assignment
+  # against this file, so a mistaken coordinator cannot widen it.
+  policy.json: |
+    {"allowedHosts":["${TARGET_HOST}"],"allowedPorts":[${TARGET_PORT}],"caps":{"maxRps":${CAP_RPS},"maxConcurrency":${CAP_CONCURRENCY},"maxDurationSec":${CAP_DURATION}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-worker
+  namespace: ${SITE_NAMESPACE}
+  labels: { app: fleet-worker }
+spec:
+  # Exactly one: two workers with the same certificate CN would race for the same
+  # shard, and claim is atomic — the loser would idle forever.
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: fleet-worker }
+  template:
+    metadata:
+      labels: { app: fleet-worker }
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: ${FLEET_WORKER_IMAGE}
+          # A digest is immutable, so IfNotPresent never serves a stale worker.
+          imagePullPolicy: IfNotPresent
+          command: [node, backend/dist/cli/fleet-worker.js]
+          env:
+            - { name: FLEET_CONTROL_URL, value: '${FLEET_CONTROL_URL}' }
+            - { name: FLEET_AGENT_ID, value: '${FLEET_AGENT_ID}' }
+            - { name: FLEET_POLL_MS, value: '${FLEET_POLL_MS}' }
+            - { name: FLEET_POLICY_FILE, value: /etc/fleet-policy/policy.json }
+            - { name: FLEET_TLS_KEY, value: /etc/fleet-identity/tls.key }
+            - { name: FLEET_TLS_CERT, value: /etc/fleet-identity/tls.crt }
+            - { name: FLEET_TLS_CA, value: /etc/fleet-identity/ca.crt }
+            - name: POD_UID
+              valueFrom: { fieldRef: { fieldPath: metadata.uid } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: '${WORKER_CPU_REQUEST}', memory: '${WORKER_MEM_REQUEST}' }
+            limits: { cpu: '${WORKER_CPU_LIMIT}', memory: '${WORKER_MEM_LIMIT}' }
+          volumeMounts:
+            - { name: identity, mountPath: /etc/fleet-identity, readOnly: true }
+            - { name: policy, mountPath: /etc/fleet-policy, readOnly: true }
+      volumes:
+        - name: identity
+          secret: { secretName: ${FLEET_IDENTITY_SECRET}, defaultMode: 288 }
+        - name: policy
+          configMap: { name: fleet-worker-policy }
+---
+# Egress-only: DNS, then the coordinator on one port. No ingress rule at all —
+# the worker never listens.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fleet-worker-egress
+  namespace: ${SITE_NAMESPACE}
+spec:
+  podSelector:
+    matchLabels: { app: fleet-worker }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - ipBlock: { cidr: ${COORDINATOR_CIDR} }
+      ports:
+        - { protocol: TCP, port: ${COORDINATOR_PORT} }

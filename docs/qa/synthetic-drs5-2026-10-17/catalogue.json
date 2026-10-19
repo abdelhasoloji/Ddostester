@@ -1,0 +1,171 @@
+{
+  "scenarios": [
+    {
+      "id": "udp_dns_reflection",
+      "title": "UDP DNS Reflection",
+      "proto": "UDP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "Synthetic DNS-shape amplification (no real resolver, no spoofing)."
+    },
+    {
+      "id": "tcp_synflood",
+      "title": "TCP SynFlood",
+      "proto": "TCP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "No-spoof connection/state-table pressure (real source, capped) — the flood’s exhaustion shape without spoofing."
+    },
+    {
+      "id": "udp_maxpackets",
+      "title": "UDP MaxPackets",
+      "proto": "UDP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "High bounded packet rate; stresses the PPS path."
+    },
+    {
+      "id": "tcp_maxpackets",
+      "title": "TCP MaxPackets",
+      "proto": "TCP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "High bounded TCP connection rate (no-spoof) — connection-table churn."
+    },
+    {
+      "id": "ip_spoofing",
+      "title": "IP Spoofing",
+      "proto": "IP",
+      "drs": 4,
+      "reproducible": false,
+      "note": "Source-IP spoofing is NEVER permitted here — the defining safety property of this bench."
+    },
+    {
+      "id": "udp_fragmentation",
+      "title": "UDP Fragmentation",
+      "proto": "UDP",
+      "drs": 4,
+      "reproducible": false,
+      "note": "Fragment crafting — outside the synthetic model (no raw packet crafting)."
+    },
+    {
+      "id": "tcp_fragmentation",
+      "title": "TCP Fragmentation",
+      "proto": "TCP",
+      "drs": 4,
+      "reproducible": false,
+      "note": "TCP + fragment crafting — out of model."
+    },
+    {
+      "id": "udp_multivector",
+      "title": "UDP MultiVector",
+      "proto": "UDP",
+      "drs": 4,
+      "reproducible": true,
+      "note": "Several synthetic UDP amplification profiles fired together."
+    },
+    {
+      "id": "tcp_multivector",
+      "title": "TCP MultiVector",
+      "proto": "TCP",
+      "drs": 4,
+      "reproducible": false,
+      "note": "TCP multi-vector — out of model."
+    },
+    {
+      "id": "multiproto_multivector",
+      "title": "Multi-proto MultiVector",
+      "proto": "Multi",
+      "drs": 5,
+      "reproducible": false,
+      "note": "UDP+TCP+GRE mix — includes non-UDP, out-of-model vectors."
+    },
+    {
+      "id": "gre_packets",
+      "title": "GRE Packets",
+      "proto": "GRE",
+      "drs": 5,
+      "reproducible": false,
+      "note": "GRE protocol packets — not a UDP amplification shape."
+    },
+    {
+      "id": "udp_ntp_reflection",
+      "title": "UDP NTP Reflection",
+      "proto": "UDP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "Synthetic NTP monlist-shape amplification (no real NTP server, no spoofing)."
+    },
+    {
+      "id": "udp_ssdp_reflection",
+      "title": "UDP SSDP Reflection",
+      "proto": "UDP",
+      "drs": 3,
+      "reproducible": true,
+      "note": "Synthetic SSDP/UPnP-shape amplification (no real device, no spoofing)."
+    },
+    {
+      "id": "udp_cldap_reflection",
+      "title": "UDP CLDAP Reflection",
+      "proto": "UDP",
+      "drs": 4,
+      "reproducible": true,
+      "note": "Synthetic CLDAP-shape amplification profile (no real directory, no spoofing)."
+    },
+    {
+      "id": "udp_memcached_reflection",
+      "title": "UDP Memcached Reflection",
+      "proto": "UDP",
+      "drs": 4,
+      "reproducible": true,
+      "note": "Synthetic memcached-shape amplification (very high factor, modelled — no real server, no spoofing)."
+    },
+    {
+      "id": "quic_init_pressure",
+      "title": "QUIC Init-Handshake Pressure",
+      "proto": "UDP",
+      "drs": 4,
+      "reproducible": true,
+      "note": "Bounded QUIC/UDP initial-handshake flood shape (real source, capped, no spoofing)."
+    },
+    {
+      "id": "tcp_conn_drain",
+      "title": "TCP Slow Connection Drain",
+      "proto": "TCP",
+      "drs": 4,
+      "reproducible": true,
+      "note": "No-spoof slow connection drain — holds bounded REAL connections to pressure the state table."
+    },
+    {
+      "id": "pulsewave_l34",
+      "title": "PulseWave (L3/4 synchronized bursts)",
+      "proto": "UDP",
+      "drs": 5,
+      "reproducible": true,
+      "note": "Synthetic pulsed packet-rate bursts (PulseWave shape) — bounded, real source, no spoofing."
+    }
+  ],
+  "ladders": [
+    {
+      "id": "network-drs345",
+      "title": "Network resilience — class-C DRS 3→5",
+      "summary": "A synthetic, no-spoof network-bench ladder (UDP amplification shapes + TCP connection pressure), escalating DRS 3→5. The class-C companion to an L7 playbook: run on the isolated bench, its verdicts feed the WRS read-only. No real reflector, no spoofing.",
+      "scenarios": [
+        "udp_dns_reflection",
+        "udp_ntp_reflection",
+        "tcp_synflood",
+        "udp_maxpackets",
+        "udp_ssdp_reflection",
+        "tcp_maxpackets",
+        "udp_cldap_reflection",
+        "quic_init_pressure",
+        "tcp_conn_drain",
+        "udp_memcached_reflection",
+        "udp_multivector",
+        "pulsewave_l34"
+      ]
+    }
+  ],
+  "dispatchEnabled": true,
+  "labTargets": ["127.0.0.1"]
+}

@@ -218,8 +218,10 @@ export function GuidePage({ embedded = false }: { embedded?: boolean } = {}) {
               Only allowlisted targets can be tested; everything else is rejected server-side.
             </li>
             <li>
-              Hard caps on every run: ≤ 2000 rps, ≤ 500 concurrent, ≤ 900 s (15 min absolute
-              timeout).
+              Hard caps on every run: ≤ {app.hardCapsCeiling.maxRps} rps, ≤{' '}
+              {app.hardCapsCeiling.maxConcurrency} concurrent, ≤{' '}
+              {app.hardCapsCeiling.maxDurationSec} s (absolute per-run timeout) — reported by this
+              server, not hardcoded here.
             </li>
             <li>
               The manual <b>kill switch</b> is always available during a run — use it if the target

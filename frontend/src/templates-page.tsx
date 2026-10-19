@@ -1,6 +1,8 @@
+import { HelpTip } from './interface-kit.js';
+import { BenchCard } from './bench-card.js';
 import { DrsCatalogPanel } from './drs-catalog.js';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api.js';
 import { Modal } from './modal.js';
 import { TargetBar } from './target-bar.js';
@@ -103,7 +105,7 @@ function PlaybookRow({
         <span className="tpl-name">{pb.name}</span>
         {isNew && (
           <span className="engine-badge ok" title="Recently added template">
-            🆕 new
+            new
           </span>
         )}
         {pb.drsLevel != null && <span className="engine-badge">DRS {pb.drsLevel}</span>}
@@ -117,12 +119,6 @@ function PlaybookRow({
           </span>
         ))}
         {pb.custom && <span className="engine-badge ok">custom</span>}
-        <span
-          className="engine-badge"
-          title="Local keeps the template engines. Fleet opens a bounded GET draft for review; full Fleet suites remain unsupported."
-        >
-          Choose generator before creation
-        </span>
         <span className="tpl-steps-count">
           {pb.steps.length} step{pb.steps.length === 1 ? '' : 's'}
         </span>
@@ -131,10 +127,12 @@ function PlaybookRow({
             className="tpl-created"
             title={`Template created ${new Date(pb.createdAt).toLocaleString()}`}
           >
-            📅 {fmtDate(pb.createdAt)}
+            {fmtDate(pb.createdAt)}
           </span>
         )}
-        <span className="tpl-oneline">{pb.summary}</span>
+        <span className="tpl-oneline">
+          <HelpTip label={`About ${pb.name}`} text={pb.summary} />
+        </span>
       </summary>
       <div className="tpl-detail">
         {pb.when && <p className="preset-when">{pb.when}</p>}
@@ -253,7 +251,8 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   const app = useApp();
   const navigate = useNavigate();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
-  const [target, setTarget] = useState('');
+  const [queryParams] = useSearchParams();
+  const [target, setTarget] = useState(queryParams.get('target') ?? '');
   const [recurMin, setRecurMin] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [generatorChoice, setGeneratorChoice] = useState<Playbook | 'compose' | null>(null);
@@ -431,7 +430,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
         );
       }
       await app.refresh();
-      navigate('/campaigns');
+      navigate('/campaigns?tab=history');
     } catch (err) {
       app.push('error', (err as Error).message);
     } finally {
@@ -482,7 +481,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
       setSelected([]);
       setComposeName('');
       await app.refresh();
-      navigate('/campaigns');
+      navigate('/campaigns?tab=history');
     } catch (err) {
       app.push('error', (err as Error).message);
     } finally {
@@ -494,10 +493,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
   return (
     <>
       {!embedded && (
-        <PageHead
-          title="Campaign templates"
-          sub="Pick a target and template, then choose Local generator or a reviewed IoT Fleet GET draft. Every campaign still requires launch confirmation or approval."
-        />
+        <PageHead title="Campaign templates" sub="Choose a template, review and confirm." />
       )}
 
       {generatorChoice && (
@@ -514,8 +510,8 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
           <div className="card">
             <h3>Local generator</h3>
             <p>
-              Keep the complete template sequence, its declared engines and your recurrence
-              settings.
+              Complete template sequence{' '}
+              <HelpTip text="Keeps the template engines, steps and recurrence. Launch confirmation or approval remains required." />
             </p>
             <button
               className="btn btn-primary"
@@ -533,14 +529,8 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
           <div className="card">
             <h3>IoT Fleet</h3>
             <p>
-              Open a separate bounded GET draft on the same target: 3 requests/s total, 20 seconds,
-              one to three selected bots. Review target discovery, agent selection and budget before
-              creating it.
-            </p>
-            <p className="hint">
-              This is an alternative campaign, not the original assessment sequence. Multi-step
-              Fleet suites, POST, ramps and scheduled Fleet campaigns are not supported yet.
-              Recurrence is not copied.
+              Separate GET campaign · 3 RPS · 20 s{' '}
+              <HelpTip text="One to three agents. This does not replay the selected template. POST, multi-step Fleet suites and recurrence are unsupported." />
             </p>
             <button
               className="btn btn-primary"
@@ -549,7 +539,10 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
                 app.clearDraftCampaign();
                 app.clearDraftPreset();
                 setGeneratorChoice(null);
-                navigate('/campaigns?' + new URLSearchParams({ engine: 'fleet', target }));
+                navigate(
+                  '/campaigns?' +
+                    new URLSearchParams({ engine: 'fleet', template: 'fleet-get', target }),
+                );
               }}
             >
               Review with IoT Fleet
@@ -561,30 +554,34 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
           </button>
         </Modal>
       )}
-      {/* Launch context: target + optional recurrence. */}
-      <section className="card" aria-label="Fleet compatible template">
-        <h2>IoT Fleet · bounded GET</h2>
-        <p>
-          Compatible with one to three enrolled agents: 3 RPS total, 20 seconds, one GET target and
-          an independent probe. Device selection and target recon are reviewed before creating the
-          campaign.
-        </p>
-        <p className="hint">
-          The assessment suites below use their own engines; they cannot be switched to Fleet
-          automatically. POST business profiles and Fleet suites are not supported yet.
-        </p>
-        {canCreate && app.agents.some((a) => a.id === 'fleet' && a.available) && (
+      <details className="template-option" id="synthetic">
+        <summary>
+          Synthetic network templates{' '}
+          <HelpTip text="Bounded synthetic lab scenarios. Results are experimental evidence, not a measured DRS score." />
+        </summary>
+        <BenchCard launchOnly />
+      </details>
+      <details className="template-option">
+        <summary>
+          IoT Fleet · GET{' '}
+          <HelpTip text="Separate single-target GET campaign: 3 RPS total, 20 seconds, one to three agents. Full template sequences, POST and recurrence are not supported by Fleet." />
+        </summary>
+        {canCreate && fleetAvailable && (
           <Link
-            className="btn btn-primary"
+            className="btn btn-sm"
             to={
               '/campaigns?' +
-              new URLSearchParams({ engine: 'fleet', ...(targetAllowed ? { target } : {}) })
+              new URLSearchParams({
+                engine: 'fleet',
+                template: 'fleet-get',
+                ...(targetAllowed ? { target } : {}),
+              })
             }
           >
-            Use Fleet GET template
+            Configure Fleet template
           </Link>
         )}
-      </section>
+      </details>
       <div className="card tpl-launchbar">
         <div className="field">
           <label>Target for the assessment</label>
@@ -648,7 +645,7 @@ export function TemplatesPage({ embedded = false }: { embedded?: boolean } = {})
             onClick={() => setSort('recent')}
             title="Flat list, newest templates first — launch the recent ones in priority"
           >
-            🆕 Recent first
+            Recent first
           </button>
         </div>
       </div>

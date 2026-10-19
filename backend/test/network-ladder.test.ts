@@ -56,3 +56,14 @@ describe('buildNetworkLadder', () => {
     expect(l.weakest).toBeUndefined(); // the newer MITIGATED wins → no gap
   });
 });
+
+it('never interprets unmitigated baselines or neutral metadata as absorbed traffic', () => {
+  const statuses = (outcome?: string) =>
+    buildNetworkLadder([cov({ outcome })])
+      .tiers.flatMap((t) => t.vectors)
+      .find((v) => v.id === 'udp_dns_reflection')!.status;
+  expect(statuses('UNMITIGATED_BASELINE')).toBe('gap');
+  expect(statuses('STATE_TABLE_SATURATED')).toBe('gap');
+  expect(statuses('collector missing')).toBe('uncovered');
+  expect(statuses()).toBe('uncovered');
+});

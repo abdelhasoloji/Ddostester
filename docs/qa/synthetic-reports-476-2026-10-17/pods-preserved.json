@@ -1,0 +1,20 @@
+{
+  "unchanged": true,
+  "pods": {
+    "lab-iot-01": {
+      "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357",
+      "phase": "Running",
+      "ready": true
+    },
+    "lab-iot-02": {
+      "uid": "42b0ed77-1a8b-4581-8619-ab851332f211",
+      "phase": "Running",
+      "ready": true
+    },
+    "lab-iot-03": {
+      "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d",
+      "phase": "Running",
+      "ready": true
+    }
+  }
+}

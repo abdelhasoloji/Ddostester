@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 let currentApp: ReturnType<typeof makeApp>;
@@ -91,6 +91,8 @@ vi.mock('./api.js', async (orig) => {
 });
 
 const { SettingsPage } = await import('./pages.js');
+const { BenchCard } = await import('./bench-card.js');
+const { RunTheaterPage } = await import('./run-theater.js');
 
 describe('Network bench cockpit (Settings) — DRS matrix', () => {
   beforeEach(() => {
@@ -102,8 +104,65 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
     });
   });
 
+  it('opens the existing governed synthetic cockpit in Run Theater without an HTTP run', async () => {
+    renderWithRouter(<RunTheaterPage />);
+    fireEvent.click(screen.getByRole('link', { name: 'Synthetic bench' }));
+    expect(await screen.findByText(/Network bench — advanced · class C/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Aggregate report' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Report' })).toHaveAttribute(
+      'href',
+      '/api/bench/runs/b1/report',
+    );
+    expect(fakeApi.createBenchRun).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Request run/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Choose a template' })).toHaveAttribute(
+      'href',
+      '/campaigns?tab=templates#synthetic',
+    );
+  });
+
+  it('refreshes coverage with the terminal verdict without a page reload', async () => {
+    const timer = vi.spyOn(globalThis, 'setInterval');
+    const clear = vi.spyOn(globalThis, 'clearInterval');
+    fakeApi.benchRuns.mockResolvedValueOnce({
+      runs: [{ id: 'pending', scenario: 'udp_dns_reflection', status: 'CLAIMED' }],
+    });
+    fakeApi.benchCoverage.mockResolvedValueOnce({ coverage: [] }).mockResolvedValueOnce({
+      coverage: [
+        {
+          id: 'live',
+          vector: 'udp_dns_reflection',
+          method: 'MEASURED_LAB',
+          outcome: 'UNMITIGATED_BASELINE',
+          summary: 'Live receiver evidence',
+          source: 'runner',
+          at: new Date().toISOString(),
+        },
+      ],
+    });
+    try {
+      renderWithRouter(<BenchCard />);
+      await screen.findByText('Claimed');
+      await waitFor(() => expect(fakeApi.benchCoverage).toHaveBeenCalledTimes(1));
+      const tick = timer.mock.calls.find((call) => call[1] === 4000)?.[0];
+      expect(typeof tick).toBe('function');
+      await act(async () => {
+        await (tick as () => Promise<void>)();
+      });
+      expect(await screen.findByText('Measured lab')).toBeTruthy();
+      expect(screen.getByText('Completed')).toBeTruthy();
+      expect(fakeApi.benchCoverage).toHaveBeenCalledTimes(2);
+      const pollingIndex = timer.mock.calls.findIndex((call) => call[1] === 4000);
+      // A terminal run can precede its coverage write. Do not stop polling here.
+      expect(clear).not.toHaveBeenCalledWith(timer.mock.results[pollingIndex].value);
+    } finally {
+      timer.mockRestore();
+      clear.mockRestore();
+    }
+  });
+
   it('shows the CISO the DRS coverage matrix and a completed verdict', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<BenchCard />);
     expect(await screen.findByText(/Network bench — advanced · class C/)).toBeTruthy();
     expect(await screen.findByText(/DRS Volumetric coverage/)).toBeTruthy();
     // Out-of-model vectors are shown for coverage.
@@ -116,7 +175,7 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
   });
 
   it('only offers reproducible vectors for dispatch', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<BenchCard />);
     const select = (await screen.findByLabelText(/Reproducible vector/)) as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
     expect(values).toContain('udp_dns_reflection');
@@ -126,14 +185,14 @@ describe('Network bench cockpit (Settings) — DRS matrix', () => {
   });
 
   it('dispatches a governed run on click', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<BenchCard />);
     const btn = await screen.findByText(/Request run/);
     fireEvent.click(btn);
     await waitFor(() => expect(fakeApi.createBenchRun).toHaveBeenCalledWith('udp_dns_reflection'));
   });
 
   it('shows the coverage method for an out-of-model vector and records new evidence', async () => {
-    renderWithRouter(<SettingsPage />);
+    renderWithRouter(<BenchCard />);
     // ip_spoofing is covered by ATTESTED evidence (not a run).
     expect(await screen.findByText('Attested')).toBeTruthy();
     // Open the record-coverage form and submit.

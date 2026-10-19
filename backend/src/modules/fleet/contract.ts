@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { FLEET_LIMITS, withinCeiling, type HardCaps } from '../../config/limits.js';
+import { FLEET_LIMITS, HARD_CAPS, withinCeiling, type HardCaps } from '../../config/limits.js';
 import { assertDestination } from '../../util/destination.js';
 import { compileIoTProfile, type IoTProfile } from '../../engine/iot-profile.js';
 
@@ -131,4 +131,69 @@ export function splitBudget(
     maxRps: share(maxRps, i),
     concurrency: share(concurrency, i),
   }));
+}
+
+/**
+ * The authorized envelope for ONE fleet run: the smallest of the frozen HARD_CAPS
+ * ceiling, the fleet's own shared envelope (`FLEET_LIMITS`) and the cap supplied
+ * by the operator policy (the fleet-policy ConfigMap). Every shard, and therefore
+ * every participating site, is bounded by this single object — a second site can
+ * never widen it.
+ */
+export function authorizedEnvelope(policy: HardCaps): HardCaps {
+  if (!withinCeiling(policy)) throw new Error('Invalid operational caps');
+  return {
+    maxRps: Math.min(HARD_CAPS.maxRps, FLEET_LIMITS.maxRps, policy.maxRps),
+    maxConcurrency: Math.min(
+      HARD_CAPS.maxConcurrency,
+      FLEET_LIMITS.maxConcurrency,
+      policy.maxConcurrency,
+    ),
+    maxDurationSec: Math.min(
+      HARD_CAPS.maxDurationSec,
+      FLEET_LIMITS.maxDurationSec,
+      policy.maxDurationSec,
+    ),
+  };
+}
+
+/**
+ * The multi-site invariant: shards must conserve the requested aggregate exactly
+ * and never exceed the authorized envelope.
+ *
+ * This is the rule that stops N sites from multiplying the budget by N. The
+ * aggregate is authorized ONCE, then divided; every shard is derived from that
+ * one number, and the sum is re-checked after division so a remote executor
+ * cannot hand out fresh budgets per site.
+ */
+export function assertAggregateBudget(
+  requested: { maxRps: number; concurrency: number },
+  shards: readonly { maxRps: number; concurrency: number }[],
+  envelope: HardCaps,
+): void {
+  if (shards.length < 1 || shards.length > FLEET_LIMITS.maxAgents)
+    throw new Error('Invalid fleet shard count');
+  if (
+    !Number.isSafeInteger(requested.maxRps) ||
+    !Number.isSafeInteger(requested.concurrency) ||
+    requested.maxRps < 1 ||
+    requested.concurrency < 1
+  )
+    throw new Error('Invalid aggregate budget');
+  if (requested.maxRps > envelope.maxRps || requested.concurrency > envelope.maxConcurrency)
+    throw new Error('Aggregate budget exceeds authorized envelope');
+  let rps = 0;
+  let concurrency = 0;
+  for (const shard of shards) {
+    if (!Number.isSafeInteger(shard.maxRps) || shard.maxRps < 1)
+      throw new Error('Invalid fleet shard');
+    if (!Number.isSafeInteger(shard.concurrency) || shard.concurrency < 1)
+      throw new Error('Invalid fleet shard');
+    rps += shard.maxRps;
+    concurrency += shard.concurrency;
+  }
+  if (rps !== requested.maxRps || concurrency !== requested.concurrency)
+    throw new Error('Fleet shards do not conserve the aggregate budget');
+  if (rps > envelope.maxRps || concurrency > envelope.maxConcurrency)
+    throw new Error('Fleet shards exceed authorized envelope');
 }

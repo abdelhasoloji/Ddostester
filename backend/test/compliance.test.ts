@@ -181,3 +181,70 @@ describe('compliance / resilience assessment report', () => {
     expect(html).not.toMatch(/NaN|undefined/);
   });
 });
+
+it('summarizes synthetic evidence without a zero HTTP score or a clean protection conclusion', () => {
+  const entry = {
+    id: 'sat',
+    vector: 'tcp_synflood',
+    method: 'MEASURED_LAB' as const,
+    outcome: 'STATE_TABLE_SATURATED',
+    summary: '200 peak connections',
+    source: '<runner>',
+    recordedBy: 'runner',
+    at: '2026-10-17T12:00:00Z',
+  };
+  const bench = {
+    scenarios: [
+      {
+        id: 'tcp_synflood',
+        title: 'TCP pressure',
+        proto: 'TCP' as const,
+        drs: 3,
+        reproducible: true,
+        note: 'bounded',
+      },
+    ],
+    coverage: [
+      entry,
+      { ...entry, id: 'base', vector: 'udp_dns_reflection', outcome: 'UNMITIGATED_BASELINE' },
+      { ...entry, id: 'old', at: '2026-10-16T12:00:00Z' },
+      { ...entry, id: 'new', outcome: 'ABSORBED', at: '2026-10-17T13:00:00Z' },
+    ],
+  };
+  const html = renderComplianceHtml([], [], { bench, from: '2026-10-17T00:00:00Z' });
+  expect(html).toContain('Synthetic network bench: <b>3</b>');
+  expect(html).toContain('<b>1</b> state-table saturation');
+  expect(html).toContain('<b>1</b> unmitigated baselines');
+  expect(html).toContain('HTTP WRS: not evaluated');
+  expect(html).not.toContain('chart-gauge');
+  expect(html).not.toContain('No weaknesses identified');
+  expect(html).not.toContain('<runner>');
+  const empty = renderComplianceHtml([], [], { bench, from: '2026-10-18T00:00:00Z' });
+  expect(empty).not.toContain('Synthetic network bench: <b>');
+  expect(empty).not.toContain('STATE_TABLE_SATURATED');
+});
+
+it('withholds risk and success when no legitimate probe transactions completed', () => {
+  const html = renderComplianceHtml(
+    [campaign('unknown', 'Unknown evidence', 'https://bank.cz/')],
+    [run('unknown', { status: 'COMPLETED', wrs: 97, level: 'A+', available: 0, samples: 0 })],
+  );
+  expect(html).toContain('>Unknown<');
+  expect(html).toContain('>inconclusive<');
+  expect(html).toContain('probe success not measured');
+  expect(html).not.toContain('avail 100%');
+  expect(html).not.toContain('edge rejected the load');
+});
+
+it('does not give equal risk counts the same color', () => {
+  const out = renderComplianceHtml(
+    [campaign('one', 'a', 'https://bank.cz/'), campaign('two', 'b', 'https://bank.cz/')],
+    [
+      run('one', { status: 'COMPLETED', wrs: 97, level: 'A+', available: 100, samples: 100 }),
+      run('two', { status: 'COMPLETED', wrs: 72, level: 'B', available: 95, samples: 100 }),
+    ],
+  );
+  const risk = out.split('Runs by RiskLevel')[1].split('</svg>')[0];
+  expect(risk).toContain('fill="#0f8a5f"');
+  expect(risk).toContain('fill="#b8860b"');
+});

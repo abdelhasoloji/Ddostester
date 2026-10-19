@@ -3,29 +3,19 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from './context.js';
 import { PageHead, SuiteRunBanner, CampaignLaunch, CampaignList } from './pages.js';
-import { GuidePage } from './guide-page.js';
+import { HelpTip } from './interface-kit.js';
 import { TemplatesPage } from './templates-page.js';
-import { PlanPage } from './plan-page.js';
 
-/**
- * Campaigns workspace — the single home for everything that turns an intent into
- * a governed campaign. One tabbed surface (Launch / Templates / Plan / How it
- * works) over the persistent campaign list, so the rich template catalogue, the
- * DRS replay plan and the guide all live where campaigns are created — instead
- * of scattered, thinner screens. The active tab is URL-driven (`?tab=`) so every
- * entry point (guide, recon → plan, deep links) lands on the right surface.
- */
+/** Templates are the only creation surface; history and evidence remain separate.
+ * Legacy launch/plan/guide links resolve to the template catalogue. */
 const TABS = [
-  { id: 'launch', label: 'Launch' },
   { id: 'templates', label: 'Templates' },
-  { id: 'evidence', label: 'DRS assessment' },
-  { id: 'plan', label: 'Plan' },
-  { id: 'guide', label: 'How it works' },
+  { id: 'history', label: 'Campaigns' },
+  { id: 'evidence', label: 'Assessment' },
 ] as const;
 
 export function CampaignsWorkspace() {
-  const app = useApp();
-  const { refreshHealth } = app;
+  const { refreshHealth, drsWorkflow, draftCampaign } = useApp();
   // The effective allowlist can change after the initial page load (a target
   // onboarded or authorized in another view/session), so refresh /health when the
   // workspace mounts — the target picker then always offers the current allowed
@@ -34,19 +24,15 @@ export function CampaignsWorkspace() {
     void refreshHealth();
   }, [refreshHealth]);
   const [params, setParams] = useSearchParams();
-  const requested = params.get('tab') ?? 'launch';
-  const active =
-    app.drsWorkflow && !['launch', 'templates', 'evidence'].includes(requested)
-      ? 'launch'
-      : TABS.some((t) => t.id === requested)
-        ? requested
-        : 'launch';
-  const select = (id: string) => setParams(id === 'launch' ? {} : { tab: id }, { replace: false });
+  const requested = params.get('tab') ?? 'templates';
+  const active = TABS.some((t) => t.id === requested) ? requested : 'templates';
+  const configuring =
+    (params.get('engine') === 'fleet' && params.get('template') === 'fleet-get') ||
+    (drsWorkflow && !!draftCampaign?.drsProfileId);
+  const select = (id: string) =>
+    setParams(id === 'templates' ? {} : { tab: id }, { replace: false });
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  const visibleTabs = TABS.filter(
-    (t) => !app.drsWorkflow || ['launch', 'templates', 'evidence'].includes(t.id),
-  );
+  const visibleTabs = TABS;
   // WAI-ARIA tabs keyboard model: ←/→ (and Home/End) move between tabs with
   // automatic activation, so the panel follows focus.
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
@@ -62,11 +48,14 @@ export function CampaignsWorkspace() {
   };
 
   return (
-    <>
-      <PageHead
-        title="Campaigns"
-        sub="Define, launch and track bounded resilience campaigns — guided, straight from a template, or from a recon-seeded replay plan."
-      />
+    <div className="campaign-workspace">
+      <PageHead title="Campaigns" sub="Choose a template, review and confirm." />
+      <div className="workspace-help">
+        <HelpTip
+          label="Campaign workflow"
+          text="Start from a template. Existing campaigns are in Campaigns; evidence and scoring are in Assessment. Creation never starts traffic automatically."
+        />
+      </div>
       <SuiteRunBanner />
 
       <div className="ws-tabs" role="tablist" aria-label="Campaigns workspace">
@@ -86,26 +75,16 @@ export function CampaignsWorkspace() {
             onClick={() => select(t.id)}
             onKeyDown={(e) => onTabKey(e, i)}
           >
-            {app.drsWorkflow
-              ? t.id === 'launch'
-                ? 'DRS campaigns'
-                : t.id === 'templates'
-                  ? 'DRS catalogue'
-                  : 'DRS assessment'
-              : t.label}
+            {t.label}
           </button>
         ))}
       </div>
 
       <div className="ws-panel" role="tabpanel" id="ws-panel" aria-labelledby={`ws-tab-${active}`}>
-        {active === 'launch' && <CampaignLaunch />}
-        {active === 'templates' && <TemplatesPage embedded />}
+        {active === 'templates' && (configuring ? <CampaignLaunch /> : <TemplatesPage embedded />)}
+        {active === 'history' && <CampaignList />}
         {active === 'evidence' && <DrsAssessmentWorkspace />}
-        {active === 'plan' && <PlanPage embedded />}
-        {active === 'guide' && <GuidePage embedded />}
       </div>
-
-      <CampaignList />
-    </>
+    </div>
   );
 }

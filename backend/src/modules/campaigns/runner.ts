@@ -38,6 +38,17 @@ import type { Campaign } from './model.js';
 
 /** One ~1s snapshot captured during a run (persisted for after-the-fact graphs). */
 export interface RunSample {
+  /** Explicit provenance; absent on historical samples. */
+  generatorObserved?: boolean;
+  successful?: number;
+  probeSamples?: number;
+  probeP95?: number;
+  /** Cumulative snapshots, not interpolated transactions. */
+  probeAvailable?: number;
+  probeLatencyMs?: { p50: number; p95: number; p99: number };
+  probeEndpoints?: { url: string; samples: number; available: number }[];
+  statusCounts?: Record<string, number>;
+  sampleUnit?: 'requests' | 'connections';
   /** Seconds since the run started. */
   t: number;
   /** Generator requests/s at this tick (0 for engines that don't report counters). */
@@ -79,7 +90,7 @@ export interface CampaignRun {
   probe: ProbeMetrics;
   /** Probe/generator disagreement; raw probe metrics remain authoritative. */
   probeContended?: boolean;
-  measurementPolicy?: 'independent-probe-v1';
+  measurementPolicy?: 'independent-probe-v1' | 'multi-route-probe-v2';
   wrs: WrsBreakdown;
   /** Inferred protection posture (WAF/CDN/rate-limit/LB) from the probe. */
   posture?: PostureReport;
@@ -107,6 +118,8 @@ export interface CampaignRun {
   protection?: { source?: string; detectionTimeSec: number; mitigationTimeSec: number };
   /** Nominal metrics captured before the ramp (legitimate traffic only). */
   baseline?: BaselineMetrics;
+  /** Per-URL pre-load GET observations for multi-route monitoring. */
+  probeBaselines?: { url: string; metrics: BaselineMetrics }[];
   /** Verified suite recovery before this step, not a post-run recovery measurement. */
   recoveryBeforeRun?: RecoveryResult;
   /** Under-load degradation vs. the baseline. */
@@ -231,6 +244,7 @@ export async function executeCampaign(
     throw new Error('Simulation campaigns cannot use physical generators');
   assertDestination(campaign.target, allowedHosts);
   assertDestination(campaign.probeUrl, allowedHosts);
+  for (const url of campaign.probeUrls ?? []) assertDestination(url, allowedHosts);
   if (campaign.referenceUrl) assertDestination(campaign.referenceUrl, allowedHosts);
   let remoteProbe: { agentUrl: string; token: string } | undefined;
   if (campaign.probeVantage === 'remote') {
@@ -250,6 +264,7 @@ export async function executeCampaign(
       runtime: process.version,
       sourceRef: getBuildInfo().commit,
       probeUrl: campaign.probeUrl,
+      probeUrls: campaign.probeUrls,
       probeVantage: campaign.probeVantage ?? 'local',
     },
     iotProfile: campaign.iotProfile ? { ...campaign.iotProfile } : undefined,
@@ -300,10 +315,25 @@ export async function executeCampaign(
       return undefined;
     });
 
+    const secondaryUrls = [...new Set(campaign.probeUrls ?? [])].filter(
+      (url) => url !== campaign.probeUrl,
+    );
+    const probeBaselines = secondaryUrls.length
+      ? await Promise.all(
+          secondaryUrls.map(async (url) => ({
+            url,
+            metrics:
+              captureBaselineFn === captureBaseline
+                ? await captureBaseline(url, killSwitch.signal, 3, 1000, 5000, remoteProbe)
+                : await captureBaselineFn(url, killSwitch.signal),
+          })),
+        )
+      : undefined;
+
     // Closed-loop rate calibration (GEN-1): before the graded run, fire a short
     // burst on the SAME engine + target to measure the rate the generator can
-    // actually deliver here, then grade at that rate instead of an aspirational one
-    // it would silently under-deliver (which the assessment marks INCONCLUSIVE).
+    // actually deliver here, then record that reduced exposure instead of silently under-delivering
+    // (which cannot establish a verdict at the originally requested rate).
     // Slow-connection vectors trickle by design, so they are never calibrated.
     // Calibration only ever LOWERS the offered rate — the graded run's shape is
     // preserved, just scaled to a deliverable amplitude.
@@ -360,6 +390,7 @@ export async function executeCampaign(
       probeLimits.timeoutMs,
       probeLimits,
       remoteProbe,
+      campaign.probeUrls,
     );
     // Optional independent reference vantage (I2): polled in parallel with its OWN
     // kill switch so its availability never stops the run — it only informs
@@ -396,7 +427,7 @@ export async function executeCampaign(
     } catch {
       /* keep the raw value */
     }
-    const liveLabels = { target: liveHost };
+    const liveLabels = { target: liveHost, vector: campaign.vector };
     const ticker = setInterval(() => {
       if (telemetry.configured && !telemetryInFlight && targetSeries.length < MAX_RUN_SAMPLES) {
         telemetryInFlight = true;
@@ -412,39 +443,69 @@ export async function executeCampaign(
       }
       const pm = probe.metrics();
       const elapsedSec = Number(((Date.now() - startedMs) / 1000).toFixed(1));
-      // Live per-run gauges → Prometheus (scraped) → Grafana + the app's native
-      // panels. Same values the live progress carries: offered rps, reached-origin
-      // rps (successful / elapsed), and the generator failure ratio (failed / sent).
+      // Absent telemetry is omitted, never exported as measured zero.
       const sent = gen?.sent ?? 0;
-      metrics.setGauge(
-        'shieldtest_run_live_offered_rps',
-        'Live offered request rate of the in-flight run',
-        gen?.actualRps ?? 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_successful_rps',
-        'Live rate of requests that returned successful HTTP responses (successful/elapsed)',
-        elapsedSec > 0 ? (gen?.successful ?? 0) / elapsedSec : 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_failed_ratio',
-        'Live share of offered requests failed at the generator (failed/sent)',
-        sent > 0 ? (gen?.failed ?? 0) / sent : 0,
-        liveLabels,
-      );
-      metrics.setGauge(
-        'shieldtest_run_live_probe_avail_pct',
-        'Live availability seen by the legitimate probe (%)',
-        pm.samples ? (pm.available / pm.samples) * 100 : 100,
-        liveLabels,
-      );
+      const generatorObserved = gen !== undefined;
+      const requestCounters = generatorObserved && campaign.vector !== 'http-slowloris';
+      if (requestCounters && gen) {
+        metrics.setGauge(
+          'shieldtest_run_live_offered_rps',
+          'Mean offered requests/s since generator start',
+          gen.actualRps,
+          liveLabels,
+        );
+        metrics.setGauge(
+          'shieldtest_run_live_successful_rps',
+          'Mean successful responses/s on the generator clock',
+          sent > 0 ? (gen.actualRps * gen.successful) / sent : 0,
+          liveLabels,
+        );
+        metrics.setGauge(
+          'shieldtest_run_live_failed_ratio',
+          'Cumulative generator failure fraction',
+          sent > 0 ? gen.failed / sent : 0,
+          liveLabels,
+        );
+      } else {
+        for (const name of [
+          'shieldtest_run_live_offered_rps',
+          'shieldtest_run_live_successful_rps',
+          'shieldtest_run_live_failed_ratio',
+        ])
+          metrics.clearGauge(name, liveLabels);
+      }
+      if (pm.samples > 0)
+        metrics.setGauge(
+          'shieldtest_run_live_probe_avail_pct',
+          'Cumulative probe availability (%)',
+          (pm.available / pm.samples) * 100,
+          liveLabels,
+        );
+      else metrics.clearGauge('shieldtest_run_live_probe_avail_pct', liveLabels);
       // Capture the per-second series (persisted with the run) for EVERY engine,
       // independently of whether a live consumer is attached.
       if (timeline.length < MAX_RUN_SAMPLES) {
         timeline.push({
           t: elapsedSec,
+          generatorObserved,
+          successful: gen?.successful,
+          probeSamples: pm.samples,
+          probeAvailable: pm.available,
+          probeLatencyMs: pm.samples > 0 ? { ...pm.latencyMs } : undefined,
+          probeEndpoints: pm.endpoints?.map((endpoint) => ({ ...endpoint })),
+          statusCounts: gen?.statusCounts
+            ? Object.fromEntries(
+                ['2xx', '3xx', '4xx', '5xx'].map((family) => [
+                  family,
+                  Object.entries(gen?.statusCounts ?? {}).reduce(
+                    (sum, [code, count]) => sum + (code[0] === family[0] ? count : 0),
+                    0,
+                  ),
+                ]),
+              )
+            : undefined,
+          probeP95: pm.samples > 0 ? pm.latencyMs.p95 : undefined,
+          sampleUnit: campaign.vector === 'http-slowloris' ? 'connections' : 'requests',
           rps: gen?.actualRps ?? 0,
           sent: gen?.sent ?? 0,
           failed: gen?.failed ?? 0,
@@ -453,6 +514,7 @@ export async function executeCampaign(
         });
       }
       onProgress?.({
+        generatorObserved,
         sent: gen?.sent ?? 0,
         successful: gen?.successful ?? 0,
         failed: gen?.failed ?? 0,
@@ -469,6 +531,7 @@ export async function executeCampaign(
         // graduated verdict, so the operator sees a 'degraded' target before any
         // hard auto-kill — not only after the run settles.
         probe: {
+          endpoints: pm.endpoints,
           samples: pm.samples,
           available: pm.available,
           errorRate5xx: pm.errorRate5xx,
@@ -520,7 +583,12 @@ export async function executeCampaign(
     const genSuccessRatio = genTotal > 0 ? generator.successful / genTotal : 0;
     const rawProbeAvail = probeMetrics.samples ? probeMetrics.available / probeMetrics.samples : 1;
     const probeContended =
-      probeMetrics.samples > 0 && rawProbeAvail < 0.2 && genTotal >= 100 && genSuccessRatio >= 0.8;
+      // Successful traffic on one route cannot disprove another monitored route's failure.
+      (probeMetrics.endpoints?.length ?? 1) === 1 &&
+      probeMetrics.samples > 0 &&
+      rawProbeAvail < 0.2 &&
+      genTotal >= 100 &&
+      genSuccessRatio >= 0.8;
     // Detection/mitigation: with no protection integration, we derive
     // conservative estimates from the probe's measurements. These values can be
     // replaced by the real timings reported by WEDOS Protection.
@@ -605,12 +673,13 @@ export async function executeCampaign(
     const underLoadAvailPct = probeMetrics.samples
       ? (probeMetrics.available / probeMetrics.samples) * 100
       : 100;
-    const baselineDelta = baseline
-      ? computeBaselineDelta(baseline, {
-          availabilityPct: underLoadAvailPct,
-          latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
-        })
-      : undefined;
+    const baselineDelta =
+      baseline && secondaryUrls.length === 0
+        ? computeBaselineDelta(baseline, {
+            availabilityPct: underLoadAvailPct,
+            latencyMs: { p50: probeMetrics.latencyMs.p50, p95: probeMetrics.latencyMs.p95 },
+          })
+        : undefined;
 
     const total = generator.totalRequests;
     const checked = generator.assertionsChecked ?? 0;
@@ -633,7 +702,7 @@ export async function executeCampaign(
       generator,
       probe: probeMetrics,
       probeContended,
-      measurementPolicy: 'independent-probe-v1',
+      measurementPolicy: secondaryUrls.length ? 'multi-route-probe-v2' : 'independent-probe-v1',
       breakingPoint: detectBreakingPoint(timeline),
       wrs,
       posture: probe.posture(),
@@ -649,6 +718,7 @@ export async function executeCampaign(
           }
         : undefined,
       baseline,
+      probeBaselines,
       baselineDelta,
       targetTelemetry: targetSeries.length ? targetSeries : undefined,
       reference,

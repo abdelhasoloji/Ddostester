@@ -17,13 +17,22 @@ const images = {
 const found = new Set();
 assert.ok(documents.length <= 128);
 for (const document of documents) {
-  assert.ok(['Namespace','ResourceQuota','NetworkPolicy','Service','ConfigMap','ServiceAccount','Role','RoleBinding','Deployment','StatefulSet','PersistentVolumeClaim'].includes(document.kind), 'Unexpected resource kind');
+  assert.ok(['Namespace','ResourceQuota','NetworkPolicy','Service','ConfigMap','ServiceAccount','Role','RoleBinding','Deployment','StatefulSet','PersistentVolumeClaim','PodDisruptionBudget'].includes(document.kind), 'Unexpected resource kind');
   assert.notEqual(document.kind, 'Secret', 'Secret material must be provisioned separately');
   if (document.kind === 'Service') assert.ok(!document.spec.type || document.spec.type === 'ClusterIP', 'No public service');
   const pod = document.spec?.template?.spec;
   if (!pod) continue;
   assert.equal(document.metadata.namespace, 'ddostester-lab');
-  assert.equal(document.spec.replicas, 1, 'Lab workloads remain singletons');
+  // Deliberate exception: the fleet coordination service runs 3 replicas so the
+  // mTLS claim/heartbeat surface survives one replica loss (paired with the
+  // lab-fleet PodDisruptionBudget). Every other lab workload stays a singleton.
+  const expectedReplicas =
+    document.kind === 'Deployment' && document.metadata.name === 'lab-fleet' ? 3 : 1;
+  assert.equal(
+    document.spec.replicas,
+    expectedReplicas,
+    'Unexpected replica count for ' + document.metadata.name,
+  );
   assert.ok(!pod.hostNetwork && !pod.hostPID && !pod.hostIPC);
   assert.ok(!pod.initContainers?.length, 'Unreviewed init containers');
   for (const container of pod.containers) {

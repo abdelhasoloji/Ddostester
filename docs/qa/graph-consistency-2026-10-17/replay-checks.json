@@ -1,0 +1,223 @@
+{
+  "suiteId": "fdfe12dd-8b75-4373-8d4e-f5a79a0263fd",
+  "completed": 12,
+  "configuredLoadSeconds": 240,
+  "elapsedSeconds": 344.647,
+  "addedIntervalSeconds": 0,
+  "collectionCommit": "266e9a6a09617db97d6105db6058e5461dd305e1",
+  "renderCommit": "d15afa3d8a09670e492634529029db7274e3d1cc",
+  "measurementCodeUnchangedBetweenCommits": true,
+  "target": "private Kubernetes lab HTTP endpoint",
+  "scope": "Application evidence, orchestration and rendering validation; not DRS certification or an 800 req/s capacity result",
+  "checks": [
+    {
+      "runId": "6ef1641e-290a-4a59-acc0-1569462894c7",
+      "engine": "builtin-http",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 3051,
+      "successful": 308,
+      "failed": 2743,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "partial",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 224.7 req/s), so the graded run was offered at 213 req/s. This calibration is not proof of successful mitigation at 213 req/s; proving resilience at the full 800 req/s requires further generator and target qualification."
+      ]
+    },
+    {
+      "runId": "d0247fed-bd59-47a9-84fd-2eec3841b0f2",
+      "engine": "k6",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 9124,
+      "successful": 0,
+      "failed": 9124,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "inconclusive",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "Rate-calibrated: the requested 1000 req/s exceeded what the generator could deliver against this target on one box (measured 782.99 req/s), so the graded run was offered at 743 req/s. This calibration is not proof of successful mitigation at 743 req/s; proving resilience at the full 1000 req/s requires further generator and target qualification.",
+        "Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain."
+      ]
+    },
+    {
+      "runId": "ac338f0d-8337-405f-a87b-93044ebd7c4d",
+      "engine": "builtin-http",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 2979,
+      "successful": 290,
+      "failed": 2689,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "partial",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 219.7 req/s), so the graded run was offered at 208 req/s. This calibration is not proof of successful mitigation at 208 req/s; proving resilience at the full 800 req/s requires further generator and target qualification."
+      ]
+    },
+    {
+      "runId": "6683d83f-e684-4e98-9ed3-2ba30d4c3732",
+      "engine": "vegeta",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 9916,
+      "successful": 0,
+      "failed": 9916,
+      "timelineSamples": 21,
+      "probeSamples": 4,
+      "assessmentVerdict": "breached",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability."
+      ]
+    },
+    {
+      "runId": "9250ba25-6cc9-4f03-813d-02b2d8583cd9",
+      "engine": "k6",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 7633,
+      "successful": 0,
+      "failed": 7633,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "inconclusive",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience.",
+        "Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain."
+      ]
+    },
+    {
+      "runId": "6e1685e3-2ab0-4d80-a384-9a082f885045",
+      "engine": "k6",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 10086,
+      "successful": 0,
+      "failed": 10086,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "inconclusive",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience.",
+        "Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain."
+      ]
+    },
+    {
+      "runId": "9d80966f-d603-443f-aa96-fbf44604c58e",
+      "engine": "k6",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 13861,
+      "successful": 0,
+      "failed": 13861,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "inconclusive",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience.",
+        "Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain."
+      ]
+    },
+    {
+      "runId": "a301bc59-33ef-4ce6-8466-1a6ad14aefb0",
+      "engine": "vegeta",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 7938,
+      "successful": 36,
+      "failed": 7902,
+      "timelineSamples": 21,
+      "probeSamples": 4,
+      "assessmentVerdict": "breached",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability."
+      ]
+    },
+    {
+      "runId": "29604e63-000a-41b4-b322-b0200a865c31",
+      "engine": "builtin-http",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 8231,
+      "successful": 5395,
+      "failed": 2836,
+      "timelineSamples": 19,
+      "probeSamples": 4,
+      "assessmentVerdict": "held",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability."
+      ]
+    },
+    {
+      "runId": "16a75244-59ab-4182-a16f-33702dccfcd5",
+      "engine": "builtin-http",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 3826,
+      "successful": 110,
+      "failed": 3716,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "inconclusive",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.",
+        "Delivered only 53% of the intended offered rate (190/360 req/s) \u2014 a generator-side shortfall, so resilience at the full DRS 3 rate is unproven."
+      ]
+    },
+    {
+      "runId": "c2f11d0e-744f-4a77-8aa3-5dcc6ebdd5fa",
+      "engine": "vegeta",
+      "unit": "requests",
+      "configuredSeconds": 20,
+      "total": 7970,
+      "successful": 7970,
+      "failed": 0,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "held",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability."
+      ]
+    },
+    {
+      "runId": "562545d6-76bc-495a-a59f-047a9b30191a",
+      "engine": "builtin-http",
+      "unit": "connections",
+      "configuredSeconds": 20,
+      "total": 100,
+      "successful": 0,
+      "failed": 100,
+      "timelineSamples": 20,
+      "probeSamples": 4,
+      "assessmentVerdict": "held",
+      "assessmentCaveats": [
+        "Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability."
+      ]
+    }
+  ],
+  "evidenceSha256": {
+    "runs.json": "51561a74cb098deb2f360f7c8bdf91784a92b4ef95b4f9bf1e2a2995475e472a",
+    "campaigns.json": "de0be56912aac740cefcf54e3652842cdce9aea7c9894877f98785af11479e49",
+    "suite.json": "2e0a38e23e8a41f2ca3567f803ec912e3c599b9517259d3fcd546bda03772e5f",
+    "report-final.html": "2238c731ee8d15cb220c299af45eb5d8cf3ec0894dfe6db19600b34d0655fe6c",
+    "connection-report.html": "2798cfdcab37e86f1adc59f0f71f29edd3572613ce6ac9242c32acad8fd36858",
+    "runs.csv": "73ca8f56d0a3613ecd04ba24856cc908cb9ea7d73edb7c101836f9615958d25e"
+  },
+  "measurementSourceSha256": {
+    "backend/src/agents/k6.ts": "5fd7c25d3868724e605fa5fc624fb54ee66c04de00c18cf6c97c4dec4abbc918",
+    "backend/src/agents/vegeta.ts": "e05566c5dabe91fea5c2e58f4facd4244608a69c628a98a2de27ec5862b7e7b0",
+    "backend/src/modules/campaigns/runner.ts": "e8daa9f25b77dc6da812738b5d8bb6b529a4ba3a59a448734aeb095c67755f6a"
+  },
+  "rawArchiveNames": {
+    "runs.json": "runs.json.gz",
+    "campaigns.json": "campaigns.json.gz",
+    "suite.json": "suite.json.gz"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "scenario": "tcp_conn_drain",
+  "kind": "tcp",
+  "generator": {
+    "opened": 468,
+    "failed": 0,
+    "rateCps": 60
+  },
+  "target": {
+    "accepted": 200,
+    "refused": 268,
+    "concurrentPeak": 200,
+    "capacity": 200,
+    "saturationPct": 57.26
+  },
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "tcp-connection-pressure",
+    "scenario": "tcp_conn_drain",
+    "labTarget": "lab-target.internal",
+    "connections": {
+      "opened": 468,
+      "accepted": 200,
+      "refused": 268,
+      "concurrentPeak": 200,
+      "capacity": 200,
+      "saturationPct": 57.26
+    },
+    "outcome": "STATE_TABLE_SATURATED",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:42:53.997Z"
+  }
+}

@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { Agent, fetch } from 'undici';
 import { readBoundedBody } from '../../util/http-body.js';
 import { FLEET_LIMITS } from '../../config/limits.js';
-export class KubernetesJobs {
+import type { FleetExecutor } from './executor.js';
+export class KubernetesJobs implements FleetExecutor {
   private dispatcher?: Agent;
   constructor(
     private readonly namespace: string,

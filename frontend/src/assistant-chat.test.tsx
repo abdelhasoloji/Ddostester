@@ -43,7 +43,7 @@ function sse(chunks: string[]) {
   } as unknown as Response;
 }
 function mockFetch(text: string) {
-  global.fetch = vi
+  globalThis.fetch = vi
     .fn()
     .mockImplementation(() =>
       Promise.resolve(sse([`event: delta\ndata: ${JSON.stringify({ content: text })}\n\n`])),
@@ -67,7 +67,7 @@ async function waitReady() {
 
 describe('AssistantChat — conversation history', () => {
   it('keeps response provenance through streamed text without inventing billed usage', async () => {
-    global.fetch = vi.fn().mockResolvedValue(
+    globalThis.fetch = vi.fn().mockResolvedValue(
       sse([
         `event: provenance\ndata: ${JSON.stringify({
           model: 'verified-model',
@@ -162,7 +162,7 @@ describe('AssistantChat — proactive suggestions', () => {
     await screen.findByText('Requested next-action suggestions');
     expect(await screen.findByText(/conservative baseline test/)).toBeInTheDocument();
     // The synthesized turn went to the chat endpoint.
-    expect(global.fetch).toHaveBeenCalledWith('/api/assistant/chat', expect.anything());
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/assistant/chat', expect.anything());
   });
 
   it('fires automatically when a campaign completes with a WRS report (Auto on)', async () => {
@@ -206,7 +206,7 @@ describe('AssistantChat — proactive suggestions', () => {
     rerender(<AssistantChat variant="page" />);
 
     await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith('/api/assistant/chat', expect.anything()),
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/assistant/chat', expect.anything()),
     );
     expect(await screen.findByText(/Baseline.*COMPLETED|COMPLETED/)).toBeInTheDocument();
   });
@@ -246,7 +246,7 @@ describe('AssistantChat — proactive suggestions', () => {
 
     // Give any (unwanted) async work a tick, then assert no chat call was made.
     await new Promise((r) => setTimeout(r, 50));
-    expect(global.fetch).not.toHaveBeenCalledWith('/api/assistant/chat', expect.anything());
+    expect(globalThis.fetch).not.toHaveBeenCalledWith('/api/assistant/chat', expect.anything());
   });
 });
 
@@ -355,7 +355,7 @@ it('adds bounded text attachments, removes them and sends retained content only'
   click.mockRestore();
 });
 it('shows server generation errors and handles HTTP failure without inventing an assistant answer', async () => {
-  global.fetch = vi
+  globalThis.fetch = vi
     .fn()
     .mockResolvedValueOnce({ ok: false, status: 503 })
     .mockResolvedValue(

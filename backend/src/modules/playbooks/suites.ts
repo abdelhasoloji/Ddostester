@@ -1,3 +1,6 @@
+import { evidenceCharts } from '../reports/evidence-charts.js';
+import { reportIdentityHtml } from '../reports/identity.js';
+import { riskLevel } from '../reports/compliance.js';
 import type { Campaign, TargetRequirement, ReconPostureSnapshot } from '../campaigns/model.js';
 import { missingRequirements } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
@@ -5,10 +8,11 @@ import { wrsLevel } from '../wrs/scoring.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { htmlEscape as esc } from '../../util/text.js';
 import { coverBand, docHead, DOC_TAIL, pill, statCard } from '../reports/layout.js';
-import { gaugeSvg, scoreColor, REPORT_COLORS, timelineSvg } from '../reports/charts.js';
+import { gaugeSvg, scoreColor, REPORT_COLORS } from '../reports/charts.js';
 import { hostOf } from '../../util/net.js';
 import {
   assessVector,
+  assessCampaignRun,
   assessSuite,
   type VectorAssessment,
   type VectorVerdict,
@@ -30,6 +34,7 @@ export interface SuiteMember {
   level?: WrsLevel;
   verdict?: 'PASS' | 'FAIL';
   runId?: string;
+  statusDetail?: string;
   /** Source-template target requirements + the recon posture snapshot, so the
    *  suite report can flag members whose result is N/A for this target. */
   requires?: TargetRequirement[];
@@ -49,7 +54,7 @@ export interface SuiteSummary {
   members: SuiteMember[];
   /** Aggregate WRS over scored members, or null if none scored yet. */
   wrs: { avg: number; min: number; level: WrsLevel; scored: number } | null;
-  /** Aggregate SLO verdict: FAIL if any member failed, PASS if any judged and none failed, else null. */
+  /** Aggregate SLO: FAIL if any member failed; PASS only when every completed member is judged, else null. */
   verdict: 'PASS' | 'FAIL' | null;
 }
 
@@ -98,6 +103,7 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
         level: c.wrs?.level,
         verdict: c.acceptanceResult?.verdict,
         runId: c.runId,
+        statusDetail: c.statusDetail,
         requires: c.requires,
         reconPosture: c.reconPosture,
       })),
@@ -105,7 +111,10 @@ export function buildSuites(campaigns: Campaign[]): SuiteSummary[] {
       verdict: (() => {
         const judged = members.filter((c) => c.acceptanceResult);
         if (judged.length === 0) return null;
-        return judged.some((c) => c.acceptanceResult!.verdict === 'FAIL') ? 'FAIL' : 'PASS';
+        if (judged.some((c) => c.acceptanceResult!.verdict === 'FAIL')) return 'FAIL';
+        return judged.length === members.length && members.every((c) => c.status === 'COMPLETED')
+          ? 'PASS'
+          : null;
       })(),
     });
   }
@@ -120,7 +129,16 @@ function drsOf(name: string): string {
 }
 
 function riskPill(label: string): string {
-  return pill(label, label === 'Critical' ? 'crit' : label === 'Medium' ? 'warn' : 'good');
+  return pill(
+    label,
+    label === 'Critical'
+      ? 'crit'
+      : label === 'Medium'
+        ? 'warn'
+        : label === 'Low'
+          ? 'good'
+          : 'neutral',
+  );
 }
 
 /** CSS class + display label per faithful verdict (assessment engine). */
@@ -129,12 +147,6 @@ const VERDICT_CLASS: Record<VectorVerdict, string> = {
   partial: 'v-partial',
   breached: 'r-crit',
   inconclusive: 'v-aborted',
-};
-const VERDICT_RISK: Record<VectorVerdict, string> = {
-  held: 'Low',
-  partial: 'Medium',
-  inconclusive: 'Medium',
-  breached: 'Critical',
 };
 
 /**
@@ -147,35 +159,16 @@ function runChart(
   run: CampaignRun | undefined,
   grafanaUrl: string | undefined,
   targetHost: string,
+  connections = false,
 ): string {
-  const tl = run?.timeline ?? [];
   const gl = grafanaLink(grafanaUrl, 'run', {
     target: targetHost,
     ...runWindowMs(run?.generator.startedAt, run?.generator.finishedAt),
   });
   const grafanaNote = gl
-    ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (offered vs origin rps, absorption, availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
+    ? `<p class="muted" style="font-size:.78rem">📊 Live/historical panels (generator outcomes and probe availability) in Grafana: <a href="${esc(gl)}" target="_blank" rel="noreferrer">open ↗</a> — requires access to the Grafana instance.</p>`
     : '';
-  if (tl.length < 2) return grafanaNote;
-  const rpsChart = timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.rps })),
-    { yUnit: ' rps', color: REPORT_COLORS.brand, fill: 'rgba(0, 52, 132, 0.10)', height: 120 },
-  );
-  const availChart = timelineSvg(
-    tl.map((s) => ({ t: s.t, y: s.availPct })),
-    {
-      yMax: 100,
-      yUnit: '% avail',
-      color: REPORT_COLORS.good,
-      fill: REPORT_COLORS.goodFill,
-      height: 120,
-    },
-  );
-  return (
-    `<div class="figure"><div class="cap">Offered load across the run (req/s).</div>${rpsChart}</div>` +
-    `<div class="figure"><div class="cap">Legitimate-probe availability across the run (%).</div>${availChart}</div>` +
-    grafanaNote
-  );
+  return evidenceCharts(run, connections) + grafanaNote;
 }
 
 /** Per-attack detail block: faithful verdict, delivered rate, mechanism, caveats + chart. */
@@ -186,13 +179,17 @@ function attackDetail(
   grafanaUrl: string | undefined,
   targetHost: string,
 ): string {
-  const rate = va.configuredRps
-    ? `${va.achievedRps}/${va.configuredRps} req/s (${Math.round(va.deliveryRatio * 100)}% of target)`
-    : `${va.achievedRps} req/s`;
-  const caveats =
-    va.caveats.length && va.verdict !== 'breached'
-      ? `<tr><th>Caveats</th><td class="v-partial">${va.caveats.map(esc).join(' ')}</td></tr>`
-      : '';
+  const rate =
+    run && va.isSlowConnection
+      ? `${run.generator.totalRequests} opened connections; ${run.generator.failed} closed (not req/s)`
+      : !run
+        ? 'Not measured'
+        : va.configuredRps
+          ? `${va.achievedRps}/${va.expectedRps} req/s mean (${Math.round(va.deliveryRatio * 100)}% of expected mean; configured peak ${va.configuredRps} req/s)`
+          : `${va.achievedRps} req/s`;
+  const caveats = va.caveats.length
+    ? `<tr><th>Caveats</th><td class="v-partial">${va.caveats.map(esc).join(' ')}</td></tr>`
+    : '';
   return `<h3>Attack ${nr} / ${esc(va.shape)}</h3>
 <table class="kvs">
  <tr><th>DRS level</th><td>${va.drs}</td></tr>
@@ -200,7 +197,7 @@ function attackDetail(
  <tr><th>Verdict</th><td class="${VERDICT_CLASS[va.verdict]}">${va.verdict}</td></tr>
  <tr><th>Observation</th><td>${esc(va.observation)}</td></tr>
  ${caveats}
-</table>${runChart(run, grafanaUrl, targetHost)}`;
+</table>${run ? reportIdentityHtml(run, true) : ''}${runChart(run, grafanaUrl, targetHost, va.isSlowConnection)}`;
 }
 
 /** Glossary — verdict + mechanism definitions used by the assessment engine. */
@@ -208,17 +205,17 @@ function glossary(): string {
   return `<h2>Glossary</h2>
 <h3>Verdict</h3>
 <table class="kvs">
- <tr><th class="v-held">held</th><td>Legitimate availability held (≥99%) at the delivered rate — a valid test the target passed.</td></tr>
+ <tr><th class="v-held">held</th><td>Legitimate availability held (≥99%) at the delivered rate — a diagnostic at the delivered load; continuous availability and a DRS score are not established.</td></tr>
  <tr><th class="v-partial">partial</th><td>Some legitimate impact — availability dipped below 99% while the target stayed up.</td></tr>
- <tr><th class="r-crit">breached</th><td>The target went unavailable and the safety kill-switch stopped the run — a real, attributed outage.</td></tr>
+ <tr><th class="r-crit">breached</th><td>The run met the probe-failure or automatic-stop criteria; probe sample success does not directly measure outage duration. Completion and resilience verdict are separate; a breach does not imply an automatic kill.</td></tr>
  <tr><th class="v-aborted">inconclusive</th><td>The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted. <b>Not a pass.</b></td></tr>
 </table>
 <h3>Mechanism</h3>
 <table class="kvs">
- <tr><th>served</th><td>The origin served the load directly — the edge absorbed ~nothing. Not necessarily a mitigation: the origin simply coped at this rate.</td></tr>
- <tr><th>rejected / tarpitted</th><td>The edge refused the load with a response (4xx/5xx), or held connections until they timed out.</td></tr>
- <tr><th>shed</th><td>For slow-connection vectors: the target dropped the slow/incomplete connections — the correct defense.</td></tr>
- <tr><th>blocked</th><td>The edge blocked a real fraction but the exact mechanism is unresolved (out-of-process engines report no per-status breakdown).</td></tr>
+ <tr><th>served</th><td>Successful HTTP responses observed by the generator; origin and edge attribution require independent telemetry.</td></tr>
+ <tr><th>rejected / tarpitted</th><td>HTTP failures or transport failures observed by the generator. These alone do not establish filtering or deliberate tarpitting.</td></tr>
+ <tr><th>shed</th><td>For slow-connection vectors: slow/incomplete connections ended; the cause requires independent telemetry.</td></tr>
+ <tr><th>blocked</th><td>Generator failures observed; their location and cause are unresolved.</td></tr>
 </table>`;
 }
 
@@ -234,36 +231,54 @@ export function renderSuiteReportHtml(
   // Per-vector assessment from the REAL run — the assessment engine is the single
   // source of truth so the narrative can never drift from what happened.
   const steps = suite.members.map((m) => {
-    const run = m.runId ? runById.get(m.runId) : undefined;
-    const va = assessVector(run, {
+    const candidate = m.runId ? runById.get(m.runId) : undefined;
+    const run = candidate?.campaignId === m.id ? candidate : undefined;
+    const context = {
       shape: stepLabel(suite.suiteName, m.name),
       drs: drsOf(m.name),
       status: m.status,
+      vector: /slowloris/i.test(m.name) ? 'http-slowloris' : undefined,
+      h2Confirmed: m.reconPosture?.h2,
       wrs: m.wrs,
       level: m.level,
-    });
-    return { m, run, va };
+    };
+    const va = run
+      ? assessCampaignRun(run, {
+          name: m.name,
+          vector: /slowloris/i.test(m.name) ? 'http-slowloris' : 'http-get',
+          reconPosture: m.reconPosture,
+        })
+      : assessVector(undefined, context);
+    if (!run && m.statusDetail) va.observation += ` ${m.statusDetail}`;
+    return { m, run, va, risk: run ? riskLevel(run, va) : { label: 'Unknown', cls: 'v-aborted' } };
   });
   const scored = steps.filter((s) => s.va.wrs != null);
   const sa = assessSuite(steps.map((s) => s.va));
+  const riskOf = (items: typeof steps) =>
+    ['Critical', 'Unknown', 'Medium', 'Low'].find((label) =>
+      items.some((s) => s.risk.label === label),
+    ) ?? 'Unknown';
+  const displayedRisk = riskOf(steps);
   const avg = sa.avgWrs ?? 0;
   const worstLevel = sa.worstLevel;
 
+  const retained = steps.filter((s) => s.run).length;
+  const coverage = `${retained}/${suite.total} scenarios have retained run evidence; ${suite.total - retained} have no retained run evidence.`;
   const narrative = scored.length
-    ? `On <b>${date}</b>, WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against <b>${esc(host)}</b> (the live target) — <b>${suite.total}</b> attack vectors, up to <b>DRS ${sa.maxDrs}</b>. ` +
+    ? `On <b>${date}</b>, WEDOS ShieldTest recorded a bounded Layer-7 assessment plan for <b>${esc(host)}</b> — <b>${suite.total}</b> reference scenarios. Reference labels extend to DRS ${sa.maxDrs}; they do not establish measured coverage. ` +
       `<b>${sa.held}/${suite.total}</b> vectors held at their delivered rate` +
       (sa.partial ? `, <b>${sa.partial}</b> caused partial impact` : '') +
-      (sa.breached ? `, <b>${sa.breached}</b> breached the target` : '') +
+      (sa.breached ? `, <b>${sa.breached}</b> met the probe-failure criteria` : '') +
       (sa.inconclusive
-        ? `, and <b>${sa.inconclusive}</b> were inconclusive (under-delivered or degraded — not a valid test at the target rate)`
+        ? `, and <b>${sa.inconclusive}</b> were inconclusive (missing, insufficient or degraded evidence — resilience is unproven)`
         : '') +
-      `. Overall risk is <b>${sa.worstRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
+      `. Overall risk is <b>${displayedRisk}</b>; worst WRS <b>${sa.worstWrs ?? '—'}</b> (grade ${worstLevel}), average <b>${avg}</b>. ` +
       (sa.breached
-        ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} took the target unavailable — a business-impacting gap.`
+        ? `The ${sa.breached} breached shape${sa.breached === 1 ? '' : 's'} met the probe-failure criteria; these observations do not establish outage duration or business impact.`
         : sa.inconclusive
-          ? `Note: ${sa.inconclusive} vector${sa.inconclusive === 1 ? '' : 's'} never reached the intended intensity, so ${sa.inconclusive === 1 ? 'its' : 'their'} resilience is unproven — re-run on a stronger generator to confirm.`
-          : `Legitimate traffic held throughout.`)
-    : 'No scored attacks yet.';
+          ? `Note: ${sa.inconclusive} scenario${sa.inconclusive === 1 ? '' : 's'} cannot establish resilience. Inspect each scenario’s evidence and execution diagnostic before drawing a conclusion.`
+          : `Completed legitimate probe transactions held; intervals between observations remain unmeasured.`)
+    : 'No usable scored observations are available; no resilience conclusion is established.';
 
   // Per-tier (DRS) worst-case verdict.
   const byDrs = new Map<string, typeof steps>();
@@ -283,11 +298,22 @@ export function renderSuiteReportHtml(
   const resultRows = [...byDrs.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([drs, ss]) => {
-      const maxRps = Math.max(0, ...ss.map((s) => s.va.configuredRps || s.va.achievedRps));
+      const requests = ss.filter((s) => s.run && !s.va.isSlowConnection);
+      const maxRps = Math.max(0, ...requests.map((s) => s.va.configuredRps || s.va.achievedRps));
+      const connections = ss.filter((s) => s.run && s.va.isSlowConnection);
+      const loadLabel =
+        [
+          requests.length ? `${maxRps} req/s configured` : '',
+          connections.length
+            ? `${Math.max(...connections.map((s) => s.run!.generator.totalRequests))} opened connections`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' / ') || 'Not measured';
       const tv = tierVerdict(ss);
       const inc = ss.filter((s) => s.va.verdict === 'inconclusive').length;
       const note = inc ? ` (${inc} inconclusive)` : '';
-      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${maxRps} req/s</td><td>${riskPill(VERDICT_RISK[tv])}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
+      return `<tr><td>Layer 7 · DRS ${drs}</td><td>${ss.length}</td><td>${loadLabel}</td><td>${riskPill(riskOf(ss))}</td><td class="${VERDICT_CLASS[tv]}">${tv}${note}</td></tr>`;
     })
     .join('');
 
@@ -299,10 +325,15 @@ export function renderSuiteReportHtml(
         !s.va.confident && s.run
           ? ' <span title="not a valid test at the target rate — under-delivered / degraded / contended">⚠</span>'
           : '';
-      const rps = s.va.configuredRps
-        ? `${s.va.configuredRps}→${s.va.achievedRps}`
-        : `${s.va.achievedRps}`;
-      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(VERDICT_RISK[s.va.verdict])}</td><td>${wrsCell}</td><td>${s.run ? s.va.mechanism : '—'}</td></tr>`;
+      const rps =
+        s.va.isSlowConnection && s.run
+          ? `${s.run.generator.totalRequests} connections`
+          : !s.run
+            ? 'Not measured'
+            : s.va.configuredRps
+              ? `${s.va.configuredRps}→${s.va.achievedRps}`
+              : `${s.va.achievedRps}`;
+      return `<tr><td>${s.m.order + 1}</td><td>${esc(s.va.shape)}${flag}</td><td>${rps}</td><td>${s.va.drs}</td><td class="${VERDICT_CLASS[s.va.verdict]}">${s.va.verdict}</td><td>${riskPill(s.risk.label)}</td><td>${wrsCell}</td><td>${s.run ? { served: 'successful responses', rejected: 'HTTP failures', tarpitted: 'transport failures', shed: 'connections closed', blocked: 'unresolved failures', unknown: 'unknown' }[s.va.mechanism] : '—'}</td></tr>`;
     })
     .join('');
 
@@ -328,8 +359,8 @@ export function renderSuiteReportHtml(
     .filter((x) => x.missing.length > 0);
   const applicabilityCaveats = naSteps.length
     ? `<h2>Applicability caveats</h2>
-<p class="muted" style="font-size:.82rem">These steps' templates need a target feature this target does not have (from recon) — so their result is <b>N/A</b>, not evidence the target resisted.</p>
-<table class="kvs"><thead><tr><th>Step</th><th>N/A — target has no…</th></tr></thead><tbody>${naSteps
+<p class="muted" style="font-size:.82rem">These steps' templates need a target feature not confirmed by the captured posture — so their result is <b>N/A</b>, not evidence the target resisted.</p>
+<table class="kvs"><thead><tr><th>Step</th><th>Unconfirmed required feature</th></tr></thead><tbody>${naSteps
         .map(
           (x) =>
             `<tr><td>${esc(x.label)}</td><td>${x.missing
@@ -349,27 +380,27 @@ export function renderSuiteReportHtml(
     docHead(`WEDOS ShieldTest — ${esc(host)} L7 resilience`) +
     coverBand(
       `DDoS resilience assessment — Layer 7`,
-      `Target ${esc(host)} · ${suite.total} attack vectors · ${date} · WEDOS ShieldTest · confidential`,
+      `Target ${esc(host)} · ${suite.total} planned scenarios · ${date} · WEDOS ShieldTest · confidential`,
     ) +
-    `<h2>Management summary</h2><p class="lead">${narrative}</p>${grafanaBanner}
+    `<h2>Management summary</h2><p class="lead">${narrative}</p><p><b>Evidence coverage:</b> ${coverage} Retained records may still be inconclusive.</p>${grafanaBanner}
 <div class="scorecard">
-  <div>${gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: scoreColor(avg) })}
-    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Assessment resilience (avg WRS)</div></div>
+  <div>${sa.avgWrs == null ? '<p>No measured score</p>' : gaugeSvg(avg, { sub: `avg · worst ${worstLevel}`, color: sa.inconclusive ? REPORT_COLORS.muted : scoreColor(avg) })}
+    <div style="text-align:center;font-size:.75rem;color:${REPORT_COLORS.muted}">Legacy WRS diagnostic average · not a DRS score</div></div>
   <div>
-    <div class="pills">${riskPill(sa.worstRisk)} ${pill(`${sa.held}/${suite.total} held`, sa.held === suite.total ? 'good' : 'warn')}${sa.breached ? ' ' + pill(`${sa.breached} breached`, 'crit') : ''}${sa.inconclusive ? ' ' + pill(`${sa.inconclusive} inconclusive`, 'warn') : ''}</div>
+    <div class="pills">${riskPill(displayedRisk)} ${pill(`${sa.held}/${suite.total} held`, sa.held === suite.total ? 'good' : 'warn')}${sa.breached ? ' ' + pill(`${sa.breached} breached`, 'crit') : ''}${sa.inconclusive ? ' ' + pill(`${sa.inconclusive} inconclusive`, 'warn') : ''}</div>
     <div class="grid cards" style="margin-top:.7rem">
       ${statCard('Vectors', String(suite.total))}
       ${statCard('Worst WRS', sa.worstWrs != null ? String(sa.worstWrs) : '—')}
-      ${statCard('Valid at target rate', `${sa.validAtRate}/${suite.total}`, sa.validAtRate === suite.total)}
+      ${statCard('Diagnostic eligible', `${sa.validAtRate}/${suite.total}`, sa.validAtRate === suite.total)}
       ${statCard('Breached', String(sa.breached), false)}
     </div>
   </div>
 </div>` +
-    `<h2>Results — protection level by DRS</h2>
+    `<p class="muted">DRS NOT_EVALUATED: these bounded reference scenarios do not establish a measured DRS level. WRS is a separate legacy diagnostic.</p><h2>Results — reference scenario groups</h2>
 <table class="kvs"><thead><tr><th>Threat scenario</th><th>Attacks</th><th>Max rate</th><th>RiskLevel</th><th>Verdict</th></tr></thead><tbody>${resultRows}</tbody></table>` +
     `<h2>Layer 7 summary</h2>
-<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>RPS (cfg→eff)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
-<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = target went unavailable; <b>inconclusive</b> = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism is keyed on the measured absorption/origin traffic — not on status codes, which out-of-process engines don't report.</p>` +
+<table class="kvs"><thead><tr><th>#</th><th>Attack (shape)</th><th>Load (configured→mean)</th><th>DRS</th><th>Verdict</th><th>RiskLevel</th><th>WRS</th><th>Mechanism</th></tr></thead><tbody>${l7Rows}</tbody></table>
+<p class="muted" style="font-size:.82rem">Verdict: <b>held</b> = availability held at the delivered rate; <b>partial</b> = some impact; <b>breached</b> = probe-failure or automatic-stop criteria met; <b>inconclusive</b> = under-delivered/degraded or insufficient evidence. ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.</p>` +
     applicabilityCaveats +
     `<h2>Details — per attack</h2>${details}` +
     glossary() +
@@ -389,15 +420,13 @@ function wrsDelta(a?: number, b?: number): string {
   if (a == null || b == null) return '<span class="muted">—</span>';
   const d = b - a;
   if (d === 0) return '<span class="muted">±0</span>';
-  const up = d > 0;
-  return `<span class="${up ? 'good' : 'bad'}">${up ? '▲ +' : '▼ '}${d}</span>`;
+  return `<span class="muted">${d > 0 ? '+' : ''}${Math.round(d * 100) / 100} (descriptive)</span>`;
 }
 
 /** How a per-step verdict moved between the two runs (FAIL→PASS is a fix). */
 function verdictDelta(a?: 'PASS' | 'FAIL', b?: 'PASS' | 'FAIL'): string {
   if (!a || !b || a === b) return '';
-  if (a === 'FAIL' && b === 'PASS') return '<span class="good">fixed</span>';
-  return '<span class="bad">regressed</span>';
+  return `<span class="muted">recorded SLO ${a}→${b}</span>`;
 }
 
 /**
@@ -441,9 +470,7 @@ export function renderSuiteCompareHtml(a: SuiteSummary, b: SuiteSummary): string
       : 'Not enough scored steps on both runs to summarise.';
   const verdictLine =
     a.verdict && b.verdict && a.verdict !== b.verdict
-      ? `<p class="verdict">SLO verdict <span class="${
-          a.verdict === 'FAIL' && b.verdict === 'PASS' ? 'good' : 'bad'
-        }">${a.verdict} → ${b.verdict}</span></p>`
+      ? `<p class="verdict">SLO verdict <span class="${'muted'}">${a.verdict} → ${b.verdict}</span></p>`
       : a.verdict || b.verdict
         ? `<p class="verdict">SLO verdict ${a.verdict ?? '—'} → ${b.verdict ?? '—'}</p>`
         : '';
@@ -470,11 +497,11 @@ export function renderSuiteCompareHtml(a: SuiteSummary, b: SuiteSummary): string
  <h1><span class="wm">WEDOS ShieldTest</span> — Suite comparison (tune &amp; replay)</h1>
 </div>
 <p class="muted">Generated on ${new Date().toISOString()} · WEDOS internal use</p>
-<p class="muted">Playbook <b>${esc(a.suiteName)}</b> · target <code>${esc(a.target)}</code></p>
+<p class="muted">Playbook <b>${esc(a.suiteName)}</b> · target A <code>${esc(a.target)}</code> · target B <code>${esc(b.target)}</code></p>
 <p>A (before): <code>${esc(a.createdAt)}</code> &nbsp;→&nbsp; B (after): <code>${esc(b.createdAt)}</code></p>
-<h2>Overall</h2>
+<p class="muted">Comparison inconclusive: detailed workload and measurement equivalence are not evaluated by this summary export. No causal improvement conclusion or DRS score is supported.</p><h2>Overall</h2>
 <p>${summary}</p>
-<p><b>${improved}</b> step(s) improved · <b>${regressed}</b> regressed · ${
+<p><b>${improved}</b> step score(s) increased · <b>${regressed}</b> decreased · ${
     orders.length - improved - regressed
   } unchanged/unscored</p>
 ${verdictLine}
@@ -484,6 +511,6 @@ ${rows}
 </table>
 <p class="muted">Steps are paired by playbook order. Bounded HTTP generator only —
 no volumetric or exhaustion vector. WRS is driven mainly by the legitimate probe;
-a higher WRS after a rule change means better protection with less collateral.</p>
+these are descriptive legacy WRS changes. Summary records alone do not establish workload equivalence, measurement validity or a protection improvement.</p>
 </body></html>`;
 }

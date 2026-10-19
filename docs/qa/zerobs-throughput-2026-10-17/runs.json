@@ -1,0 +1,300 @@
+[
+  {
+    "runId": "7dfa52d5-654e-4f5f-97e1-5418b0df60ec",
+    "campaignId": "db1c731a-b253-412e-baa6-5c7b0986d8b7",
+    "status": "COMPLETED",
+    "generator": {
+      "id": "7dfa52d5-654e-4f5f-97e1-5418b0df60ec",
+      "config": {
+        "execution": {
+          "engine": "vegeta",
+          "runtime": "v22.23.2",
+          "sourceRef": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+          "probeUrl": "http://127.0.0.1:18082/",
+          "probeVantage": "local"
+        },
+        "url": "http://127.0.0.1:18082/",
+        "method": "GET",
+        "headers": { "X-WEDOS-TEST": "db1c731a-b253-412e-baa6-5c7b0986d8b7:1792235711750" },
+        "concurrency": 200,
+        "durationSec": 20,
+        "maxRps": 800,
+        "slowloris": false,
+        "authorized": true
+      },
+      "startedAt": "2026-10-17T11:15:13.964Z",
+      "finishedAt": "2026-10-17T11:15:35.137Z",
+      "totalRequests": 10818,
+      "successful": 10761,
+      "failed": 57,
+      "statusCounts": { "0xx": 57, "2xx": 10761 },
+      "latencyMs": {
+        "min": 60.39,
+        "max": 10004.07,
+        "mean": 364.95,
+        "p50": 184.01,
+        "p95": 663.35,
+        "p99": 5406.55
+      },
+      "actualRps": 510.92,
+      "errors": {
+        "Get \"http://127.0.0.1:18082/\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)": 1
+      },
+      "latencyMethod": "native-combined-results"
+    },
+    "probe": {
+      "samples": 4,
+      "available": 4,
+      "errorRate5xx": 0,
+      "latencyMs": { "p50": 1139.9, "p95": 3221.88, "p99": 3221.88 },
+      "successful": 4,
+      "health": "ok",
+      "windowAvailPct": 100
+    },
+    "probeContended": false,
+    "measurementPolicy": "independent-probe-v1",
+    "breakingPoint": { "reached": false, "sustainedRps": 592 },
+    "wrs": {
+      "detection": 95,
+      "mitigation": 93.33,
+      "availability": 100,
+      "collateral": 100,
+      "wrs": 97,
+      "level": "A+",
+      "estimated": true
+    },
+    "posture": {
+      "waf": false,
+      "cdn": false,
+      "rateLimiting": false,
+      "loadBalancer": false,
+      "hsts": false,
+      "securityHeaders": [],
+      "server": "nginx/1.30.4",
+      "signals": []
+    },
+    "timeline": [
+      { "t": 1, "rps": 0, "sent": 0, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 2, "rps": 554.34, "sent": 556, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 3, "rps": 592.02, "sent": 1187, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 4, "rps": 575.99, "sent": 1732, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 5, "rps": 568.26, "sent": 2277, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 6, "rps": 553.43, "sent": 2771, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 7, "rps": 526.63, "sent": 3164, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 8, "rps": 503.14, "sent": 3526, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 9, "rps": 517.8, "sent": 4146, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 10, "rps": 510.99, "sent": 4603, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 11, "rps": 517.89, "sent": 5183, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 12, "rps": 522.71, "sent": 5754, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 13, "rps": 523.23, "sent": 6283, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 14, "rps": 530.02, "sent": 6894, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 15, "rps": 530.27, "sent": 7428, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 16, "rps": 527.59, "sent": 7918, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 17, "rps": 525.74, "sent": 8416, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 18, "rps": 531.4, "sent": 9038, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 19, "rps": 534.98, "sent": 9634, "failed": 27, "probe5xx": 0, "availPct": 100 },
+      { "t": 20, "rps": 534.51, "sent": 10160, "failed": 29, "probe5xx": 0, "availPct": 100 },
+      { "t": 21, "rps": 531.41, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 },
+      { "t": 22, "rps": 506.14, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 },
+      { "t": 23, "rps": 506.14, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 },
+      { "t": 24, "rps": 506.14, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 },
+      { "t": 25, "rps": 506.14, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 },
+      { "t": 26, "rps": 506.14, "sent": 10633, "failed": 43, "probe5xx": 0, "availPct": 100 }
+    ],
+    "baseline": {
+      "samples": 3,
+      "availabilityPct": 100,
+      "latencyMs": { "p50": 62.66, "p95": 70.73 }
+    },
+    "baselineDelta": {
+      "latencyP50DeltaMs": 1077.24,
+      "latencyP95DeltaMs": 3151.15,
+      "availabilityDeltaPct": 0
+    },
+    "engine": "vegeta",
+    "absorption": {
+      "configuredRps": 800,
+      "expectedRps": 800,
+      "achievedRps": 510.92,
+      "originRps": 380.8529463811715,
+      "absorbedRatio": 0.005268996117581808,
+      "absorbedPct": 0.5,
+      "totalRequests": 10818,
+      "offeredShortfall": 0.36134999999999995,
+      "rejectedRatio": 0,
+      "tarpitRatio": 0.005268996117581808
+    },
+    "confidence": { "degraded": false, "reasons": [], "peakEventLoopLagMs": 20.440878616480163 },
+    "assessment": {
+      "shape": "ZeroBS GET 800 · 200 connections",
+      "drs": "—",
+      "status": "COMPLETED",
+      "vector": "http-get",
+      "isSlowConnection": false,
+      "configuredRps": 800,
+      "expectedRps": 800,
+      "achievedRps": 511,
+      "originRps": 381,
+      "deliveryRatio": 0.63865,
+      "underDelivered": true,
+      "availabilityPct": 100,
+      "absorbedPct": 0.5,
+      "rejectedPct": 0,
+      "tarpitPct": 0.5,
+      "wrs": 97,
+      "level": "A+",
+      "mechanism": "served",
+      "verdict": "inconclusive",
+      "confident": false,
+      "caveats": [
+        "Delivered only 64% of the intended offered rate (511/800 req/s) — a generator-side shortfall, so resilience at the full DRS — rate is unproven."
+      ],
+      "observation": "Delivered only 64% of the intended offered rate (511/800 req/s) — a generator-side shortfall, so this is INCONCLUSIVE at the DRS — rate. At the delivered rate successful HTTP responses were observed and legitimate availability held at 100%. WRS 97 (A+).",
+      "label": "inconclusive"
+    }
+  },
+  {
+    "runId": "2213ff37-edf2-4adb-b513-737badda8a20",
+    "campaignId": "cedca87a-c7d5-45d4-8010-b955afe955f7",
+    "status": "COMPLETED",
+    "generator": {
+      "id": "2213ff37-edf2-4adb-b513-737badda8a20",
+      "config": {
+        "execution": {
+          "engine": "vegeta",
+          "runtime": "v22.23.2",
+          "sourceRef": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+          "probeUrl": "http://127.0.0.1:18082/",
+          "probeVantage": "local"
+        },
+        "url": "http://127.0.0.1:18082/",
+        "method": "GET",
+        "headers": { "X-WEDOS-TEST": "cedca87a-c7d5-45d4-8010-b955afe955f7:1792235668864" },
+        "concurrency": 100,
+        "durationSec": 20,
+        "maxRps": 800,
+        "slowloris": false,
+        "authorized": true
+      },
+      "startedAt": "2026-10-17T11:14:31.145Z",
+      "finishedAt": "2026-10-17T11:14:51.468Z",
+      "totalRequests": 14190,
+      "successful": 14190,
+      "failed": 0,
+      "statusCounts": { "2xx": 14190 },
+      "latencyMs": {
+        "min": 60.4,
+        "max": 3076.37,
+        "mean": 140.48,
+        "p50": 129.72,
+        "p95": 206.02,
+        "p99": 283.98
+      },
+      "actualRps": 698.16,
+      "errors": {},
+      "latencyMethod": "native-combined-results"
+    },
+    "probe": {
+      "samples": 4,
+      "available": 4,
+      "errorRate5xx": 0,
+      "latencyMs": { "p50": 170.73, "p95": 249.18, "p99": 249.18 },
+      "successful": 4,
+      "health": "ok",
+      "windowAvailPct": 100
+    },
+    "probeContended": false,
+    "measurementPolicy": "independent-probe-v1",
+    "breakingPoint": { "reached": false, "sustainedRps": 704 },
+    "wrs": {
+      "detection": 95,
+      "mitigation": 93.33,
+      "availability": 100,
+      "collateral": 100,
+      "wrs": 97,
+      "level": "A+",
+      "estimated": true
+    },
+    "posture": {
+      "waf": false,
+      "cdn": false,
+      "rateLimiting": false,
+      "loadBalancer": false,
+      "hsts": false,
+      "securityHeaders": [],
+      "server": "nginx/1.30.4",
+      "signals": []
+    },
+    "timeline": [
+      { "t": 1, "rps": 0, "sent": 0, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 2, "rps": 385.39, "sent": 385, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 3, "rps": 507.74, "sent": 1017, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 4, "rps": 603.06, "sent": 1811, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 5, "rps": 653.6, "sent": 2617, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 6, "rps": 638.69, "sent": 3196, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 7, "rps": 629.31, "sent": 3779, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 8, "rps": 631.55, "sent": 4424, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 9, "rps": 629.61, "sent": 5040, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 10, "rps": 630.21, "sent": 5675, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 11, "rps": 637.68, "sent": 6380, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 12, "rps": 645.52, "sent": 7104, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 13, "rps": 661.14, "sent": 7937, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 14, "rps": 663.8, "sent": 8632, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 15, "rps": 668.12, "sent": 9357, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 16, "rps": 674.51, "sent": 10121, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 17, "rps": 683.41, "sent": 10938, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 18, "rps": 689.96, "sent": 11732, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 19, "rps": 704.14, "sent": 12678, "failed": 0, "probe5xx": 0, "availPct": 100 },
+      { "t": 20, "rps": 700.38, "sent": 13310, "failed": 0, "probe5xx": 0, "availPct": 100 }
+    ],
+    "baseline": {
+      "samples": 3,
+      "availabilityPct": 100,
+      "latencyMs": { "p50": 71.3, "p95": 113.42 }
+    },
+    "baselineDelta": {
+      "latencyP50DeltaMs": 99.43,
+      "latencyP95DeltaMs": 135.76,
+      "availabilityDeltaPct": 0
+    },
+    "engine": "vegeta",
+    "absorption": {
+      "configuredRps": 800,
+      "expectedRps": 800,
+      "achievedRps": 698.16,
+      "originRps": 614.8446639802418,
+      "absorbedRatio": 0,
+      "absorbedPct": 0,
+      "totalRequests": 14190,
+      "offeredShortfall": 0.12730000000000008,
+      "rejectedRatio": 0,
+      "tarpitRatio": 0
+    },
+    "confidence": { "degraded": false, "reasons": [], "peakEventLoopLagMs": 20.49834033187773 },
+    "assessment": {
+      "shape": "ZeroBS GET qualification 800",
+      "drs": "—",
+      "status": "COMPLETED",
+      "vector": "http-get",
+      "isSlowConnection": false,
+      "configuredRps": 800,
+      "expectedRps": 800,
+      "achievedRps": 698,
+      "originRps": 615,
+      "deliveryRatio": 0.8726999999999999,
+      "underDelivered": false,
+      "availabilityPct": 100,
+      "absorbedPct": 0,
+      "rejectedPct": 0,
+      "tarpitPct": 0,
+      "wrs": 97,
+      "level": "A+",
+      "mechanism": "served",
+      "verdict": "held",
+      "confident": true,
+      "caveats": [],
+      "observation": "Successful HTTP responses: ~615 req/s; generator failure ratio: 0% (origin/edge attribution requires telemetry); legitimate availability held at 100%. WRS 97 (A+).",
+      "label": "held"
+    }
+  }
+]

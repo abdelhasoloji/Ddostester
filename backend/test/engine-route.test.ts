@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { highRateEngineUpgrade } from '../src/modules/campaigns/engine-route.js';
+import {
+  highRateEngineUpgrade,
+  builtinUnderDeliveryReason,
+} from '../src/modules/campaigns/engine-route.js';
 import type { Campaign } from '../src/modules/campaigns/model.js';
 
 const CEIL = 150;
@@ -124,5 +127,34 @@ describe('highRateEngineUpgrade (measurement-fidelity routing)', () => {
         CONC,
       ),
     ).toBe('vegeta');
+  });
+});
+
+describe('builtinUnderDeliveryReason (refuse, never silently under-deliver)', () => {
+  const guards = (over: { maxRps: number; concurrency: number; calibrate?: boolean }) =>
+    builtinUnderDeliveryReason(over, 'builtin-http', CEIL, CONC);
+
+  it('allows a built-in run at or below its measured ceiling', () => {
+    expect(guards({ maxRps: 150, concurrency: 300 })).toBeNull();
+    expect(guards({ maxRps: 20, concurrency: 5 })).toBeNull();
+  });
+
+  it('refuses a built-in run above the rate ceiling', () => {
+    expect(guards({ maxRps: 151, concurrency: 10 })).toContain('would silently under-deliver');
+  });
+
+  it('refuses a built-in run above the concurrency ceiling', () => {
+    expect(guards({ maxRps: 100, concurrency: 301 })).toContain('would silently under-deliver');
+  });
+
+  it('accepts an over-ceiling run that opted into calibration', () => {
+    expect(guards({ maxRps: 800, concurrency: 200, calibrate: true })).toBeNull();
+  });
+
+  it('never blocks an out-of-process or fleet engine', () => {
+    for (const engine of ['vegeta', 'k6', 'kubernetes-fleet', 'locust'])
+      expect(
+        builtinUnderDeliveryReason({ maxRps: 800, concurrency: 200 }, engine, CEIL, CONC),
+      ).toBeNull();
   });
 });

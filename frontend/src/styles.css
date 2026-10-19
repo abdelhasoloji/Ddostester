@@ -105,12 +105,18 @@ body {
   display: none;
 }
 @media (prefers-color-scheme: dark) {
-  .logo-light {
+  :root:not([data-theme='light']) .logo-light {
     display: none;
   }
-  .logo-dark {
+  :root:not([data-theme='light']) .logo-dark {
     display: block;
   }
+}
+:root[data-theme='dark'] .logo-light {
+  display: none;
+}
+:root[data-theme='dark'] .logo-dark {
+  display: block;
 }
 .brand-tag {
   font-size: 0.68rem;
@@ -167,8 +173,8 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 1.25rem;
-  margin: 1.25rem 0;
+  padding: 1rem;
+  margin: 1rem 0;
 }
 .card h2 {
   font-size: 1.05rem;
@@ -182,7 +188,7 @@ body {
 /* Form */
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem 1.1rem;
 }
 @media (max-width: 620px) {
@@ -948,7 +954,11 @@ input.invalid {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   max-width: 460px;
   width: 100%;
-  padding: 1.4rem;
+  padding: 1.1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
 }
 .modal h3 {
   margin: 0 0 0.6rem;
@@ -1712,7 +1722,7 @@ input.invalid {
 
 .account-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 1rem;
   align-items: start;
 }
@@ -1818,7 +1828,7 @@ input.invalid {
 .main {
   max-width: 1040px;
   width: 100%;
-  padding: 1.5rem 1.75rem 4rem;
+  padding: 1.1rem 1.5rem 2rem;
 }
 .page-head {
   margin-bottom: 0.5rem;
@@ -1870,7 +1880,7 @@ input.invalid {
   font-weight: 600;
 }
 .ws-panel {
-  padding: 1rem 0 0.25rem;
+  padding: 0.6rem 0 0.25rem;
 }
 
 /* ---------- Global motion & interaction polish ----------
@@ -1887,13 +1897,13 @@ input.invalid {
     transform: none;
   }
 }
-/* Routed page content (keyed by pathname in Layout) fades up on navigation. */
+/* Keep routed content readable immediately; live widgets retain their own motion. */
 .route-fade {
-  animation: fadeInUp 0.28s ease both;
+  animation: none;
 }
-/* The active tab's content (a fresh component per tab) fades up on switch. */
+/* Tab changes must not briefly fade labels and controls out of view. */
 .ws-panel > * {
-  animation: fadeInUp 0.24s ease both;
+  animation: none;
 }
 /* One accessible focus ring for interactive elements that don't define their
    own :focus style (buttons, links, nav). Zero-specificity :where() so any
@@ -1940,7 +1950,7 @@ input.invalid {
     align-items: center;
   }
   .main {
-    padding: 1.25rem 1.15rem 4rem;
+    padding: 1rem 1.15rem 2rem;
   }
 }
 
@@ -2565,7 +2575,7 @@ input.invalid {
 }
 .run-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 0.75rem;
 }
 .run-metrics-panel {
@@ -3451,7 +3461,8 @@ input.invalid {
 .tpl-summary {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   padding: 0.6rem 0.8rem;
   cursor: pointer;
   list-style: none;
@@ -3470,6 +3481,9 @@ input.invalid {
 }
 .tpl-name {
   font-weight: 600;
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .tpl-steps-count {
   font-size: 0.72rem;
@@ -3490,10 +3504,9 @@ input.invalid {
 .tpl-oneline {
   color: var(--muted);
   font-size: 0.82rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   white-space: nowrap;
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
 }
 .tpl-detail {
@@ -4263,6 +4276,10 @@ table.remediations td {
   margin-bottom: 8px;
 }
 .tm-v {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
   font-size: 2.1rem;
   font-weight: 700;
   line-height: 1;
@@ -4273,7 +4290,9 @@ table.remediations td {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--muted);
-  margin-left: 5px;
+  margin-left: 0;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 .tm-v.good {
   color: var(--success);
@@ -4295,6 +4314,7 @@ table.remediations td {
 
 /* ── Suite theater: the whole multi-step assessment as one live surface ── */
 .suite-theater-card {
+  padding: 14px 18px;
   overflow: hidden;
 }
 .suite-theater {
@@ -4304,21 +4324,28 @@ table.remediations td {
 }
 .stheater-head {
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
+.stheater-id {
+  flex: 1;
+  min-width: 0;
+}
 .stheater-title {
-  font-size: 1.2rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+  font-size: 1rem;
   font-weight: 780;
   letter-spacing: -0.015em;
-  text-wrap: balance;
 }
 .stheater-progress-wrap {
   margin-left: auto;
-  min-width: 220px;
-  flex: 1;
-  max-width: 360px;
+  min-width: 160px;
+  flex: 0 1 220px;
+  max-width: 220px;
 }
 .stheater-progress-label {
   display: flex;
@@ -4483,6 +4510,10 @@ table.remediations td {
   border-color: var(--success);
   background: color-mix(in srgb, var(--success) 16%, var(--surface));
   color: var(--success);
+}
+.step-failed .step-dot {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .step-run .step-dot {
   border-color: var(--success);
@@ -6964,6 +6995,14 @@ table.remediations td {
   gap: 1rem;
   margin-bottom: 1rem;
 }
+.fleet-toolbar h2 {
+  margin: 0;
+}
+.fleet-toolbar > a,
+.fleet-toolbar h2 ~ .btn {
+  margin-left: auto;
+  align-self: center;
+}
 .fleet-toolbar label,
 .fleet-form-grid label {
   display: grid;
@@ -7234,4 +7273,594 @@ table.remediations td {
 }
 .drs-assessment-workspace .hint {
   overflow-wrap: anywhere;
+}
+
+/* Quiet campaign workspace: one template entry, restrained monochrome chrome. */
+.line-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-link {
+  border-radius: 6px;
+  font-weight: 500;
+}
+.nav-link.active::before {
+  animation: none;
+  border-radius: 1px;
+  width: 2px;
+}
+.nav-link-primary,
+.nav-link-primary.active {
+  background: transparent;
+}
+.nav-link.active {
+  background: var(--surface-2);
+  color: var(--brand);
+}
+.help-tip {
+  display: inline-flex;
+  position: relative;
+  vertical-align: middle;
+  margin-inline: 0.3rem;
+  font-size: 0.8rem;
+}
+.help-tip > button {
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+  border-radius: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0;
+  line-height: 1;
+  cursor: help;
+}
+.help-tooltip {
+  position: fixed;
+  z-index: 80;
+  width: min(19rem, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  font-size: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 5px 18px #0002;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+}
+.help-tip > button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.workspace-help {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -1.5rem;
+  margin-bottom: 0.8rem;
+}
+.campaign-workspace .card,
+.campaign-workspace .tpl-row {
+  border-radius: 7px;
+  box-shadow: none;
+}
+.campaign-workspace .tpl-launchbar::before {
+  display: none;
+}
+.campaign-workspace .tpl-summary {
+  padding-block: 0.65rem;
+}
+.campaign-workspace .engine-badge {
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 500;
+}
+.campaign-workspace .ws-tabs {
+  margin-bottom: 1.2rem;
+}
+.template-option {
+  border-bottom: 1px solid var(--border);
+  padding: 0.7rem 0;
+  margin-bottom: 0.6rem;
+}
+.template-option > summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.template-option[open] > summary {
+  margin-bottom: 0.8rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-link {
+    transition: none;
+  }
+}
+
+.campaign-workspace .tpl-row {
+  overflow: visible;
+}
+.campaign-workspace .tpl-created {
+  display: none;
+}
+
+/* Keep campaign controls together so charts start near the top of the page. */
+.run-theater-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.run-theater-toolbar .page-title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+.run-theater-toolbar nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.run-theater-toolbar .page-actions {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .stheater-id {
+    flex-basis: 100%;
+  }
+  .stheater-progress-wrap {
+    max-width: none;
+    flex: 1;
+  }
+}
+
+/* Protected zones: current authorization is distinct from retained campaign evidence. */
+.zones-workspace {
+  margin-bottom: 16px;
+}
+.zones-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.zones-section-head h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.zones-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.zones-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 14px 0;
+  margin: 12px 0;
+  border-block: 1px solid var(--border);
+  font-size: 0.86rem;
+}
+.zones-summary b {
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.zones-search input {
+  flex: 1;
+  min-width: 180px;
+}
+.zones-search select {
+  width: auto;
+  min-width: 170px;
+}
+.zones-workspace .target-row {
+  padding: 14px;
+  border-radius: 8px;
+}
+.zones-workspace .target-row-env {
+  border-left: 1px solid var(--border);
+  background: transparent;
+}
+.zones-workspace .target-host {
+  overflow-wrap: anywhere;
+}
+.zones-workspace .target-sub:empty {
+  display: none;
+}
+.zone-target-detail {
+  grid-area: req;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 8px;
+  min-width: 0;
+}
+.zone-target-detail .target-actions {
+  justify-content: flex-start;
+}
+.zone-target-detail .target-edit {
+  display: block;
+}
+.zone-target-detail .target-edit .btn {
+  margin-top: 8px;
+}
+.zones-table-wrap {
+  overflow-x: auto;
+}
+.zones-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.84rem;
+}
+.zones-history-table th,
+.zones-history-table td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.zones-history-table th {
+  font-weight: 600;
+  color: var(--muted);
+}
+.zone-history > .zones-section-head > .btn {
+  padding-left: 0;
+  font-weight: 650;
+}
+.zone-history .zones-tools {
+  margin-top: 14px;
+}
+.zones-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.zones-pagination .hint {
+  margin-right: auto;
+}
+@media (max-width: 850px) {
+  .zones-workspace .target-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'main' 'sub' 'actions' 'req';
+    gap: 10px;
+  }
+  .zones-workspace .target-actions {
+    justify-content: flex-start;
+  }
+  .zones-summary .hint {
+    flex-basis: 100%;
+  }
+}
+
+.zones-history-table .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 850px) {
+  .zones-search select {
+    width: 100%;
+  }
+  .zones-workspace .target-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .zone-target-detail .target-request {
+    flex-wrap: wrap;
+  }
+}
+
+/* Shared density and alignment, including long translated labels. */
+.main,
+.field,
+.grid > *,
+.card-head > * {
+  min-width: 0;
+}
+.card-head {
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.card-head h2 {
+  margin-bottom: 0;
+}
+.field input,
+.field select,
+.field textarea {
+  max-width: 100%;
+}
+.btn-row {
+  flex-wrap: wrap;
+  align-items: center;
+}
+@media (max-width: 620px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .main {
+    padding: 1rem 0.8rem 1.5rem;
+  }
+  .modal {
+    padding: 1rem;
+  }
+  .modal .btn-row > .btn {
+    flex: 1 1 auto;
+  }
+}
+
+.account-grid > .card {
+  margin: 0;
+}
+.assistant-chat-page .assistant-hero {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0;
+}
+
+.ws-panel > .card:first-child,
+.drs-assessment-workspace > .card:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    padding: 0.65rem 0.8rem;
+    gap: 0.5rem;
+  }
+  .sidebar-brand {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .sidebar .brand-logo {
+    height: 24px;
+  }
+  .nav {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
+  .nav-link {
+    flex: 0 0 auto;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+  }
+  .sidebar-foot {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .tpl-name {
+    flex-basis: calc(100% - 80px);
+  }
+}
+
+/* Run graphs: quiet overview, one detailed graph at a time. */
+.graphs-toolbar,
+.graph-card-head,
+.graph-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.graphs-toolbar {
+  margin-bottom: 0.65rem;
+}
+.graphs-toolbar h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.graph-catalogue {
+  margin-left: auto;
+  position: relative;
+}
+.graph-catalogue summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.graph-catalogue-list {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 55dvh;
+  overflow: auto;
+  padding: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.graph-catalogue-list > label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  font-size: 0.82rem;
+}
+.graph-catalogue-list > label > span {
+  flex: 1;
+}
+.graph-catalogue-list small {
+  display: block;
+  color: var(--muted);
+}
+.graphs-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+.graph-card-head {
+  flex-wrap: nowrap;
+  font-size: 0.8rem;
+  min-height: 32px;
+  margin-bottom: 0.4rem;
+}
+.graph-card-head > span {
+  min-width: 0;
+}
+.graph-card-head small {
+  color: var(--muted);
+}
+.graph-card-head > button {
+  flex: none;
+}
+.graph-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.graph-empty {
+  min-height: 150px;
+  display: grid;
+  align-content: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.graph-modal {
+  max-width: 1100px;
+}
+.graph-detail-head h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+.graph-detail-head small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.graph-detail-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+.graph-detail-controls label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  max-width: 100%;
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.graph-detail-controls select {
+  text-overflow: ellipsis;
+}
+.graph-detail-chart {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.graph-series,
+.graph-evidence-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.8rem 0;
+  font-size: 0.8rem;
+}
+.graph-series label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.graph-evidence-strip {
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 0.65rem;
+}
+@media (max-width: 620px) {
+  .graph-detail-controls > button {
+    flex: 1 1 auto;
+  }
+  .graph-detail-controls label {
+    flex-basis: 100%;
+  }
+}
+
+/* Pre-step review: aligned fields with their server-provided bounds. */
+.parameter-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.parameter-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.parameter-fields label {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+.parameter-fields input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.parameter-fields small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.parameter-phase {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.parameter-phase legend {
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+.parameter-form .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+@media (max-width: 480px) {
+  .parameter-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

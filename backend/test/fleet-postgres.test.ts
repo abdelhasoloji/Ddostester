@@ -239,4 +239,57 @@ if (process.env.REQUIRE_POSTGRES_TESTS === '1' && !url)
       ),
     ).rejects.toThrow('Duplicate agents');
   });
+  it('records certificate presence and reports its health', async () => {
+    const at = now;
+    const expiry = at + 3 * 86_400_000;
+    await coordinator.recordPresence('one', 'vps-lab', expiry);
+    expect((await coordinator.presence()).find((row) => row.agentId === 'one')).toMatchObject({
+      site: 'vps-lab',
+      certExpiresAt: expiry,
+      lastSeen: at,
+    });
+    const status = await inspectFleet(pool, at);
+    expect(status.certificates.find((row) => row.agentId === 'one')).toMatchObject({
+      site: 'vps-lab',
+      expiresAt: expiry,
+      daysRemaining: 3,
+      status: 'expiring',
+    });
+  });
+  it('records the originating site with each shard', async () => {
+    now += 60_000;
+    const runId = randomUUID();
+    await coordinator.plan(
+      {
+        runId,
+        campaignId: randomUUID(),
+        agentIds: ['one', 'two', 'three'],
+        sites: [
+          { agentId: 'one', site: 'vps-lab' },
+          { agentId: 'two', site: 'vps-lab' },
+          { agentId: 'three', site: 'ac02' },
+        ],
+        target: 'http://target.test:8080/',
+        maxRps: 15,
+        concurrency: 6,
+        durationSec: 30,
+      },
+      policy,
+    );
+    created.push(runId);
+    const snapshot = await coordinator.snapshot(runId);
+    expect(
+      Object.fromEntries((snapshot?.shards ?? []).map((shard) => [shard.agentId, shard.site])),
+    ).toEqual({ one: 'vps-lab', two: 'vps-lab', three: 'ac02' });
+    const status = await inspectFleet(pool, now);
+    expect(status.agents.find((entry) => entry.agentId === 'three')?.site).toBe('ac02');
+  });
+  it('serves planned work to a worker that does not know the runId', async () => {
+    now += 60_000;
+    const runId = await plan();
+    const assignment = await coordinator.claimNext('one');
+    expect(assignment).toMatchObject({ runId, agentId: 'one' });
+    // The shard is RUNNING now: a second poll must not hand out work twice.
+    expect(await coordinator.claimNext('one')).toBeNull();
+  });
 });

@@ -1,0 +1,39 @@
+{
+  "completedAt": "2026-10-17T12:43:15.576Z",
+  "source": "b862610d5d0dc1985187302b73eaf643d900d913",
+  "build": 476,
+  "environment": "Isolated lab MemoryStore, candidate API/UI source b862610, development team authentication; no production user workflow",
+  "ladder": "network-drs345",
+  "executed": [
+    "udp_dns_reflection",
+    "udp_ntp_reflection",
+    "tcp_synflood",
+    "udp_maxpackets",
+    "udp_ssdp_reflection",
+    "tcp_maxpackets",
+    "udp_cldap_reflection",
+    "quic_init_pressure",
+    "tcp_conn_drain",
+    "udp_memcached_reflection",
+    "udp_multivector",
+    "pulsewave_l34"
+  ],
+  "unsupported": [
+    "ip_spoofing",
+    "udp_fragmentation",
+    "tcp_fragmentation",
+    "tcp_multivector",
+    "multiproto_multivector",
+    "gre_packets"
+  ],
+  "drsQualification": false,
+  "visualAcceptance": {
+    "liveCoverageWithoutReload": 12,
+    "tcpCounters": true,
+    "aggregateSaturations": 3,
+    "aggregateUnmitigatedBaselines": 9,
+    "missingHttpScoreNotInvented": true
+  },
+  "sameNativeArtifactBytes": false,
+  "artifactNote": "Lab build produced on Mac from exact candidate source; native Linux release separately built and gated before promotion."
+}

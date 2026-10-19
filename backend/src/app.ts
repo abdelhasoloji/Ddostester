@@ -1,3 +1,9 @@
+import { parameterBudget } from './modules/campaigns/parameter-budget.js';
+import {
+  parameterInput,
+  parameterRevision,
+  editableParameters,
+} from './modules/campaigns/parameters.js';
 import { DrsBaselineError } from './modules/drs/baseline.js';
 import { transition as transitionDrs, finalize as finalizeDrs } from './modules/drs/workflow.js';
 import { runAttachment } from './modules/drs/attachments.js';
@@ -67,7 +73,10 @@ import {
   withinCeiling,
   remoteProbeFromEnv,
 } from './config/limits.js';
-import { highRateEngineUpgrade } from './modules/campaigns/engine-route.js';
+import {
+  highRateEngineUpgrade,
+  builtinUnderDeliveryReason,
+} from './modules/campaigns/engine-route.js';
 import type { HardCaps } from './config/limits.js';
 import {
   BENCH_SCENARIOS,
@@ -153,10 +162,10 @@ export interface BuildOptions {
   /** Load agent (default: built-in bounded HTTP generator). */
   agent?: AttackAgent;
   /**
-   * Auto-route a high-rate simple flood off the built-in engine (which caps
-   * ~150 rps) onto an available out-of-process engine so it delivers the
-   * configured rate. Default true; set false to pin every run to its chosen
-   * engine (e.g. for deterministic tests).
+   * Auto-route a high-rate simple flood off the built-in engine (whose measured
+   * ceiling is `BUILTIN_RPS_CEILING`) onto an available out-of-process engine so
+   * it delivers the configured rate. Default true; set false to pin every run to
+   * its chosen engine (e.g. for deterministic tests).
    */
   autoRouteHighRps?: boolean;
   /** Notification sink (default: no-op — notifications are opt-in). */
@@ -669,6 +678,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     }
     if (kills.count() >= maxConcurrentRuns)
       throw new CampaignError('Concurrent run budget exhausted.');
+    if (parameterEdits.has(c.id)) throw new CampaignError('Campaign parameters are being updated.');
     const kill = new KillSwitch();
     kills.set(c.id, kill);
     const liveLabels = { target: new URL(c.target).hostname, vector: c.vector };
@@ -684,11 +694,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       await store.saveCampaign(c);
       onStarted?.();
       let runAgent = await resolveCampaignAgent(c.agent, agent);
-      // Measurement fidelity: the in-process built-in generator caps out ~150 rps
-      // and silently under-delivers above it. When a high-rate simple flood would
-      // run on the built-in engine, auto-route it to an out-of-process engine
-      // (vegeta/k6) that can actually deliver the configured rate — but only if
-      // that engine is installed; otherwise keep built-in (still bounded/safe,
+      // Measurement fidelity: the in-process built-in generator caps out at
+      // BUILTIN_RPS_CEILING and silently under-delivers above it. When a
+      // high-rate simple flood would run on the built-in engine, auto-route it
+      // to an out-of-process engine (vegeta/k6) that can actually deliver the
+      // configured rate — but only if that engine is installed; otherwise keep
+      // built-in (still bounded/safe,
       // just rate-limited). See modules/campaigns/engine-route.ts.
       if (!c.agent && (opts.autoRouteHighRps ?? true) && runAgent.name === 'builtin-http') {
         const upgradeId = highRateEngineUpgrade(
@@ -717,6 +728,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           }
         }
       }
+      // Delivery fidelity (a measurement rule, NOT a safety cap): the in-process
+      // engine is measured at BUILTIN_RPS_CEILING / BUILTIN_CONCURRENCY_CEILING and
+      // silently under-delivers above it. When the high-rate upgrade could not
+      // hand the run to an out-of-process engine — the shape is built-in-only
+      // (dataset, body assertion, slowloris) or the binary is not installed —
+      // refusing is the
+      // honest outcome: the campaign would otherwise be graded on traffic that
+      // never arrived. `calibrate: true` is the explicit opt-in that measures the
+      // delivered amplitude and records it as calibrated instead.
+      const underDelivery = builtinUnderDeliveryReason(
+        c,
+        runAgent.name,
+        BUILTIN_RPS_CEILING,
+        BUILTIN_CONCURRENCY_CEILING,
+      );
+      if (underDelivery) throw new CampaignError(underDelivery);
       // Track the worst event-loop lag seen during the run so we can flag the WRS
       // as measurement-degraded if the generator host was itself struggling.
       let peakEventLoopLagMs = 0;
@@ -743,37 +770,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           status: 'RUNNING',
           engine: runAgent.name,
         });
-        // Same definitions the Run Theater cards use (see frontend RunTheater):
-        // offered = achieved RPS, reached-origin = successful/elapsed, absorbed =
-        // failed/sent, probe availability from the live probe snapshot.
-        const originRps = p.elapsedSec > 0 ? p.successful / p.elapsedSec : 0;
-        const absorbed = p.sent > 0 ? p.failed / p.sent : 0;
-        metrics.setGauge(
-          'shieldtest_run_live_offered_rps',
-          'Live offered RPS of the in-flight run',
-          p.actualRps,
-          liveLabels,
-        );
-        metrics.setGauge(
-          'shieldtest_run_live_successful_rps',
-          'Live RPS returning successful HTTP responses (successful) of the in-flight run',
-          originRps,
-          liveLabels,
-        );
-        metrics.setGauge(
-          'shieldtest_run_live_failed_ratio',
-          'Live generator failure ratio (failed/sent); no edge attribution',
-          absorbed,
-          liveLabels,
-        );
-        if (p.probe && p.probe.samples > 0) {
-          metrics.setGauge(
-            'shieldtest_run_live_probe_avail_pct',
-            'Live legit-probe availability % of the in-flight run',
-            (p.probe.available / p.probe.samples) * 100,
-            liveLabels,
-          );
-        }
+        // The runner alone publishes Prometheus live gauges, on the same clock
+        // and with the same provenance as its persisted samples.
       };
       // Seed a zeroed progress record immediately: the run opens with a baseline
       // capture (up to ten minutes for DRS) during which the engine emits no
@@ -781,6 +779,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // the UI the run is "done", stranding the progress view on "Starting run…".
       // Cleared in the finally below; onProgress overwrites it once load begins.
       onProgress({
+        generatorObserved: false,
         sent: 0,
         successful: 0,
         failed: 0,
@@ -886,7 +885,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         totalRequests: run.generator.totalRequests,
         successful: run.generator.successful,
         failed: run.generator.failed,
-        durationSec: runDurationSec,
+        // Successful and offered rates must share the generator's window,
+        // excluding orchestration/baseline time from the response-rate divisor.
+        durationSec:
+          run.generator.actualRps > 0
+            ? run.generator.totalRequests / run.generator.actualRps
+            : runDurationSec,
         rejected,
         tarpitted,
       });
@@ -990,6 +994,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         drs: /DRS\s*([0-9])/i.exec(c.name)?.[1] ?? '—',
         status: run.status,
         vector: c.vector,
+        h2Confirmed: c.reconPosture?.h2,
       });
       // Bilateral corroboration (I1): if an edge source is configured, compare our
       // inferred absorption with the edge's own reported blocked/seen counts.
@@ -1161,6 +1166,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         ...transition(c, 'APPROVED'),
         statusDetail: `Last run failed (reference ${diagnosticId}); ${reported instanceof DrsBaselineError ? reported.message : 'review before retrying.'}`,
       });
+      await auditAs(
+        actor,
+        'campaign.execute',
+        c.id,
+        `Execution failed (reference ${diagnosticId}); ${(reported as Error).message}`,
+      );
       throw reported;
     } finally {
       if (countedInFlight)
@@ -1198,6 +1209,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // is exposed via GET /api/suites/sequences so the UI can render the state.
   interface SuiteControl {
     paused: boolean;
+    pauseBetweenSteps?: boolean;
+    editing?: boolean;
     cancelled: boolean;
     /** The member campaign currently executing (for a cancel to kill it). */
     current?: string;
@@ -1256,13 +1269,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         .filter((c) => c.suiteId === suiteId)
         .sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0));
       ctrl.total = members.length;
-      for (const m of members) {
+      for (const [memberIndex, m] of members.entries()) {
         if (ctrl.cancelled) break;
         // Pause gate: hold between steps while paused (a cancel breaks out).
         while (ctrl.paused && !ctrl.cancelled) await sleepMs(400);
         if (ctrl.cancelled) break;
         // Re-fetch: earlier steps may have changed state (and to see manual kills).
-        const c = await store.getCampaign(m.id);
+        let c = await store.getCampaign(m.id);
         if (!c) continue;
         // Two-step flow: a CISO approves the scenario (POST /suites/:id/approve)
         // before an engineer runs it (POST /suites/:id/run, which refuses to start
@@ -1337,7 +1350,10 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
             `recovery available after ${secs}s — proceeding; ${JSON.stringify(gate)}`,
           );
         }
+        while (ctrl.paused && !ctrl.cancelled) await sleepMs(400);
         if (ctrl.cancelled) break;
+        c = await store.getCampaign(m.id);
+        if (!c || c.status !== 'APPROVED') continue;
         ctrl.current = c.id;
         ctrl.started += 1;
         try {
@@ -1347,6 +1363,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           await auditAs(actor, 'suite.skip', c.id, `run error: ${(err as Error).message}`);
         } finally {
           ctrl.current = undefined;
+        }
+        if (
+          ctrl.pauseBetweenSteps &&
+          members
+            .slice(memberIndex + 1)
+            .some((next) => ['APPROVED', 'PENDING_APPROVAL'].includes(next.status))
+        ) {
+          ctrl.paused = true;
+          await auditAs(
+            actor,
+            'suite.pause',
+            undefined,
+            `Step completed; operator review required · ${suiteId}`,
+          );
         }
       }
     } finally {
@@ -2585,6 +2615,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         const updated = approveCampaign(c, approvedBy, body.decision, body.reason, {
           singleUser: adminConfirmation(req),
         });
+        if (parameterEdits.has(c.id))
+          return reply.code(409).send({ error: 'Campaign parameters are being updated.' });
         await store.saveCampaign(updated);
         await audit(
           req,
@@ -2611,6 +2643,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         const body = (req.body ?? {}) as { cisoBy?: string };
         const cisoBy = req.authUser?.email ?? body.cisoBy ?? '';
         const updated = cisoApproveCampaign(c, cisoBy);
+        if (parameterEdits.has(c.id))
+          return reply.code(409).send({ error: 'Campaign parameters are being updated.' });
         await store.saveCampaign(updated);
         await audit(req, 'campaign.ciso_approve', c.id, `CISO sign-off by ${cisoBy}`);
         return updated;
@@ -2631,6 +2665,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         if (!c) return reply.code(404).send({ error: 'campaign not found' });
         const archived = ((req.body ?? {}) as { archived?: boolean }).archived !== false;
         const updated = setArchived(c, archived);
+        if (parameterEdits.has(c.id))
+          return reply.code(409).send({ error: 'Campaign parameters are being updated.' });
         await store.saveCampaign(updated);
         await audit(req, 'campaign.archive', c.id, archived ? 'archived' : 'unarchived');
         return updated;
@@ -2737,6 +2773,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     async (req, reply) => {
       let c = await store.getCampaign((req.params as { id: string }).id);
       if (!c) return reply.code(404).send({ error: 'campaign not found' });
+      if (parameterEdits.has(c.id))
+        return reply.code(409).send({ error: 'Campaign parameters are being updated.' });
       if (backgroundExecutions.has(c.id))
         return reply.code(409).send({ error: 'This campaign already has an execution in flight.' });
       // A step whose suite sequence is running is driven by the sequencer — a
@@ -2843,6 +2881,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       for (const m of members) {
         if (m.status !== 'PENDING_APPROVAL') continue;
         try {
+          if (parameterEdits.has(m.id))
+            throw new CampaignError('Campaign parameters are being updated.');
           await store.saveCampaign(
             approveCampaign(m, actor, 'APPROVED', undefined, {
               singleUser: adminConfirmation(req),
@@ -2906,86 +2946,207 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // Two-step flow — step 2: an engineer runs the APPROVED steps of a suite in
   // order (fire-and-forget; advances through auto-kills). Refuses to start while
   // any step is still pending — approve the scenario first.
-  app.post('/api/suites/:id/run', { preHandler: guard('campaign:execute') }, async (req, reply) => {
-    const suiteId = (req.params as { id: string }).id;
-    const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
-    if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
-    const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
-    if (adminConfirmation(req)) {
-      if ((req.body as { confirmed?: unknown } | undefined)?.confirmed !== true) {
-        return reply.code(400).send({
-          error: 'Explicit assessment confirmation is required.',
-          code: 'confirmation_required',
-        });
-      }
-      // Validate every runnable step before changing any campaign state.
+  const parameterEdits = new Set<string>();
+  app.get(
+    '/api/campaigns/:id/parameters',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      const c = await store.getCampaign((req.params as { id: string }).id);
+      if (!c) return reply.code(404).send({ error: 'campaign not found' });
       try {
-        for (const m of members) {
-          if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
-            const executionInput = { ...m };
-            delete executionInput.drsDocument;
-            createCampaign(
-              executionInput,
-              await effectiveAllowlist(),
-              agentChoices(),
-              effectiveCaps,
-            );
-            if (m.status === 'APPROVED') assertExecutable(m);
-          }
-        }
+        editableParameters(c);
       } catch (err) {
         return fail(err, reply);
       }
-    }
-    if (!adminConfirmation(req) && pending > 0) {
-      return reply.code(409).send({
-        error: `approve the scenario first — ${pending} step(s) await CISO approval`,
-      });
-    }
-    // Reserve the slot synchronously here — BEFORE the audit await below — so two
-    // near-simultaneous submits can't both pass the guard and start two
-    // sequences (which would run two steps at once).
+      return {
+        campaign: c,
+        revision: parameterRevision(c),
+        limits: clampToCeiling(await store.getLimits()),
+        builtin: { rps: BUILTIN_RPS_CEILING, concurrency: BUILTIN_CONCURRENCY_CEILING },
+      };
+    },
+  );
+  app.post(
+    '/api/campaigns/:id/parameters',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      if (parameterEdits.has(id) || backgroundExecutions.has(id) || kills.get(id))
+        return reply.code(409).send({ error: 'Campaign is busy.' });
+      parameterEdits.add(id);
+      let control: SuiteControl | undefined;
+      let editingReserved = false;
+      try {
+        const c = await store.getCampaign(id);
+        if (!c) return reply.code(404).send({ error: 'campaign not found' });
+        control = c.suiteId ? suiteRuns.get(c.suiteId) : undefined;
+        if (
+          control &&
+          (!control.paused || control.current || control.gateStartedAt || control.editing)
+        )
+          return reply
+            .code(409)
+            .send({ error: 'Pause the sequence and wait for the current step to finish.' });
+        if (control) {
+          control.editing = true;
+          editingReserved = true;
+        }
+        const body = req.body as Record<string, unknown>;
+        if (!body || body.revision !== parameterRevision(c))
+          return reply.code(409).send({ error: 'Campaign changed; reload its parameters.' });
+        const caps = clampToCeiling(await store.getLimits());
+        const input = parameterInput(c, body, caps);
+        delete input.drsDocument;
+        const validated = createCampaign(input, await effectiveAllowlist(), agentChoices(), caps);
+        const updated: Campaign = {
+          ...c,
+          maxRps: validated.maxRps,
+          concurrency: validated.concurrency,
+          maxDurationSec: validated.maxDurationSec,
+          scenario: validated.scenario,
+          createdBy: req.authUser?.email ?? 'dev',
+          status: 'PENDING_APPROVAL',
+          approvedBy: undefined,
+          approvalReason: undefined,
+          approvalExpiresAt: undefined,
+          cisoApprovedBy: undefined,
+          cisoApprovedAt: undefined,
+          statusDetail: 'Parameters changed; approval required.',
+        };
+        const saved = await store.transaction(async (tx) => {
+          const fresh = await tx.getCampaign(id);
+          if (!fresh || parameterRevision(fresh) !== body.revision) return false;
+          if (control?.cancelled) return false;
+          await tx.saveCampaign(updated);
+          await tx.saveAudit({
+            id: randomUUID(),
+            at: new Date().toISOString(),
+            actor: req.authUser?.email ?? 'dev',
+            action: 'campaign.update',
+            campaignId: id,
+            detail: JSON.stringify({
+              before: {
+                maxRps: c.maxRps,
+                concurrency: c.concurrency,
+                maxDurationSec: c.maxDurationSec,
+                scenario: c.scenario,
+              },
+              after: {
+                maxRps: updated.maxRps,
+                concurrency: updated.concurrency,
+                maxDurationSec: updated.maxDurationSec,
+                scenario: updated.scenario,
+              },
+            }),
+          });
+          return true;
+        });
+        if (!saved)
+          return reply.code(409).send({ error: 'Campaign changed; reload its parameters.' });
+        return updated;
+      } catch (err) {
+        return fail(err, reply);
+      } finally {
+        parameterEdits.delete(id);
+        if (control && editingReserved) control.editing = false;
+      }
+    },
+  );
+
+  app.post('/api/suites/:id/run', { preHandler: guard('campaign:execute') }, async (req, reply) => {
+    const runOptions = req.body as { pauseBetweenSteps?: unknown } | undefined;
+    if (
+      runOptions?.pauseBetweenSteps !== undefined &&
+      typeof runOptions.pauseBetweenSteps !== 'boolean'
+    )
+      return reply.code(400).send({ error: 'pauseBetweenSteps must be a boolean.' });
+    const suiteId = (req.params as { id: string }).id;
+    const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+    if (members.length === 0) return reply.code(404).send({ error: 'suite not found' });
+    if (members.some((m) => parameterEdits.has(m.id)))
+      return reply.code(409).send({ error: 'Campaign parameters are being updated.' });
     const ctrl = reserveSuiteRun(suiteId);
     if (!ctrl) {
       return reply.code(409).send({ error: 'this suite sequence is already running' });
     }
     ctrl.total = members.length;
-    if (adminConfirmation(req)) {
-      try {
-        for (const m of members) {
-          if (m.status === 'PENDING_APPROVAL') {
-            await store.saveCampaign(
-              approveCampaign(
-                m,
-                req.authUser!.email,
-                'APPROVED',
-                'Single-user assessment confirmation',
-                { singleUser: adminConfirmation(req) },
-              ),
-            );
-          }
+    let dispatched = false;
+    try {
+      const pending = members.filter((m) => m.status === 'PENDING_APPROVAL').length;
+      if (adminConfirmation(req)) {
+        if ((req.body as { confirmed?: unknown } | undefined)?.confirmed !== true) {
+          return reply.code(400).send({
+            error: 'Explicit assessment confirmation is required.',
+            code: 'confirmation_required',
+          });
         }
-        await audit(
-          req,
-          'campaign.confirm',
-          undefined,
-          `Assessment ${suiteId}: ${members.length} steps confirmed`,
-        );
+        // Validate every runnable step before changing any campaign state.
+        try {
+          for (const m of members) {
+            if (m.status === 'PENDING_APPROVAL' || m.status === 'APPROVED') {
+              const executionInput = { ...m };
+              delete executionInput.drsDocument;
+              createCampaign(
+                executionInput,
+                await effectiveAllowlist(),
+                agentChoices(),
+                effectiveCaps,
+              );
+              if (m.status === 'APPROVED') assertExecutable(m);
+            }
+          }
+        } catch (err) {
+          return fail(err, reply);
+        }
+      }
+      if (!adminConfirmation(req) && pending > 0) {
+        return reply.code(409).send({
+          error: `approve the scenario first — ${pending} step(s) await CISO approval`,
+        });
+      }
+      // The reserved sequence also prevents edits throughout validation and confirmation.
+      ctrl.pauseBetweenSteps =
+        (req.body as { pauseBetweenSteps?: unknown } | undefined)?.pauseBetweenSteps === true;
+      if (adminConfirmation(req)) {
+        try {
+          for (const m of members) {
+            if (m.status === 'PENDING_APPROVAL') {
+              await store.saveCampaign(
+                approveCampaign(
+                  m,
+                  req.authUser!.email,
+                  'APPROVED',
+                  'Single-user assessment confirmation',
+                  { singleUser: adminConfirmation(req) },
+                ),
+              );
+            }
+          }
+          await audit(
+            req,
+            'campaign.confirm',
+            undefined,
+            `Assessment ${suiteId}: ${members.length} steps confirmed`,
+          );
+        } catch (err) {
+          suiteRuns.delete(suiteId);
+          return fail(err, reply);
+        }
+      }
+      const actor = req.authUser?.email ?? 'dev';
+      try {
+        await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
       } catch (err) {
         suiteRuns.delete(suiteId);
-        return fail(err, reply);
+        throw err;
       }
+      // Do not await — the whole sequence can run for many minutes.
+      dispatched = true;
+      void runSuiteSequence(suiteId, actor, ctrl);
+      return reply.code(202).send({ suiteId, steps: members.length, started: true });
+    } finally {
+      if (!dispatched) suiteRuns.delete(suiteId);
     }
-    const actor = req.authUser?.email ?? 'dev';
-    try {
-      await audit(req, 'suite.run', undefined, `sequence start · ${members.length} steps`);
-    } catch (err) {
-      suiteRuns.delete(suiteId);
-      throw err;
-    }
-    // Do not await — the whole sequence can run for many minutes.
-    void runSuiteSequence(suiteId, actor, ctrl);
-    return reply.code(202).send({ suiteId, steps: members.length, started: true });
   });
 
   // Live state of the in-flight suite sequences (for the UI's pause/cancel
@@ -2995,6 +3156,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       string,
       {
         paused: boolean;
+        pauseBetweenSteps?: boolean;
         current?: string;
         started: number;
         total: number;
@@ -3007,6 +3169,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     for (const [sid, ctrl] of suiteRuns) {
       sequences[sid] = {
         paused: ctrl.paused,
+        pauseBetweenSteps: ctrl.pauseBetweenSteps,
         current: ctrl.current,
         started: ctrl.started,
         total: ctrl.total,
@@ -3041,13 +3204,74 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     const suiteId = (req.params as { id: string }).id;
     const ctrl = suiteRuns.get(suiteId);
     if (!ctrl) return reply.code(404).send({ error: 'no running sequence for this suite' });
-    ctrl.paused = false;
-    // Resume clears the auto-pause state and the down-skip counter, so the
-    // gate re-evaluates the target fresh rather than immediately re-pausing.
-    ctrl.autoPaused = false;
-    ctrl.downSkips = 0;
-    await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
-    return reply.send({ suiteId, paused: false });
+    if (ctrl.editing)
+      return reply
+        .code(409)
+        .send({ error: 'Wait for the current step or parameter update to finish.' });
+    ctrl.editing = true;
+    try {
+      const members = (await store.listCampaigns()).filter((c) => c.suiteId === suiteId);
+      const pending = members.filter((c) => c.status === 'PENDING_APPROVAL');
+      if (pending.length) {
+        if (!adminConfirmation(req))
+          return reply.code(409).send({ error: 'Approve modified steps before resuming.' });
+        if ((req.body as { confirmed?: boolean } | undefined)?.confirmed !== true)
+          return reply
+            .code(400)
+            .send({ error: 'Confirm the modified step parameters before resuming.' });
+        const reviewed = (req.body as { reviewedSteps?: unknown }).reviewedSteps;
+        if (
+          !Array.isArray(reviewed) ||
+          reviewed.length !== pending.length ||
+          pending.some(
+            (c) =>
+              !reviewed.some(
+                (budget) => JSON.stringify(budget) === JSON.stringify(parameterBudget(c)),
+              ),
+          )
+        )
+          return reply
+            .code(409)
+            .send({ error: 'Step parameters changed; review and confirm them again.' });
+        try {
+          for (const c of pending) {
+            const input = { ...c };
+            delete input.drsDocument;
+            createCampaign(input, await effectiveAllowlist(), agentChoices(), effectiveCaps);
+          }
+          await store.transaction(async (tx) => {
+            for (const c of pending) {
+              const fresh = await tx.getCampaign(c.id);
+              if (ctrl.cancelled || !fresh || parameterRevision(fresh) !== parameterRevision(c))
+                throw new CampaignError('Campaign changed; review the steps again.');
+              await tx.saveCampaign(
+                approveCampaign(fresh, req.authUser!.email, 'APPROVED', 'Modified step confirmed', {
+                  singleUser: true,
+                }),
+              );
+              await tx.saveAudit({
+                id: randomUUID(),
+                at: new Date().toISOString(),
+                actor: req.authUser!.email,
+                action: 'campaign.confirm',
+                campaignId: c.id,
+                detail: `Modified step confirmed · ${parameterRevision(c)}`,
+              });
+            }
+          });
+        } catch (err) {
+          return fail(err, reply);
+        }
+      }
+      if (ctrl.cancelled) return reply.code(409).send({ error: 'Sequence cancelled.' });
+      ctrl.paused = false;
+      ctrl.autoPaused = false;
+      ctrl.downSkips = 0;
+      await audit(req, 'suite.resume', undefined, `sequence resumed · ${suiteId}`);
+      return reply.send({ suiteId, paused: false });
+    } finally {
+      ctrl.editing = false;
+    }
   });
 
   // Cancel a running sequence: stop before the next step and kill the step in

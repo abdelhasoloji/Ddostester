@@ -95,6 +95,7 @@ export interface LoadTestConfig {
     runtime: string;
     sourceRef: string;
     probeUrl: string;
+    probeUrls?: string[];
     probeVantage: 'local' | 'remote';
   };
   /** Public reproducibility metadata captured at run start. */

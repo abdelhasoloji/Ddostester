@@ -1,0 +1,95 @@
+{
+  "scenario": "udp_multivector",
+  "generator": {
+    "sent": 1003,
+    "profile": "mixed"
+  },
+  "generators": [
+    {
+      "profile": "dns",
+      "shape": "constant",
+      "factor": 40,
+      "packetFactor": 1,
+      "sent": 360
+    },
+    {
+      "profile": "ntp",
+      "shape": "wave",
+      "factor": 80,
+      "packetFactor": 4,
+      "sent": 215
+    },
+    {
+      "profile": "ssdp",
+      "shape": "burst",
+      "factor": 30,
+      "packetFactor": 2,
+      "sent": 188
+    },
+    {
+      "profile": "memcached",
+      "shape": "constant",
+      "factor": 100,
+      "packetFactor": 8,
+      "sent": 240
+    }
+  ],
+  "perProfile": {
+    "dns": {
+      "requests": 360,
+      "inputBytes": 32400,
+      "outputPackets": 360,
+      "outputBytes": 1296000
+    },
+    "ntp": {
+      "requests": 215,
+      "inputBytes": 19350,
+      "outputPackets": 860,
+      "outputBytes": 3870000
+    },
+    "ssdp": {
+      "requests": 188,
+      "inputBytes": 17108,
+      "outputPackets": 376,
+      "outputBytes": 1026480
+    },
+    "memcached": {
+      "requests": 240,
+      "inputBytes": 23280,
+      "outputPackets": 1920,
+      "outputBytes": 9312000
+    }
+  },
+  "reflector": {
+    "requests": 1003,
+    "bap": 168.27,
+    "packetAmplification": 3.51
+  },
+  "target": {
+    "packets": 1951,
+    "avgPps": 303.33,
+    "avgBps": 10179017.41
+  },
+  "scrubber": null,
+  "verdict": {
+    "schema": "shieldtest.lab.verdict/v1",
+    "class": "C",
+    "kind": "udp-amplification",
+    "scenario": "udp_multivector",
+    "labTarget": "lab-target.internal",
+    "profiles": ["dns", "ntp", "ssdp", "memcached"],
+    "amplificationFactor": 168.27,
+    "packetAmplification": 3.51,
+    "requests": 1003,
+    "target": {
+      "packets": 1951,
+      "avgPps": 303.33,
+      "avgBps": 10179017.41
+    },
+    "mitigation": null,
+    "outcome": "UNMITIGATED_BASELINE",
+    "runner": "shieldtest-lab",
+    "source": "shieldtest-lab",
+    "generatedAt": "2026-10-17T12:26:15.498Z"
+  }
+}

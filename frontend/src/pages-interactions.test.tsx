@@ -390,11 +390,11 @@ it('offers Fleet before creating a preset and forwards the target without silent
     await screen.findByRole('button', { name: /Create (assessment|campaign)/, hidden: true }),
   );
   expect(screen.getByRole('dialog', { name: 'Choose campaign generator' })).toHaveTextContent(
-    'alternative campaign',
+    'Separate GET campaign',
   );
   fireEvent.click(screen.getByRole('button', { name: 'Review with IoT Fleet' }));
   expect(screen.getByTestId('destination')).toHaveTextContent(
-    '/campaigns?engine=fleet&target=https%3A%2F%2Fstaging.wedos%2F',
+    '/campaigns?engine=fleet&template=fleet-get&target=https%3A%2F%2Fstaging.wedos%2F',
   );
   expect(fakeApi.instantiatePlaybook).not.toHaveBeenCalled();
   expect(fakeApi.composeSuite).not.toHaveBeenCalled();

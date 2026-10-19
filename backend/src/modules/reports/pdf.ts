@@ -47,10 +47,10 @@ export async function htmlToPdf(
   html: string,
   loadChromium: ChromiumLoader = defaultLoader,
 ): Promise<Buffer | null> {
-  const chromium = (await loadChromium()) as MiniChromium | null;
-  if (!chromium) return null;
   let browser: MiniBrowser | undefined;
   try {
+    const chromium = (await loadChromium()) as MiniChromium | null;
+    if (!chromium) return null;
     browser = await chromium.launch();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
@@ -69,5 +69,9 @@ export async function htmlToPdf(
 
 /** True when server-side PDF rendering is available on this host. */
 export async function pdfAvailable(loadChromium: ChromiumLoader = defaultLoader): Promise<boolean> {
-  return (await loadChromium()) != null;
+  try {
+    return (await loadChromium()) != null;
+  } catch {
+    return false;
+  }
 }

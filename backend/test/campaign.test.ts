@@ -296,3 +296,17 @@ describe('recurrence validation', () => {
     ).toThrow(CampaignError);
   });
 });
+
+it('validates every additional probe destination and limits the monitoring set', () => {
+  expect(() => createCampaign({ ...base, probeUrls: ['http://victim.example/'] }, allowed)).toThrow(
+    CampaignError,
+  );
+  expect(() =>
+    createCampaign(
+      { ...base, probeUrls: Array.from({ length: 9 }, (_, i) => `http://localhost/${i}`) },
+      allowed,
+    ),
+  ).toThrow(CampaignError);
+  const campaign = createCampaign({ ...base, probeUrls: ['http://localhost:3000/login'] }, allowed);
+  expect(campaign.probeUrls).toEqual(['http://localhost:3000/login']);
+});

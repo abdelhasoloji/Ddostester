@@ -60,17 +60,17 @@ describe('inferProfile', () => {
     const r = inferProfile({
       absorption: [row({ lastRejectedPct: 62, lastTarpitPct: 41 })],
     });
-    expect(r.profile.rateLimiting).toBe('present'); // edge-rejected → rate limiting
-    expect(r.profile.slowRequestTimeout).toBe('present'); // tarpitted → slow-request handling
+    expect(r.profile.rateLimiting).toBe('unknown'); // HTTP failures → rate limiting
+    expect(r.profile.slowRequestTimeout).toBe('unknown'); // tarpitted → slow-request handling
     expect(r.provenance.rateLimiting?.[0].source).toBe('run');
   });
 
-  it('lets the class-C lab prove SYN/handshake protection present or ABSENT', () => {
+  it('keeps imported lab handling outcomes separate from target SYN-protection claims', () => {
     const present = inferProfile({ labCoverage: [cov({ outcome: 'MITIGATED' })] });
-    expect(present.profile.synFloodProtection).toBe('present');
+    expect(present.profile.synFloodProtection).toBe('unknown');
 
     const absent = inferProfile({ labCoverage: [cov({ outcome: 'NOT_MITIGATED' })] });
-    expect(absent.profile.synFloodProtection).toBe('absent');
+    expect(absent.profile.synFloodProtection).toBe('unknown');
     expect(absent.provenance.synFloodProtection?.[0].source).toBe('lab');
   });
 
@@ -81,7 +81,7 @@ describe('inferProfile', () => {
       posture: posture({ rateLimiting: true }),
       absorption: [row({ lastRejectedPct: 80 })],
     });
-    expect(r.profile.rateLimiting).toBe('present');
+    expect(r.profile.rateLimiting).toBe('unknown');
     const sources = r.provenance.rateLimiting?.map((e) => e.source) ?? [];
     expect(sources).toContain('recon');
     expect(sources).toContain('run');

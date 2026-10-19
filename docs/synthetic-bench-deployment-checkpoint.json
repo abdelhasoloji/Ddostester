@@ -1,0 +1,129 @@
+{
+  "checkedAt": "2026-10-17T11:41:38.800104+00:00",
+  "version": {
+    "version": "0.2.0",
+    "build": "473",
+    "commit": "0e43cea0b5055806f71dbf337365b8dc4279f9ce",
+    "builtAt": "2026-10-17T11:39:39.177Z"
+  },
+  "release": "/home/shieldtest/ddostester-releases/release-0e43cea.BKdKp8",
+  "profile": "legacy ZeroBS catalogue, single administrator",
+  "userMode": "single",
+  "drsWorkflow": false,
+  "hardCaps": {
+    "maxRps": 2000,
+    "maxConcurrency": 500,
+    "maxDurationSec": 900
+  },
+  "publicHttpsMtlsVerified": true,
+  "apiUiIdentityVerified": true,
+  "readinessStatus": 200,
+  "unauthenticatedCampaignAndBenchReportStatus": 401,
+  "ci": {
+    "url": "https://github.com/abdelhasoloji/Ddostester/actions/runs/39029153074",
+    "source": "0e43cea0b5055806f71dbf337365b8dc4279f9ce",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "quality",
+        "conclusion": "success"
+      },
+      {
+        "name": "backend",
+        "conclusion": "success"
+      },
+      {
+        "name": "frontend",
+        "conclusion": "success"
+      },
+      {
+        "name": "postgres",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "nativeGate": "lint, typecheck, backend/frontend tests, build, immutable release manifest passed",
+  "localTests": {
+    "backendPassed": 1229,
+    "frontendPassed": 460,
+    "backendSkipped": 38,
+    "postgresCi": "passed"
+  },
+  "preservation": {
+    "checkedAt": "2026-10-17T11:40:52.553Z",
+    "preservation": {
+      "users": {
+        "count": 11,
+        "unchanged": true
+      },
+      "campaigns": {
+        "count": 289,
+        "unchanged": true
+      },
+      "settings": {
+        "count": 1,
+        "unchanged": true
+      },
+      "fleet": {
+        "count": 3,
+        "unchanged": true
+      }
+    },
+    "auditPreserved": true,
+    "running": 0,
+    "soleAdminPreserved": true,
+    "migrations": [9, 10]
+  },
+  "encryptedRecovery": {
+    "compatibility": {
+      "classicApplicationReady": true,
+      "singleOwner": true,
+      "users": 11,
+      "campaigns": 289,
+      "fleet": 3,
+      "currentDatabaseUnchanged": true
+    },
+    "checkedAt": "2026-10-17T11:40:38.461Z",
+    "authenticatedRecovery": true,
+    "atomicRestore": true,
+    "preserved": {
+      "audit": true,
+      "infrastructure": true
+    },
+    "archiveSha256": "d68eff6c552b94951c2e9d140af5ece492f21e070a58bc5b25b44db22fb5b5a1"
+  },
+  "fleet": {
+    "checkedAt": "2026-10-17T11:41:07.768Z",
+    "identities": 3,
+    "online": 3,
+    "unauthenticatedDeviceRouteStatus": 401
+  },
+  "pods": [
+    {
+      "name": "lab-iot-01",
+      "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357",
+      "unchangedUid": true,
+      "ready": true,
+      "restarts": 5
+    },
+    {
+      "name": "lab-iot-02",
+      "uid": "42b0ed77-1a8b-4581-8619-ab851332f211",
+      "unchangedUid": true,
+      "ready": true,
+      "restarts": 5
+    },
+    {
+      "name": "lab-iot-03",
+      "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d",
+      "unchangedUid": true,
+      "ready": true,
+      "restarts": 5
+    }
+  ],
+  "benchRunnerService": "active",
+  "qualificationReceipt": "qa/synthetic-replacement-2026-10-17/receipt.json",
+  "productionCampaignLaunched": false,
+  "productionBrowserAcceptance": "Saved origin permission remains denied; isolated fixture visual proof only",
+  "pullRequest": "https://github.com/abdelhasoloji/Ddostester/pull/221"
+}

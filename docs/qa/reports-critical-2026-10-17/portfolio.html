@@ -1,0 +1,261 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resilience assessment — WEDOS ShieldTest</title><style>
+ :root{--brand:#003484;--ink:#1a1d21;--muted:#6b7280;--surface:#fff;--surface-2:#f6f8fb;--border:#e4e8ef;
+  --good:#0f8a5f;--good-bg:#e8f6f0;--warn:#b8860b;--warn-bg:#fdf6e3;--crit:#c23b34;--crit-bg:#fdeceb;--neutral:#6b7280;--neutral-bg:#f0f2f5;}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;color:var(--ink);background:#eef1f5}
+ .page{max-width:920px;margin:0 auto;padding:0 1.5rem 3rem}
+ .cover{background:linear-gradient(120deg,#003484,#0a4aa0);color:#fff;padding:1.4rem 1.5rem;margin:0 -1.5rem 1.5rem;border-bottom:4px solid #f5a623}
+ .cover .top{display:flex;align-items:center;gap:.6rem}
+ .cover h1{font-size:1.35rem;margin:.1rem 0 0;font-weight:800;letter-spacing:.2px}
+ .cover .sub{opacity:.9;font-size:.9rem;margin-top:.3rem}
+ .cover .wm{font-weight:800}
+ .cover .conf{display:inline-block;margin-top:.6rem;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(255,255,255,.16);padding:.15rem .5rem;border-radius:4px}
+ h2{color:var(--brand);font-size:1.05rem;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid var(--border)}
+ h3{font-size:.95rem;margin:1rem 0 .4rem}
+ p{margin:.5rem 0}
+ .muted{color:var(--muted)}
+ .lead{font-size:1rem;line-height:1.6;background:var(--surface-2);border-left:3px solid var(--brand);padding:.8rem 1rem;border-radius:0 8px 8px 0}
+ table{border-collapse:collapse;width:100%;margin:.6rem 0;background:var(--surface)}
+ th,td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+ thead th,table.kvs th{background:var(--surface-2);font-weight:600}
+ td.note{color:#444;font-size:.85rem;max-width:280px}
+ .grid{display:grid;gap:1rem}
+ .cards{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:.8rem 0}
+ .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+ .card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+ .card .v{font-size:1.5rem;font-weight:800;color:var(--ink);margin-top:.15rem}
+ .card .v.sm{font-size:1.05rem}
+ .scorecard{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+ .scorecard .pills{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.2rem}
+ .figure{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;margin:.6rem 0}
+ .figure .cap{font-size:.8rem;color:var(--muted);margin-bottom:.4rem}
+ .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+ .pill{display:inline-flex;align-items:center;gap:.3rem;font-size:.8rem;font-weight:700;padding:.2rem .6rem;border-radius:999px}
+ .p-good{color:var(--good);background:var(--good-bg)} .p-warn{color:var(--warn);background:var(--warn-bg)}
+ .p-crit{color:var(--crit);background:var(--crit-bg)} .p-neutral{color:var(--neutral);background:var(--neutral-bg)}
+ .callout{border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;font-size:.9rem;border:1px solid}
+ .callout.kill{border-color:#e8b4b0;background:var(--crit-bg);color:#8a221c;font-weight:600}
+ .callout.info{border-color:var(--border);background:var(--surface-2);color:#444}
+ .callout.warn{border-color:#e6d59a;background:var(--warn-bg);color:#7a5c07}
+ .chart-empty{color:var(--muted);font-size:.86rem;padding:1rem;text-align:center;background:var(--surface-2);border-radius:8px}
+ .r-low,.v-held{color:var(--good);font-weight:700}.r-med,.v-partial{color:var(--warn);font-weight:700}
+ .r-crit,.v-fail{color:var(--crit);font-weight:700}.v-aborted{color:var(--muted);font-weight:700}
+ .print-btn{position:fixed;top:1rem;right:1rem;background:var(--brand);color:#fff;border:0;border-radius:6px;padding:.5rem .9rem;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+ .print-foot{display:none}
+ @page{size:A4;margin:16mm 14mm 20mm}
+ @media print{
+  .print-btn{display:none} body{background:#fff;font-size:10.5pt} .page{max-width:none;padding:0}
+  .cover{margin:0 0 1rem;break-after:avoid} .card,.scorecard,.figure{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{break-before:page;padding-top:.2rem} h2:first-of-type{break-before:auto}
+  h3{break-after:avoid} .figure,.scorecard,.card,tr,.callout{break-inside:avoid} table{break-inside:auto}
+  thead{display:table-header-group} a{color:inherit;text-decoration:none}
+  .print-foot{display:block;position:fixed;bottom:6mm;left:0;right:0;text-align:center;font-size:8pt;color:#8a8f99}
+ }
+ @media(max-width:640px){.two-col{grid-template-columns:1fr}.scorecard{grid-template-columns:1fr;text-align:center}}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Print / PDF</button><div class="page"><div class="cover"><div class="top"><svg width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="wl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4aa0"/><stop offset="1" stop-color="#003484"/></linearGradient></defs><path d="M24 3 L42 9 V24 C42 35 34 44 24 46 C14 44 6 35 6 24 V9 Z" fill="url(#wl)"/><path d="M15 24 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wm">WEDOS ShieldTest</span></div>
+  <h1>Resilience assessment</h1>
+  <div class="sub">Period origin → now · generated 2026-10-17 18:59 UTC</div>
+  <span class="conf">Confidential — WEDOS internal</span></div><p class="lead">Across <b>origin → now</b>, <b>12</b> bounded assessments ran against <b>1</b> target using builtin-http, vegeta, k6. The stored legacy WRS average was <b>74.1</b> (lowest 59.5); <b>6</b> runs fell below the resilience threshold of 70. Diagnostic RiskLevel spread: 3 Low · 0 Medium · <b>4 Critical</b> · 5 Unknown. Some runs have estimated detection/mitigation (no protection source), so their score reflects measured availability.</p><h2>At a glance</h2>
+<div class="scorecard">
+  <div><svg viewBox="0 0 200 118" width="200" role="img" aria-label="score 74.1 of 100" class="chart-gauge">
+  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#e4e8ef" stroke-width="14" stroke-linecap="round"/>
+  <path d="M 16 100 A 84 84 0 0 1 157.7 38.9" fill="none" stroke="#6b7280" stroke-width="14" stroke-linecap="round"/>
+  <text x="100" y="86" text-anchor="middle" font-size="40" font-weight="800" fill="#6b7280">74.1</text>
+  <text x="100" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="#6b7280">stored avg WRS</text>
+</svg>
+    <div style="text-align:center;font-size:.75rem;color:#6b7280">Legacy WRS diagnostic average, not a DRS score · 12 runs</div></div>
+  <div>
+    <div class="pills"><span class="pill p-crit">4 Critical</span> <span class="pill p-neutral">0 Medium</span> <span class="pill p-good">3 Low</span> <span class="pill p-neutral">5 Unknown</span></div>
+    <div class="grid cards" style="margin-top:.7rem">
+      <div class="card"><div class="k">Runs assessed</div><div class="v">12</div></div>
+      <div class="card"><div class="k">Minimum WRS</div><div class="v">59.5</div></div>
+      <div class="card"><div class="k">Below WRS 70</div><div class="v">6</div></div>
+      <div class="card"><div class="k">Inconclusive (not valid)</div><div class="v">5</div></div>
+      <div class="card"><div class="k">Degraded measurements</div><div class="v">4</div></div>
+      <div class="card"><div class="k">Targets</div><div class="v">1</div></div>
+    </div>
+    <div style="margin-top:.5rem"><span class="muted" style="font-size:.8rem">WRS trend </span><svg viewBox="0 0 240 44" width="240" class="chart-spark" role="img" aria-label="trend"><path d="M 2 4.8 L 23.5 4.8 L 44.9 27.8 L 66.4 4.8 L 87.8 39.3 L 109.3 39.3 L 130.7 39.3 L 152.2 39.3 L 173.6 39.3 L 195.1 16.3 L 216.5 39.3 L 238 16.3" fill="none" stroke="#003484" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="238" cy="16.3" r="3" fill="#003484"/></svg></div>
+  </div>
+</div><h2>Scope</h2>
+<table class="kvs">
+ <tr><th>Runs assessed</th><td>12</td></tr>
+ <tr><th>Targets</th><td>10.98.215.52</td></tr>
+ <tr><th>Load engines</th><td>builtin-http, vegeta, k6</td></tr>
+ <tr><th>HTTP method</th><td>Bounded HTTP (GET/POST), allowlisted, capped ≤ 2000 rps / 500 conc / 900 s</td></tr>
+ 
+ <tr><th>DRS note</th><td>DRS 3.00.00 is evaluated only from frozen independent evidence; no DRS score is inferred from WRS or reference-level labels</td></tr>
+</table><h2>Score &amp; risk distribution</h2>
+<div class="two-col">
+  <div class="figure"><div class="cap">Runs by WRS grade</div><svg viewBox="0 0 640 114" width="100%" role="img" class="chart-hbars" preserveAspectRatio="xMidYMid meet"><text x="0" y="19" font-size="13" fill="#1a1d21">Grade A+</text>
+  <rect x="150" y="4" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="4" width="214" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="19" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">3</text><text x="0" y="57" font-size="13" fill="#1a1d21">Grade B</text>
+  <rect x="150" y="42" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="42" width="214" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="57" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">3</text><text x="0" y="95" font-size="13" fill="#1a1d21">Grade C</text>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#003484"/>
+  <text x="640" y="95" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">6</text></svg></div>
+  <div class="figure"><div class="cap">Runs by RiskLevel</div><svg viewBox="0 0 640 152" width="100%" role="img" class="chart-hbars" preserveAspectRatio="xMidYMid meet"><text x="0" y="19" font-size="13" fill="#1a1d21">Low</text>
+  <rect x="150" y="4" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="4" width="256.8" height="22" rx="4" fill="#0f8a5f"/>
+  <text x="640" y="19" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">3</text><text x="0" y="57" font-size="13" fill="#1a1d21">Medium</text>
+  <rect x="150" y="42" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="42" width="0" height="22" rx="4" fill="#b8860b"/>
+  <text x="640" y="57" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">0</text><text x="0" y="95" font-size="13" fill="#1a1d21">Critical</text>
+  <rect x="150" y="80" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="80" width="342.4" height="22" rx="4" fill="#c23b34"/>
+  <text x="640" y="95" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">4</text><text x="0" y="133" font-size="13" fill="#1a1d21">Unknown</text>
+  <rect x="150" y="118" width="428" height="22" rx="4" fill="#e4e8ef"/>
+  <rect x="150" y="118" width="428" height="22" rx="4" fill="#6b7280"/>
+  <text x="640" y="133" text-anchor="end" font-size="13" font-weight="600" fill="#1a1d21">5</text></svg></div>
+</div><h2>Per-scenario results (Layer 7, bounded)</h2>
+<table>
+ <thead><tr><th>#</th><th>Scenario</th><th>Target</th><th>Load (configured&rarr;mean)</th><th>WRS</th><th>Diagnostic verdict</th><th>RiskLevel</th><th>Notes</th></tr></thead>
+ <tbody><tr>
+ <td>1</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)</td>
+ <td>10.98.215.52</td>
+ <td>100 opened connections</td>
+ <td><b style="color:#0f8a5f">97</b> <span class="muted">A+</span></td>
+ <td class="v-held">held</td>
+ <td class="r-low">Low</td>
+ <td class="note">probe success 100.0% · Δp95 157.82 ms</td>
+</tr><tr>
+ <td>2</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Flood (DRS3)</td>
+ <td>10.98.215.52</td>
+ <td>400→394</td>
+ <td><b style="color:#0f8a5f">97</b> <span class="muted">A+</span></td>
+ <td class="v-held">held</td>
+ <td class="r-low">Low</td>
+ <td class="note">probe success 100.0% · Δp95 19.35 ms</td>
+</tr><tr>
+ <td>3</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET-Random-Flood (DRS3)</td>
+ <td>10.98.215.52</td>
+ <td>500→190</td>
+ <td><b style="color:#b8860b">72</b> <span class="muted">B</span></td>
+ <td class="v-aborted">inconclusive</td>
+ <td class="v-aborted">Unknown</td>
+ <td class="note">probe success 50.0% · Δp95 305.52 ms · <b>inconclusive</b> — delivered only 53% of the configured rate</td>
+</tr><tr>
+ <td>4</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — GET /VALID_RANDOM (DRS4)</td>
+ <td>10.98.215.52</td>
+ <td>500→409</td>
+ <td><b style="color:#0f8a5f">97</b> <span class="muted">A+</span></td>
+ <td class="v-held">held</td>
+ <td class="r-low">Low</td>
+ <td class="note">probe success 100.0% · Δp95 187.43 ms · generator transport failures; attribution unproven</td>
+</tr><tr>
+ <td>5</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — POST-Flood (DRS4)</td>
+ <td>10.98.215.52</td>
+ <td>400→376</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span></td>
+ <td class="r-crit">breached</td>
+ <td class="r-crit">Critical</td>
+ <td class="note">probe success 25.0% · Δp95 24.32 ms · generator transport failures; attribution unproven</td>
+</tr><tr>
+ <td>6</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 GET-Flood (DRS4)</td>
+ <td>10.98.215.52</td>
+ <td>800→720</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span> <span title="measurement degraded — WRS may be understated">⚠</span></td>
+ <td class="v-aborted">inconclusive</td>
+ <td class="v-aborted">Unknown</td>
+ <td class="note">probe success 25.0% · Δp95 158.94 ms · generator unresolved failures; attribution unproven · <b>⚠ measurement degraded</b> (Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.)</td>
+</tr><tr>
+ <td>7</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Rapid Reset — bounded (DRS4)</td>
+ <td>10.98.215.52</td>
+ <td>800→525</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span> <span title="measurement degraded — WRS may be understated">⚠</span></td>
+ <td class="v-aborted">inconclusive</td>
+ <td class="v-aborted">Unknown</td>
+ <td class="note">probe success 25.0% · Δp95 312.96 ms · generator unresolved failures; attribution unproven · <b>⚠ measurement degraded</b> (Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.)</td>
+</tr><tr>
+ <td>8</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — HTTP/2 Continuation — header pressure (DRS4)</td>
+ <td>10.98.215.52</td>
+ <td>400→394</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span> <span title="measurement degraded — WRS may be understated">⚠</span></td>
+ <td class="v-aborted">inconclusive</td>
+ <td class="v-aborted">Unknown</td>
+ <td class="note">probe success 25.0% · Δp95 15.72 ms · generator unresolved failures; attribution unproven · <b>⚠ measurement degraded</b> (Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.)</td>
+</tr><tr>
+ <td>9</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — Login/account POST-Flood (DRS5)</td>
+ <td>10.98.215.52</td>
+ <td>500→468</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span></td>
+ <td class="r-crit">breached</td>
+ <td class="r-crit">Critical</td>
+ <td class="note">probe success 25.0% · Δp95 61.1 ms · generator transport failures; attribution unproven</td>
+</tr><tr>
+ <td>10</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — L7 MultiVector (DRS5)</td>
+ <td>10.98.215.52</td>
+ <td>800→148</td>
+ <td><b style="color:#0f8a5f">84.5</b> <span class="muted">B</span></td>
+ <td class="v-partial">partial</td>
+ <td class="r-crit">Critical</td>
+ <td class="note">probe success 75.0% · Δp95 331.59 ms · generator transport failures; attribution unproven</td>
+</tr><tr>
+ <td>11</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — THOR / PulseWave — synchronized (DRS5)</td>
+ <td>10.98.215.52</td>
+ <td>1000→481</td>
+ <td><b style="color:#b8860b">59.5</b> <span class="muted">C</span> <span title="measurement degraded — WRS may be understated">⚠</span></td>
+ <td class="v-aborted">inconclusive</td>
+ <td class="v-aborted">Unknown</td>
+ <td class="note">probe success 25.0% · Δp95 416.9 ms · generator unresolved failures; attribution unproven · <b>⚠ measurement degraded</b> (Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.)</td>
+</tr><tr>
+ <td>12</td>
+ <td>Pre-test — DRS L7 playbook (P26-20371) [20s QA] — MultiTarget / carpet-bombing (DRS5)</td>
+ <td>10.98.215.52</td>
+ <td>800→152</td>
+ <td><b style="color:#0f8a5f">84.5</b> <span class="muted">B</span></td>
+ <td class="v-partial">partial</td>
+ <td class="r-crit">Critical</td>
+ <td class="note">probe success 75.0% · Δp95 455.26 ms · generator transport failures; attribution unproven</td>
+</tr></tbody>
+</table>
+
+<div class="callout info"><strong>Volumetric / L3-L4 — class C, network bench.</strong> UDP/TCP/ICMP
+floods, amplification, fragmentation and source spoofing are never run by this
+control plane. The UDP amplification and no-spoof TCP state-table shapes are
+measured on the isolated network bench; spoofing/GRE/fragmentation are covered by
+attestation or ingestion — see <em>drs-validation-policy.md</em> and the coverage
+matrix below.</div>
+
+<h2>Weaknesses &amp; recommended remediations</h2>
+<p class="muted">Ranked across 12 runs — "Affected" is how many runs showed each weakness.</p>
+<table class="remediations"><thead><tr><th>Severity</th><th>Weakness (observed)</th><th>Recommended remediation</th><th>Affected</th></tr></thead>
+<tbody><tr><td><span class="pill p-warn">high</span></td><td>Legitimate availability degraded to 50% during the run — completed probe transactions failed; real-user impact and outage duration require corroboration.</td><td>Check the probe path and resource health, then correlate target and protection telemetry before changing capacity or filtering.</td><td>9</td></tr><tr><td><span class="pill p-warn">high</span></td><td>Legitimate probe degradation was observed (collateral score 50/100); the cause requires independent telemetry.</td><td>Investigate legitimate probe failures with independent origin and protection logs before changing mitigation rules; this diagnostic does not determine DRS compliance.</td><td>9</td></tr><tr><td><span class="pill p-neutral">low</span></td><td>Detection and mitigation are estimated — no protection source reported real timings, so the score is not authoritative.</td><td>Connect and validate protection telemetry for reported detection/mitigation times, then reconcile it with independent probe and received-load evidence. This alone does not establish DRS compliance.</td><td>12</td></tr></tbody></table>
+
+
+
+<h2>Coverage by target</h2>
+<table>
+ <thead><tr><th>Target</th><th>Runs</th><th>Average WRS</th></tr></thead>
+ <tbody><tr><td>10.98.215.52</td><td>12</td><td><b style="color:#b8860b">74.1</b></td></tr></tbody>
+</table>
+
+<h2>Breakdown by status</h2>
+<table class="kvs"><tr><th>COMPLETED</th><td>12</td></tr></table>
+
+<h2>Glossary</h2>
+<table class="kvs">
+ <tr><th>WRS / DRS</th><td>WRS is a separate 0–100 diagnostic. DRS 3.00.00 uses per-level vector ratios and independently archived evidence; missing scenarios produce partial or indeterminate coverage. No certification is issued.</td></tr>
+ <tr><th>RiskLevel</th><td><span class="r-low">Low</span> availability held &amp; WRS ≥ 80 · <span class="r-med">Medium</span> partial degradation or WRS 55–79 · <span class="r-crit">Critical</span> probe-failure threshold or WRS &lt; 55. Unknown = insufficient evidence; no risk conclusion.</td></tr>
+ <tr><th>Diagnostic verdict</th><td><span class="v-held">Held</span> ≈100% available · <span class="v-partial">Partial</span> some legitimate traffic lost · <span class="v-fail">Failed</span> probe-failure criteria or automatic stop · <span class="v-aborted">Aborted</span> manual stop.</td></tr>
+ <tr><th>TTD / TTM</th><td>Time-To-Detect / Time-To-Mitigate — supplied protection telemetry; an automatic-stop timestamp is not a mitigation timestamp.</td></tr>
+ <tr><th>RPS</th><td>Requests per second (Layer 7). <b>cfg&rarr;eff</b> = configured cap &rarr; mean rate reported by the generator; a gap alone cannot identify filtering, target capacity or a generator bottleneck. Volumetric PPS is out of scope.</td></tr>
+</table>
+
+<p class="muted" style="margin-top:2rem">Automatically generated resilience evidence. HTTP observations and synthetic network-bench evidence are separate scopes; missing evidence is not a success. WEDOS internal use.</p><div class="print-foot">Confidential — WEDOS ShieldTest · internal use only · must not be disclosed to third parties</div></div></body></html>

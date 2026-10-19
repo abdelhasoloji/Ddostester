@@ -1,0 +1,76 @@
+{
+  "deployedAt": "2026-10-17T20:54:36.084Z",
+  "build": 485,
+  "commit": "0b5f403e396133f8e7763f9d7eae00fad8128d1c",
+  "ready": true,
+  "runtimeConfigurationUnchanged": {
+    "allowedTargets": true,
+    "hardCaps": true,
+    "hardCapsCeiling": true,
+    "builtinCeilings": true,
+    "userMode": true,
+    "drsWorkflow": true,
+    "accessContractVersion": true,
+    "accountPolicy": true,
+    "requireCisoApproval": true,
+    "labTargets": true,
+    "storage": true,
+    "authRequired": true,
+    "agent": true,
+    "notifications": true,
+    "protection": true,
+    "targetTelemetry": true,
+    "remoteProbe": true,
+    "tlsInsecure": true
+  },
+  "preservation": {
+    "checkedAt": "2026-10-17T20:54:36.062Z",
+    "preservation": {
+      "users": {
+        "count": 11,
+        "unchanged": true
+      },
+      "campaigns": {
+        "count": 301,
+        "unchanged": true
+      },
+      "settings": {
+        "count": 1,
+        "unchanged": true
+      },
+      "fleet": {
+        "count": 3,
+        "unchanged": true
+      }
+    },
+    "auditPreserved": true,
+    "running": 0,
+    "soleAdminPreserved": true,
+    "migrations": [9, 10]
+  },
+  "ci": {
+    "id": 39060734972,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "frontend",
+        "conclusion": "success"
+      },
+      {
+        "name": "postgres",
+        "conclusion": "success"
+      },
+      {
+        "name": "backend",
+        "conclusion": "success"
+      },
+      {
+        "name": "quality",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "rollbackPrepared": true,
+  "authenticatedBackupRecoveryVerified": true,
+  "productionBrowserVerification": false
+}

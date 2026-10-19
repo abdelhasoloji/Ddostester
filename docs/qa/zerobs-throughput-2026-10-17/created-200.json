@@ -1,0 +1,48 @@
+{
+  "suiteId": "fea13ab0-8bd5-4bea-affc-3a4ed2d48527",
+  "campaigns": [
+    {
+      "name": "ZeroBS GET 800 \u00b7 200 connections",
+      "description": "Line 3 \u2014 steady HTTP GET flood on the main path.",
+      "target": "http://127.0.0.1:18082/",
+      "vector": "http-get",
+      "maxRps": 800,
+      "concurrency": 200,
+      "maxDurationSec": 20,
+      "probeUrl": "http://127.0.0.1:18082/",
+      "createdBy": "dev",
+      "authorized": true,
+      "agent": "vegeta",
+      "calibrate": false,
+      "reconPosture": {
+        "h2": false,
+        "waf": false,
+        "cache": false,
+        "dynamic": true
+      },
+      "suiteId": "fea13ab0-8bd5-4bea-affc-3a4ed2d48527",
+      "suiteName": "ZeroBS GET 800 \u00b7 200 connections",
+      "suiteOrder": 0,
+      "id": "db1c731a-b253-412e-baa6-5c7b0986d8b7",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-17T11:15:11.553Z"
+    }
+  ],
+  "recon": {
+    "seeded": true,
+    "go": true,
+    "suggestedPaths": [
+      "/",
+      "/api/search.php?q=shieldtest",
+      "/api/db.php?id=42",
+      "/api/products.php?page=2",
+      "/api/work.php?ms=250",
+      "/login.php",
+      "/account.php",
+      "/api/report.php",
+      "/api/echo.php",
+      "/api/cached.php"
+    ],
+    "loginPath": "/login.php"
+  }
+}

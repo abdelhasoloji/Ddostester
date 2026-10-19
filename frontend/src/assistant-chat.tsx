@@ -928,7 +928,10 @@ export function AssistantChat({
   const floatBubble = zone
     ? { title: zone.title, body: zone.text }
     : lastMsg?.role === 'assistant' && lastMsg.content.trim()
-      ? { title: model, body: extractActions(lastMsg.content).text || lastMsg.content }
+      ? {
+          title: model,
+          body: extractActions(lastMsg.content, app.hardCapsCeiling).text || lastMsg.content,
+        }
       : null;
 
   const floatWindow =
@@ -1011,8 +1014,8 @@ export function AssistantChat({
       <div className="assistant-hero">
         <WedosMascot
           state={mascotState}
-          width={variant === 'dock' ? 96 : 150}
-          height={variant === 'dock' ? 126 : 196}
+          width={variant === 'dock' ? 96 : 48}
+          height={variant === 'dock' ? 126 : 64}
         />
         <span className={`assistant-statepill assistant-statepill-${statePillCls}`}>
           {statePillLabel}
@@ -1200,7 +1203,7 @@ export function AssistantChat({
                     </div>
                   );
                 }
-                const { text, actions } = extractActions(m.content);
+                const { text, actions } = extractActions(m.content, app.hardCapsCeiling);
                 return (
                   <div key={i} className="assistant-msg assistant-msg-assistant">
                     <div className="assistant-msg-head">

@@ -26,7 +26,7 @@ describe('report charts (pure SVG)', () => {
   it('gauge clamps out-of-range and stays finite', () => {
     expect(gaugeSvg(9999)).not.toMatch(/NaN/);
     expect(gaugeSvg(Number.NaN)).not.toMatch(/NaN/);
-    expect(gaugeSvg(-5)).toContain('>0<');
+    expect(gaugeSvg(-5)).toContain('Score not measured');
   });
 
   it('timeline draws an area + line path from points, with second-axis ticks', () => {
@@ -40,7 +40,7 @@ describe('report charts (pure SVG)', () => {
 
   it('timeline degrades to a note when there is no series', () => {
     expect(timelineSvg([])).toContain('No time-series');
-    expect(timelineSvg([{ t: 0, y: 1 }])).toContain('No time-series');
+    expect(timelineSvg([{ t: 0, y: 1 }])).toContain('<circle');
   });
 
   it('hbars renders one bar per item with its display label', () => {
@@ -61,4 +61,18 @@ describe('report charts (pure SVG)', () => {
     expect(sparklineSvg([1])).toContain('—');
     expect(sparklineSvg([1, 2, 3])).toMatch(/^<svg/);
   });
+});
+
+it('preserves fractional scores and places long units inside the view box', () => {
+  expect(gaugeSvg(59.5)).toContain('>59.5<');
+  const svg = timelineSvg(
+    [
+      { t: 0, y: 0.1 },
+      { t: 2.5, y: 0.2 },
+    ],
+    { yUnit: 'connections', yMax: 0.2 },
+  );
+  expect(svg).toContain('>2.5s<');
+  expect(svg).toContain('>0.1<');
+  expect(svg).toContain('x="44" y="12" text-anchor="start"');
 });

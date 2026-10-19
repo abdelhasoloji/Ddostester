@@ -25,7 +25,6 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: lab-orchestrator
-    namespace: ddostester-lab
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -39,13 +38,38 @@ data:
   policy.json: |
     {"allowedHosts":["lab-target"],"allowedPorts":[8080],"caps":{"maxRps":15,"maxConcurrency":6,"maxDurationSec":60}}
 ---
+# Fleet coordination service, 3 replicas.
+#
+# These are three COORDINATION replicas, not three agents. No coordination
+# state lives in process memory: claim/heartbeat/result are row-locked
+# transactions in PostgreSQL and plan() serialises on an advisory lock, so an
+# agent may hit any replica behind the lab-fleet Service.
+#
+# The agent pods are separate, per-run Jobs created by the control plane
+# (modules/fleet/kubernetes.ts): one Job each for the ids one, two and three,
+# so a single fleet campaign already runs as three pods, one agent per pod.
+# The namespace quota (count/jobs.batch: 3) encodes exactly that.
+#
+# Deployment (not StatefulSet) is deliberate: scripts/operations/lab-manifests.mjs
+# only harvests Deployments into the bootstrap bundle, and
+# scripts/operations/linux-lab-bootstrap.py waits on "rollout status
+# deployment/<name>". Changing the kind would silently drop the fleet from the
+# lab bootstrap path.
+#
+# Cold start is safe: FleetCoordinator.init() serialises its DDL on a
+# transaction-scoped advisory lock (FLEET_LIMITS.schemaLock), so all three
+# replicas may start together without racing on CREATE TABLE / ADD COLUMN.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: lab-fleet
 spec:
-  replicas: 1
-  strategy: { type: Recreate }
+  replicas: 3
+  # Surge first, then retire an old pod: a rollout never drops below three
+  # ready coordinators.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   selector:
     matchLabels: { app: lab-fleet }
   template:
@@ -53,15 +77,26 @@ spec:
       labels: { app: lab-fleet }
     spec:
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 15
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
         seccompProfile: { type: RuntimeDefault }
+      # Spread the replicas so one node loss cannot take the whole coordination
+      # surface; ScheduleAnyway keeps the single-node kind overlay usable.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: lab-fleet }
       containers:
         - name: fleet
           image: ddostester-lab-control:local
+          # Same ConfigMap the control plane reads: one agent→site registry.
+          envFrom: [{ configMapRef: { name: fleet-registry } }]
           imagePullPolicy: Never
           command: [node, backend/dist/cli/fleet-server.js]
           env:
@@ -69,7 +104,6 @@ spec:
               valueFrom:
                 fieldRef: { fieldPath: status.podIP }
             - { name: FLEET_PORT, value: '8443' }
-            - { name: FLEET_AGENT_IDS, value: 'one,two,three' }
             - { name: FLEET_TLS_KEY, value: /etc/fleet-identity/tls.key }
             - { name: FLEET_TLS_CERT, value: /etc/fleet-identity/tls.crt }
             - { name: FLEET_TLS_CA, value: /etc/fleet-identity/ca.crt }
@@ -77,8 +111,12 @@ spec:
               valueFrom:
                 secretKeyRef: { name: lab-identities, key: database-url }
           ports: [{ containerPort: 8443 }]
+          # The TLS listener is opened only after coordinator.init() resolved, so
+          # a Ready pod has a migrated schema behind it.
           readinessProbe:
             tcpSocket: { port: 8443 }
+            periodSeconds: 5
+            failureThreshold: 3
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -97,5 +135,7 @@ kind: Service
 metadata:
   name: lab-fleet
 spec:
+  # ClusterIP load-balances agents across the three replicas; every endpoint is
+  # equivalent because coordination state lives in PostgreSQL.
   selector: { app: lab-fleet }
   ports: [{ port: 8443, targetPort: 8443 }]

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-registry
+data:
+  # ONE registry for every process that reads it: the control plane plans shards
+  # from it, and the fleet server authorises certificates and records presence
+  # against it. Duplicating these values per Deployment let the two drift apart
+  # silently — a shard would carry one site while its presence row carried another,
+  # with no error anywhere.
+  #
+  # Format: agentId@site, one entry per agent, at most FLEET_LIMITS.maxAgents.
+  FLEET_SITES: one@vps-lab,two@vps-lab,three@vps-lab
+  # The site this cluster runs. The control plane creates Jobs only for agents
+  # whose registry site matches; everything else belongs to a remote worker.
+  FLEET_LOCAL_SITE: vps-lab

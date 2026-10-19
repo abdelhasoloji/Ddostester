@@ -1,3 +1,4 @@
+import { MAX_PROBE_URLS } from '../../config/limits.js';
 import { createRevision, defaultPlan } from '../drs/workflow.js';
 import { drsWorkflow, drsCatalog } from '../drs/catalog.js';
 import { FLEET_LIMITS } from '../../config/limits.js';
@@ -134,6 +135,16 @@ export function createCampaign(
   }
   assertHostAllowed(input.target, allowedHosts, 'Target');
   assertHostAllowed(input.probeUrl, allowedHosts, 'Probe');
+  if (input.probeUrls !== undefined) {
+    if (
+      !Array.isArray(input.probeUrls) ||
+      input.probeUrls.length > MAX_PROBE_URLS ||
+      input.probeUrls.some((url) => typeof url !== 'string') ||
+      new Set([input.probeUrl, ...input.probeUrls]).size > MAX_PROBE_URLS
+    )
+      throw new CampaignError(`At most ${MAX_PROBE_URLS} probe URLs are allowed.`);
+    for (const url of input.probeUrls) assertHostAllowed(url, allowedHosts, 'Probe');
+  }
   // The optional reference vantage is a read-only health check; hold it to the
   // same allowlist as the target/probe so it can never become an unbounded GET.
   if (input.referenceUrl) assertHostAllowed(input.referenceUrl, allowedHosts, 'Reference');

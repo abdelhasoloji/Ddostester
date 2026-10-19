@@ -21,6 +21,9 @@ spec:
       containers:
         - name: control
           image: ddostester-lab-control:local
+          # FLEET_SITES / FLEET_LOCAL_SITE come from the shared fleet-registry
+          # ConfigMap so they cannot drift from the fleet server's copy.
+          envFrom: [{ configMapRef: { name: fleet-registry } }]
           imagePullPolicy: Never
           env:
             - name: HOST

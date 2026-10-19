@@ -1,0 +1,39 @@
+Browser tab: 36, Title: "WEDOS ShieldTest — Control Plane", URL: "http://127.0.0.1:18105/theater?run=7457e1b5-d1b8-4c49-b311-5eac3d76e47a".
+1 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18105/theater?run=7457e1b5-d1b8-4c49-b311-5eac3d76e47a
+	2 container root
+		3 container
+			4 image WEDOS
+			5 text SHIELDTEST
+			6 button (collapsed) Description: Notifications (10 unread), Help: Notifications, Secondary Actions: Expand
+			7 link Description: Command Center, Value: 127.0.0.1:18105/
+			8 link Description: Protected zones, Value: 127.0.0.1:18105/zones
+			9 link Description: Campaigns, Value: 127.0.0.1:18105/campaigns
+			10 link Description: Fleet, Value: 127.0.0.1:18105/fleet
+			11 link Description: Run Theater, Value: 127.0.0.1:18105/theater
+			12 link Description: Results, Value: 127.0.0.1:18105/reports
+			13 link Description: Assistant, Value: 127.0.0.1:18105/assistant
+			14 link Description: Settings, Value: 127.0.0.1:18105/settings
+			15 container Theme
+				16 checkbox Description: Theme: Light, Value: 0
+				17 checkbox Description: Theme: System, Value: 1
+				18 checkbox Description: Theme: Dark, Value: 0
+			19 link Description: engineer@fixture.invalid Security Engineer, Help: My account, Value: 127.0.0.1:18105/account
+			20 button Sign out
+			21 text v0.1.0+483 · d15afa3
+		22 container
+			23 heading Run Theater, Value: 1
+				24 text Run Theater
+			25 text Follow offered load, generator outcomes and probe health.
+			26 link Description: Synthetic bench, Value: 127.0.0.1:18105/theater?mode=synthetic
+			27 heading Run complete — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3), Value: 3
+				28 text Run complete —  Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)
+			29 container WEDOS Resilience Score
+				30 text 97 A+
+			31 text HELD observed: connections closed Slow/incomplete connections closed; the closure cause requires target telemetry; legitimate availability held at 100%. WRS 97 (A+). ⚠  Only 4 probe observations; cumulative availability has coarse resolution and does not establish continuous service availability. Push further — build the next campaign from what this run found:
+			32 button (collapsed) ↻ Replay accounting for countermeasures, Help: Seed a follow-up campaign that adapts to the countermeasures this run detected, Secondary Actions: Expand
+			33 text Full detail on 
+			34 link Description: Campaigns, Value: 127.0.0.1:18105/campaigns
+			35 text  · launch another from there.
+		36 button Open the assistant
+
+The focused UI element is 1 AXWebArea WEDOS ShieldTest — Control Plane, URL: 127.0.0.1:18105/theater?run=7457e1b5-d1b8-4c49-b311-5eac3d76e47a

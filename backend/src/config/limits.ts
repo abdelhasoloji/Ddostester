@@ -93,6 +93,9 @@ export const MIN_RECURRENCE_MIN = 15;
 // treat loosening them (e.g. raising `windowKillAvailPct` down toward 0, or
 // pushing `autoKillUnavailableMs` up) as a change to the safety envelope.
 
+/** Maximum read-only URLs in one probe cycle, including its primary URL. */
+export const MAX_PROBE_URLS = 8;
+
 export type ProbeLimits = {
   /** Poll cadence (ms) between probe checks. */
   intervalMs: number;
@@ -267,6 +270,7 @@ export const IO_LIMITS = Object.freeze({
   processOutputBytes: 1024 * 1024,
   processStreamBytes: 64 * 1024 * 1024,
   processGraceMs: 1000,
+  processReportMs: 15_000,
   processDeadlineMs: (HARD_CAPS.maxDurationSec + 15) * 1000,
   binaryCheckMs: 3000,
   agentPreparationMs: 60_000,
@@ -281,6 +285,14 @@ export const FLEET_LIMITS = Object.freeze({
   minDurationSec: 10,
   stopTimeoutMs: 8000,
   coordinationLock: 714211,
+  /**
+   * Transaction-scoped advisory lock serialising fleet schema creation across
+   * replicas. CREATE TABLE IF NOT EXISTS is idempotent but not atomic, so pods
+   * starting together can collide on the pg_type unique index. Distinct from the
+   * runtime lease (714210), the envelope lock (714211) and the assistant
+   * token-budget lock (714212).
+   */
+  schemaLock: 714213,
   heartbeatMs: 2000,
   leaseMs: 6000,
   stopGraceMs: 2000,

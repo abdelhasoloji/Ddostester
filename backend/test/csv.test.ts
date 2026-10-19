@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { csvField, toCsv } from '../src/util/csv.js';
 
 describe('csv', () => {
+  it('neutralizes formula text including leading whitespace without changing numeric cells', () => {
+    for (const text of ['=1+1', '+SUM(A1)', '-1+2', '@SUM(A1)', '  =1+1', '\t=1+1', '\r=1+1']) {
+      expect(csvField(text)).toContain("'");
+    }
+    expect(csvField(-12)).toBe('-12');
+    expect(csvField('https://example.com/')).toBe('https://example.com/');
+  });
   it('quotes fields with commas, quotes or newlines', () => {
     expect(csvField('plain')).toBe('plain');
     expect(csvField('a,b')).toBe('"a,b"');

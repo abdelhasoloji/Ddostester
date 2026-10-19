@@ -1,0 +1,3492 @@
+{
+  "apiVersion": "v1",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-13T21:12:51Z",
+        "generateName": "lab-control-649d48d584-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-control",
+          "pod-template-hash": "649d48d584"
+        },
+        "name": "lab-control-649d48d584-q8sgx",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-control-649d48d584",
+            "uid": "e66f90d6-c534-4d05-b15e-9abf4a97092a"
+          }
+        ],
+        "resourceVersion": "10852",
+        "uid": "6ca0cdac-6335-4b70-8075-c72682246389"
+      },
+      "spec": {
+        "automountServiceAccountToken": true,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "HOST",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "PORT",
+                "value": "8080"
+              },
+              {
+                "name": "USER_MODE",
+                "value": "single"
+              },
+              {
+                "name": "SINGLE_USER_EMAIL",
+                "value": "abdelha@wedos"
+              },
+              {
+                "name": "SCHEDULER",
+                "value": "off"
+              },
+              {
+                "name": "TARGET_TELEMETRY_METRICS_URL",
+                "value": "http://lab-target:9101/metrics.json"
+              },
+              {
+                "name": "PROBE_INTERVAL_MS",
+                "value": "1000"
+              },
+              {
+                "name": "ALLOWED_TARGETS",
+                "value": "lab-target"
+              },
+              {
+                "name": "PROBE_AGENT_URL",
+                "value": "http://lab-probe:8099/probe"
+              },
+              {
+                "name": "PROBE_AGENT_TOKEN",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "token",
+                    "name": "probe-identity"
+                  }
+                }
+              },
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "database-url",
+                    "name": "lab-identities"
+                  }
+                }
+              },
+              {
+                "name": "AUTH_JWT_SECRET",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "signing-secret",
+                    "name": "lab-identities"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_ENABLED",
+                "value": "1"
+              },
+              {
+                "name": "FLEET_AGENT_IMAGE",
+                "value": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be"
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "control",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080,
+                "scheme": "HTTP"
+              },
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              },
+              "requests": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "name": "kube-api-access-fqt6b",
+                "readOnly": true
+              }
+            ]
+          },
+          {
+            "command": ["node", "backend/dist/cli/loopback-proxy.js"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_AGENT_IMAGE",
+                "value": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be"
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "loopback-access",
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "32Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "name": "kube-api-access-fqt6b",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "lab-orchestrator",
+        "serviceAccountName": "lab-orchestrator",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "128Mi"
+            },
+            "name": "tmp"
+          },
+          {
+            "name": "kube-api-access-fqt6b",
+            "projected": {
+              "defaultMode": 420,
+              "sources": [
+                {
+                  "serviceAccountToken": {
+                    "expirationSeconds": 3607,
+                    "path": "token"
+                  }
+                },
+                {
+                  "configMap": {
+                    "items": [
+                      {
+                        "key": "ca.crt",
+                        "path": "ca.crt"
+                      }
+                    ],
+                    "name": "kube-root-ca.crt"
+                  }
+                },
+                {
+                  "downwardAPI": {
+                    "items": [
+                      {
+                        "fieldRef": {
+                          "apiVersion": "v1",
+                          "fieldPath": "metadata.namespace"
+                        },
+                        "path": "namespace"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "275m",
+          "memory": "288Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:12:52Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:12:51Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:13:05Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:13:05Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:12:51Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "250m",
+              "memory": "256Mi"
+            },
+            "containerID": "containerd://9f1c2bc6b4ab7922460a3a7def8bf17786b80aebb51ce5f2d77b12bd4c2390e5",
+            "image": "docker.io/library/ddostester-lab-control:linux-amd64",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "control",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              },
+              "requests": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-13T21:12:52Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "name": "kube-api-access-fqt6b",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          },
+          {
+            "allocatedResources": {
+              "cpu": "25m",
+              "memory": "32Mi"
+            },
+            "containerID": "containerd://d5c131ec453ddd0f9205060f6200cab089debdab14d3e9d48192cd5ca75a361c",
+            "image": "docker.io/library/ddostester-lab-control:linux-amd64",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "loopback-access",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "32Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-13T21:12:54Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "name": "kube-api-access-fqt6b",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.52",
+        "podIPs": [
+          {
+            "ip": "10.247.0.52"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "1100m",
+            "memory": "1152Mi"
+          },
+          "requests": {
+            "cpu": "258m",
+            "memory": "288Mi"
+          }
+        },
+        "startTime": "2026-10-13T21:12:51Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-13T21:11:24Z",
+        "generateName": "lab-fleet-54d947b7dc-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-fleet",
+          "pod-template-hash": "54d947b7dc"
+        },
+        "name": "lab-fleet-54d947b7dc-65w28",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-fleet-54d947b7dc",
+            "uid": "b45a85c0-6902-4e3e-985e-451d13dc94a8"
+          }
+        ],
+        "resourceVersion": "10767",
+        "uid": "40659a84-d56b-4e0c-a391-8aa4930e0bdf"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "command": ["node", "backend/dist/cli/fleet-server.js"],
+            "env": [
+              {
+                "name": "FLEET_BIND",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_PORT",
+                "value": "8443"
+              },
+              {
+                "name": "FLEET_AGENT_IDS",
+                "value": "one,two,three"
+              },
+              {
+                "name": "FLEET_TLS_KEY",
+                "value": "/etc/fleet-identity/tls.key"
+              },
+              {
+                "name": "FLEET_TLS_CERT",
+                "value": "/etc/fleet-identity/tls.crt"
+              },
+              {
+                "name": "FLEET_TLS_CA",
+                "value": "/etc/fleet-identity/ca.crt"
+              },
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "database-url",
+                    "name": "lab-identities"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "fleet",
+            "ports": [
+              {
+                "containerPort": 8443,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "tcpSocket": {
+                "port": 8443
+              },
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/etc/fleet-identity",
+                "name": "identity",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 1000,
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "name": "identity",
+            "secret": {
+              "defaultMode": 288,
+              "secretName": "fleet-server"
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:11:25Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:11:24Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:11:36Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:11:36Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:11:24Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://823165fbec2b51c038bbb62be2b0988342eef773b6ea0c7c22c78533f9336e75",
+            "image": "docker.io/library/ddostester-lab-control:linux-amd64",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "fleet",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "500m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-13T21:11:26Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/etc/fleet-identity",
+                "name": "identity",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.51",
+        "podIPs": [
+          {
+            "ip": "10.247.0.51"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "79m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-13T21:11:24Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-15T10:52:51Z",
+        "generateName": "lab-grafana-dd668d9cc-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-grafana",
+          "pod-template-hash": "dd668d9cc"
+        },
+        "name": "lab-grafana-dd668d9cc-2fzch",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-grafana-dd668d9cc",
+            "uid": "a3f1efbd-e2cf-4a00-9d31-27794799bf02"
+          }
+        ],
+        "resourceVersion": "66928",
+        "uid": "389ce012-f558-4dda-bcc7-cafebca7217e"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "GF_SECURITY_ADMIN_USER",
+                "value": "lab-admin"
+              },
+              {
+                "name": "GF_SECURITY_ADMIN_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "admin-password",
+                    "name": "lab-monitoring-credentials"
+                  }
+                }
+              },
+              {
+                "name": "GF_AUTH_ANONYMOUS_ENABLED",
+                "value": "false"
+              },
+              {
+                "name": "GF_USERS_ALLOW_SIGN_UP",
+                "value": "false"
+              },
+              {
+                "name": "GF_ANALYTICS_REPORTING_ENABLED",
+                "value": "false"
+              },
+              {
+                "name": "GF_ANALYTICS_CHECK_FOR_UPDATES",
+                "value": "false"
+              },
+              {
+                "name": "GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES",
+                "value": "false"
+              },
+              {
+                "name": "GF_PLUGINS_PREINSTALL_DISABLED",
+                "value": "true"
+              },
+              {
+                "name": "GF_LOG_MODE",
+                "value": "console"
+              }
+            ],
+            "image": "grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "lab-grafana",
+            "ports": [
+              {
+                "containerPort": 3000,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/api/health",
+                "port": 3000,
+                "scheme": "HTTP"
+              },
+              "initialDelaySeconds": 5,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "200m",
+                "memory": "384Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/grafana",
+                "name": "data"
+              },
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/etc/grafana/provisioning/datasources/datasource.yml",
+                "name": "provisioning",
+                "readOnly": true,
+                "subPath": "datasource.yml"
+              },
+              {
+                "mountPath": "/etc/grafana/provisioning/dashboards/dashboards.yml",
+                "name": "provisioning",
+                "readOnly": true,
+                "subPath": "dashboards.yml"
+              },
+              {
+                "mountPath": "/etc/lab-dashboards",
+                "name": "dashboards",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 472,
+          "runAsGroup": 472,
+          "runAsNonRoot": true,
+          "runAsUser": 472,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "name": "data",
+            "persistentVolumeClaim": {
+              "claimName": "lab-grafana-data"
+            }
+          },
+          {
+            "emptyDir": {
+              "sizeLimit": "32Mi"
+            },
+            "name": "tmp"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "lab-grafana-provisioning-m95466fhg9"
+            },
+            "name": "provisioning"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "lab-grafana-drs-fa87aa5"
+            },
+            "name": "dashboards"
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T10:52:54Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T10:52:52Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T10:54:50Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T10:54:50Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T10:52:51Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://2d10b44955dc5fb723c9a8faf63c769a21f369a1507c028907cdbaad74a35f69",
+            "image": "sha256:45900b2eda7da0cbda80b9025e446147d9085fee71675ba86a48a1cad34e4c8a",
+            "imageID": "docker.io/grafana/grafana@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f",
+            "lastState": {},
+            "name": "lab-grafana",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "200m",
+                "memory": "384Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-15T10:52:55Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 472,
+                "supplementalGroups": [0, 472],
+                "uid": 472
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/grafana",
+                "name": "data"
+              },
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/etc/grafana/provisioning/datasources/datasource.yml",
+                "name": "provisioning",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/etc/grafana/provisioning/dashboards/dashboards.yml",
+                "name": "provisioning",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/etc/lab-dashboards",
+                "name": "dashboards",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.81",
+        "podIPs": [
+          {
+            "ip": "10.247.0.81"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "200m",
+            "memory": "384Mi"
+          },
+          "requests": {
+            "cpu": "28m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-15T10:52:52Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-14T05:41:59Z",
+        "generation": 1,
+        "labels": {
+          "app": "fleet-observer",
+          "app.kubernetes.io/part-of": "ddostester-lab",
+          "ddostester.operation": "fleet-observers-20261014-01"
+        },
+        "name": "lab-iot-01",
+        "namespace": "ddostester-lab",
+        "resourceVersion": "144872",
+        "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CA",
+                "value": "/work/server-ca.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CERT",
+                "value": "/work/client.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_KEY",
+                "value": "/work/client.key"
+              },
+              {
+                "name": "FLEET_MISSION_RUNTIME",
+                "value": "1"
+              },
+              {
+                "name": "POD_UID",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.uid"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "observer",
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "node",
+                  "-e",
+                  "const s=require('fs').statSync('/work/last-accepted');if(Date.now()-s.mtimeMs\u003e15000)process.exit(1)"
+                ]
+              },
+              "failureThreshold": 3,
+              "initialDelaySeconds": 2,
+              "periodSeconds": 5,
+              "successThreshold": 1,
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "initContainers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs", "prepare"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "prepare",
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 1000,
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "16Mi"
+            },
+            "name": "work"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "fleet-observers-20261014-01"
+            },
+            "name": "source"
+          },
+          {
+            "name": "enrollment",
+            "secret": {
+              "defaultMode": 288,
+              "optional": true,
+              "secretName": "lab-iot-01-enrollment"
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:42:01Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:43:32Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T16:29:08Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T16:29:08Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:41:59Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://1b4c8af9556f5099812d8775a1a76d6627b9f373a55ecbc266304066172431d6",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {
+              "terminated": {
+                "containerID": "containerd://9fc3ff026663de7e6f7694dfda3ce6beebf8f59d3aa0d3ea7e062312f1788a9a",
+                "exitCode": 1,
+                "finishedAt": "2026-10-17T07:47:27Z",
+                "reason": "Error",
+                "startedAt": "2026-10-17T04:16:32Z"
+              }
+            },
+            "name": "observer",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 5,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-17T07:47:30Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "initContainerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "25m",
+              "memory": "64Mi"
+            },
+            "containerID": "containerd://b514e347c2737ac727f1754d34101b5428dd811de4f4ac167611462aa2b04ffc",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "prepare",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": false,
+            "state": {
+              "terminated": {
+                "containerID": "containerd://b514e347c2737ac727f1754d34101b5428dd811de4f4ac167611462aa2b04ffc",
+                "exitCode": 0,
+                "finishedAt": "2026-10-14T05:43:32Z",
+                "reason": "Completed",
+                "startedAt": "2026-10-14T05:42:04Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.71",
+        "podIPs": [
+          {
+            "ip": "10.247.0.71"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "250m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "28m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-14T05:41:59Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-14T05:42:01Z",
+        "generation": 1,
+        "labels": {
+          "app": "fleet-observer",
+          "app.kubernetes.io/part-of": "ddostester-lab",
+          "ddostester.operation": "fleet-observers-20261014-01"
+        },
+        "name": "lab-iot-02",
+        "namespace": "ddostester-lab",
+        "resourceVersion": "145663",
+        "uid": "42b0ed77-1a8b-4581-8619-ab851332f211"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CA",
+                "value": "/work/server-ca.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CERT",
+                "value": "/work/client.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_KEY",
+                "value": "/work/client.key"
+              },
+              {
+                "name": "FLEET_MISSION_RUNTIME",
+                "value": "1"
+              },
+              {
+                "name": "POD_UID",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.uid"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "observer",
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "node",
+                  "-e",
+                  "const s=require('fs').statSync('/work/last-accepted');if(Date.now()-s.mtimeMs\u003e15000)process.exit(1)"
+                ]
+              },
+              "failureThreshold": 3,
+              "initialDelaySeconds": 2,
+              "periodSeconds": 5,
+              "successThreshold": 1,
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "initContainers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs", "prepare"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "prepare",
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 1000,
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "16Mi"
+            },
+            "name": "work"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "fleet-observers-20261014-01"
+            },
+            "name": "source"
+          },
+          {
+            "name": "enrollment",
+            "secret": {
+              "defaultMode": 288,
+              "optional": true,
+              "secretName": "lab-iot-02-enrollment"
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:42:03Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:43:14Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:00:25Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:00:25Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:42:01Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://59d8d1a02b23daab838d5445c4fbe0d2384a7b9d4a10defd408b8d5cd6fad4c3",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {
+              "terminated": {
+                "containerID": "containerd://ed4af5f161e7be3730816ff585d866b1744a23d710432fec54ddce639340593b",
+                "exitCode": 1,
+                "finishedAt": "2026-10-17T07:47:30Z",
+                "reason": "Error",
+                "startedAt": "2026-10-17T04:16:28Z"
+              }
+            },
+            "name": "observer",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 5,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-17T07:47:33Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "initContainerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "25m",
+              "memory": "64Mi"
+            },
+            "containerID": "containerd://0f9249bcf79c008ac0d4fcd64e416d61032949fbb497c2dd346c19697fabbadf",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "prepare",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": false,
+            "state": {
+              "terminated": {
+                "containerID": "containerd://0f9249bcf79c008ac0d4fcd64e416d61032949fbb497c2dd346c19697fabbadf",
+                "exitCode": 0,
+                "finishedAt": "2026-10-14T05:43:13Z",
+                "reason": "Completed",
+                "startedAt": "2026-10-14T05:42:05Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.72",
+        "podIPs": [
+          {
+            "ip": "10.247.0.72"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "250m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "28m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-14T05:42:01Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-14T05:42:03Z",
+        "generation": 1,
+        "labels": {
+          "app": "fleet-observer",
+          "app.kubernetes.io/part-of": "ddostester-lab",
+          "ddostester.operation": "fleet-observers-20261014-01"
+        },
+        "name": "lab-iot-03",
+        "namespace": "ddostester-lab",
+        "resourceVersion": "144812",
+        "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CA",
+                "value": "/work/server-ca.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_CERT",
+                "value": "/work/client.crt"
+              },
+              {
+                "name": "FLEET_AGENT_TLS_KEY",
+                "value": "/work/client.key"
+              },
+              {
+                "name": "FLEET_MISSION_RUNTIME",
+                "value": "1"
+              },
+              {
+                "name": "POD_UID",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.uid"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "observer",
+            "readinessProbe": {
+              "exec": {
+                "command": [
+                  "node",
+                  "-e",
+                  "const s=require('fs').statSync('/work/last-accepted');if(Date.now()-s.mtimeMs\u003e15000)process.exit(1)"
+                ]
+              },
+              "failureThreshold": 3,
+              "initialDelaySeconds": 2,
+              "periodSeconds": 5,
+              "successThreshold": 1,
+              "timeoutSeconds": 2
+            },
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "initContainers": [
+          {
+            "command": ["node", "/observer/kubernetes-observer.mjs", "prepare"],
+            "env": [
+              {
+                "name": "POD_IP",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "imagePullPolicy": "Never",
+            "name": "prepare",
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 1000,
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "16Mi"
+            },
+            "name": "work"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "fleet-observers-20261014-01"
+            },
+            "name": "source"
+          },
+          {
+            "name": "enrollment",
+            "secret": {
+              "defaultMode": 288,
+              "optional": true,
+              "secretName": "lab-iot-03-enrollment"
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:42:06Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:43:29Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T16:27:43Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T16:27:43Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-14T05:42:03Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://307d935024c0b97af654380d3cd27deb0f42d7967c53d81479309bb5af4a51e3",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {
+              "terminated": {
+                "containerID": "containerd://3c58053858b7701fdbfa13930771f56ba5c29b02e4b158bee2f7d9f6692cf731",
+                "exitCode": 1,
+                "finishedAt": "2026-10-17T07:47:28Z",
+                "reason": "Error",
+                "startedAt": "2026-10-17T04:16:32Z"
+              }
+            },
+            "name": "observer",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 5,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-17T07:47:30Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "initContainerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "25m",
+              "memory": "64Mi"
+            },
+            "containerID": "containerd://ebbfa9ec2aa3f32a11342f159f579bdf8fa5eeb8eb006fe49956c92a8c1b17b7",
+            "image": "sha256:580781a55769a68f596f4078a417b0967fe6e0c681a06245f439137aa289e175",
+            "imageID": "docker.io/library/ddostester-lab-control@sha256:5a50d8220442d1e0134f61559484e03b35288e0d8e8e5f8e3cba6ab25b6321be",
+            "lastState": {},
+            "name": "prepare",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "25m",
+                "memory": "64Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": false,
+            "state": {
+              "terminated": {
+                "containerID": "containerd://ebbfa9ec2aa3f32a11342f159f579bdf8fa5eeb8eb006fe49956c92a8c1b17b7",
+                "exitCode": 0,
+                "finishedAt": "2026-10-14T05:43:28Z",
+                "reason": "Completed",
+                "startedAt": "2026-10-14T05:42:08Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/work",
+                "name": "work"
+              },
+              {
+                "mountPath": "/observer",
+                "name": "source",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/incoming",
+                "name": "enrollment",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.73",
+        "podIPs": [
+          {
+            "ip": "10.247.0.73"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "250m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "28m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-14T05:42:03Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-13T16:14:27Z",
+        "generateName": "lab-postgres-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-postgres",
+          "apps.kubernetes.io/pod-index": "0",
+          "controller-revision-hash": "lab-postgres-94bc8675c",
+          "statefulset.kubernetes.io/pod-name": "lab-postgres-0"
+        },
+        "name": "lab-postgres-0",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "StatefulSet",
+            "name": "lab-postgres",
+            "uid": "d9468e26-a9d5-4e2a-b4a5-e66eb9a12a77"
+          }
+        ],
+        "resourceVersion": "145779",
+        "uid": "1d79af80-d83e-4557-bf92-ff5ebdae222c"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "POSTGRES_USER",
+                "value": "ddostester_lab"
+              },
+              {
+                "name": "POSTGRES_DB",
+                "value": "ddostester_lab"
+              },
+              {
+                "name": "PGDATA",
+                "value": "/var/lib/postgresql/data/pgdata"
+              },
+              {
+                "name": "POSTGRES_PASSWORD",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "database-password",
+                    "name": "lab-identities"
+                  }
+                }
+              }
+            ],
+            "image": "ddostester-lab-postgres:local",
+            "imagePullPolicy": "Never",
+            "name": "postgres",
+            "ports": [
+              {
+                "containerPort": 5432,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "exec": {
+                "command": ["pg_isready", "-U", "ddostester_lab"]
+              },
+              "failureThreshold": 3,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/postgresql/data",
+                "name": "data"
+              },
+              {
+                "mountPath": "/var/run/postgresql",
+                "name": "run"
+              },
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "hostname": "lab-postgres-0",
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 999,
+          "runAsGroup": 999,
+          "runAsNonRoot": true,
+          "runAsUser": 999,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "subdomain": "lab-postgres",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "name": "data",
+            "persistentVolumeClaim": {
+              "claimName": "data-lab-postgres-0"
+            }
+          },
+          {
+            "emptyDir": {
+              "sizeLimit": "8Mi"
+            },
+            "name": "run"
+          },
+          {
+            "emptyDir": {
+              "sizeLimit": "64Mi"
+            },
+            "name": "tmp"
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T16:14:39Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T16:14:39Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:03:23Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:03:23Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T16:14:39Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://f422afe3aee6921e925ec75156d63e9167782d9934b45ab252d9885e4798aeca",
+            "image": "docker.io/library/ddostester-lab-postgres:linux-amd64",
+            "imageID": "docker.io/library/ddostester-lab-postgres@sha256:defe9f57cd443ae60436b39134e7d5bb062511c236e1f65d603bd5fa19353a9b",
+            "lastState": {},
+            "name": "postgres",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-13T16:14:40Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 999,
+                "supplementalGroups": [101, 999],
+                "uid": 999
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/lib/postgresql/data",
+                "name": "data"
+              },
+              {
+                "mountPath": "/var/run/postgresql",
+                "name": "run"
+              },
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.8",
+        "podIPs": [
+          {
+            "ip": "10.247.0.8"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "1",
+            "memory": "512Mi"
+          },
+          "requests": {
+            "cpu": "79m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-13T16:14:39Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-13T21:06:45Z",
+        "generateName": "lab-probe-6569859b-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-probe",
+          "pod-template-hash": "6569859b"
+        },
+        "name": "lab-probe-6569859b-9xr5n",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-probe-6569859b",
+            "uid": "8c46719a-2c9e-4d2c-b13f-a96fb02f54f1"
+          }
+        ],
+        "resourceVersion": "10592",
+        "uid": "843000de-803e-421f-a3dd-e91bd9df45af"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "PROBE_AGENT_BIND",
+                "value": "0.0.0.0"
+              },
+              {
+                "name": "PROBE_AGENT_ALLOWLIST",
+                "value": "lab-target"
+              },
+              {
+                "name": "PROBE_AGENT_TOKEN",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "key": "token",
+                    "name": "probe-identity"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-probe@sha256:7b7173d524a23d5682fc7364657c98404dc1449b0b0a0ebe8ce55a7d301e9711",
+            "imagePullPolicy": "Never",
+            "name": "probe",
+            "ports": [
+              {
+                "containerPort": 8099,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/health",
+                "port": 8099,
+                "scheme": "HTTP"
+              },
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "64Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File"
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "runAsGroup": 1000,
+          "runAsNonRoot": true,
+          "runAsUser": 1000,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "100m",
+          "memory": "64Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:06:47Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:06:45Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:06:59Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:06:59Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-13T21:06:45Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "100m",
+              "memory": "64Mi"
+            },
+            "containerID": "containerd://3f10e451955fdc1452e60870f991949859b3828c1d009f6fedd5de8ae2aea1e7",
+            "image": "docker.io/library/ddostester-lab-probe:linux-amd64-quality",
+            "imageID": "docker.io/library/ddostester-lab-probe@sha256:7b7173d524a23d5682fc7364657c98404dc1449b0b0a0ebe8ce55a7d301e9711",
+            "lastState": {},
+            "name": "probe",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "requests": {
+                "cpu": "100m",
+                "memory": "64Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-13T21:06:47Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 1000,
+                "supplementalGroups": [1000],
+                "uid": 1000
+              }
+            }
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.50",
+        "podIPs": [
+          {
+            "ip": "10.247.0.50"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "250m",
+            "memory": "256Mi"
+          },
+          "requests": {
+            "cpu": "79m",
+            "memory": "64Mi"
+          }
+        },
+        "startTime": "2026-10-13T21:06:45Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-15T06:20:43Z",
+        "generateName": "lab-prometheus-c9495b6f5-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-prometheus",
+          "pod-template-hash": "c9495b6f5"
+        },
+        "name": "lab-prometheus-c9495b6f5-5dphj",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-prometheus-c9495b6f5",
+            "uid": "efad4a22-2768-4888-abeb-deee7f9e84bc"
+          }
+        ],
+        "resourceVersion": "59926",
+        "uid": "5dc788b0-cd12-4f48-b245-815d7522e7f8"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "args": [
+              "--config.file=/etc/prometheus/prometheus.yml",
+              "--storage.tsdb.path=/prometheus",
+              "--web.listen-address=0.0.0.0:9090"
+            ],
+            "image": "prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "lab-prometheus",
+            "ports": [
+              {
+                "containerPort": 9090,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/-/ready",
+                "port": 9090,
+                "scheme": "HTTP"
+              },
+              "initialDelaySeconds": 5,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "200m",
+                "memory": "384Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/etc/prometheus",
+                "name": "config",
+                "readOnly": true
+              },
+              {
+                "mountPath": "/prometheus",
+                "name": "data"
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 65534,
+          "runAsGroup": 65534,
+          "runAsNonRoot": true,
+          "runAsUser": 65534,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "lab-prometheus-config-g659f2g999"
+            },
+            "name": "config"
+          },
+          {
+            "name": "data",
+            "persistentVolumeClaim": {
+              "claimName": "lab-prometheus-data"
+            }
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "50m",
+          "memory": "128Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:46Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:44Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:57Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:57Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:44Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://ffa84a51e7f1ebc955d188e3527748bcfc5283b5a04db5ce5e96d04675b19c6d",
+            "image": "sha256:66416213a3b43651d3521acc3987277b4f97ad0ae29acc581f910ef9bd3959bd",
+            "imageID": "docker.io/prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e",
+            "lastState": {},
+            "name": "lab-prometheus",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "200m",
+                "memory": "384Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-15T06:20:46Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 65534,
+                "supplementalGroups": [65534],
+                "uid": 65534
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/etc/prometheus",
+                "name": "config",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              },
+              {
+                "mountPath": "/prometheus",
+                "name": "data"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.76",
+        "podIPs": [
+          {
+            "ip": "10.247.0.76"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "200m",
+            "memory": "384Mi"
+          },
+          "requests": {
+            "cpu": "28m",
+            "memory": "128Mi"
+          }
+        },
+        "startTime": "2026-10-15T06:20:44Z"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "annotations": {
+          "shieldtest.telemetry-source": "bb30ccf08d5f87e22da6404c70f55e09581322dc"
+        },
+        "creationTimestamp": "2026-10-15T06:20:34Z",
+        "generateName": "lab-target-8987fb46c-",
+        "generation": 1,
+        "labels": {
+          "app": "lab-target",
+          "pod-template-hash": "8987fb46c"
+        },
+        "name": "lab-target-8987fb46c-ndgfn",
+        "namespace": "ddostester-lab",
+        "ownerReferences": [
+          {
+            "apiVersion": "apps/v1",
+            "blockOwnerDeletion": true,
+            "controller": true,
+            "kind": "ReplicaSet",
+            "name": "lab-target-8987fb46c",
+            "uid": "958d8401-7a4d-43a0-a09d-a36a56aaf528"
+          }
+        ],
+        "resourceVersion": "145702",
+        "uid": "bec4fc55-d674-417d-a568-a03f100aa018"
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "image": "ddostester-lab-target:local",
+            "imagePullPolicy": "Never",
+            "name": "target",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/health",
+                "port": 8080,
+                "scheme": "HTTP"
+              },
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "250m",
+                "memory": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/run/nginx",
+                "name": "run"
+              },
+              {
+                "mountPath": "/var/log/lab",
+                "name": "receipts"
+              },
+              {
+                "mountPath": "/var/www/benchmark",
+                "name": "readable-benchmark",
+                "readOnly": true
+              }
+            ]
+          },
+          {
+            "env": [
+              {
+                "name": "TELEMETRY_BIND",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "status.podIP"
+                  }
+                }
+              },
+              {
+                "name": "POD_UID",
+                "valueFrom": {
+                  "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.uid"
+                  }
+                }
+              }
+            ],
+            "image": "docker.io/library/ddostester-lab-telemetry@sha256:49dc59b6b065834d2d49e5f74fc86a8bafcfab764884c61d5818dcfd72cf8fcd",
+            "imagePullPolicy": "Never",
+            "name": "telemetry",
+            "ports": [
+              {
+                "containerPort": 9101,
+                "protocol": "TCP"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "64Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {
+                "drop": ["ALL"]
+              },
+              "readOnlyRootFilesystem": true,
+              "runAsGroup": 82,
+              "runAsUser": 1000
+            },
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/var/log/lab",
+                "name": "receipts"
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "k3d-ddostester-linux-lab-server-0",
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+          "fsGroup": 82,
+          "runAsGroup": 82,
+          "runAsNonRoot": true,
+          "runAsUser": 82,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "emptyDir": {
+              "sizeLimit": "64Mi"
+            },
+            "name": "tmp"
+          },
+          {
+            "emptyDir": {
+              "sizeLimit": "8Mi"
+            },
+            "name": "run"
+          },
+          {
+            "emptyDir": {
+              "sizeLimit": "16Mi"
+            },
+            "name": "receipts"
+          },
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "items": [
+                {
+                  "key": "account.php",
+                  "path": "account.php"
+                },
+                {
+                  "key": "api___lib.php",
+                  "path": "api/_lib.php"
+                },
+                {
+                  "key": "api__cached.php",
+                  "path": "api/cached.php"
+                },
+                {
+                  "key": "api__db.php",
+                  "path": "api/db.php"
+                },
+                {
+                  "key": "api__echo.php",
+                  "path": "api/echo.php"
+                },
+                {
+                  "key": "api__products.php",
+                  "path": "api/products.php"
+                },
+                {
+                  "key": "api__report.php",
+                  "path": "api/report.php"
+                },
+                {
+                  "key": "api__search.php",
+                  "path": "api/search.php"
+                },
+                {
+                  "key": "api__work.php",
+                  "path": "api/work.php"
+                },
+                {
+                  "key": "index.html",
+                  "path": "index.html"
+                },
+                {
+                  "key": "login.php",
+                  "path": "login.php"
+                }
+              ],
+              "name": "lab-target-web-readable-20261014-01"
+            },
+            "name": "readable-benchmark"
+          }
+        ]
+      },
+      "status": {
+        "allocatedResources": {
+          "cpu": "300m",
+          "memory": "192Mi"
+        },
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:36Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodReadyToStartContainers"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:35Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:01:08Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-17T17:01:08Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2026-10-15T06:20:34Z",
+            "observedGeneration": 1,
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "allocatedResources": {
+              "cpu": "250m",
+              "memory": "128Mi"
+            },
+            "containerID": "containerd://c56fda3c26eb92d38c9935cf72b0f1b43321d6d13867d984952d96d4348bda51",
+            "image": "docker.io/library/ddostester-lab-target:linux-amd64",
+            "imageID": "docker.io/library/ddostester-lab-target@sha256:33bbf6b979abe338a38c05771c020eb94800188721e023e7b0d7d57152d8f106",
+            "lastState": {},
+            "name": "target",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "1",
+                "memory": "512Mi"
+              },
+              "requests": {
+                "cpu": "250m",
+                "memory": "128Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-15T06:20:37Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 82,
+                "supplementalGroups": [82],
+                "uid": 82
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/tmp",
+                "name": "tmp"
+              },
+              {
+                "mountPath": "/run/nginx",
+                "name": "run"
+              },
+              {
+                "mountPath": "/var/log/lab",
+                "name": "receipts"
+              },
+              {
+                "mountPath": "/var/www/benchmark",
+                "name": "readable-benchmark",
+                "readOnly": true,
+                "recursiveReadOnly": "Disabled"
+              }
+            ]
+          },
+          {
+            "allocatedResources": {
+              "cpu": "50m",
+              "memory": "64Mi"
+            },
+            "containerID": "containerd://4cc262ec9f473724756416dc2a4c8529e8a71a43ade1479a799d4d5d62bc5ef4",
+            "image": "docker.io/library/ddostester-lab-telemetry:receipts-bb30ccf",
+            "imageID": "docker.io/library/ddostester-lab-telemetry@sha256:49dc59b6b065834d2d49e5f74fc86a8bafcfab764884c61d5818dcfd72cf8fcd",
+            "lastState": {},
+            "name": "telemetry",
+            "ready": true,
+            "resources": {
+              "limits": {
+                "cpu": "250m",
+                "memory": "128Mi"
+              },
+              "requests": {
+                "cpu": "50m",
+                "memory": "64Mi"
+              }
+            },
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2026-10-15T06:20:38Z"
+              }
+            },
+            "user": {
+              "linux": {
+                "gid": 82,
+                "supplementalGroups": [82],
+                "uid": 1000
+              }
+            },
+            "volumeMounts": [
+              {
+                "mountPath": "/var/log/lab",
+                "name": "receipts"
+              }
+            ]
+          }
+        ],
+        "hostIP": "172.30.94.3",
+        "hostIPs": [
+          {
+            "ip": "172.30.94.3"
+          }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.247.0.75",
+        "podIPs": [
+          {
+            "ip": "10.247.0.75"
+          }
+        ],
+        "qosClass": "Burstable",
+        "resources": {
+          "limits": {
+            "cpu": "1250m",
+            "memory": "640Mi"
+          },
+          "requests": {
+            "cpu": "284m",
+            "memory": "192Mi"
+          }
+        },
+        "startTime": "2026-10-15T06:20:35Z"
+      }
+    }
+  ],
+  "kind": "List",
+  "metadata": {
+    "resourceVersion": ""
+  }
+}

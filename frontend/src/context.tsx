@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, setToken, getToken, DEFAULT_CAPS, getGrafanaBase, setGrafanaBase } from './api.js';
+import {
+  api,
+  setToken,
+  getToken,
+  PLACEHOLDER_CAPS,
+  getGrafanaBase,
+  setGrafanaBase,
+} from './api.js';
 import type {
   AgentInfo,
   Campaign,
@@ -85,14 +92,14 @@ let toastSeq = 0;
 interface Ctx {
   allowed: string[];
   labTargets: string[];
-  /** Effective operational caps the server enforces; from /health, DEFAULT_CAPS until loaded. */
+  /** Effective operational caps the server enforces; from /health, PLACEHOLDER_CAPS until loaded. */
   drsWorkflow?: boolean;
   hardCaps: HardCaps;
   /** Immutable absolute ceiling; the CISO can never set an operational cap above it. */
   hardCapsCeiling: HardCaps;
   /** Built-in engine performance ceilings (from /health): above either, a simple
    *  flood auto-routes to an out-of-process engine. Used for config-time hints. */
-  builtinCeilings: { rps: number; concurrency: number };
+  builtinCeilings: { rps: number; concurrency: number } | null;
   agentName: string;
   /** Build stamp of the running API server (from /health), for a mismatch check. */
   serverVersion: { version: string; build: string; commit: string; builtAt?: string } | null;
@@ -189,12 +196,14 @@ export function useApp(): Ctx {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [labTargets, setLabTargets] = useState<string[]>([]);
-  const [hardCaps, setHardCaps] = useState<HardCaps>(DEFAULT_CAPS);
-  const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(DEFAULT_CAPS);
-  const [builtinCeilings, setBuiltinCeilings] = useState<{ rps: number; concurrency: number }>({
-    rps: 150,
-    concurrency: 300,
-  });
+  const [hardCaps, setHardCaps] = useState<HardCaps>(PLACEHOLDER_CAPS);
+  const [hardCapsCeiling, setHardCapsCeiling] = useState<HardCaps>(PLACEHOLDER_CAPS);
+  // null until /health reports the built-in engine ceilings: a guessed value would
+  // be a second source of truth for a constant the server owns.
+  const [builtinCeilings, setBuiltinCeilings] = useState<{
+    rps: number;
+    concurrency: number;
+  } | null>(null);
   const [agentName, setAgentName] = useState('');
   const [serverVersion, setServerVersion] = useState<Ctx['serverVersion']>(null);
   const [requireCisoApproval, setRequireCisoApproval] = useState(false);
@@ -276,8 +285,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDrsWorkflow(h.drsWorkflow ?? false);
     setAllowed(h.allowedTargets);
     setLabTargets(h.labTargets ?? []);
-    setHardCaps(h.hardCaps ?? DEFAULT_CAPS);
-    setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? DEFAULT_CAPS);
+    setHardCaps(h.hardCaps ?? PLACEHOLDER_CAPS);
+    setHardCapsCeiling(h.hardCapsCeiling ?? h.hardCaps ?? PLACEHOLDER_CAPS);
     if (h.builtinCeilings) setBuiltinCeilings(h.builtinCeilings);
     setAgentName(h.agent ?? '');
     setServerVersion(h.version ?? null);

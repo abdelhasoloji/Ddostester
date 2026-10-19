@@ -1,8 +1,11 @@
-import { remoteProbeQualityReasons } from './confidence.js';
+import { computeAbsorption } from './absorption.js';
+import { scenarioMeanRps } from '../campaigns/calibration.js';
+import type { Campaign } from '../campaigns/model.js';
+import { computeConfidence, fleetCpuContention, remoteProbeQualityReasons } from './confidence.js';
 import type { CampaignRun } from '../campaigns/runner.js';
 import type { WrsLevel } from '../wrs/scoring.js';
 import { wrsLevel } from '../wrs/scoring.js';
-import { availabilityPct } from '../../util/run-metrics.js';
+import { observedAvailability } from './measurements.js';
 
 /**
  * Dedicated assessment engine — the single source of truth that turns the REAL
@@ -38,20 +41,14 @@ export type Mechanism =
 export type VectorVerdict =
   | 'held' // legitimate availability held; a valid test at the delivered rate
   | 'partial' // some legitimate impact (availability dipped) but the target stayed up
-  | 'breached' // the target went unavailable (a real, attributed auto-kill)
+  | 'breached' // probe-failure threshold or attributed automatic stop
   | 'inconclusive'; // the measurement can't prove resilience (under-delivered / degraded / contended / aborted)
 
 /** Below this fraction of the configured rate, a rate-based vector never reached its intensity. */
 export const DELIVERY_MIN = 0.7;
 /** At/below this absorbed fraction the origin effectively served the load itself. */
 const SERVED_ABSORB_MAX = 0.05;
-/**
- * Below this legitimate availability the target was unavailable for the MAJORITY of
- * the run — a real outage, not a dip. Such a run is `breached` even when it wasn't
- * auto-killed (it may have recovered enough by the end to complete): grading it
- * `partial` on the final/average availability alone understated an 800-rps flood
- * that held legit traffic at ~0% for ~80s and recovered to 40%.
- */
+/** Fewer than half of completed probe transactions succeeded; not an outage-duration measure. */
 const AVAIL_BREACH = 50;
 
 export interface VectorContext {
@@ -60,6 +57,7 @@ export interface VectorContext {
   status: CampaignRun['status'] | string;
   /** Campaign vector — 'http-get' | 'http-post' | 'http-slowloris'. */
   vector?: string;
+  h2Confirmed?: boolean;
   /** Fallback WRS/level when the full run object isn't loaded (the suite member carries them). */
   wrs?: number | null;
   level?: WrsLevel | null;
@@ -79,7 +77,7 @@ export interface VectorAssessment {
   /** achieved / expected offered rate, in [0,1]; 1 when no rate is known. */
   deliveryRatio: number;
   underDelivered: boolean;
-  availabilityPct: number;
+  availabilityPct: number | null;
   absorbedPct: number;
   rejectedPct: number;
   tarpitPct: number;
@@ -103,13 +101,19 @@ const pct1 = (r: number): number => Math.round(Math.max(0, Math.min(1, r)) * 100
 export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): VectorAssessment {
   const isSlow = ctx.vector === 'http-slowloris' || /slowloris/i.test(ctx.shape);
   const a = run?.absorption;
-  const avail = run ? availabilityPct(run) : 0;
-  const configuredRps = a?.configuredRps ?? 0;
+  const measuredAvailability = run ? observedAvailability(run) : null;
+  const avail = measuredAvailability ?? 0;
+  const cal = run?.calibration;
+  const recordedPeak = a?.configuredRps ?? run?.generator.config?.maxRps ?? 0;
+  const configuredRps = cal?.calibrated ? Math.max(recordedPeak, cal.requestedRps) : recordedPeak;
   // The rate the scenario meant to offer (its mean) — the honest denominator for
   // delivery. Equals the peak for a constant profile; lower for a wave/ramp. A
   // faithfully-delivered wave's mean is ~73% of its peak, a ramp's ~58%, so
   // measuring delivery against the peak would falsely flag them under-delivered.
-  const expectedRps = a?.expectedRps ?? configuredRps;
+  const recordedMean = a?.expectedRps ?? recordedPeak;
+  // Keep the originally requested exposure as the denominator after calibration.
+  const expectedRps =
+    recordedPeak > 0 ? (recordedMean * configuredRps) / recordedPeak : configuredRps;
   const achievedRps = a?.achievedRps ?? (run ? run.generator.actualRps : 0);
   const originRps = a?.originRps ?? 0;
   const absorbedRatio = a?.absorbedRatio ?? 0;
@@ -125,6 +129,38 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   const level = run?.wrs?.level ?? ctx.level ?? (wrs != null ? wrsLevel(wrs) : null);
 
   const caveats: string[] = [];
+  const noProbe = !!run && measuredAvailability === null;
+  const approximation = /rapid.?reset|continuation|thor|pulsewave|carpet.bombing/i.test(ctx.shape);
+  const intendedUrls = run?.generator.config?.endpoints?.map((e) => e.url) ?? [];
+  const primaryUrl = run?.generator.config?.execution?.probeUrl;
+  const monitoredUrls =
+    run?.probe.endpoints?.filter((e) => e.samples > 0).map((e) => e.url) ??
+    (primaryUrl ? [primaryUrl] : []);
+  const missingCoverage =
+    intendedUrls.length > 0 && intendedUrls.some((url) => !monitoredUrls.includes(url));
+  if (approximation)
+    caveats.push(
+      'This bounded HTTP approximation does not implement the named protocol abuse or distributed mechanism; completion cannot establish resilience to that mechanism.',
+    );
+  if (missingCoverage)
+    caveats.push(
+      'Functional probe coverage does not include every requested endpoint. Availability describes only the monitored checks, not the entire target.',
+    );
+  if ((run?.probe.endpoints?.length ?? 0) > 1)
+    caveats.push(
+      'Availability counts complete probe cycles: every monitored GET check must succeed. It does not validate authenticated or POST transactions. Baseline latency on the primary URL is not comparable with the maximum latency across these checks.',
+    );
+  const unsupportedH2 =
+    /http\/?2|rapid.?reset|continuation/i.test(ctx.shape) && ctx.h2Confirmed !== true;
+  if (noProbe) caveats.push('No completed probe observations; availability is unknown.');
+  if (run && run.probe.samples > 0 && run.probe.samples < 10)
+    caveats.push(
+      `Only ${run.probe.samples} probe observations; cumulative availability has coarse resolution and does not establish continuous service availability.`,
+    );
+  if (unsupportedH2)
+    caveats.push(
+      'HTTP/2 was not confirmed at this target; this bounded HTTP run cannot establish HTTP/2 resilience.',
+    );
   if (run?.generator.fleet?.measurementComplete === false)
     caveats.push(
       'Fleet evidence is incomplete; this run cannot establish a complete resilience verdict.',
@@ -136,13 +172,12 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
         `so resilience at the full DRS ${ctx.drs} rate is unproven.`,
     );
   }
-  const cal = run?.calibration;
   if (cal?.calibrated) {
     caveats.push(
       `Rate-calibrated: the requested ${cal.requestedRps} req/s exceeded what the generator ` +
         `could deliver against this target on one box (measured ${cal.deliveredRps} req/s), so ` +
-        `the graded run was offered at ${cal.appliedRps} req/s. The verdict is valid AT ${cal.appliedRps} req/s; ` +
-        `proving resilience at the full ${cal.requestedRps} req/s needs multi-box generation.`,
+        `the graded run was offered at ${cal.appliedRps} req/s. This calibration is not proof of successful mitigation at ${cal.appliedRps} req/s; ` +
+        `proving resilience at the full ${cal.requestedRps} req/s requires further generator and target qualification.`,
     );
   }
   if (run?.confidence?.degraded) caveats.push(...(run.confidence.reasons ?? []));
@@ -168,17 +203,40 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   else if (rejectedRatio >= tarpitRatio) mechanism = 'rejected';
   else mechanism = 'tarpitted';
 
+  const secondaryBaselineMissing =
+    (run?.probe.endpoints?.length ?? 0) > 1 &&
+    (run?.probe.endpoints ?? []).some((e) => {
+      if (e.url === primaryUrl) return false;
+      const b = run?.probeBaselines?.find((b) => b.url === e.url)?.metrics;
+      return (
+        !b ||
+        b.samples < 1 ||
+        b.availabilityPct !== 100 ||
+        b.observation?.complete === false ||
+        Boolean(b.quality && remoteProbeQualityReasons(b.quality).length)
+      );
+    });
   const baselineMissing =
+    secondaryBaselineMissing ||
     run?.baseline?.observation?.complete === false ||
     Boolean(run?.baseline?.quality && remoteProbeQualityReasons(run.baseline.quality).length);
   if (baselineMissing)
     caveats.push(
-      'Remote baseline observations or resource diagnostics are uncertain; no reliable baseline comparison is available.',
+      'Baseline observations for the monitored routes or resource diagnostics are incomplete or unhealthy; no reliable pre-load comparison is available.',
     );
+  const reducedCalibration = cal?.calibrated === true && cal.appliedRps < cal.requestedRps;
   // Verdict — tied to what the measurement can prove.
   let verdict: VectorVerdict;
-  if (ctx.status === 'KILLED_AUTO')
-    verdict = run?.probeContended || baselineMissing ? 'inconclusive' : 'breached';
+  if (noProbe || unsupportedH2 || approximation || missingCoverage || reducedCalibration)
+    verdict = 'inconclusive';
+  else if (ctx.status === 'KILLED_AUTO')
+    verdict =
+      run?.probeContended ||
+      baselineMissing ||
+      run?.confidence?.degraded ||
+      run?.generator.fleet?.measurementComplete === false
+        ? 'inconclusive'
+        : 'breached';
   else if (ctx.status === 'KILLED_MANUAL') verdict = 'inconclusive';
   else if (!run) verdict = 'inconclusive';
   else if (
@@ -193,6 +251,12 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
   else verdict = 'partial';
 
   const confident =
+    Boolean(run) &&
+    !noProbe &&
+    !unsupportedH2 &&
+    !approximation &&
+    !missingCoverage &&
+    !reducedCalibration &&
     ctx.status === 'COMPLETED' &&
     !baselineMissing &&
     !underDelivered &&
@@ -200,29 +264,33 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     run?.generator.fleet?.measurementComplete !== false &&
     !run?.probeContended;
 
-  let observation = buildObservation({
-    mechanism,
-    verdict,
-    isSlow,
-    availPct: Math.round(avail),
-    originRps: Math.round(originRps),
-    achievedRps: Math.round(achievedRps),
-    configuredRps,
-    expectedRps: Math.round(expectedRps),
-    absorbedPct: a?.absorbedPct ?? 0,
-    wrs,
-    level,
-    underDelivered,
-    deliveryRatio,
-    drs: ctx.drs,
-    statusDetail: run?.statusDetail,
-    status: ctx.status,
-  });
+  let observation = !run
+    ? 'No run data; delivered load and legitimate availability are unknown. No resilience verdict.'
+    : noProbe
+      ? 'Probe availability is unknown; no resilience verdict.'
+      : buildObservation({
+          mechanism,
+          verdict,
+          isSlow,
+          availPct: Math.round(avail),
+          originRps: Math.round(originRps),
+          achievedRps: Math.round(achievedRps),
+          configuredRps,
+          expectedRps: Math.round(expectedRps),
+          absorbedPct: a?.absorbedPct ?? 0,
+          wrs,
+          level,
+          underDelivered,
+          deliveryRatio,
+          drs: ctx.drs,
+          statusDetail: run?.statusDetail,
+          status: ctx.status,
+        });
   // Be explicit when the graded rate was the calibrated deliverable ceiling, so
   // the verdict is never mistaken for one proven at the full requested rate.
   if (cal?.calibrated) {
     observation +=
-      ` (Rate-calibrated: graded at ${cal.appliedRps} req/s — the deliverable ceiling here — ` +
+      ` (Rate-calibrated: observed at ${cal.appliedRps} req/s — the deliverable ceiling here — ` +
       `not the requested ${cal.requestedRps} req/s.)`;
   }
 
@@ -238,7 +306,7 @@ export function assessVector(run: CampaignRun | undefined, ctx: VectorContext): 
     originRps: Math.round(originRps),
     deliveryRatio,
     underDelivered,
-    availabilityPct: Math.round(avail),
+    availabilityPct: measuredAvailability === null ? null : Math.round(avail * 10) / 10,
     absorbedPct: a?.absorbedPct ?? 0,
     rejectedPct: pct1(rejectedRatio),
     tarpitPct: pct1(tarpitRatio),
@@ -272,16 +340,16 @@ function buildObservation(x: {
   status: string;
 }): string {
   if (x.status === 'KILLED_AUTO' && x.verdict === 'breached') {
-    return `Not mitigated — the target went unavailable (${x.availPct}% legitimate availability). ${x.statusDetail ?? 'The safety kill-switch stopped the run.'}`;
+    return `Automatic stop — ${x.availPct}% of completed legitimate probe transactions succeeded. ${x.statusDetail ?? 'The safety kill-switch stopped the run.'}`;
   }
   if (x.verdict === 'breached') {
     // A completed run that nonetheless drove legitimate availability below the
-    // breach floor — the target was unavailable for the majority of the run.
+    // breach floor — most completed probe transactions failed.
     const mech = describeMechanism(x.mechanism, x.originRps, x.absorbedPct, x.isSlow);
     const tail = x.wrs != null ? ` WRS ${x.wrs} (${x.level}).` : '';
     return (
-      `Not held — legitimate availability collapsed to ${x.availPct}% (the target was unavailable for ` +
-      `the majority of the run). ${mech}.${tail}`
+      `Not held — ${x.availPct}% of completed legitimate probe transactions succeeded; ` +
+      `the majority failed. These samples do not establish outage duration. ${mech}.${tail}`
     );
   }
   if (x.status === 'KILLED_MANUAL') {
@@ -313,10 +381,10 @@ function describeMechanism(
   switch (m) {
     case 'served':
       return isSlow
-        ? `The target held the slow connections open (little shedding)`
+        ? `Slow connections remained open; this alone does not establish mitigation`
         : `Successful HTTP responses: ~${originRps} req/s; generator failure ratio: ${absorbedPct}% (origin/edge attribution requires telemetry)`;
     case 'shed':
-      return `The target shed the slow/incomplete connections (request/header timeout) — the correct defense`;
+      return `Slow/incomplete connections closed; the closure cause requires target telemetry`;
     case 'rejected':
       return `HTTP failures (4xx/5xx): ${absorbedPct}% of offered requests; cause unproven`;
     case 'tarpitted':
@@ -399,4 +467,42 @@ export function assessSuite(vectors: VectorAssessment[]): SuiteAssessment {
     worstRisk,
     headline,
   };
+}
+
+/** Derived display projection; old evidence remains unchanged in storage. */
+export function assessCampaignRun(
+  run: CampaignRun,
+  campaign?: Partial<Campaign>,
+): VectorAssessment {
+  const g = run.generator;
+  const configuredRps = campaign?.maxRps ?? g.config?.maxRps ?? 0;
+  const absorption =
+    run.absorption ??
+    computeAbsorption({
+      configuredRps,
+      expectedRps: scenarioMeanRps(configuredRps, campaign?.scenario),
+      achievedRps: g.actualRps,
+      totalRequests: g.totalRequests,
+      successful: g.successful,
+      failed: g.failed,
+      durationSec: g.actualRps > 0 ? g.totalRequests / g.actualRps : 0,
+    });
+  const confidence =
+    run.confidence ??
+    computeConfidence({
+      unfinalizedRequests: g.unfinalizedRequests,
+      hardStopped: g.hardStopped,
+      fleetIncomplete: g.fleet?.measurementComplete === false,
+      fleetCpuContention: fleetCpuContention(g.fleet?.shards),
+    });
+  return assessVector(
+    { ...run, absorption, confidence },
+    {
+      shape: campaign?.name ?? run.campaignId,
+      drs: /DRS\s*([0-9])/i.exec(campaign?.name ?? '')?.[1] ?? '—',
+      status: run.status,
+      vector: campaign?.vector,
+      h2Confirmed: campaign?.reconPosture?.h2,
+    },
+  );
 }

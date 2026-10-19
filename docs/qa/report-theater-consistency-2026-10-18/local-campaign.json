@@ -1,0 +1,30 @@
+{
+  "id": "graphs-local",
+  "name": "Local graph qualification",
+  "target": "http://127.0.0.1:18120/load",
+  "probeUrl": "http://127.0.0.1:18120/health",
+  "probeUrls": ["http://127.0.0.1:18120/secondary"],
+  "vector": "http-get",
+  "maxRps": 20,
+  "concurrency": 2,
+  "maxDurationSec": 20,
+  "createdBy": "local",
+  "authorized": true,
+  "createdAt": "2026-10-18T16:24:40.042Z",
+  "status": "COMPLETED",
+  "approvedBy": "reviewer",
+  "approvalExpiresAt": "2026-10-19T16:24:40.042Z",
+  "wrs": {
+    "detection": 95,
+    "mitigation": 93.33,
+    "availability": 75,
+    "collateral": 75,
+    "wrs": 84.5,
+    "level": "B",
+    "estimated": true
+  },
+  "runId": "b9a2e904-b4b0-4a70-9436-3f719b8d4039",
+  "startedAt": "2026-10-18T16:25:09.467Z",
+  "finishedAt": "2026-10-18T16:25:29.468Z",
+  "durationSec": 24.1
+}

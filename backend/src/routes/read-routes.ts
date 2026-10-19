@@ -1,3 +1,4 @@
+import { assessCampaignRun } from '../modules/reports/assessment.js';
 import { renderDrsTimeline } from '../modules/metrics/drs-detail.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import type { Store } from '../store/index.js';
@@ -14,6 +15,7 @@ import { resolveSeries } from '../modules/metrics/series-catalog.js';
 import { renderFleetMetrics, renderMetrics } from '../modules/metrics/prometheus.js';
 import { metrics } from '../modules/metrics/runtime.js';
 import { renderComplianceHtml } from '../modules/reports/compliance.js';
+import { renderBenchReportHtml } from '../modules/reports/bench-report.js';
 import { BENCH_SCENARIOS } from '../modules/bench/model.js';
 import { renderCompareHtml, compareRuns } from '../modules/reports/compare.js';
 import { renderCampaignReportHtml } from '../modules/reports/report.js';
@@ -85,6 +87,13 @@ export interface ReadRoutesCtx {
  */
 export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): void {
   const { store, guard, readTokenAllowed, prometheusUrl, grafanaUrl } = ctx;
+  app.get('/api/bench/runs/:id/report', async (req, reply) => {
+    if (!(await readTokenAllowed(req)))
+      return reply.code(401).send({ error: 'authentication required' });
+    const run = await store.getBenchRun((req.params as { id: string }).id);
+    if (!run) return reply.code(404).send({ error: 'run not found' });
+    return sendReport(req, reply, renderBenchReportHtml(run), 'bench-' + run.id.slice(0, 8));
+  });
   app.get('/api/fleet/status', { preHandler: guard('campaign:read') }, async (_req, reply) => {
     reply.header('cache-control', 'no-store');
     return fleetStatusFromEnv();
@@ -357,12 +366,17 @@ export function registerReadRoutes(app: FastifyInstance, ctx: ReadRoutesCtx): vo
 
   app.get('/api/runs', { preHandler: guard('campaign:read') }, async (req) => {
     const { campaignId } = req.query as { campaignId?: string };
-    return store.listRuns(campaignId);
+    const campaigns = new Map((await store.listCampaigns()).map((c) => [c.id, c]));
+    return (await store.listRuns(campaignId)).map((run) => ({
+      ...run,
+      assessment: assessCampaignRun(run, campaigns.get(run.campaignId)),
+    }));
   });
 
   app.get('/api/runs/:runId', { preHandler: guard('campaign:read') }, async (req, reply) => {
     const r = await store.getRun((req.params as { runId: string }).runId);
-    return r ?? reply.code(404).send({ error: 'run not found' });
+    if (!r) return reply.code(404).send({ error: 'run not found' });
+    return { ...r, assessment: assessCampaignRun(r, await store.getCampaign(r.campaignId)) };
   });
   app.post<{ Params: { runId: string } }>(
     '/api/runs/:runId/fleet-receipts',

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "7b89a7ab-0a1b-4d9f-9719-4344b6516f85",
+    "scenario": "udp_dns_reflection",
+    "labTarget": "127.0.0.1",
+    "status": "REQUESTED",
+    "requestedBy": "dev",
+    "requestedAt": "2026-10-17T12:41:48.637Z"
+  }
+]

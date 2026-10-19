@@ -1,3 +1,4 @@
+import { LineIcon } from './interface-kit.js';
 import { DrsCatalogPanel } from './drs-catalog.js';
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -87,24 +88,23 @@ const roleDescription: Record<Role, string> = {
 // The primary navigation — the resilience spine, then governance. Everything a
 // campaign needs (Templates, Plan, the guide) lives inside the Campaigns
 // workspace, so the sidebar stays a flat, focused list with Settings on it too.
-// One distinct emoji per destination — no repeats, no lone geometric glyph, so
-// the eight links stay tellable apart at a glance.
+// One monochrome outline family across navigation and theme controls.
 const SPINE_NAV = [
-  { to: '/', label: 'Command Center', icon: '🛰', end: true },
-  { to: '/zones', label: 'Protected zones', icon: '🛡' },
-  { to: '/campaigns', label: 'Campaigns', icon: '🎯' },
-  { to: '/fleet', label: 'Fleet', icon: '🤖' },
-  { to: '/theater', label: 'Run Theater', icon: '🎬' },
-  { to: '/reports', label: 'Results', icon: '📊' },
-  { to: '/assistant', label: 'Assistant', icon: '💬' },
+  { to: '/', label: 'Command Center', icon: <LineIcon name="home" />, end: true },
+  { to: '/zones', label: 'Protected zones', icon: <LineIcon name="shield" /> },
+  { to: '/campaigns', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
+  { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
+  { to: '/theater', label: 'Run Theater', icon: <LineIcon name="theater" /> },
+  { to: '/reports', label: 'Results', icon: <LineIcon name="results" /> },
+  { to: '/assistant', label: 'Assistant', icon: <LineIcon name="chat" /> },
   // Prepare retired from the spine; the audit log now lives in Settings.
-  { to: '/settings', label: 'Settings', icon: '⚙' },
+  { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
 ];
 
-const THEME_OPTS: [Theme, string, string][] = [
-  ['light', '☀', 'Light'],
-  ['system', '🖥', 'System'],
-  ['dark', '☾', 'Dark'],
+const THEME_OPTS: [Theme, React.ReactNode, string][] = [
+  ['light', <LineIcon name="sun" />, 'Light'],
+  ['system', <LineIcon name="theater" />, 'System'],
+  ['dark', <LineIcon name="moon" />, 'Dark'],
 ];
 
 /** Shared, reactive theme value — every toggle on screen re-renders together. */
@@ -679,9 +679,9 @@ export function Layout() {
   const location = useLocation();
   const [dockOpen, setDockOpen] = useState(() => {
     try {
-      return lsGet('assistantDock') !== '0';
+      return lsGet('assistantDock') === '1';
     } catch {
-      return true;
+      return false;
     }
   });
   useEffect(() => {
@@ -734,7 +734,7 @@ export function Layout() {
                 title="Open the ShieldTest Grafana dashboards"
               >
                 <span className="nav-icon" aria-hidden="true">
-                  📈
+                  <LineIcon name="results" />
                 </span>
                 Grafana ↗
               </a>
@@ -977,8 +977,14 @@ export function SuiteRunBanner() {
   const act = async (id: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(id);
     try {
-      await fn();
-      app.push('success', ok);
+      const result = await fn();
+      if (result && typeof result === 'object' && 'approved' in result && 'skipped' in result) {
+        const approval = result as { approved: number; skipped: number };
+        app.push(
+          approval.approved ? 'success' : 'error',
+          `${approval.approved} steps approved; ${approval.skipped} skipped.`,
+        );
+      } else app.push('success', ok);
       await Promise.all([app.refresh(), pullSequences()]);
     } catch (err) {
       app.push('error', (err as Error).message);
@@ -1067,7 +1073,25 @@ export function SuiteRunBanner() {
                           className="btn btn-sm btn-primary"
                           disabled={isBusy}
                           onClick={() =>
-                            act(g.suiteId, () => api.resumeSuite(g.suiteId), 'Assessment resumed.')
+                            act(
+                              g.suiteId,
+                              () => {
+                                if (app.approvalPolicy !== 'confirmation')
+                                  return api.resumeSuite(g.suiteId);
+                                const pending = g.members.filter(
+                                  (c) => c.status === 'PENDING_APPROVAL',
+                                );
+                                if (
+                                  pending.length &&
+                                  !window.confirm(
+                                    `Confirm modified steps?\n${pending.map((c) => `${c.name}: ${c.maxRps} req/s, ${c.concurrency} concurrent, ${c.maxDurationSec}s`).join('\n')}`,
+                                  )
+                                )
+                                  return Promise.resolve();
+                                return api.resumeSuite(g.suiteId, pending.length > 0, pending);
+                              },
+                              'Assessment resumed.',
+                            )
                           }
                           title="Resume the sequence"
                         >
@@ -1310,8 +1334,14 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setLocalBusy(true);
     try {
-      await fn();
-      app.push('success', ok);
+      const result = await fn();
+      if (result && typeof result === 'object' && 'approved' in result && 'skipped' in result) {
+        const approval = result as { approved: number; skipped: number };
+        app.push(
+          approval.approved ? 'success' : 'error',
+          `${approval.approved} steps approved; ${approval.skipped} skipped.`,
+        );
+      } else app.push('success', ok);
       app.refresh();
     } catch (err) {
       app.push('error', (err as Error).message);
@@ -1525,6 +1555,7 @@ function SuiteGroupCard({ g }: { g: SuiteGroup }) {
  *  classic form when a preset is queued from the guide). */
 export function CampaignLaunch() {
   const [launchParams] = useSearchParams();
+  const launchNavigate = useNavigate();
   const fleetLaunch = launchParams.get('engine') === 'fleet';
   const app = useApp();
   const canCreate = canDo(app.role, 'create', app.authRequired, app.userMode, app.capabilities);
@@ -1538,6 +1569,7 @@ export function CampaignLaunch() {
     app.clearDraftCampaign();
     app.clearDraftPreset();
     setShowForm(false);
+    if (launchParams.get('template')) launchNavigate('/campaigns');
   };
 
   if (!canCreate) {
@@ -1855,23 +1887,35 @@ function CampaignTable({ rows }: { rows: CampaignRow[] }) {
   );
 }
 
+function matchesCampaignHost(target: string, host: string): boolean {
+  if (!host) return true;
+  try {
+    return new URL(target).hostname.toLowerCase().replace(/\.$/, '') === host;
+  } catch {
+    return false;
+  }
+}
+
 export function CampaignList() {
   const app = useApp();
   // Pre-fill the search from ?q= so a "Protected zones" card deep-links straight
   // to that host's campaigns.
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState<StatusFilterId>('all');
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(params.get('archived') === '1');
+  const exactHost = params.get('host')?.toLowerCase().replace(/\.$/, '') ?? '';
 
   const archivedCount = useMemo(
-    () => app.campaigns.filter((c) => c.archived).length,
-    [app.campaigns],
+    () =>
+      app.campaigns.filter((c) => c.archived && matchesCampaignHost(c.target, exactHost)).length,
+    [app.campaigns, exactHost],
   );
 
   const filtered = useMemo(() => {
     const matchStatus = STATUS_FILTERS.find((f) => f.id === status)!.match;
     let list = app.campaigns.filter((c) => showArchived || !c.archived).filter(matchStatus);
+    list = list.filter((c) => matchesCampaignHost(c.target, exactHost));
     const term = q.trim().toLowerCase();
     if (term) {
       list = list.filter(
@@ -1879,7 +1923,7 @@ export function CampaignList() {
       );
     }
     return list;
-  }, [app.campaigns, status, q, showArchived]);
+  }, [app.campaigns, status, q, showArchived, exactHost]);
 
   // Everything — suites AND standalone campaigns — is one compact, column-sortable
   // table; a row expands to its detail (a suite's step card, a campaign's card) on
@@ -1905,10 +1949,26 @@ export function CampaignList() {
 
       {hasCampaigns && (
         <div className="filter-bar">
+          {exactHost && (
+            <button
+              className="chip chip-active"
+              title="Clear the exact host filter"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete('host');
+                setParams(next);
+              }}
+            >
+              Host: {exactHost} ×
+            </button>
+          )}
           <div className="filter-chips">
             {STATUS_FILTERS.map((f) => {
               const n = app.campaigns.filter(
-                (c) => (showArchived || !c.archived) && f.match(c),
+                (c) =>
+                  (showArchived || !c.archived) &&
+                  matchesCampaignHost(c.target, exactHost) &&
+                  f.match(c),
               ).length;
               return (
                 <button
@@ -2604,7 +2664,7 @@ export function SettingsPage() {
 
       <LimitsCard />
 
-      <BenchCard />
+      <BenchCard readOnly />
 
       <UsersCard />
       <PurgeCard />

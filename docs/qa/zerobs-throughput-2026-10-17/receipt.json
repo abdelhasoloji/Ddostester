@@ -1,0 +1,107 @@
+{
+  "scope": "Fresh isolated MemoryStore instances; production browser origin remains denied",
+  "baseSource": "2067c984bfd885acda1f01927b61dcc1351b0be8",
+  "uiBaseForFinalRun": "2196a5b with working-tree patch; intentional fixture UI/API identity mismatch",
+  "requestedRps": 800,
+  "durationSec": 20,
+  "boundsRaised": false,
+  "productionDataMutatedByQualification": false,
+  "existingCampaignsRewritten": false,
+  "threeFleetPodsRedeployed": false,
+  "runs": [
+    {
+      "context": "Mac-relayed private service",
+      "runId": "7dfa52d5-654e-4f5f-97e1-5418b0df60ec",
+      "campaignId": "db1c731a-b253-412e-baa6-5c7b0986d8b7",
+      "engine": "vegeta",
+      "status": "COMPLETED",
+      "workers": 200,
+      "effectiveRps": 510.92,
+      "requests": 10818,
+      "successful": 10761,
+      "failed": 57,
+      "probeAvailable": 4,
+      "probeSamples": 4
+    },
+    {
+      "context": "Mac-relayed private service",
+      "runId": "2213ff37-edf2-4adb-b513-737badda8a20",
+      "campaignId": "cedca87a-c7d5-45d4-8010-b955afe955f7",
+      "engine": "vegeta",
+      "status": "COMPLETED",
+      "workers": 100,
+      "effectiveRps": 698.16,
+      "requests": 14190,
+      "successful": 14190,
+      "failed": 0,
+      "probeAvailable": 4,
+      "probeSamples": 4
+    },
+    {
+      "context": "Lab-local, earlier patch; partial rotated log extracts",
+      "runId": "3b110e0b-18d3-4ecd-a316-1b9fbca91a01",
+      "campaignId": "069942fe-be44-4590-acfc-a5d6469f8637",
+      "engine": "vegeta",
+      "status": "COMPLETED",
+      "workers": 80,
+      "effectiveRps": 771.75,
+      "requests": 15872,
+      "successful": 15872,
+      "failed": 0,
+      "probeAvailable": 4,
+      "probeSamples": 4
+    },
+    {
+      "context": "Lab-local, final patch",
+      "runId": "da40d465-2e31-45c5-a3dd-e4f324de1aa4",
+      "campaignId": "258e07f1-bba8-4c71-9884-1a992437d15d",
+      "engine": "vegeta",
+      "status": "COMPLETED",
+      "workers": 80,
+      "effectiveRps": 551.95,
+      "requests": 11340,
+      "successful": 11340,
+      "failed": 0,
+      "probeAvailable": 4,
+      "probeSamples": 4
+    },
+    {
+      "context": "Lab-local, final patch",
+      "runId": "c7558b50-0939-4413-874d-949b5a3cabe7",
+      "campaignId": "c9c67b4a-712d-4d81-8113-085604a9945c",
+      "engine": "vegeta",
+      "status": "COMPLETED",
+      "workers": 80,
+      "effectiveRps": 480.98,
+      "requests": 9849,
+      "successful": 9849,
+      "failed": 0,
+      "probeAvailable": 4,
+      "probeSamples": 4
+    }
+  ],
+  "qualification": "800 RPS is NOT stably qualified. Do not present peak or configured rate as sustained achieved rate.",
+  "changes": [
+    "GET-Flood preserves its declared target rather than automatic costly dynamic path/churn",
+    "Explicit false survives template validation",
+    "Vegeta cancellation does not cancel bounded offline report parsing",
+    "HTTP/transport failure counts use observations",
+    "Successful/offer rates use the same generator window"
+  ],
+  "fixtureProbe": "Same host/network as generator; not independent DRS qualification",
+  "releaseStatus": "Pending verified production promotion",
+  "finalTargetReceipts": {
+    "campaignId": "c9c67b4a-712d-4d81-8113-085604a9945c",
+    "captured": 9849,
+    "status200": 9849,
+    "collection": "Bounded Kubernetes stdout stream, started before launch"
+  },
+  "patchHashes": {
+    "backend/src/modules/playbooks/playbooks.ts": "3109e437780529c1d44425fd8b20aa2a04494af784ca68534541eb3fc0c6f9ac",
+    "backend/src/agents/vegeta.ts": "e05566c5dabe91fea5c2e58f4facd4244608a69c628a98a2de27ec5862b7e7b0",
+    "backend/src/config/limits.ts": "64abe34a2ffdae32a5adc266f40ac6d04589730e9e345423d9b9287c3e4b83b0",
+    "backend/src/app.ts": "b12b84098698b2ce66e4dc87a1eb7bc682bc3cf58b616f92e3d554aad292ce9f",
+    "backend/src/modules/reports/report.ts": "c181b3bf7a5cf051955c650ae192e95672bfd053074322ccd9216fcb981a8bdb",
+    "frontend/src/ui.tsx": "78ea1785142201e48da377f861eeb5304adffda82598ffe0bb805b1bd53fb205"
+  }
+}

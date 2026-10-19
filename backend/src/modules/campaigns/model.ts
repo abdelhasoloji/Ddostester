@@ -10,12 +10,9 @@ import type { AcceptanceCriteria, AcceptanceResult } from './acceptance.js';
 export type { ScenarioPhase, RequestStep, ResponseAssertion, WeightedEndpoint };
 export type { AcceptanceCriteria, AcceptanceResult };
 
-/**
- * The only load vector supported by this control plane: bounded application
- * HTTP requests (GET/POST) toward an authorized target. The L3/L4 volumetric
- * vectors (floods, amplification) and L7 exhaustion vectors (Slowloris, RUDY,
- * XML bomb…) from TSD §5.2 are NOT implemented — see README.
- */
+/** Bounded application HTTP and the existing connection-hold laboratory mode.
+ * Network bench scenarios are separate evidence and cannot be inferred from
+ * these vector labels or from a successful application response. */
 export type LoadVector = 'http-get' | 'http-post' | 'http-slowloris';
 
 /**
@@ -84,6 +81,8 @@ export interface CampaignInput {
   maxDurationSec: number;
   /** Probed endpoint to measure impact (often the target itself). */
   probeUrl: string;
+  /** Additional functional GET checks; a cycle succeeds only when all checks succeed. */
+  probeUrls?: string[];
   /**
    * Optional independent reference endpoint (a canary / second vantage) polled
    * alongside the target probe but with NO kill authority. It lets a run tell

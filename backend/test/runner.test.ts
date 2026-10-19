@@ -49,6 +49,19 @@ describe('executeCampaign — run time-series', () => {
     expect(run.baselineDelta).toBeDefined();
     const s = run.timeline![0];
     expect(s.t).toBeGreaterThanOrEqual(0);
+    expect(s.sampleUnit).toBe('requests');
+    const observedProbe = run.timeline!.find((tick) => (tick.probeSamples ?? 0) > 0)!;
+    expect(observedProbe).toBeDefined();
+    expect(observedProbe.probeP95).toBeGreaterThanOrEqual(0);
+    expect(observedProbe.probeAvailable).toBe(observedProbe.probeSamples);
+    expect(observedProbe.probeLatencyMs?.p50).toBeGreaterThanOrEqual(0);
+    expect(observedProbe.probeLatencyMs?.p99).toBeGreaterThanOrEqual(
+      observedProbe.probeLatencyMs!.p50,
+    );
+    const observedGenerator = run.timeline!.find((tick) => tick.statusCounts)!;
+    expect(observedGenerator).toBeDefined();
+    expect(Object.keys(observedGenerator.statusCounts!)).toEqual(['2xx', '3xx', '4xx', '5xx']);
+    expect(typeof s.generatorObserved).toBe('boolean');
     expect(s.availPct).toBeGreaterThanOrEqual(0);
     expect(s.availPct).toBeLessThanOrEqual(100);
     // Samples are ordered by elapsed time.
@@ -167,6 +180,28 @@ describe('executeCampaign — run time-series', () => {
     expect(run.generator.config.flow).toEqual(expectedFlow);
   }, 15_000);
 
+  it('does not emit fake live request metrics when an engine has no progress stream', async () => {
+    const { metrics } = await import('../src/modules/metrics/runtime.js');
+    const agent = new BuiltinHttpAgent();
+    agent.run = (config, hosts, signal) => new BuiltinHttpAgent().run(config, hosts, signal);
+    let checked = false;
+    const observed = await executeCampaign(
+      makeCampaign(),
+      ['127.0.0.1'],
+      new KillSwitch(),
+      (p) => {
+        if (!p.probe?.samples) return;
+        checked = true;
+        expect(p.generatorObserved).toBe(false);
+        expect(metrics.render()).not.toMatch(/shieldtest_run_live_offered_rps\{/);
+      },
+      agent,
+    );
+    expect(checked).toBe(true);
+    expect(observed.timeline?.every((t) => t.generatorObserved === false)).toBe(true);
+    expect(observed.timeline?.some((t) => t.probeP95 !== undefined)).toBe(true);
+  }, 15000);
+
   it('retires the live per-run Prometheus gauges when the run ends (no stale flat line)', async () => {
     const { metrics } = await import('../src/modules/metrics/runtime.js');
     await executeCampaign(makeCampaign(), ['127.0.0.1'], new KillSwitch());
@@ -244,7 +279,8 @@ describe('executeCampaign — run time-series', () => {
       mitigationTimeSec: 11,
     });
     const html = renderCampaignReportHtml(campaign, run);
-    expect(html).toContain('Protection (measured)');
+    expect(html).toContain('Protection telemetry (reported)');
+    expect(html).toContain('do not establish independent measurement');
     expect(html).toContain('Time-to-detect');
     expect(html).toContain('4s'); // TTD
     expect(html).toContain('11s'); // TTM
@@ -371,3 +407,57 @@ describe('executeCampaign — run time-series', () => {
     expect(calls[1]).toBe(800); // graded unchanged at the requested rate
   }, 20000);
 });
+
+it('carries application-route failures through live progress and the final report', async () => {
+  let applicationHealthy = true;
+  const server = createServer((req, res) => {
+    res.statusCode = req.url === '/login' && !applicationHealthy ? 503 : 200;
+    res.end('functional check');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const root = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+  const campaign = createCampaign(
+    {
+      name: 'Monitored route coverage',
+      target: root,
+      vector: 'http-get',
+      maxRps: 60,
+      concurrency: 1,
+      maxDurationSec: 2,
+      probeUrl: root,
+      probeUrls: [root, root + 'login'],
+      authorized: true,
+      createdBy: 'engineer',
+    },
+    ['127.0.0.1'],
+  );
+  const agent = new BuiltinHttpAgent();
+  const originalRun = agent.run.bind(agent);
+  agent.run = (...args) => {
+    applicationHealthy = false;
+    return originalRun(...args);
+  };
+  const progress: import('../src/engine/loadTest.js').LoadProgress[] = [];
+  try {
+    const result = await executeCampaign(
+      campaign,
+      ['127.0.0.1'],
+      new KillSwitch(),
+      (p) => progress.push(p),
+      agent,
+    );
+    expect(result.probe.available).toBe(0);
+    expect(result.probeContended).toBe(false);
+    expect(result.probe.endpoints?.find((p) => p.url === root)?.available).toBeGreaterThan(0);
+    expect(result.probe.endpoints?.find((p) => p.url.endsWith('/login'))?.available).toBe(0);
+    expect(result.probeBaselines?.[0].metrics.availabilityPct).toBe(100);
+    expect(result.baselineDelta).toBeUndefined();
+    expect(result.measurementPolicy).toBe('multi-route-probe-v2');
+    expect(progress.some((p) => p.probe?.endpoints?.length === 2)).toBe(true);
+    const report = renderCampaignReportHtml(campaign, result);
+    expect(report).toContain('Monitored GET checks');
+    expect(report).toContain(root + 'login');
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}, 15000);

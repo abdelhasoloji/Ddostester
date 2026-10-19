@@ -1,0 +1,3 @@
+Browser tab: 30, Title: "Synthetic network campaign report", URL: "http://127.0.0.1:18097/api/bench/runs/85b2bda5-f189-476a-90db-afd28ea318ee/report".
+There has been no change in the accessibility tree.
+The focused UI element is 0 AXWebArea Synthetic network campaign report, URL: 127.0.0.1:18097/api/bench/runs/85b2bda5-f189-476a-90db-afd28ea318ee/report

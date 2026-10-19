@@ -1,0 +1,151 @@
+Browser tab: 37, Title: "ShieldTest report — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)", URL: "http://127.0.0.1:18105/api/runs/562545d6-76bc-495a-a59f-047a9b30191a/report".
+1 AXWebArea ShieldTest report — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3), URL: 127.0.0.1:18105/api/runs/562545d6-76bc-495a-a59f-047a9b30191a/report
+	2 button Print / PDF
+	3 text WEDOS ShieldTest
+	4 heading Campaign resilience report — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3), Value: 1
+		5 text Campaign resilience report — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)
+	6 text Run 562545d6 · generated 2026-10-17 18:20 UTC
+	7 text CONFIDENTIAL — WEDOS INTERNAL
+	8 container
+		9 text Under a bounded hold of up to  100 connections  for a configured  20s  against  10.98.215.52 , the run scored  WRS 97 (A+)  — verdict  held , RiskLevel  Low . Slow/incomplete connections closed; the closure cause requires target telemetry; legitimate availability held at 100%. WRS 97 (A+). Under load, p95 latency shifted by 157.82 ms vs the pre-load baseline.
+	10 heading At a glance, Value: 2
+		11 text At a glance
+	12 container score 97 of 100
+	13 text Legacy WRS diagnostic · not a DRS score
+	14 text held
+	15 text Low
+	16 text COMPLETED
+	17 text WRS estimated
+	18 text AVAILABILITY
+	19 text 100.0% (4 observations)
+	20 text CONFIGURED LOAD
+	21 text 100 connections
+	22 text CONNECTIONS OPENED
+	23 text 100
+	24 text CONFIGURED DURATION
+	25 text 20s
+	26 text CONNECTIONS CLOSED
+	27 text 100
+	28 heading Connection observations, Value: 2
+		29 text Connection observations
+	30 text 100 connections opened; 100 closed. Closure cause is not inferred from generator counters.
+	31 heading Traffic over time, Value: 2
+		32 text Traffic over time
+	33 text Connections opened (cumulative count)
+	34 container timeline
+	35 text Connections closed (cumulative count; cause unproven)
+	36 container timeline
+	37 text Probe availability (cumulative %; 4 completed observations)
+	38 container timeline
+	39 text Probe latency p95 (cumulative ms over completed observations)
+	40 container timeline
+	41 text Time axis: seconds from load start. Curves hold the last observed value; probe observations are not one-second independent transactions. Missing data is not zero.
+	42 heading Resiliency score breakdown, Value: 2
+		43 text Resiliency score breakdown
+	44 text The four WRS components (0–1). Detection & Mitigation (*) are estimated — no protection source reported real timings.
+	45 text * Without a protection integration, Detection and Mitigation are held constant, so the WRS mostly reflects measured Availability and Collateral damage. Wire a protection source for real TTD/TTM (see methodology §3.2).
+	46 heading Latency profile, Value: 2
+		47 text Latency profile
+	48 text Load generator latency
+	49 text HTTP request latency is not applicable to connection holds.
+	50 text Legitimate probe latency
+	51 container
+		52 text Degradation under load vs baseline:  Δ p50 1.29 ms · Δ p95 157.82 ms · Δ availability 0 pts  (baseline: 100% avail, p50 8.23 ms / p95 25.09 ms over 3 samples).
+	53 heading Weaknesses & recommended remediations, Value: 2
+		54 text Weaknesses & recommended remediations
+	55 table
+		56 row
+			57 cell
+				58 text Severity
+			59 cell
+				60 text Weakness (observed)
+			61 cell
+				62 text Recommended remediation
+		63 row
+			64 cell
+				65 text low
+			66 cell
+				67 text Detection and mitigation are estimated — no protection source reported real timings, so the score is not authoritative.
+			68 cell
+				69 text Wire the WEDOS scrubber (PROTECTION_METRICS_URL / PROTECTION_WEBHOOK_URL) so time-to-detect and time-to-mitigate are measured and pass/fail becomes authoritative.
+	70 heading Run detail, Value: 2
+		71 text Run detail
+	72 table
+		73 row
+			74 cell
+				75 text DRS assessment
+			76 cell
+				77 text NOT_EVALUATED — no independent frozen DRS evidence archive. WRS is a separate diagnostic.
+		78 row
+			79 cell
+				80 text Campaign
+			81 cell
+				82 text Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3)  (7457e1b5-d1b8-4c49-b311-5eac3d76e47a)
+		83 row
+			84 cell
+				85 text Target
+			86 cell
+				87 text http://10.98.215.52:8080/
+		88 row
+			89 cell
+				90 text Vector
+			91 cell
+				92 text http-slowloris (bounded application HTTP)
+		93 row
+			94 cell
+				95 text Author / Approver
+			96 cell
+				97 text engineer@fixture.invalid / ciso@fixture.invalid
+		98 row
+			99 cell
+				100 text Connections (opened / closed)
+			101 cell
+				102 text 100 / 100
+		103 row
+			104 cell
+				105 text Connection closure
+			106 cell
+				107 text 100 connections closed; cause unproven. No HTTP outcome is inferred.
+		108 row
+			109 cell
+				110 text Configured / achieved rate
+			111 cell
+				112 text 100 connections opened; HTTP rate is not applicable
+		113 row
+			114 cell
+				115 text Probe availability
+			116 cell
+				117 text 4/4 samples · 0% 5xx
+	118 heading Protection posture (inferred), Value: 3
+		119 text Protection posture (inferred)
+	120 table
+		121 row
+			122 cell
+				123 text WAF
+			124 cell
+				125 text not detected
+		126 row
+			127 cell
+				128 text CDN
+			129 cell
+				130 text not detected
+		131 row
+			132 cell
+				133 text Rate limiting
+			134 cell
+				135 text not detected
+		136 row
+			137 cell
+				138 text Load balancer
+			139 cell
+				140 text not detected
+		141 row
+			142 cell
+				143 text HSTS / headers
+			144 cell
+				145 text not set · —
+	146 text Inferred passively from the legitimate probe's own responses (no scanning).
+	147 container
+		148 text Traceable report — WEDOS internal use only. Bounded application HTTP generator (GET/POST, rate-capped, allowlisted); no volumetric, amplification or spoofing vector is implemented by this control plane. See  docs/assessment-methodology.md .
+
+The focused UI element is 1 AXWebArea ShieldTest report — Pre-test — DRS L7 playbook (P26-20371) [20s QA] — SlowLoris (DRS3), URL: 127.0.0.1:18105/api/runs/562545d6-76bc-495a-a59f-047a9b30191a/report

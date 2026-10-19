@@ -1,0 +1,716 @@
+Browser tab: 35, Title: "WEDOS ShieldTest — 10.98.215.52 L7 resilience", URL: "http://127.0.0.1:18104/api/suites/ee90d84e-2631-4c1d-aeeb-b20ea56f0b32/report".
+0 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18104/api/suites/ee90d84e-2631-4c1d-aeeb-b20ea56f0b32/report
+	1 button Print / PDF
+	2 text WEDOS ShieldTest
+	3 heading DDoS resilience assessment — Layer 7, Value: 1
+		4 text DDoS resilience assessment — Layer 7
+	5 text Target 10.98.215.52 · 12 attack vectors · 2026-10-17 · WEDOS ShieldTest · confidential
+	6 text CONFIDENTIAL — WEDOS INTERNAL
+	7 heading Management summary, Value: 2
+		8 text Management summary
+	9 container
+		10 text On  2026-10-17 , WEDOS ShieldTest ran a bounded Layer-7 resilience assessment against  10.98.215.52  (the live target) —  12  attack vectors, up to  DRS 5 .  3/12  vectors held at their delivered rate,  2  caused partial impact,  2  breached the target, and  5  were inconclusive (under-delivered or degraded — not a valid test at the target rate). Overall risk is  Critical ; worst WRS  59.5  (grade C), average  77.2 . The 2 breached shapes took the target unavailable — a business-impacting gap.
+	11 container score 77.2 of 100
+	12 text Assessment resilience (avg WRS)
+	13 text Critical
+	14 text 3/12 held
+	15 text 2 breached
+	16 text 5 inconclusive
+	17 text VECTORS
+	18 text 12
+	19 text WORST WRS
+	20 text 59.5
+	21 text VALID AT TARGET RATE
+	22 text 7/12
+	23 text BREACHED
+	24 text 2
+	25 heading Results — protection level by DRS, Value: 2
+		26 text Results — protection level by DRS
+	27 table
+		28 row
+			29 cell
+				30 text Threat scenario
+			31 cell
+				32 text Attacks
+			33 cell
+				34 text Max rate
+			35 cell
+				36 text RiskLevel
+			37 cell
+				38 text Verdict
+		39 row
+			40 cell
+				41 text Layer 7 · DRS 3
+			42 cell
+				43 text 3
+			44 cell
+				45 text 500 req/s
+			46 cell
+				47 text Medium
+			48 cell
+				49 text inconclusive (1 inconclusive)
+		50 row
+			51 cell
+				52 text Layer 7 · DRS 4
+			53 cell
+				54 text 5
+			55 cell
+				56 text 800 req/s
+			57 cell
+				58 text Critical
+			59 cell
+				60 text breached (3 inconclusive)
+		61 row
+			62 cell
+				63 text Layer 7 · DRS 5
+			64 cell
+				65 text 4
+			66 cell
+				67 text 750 req/s
+			68 cell
+				69 text Critical
+			70 cell
+				71 text breached (1 inconclusive)
+	72 heading Layer 7 summary, Value: 2
+		73 text Layer 7 summary
+	74 table
+		75 row
+			76 cell
+				77 text #
+			78 cell
+				79 text Attack (shape)
+			80 cell
+				81 text RPS (peak→mean)
+			82 cell
+				83 text DRS
+			84 cell
+				85 text Verdict
+			86 cell
+				87 text RiskLevel
+			88 cell
+				89 text WRS
+			90 cell
+				91 text Mechanism
+		92 row
+			93 cell
+				94 text 1
+			95 cell
+				96 text SlowLoris (DRS3)
+			97 cell
+				98 text 10→5
+			99 cell
+				100 text 3
+			101 cell
+				102 text held
+			103 cell
+				104 text Low
+			105 cell
+				106 text 97
+			107 cell
+				108 text shed
+		109 row
+			110 cell
+				111 text 2
+			112 cell
+				113 text GET-Flood (DRS3)
+			114 cell
+				115 text 400→394
+			116 cell
+				117 text 3
+			118 cell
+				119 text held
+			120 cell
+				121 text Low
+			122 cell
+				123 text 97
+			124 cell
+				125 text served
+		126 row
+			127 cell
+				128 text 3
+			129 cell
+				130 text GET-Random-Flood (DRS3) 
+				131 text ⚠
+			132 cell
+				133 text 500→230
+			134 cell
+				135 text 3
+			136 cell
+				137 text inconclusive
+			138 cell
+				139 text Medium
+			140 cell
+				141 text 97
+			142 cell
+				143 text tarpitted
+		144 row
+			145 cell
+				146 text 4
+			147 cell
+				148 text GET /VALID_RANDOM (DRS4)
+			149 cell
+				150 text 500→448
+			151 cell
+				152 text 4
+			153 cell
+				154 text held
+			155 cell
+				156 text Low
+			157 cell
+				158 text 97
+			159 cell
+				160 text tarpitted
+		161 row
+			162 cell
+				163 text 5
+			164 cell
+				165 text POST-Flood (DRS4)
+			166 cell
+				167 text 400→373
+			168 cell
+				169 text 4
+			170 cell
+				171 text breached
+			172 cell
+				173 text Critical
+			174 cell
+				175 text 59.5
+			176 cell
+				177 text tarpitted
+		178 row
+			179 cell
+				180 text 6
+			181 cell
+				182 text HTTP/2 GET-Flood (DRS4) 
+				183 text ⚠
+			184 cell
+				185 text 800→657
+			186 cell
+				187 text 4
+			188 cell
+				189 text inconclusive
+			190 cell
+				191 text Medium
+			192 cell
+				193 text 72
+			194 cell
+				195 text blocked
+		196 row
+			197 cell
+				198 text 7
+			199 cell
+				200 text HTTP/2 Rapid Reset — bounded (DRS4) 
+				201 text ⚠
+			202 cell
+				203 text 800→564
+			204 cell
+				205 text 4
+			206 cell
+				207 text inconclusive
+			208 cell
+				209 text Medium
+			210 cell
+				211 text 59.5
+			212 cell
+				213 text blocked
+		214 row
+			215 cell
+				216 text 8
+			217 cell
+				218 text HTTP/2 Continuation — header pressure (DRS4) 
+				219 text ⚠
+			220 cell
+				221 text 400→390
+			222 cell
+				223 text 4
+			224 cell
+				225 text inconclusive
+			226 cell
+				227 text Medium
+			228 cell
+				229 text 59.5
+			230 cell
+				231 text blocked
+		232 row
+			233 cell
+				234 text 9
+			235 cell
+				236 text Login/account POST-Flood (DRS5)
+			237 cell
+				238 text 500→474
+			239 cell
+				240 text 5
+			241 cell
+				242 text breached
+			243 cell
+				244 text Critical
+			245 cell
+				246 text 59.5
+			247 cell
+				248 text tarpitted
+		249 row
+			250 cell
+				251 text 10
+			252 cell
+				253 text L7 MultiVector (DRS5)
+			254 cell
+				255 text 209→149
+			256 cell
+				257 text 5
+			258 cell
+				259 text partial
+			260 cell
+				261 text Medium
+			262 cell
+				263 text 84.5
+			264 cell
+				265 text tarpitted
+		266 row
+			267 cell
+				268 text 11
+			269 cell
+				270 text THOR / PulseWave — synchronized (DRS5) 
+				271 text ⚠
+			272 cell
+				273 text 750→530
+			274 cell
+				275 text 5
+			276 cell
+				277 text inconclusive
+			278 cell
+				279 text Medium
+			280 cell
+				281 text 59.5
+			282 cell
+				283 text blocked
+		284 row
+			285 cell
+				286 text 12
+			287 cell
+				288 text MultiTarget / carpet-bombing (DRS5)
+			289 cell
+				290 text 223→159
+			291 cell
+				292 text 5
+			293 cell
+				294 text partial
+			295 cell
+				296 text Medium
+			297 cell
+				298 text 84.5
+			299 cell
+				300 text tarpitted
+	301 container
+		302 text Verdict:  held  = availability held at the delivered rate;  partial  = some impact;  breached  = target went unavailable;  inconclusive  = under-delivered/degraded (not a valid test). ⚠ = not a valid test at the target rate. Mechanism labels describe generator observations; filtering, origin load and deliberate tarpitting require independent telemetry.
+	303 heading Details — per attack, Value: 2
+		304 text Details — per attack
+	305 heading Attack 1 / SlowLoris (DRS3), Value: 3
+		306 text Attack 1 / SlowLoris (DRS3)
+	307 table
+		308 row
+			309 cell
+				310 text DRS level
+			311 cell
+				312 text 3
+		313 row
+			314 cell
+				315 text Delivered rate
+			316 cell
+				317 text 5/10 req/s mean (50% of expected mean; peak 10 req/s)
+		318 row
+			319 cell
+				320 text Verdict
+			321 cell
+				322 text held
+		323 row
+			324 cell
+				325 text Observation
+			326 cell
+				327 text The target shed the slow/incomplete connections (request/header timeout) — the correct defense; legitimate availability held at 100%. WRS 97 (A+).
+	328 text Offered load across the run (req/s).
+	329 container timeline
+	330 text Legitimate-probe availability across the run (%).
+	331 container timeline
+	332 heading Attack 2 / GET-Flood (DRS3), Value: 3
+		333 text Attack 2 / GET-Flood (DRS3)
+	334 table
+		335 row
+			336 cell
+				337 text DRS level
+			338 cell
+				339 text 3
+		340 row
+			341 cell
+				342 text Delivered rate
+			343 cell
+				344 text 394/400 req/s mean (99% of expected mean; peak 400 req/s)
+		345 row
+			346 cell
+				347 text Verdict
+			348 cell
+				349 text held
+		350 row
+			351 cell
+				352 text Observation
+			353 cell
+				354 text Successful HTTP responses: ~394 req/s; generator failure ratio: 0% (origin/edge attribution requires telemetry); legitimate availability held at 100%. WRS 97 (A+).
+	355 text Offered load across the run (req/s).
+	356 container timeline
+	357 text Legitimate-probe availability across the run (%).
+	358 container timeline
+	359 heading Attack 3 / GET-Random-Flood (DRS3), Value: 3
+		360 text Attack 3 / GET-Random-Flood (DRS3)
+	361 table
+		362 row
+			363 cell
+				364 text DRS level
+			365 cell
+				366 text 3
+		367 row
+			368 cell
+				369 text Delivered rate
+			370 cell
+				371 text 230/360 req/s mean (64% of expected mean; peak 500 req/s)
+		372 row
+			373 cell
+				374 text Verdict
+			375 cell
+				376 text inconclusive
+		377 row
+			378 cell
+				379 text Observation
+			380 cell
+				381 text Delivered only 64% of the intended offered rate (230/360 req/s) — a generator-side shortfall, so this is INCONCLUSIVE at the DRS 3 rate. At the delivered rate successful HTTP responses were observed and legitimate availability held at 100%. WRS 97 (A+).
+		382 row
+			383 cell
+				384 text Caveats
+			385 cell
+				386 text Delivered only 64% of the intended offered rate (230/360 req/s) — a generator-side shortfall, so resilience at the full DRS 3 rate is unproven.
+	387 text Offered load across the run (req/s).
+	388 container timeline
+	389 text Legitimate-probe availability across the run (%).
+	390 container timeline
+	391 heading Attack 4 / GET /VALID_RANDOM (DRS4), Value: 3
+		392 text Attack 4 / GET /VALID_RANDOM (DRS4)
+	393 table
+		394 row
+			395 cell
+				396 text DRS level
+			397 cell
+				398 text 4
+		399 row
+			400 cell
+				401 text Delivered rate
+			402 cell
+				403 text 448/500 req/s mean (90% of expected mean; peak 500 req/s)
+		404 row
+			405 cell
+				406 text Verdict
+			407 cell
+				408 text held
+		409 row
+			410 cell
+				411 text Observation
+			412 cell
+				413 text Transport failures: 21.6% of offered requests; timeouts do not prove edge tarpitting; legitimate availability held at 100%. WRS 97 (A+).
+	414 text Offered load across the run (req/s).
+	415 container timeline
+	416 text Legitimate-probe availability across the run (%).
+	417 container timeline
+	418 heading Attack 5 / POST-Flood (DRS4), Value: 3
+		419 text Attack 5 / POST-Flood (DRS4)
+	420 table
+		421 row
+			422 cell
+				423 text DRS level
+			424 cell
+				425 text 4
+		426 row
+			427 cell
+				428 text Delivered rate
+			429 cell
+				430 text 373/400 req/s mean (93% of expected mean; peak 400 req/s)
+		431 row
+			432 cell
+				433 text Verdict
+			434 cell
+				435 text breached
+		436 row
+			437 cell
+				438 text Observation
+			439 cell
+				440 text Not held — legitimate availability collapsed to 25% (the target was unavailable for the majority of the run). Transport failures: 99.7% of offered requests; timeouts do not prove edge tarpitting. WRS 59.5 (C).
+	441 text Offered load across the run (req/s).
+	442 container timeline
+	443 text Legitimate-probe availability across the run (%).
+	444 container timeline
+	445 heading Attack 6 / HTTP/2 GET-Flood (DRS4), Value: 3
+		446 text Attack 6 / HTTP/2 GET-Flood (DRS4)
+	447 table
+		448 row
+			449 cell
+				450 text DRS level
+			451 cell
+				452 text 4
+		453 row
+			454 cell
+				455 text Delivered rate
+			456 cell
+				457 text 657/800 req/s mean (82% of expected mean; peak 800 req/s)
+		458 row
+			459 cell
+				460 text Verdict
+			461 cell
+				462 text inconclusive
+		463 row
+			464 cell
+				465 text Observation
+			466 cell
+				467 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 50%. WRS 72 (B).
+		468 row
+			469 cell
+				470 text Caveats
+			471 cell
+				472 text Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	473 text Offered load across the run (req/s).
+	474 container timeline
+	475 text Legitimate-probe availability across the run (%).
+	476 container timeline
+	477 heading Attack 7 / HTTP/2 Rapid Reset — bounded (DRS4), Value: 3
+		478 text Attack 7 / HTTP/2 Rapid Reset — bounded (DRS4)
+	479 table
+		480 row
+			481 cell
+				482 text DRS level
+			483 cell
+				484 text 4
+		485 row
+			486 cell
+				487 text Delivered rate
+			488 cell
+				489 text 564/576 req/s mean (98% of expected mean; peak 800 req/s)
+		490 row
+			491 cell
+				492 text Verdict
+			493 cell
+				494 text inconclusive
+		495 row
+			496 cell
+				497 text Observation
+			498 cell
+				499 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C).
+		500 row
+			501 cell
+				502 text Caveats
+			503 cell
+				504 text Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	505 text Offered load across the run (req/s).
+	506 container timeline
+	507 text Legitimate-probe availability across the run (%).
+	508 container timeline
+	509 heading Attack 8 / HTTP/2 Continuation — header pressure (DRS4), Value: 3
+		510 text Attack 8 / HTTP/2 Continuation — header pressure (DRS4)
+	511 table
+		512 row
+			513 cell
+				514 text DRS level
+			515 cell
+				516 text 4
+		517 row
+			518 cell
+				519 text Delivered rate
+			520 cell
+				521 text 390/400 req/s mean (98% of expected mean; peak 400 req/s)
+		522 row
+			523 cell
+				524 text Verdict
+			525 cell
+				526 text inconclusive
+		527 row
+			528 cell
+				529 text Observation
+			530 cell
+				531 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C).
+		532 row
+			533 cell
+				534 text Caveats
+			535 cell
+				536 text Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	537 text Offered load across the run (req/s).
+	538 container timeline
+	539 text Legitimate-probe availability across the run (%).
+	540 container timeline
+	541 heading Attack 9 / Login/account POST-Flood (DRS5), Value: 3
+		542 text Attack 9 / Login/account POST-Flood (DRS5)
+	543 table
+		544 row
+			545 cell
+				546 text DRS level
+			547 cell
+				548 text 5
+		549 row
+			550 cell
+				551 text Delivered rate
+			552 cell
+				553 text 474/500 req/s mean (95% of expected mean; peak 500 req/s)
+		554 row
+			555 cell
+				556 text Verdict
+			557 cell
+				558 text breached
+		559 row
+			560 cell
+				561 text Observation
+			562 cell
+				563 text Not held — legitimate availability collapsed to 25% (the target was unavailable for the majority of the run). Transport failures: 100% of offered requests; timeouts do not prove edge tarpitting. WRS 59.5 (C).
+	564 text Offered load across the run (req/s).
+	565 container timeline
+	566 text Legitimate-probe availability across the run (%).
+	567 container timeline
+	568 heading Attack 10 / L7 MultiVector (DRS5), Value: 3
+		569 text Attack 10 / L7 MultiVector (DRS5)
+	570 table
+		571 row
+			572 cell
+				573 text DRS level
+			574 cell
+				575 text 5
+		576 row
+			577 cell
+				578 text Delivered rate
+			579 cell
+				580 text 149/150 req/s mean (99% of expected mean; peak 209 req/s)
+		581 row
+			582 cell
+				583 text Verdict
+			584 cell
+				585 text partial
+		586 row
+			587 cell
+				588 text Observation
+			589 cell
+				590 text Transport failures: 89.9% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 75%. WRS 84.5 (B). (Rate-calibrated: graded at 209 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+		591 row
+			592 cell
+				593 text Caveats
+			594 cell
+				595 text Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 220.61 req/s), so the graded run was offered at 209 req/s. The verdict is valid AT 209 req/s; proving resilience at the full 800 req/s needs multi-box generation.
+	596 text Offered load across the run (req/s).
+	597 container timeline
+	598 text Legitimate-probe availability across the run (%).
+	599 container timeline
+	600 heading Attack 11 / THOR / PulseWave — synchronized (DRS5), Value: 3
+		601 text Attack 11 / THOR / PulseWave — synchronized (DRS5)
+	602 table
+		603 row
+			604 cell
+				605 text DRS level
+			606 cell
+				607 text 5
+		608 row
+			609 cell
+				610 text Delivered rate
+			611 cell
+				612 text 530/540 req/s mean (98% of expected mean; peak 750 req/s)
+		613 row
+			614 cell
+				615 text Verdict
+			616 cell
+				617 text inconclusive
+		618 row
+			619 cell
+				620 text Observation
+			621 cell
+				622 text Generator failures: 100% of offered requests (no per-status breakdown; attribution unavailable); legitimate availability dipped to 25%. WRS 59.5 (C). (Rate-calibrated: graded at 750 req/s — the deliverable ceiling here — not the requested 1000 req/s.)
+		623 row
+			624 cell
+				625 text Caveats
+			626 cell
+				627 text Rate-calibrated: the requested 1000 req/s exceeded what the generator could deliver against this target on one box (measured 789.79 req/s), so the graded run was offered at 750 req/s. The verdict is valid AT 750 req/s; proving resilience at the full 1000 req/s needs multi-box generation. Started generator attempts lack finalized HTTP outcomes; their target receipt and status remain uncertain.
+	628 text Offered load across the run (req/s).
+	629 container timeline
+	630 text Legitimate-probe availability across the run (%).
+	631 container timeline
+	632 heading Attack 12 / MultiTarget / carpet-bombing (DRS5), Value: 3
+		633 text Attack 12 / MultiTarget / carpet-bombing (DRS5)
+	634 table
+		635 row
+			636 cell
+				637 text DRS level
+			638 cell
+				639 text 5
+		640 row
+			641 cell
+				642 text Delivered rate
+			643 cell
+				644 text 159/161 req/s mean (99% of expected mean; peak 223 req/s)
+		645 row
+			646 cell
+				647 text Verdict
+			648 cell
+				649 text partial
+		650 row
+			651 cell
+				652 text Observation
+			653 cell
+				654 text Transport failures: 90.5% of offered requests; timeouts do not prove edge tarpitting; legitimate availability dipped to 75%. WRS 84.5 (B). (Rate-calibrated: graded at 223 req/s — the deliverable ceiling here — not the requested 800 req/s.)
+		655 row
+			656 cell
+				657 text Caveats
+			658 cell
+				659 text Rate-calibrated: the requested 800 req/s exceeded what the generator could deliver against this target on one box (measured 234.9 req/s), so the graded run was offered at 223 req/s. The verdict is valid AT 223 req/s; proving resilience at the full 800 req/s needs multi-box generation.
+	660 text Offered load across the run (req/s).
+	661 container timeline
+	662 text Legitimate-probe availability across the run (%).
+	663 container timeline
+	664 heading Glossary, Value: 2
+		665 text Glossary
+	666 heading Verdict, Value: 3
+		667 text Verdict
+	668 table
+		669 row
+			670 cell
+				671 text held
+			672 cell
+				673 text Legitimate availability held (≥99%) at the delivered rate — a valid test the target passed.
+		674 row
+			675 cell
+				676 text partial
+			677 cell
+				678 text Some legitimate impact — availability dipped below 99% while the target stayed up.
+		679 row
+			680 cell
+				681 text breached
+			682 cell
+				683 text The target went unavailable and the safety kill-switch stopped the run — a real, attributed outage.
+		684 row
+			685 cell
+				686 text inconclusive
+			687 cell
+				688 text The measurement can't prove resilience: the vector under-delivered (achieved ≪ configured rate), the generator was degraded, the probe was contended, or the run was aborted.  Not a pass.
+	689 heading Mechanism, Value: 3
+		690 text Mechanism
+	691 table
+		692 row
+			693 cell
+				694 text served
+			695 cell
+				696 text Successful HTTP responses observed by the generator; origin and edge attribution require independent telemetry.
+		697 row
+			698 cell
+				699 text rejected / tarpitted
+			700 cell
+				701 text HTTP failures or transport failures observed by the generator. These alone do not establish filtering or deliberate tarpitting.
+		702 row
+			703 cell
+				704 text shed
+			705 cell
+				706 text For slow-connection vectors: slow/incomplete connections ended; the cause requires independent telemetry.
+		707 row
+			708 cell
+				709 text blocked
+			710 cell
+				711 text Generator failures observed; their location and cause are unresolved.
+	712 text Consolidated assessment — WEDOS internal use only, must not be disclosed to third parties. Every vector is a bounded, allowlisted HTTP test (GET/POST/slow-header, rate-capped); no volumetric, amplification or spoofing vector is implemented by this control plane.
+
+The focused UI element is 0 AXWebArea WEDOS ShieldTest — 10.98.215.52 L7 resilience, URL: 127.0.0.1:18104/api/suites/ee90d84e-2631-4c1d-aeeb-b20ea56f0b32/report

@@ -1,0 +1,82 @@
+{
+  "deployedAt": "2026-10-18T09:09:49.280Z",
+  "build": 495,
+  "commit": "be43eedcc388a19b103063fe625192688f1a267e",
+  "apiUiIdentityVerified": true,
+  "ready": true,
+  "runtimeConfigurationUnchanged": true,
+  "authenticatedBackupRestore": true,
+  "preservation": {
+    "running": 0,
+    "historyPreserved": true,
+    "auditPreserved": true,
+    "counts": {
+      "users": 11,
+      "campaigns": 308,
+      "settings": 1,
+      "targets": 3,
+      "playbooks": 1,
+      "runs": 246,
+      "infrastructure_revisions_v1": 1
+    }
+  },
+  "productionCampaignLaunched": false,
+  "ci": {
+    "id": 39113712678,
+    "headSha": "be43eedcc388a19b103063fe625192688f1a267e",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "postgres",
+        "conclusion": "success"
+      },
+      {
+        "name": "backend",
+        "conclusion": "success"
+      },
+      {
+        "name": "quality",
+        "conclusion": "success"
+      },
+      {
+        "name": "frontend",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "pods": [
+    {
+      "name": "lab-iot-01",
+      "uid": "6932856d-f7c8-464b-9a36-5fb3e168e357",
+      "unchanged": true,
+      "ready": true
+    },
+    {
+      "name": "lab-iot-02",
+      "uid": "42b0ed77-1a8b-4581-8619-ab851332f211",
+      "unchanged": true,
+      "ready": true
+    },
+    {
+      "name": "lab-iot-03",
+      "uid": "8006ab9d-18db-4506-a167-e2a1f349ff3d",
+      "unchanged": true,
+      "ready": true
+    }
+  ],
+  "productionBrowserVerification": false,
+  "browserLimitation": "Saved origin permission blocks production browser access. Complete visual journey qualified with loopback-only fixture.",
+  "localJourney": {
+    "durationSeconds": 20,
+    "configuredRps": 20,
+    "requests": 400,
+    "successful": 384,
+    "httpFailures": 16,
+    "transportFailures": 0,
+    "probeCycles": 4,
+    "observedChecksAvailable": 4,
+    "desktopAndMobile": true,
+    "csvDownloadVerified": true
+  },
+  "onlineAgentsAfterPromotion": 3
+}

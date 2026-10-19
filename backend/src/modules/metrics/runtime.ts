@@ -13,11 +13,12 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 type Labels = Record<string, string>;
 
 function labelKey(labels?: Labels): string {
-  if (!labels) return '';
-  return Object.keys(labels)
-    .sort()
-    .map((k) => `${k}=${labels[k]}`)
-    .join(',');
+  if (!labels || Object.keys(labels).length === 0) return '';
+  return JSON.stringify(
+    Object.keys(labels)
+      .sort()
+      .map((k) => [k, labels[k]]),
+  );
 }
 function escapeLabel(v: string): string {
   return v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ');

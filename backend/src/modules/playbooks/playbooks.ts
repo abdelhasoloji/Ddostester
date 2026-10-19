@@ -1,3 +1,4 @@
+import { MAX_PROBE_URLS } from '../../config/limits.js';
 import { randomUUID } from 'node:crypto';
 import type {
   CampaignInput,
@@ -11,6 +12,7 @@ import {
   MAX_ENDPOINTS,
   MAX_PLAYBOOK_STEPS as MAX_STEPS,
   MAX_PLAYBOOK_HEADERS as MAX_HEADERS,
+  MAX_USER_AGENTS,
 } from '../../config/limits.js';
 import type { HardCaps } from '../../config/limits.js';
 
@@ -39,6 +41,17 @@ export const DEFAULT_UA_SET: string[] = [
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
 ];
 
+/**
+ * Browsers plus two command-line clients. This is a catalogue choice, not a claim
+ * about any actor's tooling: it exists so a run exercises UA-based bot rules as
+ * well as browser-blending, which are two different detection paths.
+ */
+export const MIXED_CLIENT_UA_SET: string[] = [
+  ...DEFAULT_UA_SET,
+  'curl/8.6.0',
+  'python-requests/2.32.3',
+];
+
 export interface PlaybookStep {
   name: string;
   summary: string;
@@ -59,8 +72,15 @@ export interface PlaybookStep {
    * endpoint mix, resolved against the target at instantiation.
    */
   paths?: string[];
+  /** Preserve intentional negative-path checks instead of mapping them to recon paths. */
+  preservePaths?: boolean;
   /** Optional realism (built-in engine only): rotate the DEFAULT_UA_SET. */
   rotateUa?: boolean;
+  /**
+   * Explicit User-Agent set for this step (built-in or vegeta). Overrides the
+   * browser-only default that `rotateUa` implies; capped at MAX_USER_AGENTS.
+   */
+  userAgents?: string[];
   /**
    * Optional custom request headers (built-in engine only) — benign strings for
    * a finer client fingerprint (e.g. Accept-Language, a mobile app header).
@@ -88,8 +108,8 @@ export interface PlaybookStep {
    * Closed-loop rate calibration (GEN-1): fire a short pre-flight burst to
    * measure the deliverable rate, then grade at it instead of an aspirational
    * rate the box can't sustain. Recommended on high-rate composite/pulse lines
-   * whose configured rate may exceed a single box's throughput, so their verdict
-   * is a valid measurement rather than an under-delivered INCONCLUSIVE.
+   * whose configured rate may exceed a single box's throughput. A reduced exposure
+   * remains inconclusive for the originally requested conditions.
    */
   calibrate?: boolean;
   /**
@@ -242,6 +262,19 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       }
       headers = Object.keys(clean).length ? clean : undefined;
     }
+    let userAgents: string[] | undefined;
+    if (s.userAgents !== undefined) {
+      if (
+        !Array.isArray(s.userAgents) ||
+        s.userAgents.length === 0 ||
+        s.userAgents.length > MAX_USER_AGENTS
+      )
+        throw new PlaybookError(`${label}: userAgents must have 1 to ${MAX_USER_AGENTS} entries.`);
+      const clean = s.userAgents.map((ua) => String(ua).trim()).filter(Boolean);
+      if (clean.length === 0)
+        throw new PlaybookError(`${label}: userAgents entries must be non-empty.`);
+      userAgents = clean;
+    }
     let parallelism: number | undefined;
     if (s.parallelism !== undefined) {
       const n = Number(s.parallelism);
@@ -262,12 +295,14 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       vector: vector as LoadVector,
       agent: typeof s.agent === 'string' && s.agent ? s.agent : undefined,
       paths,
+      preservePaths: s.preservePaths === true || undefined,
       rotateUa: s.rotateUa === true,
+      userAgents,
       calibrate: s.calibrate === true,
       headers,
       cacheBust: s.cacheBust === true || undefined,
       noKeepAlive: s.noKeepAlive === true || undefined,
-      focusDynamic: s.focusDynamic === true || undefined,
+      focusDynamic: typeof s.focusDynamic === 'boolean' ? s.focusDynamic : undefined,
       parallelism,
     };
   });
@@ -422,6 +457,89 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'builtin',
         paths: ['/', '/search?q=test', '/api/products', '/about', '/login'],
         rotateUa: true,
+      },
+    ],
+  },
+  {
+    id: 'threat-l7-cache-busted-flood',
+    requires: ['waf', 'cache'],
+    name: 'L7 flood — cache-busted multi-path',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a wave over several endpoints with a rotating browser User-Agent and a ' +
+      'unique query token per request, so an edge cache cannot absorb it; a bounded POST burst on ' +
+      'the login/session path follows. The bounded shape of a hacktivist L7 HTTP flood.',
+    when:
+      'Measure origin exposure and WAF / rate-limit behaviour when the edge cache is deliberately ' +
+      'bypassed and the client fingerprint rotates.',
+    threat: {
+      technique: 'Hacktivist L7 HTTP flood with cache bypass',
+      source: 'https://socradar.io/blog/noname05716-and-ddosia-project-analysis-russia/',
+      reference:
+        'Public reporting on NoName057(16) / DDoSia (2022–2026); this template asserts no attribution',
+      measures:
+        'Origin load, WAF efficacy and rate-limit behaviour when caching is deliberately bypassed.',
+      notReproduced:
+        'No botnet scale, no source spoofing and no actor tooling — bounded HTTP from allowlisted hosts only.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference before any bypass.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Cache-busted wave',
+        summary:
+          'Waves over several endpoints, rotating browser User-Agent and a unique query token, so ' +
+          'every request reaches origin instead of a cache.',
+        maxRps: 500,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-get',
+        agent: 'vegeta',
+        paths: ['/', '/login', '/api/catalog', '/search?q=test', '/account'],
+        rotateUa: true,
+        cacheBust: true,
+        parallelism: 3,
+        headers: {
+          accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'accept-language': 'en-US,en;q=0.9',
+        },
+      },
+      {
+        name: 'Login POST burst',
+        summary: 'Bounded POST burst on the login/session path while the cache is bypassed.',
+        maxRps: 150,
+        concurrency: 50,
+        maxDurationSec: 90,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'vegeta',
+        paths: ['/login', '/api/session'],
+        cacheBust: true,
+        parallelism: 2,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      },
+      {
+        name: 'Non-browser client burst',
+        summary:
+          'Short burst carrying command-line client User-Agents (curl, python-requests) alongside ' +
+          'the browsers, so UA-based bot rules are exercised too.',
+        maxRps: 100,
+        concurrency: 30,
+        maxDurationSec: 60,
+        profile: 'constant',
+        agent: 'vegeta',
+        paths: ['/', '/api/catalog'],
+        userAgents: MIXED_CLIENT_UA_SET,
+        parallelism: 2,
       },
     ],
   },
@@ -1280,6 +1398,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'GET-Flood (DRS3)',
         summary: 'Line 3 — steady HTTP GET flood on the main path.',
+        focusDynamic: false,
         maxRps: 400,
         concurrency: 80,
         maxDurationSec: 120,
@@ -1288,6 +1407,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       },
       {
         name: 'GET-Random-Flood (DRS3)',
+        preservePaths: true,
+        focusDynamic: false,
         summary: 'Line 4 — waves over non-existent paths; expect edge 404 / origin shielding.',
         maxRps: 500,
         concurrency: 100,
@@ -1326,7 +1447,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'k6',
       },
       {
-        name: 'HTTP/2 Rapid Reset — bounded (DRS4)',
+        name: 'HTTP/2 Rapid Reset — HTTP approximation (DRS4)',
         summary: 'Line 8a — h2 request path under sustained bounded rate (no RST_STREAM abuse).',
         maxRps: 800,
         concurrency: 200,
@@ -1335,7 +1456,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         agent: 'k6',
       },
       {
-        name: 'HTTP/2 Continuation — header pressure (DRS4)',
+        name: 'HTTP/2 Continuation — HTTP approximation (DRS4)',
         summary: 'Line 8b — h2 requests carrying a larger benign header set (no HPACK bomb).',
         maxRps: 400,
         concurrency: 100,
@@ -1369,8 +1490,8 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         calibrate: true,
       },
       {
-        name: 'THOR / PulseWave — synchronized (DRS5)',
-        summary: 'Line 11 — synchronized bursts (pulse) rather than a steady rate.',
+        name: 'THOR / PulseWave — single-generator wave (DRS5)',
+        summary: 'Line 11 — bounded single-generator HTTP wave; no distributed synchronization.',
         maxRps: 1000,
         concurrency: 250,
         maxDurationSec: 180,
@@ -1381,7 +1502,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         calibrate: true,
       },
       {
-        name: 'MultiTarget / carpet-bombing (DRS5)',
+        name: 'MultiTarget / carpet-bombing — single-host path mix (DRS5)',
         summary:
           'Line 13 — spread over many paths of the target. True multi-target = instantiate this ' +
           'playbook once per allowlisted CRA host.',
@@ -1427,6 +1548,7 @@ const CURATED_PLAYBOOKS: Playbook[] = [
       {
         name: 'GET-Flood (DRS3)',
         summary: 'Steady HTTP GET flood on the main path.',
+        focusDynamic: false,
         maxRps: 400,
         concurrency: 80,
         maxDurationSec: 120,
@@ -2071,6 +2193,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'origin-l7-exhaustion': '2026-09-16',
   'l7-pulse-burst': '2026-09-16',
   'l7-post-storm': '2026-09-16',
+  'threat-l7-cache-busted-flood': '2026-10-19',
 };
 /** Date the DRS L7 lines were split into their own single-step templates. */
 const DRS_LINES_CREATED_AT = '2026-09-11';
@@ -2099,19 +2222,23 @@ export function buildScenario(
   maxRps: number,
   durationSec: number,
 ): ScenarioPhase[] | undefined {
-  const third = Math.max(1, Math.round(durationSec / 3));
+  if ((profile === 'wave' || profile === 'ramp') && durationSec < 3)
+    return [{ maxRps, durationSec }];
+  const third = Math.floor(durationSec / 3);
+  const remainder = durationSec % 3;
+  const phaseDuration = (index: number) => third + (index < remainder ? 1 : 0);
   const pct = (p: number): number => Math.max(1, Math.round((maxRps * p) / 100));
   if (profile === 'ramp')
     return [
-      { maxRps: pct(25), durationSec: third },
-      { maxRps: pct(50), durationSec: third },
-      { maxRps: pct(100), durationSec: third },
+      { maxRps: pct(25), durationSec: phaseDuration(0) },
+      { maxRps: pct(50), durationSec: phaseDuration(1) },
+      { maxRps: pct(100), durationSec: phaseDuration(2) },
     ];
   if (profile === 'wave')
     return [
-      { maxRps: pct(100), durationSec: third },
-      { maxRps: pct(20), durationSec: third },
-      { maxRps: pct(100), durationSec: third },
+      { maxRps: pct(100), durationSec: phaseDuration(0) },
+      { maxRps: pct(20), durationSec: phaseDuration(1) },
+      { maxRps: pct(100), durationSec: phaseDuration(2) },
     ];
   return undefined;
 }
@@ -2325,9 +2452,16 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   // sparse origin). Templates whose paths DO map to a real (non-root) surface
   // keep their mix, so a target-tuned line is unchanged where it applies.
   const dyn = ctx.recon?.dynamicPaths;
-  const resolved = seedPaths(step.paths, ctx.recon);
+  const resolved = step.preservePaths ? step.paths : seedPaths(step.paths, ctx.recon);
   const resolvedMeaningful = !!resolved && resolved.some((p) => p !== '/');
-  const concentrateDynamic = (step.focusDynamic || !resolvedMeaningful) && !!dyn && dyn.length > 0;
+  // Explicit false preserves the configured target instead of automatically
+  // replacing it with a costlier endpoint and enabling connection churn.
+  const concentrateDynamic =
+    !step.preservePaths &&
+    step.focusDynamic !== false &&
+    (step.focusDynamic === true || !resolvedMeaningful) &&
+    !!dyn &&
+    dyn.length > 0;
   const seededPaths = concentrateDynamic ? dyn!.slice(0, 1) : resolved;
   const endpoints = seededPaths?.length
     ? seededPaths.map((p) => ({ url: `${origin}${p}` }))
@@ -2340,8 +2474,21 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   // composite lines finally deliver their configured rate instead of ~150 rps.
   // (k6 does not yet rotate UAs; a k6-pinned step would silently drop them.)
   const uaRotationCapable = agent === 'builtin' || agent === 'vegeta' || agent === undefined;
-  const userAgents = uaRotationCapable && step.rotateUa ? DEFAULT_UA_SET : undefined;
-  const headers = builtin && step.headers ? step.headers : undefined;
+  const requestedUas = step.userAgents?.length
+    ? step.userAgents
+    : step.rotateUa
+      ? DEFAULT_UA_SET
+      : undefined;
+  const cleanedUas = requestedUas
+    ?.map((ua) => ua.trim())
+    .filter(Boolean)
+    .slice(0, MAX_USER_AGENTS);
+  const userAgents = uaRotationCapable && cleanedUas?.length ? cleanedUas : undefined;
+  // Headers reach the engines that actually honour them: the built-in flood and
+  // vegeta (which writes them into its targets file, dropping only user-agent when
+  // a UA set rotates). A k6-pinned step drops them rather than pretending.
+  const headersCapable = builtin || agent === 'vegeta';
+  const headers = headersCapable && step.headers ? step.headers : undefined;
   // A volumetric flood exhausts an origin only under CONNECTION PRESSURE: a
   // keep-alive flood is served at the app tier's capacity (in-flight ≤ concurrency
   // < accept backlog), while fresh connections in bulk overflow the backlog into
@@ -2378,6 +2525,11 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
     concurrency,
     maxDurationSec,
     probeUrl: ctx.probeUrl,
+    // Intentional missing-resource requests are not functional availability checks.
+    probeUrls:
+      endpoints?.length && !step.preservePaths
+        ? [...new Set([ctx.probeUrl, ...endpoints.map((e) => e.url)])].slice(0, MAX_PROBE_URLS)
+        : undefined,
     createdBy: ctx.createdBy,
     authorized: true,
     scenario: buildScenario(step.profile, maxRps, maxDurationSec),

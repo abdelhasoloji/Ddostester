@@ -43,6 +43,8 @@ export function gaugeSvg(
   opts: { max?: number; label?: string; sub?: string; color?: string } = {},
 ): string {
   const max = opts.max ?? 100;
+  if (!Number.isFinite(value) || !Number.isFinite(max) || max <= 0 || value < 0 || value > max)
+    return '<div class="chart-empty">Score not measured.</div>';
   const v = Math.max(0, Math.min(max, n(value)));
   const color = opts.color ?? scoreColor((v / max) * 100);
   const W = 200;
@@ -62,10 +64,10 @@ export function gaugeSvg(
     return `<path d="M ${r1(x1)} ${r1(y1)} A ${R} ${R} 0 0 1 ${r1(x2)} ${r1(y2)}" fill="none" stroke="${stroke}" stroke-width="${wdt}" stroke-linecap="round"/>`;
   };
   const frac = v / max;
-  return `<svg viewBox="0 0 ${W} ${H}" width="200" role="img" aria-label="${esc(opts.label ?? 'score')} ${r1(v)} of ${max}" class="chart-gauge">
+  return `<svg viewBox="0 0 ${W} ${H}" width="200" role="img" aria-label="${esc(opts.label ?? 'score')} ${Math.round(v * 100) / 100} of ${max}" class="chart-gauge">
   ${arc(0, 1, REPORT_COLORS.grid, 14)}
   ${frac > 0 ? arc(0, frac, color, 14) : ''}
-  <text x="${cx}" y="86" text-anchor="middle" font-size="40" font-weight="800" fill="${color}">${Math.round(v)}</text>
+  <text x="${cx}" y="86" text-anchor="middle" font-size="40" font-weight="800" fill="${color}">${Math.round(v * 100) / 100}</text>
   ${opts.sub ? `<text x="${cx}" y="108" text-anchor="middle" font-size="13" font-weight="600" fill="${REPORT_COLORS.muted}">${esc(opts.sub)}</text>` : ''}
 </svg>`;
 }
@@ -75,7 +77,7 @@ export function gaugeSvg(
  * and, separately (never on the same axes), the availability trace.
  */
 export function timelineSvg(
-  points: { t: number; y: number }[],
+  points: { t: number; y: number | null }[],
   opts: {
     yMax?: number;
     color?: string;
@@ -83,6 +85,9 @@ export function timelineSvg(
     yUnit?: string;
     title?: string;
     height?: number;
+    xMax?: number;
+    stepped?: boolean;
+    pointsOnly?: boolean;
   } = {},
 ): string {
   const W = 640;
@@ -96,42 +101,68 @@ export function timelineSvg(
   const color = opts.color ?? REPORT_COLORS.brand;
   const fill = opts.fill ?? REPORT_COLORS.brandFill;
 
-  const pts = points.filter((p) => Number.isFinite(p.t) && Number.isFinite(p.y));
-  if (pts.length < 2) {
+  const ticks = points.filter((p) => Number.isFinite(p.t) && p.t >= 0).sort((a, b) => a.t - b.t);
+  const pts = ticks.filter(
+    (p): p is { t: number; y: number } => p.y !== null && Number.isFinite(p.y),
+  );
+  if (pts.length === 0) {
     return `<div class="chart-empty">No time-series captured for this run.</div>`;
   }
-  const tMax = Math.max(...pts.map((p) => p.t)) || 1;
+  const tMax = Math.max(opts.xMax ?? 1, ...pts.map((p) => p.t));
   const yMax = opts.yMax ?? Math.max(1, Math.ceil(Math.max(...pts.map((p) => p.y)) * 1.1));
   const X = (t: number): number => padL + (t / tMax) * plotW;
   const Y = (y: number): number => padT + plotH - (Math.max(0, Math.min(yMax, y)) / yMax) * plotH;
 
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'} ${r1(X(p.t))} ${r1(Y(p.y))}`).join(' ');
-  const area = `M ${r1(X(pts[0].t))} ${r1(padT + plotH)} ${pts
-    .map((p) => `L ${r1(X(p.t))} ${r1(Y(p.y))}`)
-    .join(' ')} L ${r1(X(pts[pts.length - 1].t))} ${r1(padT + plotH)} Z`;
+  const segments: { t: number; y: number }[][] = [];
+  let segment: { t: number; y: number }[] = [];
+  for (const point of ticks) {
+    if (point.y === null || !Number.isFinite(point.y)) {
+      if (segment.length) segments.push(segment);
+      segment = [];
+    } else segment.push({ t: point.t, y: point.y });
+  }
+  if (segment.length) segments.push(segment);
+  const paths = segments
+    .map((part) => {
+      const line = part
+        .map((p, i) =>
+          i && opts.stepped
+            ? `H ${r1(X(p.t))} V ${r1(Y(p.y))}`
+            : `${i ? 'L' : 'M'} ${r1(X(p.t))} ${r1(Y(p.y))}`,
+        )
+        .join(' ');
+      const area = `${line} L ${r1(X(part[part.length - 1].t))} ${r1(padT + plotH)} L ${r1(X(part[0].t))} ${r1(padT + plotH)} Z`;
+      if (opts.pointsOnly)
+        return part
+          .map((p) => `<circle cx="${r1(X(p.t))}" cy="${r1(Y(p.y))}" r="3" fill="${color}"/>`)
+          .join('');
+      return part.length === 1
+        ? `<circle cx="${r1(X(part[0].t))}" cy="${r1(Y(part[0].y))}" r="3" fill="${color}"/>`
+        : `<path d="${area}" fill="${fill}" stroke="none"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    })
+    .join('');
 
   // 4 horizontal gridlines + y labels.
   const grid = [0, 0.25, 0.5, 0.75, 1]
     .map((f) => {
       const y = padT + plotH - f * plotH;
-      const val = Math.round(yMax * f);
+      const val = r1(yMax * f);
       return `<line x1="${padL}" y1="${r1(y)}" x2="${W - padR}" y2="${r1(y)}" stroke="${REPORT_COLORS.grid}" stroke-width="1"/><text x="${padL - 6}" y="${r1(y + 4)}" text-anchor="end" font-size="11" fill="${REPORT_COLORS.muted}">${val}</text>`;
     })
     .join('');
   // x ticks at 0, mid, end.
   const xticks = [0, 0.5, 1]
     .map((f) => {
-      const t = Math.round(tMax * f);
+      const t = Math.round(tMax * f * 10) / 10;
       return `<text x="${r1(X(t))}" y="${H - 8}" text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}" font-size="11" fill="${REPORT_COLORS.muted}">${t}s</text>`;
     })
     .join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opts.title ?? 'timeline')}" class="chart-timeline" preserveAspectRatio="xMidYMid meet">
   ${grid}
-  <path d="${area}" fill="${fill}" stroke="none"/>
-  <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  ${paths}
   ${xticks}
-  ${opts.yUnit ? `<text x="${padL - 6}" y="${padT - 2}" text-anchor="end" font-size="10" fill="${REPORT_COLORS.muted}">${esc(opts.yUnit)}</text>` : ''}
+  ${opts.yUnit ? `<text x="${padL}" y="${padT - 2}" text-anchor="start" font-size="10" fill="${REPORT_COLORS.muted}">${esc(opts.yUnit)}</text>` : ''}
 </svg>`;
 }
 
@@ -141,7 +172,9 @@ export function timelineSvg(
  */
 export function hbarsSvg(
   items: { label: string; value: number; display?: string }[],
-  opts: { max: number; color?: string; barColor?: (v: number) => string } = { max: 1 },
+  opts: { max: number; color?: string; barColor?: (v: number, index: number) => string } = {
+    max: 1,
+  },
 ): string {
   const rows = items.filter(Boolean);
   if (rows.length === 0) return '';
@@ -157,7 +190,7 @@ export function hbarsSvg(
     .map((row, i) => {
       const y = i * (rowH + gap);
       const w = Math.max(0, Math.min(1, n(row.value) / max)) * trackW;
-      const c = opts.barColor ? opts.barColor(row.value) : (opts.color ?? REPORT_COLORS.brand);
+      const c = opts.barColor ? opts.barColor(row.value, i) : (opts.color ?? REPORT_COLORS.brand);
       return `<text x="0" y="${y + rowH / 2 + 4}" font-size="13" fill="${REPORT_COLORS.ink}">${esc(row.label)}</text>
   <rect x="${labelW}" y="${y + 4}" width="${trackW}" height="${rowH - 8}" rx="4" fill="${REPORT_COLORS.grid}"/>
   <rect x="${labelW}" y="${y + 4}" width="${r1(w)}" height="${rowH - 8}" rx="4" fill="${c}"/>

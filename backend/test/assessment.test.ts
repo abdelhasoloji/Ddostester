@@ -198,8 +198,8 @@ describe('assessVector — delivery is measured against the intended mean, not t
   });
 });
 
-describe('assessVector — rate-calibrated runs are valid AND disclosed (GEN-1)', () => {
-  it('a calibrated run grades a VALID verdict at the applied rate, not inconclusive', () => {
+describe('assessVector — rate calibration cannot prove the requested exposure', () => {
+  it('a reduced calibrated run cannot pass the originally requested exposure', () => {
     // THOR: requested 1000, calibrated to 650; absorption.configuredRps is the
     // APPLIED rate (app.ts), so delivery reads ~100% and the verdict is valid.
     const va = assessVector(
@@ -210,13 +210,14 @@ describe('assessVector — rate-calibrated runs are valid AND disclosed (GEN-1)'
       }),
       ctx({ shape: 'THOR / PulseWave (DRS5)', drs: '5' }),
     );
-    expect(va.underDelivered).toBe(false);
-    expect(va.verdict).toBe('held'); // valid, not inconclusive
+    expect(va.underDelivered).toBe(true);
+    expect(va.expectedRps).toBe(1000);
+    expect(va.verdict).toBe('inconclusive');
     // But it is disclosed: a caveat + an observation note name the calibrated rate.
     expect(va.caveats.join(' ')).toMatch(/Rate-calibrated/);
     expect(va.caveats.join(' ')).toMatch(/1000 req\/s/); // requested
     expect(va.caveats.join(' ')).toMatch(/650 req\/s/); // applied
-    expect(va.observation).toMatch(/graded at 650 req\/s/);
+    expect(va.observation).toMatch(/observed at 650 req\/s/);
     expect(va.observation).toMatch(/not the requested 1000/);
   });
 
@@ -241,7 +242,7 @@ describe('assessVector — breach vs probe contention', () => {
       ctx({ status: 'KILLED_AUTO' }),
     );
     expect(va.verdict).toBe('breached');
-    expect(va.observation).toMatch(/Not mitigated/);
+    expect(va.observation).toMatch(/Automatic stop/);
   });
 
   it('an auto-kill under probe contention is inconclusive, not a breach', () => {
@@ -264,7 +265,7 @@ describe('assessVector — breach vs probe contention', () => {
     );
     expect(va.verdict).toBe('breached');
     expect(va.mechanism).toBe('tarpitted');
-    expect(va.observation).toMatch(/collapsed to 40%/);
+    expect(va.observation).toMatch(/40% of completed legitimate probe transactions succeeded/);
   });
 
   it('a mild availability dip (≥50%) stays partial, not breached', () => {
@@ -350,4 +351,56 @@ it('keeps automatic safety stop but withholds an outage verdict when remote base
   };
   expect(assessVector(run, ctx({ status: 'KILLED_AUTO' })).verdict).toBe('inconclusive');
   expect(run.status).toBe('KILLED_AUTO');
+});
+
+it('does not describe absent run evidence as zero availability', () => {
+  const result = assessVector(undefined, { shape: 'HTTP/2', drs: '3', status: 'APPROVED' });
+  expect(result.verdict).toBe('inconclusive');
+  expect(result.observation).toContain('unknown');
+  expect(result.observation).not.toContain('0%');
+});
+
+it('does not pass an absent probe or an unconfirmed HTTP/2 protocol', () => {
+  const run = mkRun({});
+  run.probe.samples = 0;
+  expect(assessVector(run, ctx()).verdict).toBe('inconclusive');
+  expect(assessVector(run, ctx()).observation).toContain('unknown');
+  const h2 = assessVector(mkRun({}), { ...ctx({ shape: 'HTTP/2 GET' }), h2Confirmed: false });
+  expect(h2.verdict).toBe('inconclusive');
+  expect(h2.caveats.join(' ')).toContain('HTTP/2 was not confirmed');
+});
+
+it('cannot turn inconsistent probe counts or a degraded automatic stop into an attributed breach', () => {
+  const invalid = mkRun({ availCount: 110 });
+  const ctx = { shape: 'bounded HTTP', drs: '3', status: 'COMPLETED', vector: 'http-get' };
+  expect(assessVector(invalid, ctx)).toMatchObject({
+    verdict: 'inconclusive',
+    availabilityPct: null,
+  });
+  const degraded = mkRun({
+    status: 'KILLED_AUTO',
+    availCount: 0,
+    confidence: { degraded: true, reasons: ['probe resource contention'] },
+  });
+  expect(assessVector(degraded, { ...ctx, status: 'KILLED_AUTO' }).verdict).toBe('inconclusive');
+});
+
+it('cannot pass a named protocol approximation even when HTTP/2 is supported', () => {
+  const run = mkRun({ absorption: abs({ cfg: 100, ach: 100 }) });
+  const result = assessVector(run, { ...ctx({ shape: 'HTTP/2 Rapid Reset' }), h2Confirmed: true });
+  expect(result.verdict).toBe('inconclusive');
+  expect(result.confident).toBe(false);
+  expect(result.caveats.join(' ')).toMatch(/does not implement/);
+});
+
+it('cannot infer application-route health from a root-only probe', () => {
+  const run = mkRun({ absorption: abs({ cfg: 100, ach: 100 }) });
+  run.generator.config = {
+    url: 'http://localhost/',
+    endpoints: [{ url: 'http://localhost/login' }],
+    execution: { probeUrl: 'http://localhost/' },
+  } as CampaignRun['generator']['config'];
+  expect(assessVector(run, ctx()).verdict).toBe('inconclusive');
+  run.probe.endpoints = [{ url: 'http://localhost/login', samples: 10, available: 10 }];
+  expect(assessVector(run, ctx()).verdict).toBe('held');
 });

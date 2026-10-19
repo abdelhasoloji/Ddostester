@@ -10,7 +10,7 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
   return {
     allowed: ['127.0.0.1', 'localhost'],
     // Test fixture value (not the app's config source of truth — that is the
-    // backend's HARD_CAPS via /health). Mirrors DEFAULT_CAPS in api.ts.
+    // backend's HARD_CAPS via /health). Independent of the app's PLACEHOLDER_CAPS: fixtures state their own caps.
     hardCaps: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     hardCapsCeiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     builtinCeilings: { rps: 150, concurrency: 300 },
@@ -152,6 +152,8 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     approveSuite: vi.fn().mockResolvedValue({ suiteId: 's', approved: 3, skipped: 0 }),
     rejectSuite: vi.fn().mockResolvedValue({ suiteId: 's', rejected: 3, skipped: 0 }),
     runSuite: vi.fn().mockResolvedValue({ suiteId: 's', steps: 3, started: true }),
+    campaignParameters: vi.fn(),
+    updateCampaignParameters: vi.fn(),
     pauseSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: true }),
     resumeSuite: vi.fn().mockResolvedValue({ suiteId: 's', paused: false }),
     cancelSuite: vi.fn().mockResolvedValue({

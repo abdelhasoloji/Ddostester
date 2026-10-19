@@ -9,7 +9,7 @@
 
 import type { Campaign } from '../campaigns/model.js';
 import type { CampaignRun } from '../campaigns/runner.js';
-import { availabilityPct } from '../../util/run-metrics.js';
+import { observedAvailability } from './measurements.js';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
@@ -40,25 +40,34 @@ const RANK: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3
 export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remediation[] {
   const out: Remediation[] = [];
   const w = run.wrs;
-  const avail = availabilityPct(run);
+  const avail = observedAvailability(run);
+  if (avail === null)
+    out.push({
+      id: 'probe-evidence',
+      severity: 'medium',
+      weakness:
+        'Completed legitimate probe observations are missing or invalid; availability is unknown.',
+      remediation:
+        'Restore and validate the independent probe before drawing an availability or capacity conclusion.',
+    });
   const kill = run.status === 'KILLED_AUTO';
 
-  // 1. Target went down — the protection did not absorb the load.
-  if (kill || avail === 0) {
+  // 1. Target went down; these observations do not establish the failure location or protection behavior.
+  if (avail !== null && (kill || avail === 0)) {
     out.push({
       id: 'availability-loss',
       severity: 'critical',
-      weakness: `The legitimate probe found the target unavailable${kill ? ' (auto-killed)' : ''} — the protection did not absorb the load.`,
+      weakness: `The legitimate probe found the target unavailable${kill ? ' (auto-killed)' : ''}; these observations do not establish the failure location or protection behavior.`,
       remediation:
-        'Provision always-on mitigation and capacity headroom (upstream scrubbing / autoscaling) so the origin never goes dark under this shape; re-test to confirm availability holds.',
+        'Correlate probe, generator, origin and protection telemetry before selecting capacity or always-on mitigation changes; verify recovery and repeat within the approved plan.',
     });
-  } else if (avail < 99) {
+  } else if (avail !== null && avail < 99) {
     out.push({
       id: 'availability-degraded',
       severity: avail < 90 ? 'high' : 'medium',
-      weakness: `Legitimate availability degraded to ${Math.round(avail)}% during the run — some real users would have been affected.`,
+      weakness: `Legitimate availability degraded to ${Math.round(avail)}% during the run — completed probe transactions failed; real-user impact and outage duration require corroboration.`,
       remediation:
-        'Add origin capacity or enable a rate-based challenge (JS / managed challenge) at the edge so legitimate traffic is served while the attack shape is absorbed.',
+        'Check the probe path and resource health, then correlate target and protection telemetry before changing capacity or filtering.',
     });
   }
 
@@ -67,15 +76,15 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
     out.push({
       id: 'collateral',
       severity: w.collateral < 70 ? 'high' : 'medium',
-      weakness: `Mitigation caused collateral damage (collateral score ${w.collateral}/100) — legitimate traffic was blocked alongside the attack.`,
+      weakness: `Legitimate probe degradation was observed (collateral score ${w.collateral}/100); the cause requires independent telemetry.`,
       remediation:
-        'Prefer challenge/rate-shaping over hard IP blocking, and narrow the mitigation rules; the DRS criterion explicitly requires NOT blocking source IPs (else DRS 3 only).',
+        'Investigate legitimate probe failures with independent origin and protection logs before changing mitigation rules; this diagnostic does not determine DRS compliance.',
     });
   }
 
   // 3. Detection latency.
   const ttd = run.protection?.detectionTimeSec;
-  if (w && w.detection < 70) {
+  if (w && w.detection < 70 && ttd != null && Number.isFinite(ttd) && ttd >= 0) {
     out.push({
       id: 'slow-detection',
       severity: 'medium',
@@ -84,13 +93,13 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
           ? `Detection was slow (time-to-detect ${ttd}s, score ${w.detection}/100).`
           : `Detection scored low (${w.detection}/100).`,
       remediation:
-        'Lower detection thresholds and add L7 telemetry (request-rate/anomaly signals) so the scrubber trips sooner; target sub-15 s detection for DRS ≤ 4.',
+        'Review the reported detection timestamps and detection policy against the frozen campaign objective; this legacy score is not a DRS timing rule.',
     });
   }
 
   // 4. Mitigation latency.
   const ttm = run.protection?.mitigationTimeSec;
-  if (w && w.mitigation < 70) {
+  if (w && w.mitigation < 70 && ttm != null && Number.isFinite(ttm) && ttm >= 0) {
     out.push({
       id: 'slow-mitigation',
       severity: 'medium',
@@ -99,7 +108,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
           ? `Mitigation engaged late (time-to-mitigate ${ttm}s, score ${w.mitigation}/100).`
           : `Mitigation scored low (${w.mitigation}/100).`,
       remediation:
-        'Enable always-on / automatic mitigation so protection engages without manual action; the DRS criterion requires instant/automatic mitigation up to DRS 4.',
+        'Review the reported mitigation timestamps and automation policy against the frozen campaign objective before drawing a mitigation-timing conclusion.',
     });
   }
 
@@ -135,7 +144,7 @@ export function deriveRemediations(_campaign: Campaign, run: CampaignRun): Remed
       weakness:
         'Detection and mitigation are estimated — no protection source reported real timings, so the score is not authoritative.',
       remediation:
-        'Wire the WEDOS scrubber (PROTECTION_METRICS_URL / PROTECTION_WEBHOOK_URL) so time-to-detect and time-to-mitigate are measured and pass/fail becomes authoritative.',
+        'Connect and validate protection telemetry for reported detection/mitigation times, then reconcile it with independent probe and received-load evidence. This alone does not establish DRS compliance.',
     });
   }
 

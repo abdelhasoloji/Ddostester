@@ -1,0 +1,19 @@
+{
+  "runsRendered": 12,
+  "additionalReports": 5,
+  "trafficGenerated": false,
+  "archivedInputsUnchanged": true,
+  "archivedJsonSha256": "0a0ebd39e7c77f375d3de00cd42d8247b532c3697b62ca32d32b74b8fe465f1f",
+  "slowRunId": "562545d6-76bc-495a-a59f-047a9b30191a",
+  "phase": "compiled candidate, not activated",
+  "baseCommit": "e275c052ea642fe7508aed815acc421ab55cd751",
+  "sourceDiffSha256": "735a4b6fdb245f697538461422e08d3af5562c15ad6c68d2486a137ff50f6e4b",
+  "targetedRegressionTestsPassed": 133,
+  "candidateCommit": "0b5f403e396133f8e7763f9d7eae00fad8128d1c",
+  "rendererBuild": {
+    "version": "0.2.0",
+    "build": "485",
+    "commit": "0b5f403",
+    "builtAt": "2026-10-17T18:58:15.097Z"
+  }
+}

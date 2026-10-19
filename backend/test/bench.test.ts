@@ -136,6 +136,14 @@ describe('Network bench — governed record-and-dispatch (DRS Volumetric)', () =
         c.vector === 'udp_dns_reflection' && c.method === 'MEASURED_LAB',
     );
     expect(measured).toBeTruthy();
+    const report = await asCiso('GET', `/api/bench/runs/${run.id}/report`);
+    expect(report.statusCode).toBe(200);
+    expect(report.body).toContain('Synthetic network campaign');
+    expect(report.body).toContain('Received bit rate');
+    expect(report.body).toContain('Amplification ratios do not multiply');
+    expect(
+      (await app.inject({ method: 'GET', url: `/api/bench/runs/${run.id}/report` })).statusCode,
+    ).toBe(401);
   });
 
   it('serves the latest lab-scrubber mitigation timing to the protection connector', async () => {

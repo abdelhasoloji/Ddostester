@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AbsorptionWidget,
   buildAcceptance,
   buildAssertion,
   buildScenario,
@@ -34,7 +35,7 @@ describe('protectionBadgeTitle (E12 — vector-aware)', () => {
     const t = protectionBadgeTitle(false, 40, eng as never, 'http-slowloris');
     expect(t).toMatch(/Slow connections/);
     expect(t).toMatch(/100 opened, 40 closed/);
-    expect(t).toMatch(/Independent probe availability: 100%/);
+    expect(t).toMatch(/Probe availability: 100%/);
     expect(t).not.toMatch(/Generator failures/);
   });
   it('slowloris low-shed message talks about held connections', () => {
@@ -123,7 +124,7 @@ describe('protectionBadgeTitle — target overwhelmed', () => {
       } as never,
       'http-get',
     );
-    expect(t).toMatch(/Independent probe availability: 0%/);
+    expect(t).toMatch(/Probe availability: 0%/);
     expect(t).toMatch(/HTTP 5xx: 100/);
     expect(t).not.toMatch(/protection working/);
   });
@@ -253,4 +254,10 @@ describe('parseDataset', () => {
   it('returns undefined with fewer than 2 lines', () => {
     expect(parseDataset('q,id')).toBeUndefined();
   });
+});
+
+it('omits HTTP outcome widgets for connection holds in every parent view', () => {
+  expect(
+    AbsorptionWidget({ run: { generator: { config: { slowloris: true } } } as never }),
+  ).toBeNull();
 });

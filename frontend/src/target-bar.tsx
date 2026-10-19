@@ -1,9 +1,10 @@
+import { LineIcon } from './interface-kit.js';
 import { hostOf } from './campaign-form.js';
 import { defaultTargetUrl } from './target-url.js';
 
 /**
  * The shared target picker used across the launch flow (recon-first create and
- * the Templates tab): a focus-within bar with a 🎯 leading icon, an inline
+ * the Templates tab): a focus-within bar with an outline leading icon, an inline
  * allowlist ✓ once the host is on the allowlist, and the allowlist rendered as
  * clickable ◎ host chips (active host highlighted). Extracted so the two call
  * sites can't drift. It renders ONLY the bar + chips — the caller keeps its own
@@ -30,7 +31,7 @@ export function TargetBar({
     <>
       <div className={`recon-target-bar${target && !isAllowed ? ' invalid' : ''}`}>
         <span className="recon-target-icon" aria-hidden="true">
-          🎯
+          <LineIcon name="shield" />
         </span>
         <input
           className="recon-target-url"
@@ -54,7 +55,7 @@ export function TargetBar({
       {allowed.length > 0 && (
         <div className="recon-allowed">
           <span className="recon-allowed-label">Allowed</span>
-          {allowed.map((h) => (
+          {[...new Set(allowed)].map((h) => (
             <button
               key={h}
               type="button"

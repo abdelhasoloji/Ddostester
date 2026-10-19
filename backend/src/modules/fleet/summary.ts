@@ -3,6 +3,8 @@ import type { LatencyHistogram } from '../../engine/stats.js';
 import { mergeHistograms, percentileUpperBound } from './aggregate.js';
 export interface FleetShardEvidence {
   agentId: string;
+  /** Site that emitted this shard (provenance; 'local' for single-site history). */
+  site?: string;
   state: string;
   attemptId: string;
   leaseUntil: number;

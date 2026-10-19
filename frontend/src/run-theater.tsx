@@ -1,12 +1,15 @@
+import { CampaignParameters } from './campaign-parameters.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from './context.js';
 import { api } from './api.js';
 import type { Campaign, CampaignStatus, ReconReport, SuiteSequenceState } from './api.js';
 import { RunTheater, RunVerdictLine, AbsorptionWidget, WrsPill, wrsClass, hostOf } from './ui.js';
+import { RunGraphs } from './run-graphs.js';
 import { ReplayFromRun } from './replay-from-run.js';
 import { ReconDetailModal } from './recon-detail.js';
-import { PageHead, GrafanaLink, useSuiteSequences, shortStepName } from './pages.js';
+import { BenchCard } from './bench-card.js';
+import { GrafanaLink, useSuiteSequences, shortStepName } from './pages.js';
 
 const SUITE_TERMINAL: CampaignStatus[] = [
   'COMPLETED',
@@ -138,6 +141,44 @@ function SuiteTheater({
    *  whole time, which would keep the kill switch disabled throughout the run). */
   killing: Record<string, boolean>;
 }) {
+  const app = useApp();
+  const [controlBusy, setControlBusy] = useState(false);
+  const control = async (resume: boolean) => {
+    const id = members[0]?.suiteId;
+    if (!id || controlBusy) return;
+    const confirmation =
+      resume &&
+      app.approvalPolicy === 'confirmation' &&
+      members.some((c) => c.status === 'PENDING_APPROVAL');
+    if (
+      confirmation &&
+      !window.confirm(
+        `Confirm modified steps?\n${members
+          .filter((c) => c.status === 'PENDING_APPROVAL')
+          .map(
+            (c) =>
+              `${c.name}: ${c.maxRps} req/s, ${c.concurrency} concurrent, ${c.maxDurationSec}s`,
+          )
+          .join('\n')}`,
+      )
+    )
+      return;
+    setControlBusy(true);
+    try {
+      if (resume)
+        await api.resumeSuite(
+          id,
+          confirmation,
+          members.filter((c) => c.status === 'PENDING_APPROVAL'),
+        );
+      else await api.pauseSuite(id);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setControlBusy(false);
+    }
+  };
   const ordered = useMemo(
     () => [...members].sort((a, b) => (a.suiteOrder ?? 0) - (b.suiteOrder ?? 0)),
     [members],
@@ -145,14 +186,18 @@ function SuiteTheater({
   const target = ordered[0]?.target ?? '';
   const suiteName = ordered[0]?.suiteName ?? 'Assessment suite';
   const runningStep = ordered.find((c) => c.status === 'RUNNING');
-  const doneCount = ordered.filter((c) => SUITE_TERMINAL.includes(c.status)).length;
+  const executionFailed = (c: Campaign) =>
+    c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed');
+  const doneCount = ordered.filter(
+    (c) => SUITE_TERMINAL.includes(c.status) || executionFailed(c),
+  ).length;
   const total = seq?.total ?? ordered.length;
   const seqActive = !!seq;
   // Between waves: the sequence is live but nothing is RUNNING yet — the
   // recovery gate is holding for the target to come back.
   const inGate = seqActive && !runningStep && doneCount < total && !seq?.paused;
   const nextStep = ordered.find(
-    (c) => !SUITE_TERMINAL.includes(c.status) && c.status !== 'RUNNING',
+    (c) => !SUITE_TERMINAL.includes(c.status) && !executionFailed(c) && c.status !== 'RUNNING',
   );
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
@@ -181,13 +226,17 @@ function SuiteTheater({
         ? 'running'
         : inGate
           ? 'gate'
-          : 'settling';
+          : doneCount === total
+            ? 'complete'
+            : 'settling';
 
   return (
     <div className="suite-theater">
       <div className="stheater-head">
         <div className="stheater-id">
-          <div className="stheater-title">{suiteName}</div>
+          <div className="stheater-title" title={suiteName}>
+            {suiteName.startsWith('Composite —') ? 'Composite campaign' : suiteName}
+          </div>
           <span className="hint">
             {hostOf(target) ?? target} · {total} steps
           </span>
@@ -206,6 +255,18 @@ function SuiteTheater({
         </div>
       </div>
 
+      {seq && (!app.authRequired || app.capabilities.includes('campaign:kill')) && (
+        <div className="actions">
+          <button
+            className="btn btn-sm"
+            disabled={controlBusy || (!!seq.current && seq.paused)}
+            onClick={() => void control(!!seq.paused)}
+          >
+            {seq.paused ? 'Resume next step' : 'Pause after this step'}
+          </button>
+          {seq.pauseBetweenSteps && <span className="hint">Review between each step</span>}
+        </div>
+      )}
       <ReconStrip recon={recon} loading={reconLoading} onOpen={() => setReconOpen(true)} />
       {reconOpen && recon && <ReconDetailModal recon={recon} onClose={() => setReconOpen(false)} />}
 
@@ -214,27 +275,46 @@ function SuiteTheater({
           const isDone = SUITE_TERMINAL.includes(c.status);
           const isRun = c.status === 'RUNNING';
           const isGateHere = inGate && nextStep?.id === c.id;
-          const state = isRun ? 'run' : isGateHere ? 'gate' : isDone ? 'done' : 'queued';
+          const failed = c.status === 'APPROVED' && c.statusDetail?.startsWith('Last run failed');
+          const state = failed
+            ? 'failed'
+            : isRun
+              ? 'run'
+              : isGateHere
+                ? 'gate'
+                : isDone
+                  ? 'done'
+                  : 'queued';
           const killed = c.status === 'KILLED_AUTO' || c.status === 'KILLED_MANUAL';
           return (
             <div key={c.id} className={`step-node step-${state}`} role="listitem">
               <div className="step-connector" aria-hidden="true" />
               <div className="step-dot">
-                {isDone
-                  ? c.status === 'COMPLETED'
-                    ? '✓'
-                    : killed
-                      ? '◼'
-                      : '✕'
-                  : isRun
-                    ? ''
-                    : i + 1}
+                {failed
+                  ? '✕'
+                  : isDone
+                    ? c.status === 'COMPLETED'
+                      ? '✓'
+                      : killed
+                        ? '◼'
+                        : '✕'
+                    : isRun
+                      ? ''
+                      : i + 1}
               </div>
               <div className="step-meta">
                 <div className="step-name" title={c.name}>
                   {shortStepName(c.name)}
                 </div>
-                {c.wrs ? (
+                <CampaignParameters
+                  campaign={c}
+                  disabled={!!seq && (!seq.paused || !!seq.current || !!seq.gateStartedAt)}
+                />
+                {failed ? (
+                  <span className="step-tag" title={c.statusDetail}>
+                    Execution failed
+                  </span>
+                ) : c.wrs ? (
                   <span className={`wrs-pill ${wrsClass(c.wrs.level)}`}>
                     {c.wrs.wrs} {c.wrs.level}
                   </span>
@@ -243,7 +323,13 @@ function SuiteTheater({
                 ) : isGateHere ? (
                   <span className="step-tag gate">recovering…</span>
                 ) : (
-                  <span className="step-tag">queued</span>
+                  <span className="step-tag">
+                    {isDone
+                      ? c.status.toLowerCase().replaceAll('_', ' ')
+                      : seq?.paused && nextStep?.id === c.id
+                        ? 'awaiting review'
+                        : 'queued'}
+                  </span>
                 )}
               </div>
             </div>
@@ -254,6 +340,7 @@ function SuiteTheater({
       {runningStep ? (
         <RunTheater
           campaignId={runningStep.id}
+          configuredRps={runningStep.maxRps}
           name={shortStepName(runningStep.name)}
           target={runningStep.target}
           engine={runningStep.agent}
@@ -297,12 +384,26 @@ function SuiteTheater({
         <div className="gate-card paused">
           <div className="gate-text">
             <div className="gate-title">Sequence paused</div>
-            <p className="hint">Resume from the campaigns view to continue the remaining steps.</p>
+            <p className="hint">
+              Review the next step parameters, then resume here. Changes require approval or
+              confirmation.
+            </p>
           </div>
         </div>
       ) : (
         <p className="hint" style={{ padding: '1rem' }}>
-          Suite settling — finalising the last step.
+          {doneCount === total
+            ? 'Sequence finished.'
+            : 'Suite settling — finalising the last step.'}{' '}
+          {doneCount === total && ordered[0]?.suiteId && (
+            <a
+              href={`/api/suites/${encodeURIComponent(ordered[0].suiteId)}/report`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open report
+            </a>
+          )}
         </p>
       )}
     </div>
@@ -327,7 +428,12 @@ export function RunTheaterPage() {
   const running = app.campaigns.filter((c) => c.status === 'RUNNING');
   // An active suite = one with a live sequence, or (fallback) the suite of a
   // running step even if the poll hasn't landed yet.
-  const activeSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const liveSuiteId = Object.keys(seqs)[0] ?? running.find((c) => c.suiteId)?.suiteId;
+  const [lastSuiteId, setLastSuiteId] = useState<string | undefined>();
+  useEffect(() => {
+    if (liveSuiteId) setLastSuiteId(liveSuiteId);
+  }, [liveSuiteId]);
+  const activeSuiteId = liveSuiteId ?? lastSuiteId;
   const suiteMembers = activeSuiteId
     ? app.campaigns.filter((c) => c.suiteId === activeSuiteId)
     : [];
@@ -345,7 +451,12 @@ export function RunTheaterPage() {
   // the progress stream and refresh recover the current server state.
   const focusCampaign =
     focusRun && !runningStandalone.some((c) => c.id === focusRun)
-      ? app.campaigns.find((c) => c.id === focusRun && !TERMINAL_STATUSES.has(c.status))
+      ? app.campaigns.find(
+          (c) =>
+            c.id === focusRun &&
+            !TERMINAL_STATUSES.has(c.status) &&
+            !(hasSuite && c.suiteId === activeSuiteId),
+        )
       : undefined;
   const standalone = focusCampaign ? [focusCampaign, ...runningStandalone] : runningStandalone;
   // When the focused run has just FINISHED, keep it on stage as a completion card
@@ -389,27 +500,64 @@ export function RunTheaterPage() {
     (revision) => revision.number === grafanaCampaign.drsDocument?.currentRevision,
   );
 
+  if (params.get('mode') === 'synthetic') {
+    return (
+      <>
+        <header className="run-theater-toolbar">
+          <h1
+            className="page-title"
+            title="Bounded synthetic network campaigns · experimental evidence"
+          >
+            Run Theater
+          </h1>
+          <nav aria-label="Campaign tools">
+            <Link className="btn btn-sm btn-ghost" to="/theater">
+              HTTP campaigns
+            </Link>
+            <Link className="btn btn-sm btn-ghost" to="/api/reports/compliance" target="_blank">
+              Aggregate report
+            </Link>
+          </nav>
+        </header>
+        <BenchCard readOnly />
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHead
-        title="Run Theater"
-        sub="Watch protection engage in real time — offered load vs what reaches origin, and the share the edge absorbs."
-      />
-      {grafanaTarget && (
-        <GrafanaLink
-          plane="run"
-          label="Open this run in Grafana"
-          target={hostOf(grafanaTarget) ?? grafanaTarget}
-        />
-      )}
-      {grafanaRevision && (
-        <GrafanaLink
-          plane="drs"
-          label="Open this DRS campaign in Grafana"
-          campaignId={grafanaCampaign?.id}
-          revisionId={grafanaRevision.id}
-        />
-      )}
+      <header className="run-theater-toolbar">
+        <h1
+          className="page-title"
+          title="Follow offered load, generator outcomes and monitored checks."
+        >
+          Run Theater
+        </h1>
+        <nav aria-label="Campaign tools">
+          <Link
+            className="btn btn-sm btn-ghost"
+            to="/theater?mode=synthetic"
+            title="Open bounded synthetic network campaigns"
+          >
+            Synthetic bench
+          </Link>
+          {grafanaTarget && (
+            <GrafanaLink
+              plane="run"
+              label="Grafana"
+              target={hostOf(grafanaTarget) ?? grafanaTarget}
+            />
+          )}
+          {grafanaRevision && (
+            <GrafanaLink
+              plane="drs"
+              label="DRS"
+              campaignId={grafanaCampaign?.id}
+              revisionId={grafanaRevision.id}
+            />
+          )}
+        </nav>
+      </header>
       {!hasSuite && standalone.length === 0 && finishedCampaign ? (
         <div className="card run-complete-card">
           <div className="run-complete-head">
@@ -423,6 +571,18 @@ export function RunTheaterPage() {
                 <p className="hint">
                   ⚑ The edge served its own error page under load — captured in the report.
                 </p>
+              )}
+              {finishedRun.timeline && (
+                <RunGraphs
+                  key={finishedCampaign.id + ':' + finishedCampaign.vector}
+                  timeline={finishedRun.timeline}
+                  scope={finishedCampaign.id}
+                  configuredRps={finishedCampaign.maxRps}
+                  baselineP95={finishedRun.baseline?.latencyMs.p95}
+                  targetTelemetry={finishedRun.targetTelemetry}
+                  startedAt={finishedRun.generator.startedAt}
+                  vector={finishedCampaign.vector}
+                />
               )}
               <AbsorptionWidget run={finishedRun} />
               <p className="run-complete-cta-label">
@@ -483,6 +643,7 @@ export function RunTheaterPage() {
               ) : (
                 <RunTheater
                   campaignId={current.id}
+                  configuredRps={current.maxRps}
                   name={current.name}
                   target={current.target}
                   vector={current.vector}
