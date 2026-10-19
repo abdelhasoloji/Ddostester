@@ -1,0 +1,118 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
+import type { DrsCapacityView } from './api.js';
+
+let currentApp: ReturnType<typeof makeApp>;
+const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
+  drsCapacity: ReturnType<typeof vi.fn>;
+  saveCalibration: ReturnType<typeof vi.fn>;
+};
+fakeApi.drsCapacity = vi.fn();
+fakeApi.saveCalibration = vi.fn();
+
+vi.mock('./context.js', async (orig) => ({
+  ...(await orig<typeof import('./context.js')>()),
+  useApp: () => currentApp,
+}));
+vi.mock('./api.js', async (orig) => ({
+  ...(await orig<typeof import('./api.js')>()),
+  api: fakeApi,
+}));
+
+const { CapacityPage } = await import('./capacity-page.js');
+
+const view = (over: Partial<DrsCapacityView> = {}): DrsCapacityView => ({
+  ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+  scope: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900, targets: [] },
+  envelope: {
+    maxRps: 2000,
+    maxConcurrency: 320,
+    maxDurationSec: 900,
+    agents: 1,
+    limitedBy: { rps: 'scope', concurrency: 'capacity' },
+    warnings: ['Scope asks for 2000 rps but admitted capacity is 9600 rps; fine.'],
+  },
+  calibrations: [
+    {
+      agentId: 'dev-a',
+      measuredTps: 12_000,
+      measuredConcurrency: 400,
+      measuredAt: '2026-10-19T19:22:34.930Z',
+      conditions: 'loopback',
+    },
+  ],
+  reachability: [
+    {
+      level: 1,
+      total: 2,
+      reachable: 0,
+      unreachable: [{ vectorId: 'http-get', missing: ['10 bots (1 admitted)'] }],
+    },
+  ],
+  ...over,
+});
+
+beforeEach(() => {
+  currentApp = makeApp();
+  fakeApi.drsCapacity.mockReset();
+  fakeApi.saveCalibration.mockReset();
+});
+
+describe('Capacity page', () => {
+  it('shows the envelope, what bounds it and the per-level gap', async () => {
+    fakeApi.drsCapacity.mockResolvedValue(view());
+    renderWithRouter(<CapacityPage />);
+    // The envelope and the service ceiling are both 2,000 in this fixture.
+    expect(await screen.findAllByText('2,000')).toHaveLength(2);
+    expect(screen.getByText('320')).toBeTruthy();
+    expect(screen.getByText(/bounded by/i)).toBeTruthy();
+    expect(screen.getByText('0/2')).toBeTruthy();
+    expect(screen.getByText(/10 bots \(1 admitted\)/)).toBeTruthy();
+    expect(screen.getByText('dev-a')).toBeTruthy();
+  });
+
+  it('says the envelope is zero when nothing is calibrated', async () => {
+    fakeApi.drsCapacity.mockResolvedValue(
+      view({
+        envelope: {
+          maxRps: 0,
+          maxConcurrency: 0,
+          maxDurationSec: 900,
+          agents: 0,
+          limitedBy: { rps: 'capacity', concurrency: 'capacity' },
+          warnings: ['No admitted agent: capacity is zero and no exposure can start.'],
+        },
+        calibrations: [],
+        reachability: [],
+      }),
+    );
+    renderWithRouter(<CapacityPage />);
+    expect(await screen.findByText(/No calibration recorded yet/)).toBeTruthy();
+    expect(screen.getByText(/capacity is zero/)).toBeTruthy();
+  });
+
+  it('records a calibration and reloads the envelope', async () => {
+    fakeApi.drsCapacity.mockResolvedValueOnce(view()).mockResolvedValue(view());
+    fakeApi.saveCalibration.mockResolvedValue({});
+    renderWithRouter(<CapacityPage />);
+    await screen.findByText('dev-a');
+    fireEvent.change(screen.getByPlaceholderText('site-a'), { target: { value: 'site-b' } });
+    const numbers = screen.getAllByRole('spinbutton');
+    fireEvent.change(numbers[0], { target: { value: '9000' } });
+    fireEvent.change(numbers[1], { target: { value: '250' } });
+    fireEvent.click(screen.getByRole('button', { name: /record/i }));
+    await waitFor(() => expect(fakeApi.saveCalibration).toHaveBeenCalledTimes(1));
+    const payload = fakeApi.saveCalibration.mock.calls[0][0];
+    expect(payload.agentId).toBe('site-b');
+    expect(payload.measuredTps).toBe(9000);
+    expect(payload.measuredConcurrency).toBe(250);
+    await waitFor(() => expect(fakeApi.drsCapacity).toHaveBeenCalledTimes(2));
+  });
+
+  it('surfaces a load failure instead of an empty screen', async () => {
+    fakeApi.drsCapacity.mockRejectedValue(new Error('authentication required'));
+    renderWithRouter(<CapacityPage />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('authentication required');
+  });
+});
