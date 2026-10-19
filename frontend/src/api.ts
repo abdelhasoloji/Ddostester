@@ -1090,6 +1090,15 @@ export interface AgentCalibrationView {
   conditions?: string;
 }
 
+export interface DrsClientView {
+  client: string;
+  assessments: number;
+  finalized: number;
+  targets: string[];
+  lastAt: string | null;
+  lastState: string;
+}
+
 export interface DrsCapacityView {
   ceiling: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
   scope: { maxRps: number; maxConcurrency: number; maxDurationSec: number; targets: string[] };
@@ -1251,6 +1260,7 @@ export const api = {
       {},
     ),
   // Latest report for a campaign, without pinning a revision (the workspace list).
+  drsClients: () => get<{ clients: DrsClientView[] }>('/api/drs/clients'),
   drsCampaignReport: (campaignId: string) =>
     get<DrsReportView>(`/api/campaigns/${encodeURIComponent(campaignId)}/drs/report.json`),
   drsCapacity: (q?: { rps?: number; concurrency?: number; duration?: number }) => {
@@ -1267,6 +1277,7 @@ export const api = {
     name?: string;
     target: string;
     probeUrl?: string;
+    client?: string;
     maxLevel: number;
     exposureSec: number;
     mode: 'measured' | 'synthetic-lab' | 'engine-validation';

@@ -55,6 +55,7 @@ export function CapacityPage() {
   };
 
   const [plan, setPlan] = useState({
+    client: '',
     target: '',
     maxLevel: '1',
     exposureSec: '120',
@@ -72,6 +73,7 @@ export function CapacityPage() {
     setPlanBusy(true);
     try {
       const created = await api.createDrsPlan({
+        client: plan.client.trim() || undefined,
         target: plan.target.trim(),
         probeUrl: plan.target.trim(),
         maxLevel: Number(plan.maxLevel),
@@ -284,6 +286,14 @@ export function CapacityPage() {
                 functional check.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem', alignItems: 'end' }}>
+                <label>
+                  Client
+                  <input
+                    value={plan.client}
+                    onChange={(e) => setPlan({ ...plan, client: e.target.value })}
+                    placeholder="client-dossier"
+                  />
+                </label>
                 <label>
                   Target
                   <input
