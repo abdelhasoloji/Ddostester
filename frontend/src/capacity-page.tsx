@@ -54,7 +54,42 @@ export function CapacityPage() {
     }
   };
 
+  const [plan, setPlan] = useState({
+    target: '',
+    maxLevel: '1',
+    exposureSec: '120',
+    journey: 'GET /',
+    functionalAssertion: '',
+    rationale: '',
+    authorized: false,
+  });
+  const [planBusy, setPlanBusy] = useState(false);
+
   const canWrite = !app.authRequired || app.capabilities.includes('campaign:approve');
+  const canPlan = !app.authRequired || app.capabilities.includes('campaign:create');
+
+  const submitPlan = async () => {
+    setPlanBusy(true);
+    try {
+      const created = await api.createDrsPlan({
+        target: plan.target.trim(),
+        probeUrl: plan.target.trim(),
+        maxLevel: Number(plan.maxLevel),
+        exposureSec: Number(plan.exposureSec),
+        mode: 'measured',
+        journey: plan.journey.trim() || undefined,
+        functionalAssertion: plan.functionalAssertion.trim() || undefined,
+        rationale: plan.rationale.trim(),
+        authorized: plan.authorized,
+      });
+      app.push('success', `DRS plan created — ${created.name} (${created.status}).`);
+      setPlan({ ...plan, functionalAssertion: '', rationale: '', authorized: false });
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setPlanBusy(false);
+    }
+  };
 
   return (
     <>
@@ -234,6 +269,93 @@ export function CapacityPage() {
                   onClick={() => void submit()}
                 >
                   {busy ? 'Recording…' : 'Record'}
+                </button>
+              </div>
+            </div>
+          )}
+          {canPlan && (
+            <div className="card" style={{ marginTop: '1rem' }}>
+              <div className="card-head">
+                <b>Create a DRS plan</b>
+              </div>
+              <p className="hint">
+                The plan is frozen with the envelope above: what gets approved is what was assessed.
+                A measured plan needs a functional assertion — an HTTP status alone is not a
+                functional check.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem', alignItems: 'end' }}>
+                <label>
+                  Target
+                  <input
+                    value={plan.target}
+                    onChange={(e) => setPlan({ ...plan, target: e.target.value })}
+                    placeholder="https://staging.example.com/"
+                  />
+                </label>
+                <label>
+                  Level
+                  <select
+                    value={plan.maxLevel}
+                    onChange={(e) => setPlan({ ...plan, maxLevel: e.target.value })}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7].map((l) => (
+                      <option key={l} value={String(l)}>
+                        DRS {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Exposure (s)
+                  <input
+                    type="number"
+                    value={plan.exposureSec}
+                    onChange={(e) => setPlan({ ...plan, exposureSec: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Journey
+                  <input
+                    value={plan.journey}
+                    onChange={(e) => setPlan({ ...plan, journey: e.target.value })}
+                  />
+                </label>
+                <label style={{ flex: '1 1 16rem' }}>
+                  Functional assertion
+                  <input
+                    value={plan.functionalAssertion}
+                    onChange={(e) => setPlan({ ...plan, functionalAssertion: e.target.value })}
+                    placeholder="status 200 and body contains 'ok'"
+                  />
+                </label>
+                <label style={{ flex: '1 1 16rem' }}>
+                  Rationale
+                  <input
+                    value={plan.rationale}
+                    onChange={(e) => setPlan({ ...plan, rationale: e.target.value })}
+                    placeholder="why this level and this exposure"
+                  />
+                </label>
+                <label className="hint" style={{ display: 'inline-flex', gap: '.35rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={plan.authorized}
+                    onChange={(e) => setPlan({ ...plan, authorized: e.target.checked })}
+                  />
+                  Authorized target
+                </label>
+                <button
+                  className="btn btn-primary"
+                  disabled={
+                    planBusy ||
+                    !plan.target ||
+                    !plan.authorized ||
+                    plan.rationale.trim().length < 10 ||
+                    plan.functionalAssertion.trim().length < 10
+                  }
+                  onClick={() => void submitPlan()}
+                >
+                  {planBusy ? 'Creating…' : 'Create plan'}
                 </button>
               </div>
             </div>
