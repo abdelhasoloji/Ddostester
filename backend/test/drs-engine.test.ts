@@ -557,3 +557,23 @@ describe('DRS report states the capacity envelope', () => {
     expect(drsReportHtml(r)).toContain('No measured envelope applied');
   });
 });
+
+describe('the service ceiling bounds a frozen plan', () => {
+  it('freezes a 500 rps plan that the old Fleet constant forbade', () => {
+    const c: Campaign = { ...campaign, maxRps: 500, concurrency: 100, maxDurationSec: 120 };
+    const plan = defaultPlan(c, 'measured');
+    plan.maxLevel = 1;
+    const r = currentRevision(createRevision(undefined, plan, 'fixture'));
+    expect(() => freeze(r, c)).not.toThrow();
+  });
+
+  it('still refuses a plan above the configured ceiling', () => {
+    const c: Campaign = { ...campaign, maxRps: 9_000, concurrency: 100, maxDurationSec: 120 };
+    const plan = defaultPlan(c, 'measured');
+    plan.maxLevel = 1;
+    // Force the budget past the service ceiling to prove the check still bites.
+    plan.budgets.maxRps = 9_000;
+    const r = currentRevision(createRevision(undefined, plan, 'fixture'));
+    expect(() => freeze(r, c)).toThrow(/service ceiling/);
+  });
+});
