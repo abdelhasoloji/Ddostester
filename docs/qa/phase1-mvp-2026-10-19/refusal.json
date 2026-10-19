@@ -1,0 +1,3 @@
+{
+  "error": "This run asks for 800 rps / 100 concurrent on the built-in engine, whose measured ceiling is 150 rps / 300 concurrent; it would silently under-deliver and grade the target on traffic that never arrived. Install vegeta/k6 for the high-rate engine, lower the rate, or set calibrate: true to measure and record the delivered amplitude."
+}

@@ -1,5 +1,16 @@
 # Current implementation and remaining work
 
+## Phase 1 MVP — measured results, 19 October 2026
+
+The generator work is measured rather than asserted: a 180 s run at 1,000 rps delivered
+999.48 rps with zero failures and event-loop lag peaking at 92 ms, and a 500 rps run
+created, approved and executed through the HTTP API auto-routed to vegeta and produced
+the application's own report. An 800 rps campaign pinned to the built-in engine is
+refused with an actionable message, not silently under-delivered. Evidence, including
+the rendered report, is in [phase1-mvp-2026-10-19](qa/phase1-mvp-2026-10-19/README.md).
+These are loopback measurements: they do not establish performance against a remote
+target, and no fleet or DRS qualification follows from them.
+
 ## Fidelity and multi-site plan — 19 October 2026 (plan, not delivered)
 
 A two-phase plan now exists: [delivery fidelity and multi-site fleet](roadmap-fidelity-multisite-2026-10-19.md). M1.1 (streaming latency recorder), M1.4 (refuse silent under-delivery on the built-in engine), M1.2 (smooth global pacing) and M1.3 (single abort sweeper) are implemented in source and covered by tests. None changes a traffic limit, the target allowlist or the approval/kill/audit policy, and nothing in the plan is deployed. The only remaining M1 item is the optional authoring-time refusal (M1.5). Phase 2 has started: M2.0/M2.4 fix one authorized aggregate per run, computed once as `min(HARD_CAPS, FLEET_LIMITS, site policy)` and proven to be conserved after division, so additional sites can never multiply the budget; M2.1 extracts the `FleetExecutor` port so a remote site can supply its own implementation without the coordinator knowing which one it is talking to (no remote executor exists yet). Two prerequisites landed with it: agent certificate presence/expiry is now recorded and surfaced in `/api/fleet/status` (a remote site can no longer expire silently), and work discovery exists at `GET /internal/fleet/work` so a resident worker can claim its planned shard without knowing the runId — reusing `fleet_shards_v1` as the queue instead of adding a second table. M2.2 adds the resident outbound-only worker (`cli/fleet-worker.ts`) with a tested loop and an explicit failure policy; its per-site deployment manifest is still to be written. M2.3 replaces the bare agent list with a validated `FLEET_SITES` registry (`agent@site`), records each agent's site with its certificate presence, and exposes it in `/api/fleet/status`; the server-certificate SAN a remote site must validate is documented as an operator PKI action, not code. M2.6 records the originating site on each shard (plan time → snapshot → run evidence → status) as provenance only; the signed assignment key set is unchanged. Separately, the frontend no longer hardcodes the server caps: `PLACEHOLDER_CAPS` is a conservative pre-`/health` placeholder, and assistant proposals/limit actions are bounded by the ceiling the server reports.
