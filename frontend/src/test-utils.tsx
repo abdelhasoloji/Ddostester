@@ -102,6 +102,20 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     playbooks: vi.fn().mockResolvedValue([]),
     // The client file is the landing page once auth is not required.
     drsClients: vi.fn().mockResolvedValue({ clients: [] }),
+    drsCapacity: vi.fn().mockResolvedValue({
+      ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
+      scope: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900, targets: [] },
+      envelope: {
+        maxRps: 0,
+        maxConcurrency: 0,
+        maxDurationSec: 900,
+        agents: 0,
+        limitedBy: { rps: 'capacity', concurrency: 'capacity' },
+        warnings: [],
+      },
+      calibrations: [],
+      reachability: [],
+    }),
     suites: vi.fn().mockResolvedValue([]),
     listUsers: vi.fn().mockResolvedValue([]),
     createUser: vi.fn().mockResolvedValue({}),
