@@ -1340,10 +1340,12 @@ export const api = {
       scenario?: { maxRps: number; durationSec: number }[];
     },
   ) => post<Campaign>(`/api/campaigns/${id}/parameters`, input),
-  runSuite: (id: string, confirmed = false) =>
+  // Sequences run continuously by default: pausing between steps is an explicit
+  // choice for the caller, not a property of every assessment run.
+  runSuite: (id: string, confirmed = false, pauseBetweenSteps = false) =>
     post<{ suiteId: string; steps: number; started: boolean }>(`/api/suites/${id}/run`, {
       confirmed,
-      pauseBetweenSteps: true,
+      pauseBetweenSteps,
     }),
   pauseSuite: (id: string) => post<{ suiteId: string; paused: boolean }>(`/api/suites/${id}/pause`),
   resumeSuite: (id: string, confirmed = false, reviewedSteps?: Campaign[]) =>
