@@ -2535,7 +2535,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // Execute a frozen DRS plan through the orchestrator. It runs in the background — a
   // baseline plus an exposure outlast a request — and every transition is checkpointed on
   // the revision, so the client polls GET /api/campaigns/:id/drs for progress.
-  const drsRunning = new Set<string>();
+  // Running DRS executions, with the controller that aborts the exposure. Without it a
+  // started assessment could not be stopped, which is the kill switch this platform promises.
+  const drsRunning = new Map<string, AbortController>();
   app.post(
     '/api/campaigns/:id/drs/execute',
     { preHandler: guard('campaign:execute') },
@@ -2557,7 +2559,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       });
       const collector = createProbeCollectorPort({ probeUrl: campaign.probeUrl });
       const controller = new AbortController();
-      drsRunning.add(id);
+      drsRunning.set(id, controller);
       void orchestrateDrs(rev, actor, {
         generator,
         collector,
@@ -2581,6 +2583,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         })
         .finally(() => drsRunning.delete(id));
       return reply.code(202).send({ campaignId: id, started: true, maxLevel: rev.plan.maxLevel });
+    },
+  );
+
+  // Kill switch for a running DRS exposure. It aborts the signal the orchestrator and the
+  // generator both observe, so the injection stops and the revision finalizes with what was
+  // measured up to that point.
+  app.post(
+    '/api/campaigns/:id/drs/cancel',
+    { preHandler: guard('campaign:kill') },
+    async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      const controller = drsRunning.get(id);
+      if (!controller) return reply.code(404).send({ error: 'no DRS execution is running' });
+      controller.abort();
+      await audit(req, 'campaign.kill', id, 'DRS execution cancelled by operator');
+      return reply.code(202).send({ campaignId: id, cancelling: true });
     },
   );
 

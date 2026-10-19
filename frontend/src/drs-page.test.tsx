@@ -7,10 +7,12 @@ let currentApp: ReturnType<typeof makeApp>;
 const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
   executeDrsPlan: ReturnType<typeof vi.fn>;
   replayDrsPlan: ReturnType<typeof vi.fn>;
+  cancelDrsPlan: ReturnType<typeof vi.fn>;
   drsCampaignReport: ReturnType<typeof vi.fn>;
 };
 fakeApi.executeDrsPlan = vi.fn();
 fakeApi.replayDrsPlan = vi.fn();
+fakeApi.cancelDrsPlan = vi.fn();
 fakeApi.drsCampaignReport = vi.fn();
 
 vi.mock('./context.js', async (orig) => ({
@@ -58,6 +60,7 @@ beforeEach(() => {
   fakeApi.executeDrsPlan.mockReset();
   fakeApi.drsCampaignReport.mockReset();
   fakeApi.replayDrsPlan.mockReset();
+  fakeApi.cancelDrsPlan.mockReset();
 });
 
 describe('DRS workspace', () => {
@@ -155,5 +158,29 @@ describe('replay', () => {
     await waitFor(() =>
       expect(currentApp.push).toHaveBeenCalledWith('success', expect.stringContaining('(replay)')),
     );
+  });
+});
+
+describe('kill switch', () => {
+  it('offers Cancel on a running assessment and calls the route', async () => {
+    const running = drsCampaign();
+    (running.drsDocument!.revisions[0] as unknown as { state: string }).state = 'LEVEL_EXECUTION';
+    currentApp = makeApp({ campaigns: [running] });
+    fakeApi.cancelDrsPlan.mockResolvedValue({ campaignId: 'c1', cancelling: true });
+    renderWithRouter(<DrsPage />);
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    await waitFor(() => expect(fakeApi.cancelDrsPlan).toHaveBeenCalledWith('c1'));
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith(
+        'success',
+        expect.stringContaining('Cancellation'),
+      ),
+    );
+  });
+
+  it('does not offer Cancel on a frozen plan that has not started', () => {
+    currentApp = makeApp({ campaigns: [drsCampaign()] });
+    renderWithRouter(<DrsPage />);
+    expect(screen.queryByRole('button', { name: /^cancel$/i })).toBeNull();
   });
 });
