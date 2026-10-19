@@ -1245,6 +1245,11 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  executeDrsPlan: (campaignId: string) =>
+    post<{ campaignId: string; started: boolean; maxLevel: number }>(
+      `/api/campaigns/${encodeURIComponent(campaignId)}/drs/execute`,
+      {},
+    ),
   drsCapacity: (q?: { rps?: number; concurrency?: number; duration?: number }) => {
     const p = new URLSearchParams();
     if (q?.rps) p.set('rps', String(q.rps));
