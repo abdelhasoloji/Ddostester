@@ -30,14 +30,42 @@ kubectl apply -f /tmp/worker.yaml
 ## 1. Publish the image (blocker n°5)
 
 The lab builds locally (`ddostester-lab-control:local`, `imagePullPolicy: Never`).
-A remote cluster needs a registry. The script does the build, push and digest
-lookup, and can write the result straight into `site.env`:
+A remote cluster needs a registry. Two ways, in order of preference.
+
+### Option A — publish from GitHub Actions (no token)
+
+Actions → **Publish worker image** → *Run workflow*. The run summary prints:
+
+```
+FLEET_WORKER_IMAGE=ghcr.io/<owner>/ddostester-lab-control@sha256:...
+```
+
+Paste that line into `site.env`. The job uses the workflow's own `GITHUB_TOKEN`
+with `packages: write`; no personal token exists and nothing logs in to a registry
+from a workstation. The first push from the workflow links the package to the
+repository, which is what grants later runs the permission.
+
+### Option B — publish from this machine
+
+The script does the build, push and digest lookup, and can write the result
+straight into `site.env`:
 
 ```
 export GHCR_USER=<your-github-user>
-export GHCR_TOKEN=<PAT with write:packages>
+export GHCR_TOKEN=<classic PAT with write:packages>
 ./scripts/operations/build-and-push-image.sh --write-env deploy/kubernetes/site-worker/site.env
 ```
+
+GitHub Packages only accepts a **classic** token, and its UI adds the broad `repo`
+scope when you tick `write:packages`. Use the scoped URL to avoid that:
+
+```
+https://github.com/settings/tokens/new?scopes=write:packages
+```
+
+Set a short expiry and grant nothing else (`read:packages` is implied; do not add
+`repo`, `delete:packages` or `workflow`). Revoke it once the digest is in
+`site.env`.
 
 It builds with `--platform linux/amd64` by default (Apple Silicon host, amd64
 site), passes the commit and tag build-args, feeds the token to `docker login` on

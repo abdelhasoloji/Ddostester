@@ -1,0 +1,84 @@
+name: Publish worker image
+
+# Builds the site-worker image and pushes it to GHCR using the workflow's own
+# GITHUB_TOKEN — no personal access token, no secret on a workstation.
+#
+# The docs recommend GITHUB_TOKEN over a PAT for registry pushes, and the first
+# push from a workflow links the package to this repository, so subsequent runs
+# keep the permission.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag (defaults to the commit SHA)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-worker-image
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          value="${INPUT_TAG:-$GITHUB_SHA}"
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (linux/amd64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          # The site is amd64; the runner already is, so no emulation is needed.
+          platforms: linux/amd64
+          push: true
+          # A single manifest keeps the digest unambiguous for site.env.
+          provenance: false
+          tags: ghcr.io/${{ github.repository_owner }}/ddostester-lab-control:${{ steps.tag.outputs.value }}
+          build-args: |
+            SHIELDTEST_COMMIT=${{ github.sha }}
+            SHIELDTEST_BUILD=${{ steps.tag.outputs.value }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Bounded fleet worker for a remote site
+
+      - name: Report the immutable reference
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          ref="ghcr.io/${OWNER}/ddostester-lab-control@${DIGEST}"
+          {
+            echo "### Worker image published"
+            echo
+            echo "Paste this line into \`deploy/kubernetes/site-worker/site.env\`:"
+            echo
+            echo '```'
+            echo "FLEET_WORKER_IMAGE=${ref}"
+            echo '```'
+            echo
+            echo "Then verify offline: \`node deploy/kubernetes/site-worker/check-render.mjs site.env\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "FLEET_WORKER_IMAGE=${ref}"
