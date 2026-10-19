@@ -70,6 +70,8 @@ export function createCampaign(
   // passes the CISO-set operational limits (always ≤ ceiling), so a campaign can
   // never exceed either the ceiling or the current operational limit.
   caps: HardCaps = HARD_CAPS,
+  // Measured fleet envelope; the DRS plan derives its budgets from it.
+  capacity?: import('../drs/model.js').DrsPlan['capacity'],
 ): Campaign {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new CampaignError('Invalid campaign input');
@@ -470,7 +472,7 @@ export function createCampaign(
   if (input.drsMode)
     created.drsDocument = createRevision(
       undefined,
-      defaultPlan(created, input.drsMode),
+      defaultPlan(created, input.drsMode, capacity),
       input.createdBy,
     );
   return created;
