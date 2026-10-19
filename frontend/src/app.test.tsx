@@ -14,6 +14,8 @@ const fakeApi = {
   listUsers: vi.fn().mockResolvedValue([]),
   playbooks: vi.fn().mockResolvedValue([]),
   suites: vi.fn().mockResolvedValue([]),
+  // The client file is the landing page.
+  drsClients: vi.fn().mockResolvedValue({ clients: [] }),
   assistantStatus: vi
     .fn()
     .mockResolvedValue({ configured: false, model: 'qwen', podManaged: false }),
@@ -56,7 +58,7 @@ describe('App gate', () => {
   it('renders the routed app when auth is not required', async () => {
     render(<App />);
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Command Center' })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: 'Clients' })).toBeInTheDocument(),
     );
     // The build version tag is shown at the bottom of every page (sidebar foot).
     expect(screen.getByText(/^v\d+\.\d+\.\d+\+\d+ · \S+$/)).toBeInTheDocument();
@@ -91,6 +93,6 @@ describe('App gate', () => {
       expect(screen.getByRole('heading', { name: 'Choose a new password' })).toBeInTheDocument(),
     );
     // The routed app is NOT reachable until the password is changed.
-    expect(screen.queryByRole('heading', { name: 'Command Center' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Clients' })).not.toBeInTheDocument();
   });
 });

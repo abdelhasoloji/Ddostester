@@ -100,6 +100,8 @@ export function makeApp(overrides: Record<string, unknown> = {}) {
 export function makeApi(overrides: Record<string, unknown> = {}) {
   return {
     playbooks: vi.fn().mockResolvedValue([]),
+    // The client file is the landing page once auth is not required.
+    drsClients: vi.fn().mockResolvedValue({ clients: [] }),
     suites: vi.fn().mockResolvedValue([]),
     listUsers: vi.fn().mockResolvedValue([]),
     createUser: vi.fn().mockResolvedValue({}),

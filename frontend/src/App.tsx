@@ -44,7 +44,9 @@ function Gate() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<CommandCenterPage />} />
+        {/* The product opens on the client file, not on a generic dashboard. */}
+        <Route index element={<ClientsPage />} />
+        <Route path="legacy" element={<CommandCenterPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />
