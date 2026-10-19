@@ -13,6 +13,7 @@
 # Get RUNNER_TOKEN from: GitHub → repo → Settings → Actions → Runners →
 # "New self-hosted runner" (the token shown in the ./config.sh line; valid ~1h).
 set -euo pipefail
+SERVICE="${SERVICE:-ddostester}"
 
 REPO_URL="${REPO_URL:-https://github.com/abdelhasoloji/ddostester}"
 RUNNER_USER="${RUNNER_USER:-shieldtest}"
@@ -57,13 +58,17 @@ sudo -u "$RUNNER_USER" bash -c "cd '$RUNNER_DIR' && ./config.sh --unattended --u
 echo "==> install + start as a systemd service"
 ( cd "$RUNNER_DIR" && ./svc.sh install "$RUNNER_USER" && ./svc.sh start )
 
-# deploy/update.sh runs `sudo -n systemctl restart ddostester`; grant just that.
+# deploy/update.sh promotes a release by installing one drop-in and reloading the
+# unit, then restarting the service. Grant exactly those commands and nothing else:
+# the install source is a /tmp file and the destination is this one drop-in.
 SUDOERS=/etc/sudoers.d/ddostester-deploy
-if [ ! -f "$SUDOERS" ]; then
-  echo "==> sudoers: allow ${RUNNER_USER} to restart the service"
-  echo "${RUNNER_USER} ALL=(root) NOPASSWD: /usr/bin/systemctl restart ddostester" > "$SUDOERS"
-  chmod 440 "$SUDOERS"
-fi
+DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
+echo "==> sudoers: allow ${RUNNER_USER} to promote ${SERVICE}"
+cat > "$SUDOERS" <<RULES
+${RUNNER_USER} ALL=(root) NOPASSWD: /usr/bin/mkdir -p ${DROPIN_DIR}, /usr/bin/install -m 644 /tmp/* ${DROPIN_DIR}/40-verified-release.conf, /usr/bin/unlink ${DROPIN_DIR}/40-verified-release.conf, /usr/bin/systemctl daemon-reload, /usr/bin/systemctl restart ${SERVICE}
+RULES
+chmod 440 "$SUDOERS"
+visudo -cf "$SUDOERS" >/dev/null
 
 echo "==> done. Runner registered with label '${RUNNER_LABELS}'."
 echo "    Verify: GitHub → repo → Settings → Actions → Runners (should show '${RUNNER_NAME}' idle)."

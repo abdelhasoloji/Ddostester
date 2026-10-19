@@ -52,7 +52,7 @@ chmod -R a+rX "$RELEASE"
 DROPIN="/etc/systemd/system/${SERVICE}.service.d/40-verified-release.conf"
 BACKUP="$(mktemp)"
 HAD_DROPIN=0
-if sudo -n test -f "$DROPIN"; then sudo -n cat "$DROPIN" > "$BACKUP"; HAD_DROPIN=1; fi
+if [ -f "$DROPIN" ]; then cat "$DROPIN" > "$BACKUP"; HAD_DROPIN=1; fi
 OVERRIDE="$(mktemp)"
 printf '[Service]\nWorkingDirectory=%s/backend\nExecStart=\nExecStart=/usr/bin/node %s/backend/dist/server.js\n' "$RELEASE" "$RELEASE" > "$OVERRIDE"
 # Keep service-level runtime overrides (for example persistent Fleet enablement)
@@ -63,14 +63,14 @@ if [ "$HAD_DROPIN" = 1 ]; then
     keep { print; keep = ($0 ~ /\\$/) }
   ' "$BACKUP" >> "$OVERRIDE"
 fi
-sudo -n mkdir -p "$(dirname "$DROPIN")"
-sudo -n install -m 644 "$OVERRIDE" "$DROPIN"
+sudo -n /usr/bin/mkdir -p "$(dirname "$DROPIN")"
+sudo -n /usr/bin/install -m 644 "$OVERRIDE" "$DROPIN"
 rollback() {
-  if [ "$HAD_DROPIN" = 1 ]; then sudo -n install -m 644 "$BACKUP" "$DROPIN"; else sudo -n unlink "$DROPIN"; fi
-  sudo -n systemctl daemon-reload
-  sudo -n systemctl restart "$SERVICE"
+  if [ "$HAD_DROPIN" = 1 ]; then sudo -n /usr/bin/install -m 644 "$BACKUP" "$DROPIN"; else sudo -n /usr/bin/unlink "$DROPIN"; fi
+  sudo -n /usr/bin/systemctl daemon-reload
+  sudo -n /usr/bin/systemctl restart "$SERVICE"
 }
-if ! sudo -n systemctl daemon-reload || ! sudo -n systemctl restart "$SERVICE"; then
+if ! sudo -n /usr/bin/systemctl daemon-reload || ! sudo -n /usr/bin/systemctl restart "$SERVICE"; then
   rollback
   echo 'ERROR: promotion failed; restored previous service definition.' >&2
   exit 1
