@@ -260,14 +260,16 @@ describe('threat-informed playbooks', () => {
     expect(pb.threat!.notReproduced).toMatch(/./);
   });
 
-  it('resolve paths to a same-origin endpoint mix and rotate UA (built-in only)', () => {
+  it('resolve paths to a same-origin endpoint mix and rotate UA (auto-routed above the ceiling)', () => {
     const inputs = buildSuiteCampaigns(
       getPlaybook('threat-l7-signature-evasion')!,
       target,
       engines,
     );
     const wave = inputs.find((i) => i.name.includes('Evasion wave'))!;
-    expect(wave.agent).toBe('builtin');
+    // 500 rps exceeds the built-in ceiling: the curated pin is dropped so the
+    // router can deliver the declared rate (builtin would be refused at execution).
+    expect(wave.agent).toBeUndefined();
     expect(wave.endpoints?.length).toBe(5);
     expect(wave.endpoints!.every((e) => e.url.startsWith('https://staging.example.com'))).toBe(
       true,
@@ -631,7 +633,9 @@ describe('DRS levels & the expanded threat catalogue', () => {
     const wave = buildSuiteCampaigns(pb, target, engines).find((i) =>
       i.name.includes('Header-pressure'),
     )!;
-    expect(wave.agent).toBe('builtin');
+    // 500 rps exceeds the built-in ceiling: the curated pin is dropped so the
+    // router can deliver the declared rate (builtin would be refused at execution).
+    expect(wave.agent).toBeUndefined();
     expect(Object.keys(wave.headers ?? {}).length).toBeGreaterThan(1);
     expect(Object.keys(wave.headers ?? {}).length).toBeLessThanOrEqual(10);
     expect(wave.headers).toMatchObject({ Accept: expect.any(String) });
