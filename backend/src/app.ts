@@ -2414,8 +2414,26 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();
+    // Which profiles the measured fleet can actually reach, and what is missing. The
+    // catalogue is the first place an operator meets a level, so it is where the
+    // envelope has to speak.
+    const { envelope } = await currentEnvelope();
+    const reach = new Map(
+      levelReachability(drsReference().vectors, envelope, { quantity: parseQuantity }).flatMap(
+        (level) =>
+          level.unreachable.map((u) => [u.vectorId, u.missing.join(', ')] as [string, string]),
+      ),
+    );
     return {
       ...catalogue,
+      capacity: envelope,
+      profiles: catalogue.profiles.map((profile) => ({
+        ...profile,
+        reachable: profile.supported && !reach.has(profile.id),
+        missing: !profile.supported
+          ? 'no generator adapter for this vector'
+          : (reach.get(profile.id) ?? null),
+      })),
       executionCaps: {
         ...catalogue.executionCaps,
         maxRps: Math.min(catalogue.executionCaps.maxRps, effectiveCaps.maxRps),
