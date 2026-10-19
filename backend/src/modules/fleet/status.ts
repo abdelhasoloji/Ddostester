@@ -12,6 +12,27 @@ export interface CertificateHealth {
  * 14 days and renewal is a manual operator action. `expiring` is a seven-day
  * warning window.
  */
+/**
+ * A presence row older than this no longer proves the agent is running: the fleet
+ * heartbeat is 2 s and the resident worker polls every second, so a minute of
+ * silence means the process is gone, not merely slow.
+ */
+export const PRESENCE_STALE_MS = 60_000;
+
+/**
+ * Presence age, surfaced separately from certificate expiry: a decommissioned
+ * agent keeps its last row forever (nothing prunes it), so "seen long ago" must
+ * not read as "present now".
+ */
+export function presenceHealth(
+  lastSeen: number,
+  now = Date.now(),
+): { lastSeenAgoMs: number; stale: boolean } {
+  if (!Number.isFinite(lastSeen)) throw new Error('Invalid presence timestamp');
+  const age = Math.max(0, now - lastSeen);
+  return { lastSeenAgoMs: age, stale: age > PRESENCE_STALE_MS };
+}
+
 export function certificateHealth(expiresAt: number, now = Date.now()): CertificateHealth {
   if (!Number.isFinite(expiresAt)) throw new Error('Invalid certificate expiry');
   const remaining = expiresAt - now;
@@ -75,6 +96,7 @@ export async function inspectFleet(pool: pg.Pool, now = Date.now()) {
       agentId: row.agent_id,
       site: row.site,
       lastSeen: Number(row.last_seen),
+      ...presenceHealth(Number(row.last_seen), now),
       ...certificateHealth(Number(row.cert_expires_at), now),
     })),
     semantics:

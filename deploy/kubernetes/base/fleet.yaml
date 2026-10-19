@@ -95,6 +95,8 @@ spec:
       containers:
         - name: fleet
           image: ddostester-lab-control:local
+          # Same ConfigMap the control plane reads: one agent→site registry.
+          envFrom: [{ configMapRef: { name: fleet-registry } }]
           imagePullPolicy: Never
           command: [node, backend/dist/cli/fleet-server.js]
           env:
@@ -102,11 +104,6 @@ spec:
               valueFrom:
                 fieldRef: { fieldPath: status.podIP }
             - { name: FLEET_PORT, value: '8443' }
-            # ONE registry: each agent identity and the site that runs it. The
-            # certificate CN stays the agent id; the site is provenance and the
-            # admission label for a remote worker.
-            - { name: FLEET_SITES, value: 'one@vps-lab,two@vps-lab,three@vps-lab' }
-            - { name: FLEET_LOCAL_SITE, value: vps-lab }
             - { name: FLEET_TLS_KEY, value: /etc/fleet-identity/tls.key }
             - { name: FLEET_TLS_CERT, value: /etc/fleet-identity/tls.crt }
             - { name: FLEET_TLS_CA, value: /etc/fleet-identity/ca.crt }

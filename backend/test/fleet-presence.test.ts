@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { certificateHealth } from '../src/modules/fleet/status.js';
+import {
+  PRESENCE_STALE_MS,
+  certificateHealth,
+  presenceHealth,
+} from '../src/modules/fleet/status.js';
 
 const DAY = 86_400_000;
 const NOW = 1_700_000_000_000;
@@ -33,5 +37,27 @@ describe('certificate health (B — no silent expiry)', () => {
 
   it('rejects a non-finite expiry', () => {
     expect(() => certificateHealth(Number.NaN, NOW)).toThrow('Invalid certificate expiry');
+  });
+});
+
+describe('presence freshness (a removed agent must not read as present)', () => {
+  it('treats a recent heartbeat as fresh', () => {
+    expect(presenceHealth(NOW - 1000, NOW)).toEqual({ lastSeenAgoMs: 1000, stale: false });
+  });
+
+  it('marks silence beyond the threshold as stale', () => {
+    expect(presenceHealth(NOW - PRESENCE_STALE_MS, NOW).stale).toBe(false);
+    expect(presenceHealth(NOW - PRESENCE_STALE_MS - 1, NOW)).toMatchObject({
+      lastSeenAgoMs: PRESENCE_STALE_MS + 1,
+      stale: true,
+    });
+  });
+
+  it('never reports a negative age when the clock moves backwards', () => {
+    expect(presenceHealth(NOW + 5000, NOW).lastSeenAgoMs).toBe(0);
+  });
+
+  it('rejects a non-finite timestamp', () => {
+    expect(() => presenceHealth(Number.NaN, NOW)).toThrow('Invalid presence timestamp');
   });
 });

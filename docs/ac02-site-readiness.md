@@ -122,3 +122,36 @@ The PostgreSQL fleet tests (presence, `claimNext`, plan with sites) run only wit
 `DATABASE_URL_TEST`; they were written but not executed here. The worker's full TLS
 round trip has been tested against the real mTLS server for the server side only.
 No second cluster has ever been connected.
+
+## 9. Registry and presence audit — 19 October 2026
+
+Five findings from re-reading every consumer of the registry. Two were fixed:
+
+**Fixed — the registry was duplicated.** `control.yaml` and `fleet.yaml` each carried
+their own literal `FLEET_SITES`. They agreed by luck, not construction: the control
+plane plans a shard's site while the fleet server records presence, so a drift
+would have produced a shard labelled `ac02` and a presence row labelled `vps-lab`,
+silently. Both Deployments now read one `fleet-registry` ConfigMap.
+
+**Fixed — presence never went stale.** Nothing prunes `fleet_agent_presence_v1`, so
+a decommissioned agent kept a row forever and `/api/fleet/status` could present it
+as an agent that exists. Each certificate entry now carries `lastSeenAgoMs` and
+`stale` (silence beyond 60 s), so "seen long ago" reads differently from "present".
+
+Reported, not changed:
+
+- **The agent ids are still the fixed triple.** `KubernetesJobs` accepts only
+  `one|two|three` and validates Job names against `fleet-<uuid>-(one|two|three)`.
+  A second site must therefore reuse one of those three identities — the envelope
+  stays three agents in total, which is what `FLEET_LIMITS.maxAgents` and
+  `splitBudget` already assume. More agents means raising a security bound, not
+  editing a list.
+- **Two different notions of "site".** The mission inventory (`devices.ts`) uses
+  `siteId` for a device's location; the execution registry uses `site` for where an
+  agent runs. Same word, different tables, different lifetimes. Keep them distinct
+  in dashboards and do not join on the label.
+- **The site is provenance, not authorisation.** The fleet server authorises by
+  certificate CN; the site never gates a claim. A leaked agent certificate can
+  claim that agent's shard from any network location — the mitigations remain
+  revocation (`FLEET_REVOKED_CERT_SHA256`) and the fail-closed stop on lease loss,
+  not the site label.
