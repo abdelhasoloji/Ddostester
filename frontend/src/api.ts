@@ -1255,6 +1255,19 @@ export const api = {
   },
   saveCalibration: (c: AgentCalibrationView) =>
     post<AgentCalibrationView>('/api/drs/calibrations', c),
+  createDrsPlan: (input: {
+    name?: string;
+    target: string;
+    probeUrl?: string;
+    maxLevel: number;
+    exposureSec: number;
+    mode: 'measured' | 'synthetic-lab' | 'engine-validation';
+    journey?: string;
+    functionalAssertion?: string;
+    successThreshold?: number;
+    rationale: string;
+    authorized: boolean;
+  }) => post<Campaign>('/api/drs/plans', input),
   fleetSites: () =>
     get<{
       sites: { id: string; devices: number; online: number }[];
