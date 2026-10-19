@@ -9,6 +9,7 @@ import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
+import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const SNAPSHOT_KEYS = [
@@ -27,6 +28,7 @@ const SNAPSHOT_KEYS = [
 
 export class MemoryStore implements Store {
   private fleetDevices = new Map<string, FleetDevice>();
+  private calibrations = new Map<string, AgentCalibration>();
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
     const device = this.fleetDevices.get(id);
     return device ? structuredClone(device) : undefined;
@@ -40,6 +42,16 @@ export class MemoryStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     this.fleetDevices.delete(id);
   }
+  async listAgentCalibrations(): Promise<AgentCalibration[]> {
+    return [...this.calibrations.values()];
+  }
+  async saveAgentCalibration(c: AgentCalibration): Promise<void> {
+    this.calibrations.set(c.agentId, c);
+  }
+  async deleteAgentCalibration(agentId: string): Promise<void> {
+    this.calibrations.delete(agentId);
+  }
+
   readonly backend = 'memory' as const;
   private campaigns = new Map<string, Campaign>();
   private runs = new Map<string, CampaignRun>();

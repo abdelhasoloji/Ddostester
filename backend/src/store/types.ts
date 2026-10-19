@@ -6,6 +6,7 @@ import type { Playbook } from '../modules/playbooks/playbooks.js';
 import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { ProtectedTarget } from '../modules/targets/model.js';
+import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 /**
@@ -33,6 +34,10 @@ export interface Store {
   getFleetDevice(id: string): Promise<FleetDevice | undefined>;
   saveFleetDevice(device: FleetDevice): Promise<void>;
   deleteFleetDevice(id: string): Promise<void>;
+  /** Measured per-agent capacity; the DRS envelope is derived from these rows. */
+  listAgentCalibrations(): Promise<AgentCalibration[]>;
+  saveAgentCalibration(c: AgentCalibration): Promise<void>;
+  deleteAgentCalibration(agentId: string): Promise<void>;
   readonly backend: 'memory' | 'postgres';
   init(): Promise<void>;
   /** Lightweight connectivity check for readiness probes. */

@@ -21,6 +21,8 @@ const writes = new Set([
   'claimNextBenchRun',
   'setBenchRunResult',
   'saveBenchCoverage',
+  'saveAgentCalibration',
+  'deleteAgentCalibration',
 ]);
 /** Every committed mutation includes an atomic, actor-bound receipt, even if a later summary fails. */
 export function auditedStore(base: Store): Store {
