@@ -203,6 +203,17 @@ describe('playbooks', () => {
     }
   });
 
+  it('rejects an empty, blank or oversized explicit User-Agent set', () => {
+    const step = { maxRps: 1, concurrency: 1, maxDurationSec: 10, profile: 'constant' as const };
+    for (const userAgents of [[], [''], ['  '], Array.from({ length: 51 }, (_, i) => 'ua' + i)])
+      expect(() =>
+        validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents }] }),
+      ).toThrow(PlaybookError);
+    expect(() =>
+      validatePlaybookInput({ name: 'x', steps: [{ ...step, userAgents: ['curl/8.6.0'] }] }),
+    ).not.toThrow();
+  });
+
   it('validatePlaybookInput rejects a name-less playbook, no steps, and over-cap steps', () => {
     expect(() =>
       validatePlaybookInput({ steps: [{ maxRps: 1, concurrency: 1, maxDurationSec: 1 }] }),
@@ -282,6 +293,30 @@ describe('threat-informed playbooks', () => {
     // The template must state what it deliberately does not reproduce.
     expect(pb.threat!.notReproduced).toMatch(/spoof/i);
     expect(pb.threat!.notReproduced).toMatch(/botnet/i);
+  });
+
+  it('keeps step headers and explicit UA sets when vegeta is the engine', () => {
+    // The default fixture marks vegeta unavailable, which falls back to builtin and
+    // used to hide the header gate. This case pins vegeta as available.
+    const withVegeta = [
+      { id: 'builtin', available: true },
+      { id: 'vegeta', available: true },
+      { id: 'k6', available: true },
+    ];
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('threat-l7-cache-busted-flood')!,
+      target,
+      withVegeta,
+    );
+    const wave = inputs.find((input) => input.name.includes('Cache-busted'))!;
+    expect(wave.agent).toBe('vegeta');
+    expect(wave.headers?.['accept-language']).toBe('en-US,en;q=0.9');
+    expect(wave.userAgents?.length).toBeGreaterThan(1);
+    const clients = inputs.find((input) => input.name.includes('Non-browser'))!;
+    expect(clients.userAgents).toEqual(
+      expect.arrayContaining(['curl/8.6.0', 'python-requests/2.32.3']),
+    );
+    expect(clients.userAgents!.length).toBeGreaterThan(5);
   });
 
   it('resolves the cache-busted wave into bounded endpoints and a rotating UA set', () => {

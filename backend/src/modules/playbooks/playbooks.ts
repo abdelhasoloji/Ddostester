@@ -12,6 +12,7 @@ import {
   MAX_ENDPOINTS,
   MAX_PLAYBOOK_STEPS as MAX_STEPS,
   MAX_PLAYBOOK_HEADERS as MAX_HEADERS,
+  MAX_USER_AGENTS,
 } from '../../config/limits.js';
 import type { HardCaps } from '../../config/limits.js';
 
@@ -40,6 +41,17 @@ export const DEFAULT_UA_SET: string[] = [
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
 ];
 
+/**
+ * Browsers plus two command-line clients. This is a catalogue choice, not a claim
+ * about any actor's tooling: it exists so a run exercises UA-based bot rules as
+ * well as browser-blending, which are two different detection paths.
+ */
+export const MIXED_CLIENT_UA_SET: string[] = [
+  ...DEFAULT_UA_SET,
+  'curl/8.6.0',
+  'python-requests/2.32.3',
+];
+
 export interface PlaybookStep {
   name: string;
   summary: string;
@@ -64,6 +76,11 @@ export interface PlaybookStep {
   preservePaths?: boolean;
   /** Optional realism (built-in engine only): rotate the DEFAULT_UA_SET. */
   rotateUa?: boolean;
+  /**
+   * Explicit User-Agent set for this step (built-in or vegeta). Overrides the
+   * browser-only default that `rotateUa` implies; capped at MAX_USER_AGENTS.
+   */
+  userAgents?: string[];
   /**
    * Optional custom request headers (built-in engine only) — benign strings for
    * a finer client fingerprint (e.g. Accept-Language, a mobile app header).
@@ -245,6 +262,19 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       }
       headers = Object.keys(clean).length ? clean : undefined;
     }
+    let userAgents: string[] | undefined;
+    if (s.userAgents !== undefined) {
+      if (
+        !Array.isArray(s.userAgents) ||
+        s.userAgents.length === 0 ||
+        s.userAgents.length > MAX_USER_AGENTS
+      )
+        throw new PlaybookError(`${label}: userAgents must have 1 to ${MAX_USER_AGENTS} entries.`);
+      const clean = s.userAgents.map((ua) => String(ua).trim()).filter(Boolean);
+      if (clean.length === 0)
+        throw new PlaybookError(`${label}: userAgents entries must be non-empty.`);
+      userAgents = clean;
+    }
     let parallelism: number | undefined;
     if (s.parallelism !== undefined) {
       const n = Number(s.parallelism);
@@ -267,6 +297,7 @@ export function validatePlaybookInput(input: unknown, caps: HardCaps = HARD_CAPS
       paths,
       preservePaths: s.preservePaths === true || undefined,
       rotateUa: s.rotateUa === true,
+      userAgents,
       calibrate: s.calibrate === true,
       headers,
       cacheBust: s.cacheBust === true || undefined,
@@ -495,6 +526,20 @@ const CURATED_PLAYBOOKS: Playbook[] = [
         cacheBust: true,
         parallelism: 2,
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      },
+      {
+        name: 'Non-browser client burst',
+        summary:
+          'Short burst carrying command-line client User-Agents (curl, python-requests) alongside ' +
+          'the browsers, so UA-based bot rules are exercised too.',
+        maxRps: 100,
+        concurrency: 30,
+        maxDurationSec: 60,
+        profile: 'constant',
+        agent: 'vegeta',
+        paths: ['/', '/api/catalog'],
+        userAgents: MIXED_CLIENT_UA_SET,
+        parallelism: 2,
       },
     ],
   },
@@ -2429,8 +2474,21 @@ export function stepToCampaignSeed(step: PlaybookStep, ctx: StepSeedContext): Ca
   // composite lines finally deliver their configured rate instead of ~150 rps.
   // (k6 does not yet rotate UAs; a k6-pinned step would silently drop them.)
   const uaRotationCapable = agent === 'builtin' || agent === 'vegeta' || agent === undefined;
-  const userAgents = uaRotationCapable && step.rotateUa ? DEFAULT_UA_SET : undefined;
-  const headers = builtin && step.headers ? step.headers : undefined;
+  const requestedUas = step.userAgents?.length
+    ? step.userAgents
+    : step.rotateUa
+      ? DEFAULT_UA_SET
+      : undefined;
+  const cleanedUas = requestedUas
+    ?.map((ua) => ua.trim())
+    .filter(Boolean)
+    .slice(0, MAX_USER_AGENTS);
+  const userAgents = uaRotationCapable && cleanedUas?.length ? cleanedUas : undefined;
+  // Headers reach the engines that actually honour them: the built-in flood and
+  // vegeta (which writes them into its targets file, dropping only user-agent when
+  // a UA set rotates). A k6-pinned step drops them rather than pretending.
+  const headersCapable = builtin || agent === 'vegeta';
+  const headers = headersCapable && step.headers ? step.headers : undefined;
   // A volumetric flood exhausts an origin only under CONNECTION PRESSURE: a
   // keep-alive flood is served at the app tier's capacity (in-flight ≤ concurrency
   // < accept backlog), while fresh connections in bulk overflow the backlog into
