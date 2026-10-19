@@ -9,6 +9,7 @@ import {
   transition as transitionDrs,
   finalize as finalizeDrs,
   currentRevision as currentDrsRevision,
+  createRevision,
   freeze as freezeDrsPlan,
 } from './modules/drs/workflow.js';
 import { runAttachment } from './modules/drs/attachments.js';
@@ -2450,7 +2451,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         return reply.code(400).send({ error: 'rationale is required (min 10 chars)' });
       // The orchestrator will not inject before a baseline this long; a short one is a
       // prototype choice, not a stronger measurement.
-      const baselineSec = Number(b.baselineSec ?? 30);
+      // Default to the floor, not a fixed number: a plan that does not choose a baseline
+      // must still satisfy the configured minimum.
+      const baselineSec = Number(b.baselineSec ?? drsBaselineFloorSec());
       if (!Number.isFinite(baselineSec) || baselineSec < 5 || baselineSec > 600)
         return reply.code(400).send({ error: 'baselineSec must be within 5–600' });
       if (baselineSec < drsBaselineFloorSec())
@@ -2584,6 +2587,70 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   // Client dossiers: the DRS assessments grouped by the client they belong to. The client
   // is a display grouping, not an authorization boundary — the allowlist and approvals
   // stay the gate.
+  // Replay a frozen assessment: a new campaign with the same intent, a fresh revision and
+  // the envelope re-derived from the fleet as it is now, not as it was.
+  app.post(
+    '/api/campaigns/:id/drs/replay',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      try {
+        const src = await store.getCampaign((req.params as { id: string }).id);
+        if (!src) return reply.code(404).send({ error: 'campaign not found' });
+        if (!src.drsDocument)
+          return reply.code(400).send({ error: 'campaign has no DRS document' });
+        const source = currentDrsRevision(src.drsDocument);
+        const actor = req.authUser?.email ?? 'dev';
+        const { envelope } = await currentEnvelope({ duration: source.plan.exposureSec });
+        const plan = structuredClone(source.plan);
+        plan.budgets = {
+          ...plan.budgets,
+          maxRps:
+            envelope.maxRps > 0
+              ? Math.min(plan.budgets.maxRps, envelope.maxRps)
+              : plan.budgets.maxRps,
+          concurrency:
+            envelope.maxConcurrency > 0
+              ? Math.min(plan.budgets.concurrency, envelope.maxConcurrency)
+              : plan.budgets.concurrency,
+        };
+        plan.capacity = {
+          maxRps: envelope.maxRps,
+          maxConcurrency: envelope.maxConcurrency,
+          agents: envelope.agents,
+          limitedBy: envelope.limitedBy,
+          warnings: envelope.warnings,
+          assessedAt: new Date().toISOString(),
+        };
+        const campaign: Campaign = {
+          id: randomUUID(),
+          name: (src.name + ' (replay)').slice(0, 120),
+          client: src.client,
+          createdBy: actor,
+          createdAt: new Date().toISOString(),
+          status: 'PENDING_APPROVAL',
+          target: src.target,
+          probeUrl: src.probeUrl,
+          probeUrls: src.probeUrls,
+          referenceUrl: src.referenceUrl,
+          vector: src.vector,
+          maxRps: plan.budgets.maxRps,
+          concurrency: plan.budgets.concurrency,
+          maxDurationSec: plan.exposureSec,
+          authorized: src.authorized,
+          drsMode: plan.mode,
+        };
+        const doc = createRevision(undefined, plan, actor);
+        freezeDrsPlan(currentDrsRevision(doc), campaign);
+        campaign.drsDocument = doc;
+        await store.saveCampaign(campaign);
+        await audit(req, 'campaign.create', campaign.id, `DRS replay of ${src.id}`);
+        return reply.code(201).send(campaign);
+      } catch (err) {
+        return fail(err, reply);
+      }
+    },
+  );
+
   app.get('/api/drs/clients', { preHandler: guard('campaign:read') }, async () => {
     const campaigns = (await store.listCampaigns()).filter((c) => c.drsDocument);
     const byClient = new Map<

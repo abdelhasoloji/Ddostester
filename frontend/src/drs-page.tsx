@@ -76,6 +76,19 @@ export function DrsPage() {
     };
   }, [rows, reports]);
 
+  const replay = async (id: string) => {
+    setBusy(id + ':replay');
+    try {
+      const created = await api.replayDrsPlan(id);
+      app.push('success', `Replay created — ${created.name}.`);
+      await app.refresh();
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const execute = async (id: string) => {
     setBusy(id);
     try {
@@ -165,11 +178,24 @@ export function DrsPage() {
                     </a>
                   </td>
                   <td>
+                    <button
+                      className="btn btn-sm"
+                      disabled={busy === campaign.id + ':replay'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void replay(campaign.id);
+                      }}
+                    >
+                      {busy === campaign.id + ':replay' ? 'Replaying…' : 'Replay'}
+                    </button>{' '}
                     {!finalized && state === 'PLAN_FROZEN' && (
                       <button
                         className="btn btn-sm btn-primary"
                         disabled={busy === campaign.id}
-                        onClick={() => void execute(campaign.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void execute(campaign.id);
+                        }}
                       >
                         {busy === campaign.id ? 'Starting…' : 'Execute'}
                       </button>

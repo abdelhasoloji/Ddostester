@@ -6,9 +6,11 @@ import type { Campaign } from './api.js';
 let currentApp: ReturnType<typeof makeApp>;
 const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
   executeDrsPlan: ReturnType<typeof vi.fn>;
+  replayDrsPlan: ReturnType<typeof vi.fn>;
   drsCampaignReport: ReturnType<typeof vi.fn>;
 };
 fakeApi.executeDrsPlan = vi.fn();
+fakeApi.replayDrsPlan = vi.fn();
 fakeApi.drsCampaignReport = vi.fn();
 
 vi.mock('./context.js', async (orig) => ({
@@ -55,6 +57,7 @@ const drsCampaign = (over: Partial<Campaign> = {}): Campaign =>
 beforeEach(() => {
   fakeApi.executeDrsPlan.mockReset();
   fakeApi.drsCampaignReport.mockReset();
+  fakeApi.replayDrsPlan.mockReset();
 });
 
 describe('DRS workspace', () => {
@@ -139,5 +142,18 @@ describe('DRS verdict and requirement gaps', () => {
     fireEvent.click(screen.getByText('DRS L1 — staging'));
     expect(await screen.findByText('1000 independent bots')).toBeTruthy();
     expect(screen.getByText('no')).toBeTruthy();
+  });
+});
+
+describe('replay', () => {
+  it('clones a plan into a new campaign and reports it', async () => {
+    currentApp = makeApp({ campaigns: [drsCampaign()] });
+    fakeApi.replayDrsPlan.mockResolvedValue({ id: 'c2', name: 'DRS L1 — staging (replay)' });
+    renderWithRouter(<DrsPage />);
+    fireEvent.click(screen.getByRole('button', { name: /^replay$/i }));
+    await waitFor(() => expect(fakeApi.replayDrsPlan).toHaveBeenCalledWith('c1'));
+    await waitFor(() =>
+      expect(currentApp.push).toHaveBeenCalledWith('success', expect.stringContaining('(replay)')),
+    );
   });
 });
