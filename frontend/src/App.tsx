@@ -6,6 +6,7 @@ import { RunTheaterPage } from './run-theater.js';
 import { CampaignsWorkspace } from './campaigns-workspace.js';
 import { ZonesPage } from './zones-page.js';
 import { AssistantPage } from './assistant-page.js';
+import { CapacityPage } from './capacity-page.js';
 import { ReportsPage } from './reports-page.js';
 import { FleetPage } from './fleet-page.js';
 
@@ -47,6 +48,7 @@ function Gate() {
         <Route path="theater" element={<RunTheaterPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="fleet" element={<FleetPage />} />
+        <Route path="capacity" element={<CapacityPage />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />

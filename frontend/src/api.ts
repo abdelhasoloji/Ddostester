@@ -1082,6 +1082,37 @@ export interface AccessContract {
   userMode?: 'team' | 'single';
 }
 
+export interface AgentCalibrationView {
+  agentId: string;
+  measuredTps: number;
+  measuredConcurrency: number;
+  measuredAt: string;
+  conditions?: string;
+}
+
+export interface DrsCapacityView {
+  ceiling: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
+  scope: { maxRps: number; maxConcurrency: number; maxDurationSec: number; targets: string[] };
+  envelope: {
+    maxRps: number;
+    maxConcurrency: number;
+    maxDurationSec: number;
+    agents: number;
+    limitedBy: {
+      rps: 'scope' | 'capacity' | 'ceiling';
+      concurrency: 'scope' | 'capacity' | 'ceiling';
+    };
+    warnings: string[];
+  };
+  calibrations: AgentCalibrationView[];
+  reachability: {
+    level: number;
+    total: number;
+    reachable: number;
+    unreachable: { vectorId: string; missing: string[] }[];
+  }[];
+}
+
 export const api = {
   drsValidation: (maxLevel = 1) => post<Campaign>('/api/drs/validations', { maxLevel }),
   drsReference: () => get<DrsReferenceView>('/api/drs/reference'),
@@ -1214,6 +1245,16 @@ export const api = {
   }) => post('/api/fleet/missions', body),
   stopFleetMission: (id: string) => post(`/api/fleet/missions/${encodeURIComponent(id)}/stop`),
   drsCatalog: () => get<DrsCatalog>('/api/drs/catalog'),
+  drsCapacity: (q?: { rps?: number; concurrency?: number; duration?: number }) => {
+    const p = new URLSearchParams();
+    if (q?.rps) p.set('rps', String(q.rps));
+    if (q?.concurrency) p.set('concurrency', String(q.concurrency));
+    if (q?.duration) p.set('duration', String(q.duration));
+    const qs = p.toString();
+    return get<DrsCapacityView>('/api/drs/capacity' + (qs ? '?' + qs : ''));
+  },
+  saveCalibration: (c: AgentCalibrationView) =>
+    post<AgentCalibrationView>('/api/drs/calibrations', c),
   fleetSites: () =>
     get<{
       sites: { id: string; devices: number; online: number }[];

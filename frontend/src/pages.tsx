@@ -94,6 +94,7 @@ const SPINE_NAV = [
   { to: '/zones', label: 'Protected zones', icon: <LineIcon name="shield" /> },
   { to: '/campaigns', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
   { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
+  { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
   { to: '/theater', label: 'Run Theater', icon: <LineIcon name="theater" /> },
   { to: '/reports', label: 'Results', icon: <LineIcon name="results" /> },
   { to: '/assistant', label: 'Assistant', icon: <LineIcon name="chat" /> },
