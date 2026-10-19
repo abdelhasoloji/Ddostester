@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drsReference, digest } from '../src/modules/drs/reference.js';
-import { classifyRatio, assessDrs, qualify, verifyProofChain } from '../src/modules/drs/scoring.js';
+import {
+  classifyRatio,
+  assessDrs,
+  qualify,
+  verifyProofChain,
+  requirementGapsOf,
+} from '../src/modules/drs/scoring.js';
 import {
   defaultPlan,
   createRevision,
@@ -458,4 +464,47 @@ it('keeps overlapping outages within their tolerance and fails an observed extra
       kind === 'latency' ? 'FAIL' : 'PASS',
     );
   }
+});
+
+describe('archived requirement versus recorded evidence', () => {
+  it('states the numeric gap instead of only a sentence', () => {
+    const v = drsReference().vectors.find((x) => x.source_vector_id === '451002')!;
+    const evidence = {
+      vectorId: v.internal_id,
+      requested_load: { value: 500, unit: 'tps' as const },
+      physical_generators: 1,
+      observed_source_addresses: ['203.0.113.7'],
+      startedAt: '2026-10-19T10:00:00.000Z',
+      finishedAt: '2026-10-19T10:02:00.000Z',
+    };
+    const gaps = requirementGapsOf(v, evidence as never);
+    const load = gaps.find((g) => g.dimension === 'load')!;
+    expect(load.requiredValue).toBe(200_000);
+    expect(load.achievedValue).toBe(500);
+    expect(load.met).toBe(false);
+    expect(load.required).toContain('200K');
+    const sources = gaps.find((g) => g.dimension === 'sources')!;
+    expect(sources.met).toBe(false);
+    const persistence = gaps.find((g) => g.dimension === 'persistence')!;
+    expect(persistence.requiredValue).toBe(7 * 24 * 3600);
+    expect(persistence.met).toBe(false);
+  });
+
+  it('never reports a gap as met when the recorded load equals the line', () => {
+    const v = drsReference().vectors.find((x) => x.source_vector_id === '451002')!;
+    const evidence = {
+      vectorId: v.internal_id,
+      requested_load: { value: 200_000, unit: 'tps' as const },
+      physical_generators: 1000,
+      // 1000 distinct addresses: /8 covers 254 hosts per third octet.
+      observed_source_addresses: Array.from(
+        { length: 1000 },
+        (_, i) => `198.51.${100 + Math.floor(i / 254)}.${(i % 254) + 1}`,
+      ),
+      startedAt: '2026-10-19T10:00:00.000Z',
+      finishedAt: '2026-10-27T10:00:00.000Z',
+    };
+    const gaps = requirementGapsOf(v, evidence as never);
+    expect(gaps.every((g) => g.met)).toBe(true);
+  });
 });

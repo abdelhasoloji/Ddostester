@@ -1,7 +1,7 @@
 import { drsReference, digest } from './reference.js';
 import type { DrsVector } from './reference.js';
 import { ensure, planDigest } from './model.js';
-import type { DrsRevision, DrsProof } from './model.js';
+import type { DrsRevision, DrsProof, DrsEvidence } from './model.js';
 export interface DrsConclusion {
   vectorId: string;
   validity: 'VALID' | 'INVALID' | 'INCONCLUSIVE';
@@ -24,7 +24,22 @@ export interface DrsLevelScore {
   outcome: 'PASS' | 'FAIL' | 'MET' | 'PARTIAL';
   complete: boolean;
 }
+/** One measurable requirement of the archived standard and what the evidence
+ *  actually reached. Kept structured so a report or a UI can state the gap
+ *  instead of only a sentence. */
+export interface RequirementGap {
+  vectorId: string;
+  level: number;
+  dimension: 'load' | 'sources' | 'persistence';
+  required: string;
+  requiredValue: number;
+  achieved: string;
+  achievedValue: number;
+  met: boolean;
+}
+
 export interface DrsAssessment {
+  requirementGaps: RequirementGap[];
   mode: string;
   label: string;
   status: 'COMPLETE' | 'PARTIAL' | 'INDETERMINATE';
@@ -283,6 +298,58 @@ export function qualify(v: DrsVector, p: DrsProof, r: DrsRevision): DrsConclusio
   return answer('VALID', fails ? 'FAIL' : 'PASS');
 }
 /** Conservative aggregation preserves historical failures and never drops unknown vectors. */
+/** Compare one vector's archived requirement with what the evidence reached.
+ *  This does not decide the verdict — qualify() already does — it makes the gap
+ *  machine-readable so the report can say "200K tps required, 500 requested". */
+export function requirementGapsOf(v: DrsVector, e: DrsEvidence): RequirementGap[] {
+  const gaps: RequirementGap[] = [];
+  for (const [name, raw] of Object.entries(v.load_requirements ?? {})) {
+    const unit = name.slice(4);
+    const needed = quantity(raw);
+    if (needed === null) continue;
+    const requested = e.requested_load?.unit === unit ? e.requested_load.value : 0;
+    gaps.push({
+      vectorId: v.internal_id,
+      level: v.level,
+      dimension: 'load',
+      required: `${raw} ${unit}`,
+      requiredValue: needed,
+      achieved: `${requested} ${unit}`,
+      achievedValue: requested,
+      met: requested >= needed,
+    });
+  }
+  const bots = quantity(v.service_requirements?.max_bots);
+  if (bots !== null) {
+    const observed = new Set(e.observed_source_addresses ?? []).size;
+    gaps.push({
+      vectorId: v.internal_id,
+      level: v.level,
+      dimension: 'sources',
+      required: `${bots} independent bots`,
+      requiredValue: bots,
+      achieved: `${observed} observed source(s), ${e.physical_generators ?? 0} generator(s)`,
+      achievedValue: Math.min(observed, e.physical_generators ?? 0),
+      met: observed >= bots && (e.physical_generators ?? 0) >= bots,
+    });
+  }
+  const persistence = seconds(v.service_requirements?.persistence);
+  if (persistence !== null) {
+    const elapsed = (Date.parse(e.finishedAt) - Date.parse(e.startedAt)) / 1000 || 0;
+    gaps.push({
+      vectorId: v.internal_id,
+      level: v.level,
+      dimension: 'persistence',
+      required: `${persistence} s`,
+      requiredValue: persistence,
+      achieved: `${Math.round(elapsed)} s`,
+      achievedValue: Math.round(elapsed),
+      met: elapsed >= persistence,
+    });
+  }
+  return gaps;
+}
+
 export function assessDrs(r: DrsRevision): DrsAssessment {
   ensure(r.planHash === planDigest(r), 'Frozen plan integrity mismatch');
   ensure(verifyProofChain(r), 'Evidence archive integrity mismatch');
@@ -323,6 +390,26 @@ export function assessDrs(r: DrsRevision): DrsAssessment {
       };
     return { ...outcome, proofIds: attempts.flatMap((a) => a.proofIds) };
   });
+  // Machine-readable requirement gaps: one entry per vector and dimension, keeping
+  // the best attempt (a requirement met by any attempt is met).
+  const gapMap = new Map<string, RequirementGap>();
+  for (const v of vectors) {
+    for (const proof of r.proofs.filter((p) => p.data.vectorId === v.internal_id)) {
+      for (const gap of requirementGapsOf(v, proof.data)) {
+        const key = gap.vectorId + ':' + gap.dimension;
+        const prior = gapMap.get(key);
+        if (
+          !prior ||
+          (!prior.met && gap.met) ||
+          (prior.met === gap.met && gap.achievedValue > prior.achievedValue)
+        )
+          gapMap.set(key, gap);
+      }
+    }
+  }
+  const requirementGaps = [...gapMap.values()].sort(
+    (a, b) => a.level - b.level || a.vectorId.localeCompare(b.vectorId),
+  );
   const levels: DrsLevelScore[] = [];
   let terminalLevel: number | null = null,
     score: number | null = null,
@@ -392,6 +479,11 @@ export function assessDrs(r: DrsRevision): DrsAssessment {
       }
     }
   }
+  const unmet = requirementGaps.filter((g) => !g.met);
+  const gapReservation = unmet.length
+    ? `${unmet.length} archived requirement(s) across ${new Set(unmet.map((g) => g.vectorId)).size} vector(s) were not reached by the recorded load, source diversity or exposure; those verdicts remain INCONCLUSIVE and no level is certified.`
+    : null;
+
   const status =
     terminalOutcome === 'PARTIAL'
       ? r.proofs.length || r.attachments?.length
@@ -401,6 +493,7 @@ export function assessDrs(r: DrsRevision): DrsAssessment {
   const relevantIds = new Set(vectors.flatMap((v) => v.ambiguity_ids));
   const ambiguities = ref.ambiguities.filter((a) => !a.vector_id || relevantIds.has(a.id));
   return {
+    requirementGaps,
     mode: r.plan.mode,
     label:
       r.plan.mode === 'engine-validation'
@@ -425,6 +518,7 @@ export function assessDrs(r: DrsRevision): DrsAssessment {
     proofHash: digest(r.proofs),
     certification: false,
     reservations: [
+      ...(gapReservation ? [gapReservation] : []),
       'Not a Red Button certification',
       'Imported evidence retains collector provenance; structural validation is not physical attestation',
       'WRS is a separate diagnostic and is never averaged into DRS',
