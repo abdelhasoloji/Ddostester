@@ -79,7 +79,8 @@ export function defaultPlan(
       ),
       maxDurationSec: c.maxDurationSec,
     },
-    ...(capacity && capacity.maxRps > 0 ? { capacity } : {}),
+    // Recorded even at zero: a report must be able to say the fleet could not reach it.
+    ...(capacity ? { capacity } : {}),
     stopConditions: ['Campaign kill switch', 'Frozen budget exceeded', 'Probe unhealthy'],
     protectionConfiguration: 'Not recorded',
     componentVersions: {

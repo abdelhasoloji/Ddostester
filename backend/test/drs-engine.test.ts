@@ -577,3 +577,19 @@ describe('the service ceiling bounds a frozen plan', () => {
     expect(() => freeze(r, c)).toThrow(/service ceiling/);
   });
 });
+
+describe('a zero envelope is recorded, not hidden', () => {
+  it('keeps the campaign budgets and states that no agent can reach them', () => {
+    const plan = defaultPlan(campaign, 'synthetic-lab', {
+      maxRps: 0,
+      maxConcurrency: 0,
+      agents: 0,
+      limitedBy: { rps: 'capacity', concurrency: 'capacity' },
+      warnings: ['No admitted agent: capacity is zero and no exposure can start.'],
+      assessedAt: '2026-10-19T20:00:00.000Z',
+    });
+    expect(plan.budgets.maxRps).toBe(campaign.maxRps);
+    expect(plan.capacity?.agents).toBe(0);
+    expect(plan.capacity?.warnings[0]).toContain('No admitted agent');
+  });
+});

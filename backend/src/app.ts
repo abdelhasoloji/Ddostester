@@ -5,7 +5,12 @@ import {
   editableParameters,
 } from './modules/campaigns/parameters.js';
 import { DrsBaselineError } from './modules/drs/baseline.js';
-import { transition as transitionDrs, finalize as finalizeDrs } from './modules/drs/workflow.js';
+import {
+  transition as transitionDrs,
+  finalize as finalizeDrs,
+  currentRevision as currentDrsRevision,
+  freeze as freezeDrsPlan,
+} from './modules/drs/workflow.js';
 import { runAttachment } from './modules/drs/attachments.js';
 import { assessDrs } from './modules/drs/scoring.js';
 import { registerDrsRoutes } from './routes/drs-routes.js';
@@ -2408,6 +2413,96 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
     },
   );
+
+  // Build a DRS plan from an operator's intent: level, target, service journey,
+  // assertion, exposure and rationale. The budgets come from the measured envelope and
+  // the plan is frozen immediately, so what gets approved is what was assessed.
+  app.post('/api/drs/plans', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    try {
+      const b = (req.body ?? {}) as Record<string, unknown>;
+      const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+      const target = text(b.target);
+      const probeUrl = text(b.probeUrl) || target;
+      if (!target) return reply.code(400).send({ error: 'target is required' });
+      const maxLevel = Number(b.maxLevel ?? 1);
+      if (!Number.isInteger(maxLevel) || maxLevel < 1 || maxLevel > 7)
+        return reply.code(400).send({ error: 'maxLevel must be an integer within 1–7' });
+      const exposureSec = Number(b.exposureSec ?? 120);
+      if (!Number.isInteger(exposureSec) || exposureSec < 10)
+        return reply.code(400).send({ error: 'exposureSec must be an integer >= 10' });
+      const mode =
+        b.mode === 'engine-validation'
+          ? 'engine-validation'
+          : b.mode === 'synthetic-lab'
+            ? 'synthetic-lab'
+            : 'measured';
+      const assertion = text(b.functionalAssertion);
+      if (mode === 'measured' && assertion.length < 10)
+        return reply
+          .code(400)
+          .send({ error: 'a measured plan needs a functional assertion (min 10 chars)' });
+      const rationale = text(b.rationale);
+      if (rationale.length < 10)
+        return reply.code(400).send({ error: 'rationale is required (min 10 chars)' });
+      const actor = req.authUser?.email ?? 'dev';
+      const { envelope } = await currentEnvelope({ duration: exposureSec });
+      const capacity = {
+        maxRps: envelope.maxRps,
+        maxConcurrency: envelope.maxConcurrency,
+        agents: envelope.agents,
+        limitedBy: envelope.limitedBy,
+        warnings: envelope.warnings,
+        assessedAt: new Date().toISOString(),
+      };
+      const requestedRps = Number(b.maxRps);
+      const campaign = createCampaign(
+        {
+          name: text(b.name) || `DRS L${maxLevel} — ${new URL(target).host}`,
+          createdBy: actor,
+          target,
+          probeUrl,
+          vector: 'http-get',
+          // Without a calibration the envelope is zero: keep the operator's intent as a
+          // draft bound by the ceiling, and let the recorded assessment say the fleet
+          // cannot reach it yet.
+          maxRps:
+            envelope.maxRps > 0
+              ? Math.min(
+                  Number.isFinite(requestedRps) && requestedRps > 0
+                    ? Math.floor(requestedRps)
+                    : envelope.maxRps,
+                  envelope.maxRps,
+                )
+              : Number.isFinite(requestedRps) && requestedRps > 0
+                ? Math.floor(requestedRps)
+                : 50,
+          concurrency: Math.max(envelope.maxConcurrency, 1),
+          maxDurationSec: exposureSec,
+          authorized: b.authorized === true,
+          drsMode: mode,
+        },
+        await effectiveAllowlist(),
+        agentChoices(),
+        effectiveCaps,
+        capacity,
+      );
+      const rev = currentDrsRevision(campaign.drsDocument);
+      rev.plan.maxLevel = maxLevel;
+      rev.plan.exposureSec = Math.min(exposureSec, rev.plan.budgets.maxDurationSec);
+      rev.plan.exposureRationale = rationale;
+      rev.plan.services[0].journey = text(b.journey) || rev.plan.services[0].journey;
+      if (assertion) rev.plan.services[0].functionalAssertion = assertion;
+      const threshold = Number(b.successThreshold);
+      if (Number.isFinite(threshold) && threshold > 0 && threshold <= 1)
+        rev.plan.services[0].successThreshold = threshold;
+      freezeDrsPlan(rev, campaign);
+      await store.saveCampaign(campaign);
+      await audit(req, 'campaign.create', campaign.id, `DRS plan L${maxLevel} ${target}`);
+      return reply.code(201).send(campaign);
+    } catch (err) {
+      return fail(err, reply);
+    }
+  });
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();
