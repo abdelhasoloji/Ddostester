@@ -1250,6 +1250,9 @@ export const api = {
       `/api/campaigns/${encodeURIComponent(campaignId)}/drs/execute`,
       {},
     ),
+  // Latest report for a campaign, without pinning a revision (the workspace list).
+  drsCampaignReport: (campaignId: string) =>
+    get<DrsReportView>(`/api/campaigns/${encodeURIComponent(campaignId)}/drs/report.json`),
   drsCapacity: (q?: { rps?: number; concurrency?: number; duration?: number }) => {
     const p = new URLSearchParams();
     if (q?.rps) p.set('rps', String(q.rps));
@@ -1841,6 +1844,14 @@ export interface DrsReportView {
     terminalLevel: number | null;
     terminalOutcome: string;
     reservations: string[];
+    requirementGaps?: {
+      vectorId: string;
+      level: number;
+      dimension: 'load' | 'sources' | 'persistence';
+      required: string;
+      achieved: string;
+      met: boolean;
+    }[];
     levels: {
       level: number;
       total: number;
