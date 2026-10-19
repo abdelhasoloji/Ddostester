@@ -1,4 +1,5 @@
 import { DRS_EVIDENCE_LIMITS } from '../../config/limits.js';
+import { drsBaselineFloorSec } from '../../config/drs-baseline.js';
 import { digest, drsReference, DRS_ENGINE, DRS_INTERPRETATION } from './reference.js';
 export type DrsMode = 'engine-validation' | 'synthetic-lab' | 'measured';
 export type DrsState =
@@ -260,9 +261,9 @@ export function validatePlan(raw: DrsPlan): DrsPlan {
       );
   ensure(
     Number.isFinite(p.baselineMinSec) &&
-      p.baselineMinSec >= DRS_EVIDENCE_LIMITS.baselineMinSec &&
+      p.baselineMinSec >= drsBaselineFloorSec() &&
       p.baselineMinSec <= DRS_EVIDENCE_LIMITS.baselineMaxSec,
-    'Baseline must be at least five minutes',
+    'Baseline is below the configured floor or above the observation limit',
   );
   ensure(
     Number.isFinite(p.baselineStabilityTolerance) &&

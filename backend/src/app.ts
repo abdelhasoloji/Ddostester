@@ -17,6 +17,9 @@ import { registerDrsRoutes } from './routes/drs-routes.js';
 import { drsReport } from './modules/drs/report.js';
 import { drsReference } from './modules/drs/reference.js';
 import { deriveEnvelope, levelReachability, parseQuantity } from './modules/drs/capacity.js';
+import { orchestrateDrs } from './modules/drs/orchestrator.js';
+import { createEngineGeneratorPort } from './modules/drs/engine-generator.js';
+import { createProbeCollectorPort } from './modules/drs/probe-collector.js';
 import { parseCalibration, CalibrationError } from './modules/drs/calibration.js';
 import { drsWorkflow, drsCatalog } from './modules/drs/catalog.js';
 import { registerFleetMissionRoutes } from './routes/fleet-mission-routes.js';
@@ -73,6 +76,7 @@ import type {
   ReconPostureSnapshot,
 } from './modules/campaigns/model.js';
 import { serviceCeiling } from './config/service-ceiling.js';
+import { drsBaselineFloorSec } from './config/drs-baseline.js';
 import {
   HARD_CAPS,
   MAX_COMPOSITE_STEPS,
@@ -2444,6 +2448,15 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const rationale = text(b.rationale);
       if (rationale.length < 10)
         return reply.code(400).send({ error: 'rationale is required (min 10 chars)' });
+      // The orchestrator will not inject before a baseline this long; a short one is a
+      // prototype choice, not a stronger measurement.
+      const baselineSec = Number(b.baselineSec ?? 30);
+      if (!Number.isFinite(baselineSec) || baselineSec < 5 || baselineSec > 600)
+        return reply.code(400).send({ error: 'baselineSec must be within 5–600' });
+      if (baselineSec < drsBaselineFloorSec())
+        return reply.code(400).send({
+          error: `baselineSec ${baselineSec}s is below the configured floor (${drsBaselineFloorSec()}s); lower DRS_BASELINE_FLOOR_SEC deliberately`,
+        });
       const actor = req.authUser?.email ?? 'dev';
       const { envelope } = await currentEnvelope({ duration: exposureSec });
       const capacity = {
@@ -2489,12 +2502,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       const rev = currentDrsRevision(campaign.drsDocument);
       rev.plan.maxLevel = maxLevel;
       rev.plan.exposureSec = Math.min(exposureSec, rev.plan.budgets.maxDurationSec);
+      rev.plan.baselineMinSec = Math.floor(baselineSec);
       rev.plan.exposureRationale = rationale;
       rev.plan.services[0].journey = text(b.journey) || rev.plan.services[0].journey;
       if (assertion) rev.plan.services[0].functionalAssertion = assertion;
       const threshold = Number(b.successThreshold);
       if (Number.isFinite(threshold) && threshold > 0 && threshold <= 1)
         rev.plan.services[0].successThreshold = threshold;
+      // A measured run can only dispatch the bounded HTTP GET line; the remaining vectors
+      // of the level stay in the denominator as excluded, never silently dropped.
+      if (mode === 'measured') {
+        rev.plan.excludedVectors = drsReference()
+          .vectors.filter((v) => v.level <= maxLevel && !v.internal_id.endsWith('51002'))
+          .map((v) => ({
+            vectorId: v.internal_id,
+            reason: 'not dispatchable by this control plane; reference/import evidence only',
+          }));
+      }
       freezeDrsPlan(rev, campaign);
       await store.saveCampaign(campaign);
       await audit(req, 'campaign.create', campaign.id, `DRS plan L${maxLevel} ${target}`);
@@ -2503,6 +2527,58 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       return fail(err, reply);
     }
   });
+
+  // Execute a frozen DRS plan through the orchestrator. It runs in the background — a
+  // baseline plus an exposure outlast a request — and every transition is checkpointed on
+  // the revision, so the client polls GET /api/campaigns/:id/drs for progress.
+  const drsRunning = new Set<string>();
+  app.post(
+    '/api/campaigns/:id/drs/execute',
+    { preHandler: guard('campaign:execute') },
+    async (req, reply) => {
+      const id = (req.params as { id: string }).id;
+      const campaign = await store.getCampaign(id);
+      if (!campaign) return reply.code(404).send({ error: 'campaign not found' });
+      if (!campaign.drsDocument)
+        return reply.code(400).send({ error: 'campaign has no DRS document' });
+      if (drsRunning.has(id))
+        return reply.code(409).send({ error: 'a DRS execution is already running' });
+      const rev = currentDrsRevision(campaign.drsDocument);
+      if (!rev.planHash || rev.finalizedAt)
+        return reply.code(400).send({ error: 'a frozen, unfinalized plan is required' });
+      const actor = req.authUser?.email ?? 'dev';
+      const generator = createEngineGeneratorPort({
+        url: campaign.target,
+        allowedHosts: await effectiveAllowlist(),
+      });
+      const collector = createProbeCollectorPort({ probeUrl: campaign.probeUrl });
+      const controller = new AbortController();
+      drsRunning.add(id);
+      void orchestrateDrs(rev, actor, {
+        generator,
+        collector,
+        signal: controller.signal,
+        checkpoint: async () => {
+          await store.saveCampaign(campaign);
+        },
+      })
+        .then(async (assessment) => {
+          await store.saveCampaign(campaign);
+          await audit(
+            req,
+            'drs.verdict',
+            id,
+            `DRS execution ${assessment.status} · score ${assessment.score ?? 'none'} · ${assessment.terminalOutcome}`,
+          );
+        })
+        .catch(async (err) => {
+          await store.saveCampaign(campaign).catch(() => undefined);
+          await audit(req, 'drs.verdict', id, `DRS execution failed: ${(err as Error).message}`);
+        })
+        .finally(() => drsRunning.delete(id));
+      return reply.code(202).send({ campaignId: id, started: true, maxLevel: rev.plan.maxLevel });
+    },
+  );
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();

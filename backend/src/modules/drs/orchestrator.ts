@@ -122,7 +122,7 @@ export async function orchestrateDrs(
       ) {
         transition(r, 'BASELINE', 'Extend unstable baseline within bounded observation window');
         await save();
-        baseline = await bounded(r.plan.baselineMinSec * 1000, ports.signal, (signal) =>
+        baseline = await bounded(r.plan.baselineMinSec * 1000 + 2_000, ports.signal, (signal) =>
           ports.collector.baseline(r.plan, signal),
         );
       }
@@ -191,7 +191,8 @@ export async function orchestrateDrs(
       const result = assessDrs(r);
       if (result.levels.find((l) => l.level === level)?.outcome !== 'PASS') break;
     }
-  } catch {
+  } catch (err) {
+    if (process.env.DRS_DEBUG) console.error('[drs] orchestration error:', (err as Error).message);
     transition(
       r,
       'EVIDENCE_VALIDATION',
