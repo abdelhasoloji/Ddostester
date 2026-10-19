@@ -10,6 +10,7 @@ contains `${VAR}` placeholders and must not be applied as-is.
 
 ```
 cp site.env.example site.env      # edit every CHANGE_ME and every value
+node check-render.mjs site.env    # offline: catches placeholders and bad values
 set -a; . ./site.env; set +a
 envsubst < worker.template.yaml | kubectl apply -f -
 ```
@@ -104,7 +105,22 @@ FLEET_LOCAL_SITE=vps-lab
 `three`: a local Job would race the remote claim and, `claim` being atomic, the
 remote worker would silently never emit traffic.
 
-## 4. Validation
+## 4. Validate the render offline
+
+`kubectl apply --dry-run=client` still performs API discovery, so it needs a
+reachable cluster. Validate the substitution **before** that, with no cluster and
+no Docker:
+
+```
+node check-render.mjs site.env
+```
+
+It fails on an unfilled `CHANGE_ME`, a missing value, invalid YAML, a tag instead
+of a digest, a policy above `HARD_CAPS`, more than one replica, a writable root
+filesystem, or an ingress rule — and prints the exact `FLEET_SITES` entry the
+coordinator needs.
+
+## 5. After deployment
 
 1. `kubectl -n "$SITE_NAMESPACE" logs deploy/fleet-worker` shows one poll per
    interval and no TLS error.
