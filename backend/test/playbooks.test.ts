@@ -264,6 +264,39 @@ describe('threat-informed playbooks', () => {
     expect(wave.userAgents?.length).toBeGreaterThan(1);
   });
 
+  it('ships a cache-busted L7 pattern with UA rotation and a POST step', () => {
+    const pb = getPlaybook('threat-l7-cache-busted-flood')!;
+    expect(pb).toBeTruthy();
+    expect(pb.category).toBe('Threat-informed');
+    expect(pb.requires).toEqual(expect.arrayContaining(['waf', 'cache']));
+    const wave = pb.steps.find((step) => step.name.includes('Cache-busted'))!;
+    expect(wave).toMatchObject({ cacheBust: true, rotateUa: true, profile: 'wave' });
+    expect(wave.paths!.length).toBeGreaterThanOrEqual(5);
+    expect(wave.headers?.['accept-language']).toBeTruthy();
+    const post = pb.steps.find((step) => step.vector === 'http-post')!;
+    expect(post.cacheBust).toBe(true);
+    for (const step of pb.steps) {
+      expect(step.maxRps).toBeLessThanOrEqual(HARD_CAPS.maxRps);
+      expect(step.maxDurationSec).toBeLessThanOrEqual(HARD_CAPS.maxDurationSec);
+    }
+    // The template must state what it deliberately does not reproduce.
+    expect(pb.threat!.notReproduced).toMatch(/spoof/i);
+    expect(pb.threat!.notReproduced).toMatch(/botnet/i);
+  });
+
+  it('resolves the cache-busted wave into bounded endpoints and a rotating UA set', () => {
+    const inputs = buildSuiteCampaigns(
+      getPlaybook('threat-l7-cache-busted-flood')!,
+      target,
+      engines,
+    );
+    const wave = inputs.find((input) => input.name.includes('Cache-busted'))!;
+    expect(wave.endpoints?.length).toBe(5);
+    expect(wave.userAgents?.length).toBeGreaterThan(1);
+    expect(wave.cacheBust).toBe(true);
+    expect(wave.headers?.['accept']).toContain('text/html');
+  });
+
   it('marks the DRS5 composite lines for closed-loop rate calibration (GEN-1)', () => {
     const inputs = buildSuiteCampaigns(getPlaybook('pretest-cra-l7')!, target, engines);
     const byName = (frag: string) => inputs.find((i) => i.name.includes(frag))!;

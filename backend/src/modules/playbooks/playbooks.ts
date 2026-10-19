@@ -430,6 +430,75 @@ const CURATED_PLAYBOOKS: Playbook[] = [
     ],
   },
   {
+    id: 'threat-l7-cache-busted-flood',
+    requires: ['waf', 'cache'],
+    name: 'L7 flood — cache-busted multi-path',
+    category: 'Threat-informed',
+    drsLevel: 4,
+    summary:
+      'A baseline, then a wave over several endpoints with a rotating browser User-Agent and a ' +
+      'unique query token per request, so an edge cache cannot absorb it; a bounded POST burst on ' +
+      'the login/session path follows. The bounded shape of a hacktivist L7 HTTP flood.',
+    when:
+      'Measure origin exposure and WAF / rate-limit behaviour when the edge cache is deliberately ' +
+      'bypassed and the client fingerprint rotates.',
+    threat: {
+      technique: 'Hacktivist L7 HTTP flood with cache bypass',
+      source: 'https://socradar.io/blog/noname05716-and-ddosia-project-analysis-russia/',
+      reference:
+        'Public reporting on NoName057(16) / DDoSia (2022–2026); this template asserts no attribution',
+      measures:
+        'Origin load, WAF efficacy and rate-limit behaviour when caching is deliberately bypassed.',
+      notReproduced:
+        'No botnet scale, no source spoofing and no actor tooling — bounded HTTP from allowlisted hosts only.',
+    },
+    steps: [
+      {
+        name: 'Baseline',
+        summary: 'Steady single-URL reference before any bypass.',
+        maxRps: 100,
+        concurrency: 20,
+        maxDurationSec: 120,
+        profile: 'constant',
+        agent: 'builtin',
+      },
+      {
+        name: 'Cache-busted wave',
+        summary:
+          'Waves over several endpoints, rotating browser User-Agent and a unique query token, so ' +
+          'every request reaches origin instead of a cache.',
+        maxRps: 500,
+        concurrency: 120,
+        maxDurationSec: 180,
+        profile: 'wave',
+        vector: 'http-get',
+        agent: 'vegeta',
+        paths: ['/', '/login', '/api/catalog', '/search?q=test', '/account'],
+        rotateUa: true,
+        cacheBust: true,
+        parallelism: 3,
+        headers: {
+          accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'accept-language': 'en-US,en;q=0.9',
+        },
+      },
+      {
+        name: 'Login POST burst',
+        summary: 'Bounded POST burst on the login/session path while the cache is bypassed.',
+        maxRps: 150,
+        concurrency: 50,
+        maxDurationSec: 90,
+        profile: 'constant',
+        vector: 'http-post',
+        agent: 'vegeta',
+        paths: ['/login', '/api/session'],
+        cacheBust: true,
+        parallelism: 2,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      },
+    ],
+  },
+  {
     id: 'threat-http2-burst',
     requires: ['h2'],
     name: 'HTTP/2 multiplexed burst',
@@ -2079,6 +2148,7 @@ const CURATED_CREATED_AT: Record<string, string> = {
   'origin-l7-exhaustion': '2026-09-16',
   'l7-pulse-burst': '2026-09-16',
   'l7-post-storm': '2026-09-16',
+  'threat-l7-cache-busted-flood': '2026-10-19',
 };
 /** Date the DRS L7 lines were split into their own single-step templates. */
 const DRS_LINES_CREATED_AT = '2026-09-11';
