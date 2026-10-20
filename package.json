@@ -22,7 +22,8 @@
     "verify:fast": "npm run lint && npm run typecheck && npm test",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "changelog": "node scripts/changelog.mjs",
-    "verify:touched": "node scripts/verify-touched.mjs"
+    "verify:touched": "node scripts/verify-touched.mjs",
+    "test:drs": "DRS_BASELINE_FLOOR_SEC=5 tsx scripts/qa/drs-e2e.mjs"
   },
   "engines": {
     "node": ">=22.19.0"
