@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
-# Repo-tracked git hook (enabled via `core.hooksPath .githooks`, set by the
-# npm "prepare" script on install). Runs the same fast gate CI enforces, so a
-# red branch never reaches the remote. Bypass in an emergency with:
-#   git push --no-verify
+# Repo-tracked git hook (enabled via `core.hooksPath .githooks`, set by npm prepare).
+#
+# It used to run `verify:fast` — lint, typecheck and both suites — on every push, which is
+# the same work CI does five minutes later and made each push take four to five minutes.
+# The pre-commit hook already gates formatting, lint and typecheck on the staged files, so
+# this hook now repeats the repository-wide fast gates and leaves the suites to CI.
+#
+# Full suite on push anyway: PRE_PUSH_FULL=1 git push
+# Skip entirely (emergency):  git push --no-verify
 set -euo pipefail
 
-echo "pre-push: running verify:fast (lint + typecheck + test)…"
-npm run --silent verify:fast
+if [ "${PRE_PUSH_FULL:-0}" = "1" ]; then
+  echo "pre-push: running verify:fast (lint + typecheck + test)…"
+  npm run --silent verify:fast
+  echo "pre-push: OK"
+  exit 0
+fi
+
+echo "pre-push: lint + typecheck (tests run in CI)…"
+npm run --silent lint
+npm run --silent typecheck
 echo "pre-push: OK"
