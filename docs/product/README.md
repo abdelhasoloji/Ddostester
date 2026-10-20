@@ -35,11 +35,12 @@ and what it refuses to claim.
 
 ## Operator knobs
 
-| Variable                                             | Default  | Purpose                                                    |
-| ---------------------------------------------------- | -------- | ---------------------------------------------------------- |
-| `SERVICE_CEILING_RPS` / `_CONCURRENCY` / `_DURATION` | hard cap | outer limit the deployment will operate at                 |
-| `SERVICE_CEILING_AGENTS`                             | 3        | admitted identities the ceiling allows                     |
-| `DRS_BASELINE_FLOOR_SEC`                             | 300      | minimum baseline before injection; lower only deliberately |
+| Variable                                             | Default     | Purpose                                                                               |
+| ---------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------- |
+| `SERVICE_CEILING_RPS` / `_CONCURRENCY` / `_DURATION` | hard cap    | outer limit the deployment will operate at                                            |
+| `SERVICE_CEILING_AGENTS`                             | 3           | admitted identities the ceiling allows                                                |
+| `DRS_BASELINE_FLOOR_SEC`                             | 300         | minimum baseline before injection; lower only deliberately                            |
+| `TRUST_PROXY`                                        | `127.0.0.1` | peer allowed to set `X-Forwarded-For`; audit and login throttling record that address |
 
 ## Fast path
 

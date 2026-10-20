@@ -265,7 +265,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   await configureAccounts(store, auth);
   const accountPolicy = await store.getAccountPolicy();
 
+  // Behind the reverse proxy, request.ip is the proxy unless the trusted hop is declared.
+  // The service binds loopback, so only a loopback peer may claim X-Forwarded-For; trusting
+  // every peer would let a client choose the address that audit and login throttling record.
+  const trustProxy = process.env.TRUST_PROXY ?? '127.0.0.1';
   const app = Fastify({
+    trustProxy,
     logger:
       opts.logger === false
         ? false
