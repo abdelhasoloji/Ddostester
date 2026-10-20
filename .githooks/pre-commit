@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Fast commit gate: formatting and lint on the staged files, then a full typecheck.
+# It exists because two CI runs this week were red on issues this hook catches in
+# seconds (prettier on untouched files, a mock type intersection).
+# Bypass: git commit --no-verify, or SKIP_TYPECHECK=1 for a doc-only change.
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+files=$(printf '%s\n' "$staged" | grep -E '\.(ts|tsx|css|json|md|yml|yaml)$' || true)
+if [ -n "$files" ]; then
+  printf '%s\n' "$files" | xargs npx --no-install prettier --check
+  code=$(printf '%s\n' "$files" | grep -E '\.(ts|tsx)$' || true)
+  if [ -n "$code" ]; then
+    printf '%s\n' "$code" | xargs npx --no-install eslint
+  fi
+fi
+
+if [ "${SKIP_TYPECHECK:-0}" != "1" ]; then
+  npm run --silent typecheck
+fi
+echo "pre-commit: OK"
