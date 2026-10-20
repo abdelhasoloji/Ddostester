@@ -33,6 +33,13 @@ dig +short drs.trustena.lu A        # must print 31.31.74.228
 dig +short testdrs.trustena.lu A    # must print 31.31.74.228
 ```
 
+## Published
+
+`https://testdrs.trustena.lu` is live (staging, build 505): Let's Encrypt certificate,
+application login, `131` bytes of HSTS-free redirect-free JSON at `/health`.
+
+`drs.trustena.lu` waits on its A record.
+
 ## Publishing the domains
 
 Once both records resolve:
@@ -66,3 +73,21 @@ sudo deploy/staging-update.sh
 It fetches main, installs, builds, applies the account migration and restarts, then waits for
 `/health`. The production workflow never touches staging, and staging never touches the
 production database.
+
+## The certificate trap this hit
+
+The internal vhost was written as `:443`, a catch-all without a hostname. Caddy answers a
+catch-all for any name and TLS selects the certificate by SNI, so `testdrs.trustena.lu` was
+served the **internal** certificate (`CN=31.31.74.228`) even though the Let's Encrypt
+certificate had been obtained successfully.
+
+Scoping the internal vhost to `https://31.31.74.228` fixes both sides:
+
+| Connection                           | Certificate                                        |
+| ------------------------------------ | -------------------------------------------------- |
+| no SNI, as a client connecting by IP | `CN=31.31.74.228` (internal) — unchanged behaviour |
+| SNI `testdrs.trustena.lu`            | `CN=testdrs.trustena.lu` (Let's Encrypt)           |
+
+`deploy/enable-domains.sh` performs that scoping itself, idempotently. The health check pins
+the address with `--resolve`, because the host resolver keeps the previous wildcard until its
+TTL expires and would otherwise report a false failure.
