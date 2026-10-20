@@ -34,12 +34,12 @@ runuser -u "$SVC_USER" -- bash -lc "cd '$REPO_DIR' && npm ci --ignore-scripts --
 set -a
 . "$ENV_FILE"
 set +a
-runuser -u "$SVC_USER" --preserve-environment -- bash -lc "cd '$REPO_DIR/backend' && node dist/cli/migrate-users.js --apply" >/dev/null
+HOME="/home/$SVC_USER" runuser -u "$SVC_USER" --preserve-environment -- bash -lc "cd '$REPO_DIR/backend' && node dist/cli/migrate-users.js --apply" >/dev/null
 
 systemctl restart "$SERVICE"
 for _ in $(seq 1 20); do
   sleep 1
-  if curl -fsS --max-time 2 "http://127.0.0.1:${STAGING_PORT:-8081}/health" >/dev/null; then
+  if curl -fsS --max-time 2 "http://127.0.0.1:${STAGING_PORT:-8081}/health" >/dev/null 2>&1; then
     echo "staging healthy at $COMMIT"
     exit 0
   fi
