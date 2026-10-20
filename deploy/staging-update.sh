@@ -26,7 +26,9 @@ runuser -u "$SVC_USER" -- bash -lc "cd '$REPO_DIR' && git fetch --quiet origin m
 COMMIT="$(runuser -u "$SVC_USER" -- bash -lc "cd '$REPO_DIR' && git rev-parse --short HEAD")"
 echo "staging checkout at $COMMIT"
 
-runuser -u "$SVC_USER" -- bash -lc "cd '$REPO_DIR' && npm ci --ignore-scripts --no-audit --fund=false && npm run build -w backend"
+# Both workspaces: the service serves the UI as well as the API, and a backend-only build
+# answers 404 on / while /health is green -- which reads as "the app is down" to a client.
+runuser -u "$SVC_USER" -- bash -lc "cd '$REPO_DIR' && npm ci --ignore-scripts --no-audit --fund=false && npm run build"
 
 # Migrations run at startup; the account migration must have been applied once already.
 set -a
