@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { api, type Campaign, type DrsReportView } from './api.js';
+import { api, type Campaign, type DrsCompareView, type DrsReportView } from './api.js';
 import { useApp } from './context.js';
 import { LineIcon } from './interface-kit.js';
 
@@ -29,6 +29,11 @@ function rowOf(c: Campaign): Row | null {
   };
 }
 
+/** "vector dimension, vector dimension" or "none" for an empty comparison list. */
+function listOf(items: { vectorId: string; dimension: string }[]): string {
+  return items.length === 0 ? 'none' : items.map((g) => `${g.vectorId} ${g.dimension}`).join(', ');
+}
+
 /**
  * DRS workspace: every campaign that carries a frozen DRS plan, its execution state, the
  * number of sealed proofs, and the two reports the client receives. Execution is started
@@ -40,6 +45,9 @@ export function DrsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [reports, setReports] = useState<Record<string, DrsReportView>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [comparison, setComparison] = useState<DrsCompareView | null>(null);
+  const [comparing, setComparing] = useState(false);
   const rows = useMemo(
     () => app.campaigns.map(rowOf).filter((r): r is Row => r !== null),
     [app.campaigns],
@@ -75,6 +83,23 @@ export function DrsPage() {
       cancelled = true;
     };
   }, [rows, reports]);
+
+  const compare = async () => {
+    if (selected.length !== 2) return;
+    setComparing(true);
+    try {
+      setComparison(await api.drsCompare(selected[0], selected[1]));
+    } catch (err) {
+      app.push('error', (err as Error).message);
+    } finally {
+      setComparing(false);
+    }
+  };
+
+  const toggle = (id: string) =>
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2),
+    );
 
   const cancel = async (id: string) => {
     setBusy(id + ':cancel');
@@ -130,6 +155,66 @@ export function DrsPage() {
         </span>
       </div>
 
+      {selected.length === 2 && (
+        <p className="hint">
+          <button
+            className="btn btn-sm btn-primary"
+            disabled={comparing}
+            onClick={() => void compare()}
+          >
+            {comparing ? 'Comparison…' : 'Compare the two selections'}
+          </button>
+        </p>
+      )}
+
+      {comparison && (
+        <section
+          className="card"
+          style={{ marginBottom: '1rem' }}
+          aria-label="Assessment comparison"
+        >
+          <h2>Comparison</h2>
+          <table className="campaign-table">
+            <thead>
+              <tr>
+                <th />
+                <th>{comparison.a.name}</th>
+                <th>{comparison.b.name}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Verdict</td>
+                <td>{comparison.a.status}</td>
+                <td>{comparison.b.status}</td>
+              </tr>
+              <tr>
+                <td>Terminal level</td>
+                <td>{comparison.a.terminalLevel ?? '\u2014'}</td>
+                <td>{comparison.b.terminalLevel ?? '\u2014'}</td>
+              </tr>
+              <tr>
+                <td>Sealed proofs</td>
+                <td>{comparison.a.proofs}</td>
+                <td>{comparison.b.proofs}</td>
+              </tr>
+              <tr>
+                <td>Requirements resolved</td>
+                <td colSpan={2}>{listOf(comparison.deltas.gapsResolved)}</td>
+              </tr>
+              <tr>
+                <td>Still unmet</td>
+                <td colSpan={2}>{listOf(comparison.deltas.gapsRemaining)}</td>
+              </tr>
+              <tr>
+                <td>Regressed</td>
+                <td colSpan={2}>{listOf(comparison.deltas.gapsRegressed)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {rows.length === 0 ? (
         <p className="hint">
           No DRS plan yet. Create one from <a href="/capacity">Capacity</a>.
@@ -138,6 +223,7 @@ export function DrsPage() {
         <table className="campaign-table">
           <thead>
             <tr>
+              <th />
               <th>Plan</th>
               <th>Mode</th>
               <th>Level</th>
@@ -155,6 +241,15 @@ export function DrsPage() {
                   onClick={() => setExpanded(expanded === campaign.id ? null : campaign.id)}
                   style={{ cursor: 'pointer' }}
                 >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${campaign.name} for comparison`}
+                      disabled={!finalized}
+                      checked={selected.includes(campaign.id)}
+                      onChange={() => toggle(campaign.id)}
+                    />
+                  </td>
                   <td>
                     <b>{campaign.name}</b>
                     <div className="hint">{campaign.target}</div>
@@ -229,7 +324,7 @@ export function DrsPage() {
                 </tr>
                 {expanded === campaign.id && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       {reports[campaign.id] ? (
                         <>
                           <div className="hint">
