@@ -21,7 +21,8 @@
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:fast": "npm run lint && npm run typecheck && npm test",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
-    "changelog": "node scripts/changelog.mjs"
+    "changelog": "node scripts/changelog.mjs",
+    "verify:touched": "node scripts/verify-touched.mjs"
   },
   "engines": {
     "node": ">=22.19.0"
