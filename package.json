@@ -23,7 +23,8 @@
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "changelog": "node scripts/changelog.mjs",
     "verify:touched": "node scripts/verify-touched.mjs",
-    "test:drs": "DRS_BASELINE_FLOOR_SEC=5 tsx scripts/qa/drs-e2e.mjs"
+    "test:drs": "DRS_BASELINE_FLOOR_SEC=5 tsx scripts/qa/drs-e2e.mjs",
+    "report:pdf": "node scripts/operations/drs-report-pdf.mjs"
   },
   "engines": {
     "node": ">=22.19.0"
