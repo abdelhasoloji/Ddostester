@@ -10,7 +10,7 @@
  *
  * CI runs it as part of the DRS job; it takes about fifteen seconds.
  */
-import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const src = (p) => pathToFileURL(new URL(`../../backend/src/${p}`, import.meta.url).pathname).href;
@@ -26,11 +26,22 @@ const fail = (message) => {
   process.exit(1);
 };
 
-const server = createServer((_req, res) => {
-  res.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+// Instrumented target: an edge in front of an origin, each with its own counter. The
+// generator drives the edge, so entry and origin are observed independently.
+const witness = spawn(process.execPath, [new URL('./witness-target.mjs', import.meta.url).pathname], {
+  stdio: ['ignore', 'pipe', 'inherit'],
 });
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-const url = `http://127.0.0.1:${server.address().port}/`;
+const witnessInfo = await new Promise((resolve, reject) => {
+  let buffered = '';
+  witness.stdout.on('data', (chunk) => {
+    buffered += chunk.toString();
+    const line = buffered.split('\n')[0];
+    if (line.includes('"entryTelemetry"')) resolve(JSON.parse(line));
+  });
+  witness.on('exit', (code) => reject(new Error(`witness target exited (${code})`)));
+  setTimeout(() => reject(new Error('witness target did not report its ports')), 5000);
+});
+const url = witnessInfo.entry;
 
 const campaign = {
   id: 'e2e',
@@ -63,14 +74,19 @@ const revision = currentRevision(doc);
 freeze(revision, campaign);
 
 const generator = createEngineGeneratorPort({ url, allowedHosts: ['127.0.0.1'] });
-const collector = createProbeCollectorPort({ probeUrl: url, baselineMaxSec: 5 });
+const collector = createProbeCollectorPort({
+  probeUrl: witnessInfo.origin,
+  entryWitnessUrl: witnessInfo.entryTelemetry,
+  originWitnessUrl: witnessInfo.originTelemetry,
+  baselineMaxSec: 5,
+});
 const assessment = await orchestrateDrs(revision, 'ci', {
   generator,
   collector,
   signal: new AbortController().signal,
   checkpoint: async () => {},
 });
-await new Promise((resolve) => server.close(resolve));
+witness.kill('SIGTERM');
 
 const checks = [
   [revision.state === 'FINAL_REPORT', `revision state ${revision.state}`],
@@ -79,8 +95,13 @@ const checks = [
   [assessment.certification === false, 'assessment must not be a certification'],
 ];
 const points = revision.proofs[0]?.data.points.map((p) => p.sourceId) ?? [];
-for (const id of ['generator', 'user'])
+for (const id of ['generator', 'user', 'entry', 'origin'])
   checks.push([points.includes(id), `evidence missing ${id} point`]);
+const dimensions = revision.proofs[0]?.data.unrepresented_dimensions ?? [];
+checks.push(
+  [!dimensions.some((d) => d.startsWith('entry')), 'entry still reported unrepresented'],
+  [!dimensions.some((d) => d.startsWith('origin')), 'origin still reported unrepresented'],
+);
 
 const failed = checks.filter(([ok]) => !ok).map(([, why]) => why);
 if (failed.length) fail(failed.join('; '));

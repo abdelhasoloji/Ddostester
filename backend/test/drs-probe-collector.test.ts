@@ -47,7 +47,8 @@ describe('probe collector', () => {
     const port = createProbeCollectorPort({ probeUrl: 'http://lab/', fetchImpl: fetchOk() });
     const capacity = await port.capacity(plan);
     expect(capacity.ready).toBe(true);
-    expect(capacity.reason).toContain('no independent entry/origin witness');
+    expect(capacity.reason).toContain('no entry witness');
+    expect(capacity.reason).toContain('no origin witness');
 
     const signal = new AbortController();
     const baseline = await port.baseline(plan, signal.signal);
@@ -80,5 +81,55 @@ describe('probe collector', () => {
     await port.observe(['v1'], plan, exposure.signal);
     const evidence = await port.seal(['v1'], plan);
     expect(evidence[0].outage_intervals.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('entry and origin witnesses', () => {
+  // Each telemetry URL reports a cumulative counter; the second read is the exposure end.
+  const witnessFetch = () => {
+    const reads: Record<string, number> = {};
+    return vi.fn(async (url: string) => {
+      if (url.includes('/telemetry')) {
+        reads[url] = (reads[url] ?? 0) + 1;
+        const requests = reads[url] === 1 ? 0 : 500;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ requests, errors: 0 }),
+        } as unknown as Response;
+      }
+      return { ok: true, status: 200, text: async () => 'ok' } as unknown as Response;
+    });
+  };
+
+  it('names no gap and seals entry and origin points when witnesses answer', async () => {
+    const port = createProbeCollectorPort({
+      probeUrl: 'http://lab/',
+      entryWitnessUrl: 'http://edge/telemetry',
+      originWitnessUrl: 'http://origin/telemetry',
+      fetchImpl: witnessFetch() as unknown as typeof fetch,
+    });
+    const capacity = await port.capacity(plan);
+    expect(capacity.ready).toBe(true);
+    expect(capacity.reason).not.toContain('no entry witness');
+    expect(capacity.reason).not.toContain('no origin witness');
+
+    const baseline = await port.baseline(plan, new AbortController().signal);
+    expect(baseline.healthy).toBe(true);
+
+    const exposure = new AbortController();
+    setTimeout(() => exposure.abort(), 30);
+    await port.observe(['v1'], plan, exposure.signal);
+    const [evidence] = await port.seal(['v1'], plan);
+
+    expect(evidence.points.map((p) => p.sourceId)).toEqual([
+      'entry',
+      'origin',
+      'generator',
+      'user',
+    ]);
+    expect(evidence.points.find((p) => p.sourceId === 'entry')?.load?.value).toBeGreaterThan(0);
+    expect(evidence.unrepresented_dimensions.some((d) => d.startsWith('entry'))).toBe(false);
+    expect(evidence.unrepresented_dimensions.some((d) => d.startsWith('origin'))).toBe(false);
   });
 });
