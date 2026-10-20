@@ -35,11 +35,12 @@ dig +short testdrs.trustena.lu A    # must print 31.31.74.228
 
 ## Published
 
-`https://testdrs.trustena.lu` is live (staging, build 505): Let's Encrypt certificate, the
+`https://drs.trustena.lu` is live (production, build 511): Let's Encrypt certificate, sign-in
+screen, `/health` and `/` at 200.
+
+`https://testdrs.trustena.lu` is live (staging, build 510): Let's Encrypt certificate, the
 sign-in screen, and `/health` at 200. The update script builds **both** workspaces — a
 backend-only build serves `/health` and returns 404 on `/`, which looks down to a client.
-
-`drs.trustena.lu` waits on its A record.
 
 ## Publishing the domains
 
