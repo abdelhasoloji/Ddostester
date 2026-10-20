@@ -18,7 +18,7 @@ import {
   simulate,
   finalize,
 } from '../modules/drs/workflow.js';
-import { drsReport, drsReportHtml } from '../modules/drs/report.js';
+import { compareDrsReports, drsReport, drsReportHtml } from '../modules/drs/report.js';
 import type { Campaign } from '../modules/campaigns/model.js';
 export function registerDrsRoutes(
   app: FastifyInstance,
@@ -81,6 +81,50 @@ export function registerDrsRoutes(
       execution: 'Evidence workflow; never dispatches traffic or bypasses campaign approval',
     };
   });
+  // Compare two frozen revisions: what a client asks after a protection change is not the
+  // score, it is which requirement is now met, which is still not, and which regressed.
+  app.get(
+    '/api/campaigns/:id/drs/compare',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      try {
+        const withId = (req.query as { with?: string }).with;
+        if (!withId) return reply.code(400).send({ error: 'with=<campaignId> is required' });
+        const a = await store.getCampaign((req.params as { id: string }).id);
+        const b = await store.getCampaign(withId);
+        if (!a || !b) return reply.code(404).send({ error: 'Campaign not found' });
+        const revA = a.drsDocument?.revisions.find(
+          (r) => r.number === a.drsDocument?.currentRevision,
+        );
+        const revB = b.drsDocument?.revisions.find(
+          (r) => r.number === b.drsDocument?.currentRevision,
+        );
+        ensure(revA?.planHash, 'The first campaign has no frozen revision');
+        ensure(revB?.planHash, 'The second campaign has no frozen revision');
+        const comparison = compareDrsReports(drsReport(revA), drsReport(revB));
+        return {
+          ...comparison,
+          a: {
+            ...comparison.a,
+            campaignId: a.id,
+            name: a.name,
+            target: a.target,
+            finalizedAt: revA.finalizedAt ?? null,
+          },
+          b: {
+            ...comparison.b,
+            campaignId: b.id,
+            name: b.name,
+            target: b.target,
+            finalizedAt: revB.finalizedAt ?? null,
+          },
+        };
+      } catch (e) {
+        if (e instanceof DrsError) return reply.code(400).send({ error: e.message });
+        throw e;
+      }
+    },
+  );
   for (const format of ['json', 'html'] as const)
     app.get(
       '/api/campaigns/:id/drs/report.' + format,

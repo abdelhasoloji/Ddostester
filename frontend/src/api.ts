@@ -1268,6 +1268,10 @@ export const api = {
     ),
   // Latest report for a campaign, without pinning a revision (the workspace list).
   drsClients: () => get<{ clients: DrsClientView[] }>('/api/drs/clients'),
+  drsCompare: (campaignId: string, withId: string) =>
+    get<DrsCompareView>(
+      `/api/campaigns/${encodeURIComponent(campaignId)}/drs/compare?with=${encodeURIComponent(withId)}`,
+    ),
   drsCampaignReport: (campaignId: string) =>
     get<DrsReportView>(`/api/campaigns/${encodeURIComponent(campaignId)}/drs/report.json`),
   drsCapacity: (q?: { rps?: number; concurrency?: number; duration?: number }) => {
@@ -1854,6 +1858,32 @@ export interface DrsCampaignView {
   document: { currentRevision: number; revisions: DrsRevisionView[] } | null;
   defaultPlan: Record<string, unknown>;
 }
+export interface DrsCompareSide {
+  campaignId: string;
+  name: string;
+  target: string;
+  revision: number;
+  finalizedAt: string | null;
+  status: string;
+  score: number | null;
+  terminalLevel: number | null;
+  terminalOutcome: string;
+  proofs: number;
+}
+
+export interface DrsCompareView {
+  a: DrsCompareSide;
+  b: DrsCompareSide;
+  deltas: {
+    statusChanged: boolean;
+    levelChange: number;
+    proofDelta: number;
+    gapsResolved: { vectorId: string; dimension: string }[];
+    gapsRemaining: { vectorId: string; dimension: string }[];
+    gapsRegressed: { vectorId: string; dimension: string }[];
+  };
+}
+
 export interface DrsReportView {
   assessment: {
     label: string;

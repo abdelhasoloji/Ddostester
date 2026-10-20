@@ -14,6 +14,7 @@ fakeApi.executeDrsPlan = vi.fn();
 fakeApi.replayDrsPlan = vi.fn();
 fakeApi.cancelDrsPlan = vi.fn();
 fakeApi.drsCampaignReport = vi.fn();
+const drsCompareMock = fakeApi.drsCompare as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -61,6 +62,7 @@ beforeEach(() => {
   fakeApi.drsCampaignReport.mockReset();
   fakeApi.replayDrsPlan.mockReset();
   fakeApi.cancelDrsPlan.mockReset();
+  drsCompareMock.mockReset();
 });
 
 describe('DRS workspace', () => {
@@ -182,5 +184,60 @@ describe('kill switch', () => {
     currentApp = makeApp({ campaigns: [drsCampaign()] });
     renderWithRouter(<DrsPage />);
     expect(screen.queryByRole('button', { name: /^cancel$/i })).toBeNull();
+  });
+});
+
+describe('comparison', () => {
+  it('compares two finalized assessments and shows what changed', async () => {
+    const first = drsCampaign();
+    (first.drsDocument!.revisions[0] as unknown as { finalizedAt: string }).finalizedAt =
+      '2026-10-19T20:00:00.000Z';
+    const second = drsCampaign({ id: 'c2', name: 'DRS L1 — staging (replay)' });
+    (second.drsDocument!.revisions[0] as unknown as { finalizedAt: string }).finalizedAt =
+      '2026-10-19T21:00:00.000Z';
+    currentApp = makeApp({ campaigns: [first, second] });
+    fakeApi.drsCampaignReport.mockResolvedValue({ assessment: { requirementGaps: [] } });
+    drsCompareMock.mockResolvedValue({
+      a: {
+        campaignId: 'c1',
+        name: 'DRS L1 — staging',
+        target: 'https://staging.example.com/',
+        revision: 1,
+        finalizedAt: '2026-10-19T20:00:00.000Z',
+        status: 'PARTIAL',
+        score: null,
+        terminalLevel: 1,
+        terminalOutcome: 'PARTIAL',
+        proofs: 1,
+      },
+      b: {
+        campaignId: 'c2',
+        name: 'DRS L1 — staging (replay)',
+        target: 'https://staging.example.com/',
+        revision: 1,
+        finalizedAt: '2026-10-19T21:00:00.000Z',
+        status: 'COMPLETE',
+        score: 82,
+        terminalLevel: 2,
+        terminalOutcome: 'COMPLETE',
+        proofs: 2,
+      },
+      deltas: {
+        statusChanged: true,
+        levelChange: 1,
+        proofDelta: 1,
+        gapsResolved: [{ vectorId: 'drs-3.00.00-151002', dimension: 'load' }],
+        gapsRemaining: [{ vectorId: 'drs-3.00.00-151002', dimension: 'sources' }],
+        gapsRegressed: [],
+      },
+    });
+    renderWithRouter(<DrsPage />);
+    fireEvent.click(screen.getByLabelText('Select DRS L1 — staging for comparison'));
+    fireEvent.click(screen.getByLabelText('Select DRS L1 — staging (replay) for comparison'));
+    fireEvent.click(screen.getByRole('button', { name: /compare the two selections/i }));
+    await waitFor(() => expect(drsCompareMock).toHaveBeenCalledWith('c1', 'c2'));
+    expect(await screen.findByText('Comparison')).toBeTruthy();
+    expect(screen.getByText(/drs-3\.00\.00-151002 load/)).toBeTruthy();
+    expect(screen.getByText(/drs-3\.00\.00-151002 sources/)).toBeTruthy();
   });
 });

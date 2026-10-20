@@ -62,3 +62,79 @@ export function drsReportHtml(r: DrsRevision): string {
     ),
   )}</pre><h2>Existing run and synthetic-lab observations (diagnostic only)</h2><pre>${esc(JSON.stringify(r.attachments ?? [], null, 2))}</pre><h2>Verdicts and historical attempts</h2><pre>${esc(JSON.stringify(a.conclusions, null, 2))}</pre><h2>Reference anomalies and interpretation</h2><pre>${esc(JSON.stringify(a.ambiguities, null, 2))}</pre><h2>Reproducibility</h2><p>Proof archive ${esc(a.proofHash)}. Download JSON with the complete frozen plan, source reference and evidence chain to reproduce this calculation. No measured-load multiplier is applied.</p></html>`;
 }
+
+export interface DrsComparison {
+  a: {
+    revision: number;
+    status: string;
+    score: number | null;
+    terminalLevel: number | null;
+    terminalOutcome: string;
+    proofs: number;
+  };
+  b: {
+    revision: number;
+    status: string;
+    score: number | null;
+    terminalLevel: number | null;
+    terminalOutcome: string;
+    proofs: number;
+  };
+  deltas: {
+    statusChanged: boolean;
+    levelChange: number;
+    proofDelta: number;
+    gapsResolved: { vectorId: string; dimension: string }[];
+    gapsRemaining: { vectorId: string; dimension: string }[];
+    gapsRegressed: { vectorId: string; dimension: string }[];
+  };
+}
+
+/**
+ * Compare two frozen revisions of the same assessment intent. The useful question after a
+ * protection change is not "what is the score" but "which archived requirement is now met,
+ * which is still not, and which regressed".
+ */
+export function compareDrsReports(
+  a: ReturnType<typeof drsReport>,
+  b: ReturnType<typeof drsReport>,
+): DrsComparison {
+  const key = (g: { vectorId: string; dimension: string }) => `${g.vectorId}|${g.dimension}`;
+  const gapsOf = (r: ReturnType<typeof drsReport>) => r.assessment.requirementGaps ?? [];
+  const ga = new Map(gapsOf(a).map((g) => [key(g), g]));
+  const gb = new Map(gapsOf(b).map((g) => [key(g), g]));
+  const resolved: { vectorId: string; dimension: string }[] = [];
+  const remaining: { vectorId: string; dimension: string }[] = [];
+  const regressed: { vectorId: string; dimension: string }[] = [];
+  for (const [k, g] of gb) {
+    const before = ga.get(k);
+    if (g.met && before && !before.met)
+      resolved.push({ vectorId: g.vectorId, dimension: g.dimension });
+    if (!g.met) remaining.push({ vectorId: g.vectorId, dimension: g.dimension });
+  }
+  for (const [k, g] of ga) {
+    const after = gb.get(k);
+    if (g.met && after && !after.met)
+      regressed.push({ vectorId: g.vectorId, dimension: g.dimension });
+  }
+  const side = (r: ReturnType<typeof drsReport>) => ({
+    revision: r.revision,
+    status: r.assessment.status,
+    score: r.assessment.score,
+    terminalLevel: r.assessment.terminalLevel,
+    terminalOutcome: r.assessment.terminalOutcome,
+    proofs: r.proofs.length,
+  });
+  return {
+    a: side(a),
+    b: side(b),
+    deltas: {
+      statusChanged: a.assessment.status !== b.assessment.status,
+      levelChange: (b.assessment.terminalLevel ?? 0) - (a.assessment.terminalLevel ?? 0),
+      proofDelta: b.proofs.length - a.proofs.length,
+      gapsResolved: resolved,
+      gapsRemaining: remaining,
+      gapsRegressed: regressed,
+    },
+  };
+}
