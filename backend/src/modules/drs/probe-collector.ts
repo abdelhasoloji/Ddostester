@@ -16,8 +16,10 @@ import type { DrsEvidencePort } from './orchestrator.js';
 
 export interface ProbeCollectorOptions {
   probeUrl: string;
-  /** Independent entry/origin witness (target telemetry). Optional: absence is reported. */
-  witnessUrl?: string;
+  /** Edge/entry witness: a telemetry endpoint counting what reached the entry point. */
+  entryWitnessUrl?: string;
+  /** Origin witness: target-side telemetry counting what the application served. */
+  originWitnessUrl?: string;
   /** Independent observation samples per second. */
   samplesPerSec?: number;
   /** Upper bound for the baseline window; the orchestrator may also abort earlier. */
@@ -73,6 +75,12 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
   let startedAt = '';
   let finishedAt = '';
   let recoveryAt: string | null = null;
+  let entryBefore = 0;
+  let entryAfter = 0;
+  let originBefore = 0;
+  let originAfter = 0;
+  let entryErrors = 0;
+  let originErrors = 0;
   let outageStart: string | null = null;
   const outages: { start: string; end: string }[] = [];
 
@@ -93,6 +101,22 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
       };
     } catch {
       return { at: new Date(now()).toISOString(), ms: now() - t0, status: 0, ok: false, body: '' };
+    }
+  };
+
+  /** Read a cumulative counter from a witness endpoint: { requests, errors }. */
+  const counter = async (url: string): Promise<{ requests: number; errors: number } | null> => {
+    try {
+      const response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!response.ok) return null;
+      const body = (await response.json()) as { requests?: unknown; errors?: unknown };
+      const requests = Number(body.requests);
+      const errors = Number(body.errors);
+      return Number.isFinite(requests)
+        ? { requests, errors: Number.isFinite(errors) ? errors : 0 }
+        : null;
+    } catch {
+      return null;
     }
   };
 
@@ -135,7 +159,8 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
           reason: `probe not healthy before the exposure (status ${check.status})`,
         };
       const gaps = [
-        opts.witnessUrl ? null : 'no independent entry/origin witness configured',
+        opts.entryWitnessUrl ? null : 'no entry witness configured',
+        opts.originWitnessUrl ? null : 'no origin witness configured',
         'calibration evidence is not collected by this adapter',
       ].filter(Boolean);
       // Ready to observe, but the gaps travel with every sealed evidence so the verdict
@@ -177,6 +202,20 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
       samples = [];
       witnessSamples = [];
       startedAt = new Date(now()).toISOString();
+      if (opts.entryWitnessUrl) {
+        const c = await counter(opts.entryWitnessUrl);
+        if (c) {
+          entryBefore = c.requests;
+          entryErrors = c.errors;
+        }
+      }
+      if (opts.originWitnessUrl) {
+        const c = await counter(opts.originWitnessUrl);
+        if (c) {
+          originBefore = c.requests;
+          originErrors = c.errors;
+        }
+      }
       // Finish before the orchestrator's deadline instead of waiting for its abort: the
       // bound rejects the call the moment it fires, so an observation that returns at the
       // same instant would lose the whole exposure.
@@ -187,6 +226,20 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
       finishedAt = new Date(now()).toISOString();
+      if (opts.entryWitnessUrl) {
+        const c = await counter(opts.entryWitnessUrl);
+        if (c) {
+          entryAfter = c.requests;
+          entryErrors = Math.max(0, c.errors - entryErrors);
+        }
+      }
+      if (opts.originWitnessUrl) {
+        const c = await counter(opts.originWitnessUrl);
+        if (c) {
+          originAfter = c.requests;
+          originErrors = Math.max(0, c.errors - originErrors);
+        }
+      }
     },
     async recovery(plan, signal) {
       const deadline = now() + Math.min(plan.recoveryTimeoutSec, 30) * 1000;
@@ -225,11 +278,16 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
       const intervals = [...outages];
       if (outageStart)
         intervals.push({ start: outageStart, end: finishedAt || new Date(now()).toISOString() });
+      // Witness loads are counters over the exposure window, so the window length matters.
+      const exposureSeconds = Math.max(
+        1,
+        (new Date(finishedAt || now()).getTime() - new Date(startedAt || now()).getTime()) / 1000,
+      );
       const dimensions = [
-        'entry instrumentation (no witness)',
-        'origin instrumentation (no witness)',
+        opts.entryWitnessUrl ? null : 'entry instrumentation (no witness)',
+        opts.originWitnessUrl ? null : 'origin instrumentation (no witness)',
         'calibration evidence',
-      ];
+      ].filter((d): d is string => d !== null);
       return vectorIds.map((vectorId) => ({
         vectorId,
         attemptId: `probe-${vectorId}-${Math.round(now())}`,
@@ -238,6 +296,36 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
         finishedAt,
         requested_load: { value: plan.budgets.maxRps, unit: 'tps' as const },
         points: [
+          ...(opts.entryWitnessUrl && entryAfter >= entryBefore
+            ? [
+                {
+                  sourceId: 'entry',
+                  startedAt,
+                  finishedAt,
+                  artifactHash: sha256({ entryBefore, entryAfter, entryErrors }),
+                  sampleCount: 2,
+                  load: {
+                    value: Math.round((entryAfter - entryBefore) / Math.max(1, exposureSeconds)),
+                    unit: 'tps' as const,
+                  },
+                },
+              ]
+            : []),
+          ...(opts.originWitnessUrl && originAfter >= originBefore
+            ? [
+                {
+                  sourceId: 'origin',
+                  startedAt,
+                  finishedAt,
+                  artifactHash: sha256({ originBefore, originAfter, originErrors }),
+                  sampleCount: 2,
+                  load: {
+                    value: Math.round((originAfter - originBefore) / Math.max(1, exposureSeconds)),
+                    unit: 'tps' as const,
+                  },
+                },
+              ]
+            : []),
           {
             sourceId: 'generator',
             startedAt,

@@ -2557,7 +2557,14 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         url: campaign.target,
         allowedHosts: await effectiveAllowlist(),
       });
-      const collector = createProbeCollectorPort({ probeUrl: campaign.probeUrl });
+      // Optional independent witnesses: an edge counter and a target-side counter. When the
+      // deployment provides them, the sealed evidence carries entry and origin points instead
+      // of declaring those dimensions unrepresented.
+      const collector = createProbeCollectorPort({
+        probeUrl: campaign.probeUrl,
+        entryWitnessUrl: process.env.DRS_ENTRY_WITNESS_URL || undefined,
+        originWitnessUrl: process.env.DRS_ORIGIN_WITNESS_URL || undefined,
+      });
       const controller = new AbortController();
       drsRunning.set(id, controller);
       void orchestrateDrs(rev, actor, {
