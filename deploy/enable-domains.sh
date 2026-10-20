@@ -109,17 +109,22 @@ for host in "${ready[@]}"; do
     drs.trustena.lu) local_port=8080 ;;
     testdrs.trustena.lu) local_port=8081 ;;
   esac
-  code=''
+  # /health says the API is up; / says the product is served. Staging once answered 200 on
+  # /health and 404 on / because only the backend had been built, so both are checked.
+  health=''
+  root=''
+  serve=''
   for _ in $(seq 1 30); do
-    # Pin the address: the host resolver can still hold the previous wildcard for the TTL.
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 --resolve "$host:443:$HOST_IP" "https://$host/health" || true)"
-    [ "$code" = '200' ] && break
+    health="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 --resolve "$host:443:$HOST_IP" "https://$host/health" || true)"
+    serve="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 --resolve "$host:443:$HOST_IP" "https://$host/" || true)"
+    [ "$health" = '200' ] && [ "$serve" = '200' ] && break
     sleep 2
   done
-  if [ "$code" = '200' ]; then
-    echo "ok    https://$host/health -> 200 (backend :$local_port)"
+  root="$(curl -s --max-time 5 --resolve "$host:443:$HOST_IP" "https://$host/" | grep -c '<title>' || true)"
+  if [ "$health" = '200' ] && [ "$serve" = '200' ] && [ "$root" -gt 0 ]; then
+    echo "ok    https://$host -> 200 (/health and / with title, backend :$local_port)"
   else
-    echo "WARN  https://$host/health -> ${code:-no answer}; check journalctl -u caddy"
+    echo "WARN  https://$host -> health=${health:-none} root=${serve:-none} title=${root:-0}; check journalctl -u caddy and the service"
   fi
 done
 
