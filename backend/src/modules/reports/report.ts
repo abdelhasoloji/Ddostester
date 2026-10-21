@@ -366,7 +366,7 @@ export function renderCampaignReportHtml(campaign: Campaign, run: CampaignRun): 
     `<h2>Run detail</h2>
 <table class="kvs">
  ${campaign.drsProfileId ? `<tr><th>DRS profile</th><td>${esc(campaign.drsProfileId)} · bounded Fleet functional measurement, not a DRS certification</td></tr>` : ''}
- <tr><th>DRS assessment</th><td>${run.drsAssessment ? `${esc(run.drsAssessment.assessment.label)} · ${esc(run.drsAssessment.assessment.status)} · ${run.drsAssessment.assessment.score ?? 'No usable score'} · standard ${esc(run.drsAssessment.reference.standardVersion)} · revision ${run.drsAssessment.revision}` : 'NOT_EVALUATED — no independent frozen DRS evidence archive. WRS is a separate diagnostic.'}</td></tr>
+ <tr><th>DRS assessment</th><td>${run.drsAssessment?.assessment ? `${esc(run.drsAssessment.assessment.label)} · ${esc(run.drsAssessment.assessment.status)} · ${run.drsAssessment.assessment.score ?? 'No usable score'} · standard ${esc(run.drsAssessment.reference.standardVersion)} · revision ${run.drsAssessment.revision}` : 'NOT_EVALUATED — no independent frozen DRS evidence archive. WRS is a separate diagnostic.'}</td></tr>
  <tr><th>Campaign</th><td>${esc(campaign.name)} <span class="muted">(${campaign.id})</span></td></tr>
  <tr><th>Target</th><td>${esc(campaign.target)}</td></tr>
  <tr><th>Vector</th><td>${campaign.vector} (bounded application HTTP)</td></tr>

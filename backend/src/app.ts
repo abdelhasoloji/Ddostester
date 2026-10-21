@@ -22,6 +22,7 @@ import { DrsClientError, parseClientInput } from './modules/drs/client.js';
 import { orchestrateDrs } from './modules/drs/orchestrator.js';
 import { createEngineGeneratorPort } from './modules/drs/engine-generator.js';
 import { createProbeCollectorPort } from './modules/drs/probe-collector.js';
+import { runSyntheticValidation } from './modules/drs/synthetic.js';
 import { parseCalibration, CalibrationError } from './modules/drs/calibration.js';
 import { drsWorkflow, drsCatalog } from './modules/drs/catalog.js';
 import { registerFleetMissionRoutes } from './routes/fleet-mission-routes.js';
@@ -2589,23 +2590,42 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       });
       const controller = new AbortController();
       drsRunning.set(id, controller);
-      void orchestrateDrs(rev, actor, {
-        generator,
-        collector,
-        signal: controller.signal,
-        checkpoint: async () => {
-          await store.saveCampaign(campaign);
-        },
-      })
-        .then(async (assessment) => {
-          await store.saveCampaign(campaign);
-          await audit(
-            req,
-            'drs.verdict',
-            id,
-            `DRS execution ${assessment.status} · score ${assessment.score ?? 'none'} · ${assessment.terminalOutcome}`,
-          );
-        })
+      // A synthetic-lab plan never touches the target: it validates the instrument against an
+      // internal sink and stops at ENGINE_VALIDATED, with no verdict.
+      const run =
+        rev.plan.mode === 'synthetic-lab'
+          ? runSyntheticValidation(rev, actor, {
+              generator: (url) => createEngineGeneratorPort({ url, allowedHosts: ['127.0.0.1'] }),
+              signal: controller.signal,
+              checkpoint: async () => {
+                await store.saveCampaign(campaign);
+              },
+            }).then(async (validation) => {
+              await store.saveCampaign(campaign);
+              await audit(
+                req,
+                'drs.engine_validation',
+                id,
+                `Synthetic validation · fidelity ${(validation.fidelity * 100).toFixed(1)} % · no verdict`,
+              );
+            })
+          : orchestrateDrs(rev, actor, {
+              generator,
+              collector,
+              signal: controller.signal,
+              checkpoint: async () => {
+                await store.saveCampaign(campaign);
+              },
+            }).then(async (assessment) => {
+              await store.saveCampaign(campaign);
+              await audit(
+                req,
+                'drs.verdict',
+                id,
+                `DRS execution ${assessment.status} · score ${assessment.score ?? 'none'} · ${assessment.terminalOutcome}`,
+              );
+            });
+      void run
         .catch(async (err) => {
           await store.saveCampaign(campaign).catch(() => undefined);
           await audit(req, 'drs.verdict', id, `DRS execution failed: ${(err as Error).message}`);
