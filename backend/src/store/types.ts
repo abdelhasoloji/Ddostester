@@ -7,6 +7,7 @@ import type { OperationalLimits } from '../config/limits.js';
 import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/model.js';
 import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
+import type { DrsClient } from '../modules/drs/client.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 /**
@@ -35,6 +36,10 @@ export interface Store {
   saveFleetDevice(device: FleetDevice): Promise<void>;
   deleteFleetDevice(id: string): Promise<void>;
   /** Measured per-agent capacity; the DRS envelope is derived from these rows. */
+  listDrsClients(): Promise<DrsClient[]>;
+  getDrsClient(id: string): Promise<DrsClient | undefined>;
+  saveDrsClient(c: DrsClient): Promise<void>;
+  deleteDrsClient(id: string): Promise<void>;
   listAgentCalibrations(): Promise<AgentCalibration[]>;
   saveAgentCalibration(c: AgentCalibration): Promise<void>;
   deleteAgentCalibration(agentId: string): Promise<void>;

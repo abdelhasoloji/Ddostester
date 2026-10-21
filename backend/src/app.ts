@@ -18,6 +18,7 @@ import { registerDrsRoutes } from './routes/drs-routes.js';
 import { drsReport } from './modules/drs/report.js';
 import { drsReference } from './modules/drs/reference.js';
 import { deriveEnvelope, levelReachability, parseQuantity } from './modules/drs/capacity.js';
+import { DrsClientError, parseClientInput } from './modules/drs/client.js';
 import { orchestrateDrs } from './modules/drs/orchestrator.js';
 import { createEngineGeneratorPort } from './modules/drs/engine-generator.js';
 import { createProbeCollectorPort } from './modules/drs/probe-collector.js';
@@ -2475,7 +2476,22 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         warnings: envelope.warnings,
         assessedAt: new Date().toISOString(),
       };
+      // A dossier, when named, brings its signed scope: the target must appear in it and the
+      // budget may not exceed the volume the client agreed to.
+      let dossier: Awaited<ReturnType<typeof store.getDrsClient>> | undefined;
+      if (text(b.clientId)) {
+        dossier = await store.getDrsClient(text(b.clientId));
+        if (!dossier) return reply.code(400).send({ error: 'client dossier not found' });
+        if (!dossier.scope.targets.includes(target))
+          return reply
+            .code(400)
+            .send({ error: `target is not in the signed scope of ${dossier.name}` });
+      }
       const requestedRps = Number(b.maxRps);
+      const scopedRps =
+        dossier && Number.isFinite(requestedRps) && requestedRps > 0
+          ? Math.min(requestedRps, dossier.scope.maxRps)
+          : requestedRps;
       const campaign = createCampaign(
         {
           name: text(b.name) || `DRS L${maxLevel} — ${new URL(target).host}`,
@@ -2489,19 +2505,20 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           maxRps:
             envelope.maxRps > 0
               ? Math.min(
-                  Number.isFinite(requestedRps) && requestedRps > 0
-                    ? Math.floor(requestedRps)
+                  Number.isFinite(scopedRps) && scopedRps > 0
+                    ? Math.floor(scopedRps)
                     : envelope.maxRps,
                   envelope.maxRps,
                 )
-              : Number.isFinite(requestedRps) && requestedRps > 0
-                ? Math.floor(requestedRps)
+              : Number.isFinite(scopedRps) && scopedRps > 0
+                ? Math.floor(scopedRps)
                 : 50,
           concurrency: Math.max(envelope.maxConcurrency, 1),
           maxDurationSec: exposureSec,
           authorized: b.authorized === true,
           drsMode: mode,
-          ...(text(b.client) ? { client: text(b.client) } : {}),
+          ...(dossier ? { client: dossier.name, clientId: dossier.id } : {}),
+          ...(!dossier && text(b.client) ? { client: text(b.client) } : {}),
         },
         await effectiveAllowlist(),
         agentChoices(),
@@ -2614,11 +2631,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
-  // Client dossiers: the DRS assessments grouped by the client they belong to. The client
-  // is a display grouping, not an authorization boundary — the allowlist and approvals
-  // stay the gate.
   // Replay a frozen assessment: a new campaign with the same intent, a fresh revision and
-  // the envelope re-derived from the fleet as it is now, not as it was.
+  // the envelope re-derived from the fleet as it is now, not as it was. The dossier, when the
+  // source had one, follows the clone.
   app.post(
     '/api/campaigns/:id/drs/replay',
     { preHandler: guard('campaign:create') },
@@ -2654,7 +2669,6 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
         const campaign: Campaign = {
           id: randomUUID(),
           name: (src.name + ' (replay)').slice(0, 120),
-          client: src.client,
           createdBy: actor,
           createdAt: new Date().toISOString(),
           status: 'PENDING_APPROVAL',
@@ -2668,6 +2682,8 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
           maxDurationSec: plan.exposureSec,
           authorized: src.authorized,
           drsMode: plan.mode,
+          ...(src.client ? { client: src.client } : {}),
+          ...(src.clientId ? { clientId: src.clientId } : {}),
         };
         const doc = createRevision(undefined, plan, actor);
         freezeDrsPlan(currentDrsRevision(doc), campaign);
@@ -2681,44 +2697,127 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
     },
   );
 
+  // Client dossiers. A dossier carries the signed scope; campaigns reference it by id and
+  // keep the name for display. Legacy campaigns only have a name, so they are listed as
+  // unregistered rather than silently merged into a dossier.
   app.get('/api/drs/clients', { preHandler: guard('campaign:read') }, async () => {
-    const campaigns = (await store.listCampaigns()).filter((c) => c.drsDocument);
-    const byClient = new Map<
+    const [clients, campaigns] = await Promise.all([store.listDrsClients(), store.listCampaigns()]);
+    const drs = campaigns.filter((c) => c.drsDocument);
+    const counts = new Map<
       string,
       {
-        client: string;
         assessments: number;
         finalized: number;
-        targets: string[];
+        targets: Set<string>;
         lastAt: string | null;
         lastState: string;
       }
     >();
-    for (const c of campaigns) {
-      const name = c.client?.trim() || c.createdBy;
+    const bump = (key: string, c: (typeof drs)[number]) => {
       const doc = c.drsDocument!;
       const rev = doc.revisions.find((r) => r.number === doc.currentRevision) ?? doc.revisions[0];
-      const entry = byClient.get(name) ?? {
-        client: name,
+      const entry = counts.get(key) ?? {
         assessments: 0,
         finalized: 0,
-        targets: [],
+        targets: new Set<string>(),
         lastAt: null,
-        lastState: rev?.state ?? 'DRAFT',
+        lastState: 'DRAFT',
       };
       entry.assessments += 1;
       if (rev?.finalizedAt) entry.finalized += 1;
-      if (!entry.targets.includes(c.target)) entry.targets.push(c.target);
-      if (!entry.lastAt || (rev?.createdAt ?? '') > entry.lastAt) {
-        entry.lastAt = rev?.createdAt ?? null;
+      entry.targets.add(c.target);
+      const at = rev?.createdAt ?? null;
+      if (!entry.lastAt || (at ?? '') > entry.lastAt) {
+        entry.lastAt = at;
         entry.lastState = rev?.state ?? 'DRAFT';
       }
-      byClient.set(name, entry);
-    }
+      counts.set(key, entry);
+    };
+    const known = new Set(clients.map((c) => c.id));
+    for (const c of drs)
+      bump(
+        c.clientId && known.has(c.clientId)
+          ? c.clientId
+          : `legacy:${c.client?.trim() || c.createdBy}`,
+        c,
+      );
+
+    const registered = clients.map((c) => {
+      const n = counts.get(c.id);
+      return {
+        id: c.id,
+        client: c.name,
+        registered: true,
+        contacts: c.contacts,
+        scope: c.scope,
+        assessments: n?.assessments ?? 0,
+        finalized: n?.finalized ?? 0,
+        targets: [...(n?.targets ?? [])],
+        lastAt: n?.lastAt ?? null,
+        lastState: n?.lastState ?? '—',
+      };
+    });
+    const unregistered = [...counts.entries()]
+      .filter(([key]) => key.startsWith('legacy:'))
+      .map(([key, n]) => ({
+        id: null,
+        client: key.slice('legacy:'.length),
+        registered: false,
+        contacts: [],
+        scope: null,
+        assessments: n.assessments,
+        finalized: n.finalized,
+        targets: [...n.targets],
+        lastAt: n.lastAt,
+        lastState: n.lastState,
+      }));
     return {
-      clients: [...byClient.values()].sort((a, b) => a.client.localeCompare(b.client)),
+      clients: [...registered, ...unregistered].sort((a, b) => a.client.localeCompare(b.client)),
     };
   });
+
+  app.post('/api/drs/clients', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    try {
+      const now = new Date().toISOString();
+      const input = parseClientInput(req.body);
+      const client = { ...input, id: randomUUID(), createdAt: now, updatedAt: now };
+      await store.saveDrsClient(client);
+      await audit(req, 'drs.client.create', client.id, `client ${client.name}`);
+      return reply.code(201).send(client);
+    } catch (e) {
+      if (e instanceof DrsClientError) return reply.code(400).send({ error: e.message });
+      throw e;
+    }
+  });
+
+  app.get('/api/drs/clients/:id', { preHandler: guard('campaign:read') }, async (req, reply) => {
+    const client = await store.getDrsClient((req.params as { id: string }).id);
+    if (!client) return reply.code(404).send({ error: 'client not found' });
+    const campaigns = (await store.listCampaigns()).filter(
+      (c) => c.clientId === client.id && c.drsDocument,
+    );
+    return { client, campaigns };
+  });
+
+  app.patch(
+    '/api/drs/clients/:id',
+    { preHandler: guard('campaign:create') },
+    async (req, reply) => {
+      try {
+        const id = (req.params as { id: string }).id;
+        const existing = await store.getDrsClient(id);
+        if (!existing) return reply.code(404).send({ error: 'client not found' });
+        const input = parseClientInput(req.body);
+        const client = { ...existing, ...input, updatedAt: new Date().toISOString() };
+        await store.saveDrsClient(client);
+        await audit(req, 'drs.client.update', id, `client ${client.name}`);
+        return client;
+      } catch (e) {
+        if (e instanceof DrsClientError) return reply.code(400).send({ error: e.message });
+        throw e;
+      }
+    },
+  );
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();

@@ -72,6 +72,8 @@ export interface CampaignInput {
   name: string;
   /** Client dossier this assessment belongs to (display grouping, not authorization). */
   client?: string;
+  /** Id of the dossier that owns the signed scope; absent on legacy campaigns. */
+  clientId?: string;
   description?: string;
   /** Target URL (must be in the allowlist). */
   target: string;

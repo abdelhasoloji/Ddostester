@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>ShieldTest DRS — maquette produit</title>
+    <style>
+      :root {
+        --blue: #0a356b;
+        --blue2: #1554a6;
+        --ink: #16202f;
+        --muted: #5b6b82;
+        --line: #d6deea;
+        --bg: #f5f8fc;
+        --card: #ffffff;
+        --green: #2e7d32;
+        --amber: #b26a00;
+        --red: #b3261e;
+        --radius: 10px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 232px 1fr;
+        min-height: 100vh;
+      }
+
+      /* sidebar */
+      .side {
+        background: var(--card);
+        border-right: 1px solid var(--line);
+        padding: 18px 14px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 22px;
+      }
+      .brand b {
+        color: var(--blue);
+        letter-spacing: -0.02em;
+        font-size: 15px;
+      }
+      .brand span {
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 8px;
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 13.5px;
+      }
+      .nav a:hover {
+        background: #f2f5fa;
+      }
+      .nav a.on {
+        background: #eef3fb;
+        color: var(--blue);
+        font-weight: 600;
+        box-shadow: inset 3px 0 0 var(--blue2);
+      }
+      .nav .sep {
+        margin: 14px 10px 6px;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+      .dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: #c9d6e8;
+        flex: none;
+      }
+
+      /* main */
+      main {
+        padding: 26px 30px 60px;
+        max-width: 1180px;
+      }
+      .screen {
+        display: none;
+      }
+      .screen.on {
+        display: block;
+      }
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 4px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+        color: var(--blue);
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 26px 0 10px;
+        color: var(--blue);
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12.5px;
+        margin: 0 0 14px;
+        max-width: 80ch;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+      }
+      .b-measured {
+        background: #e8f3e9;
+        color: var(--green);
+        border-color: #cfe3d1;
+      }
+      .b-synth {
+        background: #fdf3e3;
+        color: var(--amber);
+        border-color: #f0dcc0;
+      }
+      .b-neutral {
+        background: #eef3fb;
+        color: var(--blue);
+        border-color: #d8e3f3;
+      }
+      .b-red {
+        background: #fbeaea;
+        color: var(--red);
+        border-color: #f0cfcd;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 14px 0 18px;
+      }
+      .kpi {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+      }
+      .kpi b {
+        display: block;
+        font-size: 20px;
+        color: var(--blue);
+      }
+      .kpi span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+        vertical-align: top;
+      }
+      th {
+        background: #f2f5fa;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td b {
+        color: var(--ink);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .unmet {
+        background: #fdf3e3;
+      }
+      .ok {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .no {
+        color: var(--red);
+        font-weight: 600;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--blue2);
+        color: var(--blue2);
+        background: #fff;
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--blue2);
+        color: #fff;
+      }
+      .btn.ghost {
+        border-color: var(--line);
+        color: var(--muted);
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      /* wizard */
+      .steps {
+        display: flex;
+        gap: 8px;
+        margin: 8px 0 20px;
+        flex-wrap: wrap;
+      }
+      .step {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #eef3fb;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .step.on {
+        background: var(--blue2);
+        color: #fff;
+        font-weight: 600;
+      }
+      .step.done {
+        background: #e8f3e9;
+        color: var(--green);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .choice {
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 18px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .choice.sel {
+        border-color: var(--blue2);
+        box-shadow: 0 0 0 3px #e7eefb;
+      }
+      .choice h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+      .choice p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .choice ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      label.field {
+        display: block;
+        margin-bottom: 12px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      label.field input,
+      label.field select {
+        display: block;
+        width: 100%;
+        margin-top: 5px;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 13.5px;
+        color: var(--ink);
+        background: #fff;
+      }
+      .note {
+        border-left: 3px solid var(--amber);
+        background: #fdf8ef;
+        padding: 12px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      .note.blue {
+        border-color: var(--blue2);
+        background: #f0f5fc;
+      }
+      .note.green {
+        border-color: var(--green);
+        background: #f0f7f1;
+      }
+
+      .timeline {
+        display: flex;
+        gap: 0;
+        margin: 16px 0 22px;
+      }
+      .tl {
+        flex: 1;
+        text-align: center;
+        font-size: 11.5px;
+        color: var(--muted);
+        position: relative;
+        padding-top: 22px;
+      }
+      .tl::before {
+        content: '';
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #cdd8e7;
+      }
+      .tl::after {
+        content: '';
+        position: absolute;
+        top: 11px;
+        left: 50%;
+        width: 100%;
+        height: 1px;
+        background: var(--line);
+      }
+      .tl:last-child::after {
+        display: none;
+      }
+      .tl.done::before {
+        background: var(--green);
+      }
+      .tl.done {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .tl.now::before {
+        background: var(--blue2);
+        box-shadow: 0 0 0 4px #e2ebfa;
+      }
+      .tl.now {
+        color: var(--blue);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="side">
+        <div class="brand">
+          <div
+            class="dot"
+            style="background: #0a356b; width: 26px; height: 26px; border-radius: 8px"
+          ></div>
+          <div><b>SHIELDTEST</b><br /><span>DRS service</span></div>
+        </div>
+        <nav class="nav">
+          <a href="#clients" data-nav="clients" class="on">Clients</a>
+          <a href="#client" data-nav="client">Dossier client</a>
+          <a href="#capacity" data-nav="capacity">Capacity</a>
+          <a href="#assessment" data-nav="assessment">Assessment mesuré</a>
+          <a href="#synthetic" data-nav="synthetic">Assessment synthétique</a>
+          <a href="#compare" data-nav="compare">Comparaison</a>
+          <a href="#wizard" data-nav="wizard">Nouvelle campagne</a>
+          <div class="sep">Réglages</div>
+          <a href="#settings" data-nav="settings">Autorisation &amp; plafonds</a>
+        </nav>
+      </aside>
+
+      <main>
+        <!-- ================== CLIENTS ================== -->
+        <section class="screen on" id="s-clients">
+          <div class="head">
+            <div>
+              <h1>Clients</h1>
+              <p class="hint">
+                Un dossier par client : ses campagnes, les cibles couvertes et le dernier verdict.
+                Le client regroupe, il n'autorise pas — l'allowlist, l'attestation et la permission
+                d'exécution restent les portes.
+              </p>
+            </div>
+            <a class="btn primary" href="#wizard">Nouvelle campagne</a>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi"><b>9 600</b><span>rps d'enveloppe</span></div>
+            <div class="kpi"><b>2</b><span>agents admis</span></div>
+            <div class="kpi"><b>6</b><span>campagnes ce mois</span></div>
+            <div class="kpi"><b>1</b><span>témoin configuré</span></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Campagnes</th>
+                <th>Finalisées</th>
+                <th>Cibles</th>
+                <th>Dernier verdict</th>
+                <th>Activité</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <b>Acme Payments</b>
+                  <div class="hint" style="margin: 0">
+                    contact : s. martin · scope signé 2026-10-02
+                  </div>
+                </td>
+                <td>4</td>
+                <td>3</td>
+                <td class="hint">pay.acme.eu<br />api.acme.eu</td>
+                <td><span class="badge b-measured">PARTIAL · L1</span></td>
+                <td class="hint">il y a 2 h</td>
+                <td><a class="btn ghost" href="#client">Ouvrir</a></td>
+              </tr>
+              <tr>
+                <td>
+                  <b>Nordbank</b>
+                  <div class="hint" style="margin: 0">
+                    contact : t. weber · scope signé 2026-09-18
+                  </div>
+                </td>
+                <td>2</td>
+                <td>1</td>
+                <td class="hint">banque.nord.lu</td>
+                <td><span class="badge b-synth">SYNTHÉTIQUE</span></td>
+                <td class="hint">hier</td>
+                <td><a class="btn ghost" href="#client">Ouvrir</a></td>
+              </tr>
+              <tr>
+                <td>
+                  <b>Ville de Trêves</b>
+                  <div class="hint" style="margin: 0">contact : m. schmitt · scope en attente</div>
+                </td>
+                <td>0</td>
+                <td>0</td>
+                <td class="hint">—</td>
+                <td>—</td>
+                <td class="hint">—</td>
+                <td><a class="btn ghost" href="#client">Ouvrir</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ================== CLIENT ================== -->
+        <section class="screen" id="s-client">
+          <div class="head">
+            <div>
+              <h1>Acme Payments</h1>
+              <p class="hint">
+                Dossier client · dernier scope signé le 2 octobre 2026 · deux cibles autorisées.
+              </p>
+            </div>
+            <div class="row">
+              <a class="btn" href="#wizard">Campagne complète</a>
+              <a class="btn ghost" href="#wizard">Amplificateur synthétique</a>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <h2 style="margin-top: 0">Scope signé</h2>
+              <p class="hint" style="margin-bottom: 8px">
+                Document contractuel qui borne les cibles et les volumes. Il n'est jamais modifiable
+                par un opérateur.
+              </p>
+              <table>
+                <tr>
+                  <td>Cible</td>
+                  <td class="mono">https://pay.acme.eu</td>
+                </tr>
+                <tr>
+                  <td>Cible</td>
+                  <td class="mono">https://api.acme.eu</td>
+                </tr>
+                <tr>
+                  <td>Plafond</td>
+                  <td>8 000 rps · 120 concurrents</td>
+                </tr>
+                <tr>
+                  <td>Signature</td>
+                  <td class="mono">sha256 4f1c…9ab2</td>
+                </tr>
+              </table>
+            </div>
+            <div class="card">
+              <h2 style="margin-top: 0">Ce que le dossier contient</h2>
+              <table>
+                <tr>
+                  <td>Campagnes mesurées</td>
+                  <td><b>3</b></td>
+                </tr>
+                <tr>
+                  <td>Campagnes synthétiques</td>
+                  <td><b>1</b></td>
+                </tr>
+                <tr>
+                  <td>Exigences encore non atteintes</td>
+                  <td><b>2</b> (sources, persistance)</td>
+                </tr>
+                <tr>
+                  <td>Dernier rapport</td>
+                  <td><a href="#assessment">PDF · 2 pages</a></td>
+                </tr>
+              </table>
+              <div class="note blue" style="margin-top: 12px">
+                Un verdict <b>PARTIAL</b> n'est pas un échec du prestataire : c'est l'écart mesuré
+                entre l'exigence archivée et la preuve. Il est opposable.
+              </div>
+            </div>
+          </div>
+
+          <h2>Campagnes du client</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Campagne</th>
+                <th>Mode</th>
+                <th>Niveau</th>
+                <th>État</th>
+                <th>Verdict</th>
+                <th>Preuves</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <b>DRS L1 — pay.acme.eu</b>
+                  <div class="hint" style="margin: 0">19 oct. 20:14</div>
+                </td>
+                <td><span class="badge b-measured">mesurée</span></td>
+                <td>DRS 1</td>
+                <td>FINAL_REPORT</td>
+                <td><span class="badge b-measured">PARTIAL</span></td>
+                <td>1</td>
+                <td><a class="btn ghost" href="#assessment">Détail</a></td>
+              </tr>
+              <tr>
+                <td>
+                  <b>DRS L1 — api.acme.eu (replay)</b>
+                  <div class="hint" style="margin: 0">19 oct. 21:02</div>
+                </td>
+                <td><span class="badge b-measured">mesurée</span></td>
+                <td>DRS 1</td>
+                <td>FINAL_REPORT</td>
+                <td><span class="badge b-measured">PARTIAL</span></td>
+                <td>1</td>
+                <td><a class="btn ghost" href="#compare">Comparer</a></td>
+              </tr>
+              <tr>
+                <td>
+                  <b>Amplificateur — pay.acme.eu</b>
+                  <div class="hint" style="margin: 0">12 oct. 09:40</div>
+                </td>
+                <td><span class="badge b-synth">synthétique</span></td>
+                <td>DRS 1</td>
+                <td>ENGINE_VALIDATED</td>
+                <td><span class="badge b-synth">NON CERTIFIANT</span></td>
+                <td>0</td>
+                <td><a class="btn ghost" href="#synthetic">Détail</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ================== CAPACITY ================== -->
+        <section class="screen" id="s-capacity">
+          <div class="head">
+            <div>
+              <h1>Capacity</h1>
+              <p class="hint">
+                Capacité mesurée de la flotte et niveaux DRS réellement atteignables. Un agent sans
+                calibration ne compte pas.
+              </p>
+            </div>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi"><b>9 600</b><span>rps d'enveloppe</span></div>
+            <div class="kpi"><b>320</b><span>concurrence</span></div>
+            <div class="kpi"><b>2</b><span>agents admis</span></div>
+            <div class="kpi"><b>2 000</b><span>plafond de service</span></div>
+          </div>
+
+          <h2>Agents calibrés</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Débit mesuré</th>
+                <th>Concurrence</th>
+                <th>Conditions</th>
+                <th>Calibré le</th>
+                <th>Expire</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>gen-vps2</b></td>
+                <td>6 000 rps</td>
+                <td>200</td>
+                <td class="hint">TLS off, 12 ms RTT, 1 Gbps</td>
+                <td>18 oct.</td>
+                <td>18 nov.</td>
+              </tr>
+              <tr>
+                <td><b>gen-kind-1</b></td>
+                <td>6 000 rps</td>
+                <td>200</td>
+                <td class="hint">TLS on, 18 ms RTT, 8 pods</td>
+                <td>18 oct.</td>
+                <td>18 nov.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="hint" style="margin-top: 8px">
+            Enveloppe = min(scope signé, capacité × 0,8, plafond de service) = <b>9 600 rps</b>.
+          </p>
+
+          <h2>Niveaux atteignables</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Niveau</th>
+                <th>Vecteurs</th>
+                <th>Atteignables</th>
+                <th>Ce qui manque</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>DRS 1</td>
+                <td>2</td>
+                <td>1/2</td>
+                <td class="hint">
+                  25K pps : pas de générateur pour cette unité · 500 tps : enveloppe 9 600 rps
+                </td>
+              </tr>
+              <tr>
+                <td>DRS 2</td>
+                <td>3</td>
+                <td>1/3</td>
+                <td class="hint">250K pps · 50 bots (0 observé)</td>
+              </tr>
+              <tr>
+                <td>DRS 3</td>
+                <td>7</td>
+                <td>1/7</td>
+                <td class="hint">2M pps · 500 bots</td>
+              </tr>
+              <tr>
+                <td>DRS 4</td>
+                <td>16</td>
+                <td>0/16</td>
+                <td class="hint">25M pps · 100 Gbps · 1 000 bots</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- ================== ASSESSMENT MESURÉ ================== -->
+        <section class="screen" id="s-assessment">
+          <div class="head">
+            <div>
+              <h1>DRS L1 — pay.acme.eu <span class="badge b-measured">mesurée</span></h1>
+              <p class="hint">
+                Client Acme Payments · révision 1 finalisée le 19 oct. 2026 à 20:14 · plan gelé
+                <span class="mono">sha256 7c2e…41d0</span>
+              </p>
+            </div>
+            <div class="row">
+              <a class="btn" href="#compare">Comparer</a>
+              <a class="btn ghost" href="#wizard">Rejouer</a>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <div class="tl done">Capacité</div>
+            <div class="tl done">Baseline</div>
+            <div class="tl done">Exposition</div>
+            <div class="tl done">Récupération</div>
+            <div class="tl done">Preuve</div>
+            <div class="tl now">Verdict</div>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--amber)">
+            <h2 style="margin-top: 0">PARTIAL · niveau terminal 1 · non certifié</h2>
+            <p class="hint" style="margin-bottom: 0">
+              L'exposition a été mesurée et scellée, et trois exigences archivées ne sont pas
+              atteintes. Le verdict n'est pas un échec : c'est l'écart, avec ses nombres.
+            </p>
+          </div>
+
+          <h2>Preuve scellée · points d'observation</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Point</th>
+                <th>Rôle</th>
+                <th>Charge observée</th>
+                <th>Échantillons</th>
+                <th>Empreinte</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>generator</b></td>
+                <td>émission</td>
+                <td>500 tps demandés</td>
+                <td>12</td>
+                <td class="mono">sha256 a19c…7f</td>
+              </tr>
+              <tr>
+                <td><b>user</b></td>
+                <td>parcours synthétique</td>
+                <td>22/22 transactions vérifiées</td>
+                <td>24</td>
+                <td class="mono">sha256 3be0…12</td>
+              </tr>
+              <tr>
+                <td><b>entry</b></td>
+                <td>bord (témoin)</td>
+                <td>481 tps reçus</td>
+                <td>2</td>
+                <td class="mono">sha256 90aa…5c</td>
+              </tr>
+              <tr>
+                <td><b>origin</b></td>
+                <td>origine (témoin)</td>
+                <td>479 tps servis</td>
+                <td>2</td>
+                <td class="mono">sha256 c4e1…08</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>Exigences archivées</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Vecteur</th>
+                <th>Dimension</th>
+                <th>Requis</th>
+                <th>Enregistré</th>
+                <th>Atteint</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="unmet">
+                <td>drs-3.00.00-151002</td>
+                <td>charge</td>
+                <td>500 tps</td>
+                <td>500 tps demandés · 481 reçus</td>
+                <td class="ok">oui</td>
+              </tr>
+              <tr class="unmet">
+                <td>drs-3.00.00-151002</td>
+                <td>sources</td>
+                <td>10 bots indépendants</td>
+                <td>1 générateur, 1 source observée</td>
+                <td class="no">non</td>
+              </tr>
+              <tr class="unmet">
+                <td>drs-3.00.00-151002</td>
+                <td>persistance</td>
+                <td>3 600 s</td>
+                <td>11 s</td>
+                <td class="no">non</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>Livrables</h2>
+          <div class="row">
+            <a class="btn primary" href="#">Rapport PDF</a>
+            <a class="btn" href="#">Rapport JSON</a>
+            <a class="btn ghost" href="#">Bundle de preuve (zip)</a>
+          </div>
+        </section>
+
+        <!-- ================== ASSESSMENT SYNTHÉTIQUE ================== -->
+        <section class="screen" id="s-synthetic">
+          <div class="head">
+            <div>
+              <h1>Amplificateur — pay.acme.eu <span class="badge b-synth">synthétique</span></h1>
+              <p class="hint">
+                Client Acme Payments · révision 1 · aucune exposition réelle n'a été lancée.
+              </p>
+            </div>
+          </div>
+
+          <div class="note">
+            <b>Ce que cette campagne établit</b> : la fidélité de l'amplificateur — ce qu'il annonce
+            produire correspond à ce que le moteur lui fait produire — et l'intégrité du plan (hash,
+            exclusions, références).<br />
+            <b>Ce qu'elle n'établit pas</b> : le comportement de la cible, l'observation
+            entrée/origine, la qualification d'un niveau. Aucun verdict n'est rendu et rien n'est
+            certifiable.
+          </div>
+
+          <div class="kpis">
+            <div class="kpi"><b>1 000</b><span>tps annoncés par l'amplificateur</span></div>
+            <div class="kpi"><b>998,4</b><span>tps produits par le moteur</span></div>
+            <div class="kpi"><b>99,8 %</b><span>fidélité mesurée</span></div>
+            <div class="kpi"><b>0</b><span>preuve d'exposition</span></div>
+          </div>
+
+          <h2>Ce que le moteur a vérifié</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Contrôle</th>
+                <th>Résultat</th>
+                <th>Détail</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Débit effectif vs annoncé</td>
+                <td class="ok">conforme</td>
+                <td class="hint">998,4 / 1 000 tps sur 30 s</td>
+              </tr>
+              <tr>
+                <td>Concurrence effective</td>
+                <td class="ok">conforme</td>
+                <td class="hint">40 / 40 connexions tenues</td>
+              </tr>
+              <tr>
+                <td>Intégrité du plan</td>
+                <td class="ok">conforme</td>
+                <td class="hint">hash identique à la révision gelée</td>
+              </tr>
+              <tr>
+                <td>Exclusions motivées</td>
+                <td class="ok">conforme</td>
+                <td class="hint">2 vecteurs hors périmètre, raison enregistrée</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>Ce que cela ne remplace pas</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Comportement de la cible sous charge</td>
+                <td class="no">non observé</td>
+              </tr>
+              <tr>
+                <td>Témoin entrée / origine</td>
+                <td class="no">non configuré</td>
+              </tr>
+              <tr>
+                <td>Qualification d'un niveau DRS</td>
+                <td class="no">hors de portée</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="note blue" style="margin-top: 16px">
+            Usage prévu : valider une chaîne de mesure, dimensionner un plan, préparer un test réel
+            — jamais remplacer un test réel dans un livrable client. Le rapport PDF porte la mention
+            <b>« SYNTHETIC — NON CERTIFIANT »</b> en couverture.
+          </div>
+
+          <h2>Livrables</h2>
+          <div class="row">
+            <a class="btn" href="#">Rapport PDF (mention synthetic)</a>
+            <a class="btn ghost" href="#">JSON</a>
+          </div>
+        </section>
+
+        <!-- ================== COMPARE ================== -->
+        <section class="screen" id="s-compare">
+          <div class="head">
+            <div>
+              <h1>Comparaison</h1>
+              <p class="hint">
+                Deux assessments du même client, avant et après changement de protection.
+              </p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>19 oct. 20:14</th>
+                <th>20 oct. 09:02</th>
+                <th>Écart</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Verdict</td>
+                <td>PARTIAL</td>
+                <td>PARTIAL</td>
+                <td class="hint">inchangé</td>
+              </tr>
+              <tr>
+                <td>Niveau terminal</td>
+                <td>1</td>
+                <td>1</td>
+                <td class="hint">0</td>
+              </tr>
+              <tr>
+                <td>Preuves scellées</td>
+                <td>1</td>
+                <td>1</td>
+                <td class="hint">0</td>
+              </tr>
+              <tr>
+                <td>Exigence « charge »</td>
+                <td class="no">non atteinte</td>
+                <td class="ok">atteinte</td>
+                <td class="ok">résolue</td>
+              </tr>
+              <tr>
+                <td>Exigence « sources »</td>
+                <td class="no">non atteinte</td>
+                <td class="no">non atteinte</td>
+                <td class="hint">restante</td>
+              </tr>
+              <tr>
+                <td>Exigence « persistance »</td>
+                <td class="no">non atteinte</td>
+                <td class="no">non atteinte</td>
+                <td class="hint">restante</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="hint" style="margin-top: 10px">
+            La protection a tenu la charge demandée ; elle n'a pas changé la diversité de sources ni
+            la durée d'exposition. C'est cela qu'un client achète : une phrase et ses nombres.
+          </p>
+        </section>
+
+        <!-- ================== WIZARD ================== -->
+        <section class="screen" id="s-wizard">
+          <div class="head">
+            <div>
+              <h1>Nouvelle campagne</h1>
+              <p class="hint">
+                Quatre étapes, un plan gelé, puis exécution. Le mode choisi détermine ce que la
+                campagne peut prouver.
+              </p>
+            </div>
+          </div>
+
+          <div class="steps">
+            <span class="step done">1 · Client &amp; cible</span>
+            <span class="step on">2 · Mode</span>
+            <span class="step">3 · Niveau</span>
+            <span class="step">4 · Autorisation</span>
+          </div>
+
+          <div class="grid2">
+            <div class="choice sel">
+              <h3>Campagne complète <span class="badge b-measured">mesurée</span></h3>
+              <p>
+                Génère une charge réelle vers la cible, observe bord et origine, scelle une preuve
+                et rend un verdict opposable.
+              </p>
+              <ul>
+                <li>Trafic réel, borné par l'enveloppe et le scope signé</li>
+                <li>Témoin entrée/origine si le client en fournit un</li>
+                <li>Verdict PARTIAL / FAIL / PASS, jamais « certifié »</li>
+              </ul>
+            </div>
+            <div class="choice">
+              <h3>Amplificateur synthétique <span class="badge b-synth">non certifiant</span></h3>
+              <p>
+                Valide la chaîne de mesure et le dimensionnement sans toucher à la cible. Aucun
+                trafic n'est émis.
+              </p>
+              <ul>
+                <li>Fidélité de l'amplificateur vs ce qu'il annonce</li>
+                <li>Intégrité du plan et des exclusions</li>
+                <li>Aucun verdict, aucune preuve d'exposition</li>
+              </ul>
+            </div>
+          </div>
+
+          <h2>Paramètres du plan</h2>
+          <div class="grid2">
+            <div class="card">
+              <label class="field">Client<input value="Acme Payments" /></label>
+              <label class="field"
+                >Cible autorisée<select>
+                  <option>https://pay.acme.eu</option>
+                  <option>https://api.acme.eu</option>
+                </select></label
+              >
+              <label class="field"
+                >Niveau visé<select>
+                  <option>DRS 1</option>
+                  <option>DRS 2</option>
+                </select></label
+              >
+              <label class="field"
+                >Assertion fonctionnelle<input value="status 200 et corps contient 'ok'"
+              /></label>
+            </div>
+            <div class="card">
+              <label class="field">Exposition (s)<input type="number" value="60" /></label>
+              <label class="field">Baseline (s)<input type="number" value="300" /></label>
+              <label class="field">Débit demandé (rps)<input type="number" value="500" /></label>
+              <label class="field"
+                >Justification<input value="validation de la protection après changement de règle"
+              /></label>
+            </div>
+          </div>
+
+          <div class="note blue" style="margin-top: 14px">
+            Enveloppe appliquée :
+            <b
+              >min(scope 8 000 rps, capacité 9 600 rps, plafond de service 10 000 rps) = 8 000
+              rps</b
+            >. Les budgets du plan sont plafonnés à cette valeur et le gel enregistre l'enveloppe
+            utilisée.
+          </div>
+
+          <div class="row" style="margin-top: 18px">
+            <a class="btn" href="#wizard">Précédent</a>
+            <a class="btn primary" href="#capacity">Continuer</a>
+          </div>
+        </section>
+
+        <!-- ================== SETTINGS ================== -->
+        <section class="screen" id="s-settings">
+          <div class="head">
+            <div>
+              <h1>Autorisation &amp; plafonds</h1>
+              <p class="hint">
+                Les garde-fous ne sont pas des réglages de confort : ils bornent ce que le produit
+                peut faire.
+              </p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Garde-fou</th>
+                <th>Valeur</th>
+                <th>Effet</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Plafond matériel</td>
+                <td>2 000 rps · 500 conc · 900 s</td>
+                <td class="hint">non contournable par configuration</td>
+              </tr>
+              <tr>
+                <td>Plafond de service</td>
+                <td>10 000 rps · 400 conc</td>
+                <td class="hint">dérivé de la flotte, configurable</td>
+              </tr>
+              <tr>
+                <td>Plancher de baseline</td>
+                <td>300 s</td>
+                <td class="hint">abaissable seulement dans un environnement de test</td>
+              </tr>
+              <tr>
+                <td>Allowlist</td>
+                <td>6 cibles</td>
+                <td class="hint">aucune cible hors liste n'est acceptable</td>
+              </tr>
+              <tr>
+                <td>Kill switch</td>
+                <td>actif</td>
+                <td class="hint">abandon immédiat, preuve finalisée avec ce qui a été mesuré</td>
+              </tr>
+              <tr>
+                <td>Témoins</td>
+                <td>entrée : oui · origine : oui</td>
+                <td class="hint">URLs de télémétrie par client à l'avenir</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="note" style="margin-top: 16px">
+            Prochaine étape fonctionnelle : porter les URLs de témoin <b>sur le plan</b> plutôt que
+            sur le déploiement, pour qu'un même produit serve plusieurs clients sans configuration
+            globale.
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const screens = [...document.querySelectorAll('.screen')];
+      const links = [...document.querySelectorAll('[data-nav]')];
+      const show = (id) => {
+        screens.forEach((s) => s.classList.toggle('on', s.id === 's-' + id));
+        links.forEach((a) => a.classList.toggle('on', a.dataset.nav === id));
+      };
+      const route = () => show((location.hash || '#clients').slice(1));
+      window.addEventListener('hashchange', route);
+      route();
+    </script>
+  </body>
+</html>

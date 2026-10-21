@@ -51,7 +51,9 @@ export interface AuditEntry {
     | 'target.authorize'
     | 'target.revoke'
     | 'target.delete'
-    | 'drs.calibration';
+    | 'drs.calibration'
+    | 'drs.client.create'
+    | 'drs.client.update';
   campaignId?: string;
   detail?: string;
   /**
