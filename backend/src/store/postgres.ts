@@ -243,7 +243,10 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     );`,
   },
   {
-    id: 10,
+    // 10 is taken in production: an earlier change recorded it on 2026-10-16, so the runner
+    // skips anything numbered 10 and the table silently never appeared. This migration starts
+    // at 11; the DDL stays IF NOT EXISTS so a database that already has the table is a no-op.
+    id: 11,
     sql: `CREATE TABLE IF NOT EXISTS drs_clients_v1 (
       id text PRIMARY KEY,
       name text NOT NULL,
