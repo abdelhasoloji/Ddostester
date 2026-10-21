@@ -11,7 +11,8 @@ export type DrsState =
   | 'RECOVERY'
   | 'EVIDENCE_VALIDATION'
   | 'LEVEL_CALCULATION'
-  | 'FINAL_REPORT';
+  | 'FINAL_REPORT'
+  | 'ENGINE_VALIDATED';
 export type DrsRole = 'generator' | 'entry' | 'user' | 'origin';
 export interface DrsSource {
   id: string;
@@ -144,6 +145,8 @@ export interface DrsRevision {
   planHash?: string;
   frozenAt?: string;
   state: DrsState;
+  /** Present on a synthetic amplifier run: what it claimed, what it produced, no verdict. */
+  synthetic?: import('./synthetic.js').DrsSyntheticValidation;
   trace: { state: DrsState; at: string; detail: string }[];
   proofs: DrsProof[];
   finalizedAt?: string;

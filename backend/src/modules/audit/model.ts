@@ -53,7 +53,8 @@ export interface AuditEntry {
     | 'target.delete'
     | 'drs.calibration'
     | 'drs.client.create'
-    | 'drs.client.update';
+    | 'drs.client.update'
+    | 'drs.engine_validation';
   campaignId?: string;
   detail?: string;
   /**
