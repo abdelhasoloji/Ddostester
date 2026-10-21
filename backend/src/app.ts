@@ -2592,6 +2592,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // of declaring those dimensions unrepresented.
       const collector = createProbeCollectorPort({
         probeUrl: campaign.probeUrl,
+        // The collector stops at its limit; without a margin the measured duration lands a few
+        // milliseconds under baselineMinSec and the orchestrator rejects a valid baseline.
+        baselineMaxSec: rev.plan.baselineMinSec + 5,
         // The plan's witnesses win; the deployment-level variables remain for lab setups that
         // have a single telemetry endpoint for everything.
         entryWitnessUrl:
