@@ -1305,6 +1305,31 @@ export const api = {
       `/api/drs/clients/${encodeURIComponent(id)}`,
     ),
   createDrsClient: (body: DrsClientInput) => post<DrsClientDocument>('/api/drs/clients', body),
+  drsFleet: () =>
+    get<{
+      ttlDays: number;
+      envelope: { maxRps: number; maxConcurrency: number; agents: number };
+      agents: {
+        id: string;
+        label: string;
+        region: string | null;
+        tags: string[];
+        state: 'active' | 'maintenance' | 'retired';
+        registered: boolean;
+        measuredTps: number;
+        measuredConcurrency: number;
+        measuredAt: string;
+        conditions: string | null;
+        ageDays: number | null;
+        admitted: boolean;
+        excludedReason: string | null;
+        excludedDetail: string | null;
+      }[];
+    }>('/api/drs/fleet'),
+  saveDrsAgent: (body: { id: string; label: string; region?: string; tags?: string[] }) =>
+    post<{ id: string }>('/api/drs/fleet', body),
+  setDrsAgentState: (id: string, state: 'active' | 'maintenance' | 'retired') =>
+    patch<{ id: string; state: string }>(`/api/drs/fleet/${encodeURIComponent(id)}`, { state }),
   drsReports: () =>
     get<{
       reports: {

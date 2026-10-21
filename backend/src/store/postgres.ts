@@ -27,6 +27,7 @@ import type {
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { DrsClient } from '../modules/drs/client.js';
+import type { DrsAgent } from '../modules/drs/agent.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const { Pool } = pg;
@@ -243,6 +244,14 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     );`,
   },
   {
+    id: 12,
+    sql: `CREATE TABLE IF NOT EXISTS drs_agents_v1 (
+      id text PRIMARY KEY,
+      label text NOT NULL,
+      data jsonb NOT NULL
+    );`,
+  },
+  {
     // 10 is taken in production: an earlier change recorded it on 2026-10-16, so the runner
     // skips anything numbered 10 and the table silently never appeared. This migration starts
     // at 11; the DDL stays IF NOT EXISTS so a database that already has the table is a no-op.
@@ -286,6 +295,32 @@ export class PostgresStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     await this.pool.query('DELETE FROM fleet_devices_v1 WHERE id=$1', [id]);
   }
+  async listDrsAgents(): Promise<DrsAgent[]> {
+    const r = await this.pool.query<{ data: DrsAgent }>(
+      'SELECT data FROM drs_agents_v1 ORDER BY label ASC',
+    );
+    return r.rows.map((row) => row.data);
+  }
+
+  async getDrsAgent(id: string): Promise<DrsAgent | undefined> {
+    const r = await this.pool.query<{ data: DrsAgent }>(
+      'SELECT data FROM drs_agents_v1 WHERE id=$1',
+      [id],
+    );
+    return r.rows[0]?.data;
+  }
+
+  async saveDrsAgent(a: DrsAgent): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO drs_agents_v1(id,label,data) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET label=$2,data=$3',
+      [a.id, a.label, a],
+    );
+  }
+
+  async deleteDrsAgent(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM drs_agents_v1 WHERE id=$1', [id]);
+  }
+
   async listDrsClients(): Promise<DrsClient[]> {
     const r = await this.pool.query<{ data: DrsClient }>(
       'SELECT data FROM drs_clients_v1 ORDER BY name ASC',

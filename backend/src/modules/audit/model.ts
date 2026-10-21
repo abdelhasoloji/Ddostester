@@ -54,7 +54,9 @@ export interface AuditEntry {
     | 'drs.calibration'
     | 'drs.client.create'
     | 'drs.client.update'
-    | 'drs.engine_validation';
+    | 'drs.engine_validation'
+    | 'drs.agent.upsert'
+    | 'drs.agent.state';
   campaignId?: string;
   detail?: string;
   /**

@@ -112,6 +112,7 @@ const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
   {
     label: 'Platform',
     items: [
+      { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
       { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
       { to: '/guardrails', label: 'Limits', icon: <LineIcon name="shield" /> },
       { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
@@ -122,7 +123,7 @@ const LEGACY_NAV: { to: string; label: string; icon: React.ReactNode; end?: bool
   { to: '/legacy', label: 'Command Center', icon: <LineIcon name="home" /> },
   { to: '/zones', label: 'Protected zones', icon: <LineIcon name="shield" /> },
   { to: '/campaigns', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
-  { to: '/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
+  { to: '/legacy/fleet', label: 'Fleet', icon: <LineIcon name="fleet" /> },
   { to: '/theater', label: 'Run Theater', icon: <LineIcon name="theater" /> },
   { to: '/legacy/results', label: 'Results', icon: <LineIcon name="results" /> },
   { to: '/assistant', label: 'Assistant', icon: <LineIcon name="chat" /> },

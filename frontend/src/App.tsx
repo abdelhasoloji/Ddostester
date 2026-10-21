@@ -11,6 +11,7 @@ import { DrsPage } from './drs-page.js';
 import { ClientsPage } from './clients-page.js';
 import { OverviewPage } from './overview-page.js';
 import { ReportsLibraryPage } from './reports-library.js';
+import { DrsFleetPage } from './drs-fleet-page.js';
 import { ClientPage } from './client-page.js';
 import { WizardPage } from './wizard-page.js';
 import { AssessmentPage } from './assessment-page.js';
@@ -59,7 +60,8 @@ function Gate() {
         <Route path="theater" element={<RunTheaterPage />} />
         <Route path="legacy/results" element={<ReportsPage />} />
         <Route path="reports" element={<ReportsLibraryPage />} />
-        <Route path="fleet" element={<FleetPage />} />
+        <Route path="legacy/fleet" element={<FleetPage />} />
+        <Route path="fleet" element={<DrsFleetPage />} />
         <Route path="capacity" element={<CapacityPage />} />
         <Route path="drs" element={<DrsPage />} />
         <Route path="clients" element={<ClientsPage />} />
