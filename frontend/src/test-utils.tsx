@@ -104,6 +104,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     drsClients: vi.fn().mockResolvedValue({ clients: [] }),
     drsCompare: vi.fn(),
     createDrsClient: vi.fn(),
+    createDrsPlan: vi.fn(),
     drsClient: vi.fn(),
     drsCapacity: vi.fn().mockResolvedValue({
       ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
