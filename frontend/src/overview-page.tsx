@@ -98,9 +98,17 @@ export function OverviewPage() {
     };
   }, [rows, verdicts]);
 
-  const running = rows.filter(
-    (r) => !r.finalizedAt && r.state !== 'PLAN_FROZEN' && r.state !== 'DRAFT',
-  );
+  // A campaign is running only while it is between the plan and its terminal state. Treating
+  // anything not frozen as running showed a stop button on finished campaigns.
+  const RUNNING_STATES = new Set([
+    'CAPACITY_CHECK',
+    'BASELINE',
+    'LEVEL_EXECUTION',
+    'RECOVERY',
+    'EVIDENCE_VALIDATION',
+    'LEVEL_CALCULATION',
+  ]);
+  const running = rows.filter((r) => !r.finalizedAt && RUNNING_STATES.has(r.state));
 
   const coverage = useMemo(() => {
     const byLevel = new Map<number, { met: number; total: number }>();
