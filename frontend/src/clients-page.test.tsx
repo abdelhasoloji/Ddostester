@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 // makeApi already provides drsClients; reuse its mock instead of re-typing it.
 const fakeApi = makeApi();
 const drsClients = fakeApi.drsClients as unknown as ReturnType<typeof vi.fn>;
 const drsCapacity = fakeApi.drsCapacity as unknown as ReturnType<typeof vi.fn>;
+const createDrsClient = fakeApi.createDrsClient as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -19,6 +20,7 @@ vi.mock('./api.js', async (orig) => ({
 const { ClientsPage } = await import('./clients-page.js');
 
 beforeEach(() => {
+  createDrsClient.mockReset();
   drsCapacity.mockResolvedValue({
     ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
     scope: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900, targets: [] },
@@ -75,5 +77,37 @@ describe('capacity strip', () => {
     expect(await screen.findByText(/9,600 rps/)).toBeTruthy();
     expect(screen.getByText(/admitted agent/)).toBeTruthy();
     expect(screen.getByText('2')).toBeTruthy();
+  });
+});
+
+describe('creating a dossier', () => {
+  it('submits the signed scope and reports it', async () => {
+    drsClients.mockResolvedValue({ clients: [] });
+    createDrsClient.mockResolvedValue({ id: 'c9', name: 'Acme', contacts: [], scope: {} });
+    renderWithRouter(<ClientsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /new client/i }));
+    fireEvent.change(screen.getByPlaceholderText('Acme Payments'), { target: { value: 'Acme' } });
+    fireEvent.change(screen.getByPlaceholderText('SOW-2026-10'), { target: { value: 'SOW-1' } });
+    fireEvent.change(screen.getByPlaceholderText('S. Martin'), { target: { value: 'S. Martin' } });
+    fireEvent.change(screen.getByPlaceholderText('s.martin@acme.eu'), {
+      target: { value: 's.martin@acme.eu' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/pay\.acme\.eu/), {
+      target: { value: 'https://pay.acme.eu' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create dossier/i }));
+    await waitFor(() =>
+      expect(createDrsClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Acme',
+          contacts: [{ name: 'S. Martin', email: 's.martin@acme.eu' }],
+          scope: expect.objectContaining({
+            reference: 'SOW-1',
+            targets: ['https://pay.acme.eu'],
+            maxRps: 2000,
+          }),
+        }),
+      ),
+    );
   });
 });

@@ -1,7 +1,7 @@
 import { permissionsFor } from '../../backend/src/auth/rbac.js';
 import type { Role } from './api.js';
 import { vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 
@@ -103,6 +103,8 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     // The client file is the landing page once auth is not required.
     drsClients: vi.fn().mockResolvedValue({ clients: [] }),
     drsCompare: vi.fn(),
+    createDrsClient: vi.fn(),
+    drsClient: vi.fn(),
     drsCapacity: vi.fn().mockResolvedValue({
       ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
       scope: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900, targets: [] },
@@ -289,6 +291,15 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
   };
 }
 
-export function renderWithRouter(ui: ReactElement) {
+export function renderWithRouter(ui: ReactElement, opts: { route?: string; path?: string } = {}) {
+  // Pages that read useParams need the route to be matched, not just rendered.
+  if (opts.route && opts.path)
+    return render(
+      <MemoryRouter initialEntries={[opts.route]}>
+        <Routes>
+          <Route path={opts.path} element={ui} />
+        </Routes>
+      </MemoryRouter>,
+    );
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }
