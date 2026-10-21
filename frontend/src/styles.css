@@ -1833,6 +1833,25 @@ input.invalid {
 .page-head {
   margin-bottom: 0.5rem;
 }
+/* Pages that carry a topic glyph: the header becomes a row and the glyph sits on the right.
+   Kept as a modifier so PageHead (title + subtitle only) is unaffected. */
+.page-head--icon {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.page-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  background: #f2f5fa;
+  color: #5b6b82;
+}
 .page-title {
   font-size: 1.5rem;
   margin: 0 0 0.25rem;

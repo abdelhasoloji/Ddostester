@@ -35,7 +35,7 @@ export function ClientsPage() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head page-head--icon">
         <div>
           <h1>Clients</h1>
           <p className="hint">
