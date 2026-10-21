@@ -102,3 +102,15 @@ navigateur sur `testdrs.trustena.lu`.
 - Autorisation, allowlist, kill switch et audit restent en place à chaque étape.
 - Un verdict ne devient jamais une certification ; le mode synthétique ne produit aucun verdict.
 - Chaque incrément : branche, PR, CI verte, fusion, déploiement, entrée de journal.
+
+## Livré
+
+| Phase                             | État | Preuve                                                 |
+| --------------------------------- | ---- | ------------------------------------------------------ |
+| 1 · Dossier client                | ✅   | entité, scope signé, écran dossier                     |
+| 2 · Assistant 4 étapes            | ✅   | mode en étape 2, enveloppe en direct                   |
+| 3 · Amplificateur synthétique     | ✅   | fidélité 99,6 %, `ENGINE_VALIDATED`, rapport SYNTHETIC |
+| 4 · Écran mesuré                  | ✅   | 4 points d'observation, 18/18 transactions             |
+| 5 · Comparaison                   | ✅   | phrase + tableau, route dédiée                         |
+| 6 · Bundle / témoins / garde-fous | ✅   | zip 9 798 octets, témoins par plan, page Limits        |
+| 7 · Finition et parcours          | ✅   | parcours complet dans Chrome, 0 erreur console         |
