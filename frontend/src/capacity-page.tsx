@@ -95,7 +95,7 @@ export function CapacityPage() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head page-head--icon">
         <div>
           <h1>Capacity</h1>
           <p className="hint">
