@@ -29,6 +29,8 @@ export function AssessmentPage() {
   const [revision, setRevision] = useState<DrsRevisionView | null>(null);
   const [report, setReport] = useState<DrsReportView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [compareWith, setCompareWith] = useState('');
+  const [peers, setPeers] = useState<Campaign[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +44,19 @@ export function AssessmentPage() {
           null;
         setRevision(rev);
         const list = await api.listCampaigns();
-        if (!cancelled) setCampaign(list.find((c) => c.id === id) ?? null);
+        if (!cancelled) {
+          setCampaign(list.find((c) => c.id === id) ?? null);
+          setPeers(
+            list.filter(
+              (c) =>
+                c.id !== id &&
+                c.drsDocument?.revisions.some((r) => r.finalizedAt) &&
+                c.drsDocument?.revisions.some(
+                  (r) => (r.plan as { mode?: string }).mode === 'measured',
+                ),
+            ),
+          );
+        }
         try {
           const r = await api.drsCampaignReport(id);
           if (!cancelled) setReport(r);
@@ -250,6 +264,33 @@ export function AssessmentPage() {
           </table>
         </>
       )}
+
+      <h2>Compare</h2>
+      <p className="row">
+        <select
+          aria-label="Compare with"
+          value={compareWith}
+          onChange={(e) => setCompareWith(e.target.value)}
+        >
+          <option value="">— another finalized assessment —</option>
+          {peers.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <a
+          className={`btn btn-sm${compareWith ? ' btn-primary' : ''}`}
+          href={
+            compareWith
+              ? `/assessments/${encodeURIComponent(id)}/compare/${encodeURIComponent(compareWith)}`
+              : '#'
+          }
+          aria-disabled={!compareWith}
+        >
+          Compare
+        </a>
+      </p>
 
       <h2>Deliverables</h2>
       <p className="row">
