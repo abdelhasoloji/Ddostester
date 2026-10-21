@@ -55,6 +55,7 @@ export function OverviewPage() {
   const [capacity, setCapacity] = useState<DrsCapacityView | null>(null);
   const [verdicts, setVerdicts] = useState<Record<string, DrsReportView>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmStop, setConfirmStop] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const rows = useMemo(
@@ -244,13 +245,27 @@ export function OverviewPage() {
                   <p className="hint" style={{ margin: '.3rem 0 .5rem' }}>
                     {r.campaign.target} · DRS {r.level} · <ModeChip mode={r.mode} />
                   </p>
-                  <button
-                    className="btn btn-sm btn-danger"
-                    disabled={busy === r.campaign.id}
-                    onClick={() => void stop(r.campaign.id)}
-                  >
-                    {busy === r.campaign.id ? 'Stopping…' : 'Stop the exposure'}
-                  </button>
+                  {confirmStop === r.campaign.id ? (
+                    <span className="row">
+                      <button
+                        className="btn btn-sm btn-danger"
+                        disabled={busy === r.campaign.id}
+                        onClick={() => void stop(r.campaign.id)}
+                      >
+                        {busy === r.campaign.id ? 'Stopping…' : 'Confirm stop'}
+                      </button>
+                      <button className="btn btn-sm" onClick={() => setConfirmStop(null)}>
+                        Keep running
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => setConfirmStop(r.campaign.id)}
+                    >
+                      Stop the exposure
+                    </button>
+                  )}
                 </div>
               ))
             )}
