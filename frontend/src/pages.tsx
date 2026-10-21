@@ -92,12 +92,28 @@ const roleDescription: Record<Role, string> = {
 // The product is a DRS service: the spine is the client test, nothing else. Legacy
 // campaign, fleet and theatre tooling stays reachable — production still holds hundreds of
 // legacy campaigns — but it is out of the operating path.
-const DRS_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean }[] = [
-  { to: '/clients', label: 'Clients', icon: <LineIcon name="fleet" /> },
-  { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
-  { to: '/drs', label: 'Assessments', icon: <LineIcon name="shield" /> },
-  { to: '/guardrails', label: 'Limits', icon: <LineIcon name="shield" /> },
-  { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
+type NavEntry = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+// Three groups, six entries: the product's information architecture, not a list of pages.
+const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
+  {
+    label: 'Pilotage',
+    items: [
+      { to: '/', label: 'Overview', icon: <LineIcon name="home" />, end: true },
+      { to: '/drs', label: 'Campaigns', icon: <LineIcon name="campaigns" /> },
+    ],
+  },
+  {
+    label: 'Clients',
+    items: [{ to: '/clients', label: 'Clients', icon: <LineIcon name="fleet" /> }],
+  },
+  {
+    label: 'Platform',
+    items: [
+      { to: '/capacity', label: 'Capacity', icon: <LineIcon name="results" /> },
+      { to: '/guardrails', label: 'Limits', icon: <LineIcon name="shield" /> },
+      { to: '/settings', label: 'Settings', icon: <LineIcon name="settings" /> },
+    ],
+  },
 ];
 const LEGACY_NAV: { to: string; label: string; icon: React.ReactNode; end?: boolean }[] = [
   { to: '/legacy', label: 'Command Center', icon: <LineIcon name="home" /> },
@@ -716,20 +732,25 @@ export function Layout() {
             <NotificationsBell />
           </div>
           <nav className="nav">
-            {DRS_NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) =>
-                  `nav-link nav-link-primary${isActive ? ' active' : ''}`
-                }
-              >
-                <span className="nav-icon" aria-hidden="true">
-                  {n.icon}
-                </span>
-                {n.label}
-              </NavLink>
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="nav-group">
+                <div className="nav-group-label">{group.label}</div>
+                {group.items.map((n) => (
+                  <NavLink
+                    key={n.to}
+                    to={n.to}
+                    end={n.end}
+                    className={({ isActive }) =>
+                      `nav-link nav-link-primary${isActive ? ' active' : ''}`
+                    }
+                  >
+                    <span className="nav-icon" aria-hidden="true">
+                      {n.icon}
+                    </span>
+                    {n.label}
+                  </NavLink>
+                ))}
+              </div>
             ))}
             <div
               className="hint"

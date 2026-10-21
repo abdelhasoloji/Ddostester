@@ -9,6 +9,7 @@ import { AssistantPage } from './assistant-page.js';
 import { CapacityPage } from './capacity-page.js';
 import { DrsPage } from './drs-page.js';
 import { ClientsPage } from './clients-page.js';
+import { OverviewPage } from './overview-page.js';
 import { ClientPage } from './client-page.js';
 import { WizardPage } from './wizard-page.js';
 import { AssessmentPage } from './assessment-page.js';
@@ -50,7 +51,7 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         {/* The product opens on the client file, not on a generic dashboard. */}
-        <Route index element={<ClientsPage />} />
+        <Route index element={<OverviewPage />} />
         <Route path="legacy" element={<CommandCenterPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
