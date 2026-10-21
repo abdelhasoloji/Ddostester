@@ -1,0 +1,1390 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>ShieldTest DRS — maquette de refonte</title>
+    <style>
+      :root {
+        --ink: #0f1a2b;
+        --muted: #5b6b82;
+        --line: #e2e8f1;
+        --bg: #f6f8fc;
+        --card: #fff;
+        --blue: #0a4da2;
+        --navy: #0a356b;
+        --ok: #1e7d3a;
+        --okbg: #e9f5ec;
+        --warn: #a35a00;
+        --warnbg: #fdf3e3;
+        --bad: #b3261e;
+        --badbg: #fbeaea;
+        --info: #0a4da2;
+        --infobg: #eaf1fb;
+        --radius: 12px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 236px 1fr;
+        min-height: 100vh;
+      }
+
+      /* rail */
+      .rail {
+        background: var(--card);
+        border-right: 1px solid var(--line);
+        padding: 16px 12px;
+        display: flex;
+        flex-direction: column;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 8px 18px;
+      }
+      .brand .mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        background: linear-gradient(135deg, var(--navy), var(--blue));
+      }
+      .brand b {
+        display: block;
+        color: var(--navy);
+        letter-spacing: -0.02em;
+        font-size: 14px;
+      }
+      .brand span {
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .group {
+        margin-bottom: 18px;
+      }
+      .group-label {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 0 10px 6px;
+      }
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 9px;
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 13.5px;
+      }
+      .nav a:hover {
+        background: #f1f5fb;
+      }
+      .nav a.on {
+        background: var(--infobg);
+        color: var(--blue);
+        font-weight: 600;
+        box-shadow: inset 3px 0 0 var(--blue);
+      }
+      .nav .ico {
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        background: #d7e2f2;
+        flex: none;
+      }
+      .rail-foot {
+        margin-top: auto;
+        padding: 12px 8px 0;
+        border-top: 1px solid var(--line);
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+
+      /* main */
+      .main {
+        padding: 0 0 60px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 28px;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      .ctx {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .ctx b {
+        color: var(--ink);
+      }
+      .spacer {
+        flex: 1;
+      }
+      .search {
+        width: 260px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fbfcfe;
+        font-size: 13px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background: #f4f7fc;
+      }
+      .btn.primary {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: #0b5cbd;
+      }
+      .btn.danger {
+        border-color: #efc9c6;
+        color: var(--bad);
+      }
+      .btn.sm {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+
+      .page {
+        padding: 22px 28px;
+        max-width: 1200px;
+      }
+      .screen {
+        display: none;
+      }
+      .screen.on {
+        display: block;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+        color: var(--navy);
+      }
+      h2 {
+        font-size: 14px;
+        margin: 22px 0 10px;
+        color: var(--navy);
+        letter-spacing: 0.01em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0 0 16px;
+        max-width: 80ch;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+      }
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+      .g3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .g2 {
+        grid-template-columns: 1.6fr 1fr;
+      }
+      @media (max-width: 1000px) {
+        .g3,
+        .g2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .kpi {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+      }
+      .kpi b {
+        display: block;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+        color: var(--navy);
+      }
+      .kpi span {
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+        vertical-align: middle;
+      }
+      th {
+        background: #f4f7fc;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover {
+        background: #fbfcfe;
+      }
+      .mono {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        border: 1px solid transparent;
+      }
+      .c-ok {
+        background: var(--okbg);
+        color: var(--ok);
+        border-color: #cfe6d5;
+      }
+      .c-warn {
+        background: var(--warnbg);
+        color: var(--warn);
+        border-color: #f0dcc0;
+      }
+      .c-bad {
+        background: var(--badbg);
+        color: var(--bad);
+        border-color: #f0cfcd;
+      }
+      .c-info {
+        background: var(--infobg);
+        color: var(--info);
+        border-color: #d6e3f7;
+      }
+      .c-plain {
+        background: #f1f4f9;
+        color: var(--muted);
+        border-color: var(--line);
+      }
+
+      .bar {
+        height: 7px;
+        border-radius: 99px;
+        background: #e8eef7;
+        overflow: hidden;
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        background: var(--blue);
+      }
+      .bars {
+        display: grid;
+        gap: 8px;
+      }
+      .bar-row {
+        display: grid;
+        grid-template-columns: 52px 1fr 84px;
+        gap: 10px;
+        align-items: center;
+        font-size: 12px;
+      }
+
+      .live {
+        border: 1px solid #cfdef5;
+        background: linear-gradient(180deg, #f7faff, #fff);
+      }
+      .live-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 0 4px #e6f3e9;
+      }
+      .live-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin: 12px 0;
+      }
+      .live-stats div b {
+        display: block;
+        font-size: 18px;
+        color: var(--navy);
+      }
+      .live-stats div span {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .att {
+        display: grid;
+        gap: 10px;
+      }
+      .att-item {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .att-item .sev {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 6px;
+        flex: none;
+      }
+      .att-item b {
+        display: block;
+        font-size: 13px;
+      }
+      .att-item span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--line);
+        margin: 18px 0 16px;
+      }
+      .tabs button {
+        background: none;
+        border: 0;
+        padding: 9px 12px;
+        font: inherit;
+        font-size: 13px;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+      }
+      .tabs button.on {
+        color: var(--blue);
+        border-bottom-color: var(--blue);
+        font-weight: 600;
+      }
+
+      .steps {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 6px 0 16px;
+      }
+      .step {
+        padding: 6px 12px;
+        border-radius: 99px;
+        background: #eef3fb;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .step.on {
+        background: var(--blue);
+        color: #fff;
+        font-weight: 600;
+      }
+      .step.done {
+        background: var(--okbg);
+        color: var(--ok);
+      }
+
+      .field {
+        display: block;
+        margin-bottom: 12px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .field input,
+      .field select {
+        display: block;
+        width: 100%;
+        margin-top: 5px;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        font: inherit;
+        color: var(--ink);
+        background: #fff;
+      }
+      .choice {
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+      }
+      .choice.sel {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px #e7eefb;
+      }
+      .choice h3 {
+        margin: 0 0 6px;
+        font-size: 14px;
+      }
+      .choice p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+
+      .empty {
+        text-align: center;
+        padding: 36px 20px;
+        color: var(--muted);
+      }
+      .empty b {
+        display: block;
+        color: var(--ink);
+        margin-bottom: 4px;
+      }
+
+      .score {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .score .num {
+        font-size: 40px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: var(--navy);
+      }
+      .score .num small {
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <div class="brand">
+          <div class="mark"></div>
+          <div><b>SHIELDTEST</b><span>DRS service</span></div>
+        </div>
+        <nav class="nav">
+          <div class="group">
+            <div class="group-label">Pilotage</div>
+            <a href="#overview" data-nav="overview" class="on"><span class="ico"></span>Overview</a>
+            <a href="#campaigns" data-nav="campaigns"><span class="ico"></span>Campaigns</a>
+          </div>
+          <div class="group">
+            <div class="group-label">Clients</div>
+            <a href="#clients" data-nav="clients"><span class="ico"></span>Clients</a>
+            <a href="#reports" data-nav="reports"><span class="ico"></span>Reports</a>
+          </div>
+          <div class="group">
+            <div class="group-label">Plateforme</div>
+            <a href="#capacity" data-nav="capacity"><span class="ico"></span>Capacity</a>
+            <a href="#settings" data-nav="settings"><span class="ico"></span>Settings</a>
+          </div>
+        </nav>
+        <div class="rail-foot">
+          v0.2.0 · build 530 · <span title="aucune certification">non certifiant</span>
+        </div>
+      </aside>
+
+      <div class="main">
+        <div class="topbar">
+          <div class="ctx">Client&nbsp;: <b>Acme Payments</b> ▾</div>
+          <div class="spacer"></div>
+          <input class="search" placeholder="Rechercher une campagne, un client…" />
+          <a class="btn primary" href="#wizard">+ New campaign</a>
+        </div>
+
+        <div class="page">
+          <!-- ============ OVERVIEW ============ -->
+          <section class="screen on" id="s-overview">
+            <h1>Overview</h1>
+            <p class="sub">
+              Est-ce protégé, qu'est-ce qui tourne, qu'est-ce qui demande une action ?
+            </p>
+
+            <div class="grid g2">
+              <div class="card">
+                <div class="score">
+                  <div class="num">42<small>/100</small></div>
+                  <div style="flex: 1">
+                    <div class="bar" style="height: 10px">
+                      <i style="width: 42%; background: #a35a00"></i>
+                    </div>
+                    <div style="font-size: 12px; color: var(--muted); margin-top: 6px">
+                      Couverture mesurée sur 4 clients · 11 exigences atteintes sur 26
+                    </div>
+                  </div>
+                </div>
+                <h2>Couverture par niveau DRS</h2>
+                <div class="bars">
+                  <div class="bar-row">
+                    <span>Niveau 1</span>
+                    <div class="bar"><i style="width: 50%; background: #1e7d3a"></i></div>
+                    <span class="chip c-ok">1 / 2</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 2</span>
+                    <div class="bar"><i style="width: 33%; background: #1e7d3a"></i></div>
+                    <span class="chip c-ok">1 / 3</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 3</span>
+                    <div class="bar"><i style="width: 14%; background: #a35a00"></i></div>
+                    <span class="chip c-warn">1 / 7</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 4</span>
+                    <div class="bar"><i style="width: 0"></i></div>
+                    <span class="chip c-bad">0 / 16</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 5</span>
+                    <div class="bar"><i style="width: 0"></i></div>
+                    <span class="chip c-bad">0 / 32</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 6</span>
+                    <div class="bar"><i style="width: 0"></i></div>
+                    <span class="chip c-bad">0 / 34</span>
+                  </div>
+                  <div class="bar-row">
+                    <span>Niveau 7</span>
+                    <div class="bar"><i style="width: 0"></i></div>
+                    <span class="chip c-bad">0 / 37</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="card live">
+                  <div class="live-head">
+                    <span class="dot"></span><b>En cours · Acme Payments</b
+                    ><span class="chip c-info">mesuré</span>
+                  </div>
+                  <div style="font-size: 13px">pay.acme.eu · DRS 1 · exposition 20 s</div>
+                  <div class="bar" style="margin: 12px 0"><i style="width: 45%"></i></div>
+                  <div class="live-stats">
+                    <div><b>22</b><span>rps observés</span></div>
+                    <div><b>9 s</b><span>restantes</span></div>
+                    <div><b>4/4</b><span>points d'observation</span></div>
+                    <div><b>—</b><span>erreurs</span></div>
+                  </div>
+                  <button class="btn danger">■ Arrêter la campagne</button>
+                </div>
+
+                <h2>À traiter</h2>
+                <div class="att">
+                  <div class="att-item">
+                    <span class="sev" style="background: #a35a00"></span>
+                    <div>
+                      <b>2 exigences non atteintes ce mois</b
+                      ><span>sources (bots) et persistance sur Acme Payments</span>
+                    </div>
+                  </div>
+                  <div class="att-item">
+                    <span class="sev" style="background: #b3261e"></span>
+                    <div>
+                      <b>Calibration de gen-kind-1 expire dans 12 jours</b
+                      ><span>sans calibration, l'agent ne compte pas dans l'enveloppe</span>
+                    </div>
+                  </div>
+                  <div class="att-item">
+                    <span class="sev" style="background: #0a4da2"></span>
+                    <div>
+                      <b>Nordbank : témoin d'origine manquant</b
+                      ><span>les points bord/origine resteront non représentés</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <h2>Derniers verdicts</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Campagne</th>
+                  <th>Client</th>
+                  <th>Mode</th>
+                  <th>Verdict</th>
+                  <th>Preuves</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="#campaign">DRS L1 — pay.acme.eu</a></td>
+                  <td>Acme Payments</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-warn">PARTIAL · L1</span></td>
+                  <td>1</td>
+                  <td>aujourd'hui 11:51</td>
+                  <td><a class="btn sm" href="#campaign">Ouvrir</a></td>
+                </tr>
+                <tr>
+                  <td><a href="#campaign">DRS L1 — api.acme.eu</a></td>
+                  <td>Acme Payments</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-warn">PARTIAL · L1</span></td>
+                  <td>1</td>
+                  <td>hier 16:02</td>
+                  <td><a class="btn sm" href="#campaign">Ouvrir</a></td>
+                </tr>
+                <tr>
+                  <td><a href="#campaign">Amplificateur — banque.nord.lu</a></td>
+                  <td>Nordbank</td>
+                  <td><span class="chip c-plain">synthétique</span></td>
+                  <td><span class="chip c-plain">non certifiant</span></td>
+                  <td>0</td>
+                  <td>hier 09:40</td>
+                  <td><a class="btn sm" href="#campaign">Ouvrir</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ============ CAMPAIGNS ============ -->
+          <section class="screen" id="s-campaigns">
+            <h1>Campaigns</h1>
+            <p class="sub">Toutes les campagnes, tous clients. Filtrez, ouvrez, relancez.</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap">
+              <select class="search" style="width: 180px">
+                <option>Tous les clients</option>
+                <option>Acme Payments</option>
+                <option>Nordbank</option>
+              </select>
+              <select class="search" style="width: 160px">
+                <option>Tous les modes</option>
+                <option>Mesuré</option>
+                <option>Synthétique</option>
+              </select>
+              <select class="search" style="width: 160px">
+                <option>Tous les états</option>
+                <option>En cours</option>
+                <option>Verdict</option>
+              </select>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Campagne</th>
+                  <th>Client</th>
+                  <th>Mode</th>
+                  <th>État</th>
+                  <th>Verdict</th>
+                  <th>Preuves</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="#campaign">DRS L1 — pay.acme.eu</a></td>
+                  <td>Acme</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-warn">En cours</span></td>
+                  <td>—</td>
+                  <td>0</td>
+                  <td>
+                    <a class="btn sm" href="#campaign">Ouvrir</a>
+                    <button class="btn sm danger">Arrêter</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#campaign">DRS L1 — api.acme.eu</a></td>
+                  <td>Acme</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-ok">Verdict</span></td>
+                  <td><span class="chip c-warn">PARTIAL</span></td>
+                  <td>1</td>
+                  <td>
+                    <a class="btn sm" href="#campaign">Ouvrir</a>
+                    <a class="btn sm" href="#compare">Comparer</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#campaign">Amplificateur — banque.nord.lu</a></td>
+                  <td>Nordbank</td>
+                  <td><span class="chip c-plain">synthétique</span></td>
+                  <td><span class="chip c-plain">Instrument validé</span></td>
+                  <td><span class="chip c-plain">non certifiant</span></td>
+                  <td>0</td>
+                  <td><a class="btn sm" href="#campaign">Ouvrir</a></td>
+                </tr>
+                <tr>
+                  <td><a href="#campaign">DRS L1 — pay.acme.eu (replay)</a></td>
+                  <td>Acme</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-bad">Indéterminé</span></td>
+                  <td><span class="chip c-bad">INDETERMINATE</span></td>
+                  <td>0</td>
+                  <td>
+                    <a class="btn sm" href="#campaign">Ouvrir</a>
+                    <button class="btn sm">Relancer</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ============ CAMPAIGN DETAIL ============ -->
+          <section class="screen" id="s-campaign">
+            <div style="display: flex; align-items: flex-start; gap: 14px">
+              <div>
+                <h1>
+                  DRS L1 — pay.acme.eu <span class="chip c-warn">PARTIAL</span>
+                  <span class="chip c-info">mesuré</span>
+                </h1>
+                <p class="sub">
+                  Acme Payments · révision 1 · finalisée aujourd'hui 11:51 · plan
+                  <span class="mono">7c2e…41d0</span>
+                </p>
+              </div>
+              <div class="spacer"></div>
+              <div style="display: flex; gap: 8px">
+                <a class="btn" href="#compare">Comparer</a>
+                <button class="btn">Relancer</button>
+                <a class="btn primary" href="#reports">Rapport client</a>
+              </div>
+            </div>
+
+            <div class="tabs">
+              <button class="on" data-tab="prog">Progression</button>
+              <button data-tab="evid">Preuve</button>
+              <button data-tab="req">Exigences</button>
+              <button data-tab="rep">Rapports</button>
+            </div>
+
+            <div class="tab" data-tab="prog">
+              <div class="steps">
+                <span class="step done">Capacité</span><span class="step done">Baseline</span>
+                <span class="step done">Exposition</span><span class="step done">Récupération</span>
+                <span class="step done">Preuve</span><span class="step on">Verdict</span>
+              </div>
+              <div class="card">
+                <b>Résultat</b>
+                <p class="sub" style="margin: 6px 0 0">
+                  Exposition mesurée et scellée. Trois exigences archivées ne sont pas atteintes :
+                  l'écart est chiffré, ce n'est pas un échec du test.
+                </p>
+              </div>
+              <h2>Journal</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Heure</th>
+                    <th>Étape</th>
+                    <th>Détail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono">11:49:12</td>
+                    <td>Baseline</td>
+                    <td>30 échantillons, 15 s, stable</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">11:49:30</td>
+                    <td>Exposition</td>
+                    <td>20 s · 20 rps demandés</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">11:50:02</td>
+                    <td>Preuve</td>
+                    <td>4 points scellés, 18/18 transactions</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">11:51:36</td>
+                    <td>Verdict</td>
+                    <td>PARTIAL · niveau terminal 1</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tab" data-tab="evid" hidden>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Point</th>
+                    <th>Rôle</th>
+                    <th>Charge observée</th>
+                    <th>Échantillons</th>
+                    <th>Empreinte</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><b>entry</b></td>
+                    <td>bord (témoin)</td>
+                    <td>22 tps</td>
+                    <td>2</td>
+                    <td class="mono">2cfd…8669</td>
+                  </tr>
+                  <tr>
+                    <td><b>origin</b></td>
+                    <td>origine (témoin)</td>
+                    <td>22 tps</td>
+                    <td>2</td>
+                    <td class="mono">4b5e…2516</td>
+                  </tr>
+                  <tr>
+                    <td><b>generator</b></td>
+                    <td>émission</td>
+                    <td>20 tps</td>
+                    <td>18</td>
+                    <td class="mono">9171…d15f</td>
+                  </tr>
+                  <tr>
+                    <td><b>user</b></td>
+                    <td>parcours</td>
+                    <td>18/18 transactions</td>
+                    <td>18</td>
+                    <td class="mono">6c99…56c7</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tab" data-tab="req" hidden>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Vecteur</th>
+                    <th>Dimension</th>
+                    <th>Requis</th>
+                    <th>Enregistré</th>
+                    <th>Atteint</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>151002</td>
+                    <td>charge</td>
+                    <td>500 tps</td>
+                    <td>20 tps</td>
+                    <td><span class="chip c-bad">non</span></td>
+                  </tr>
+                  <tr>
+                    <td>151002</td>
+                    <td>sources</td>
+                    <td>10 bots</td>
+                    <td>1 générateur</td>
+                    <td><span class="chip c-bad">non</span></td>
+                  </tr>
+                  <tr>
+                    <td>151002</td>
+                    <td>persistance</td>
+                    <td>3 600 s</td>
+                    <td>9 s</td>
+                    <td><span class="chip c-bad">non</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tab" data-tab="rep" hidden>
+              <div class="grid g3">
+                <div class="card">
+                  <b>Rapport client</b>
+                  <p class="sub">PDF 2 pages, mention non certifiante</p>
+                  <button class="btn primary">Télécharger</button>
+                </div>
+                <div class="card">
+                  <b>JSON</b>
+                  <p class="sub">Données brutes de l'assessment</p>
+                  <button class="btn">Ouvrir</button>
+                </div>
+                <div class="card">
+                  <b>Bundle de preuve</b>
+                  <p class="sub">Zip : rapport, JSON, manifeste, empreintes</p>
+                  <button class="btn">Télécharger</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ WIZARD ============ -->
+          <section class="screen" id="s-wizard">
+            <h1>Nouvelle campagne</h1>
+            <p class="sub">
+              Le mode décide de ce que la campagne peut prouver. Il se choisit avant tout budget.
+            </p>
+            <div class="steps">
+              <span class="step done">1 · Client &amp; cible</span
+              ><span class="step on">2 · Mode</span><span class="step">3 · Niveau</span
+              ><span class="step">4 · Autorisation</span>
+            </div>
+            <div class="grid g2">
+              <div>
+                <div class="grid g2" style="grid-template-columns: 1fr 1fr">
+                  <button class="choice sel">
+                    <h3>Campagne complète · mesurée</h3>
+                    <p>
+                      Trafic réel, preuve scellée, verdict opposable. Témoins bord/origine si le
+                      client en fournit.
+                    </p>
+                  </button>
+                  <button class="choice">
+                    <h3>Amplificateur synthétique</h3>
+                    <p>
+                      Valide la chaîne de mesure sans toucher la cible. Aucun trafic, aucun verdict.
+                    </p>
+                  </button>
+                </div>
+                <div class="card" style="margin-top: 14px">
+                  <div class="grid g2" style="grid-template-columns: 1fr 1fr">
+                    <label class="field">Exposition (s)<input value="20" /></label>
+                    <label class="field">Baseline (s)<input value="15" /></label>
+                    <label class="field">Débit (rps)<input value="30" /></label>
+                    <label class="field"
+                      >Niveau<select>
+                        <option>DRS 1</option>
+                        <option>DRS 2</option>
+                      </select></label
+                    >
+                  </div>
+                  <label class="field"
+                    >Assertion fonctionnelle<input value="status 200 et corps contient 'ok'"
+                  /></label>
+                  <label class="field"
+                    >Témoin bord (optionnel)<input
+                      placeholder="https://telemetry.client.example/edge"
+                  /></label>
+                  <label class="field"
+                    >Témoin origine (optionnel)<input
+                      placeholder="https://telemetry.client.example/origin"
+                  /></label>
+                </div>
+              </div>
+              <div class="card" style="align-self: start">
+                <b>Résumé</b>
+                <table style="margin-top: 10px">
+                  <tr>
+                    <td>Client</td>
+                    <td>Acme Payments</td>
+                  </tr>
+                  <tr>
+                    <td>Cible</td>
+                    <td>pay.acme.eu</td>
+                  </tr>
+                  <tr>
+                    <td>Mode</td>
+                    <td>mesuré</td>
+                  </tr>
+                  <tr>
+                    <td>Niveau</td>
+                    <td>DRS 1</td>
+                  </tr>
+                  <tr>
+                    <td>Enveloppe</td>
+                    <td>8 000 rps</td>
+                  </tr>
+                  <tr>
+                    <td>Témoins</td>
+                    <td>2</td>
+                  </tr>
+                </table>
+                <p class="sub" style="margin: 10px 0 0">
+                  La cible est imposée par le scope signé : une cible hors scope n'est pas
+                  sélectionnable.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ CLIENTS ============ -->
+          <section class="screen" id="s-clients">
+            <h1>Clients</h1>
+            <p class="sub">Un dossier par client : scope signé, campagnes, verdict, rapports.</p>
+            <div class="grid g3">
+              <div class="card">
+                <b>Acme Payments</b> <span class="chip c-warn">PARTIAL</span>
+                <p class="sub" style="margin: 6px 0 10px">
+                  SOW-2026-10 · 2 cibles · plafond 8 000 rps
+                </p>
+                <div class="bar"><i style="width: 50%; background: #1e7d3a"></i></div>
+                <p class="sub" style="margin: 6px 0 0">3 campagnes · 1 exigence non atteinte</p>
+              </div>
+              <div class="card">
+                <b>Nordbank</b> <span class="chip c-plain">non certifiant</span>
+                <p class="sub" style="margin: 6px 0 10px">
+                  SOW-2026-09 · 1 cible · plafond 2 000 rps
+                </p>
+                <div class="bar"><i style="width: 0"></i></div>
+                <p class="sub" style="margin: 6px 0 0">1 campagne synthétique · aucun verdict</p>
+              </div>
+              <div
+                class="card"
+                style="
+                  border-style: dashed;
+                  text-align: center;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                "
+              >
+                <b>Nouveau client</b>
+                <p class="sub" style="margin: 6px 0 10px">Créer un dossier avec son scope signé.</p>
+                <button class="btn primary">Créer</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ REPORTS ============ -->
+          <section class="screen" id="s-reports">
+            <h1>Reports</h1>
+            <p class="sub">
+              Le livrable client : un rapport par assessment, avec sa preuve et sa mention.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Campagne</th>
+                  <th>Mode</th>
+                  <th>Verdict</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Acme Payments</td>
+                  <td>DRS L1 — pay.acme.eu</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-warn">PARTIAL</span></td>
+                  <td>aujourd'hui</td>
+                  <td>
+                    <button class="btn sm">PDF</button> <a class="btn sm" href="#campaign">JSON</a>
+                    <button class="btn sm">Bundle</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Acme Payments</td>
+                  <td>DRS L1 — api.acme.eu</td>
+                  <td><span class="chip c-info">mesuré</span></td>
+                  <td><span class="chip c-warn">PARTIAL</span></td>
+                  <td>hier</td>
+                  <td>
+                    <button class="btn sm">PDF</button> <a class="btn sm" href="#campaign">JSON</a>
+                    <button class="btn sm">Bundle</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Nordbank</td>
+                  <td>Amplificateur — banque.nord.lu</td>
+                  <td><span class="chip c-plain">synthétique</span></td>
+                  <td><span class="chip c-plain">non certifiant</span></td>
+                  <td>hier</td>
+                  <td>
+                    <button class="btn sm">PDF</button> <a class="btn sm" href="#campaign">JSON</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h2>Aperçu du rapport</h2>
+            <div class="card">
+              <b>Résumé exécutif</b>
+              <p class="sub" style="margin: 6px 0 0">
+                L'objectif de niveau 1 n'est pas atteint : la protection a tenu la charge demandée,
+                mais la diversité de sources et la persistance restent en dessous des exigences
+                archivées. Aucune certification n'est délivrée.
+              </p>
+            </div>
+          </section>
+
+          <!-- ============ CAPACITY ============ -->
+          <section class="screen" id="s-capacity">
+            <h1>Capacity</h1>
+            <p class="sub">
+              Ce que la flotte peut réellement produire, et ce que cela permet d'atteindre.
+            </p>
+            <div class="kpis">
+              <div class="kpi"><b>9 600</b><span>rps d'enveloppe</span></div>
+              <div class="kpi"><b>320</b><span>concurrence</span></div>
+              <div class="kpi"><b>2</b><span>agents admis</span></div>
+              <div class="kpi"><b>10 000</b><span>plafond de service</span></div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Débit mesuré</th>
+                  <th>Concurrence</th>
+                  <th>Conditions</th>
+                  <th>Expire</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>gen-vps2</td>
+                  <td>6 000 rps</td>
+                  <td>200</td>
+                  <td class="sub">TLS off, 12 ms RTT</td>
+                  <td>dans 28 j</td>
+                </tr>
+                <tr>
+                  <td>gen-kind-1</td>
+                  <td>6 000 rps</td>
+                  <td>200</td>
+                  <td class="sub">TLS on, 8 pods</td>
+                  <td><span class="chip c-warn">dans 12 j</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <h2>Niveaux atteignables</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Niveau</th>
+                  <th>Atteignables</th>
+                  <th>Ce qui manque</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>DRS 1</td>
+                  <td>1 / 2</td>
+                  <td class="sub">25K pps : pas de générateur pour cette unité</td>
+                </tr>
+                <tr>
+                  <td>DRS 2</td>
+                  <td>1 / 3</td>
+                  <td class="sub">250K pps · 50 bots (0 observé)</td>
+                </tr>
+                <tr>
+                  <td>DRS 3</td>
+                  <td>1 / 7</td>
+                  <td class="sub">2M pps · 500 bots</td>
+                </tr>
+                <tr>
+                  <td>DRS 4 → 7</td>
+                  <td>0 / 119</td>
+                  <td class="sub">volumétrie et diversité hors de portée de la flotte</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ============ SETTINGS ============ -->
+          <section class="screen" id="s-settings">
+            <h1>Settings</h1>
+            <p class="sub">
+              Les limites que la plateforme refuse de franchir, et la trace de qui a fait quoi.
+            </p>
+            <div class="grid g2">
+              <div class="card">
+                <b>Limites appliquées</b>
+                <table style="margin-top: 10px">
+                  <tr>
+                    <td>Plafonds matériels</td>
+                    <td>2 000 rps · 500 conc · 900 s</td>
+                  </tr>
+                  <tr>
+                    <td>Plafond de service</td>
+                    <td>10 000 rps · 400 conc · 3 agents</td>
+                  </tr>
+                  <tr>
+                    <td>Plancher de baseline</td>
+                    <td>10 s (recette)</td>
+                  </tr>
+                  <tr>
+                    <td>Allowlist</td>
+                    <td>2 cibles</td>
+                  </tr>
+                  <tr>
+                    <td>Témoins</td>
+                    <td>bord : 2 · origine : 2 · adresses privées autorisées</td>
+                  </tr>
+                  <tr>
+                    <td>Kill switch</td>
+                    <td>disponible</td>
+                  </tr>
+                  <tr>
+                    <td>Certification</td>
+                    <td>jamais revendiquée</td>
+                  </tr>
+                </table>
+              </div>
+              <div class="card">
+                <b>Journal d'audit</b>
+                <table style="margin-top: 10px">
+                  <tr>
+                    <td class="mono">11:52</td>
+                    <td>drs.engine_validation</td>
+                    <td class="sub">fidélité 99,6 %</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">11:49</td>
+                    <td>campaign.execute</td>
+                    <td class="sub">Acme · pay.acme.eu</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">10:40</td>
+                    <td>drs.client.create</td>
+                    <td class="sub">Lab client 4</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">09:12</td>
+                    <td>drs.calibration</td>
+                    <td class="sub">gen-vps2 · 6 000 rps</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ COMPARE ============ -->
+          <section class="screen" id="s-compare">
+            <h1>Comparaison</h1>
+            <p class="sub">19 oct. 20:14 → 20 oct. 09:02 · deux assessments du même périmètre.</p>
+            <div class="card" style="margin-bottom: 14px">
+              <b>1 exigence résolue, 2 encore non atteintes, aucune régression.</b> Le verdict reste
+              PARTIAL.
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>19 oct.</th>
+                  <th>20 oct.</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Verdict</td>
+                  <td>PARTIAL</td>
+                  <td>PARTIAL</td>
+                </tr>
+                <tr>
+                  <td>Niveau terminal</td>
+                  <td>1</td>
+                  <td>1</td>
+                </tr>
+                <tr>
+                  <td>Preuves</td>
+                  <td>1</td>
+                  <td>1</td>
+                </tr>
+                <tr>
+                  <td>Charge</td>
+                  <td><span class="chip c-bad">non</span></td>
+                  <td><span class="chip c-ok">oui</span></td>
+                </tr>
+                <tr>
+                  <td>Sources</td>
+                  <td><span class="chip c-bad">non</span></td>
+                  <td><span class="chip c-bad">non</span></td>
+                </tr>
+                <tr>
+                  <td>Persistance</td>
+                  <td><span class="chip c-bad">non</span></td>
+                  <td><span class="chip c-bad">non</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const screens = [...document.querySelectorAll('.screen')];
+      const links = [...document.querySelectorAll('[data-nav]')];
+      const show = (id) => {
+        screens.forEach((s) => s.classList.toggle('on', s.id === 's-' + id));
+        links.forEach((a) => a.classList.toggle('on', a.dataset.nav === id));
+        window.scrollTo(0, 0);
+      };
+      const route = () => show((location.hash || '#overview').slice(1));
+      window.addEventListener('hashchange', route);
+      route();
+      document.querySelectorAll('.tabs button').forEach((b) => {
+        b.addEventListener('click', () => {
+          document
+            .querySelectorAll('.tabs button')
+            .forEach((x) => x.classList.toggle('on', x === b));
+          document
+            .querySelectorAll('.tab')
+            .forEach((t) => (t.hidden = t.dataset.tab !== b.dataset.tab));
+        });
+      });
+    </script>
+  </body>
+</html>
