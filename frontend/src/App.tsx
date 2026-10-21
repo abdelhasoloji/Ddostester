@@ -10,6 +10,7 @@ import { CapacityPage } from './capacity-page.js';
 import { DrsPage } from './drs-page.js';
 import { ClientsPage } from './clients-page.js';
 import { OverviewPage } from './overview-page.js';
+import { ReportsLibraryPage } from './reports-library.js';
 import { ClientPage } from './client-page.js';
 import { WizardPage } from './wizard-page.js';
 import { AssessmentPage } from './assessment-page.js';
@@ -56,7 +57,8 @@ function Gate() {
         <Route path="zones" element={<ZonesPage />} />
         <Route path="campaigns" element={<CampaignsWorkspace />} />
         <Route path="theater" element={<RunTheaterPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="legacy/results" element={<ReportsPage />} />
+        <Route path="reports" element={<ReportsLibraryPage />} />
         <Route path="fleet" element={<FleetPage />} />
         <Route path="capacity" element={<CapacityPage />} />
         <Route path="drs" element={<DrsPage />} />
