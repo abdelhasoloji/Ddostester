@@ -109,6 +109,7 @@ export function makeApi(overrides: Record<string, unknown> = {}) {
     drsCampaignReport: vi.fn(),
     drsGuardrails: vi.fn(),
     drsReports: vi.fn(),
+    audit: vi.fn(),
     drsFleet: vi.fn(),
     saveDrsAgent: vi.fn(),
     setDrsAgentState: vi.fn(),

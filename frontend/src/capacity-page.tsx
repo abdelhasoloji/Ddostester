@@ -74,6 +74,12 @@ export function CapacityPage() {
 
       {error && <p role="alert">{error}</p>}
 
+      <p className="hint">
+        Who contributes to this envelope, and who does not, lives in <a href="/fleet">the fleet</a>:
+        an agent in maintenance, retired, or calibrated too long ago is excluded there with its
+        reason.
+      </p>
+
       {view && (
         <>
           <div className="kpis">

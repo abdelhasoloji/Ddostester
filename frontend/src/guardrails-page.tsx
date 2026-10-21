@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { AuditEntry } from './api.js';
 import { api } from './api.js';
 import { LineIcon } from './interface-kit.js';
 
@@ -11,13 +12,17 @@ type Guardrails = Awaited<ReturnType<typeof api.drsGuardrails>>;
 export function GuardrailsPage() {
   const [view, setView] = useState<Guardrails | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .drsGuardrails()
-      .then((v) => {
-        if (!cancelled) setView(v);
+    Promise.all([api.drsGuardrails(), api.audit(25).catch(() => [])])
+      .then(([v, entries]) => {
+        if (cancelled) return;
+        setView(v);
+        setAudit(
+          (entries as AuditEntry[]).filter((e) => String(e.action).startsWith('drs.')).slice(0, 8),
+        );
       })
       .catch((err) => {
         if (!cancelled) setError((err as Error).message);
@@ -103,6 +108,35 @@ export function GuardrailsPage() {
           </tr>
         </tbody>
       </table>
+
+      <h2>Audit trail</h2>
+      <p className="hint">
+        Every DRS action is recorded with its actor and object; the export carries the hashes.
+      </p>
+      {audit.length === 0 ? (
+        <p className="hint">No DRS action recorded yet.</p>
+      ) : (
+        <table className="campaign-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Action</th>
+              <th>Object</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {audit.map((e) => (
+              <tr key={`${e.at}-${e.action}-${e.campaignId ?? ''}`}>
+                <td className="hint">{new Date(e.at).toLocaleString()}</td>
+                <td>{e.action}</td>
+                <td className="mono">{e.campaignId ?? '—'}</td>
+                <td className="hint">{e.detail ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
   );
 }
