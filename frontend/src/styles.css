@@ -7935,3 +7935,115 @@ table.remediations td {
   margin: 0;
   padding-left: 1.1rem;
 }
+
+/* Redesign primitives (docs/product/ui-redesign): chips, cards, kpi, bars, empty states. */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.ui-chip-ok {
+  background: #e9f5ec;
+  color: #1e7d3a;
+  border-color: #cfe6d5;
+}
+.ui-chip-warn {
+  background: #fdf3e3;
+  color: #a35a00;
+  border-color: #f0dcc0;
+}
+.ui-chip-bad {
+  background: #fbeaea;
+  color: #b3261e;
+  border-color: #f0cfcd;
+}
+.ui-chip-info {
+  background: #eaf1fb;
+  color: #0a4da2;
+  border-color: #d6e3f7;
+}
+.ui-chip-plain {
+  background: #f1f4f9;
+  color: #5b6b82;
+  border-color: #e2e8f1;
+}
+
+.ui-card {
+  background: #fff;
+  border: 1px solid #e2e8f1;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+}
+.ui-kpi {
+  background: #fff;
+  border: 1px solid #e2e8f1;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+.ui-kpi b {
+  display: block;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: #0a356b;
+}
+.ui-kpi span {
+  font-size: 0.72rem;
+  color: #5b6b82;
+}
+
+.ui-bar {
+  border-radius: 99px;
+  background: #e8eef7;
+  overflow: hidden;
+}
+.ui-bar > i {
+  display: block;
+  height: 100%;
+}
+.ui-bar-ok {
+  background: #1e7d3a;
+}
+.ui-bar-warn {
+  background: #a35a00;
+}
+.ui-bar-bad {
+  background: #b3261e;
+}
+.ui-bar-info {
+  background: #0a4da2;
+}
+.ui-bar-plain {
+  background: #8ea2bd;
+}
+
+.ui-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #5b6b82;
+}
+.ui-empty b {
+  display: block;
+  color: var(--text, #16202f);
+  margin-bottom: 0.25rem;
+}
+.ui-empty p {
+  margin: 0 0 0.75rem;
+}
+
+/* Sidebar groups (Pilotage / Clients / Platform). */
+.nav-group {
+  margin-bottom: 0.9rem;
+}
+.nav-group-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted, #5b6b82);
+  padding: 0.25rem 0.65rem 0.3rem;
+}
