@@ -133,3 +133,18 @@ describe('entry and origin witnesses', () => {
     expect(evidence.unrepresented_dimensions.some((d) => d.startsWith('origin'))).toBe(false);
   });
 });
+
+describe('baseline stability', () => {
+  // The rig answers in ~3 ms with an occasional 8 ms scheduling hiccup. The old min-to-max
+  // range called that unstable and every run ended INDETERMINATE before injection.
+  it('accepts a fast service with a single outlier', async () => {
+    const { baselineStable } = await import('../src/modules/drs/probe-collector.js');
+    expect(baselineStable([3, 3.1, 2.9, 3.2, 8.2, 3, 3.1])).toBe(true);
+  });
+
+  it('rejects a service whose latency really moves', async () => {
+    const { baselineStable } = await import('../src/modules/drs/probe-collector.js');
+    expect(baselineStable([2, 40, 3, 60, 4, 55, 3, 70])).toBe(false);
+    expect(baselineStable([])).toBe(false);
+  });
+});
