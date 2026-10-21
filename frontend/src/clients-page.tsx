@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type DrsCapacityView, type DrsClientView } from './api.js';
+import { Bar, Chip, verdictTone } from './design-system.js';
 import { useApp } from './context.js';
 import { LineIcon } from './interface-kit.js';
 
@@ -14,6 +15,7 @@ export function ClientsPage() {
   const app = useApp();
   const [clients, setClients] = useState<DrsClientView[] | null>(null);
   const [capacity, setCapacity] = useState<DrsCapacityView | null>(null);
+  const [reports, setReports] = useState<{ client: string | null; status: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [busyCreate, setBusyCreate] = useState(false);
@@ -33,6 +35,12 @@ export function ClientsPage() {
       api.drsClients().then((r) => {
         if (!cancelled) setClients(r.clients);
       }),
+      api
+        .drsReports()
+        .then((r) => {
+          if (!cancelled) setReports(r.reports);
+        })
+        .catch(() => undefined),
       api.drsCapacity().then((r) => {
         if (!cancelled) setCapacity(r);
       }),
@@ -184,46 +192,51 @@ export function ClientsPage() {
 
       {clients && clients.length === 0 && (
         <p className="hint">
-          No DRS assessment yet. Create one from <a href="/capacity">Capacity</a>.
+          No client dossier yet. Create one above, then start a campaign from{' '}
+          <a href="/campaigns/new">the wizard</a>.
         </p>
       )}
 
       {clients && clients.length > 0 && (
-        <table className="campaign-table">
-          <thead>
-            <tr>
-              <th>Client</th>
-              <th>Assessments</th>
-              <th>Finalized</th>
-              <th>Targets</th>
-              <th>Last state</th>
-              <th>Last activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((c) => (
-              <tr key={c.id ?? `legacy:${c.client}`}>
-                <td>
+        <div className="client-grid">
+          {clients.map((c) => {
+            const status = reports.find((r) => r.client === c.client)?.status ?? null;
+            return (
+              <section className="ui-card client-card" key={c.id ?? `legacy:${c.client}`}>
+                <div className="client-card-head">
                   {c.id ? (
                     <a href={`/clients/${c.id}`}>
                       <b>{c.client}</b>
                     </a>
                   ) : (
-                    <>
-                      <b>{c.client}</b>
-                      <div className="hint">unregistered — legacy campaign name</div>
-                    </>
+                    <b>{c.client}</b>
                   )}
-                </td>
-                <td>{c.assessments}</td>
-                <td>{c.finalized}</td>
-                <td className="hint">{c.targets.join(', ')}</td>
-                <td>{c.lastState}</td>
-                <td className="hint">{c.lastAt ? new Date(c.lastAt).toLocaleString() : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  {status ? (
+                    <Chip tone={verdictTone(status)}>{status}</Chip>
+                  ) : (
+                    <Chip tone="plain">no verdict</Chip>
+                  )}
+                </div>
+                {c.id ? (
+                  <p className="hint">
+                    {c.scope?.reference ?? 'no signed scope'} ·{' '}
+                    {c.scope?.maxRps.toLocaleString() ?? '—'} rps · {c.scope?.targets.length ?? 0}{' '}
+                    target(s)
+                  </p>
+                ) : (
+                  <p className="hint">unregistered — legacy campaign name</p>
+                )}
+                <Bar
+                  value={c.assessments ? c.finalized / c.assessments : 0}
+                  tone={c.finalized > 0 ? 'ok' : 'plain'}
+                />
+                <p className="hint" style={{ margin: '.45rem 0 0' }}>
+                  {c.assessments} campaign(s) · {c.finalized} finalised · last {c.lastState}
+                </p>
+              </section>
+            );
+          })}
+        </div>
       )}
     </>
   );
