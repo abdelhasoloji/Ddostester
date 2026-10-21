@@ -1,5 +1,3 @@
-import { HARD_CAPS } from './limits.js';
-
 /**
  * How long a calibration admits an agent into the envelope.
  *
@@ -10,5 +8,7 @@ import { HARD_CAPS } from './limits.js';
 export function drsCalibrationTtlDays(env: NodeJS.ProcessEnv = process.env): number {
   const raw = Number(env.DRS_CALIBRATION_TTL_DAYS ?? 30);
   if (!Number.isFinite(raw)) return 30;
-  return Math.min(Math.max(1, Math.floor(raw)), HARD_CAPS.maxDurationSec / 60);
+  // One day to one year. Deriving this from the duration cap was wrong: it silently turned the
+  // 30-day default into 15.
+  return Math.min(Math.max(1, Math.floor(raw)), 365);
 }
