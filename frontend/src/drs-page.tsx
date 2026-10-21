@@ -48,10 +48,18 @@ export function DrsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [comparison, setComparison] = useState<DrsCompareView | null>(null);
   const [comparing, setComparing] = useState(false);
+  const [modeFilter, setModeFilter] = useState('all');
+  const [stateFilter, setStateFilter] = useState('all');
   const rows = useMemo(
     () => app.campaigns.map(rowOf).filter((r): r is Row => r !== null),
     [app.campaigns],
   );
+  const visible = rows.filter(
+    (r) =>
+      (modeFilter === 'all' || r.mode === modeFilter) &&
+      (stateFilter === 'all' || r.state === stateFilter),
+  );
+
   const running = rows.some(
     (r) => !r.finalized && r.state !== 'PLAN_FROZEN' && r.state !== 'DRAFT',
   );
@@ -144,7 +152,7 @@ export function DrsPage() {
     <>
       <div className="page-head page-head--icon">
         <div>
-          <h1>DRS assessments</h1>
+          <h1>Campaigns</h1>
           <p className="hint">
             Frozen plans, their execution state and the sealed evidence. A verdict is never
             certified: the assessment states the requirements the fleet did not reach.
@@ -152,6 +160,32 @@ export function DrsPage() {
         </div>
         <span className="page-head-icon" aria-hidden="true">
           <LineIcon name="shield" />
+        </span>
+      </div>
+
+      <div className="filters-row">
+        <label>
+          Mode
+          <select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
+            <option value="all">All modes</option>
+            <option value="measured">Measured</option>
+            <option value="synthetic-lab">Synthetic</option>
+            <option value="engine-validation">Engine validation</option>
+          </select>
+        </label>
+        <label>
+          State
+          <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+            <option value="all">All states</option>
+            <option value="PLAN_FROZEN">Plan frozen</option>
+            <option value="BASELINE">Baseline</option>
+            <option value="LEVEL_EXECUTION">Running</option>
+            <option value="FINAL_REPORT">Verdict</option>
+            <option value="ENGINE_VALIDATED">Instrument validated</option>
+          </select>
+        </label>
+        <span className="hint" style={{ margin: 0 }}>
+          {visible.length} of {rows.length} campaigns
         </span>
       </div>
 
@@ -235,7 +269,7 @@ export function DrsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ campaign, state, level, proofs, finalized, mode }) => (
+            {visible.map(({ campaign, state, level, proofs, finalized, mode }) => (
               <Fragment key={campaign.id}>
                 <tr
                   onClick={() => setExpanded(expanded === campaign.id ? null : campaign.id)}

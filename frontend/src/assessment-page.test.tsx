@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 
 const fakeApi = makeApi();
@@ -7,9 +7,10 @@ const drsCampaign = fakeApi.drsCampaign as unknown as ReturnType<typeof vi.fn>;
 const drsCampaignReport = fakeApi.drsCampaignReport as unknown as ReturnType<typeof vi.fn>;
 const listCampaigns = fakeApi.listCampaigns as unknown as ReturnType<typeof vi.fn>;
 
+let currentApp: ReturnType<typeof makeApp>;
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
-  useApp: () => makeApp(),
+  useApp: () => currentApp,
 }));
 vi.mock('./api.js', async (orig) => ({
   ...(await orig<typeof import('./api.js')>()),
@@ -38,6 +39,7 @@ const revision = (state: string, mode: string, extra: Record<string, unknown> = 
 });
 
 beforeEach(() => {
+  currentApp = makeApp();
   listCampaigns.mockResolvedValue([
     { id: 'c1', name: 'DRS L1 — acme', target: 'https://pay.acme.eu' },
   ]);
@@ -70,6 +72,7 @@ describe('assessment screen', () => {
     });
     renderWithRouter(<AssessmentPage />, { route: '/assessments/c1', path: '/assessments/:id' });
     expect(await screen.findByText(/Synthetic amplifier · non-certifying/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /evidence/i }));
     expect(screen.getByText(/Claimed versus produced/)).toBeTruthy();
     expect(screen.getByText(/Fidelity/)).toBeTruthy();
     expect(screen.queryByText(/Archived requirements/)).toBeNull();
@@ -139,9 +142,11 @@ describe('assessment screen', () => {
     });
     renderWithRouter(<AssessmentPage />, { route: '/assessments/c1', path: '/assessments/:id' });
     expect(await screen.findByText(/PARTIAL · terminal level 1/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /evidence/i }));
     expect(screen.getByText(/Observation points/)).toBeTruthy();
     expect(screen.getByText('entry')).toBeTruthy();
-    expect(screen.getByText(/10 independent bots/)).toBeTruthy();
     expect(screen.getByText(/22\/22/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /requirements/i }));
+    expect(screen.getByText(/10 independent bots/)).toBeTruthy();
   });
 });

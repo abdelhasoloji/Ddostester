@@ -8047,3 +8047,28 @@ table.remediations td {
   color: var(--muted, #5b6b82);
   padding: 0.25rem 0.65rem 0.3rem;
 }
+
+/* Filter row above a table (Campaigns). */
+.filters-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin: 0 0 0.9rem;
+  flex-wrap: wrap;
+}
+.filters-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--muted, #5b6b82);
+}
+.filters-row select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #e2e8f1;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text, #16202f);
+}
