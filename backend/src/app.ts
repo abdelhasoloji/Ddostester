@@ -19,6 +19,9 @@ import { drsReport } from './modules/drs/report.js';
 import { drsReference } from './modules/drs/reference.js';
 import { deriveEnvelope, levelReachability, parseQuantity } from './modules/drs/capacity.js';
 import { DrsClientError, parseClientInput } from './modules/drs/client.js';
+import { DrsAgentError, parseAgentInput, parseAgentState } from './modules/drs/agent.js';
+import { admitAgents, calibrationAgeDays } from './modules/drs/fleet.js';
+import { drsCalibrationTtlDays } from './config/drs-calibration.js';
 import { orchestrateDrs } from './modules/drs/orchestrator.js';
 import { createEngineGeneratorPort } from './modules/drs/engine-generator.js';
 import { createProbeCollectorPort } from './modules/drs/probe-collector.js';
@@ -2366,19 +2369,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       maxDurationSec: overrides.duration ?? ceiling.maxDurationSec,
       targets: [] as string[],
     };
-    const calibrations = await store.listAgentCalibrations();
+    const [calibrations, agents] = await Promise.all([
+      store.listAgentCalibrations(),
+      store.listDrsAgents(),
+    ]);
+    // Only agents in service, with a fresh measurement, contribute capacity.
+    const admission = admitAgents(calibrations, agents, { ttlDays: drsCalibrationTtlDays() });
     const envelope = deriveEnvelope({
       scope,
-      agents: calibrations.map((c) => ({
-        id: c.agentId,
-        measuredTps: c.measuredTps,
-        measuredConcurrency: c.measuredConcurrency,
-        measuredAt: c.measuredAt,
-        conditions: c.conditions,
+      agents: admission.admitted.map((a) => ({
+        id: a.id,
+        measuredTps: a.measuredTps,
+        measuredConcurrency: a.measuredConcurrency,
+        measuredAt: a.measuredAt,
       })),
       ceiling,
     });
-    return { ceiling, scope, envelope, calibrations };
+    return { ceiling, scope, envelope, calibrations, agents, admission };
   }
 
   // Measured capacity and the envelope it implies. The service ceiling defaults to the
@@ -2854,6 +2861,79 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   );
 
   // What bounds the platform, stated where an operator can read it instead of in an env file.
+  // The fleet: calibration, administrative state, freshness and what each agent contributes.
+  app.get('/api/drs/fleet', { preHandler: guard('campaign:read') }, async () => {
+    const envelope = await currentEnvelope();
+    const ttlDays = drsCalibrationTtlDays();
+    return {
+      ttlDays,
+      envelope: envelope.envelope,
+      agents: envelope.calibrations.map((c) => {
+        const record = envelope.agents.find((a) => a.id === c.agentId);
+        const excluded = envelope.admission.excluded.find((e) => e.id === c.agentId);
+        return {
+          id: c.agentId,
+          label: record?.label ?? c.agentId,
+          region: record?.region ?? null,
+          tags: record?.tags ?? [],
+          state: record?.state ?? 'active',
+          registered: Boolean(record),
+          measuredTps: c.measuredTps,
+          measuredConcurrency: c.measuredConcurrency,
+          measuredAt: c.measuredAt,
+          conditions: c.conditions ?? null,
+          ageDays: calibrationAgeDays(c.measuredAt),
+          admitted: !excluded,
+          excludedReason: excluded?.reason ?? null,
+          excludedDetail: excluded?.detail ?? null,
+        };
+      }),
+    };
+  });
+
+  app.post('/api/drs/fleet', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    try {
+      const b = (req.body ?? {}) as Record<string, unknown>;
+      const id = typeof b.id === 'string' ? b.id.trim() : '';
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{1,38}$/.test(id))
+        return reply
+          .code(400)
+          .send({ error: 'id must be 2–39 characters of letters, digits, . _ -' });
+      const input = parseAgentInput(b);
+      const now = new Date().toISOString();
+      const existing = await store.getDrsAgent(id);
+      const agent = {
+        ...input,
+        id,
+        state: existing?.state ?? 'active',
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      } as const;
+      await store.saveDrsAgent(agent);
+      await audit(req, 'drs.agent.upsert', id, `agent ${agent.label} (${agent.state})`);
+      return reply.code(existing ? 200 : 201).send(agent);
+    } catch (e) {
+      if (e instanceof DrsAgentError) return reply.code(400).send({ error: e.message });
+      throw e;
+    }
+  });
+
+  app.patch('/api/drs/fleet/:id', { preHandler: guard('campaign:create') }, async (req, reply) => {
+    try {
+      const id = (req.params as { id: string }).id;
+      const agent = await store.getDrsAgent(id);
+      if (!agent) return reply.code(404).send({ error: 'agent not found' });
+      const state = parseAgentState((req.body as { state?: unknown })?.state);
+      const updated = { ...agent, state, updatedAt: new Date().toISOString() };
+      await store.saveDrsAgent(updated);
+      await audit(req, 'drs.agent.state', id, `agent ${agent.label} → ${state}`);
+      return updated;
+    } catch (e) {
+      if (e instanceof DrsAgentError) return reply.code(400).send({ error: e.message });
+      throw e;
+    }
+  });
+
   // Every finalised revision, one row each: the client-facing index of what was delivered.
   app.get('/api/drs/reports', { preHandler: guard('campaign:read') }, async (req) => {
     const filter = (req.query as { client?: string }).client;

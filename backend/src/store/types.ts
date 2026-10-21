@@ -8,6 +8,7 @@ import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/mod
 import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { DrsClient } from '../modules/drs/client.js';
+import type { DrsAgent } from '../modules/drs/agent.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 /**
@@ -36,6 +37,10 @@ export interface Store {
   saveFleetDevice(device: FleetDevice): Promise<void>;
   deleteFleetDevice(id: string): Promise<void>;
   /** Measured per-agent capacity; the DRS envelope is derived from these rows. */
+  listDrsAgents(): Promise<DrsAgent[]>;
+  getDrsAgent(id: string): Promise<DrsAgent | undefined>;
+  saveDrsAgent(a: DrsAgent): Promise<void>;
+  deleteDrsAgent(id: string): Promise<void>;
   listDrsClients(): Promise<DrsClient[]>;
   getDrsClient(id: string): Promise<DrsClient | undefined>;
   saveDrsClient(c: DrsClient): Promise<void>;

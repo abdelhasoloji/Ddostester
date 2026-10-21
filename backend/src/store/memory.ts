@@ -11,6 +11,7 @@ import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
 import type { DrsClient } from '../modules/drs/client.js';
+import type { DrsAgent } from '../modules/drs/agent.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const SNAPSHOT_KEYS = [
@@ -31,6 +32,7 @@ export class MemoryStore implements Store {
   private fleetDevices = new Map<string, FleetDevice>();
   private calibrations = new Map<string, AgentCalibration>();
   private drsClients = new Map<string, DrsClient>();
+  private drsAgents = new Map<string, DrsAgent>();
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
     const device = this.fleetDevices.get(id);
     return device ? structuredClone(device) : undefined;
@@ -44,6 +46,22 @@ export class MemoryStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     this.fleetDevices.delete(id);
   }
+  async listDrsAgents(): Promise<DrsAgent[]> {
+    return [...this.drsAgents.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  async getDrsAgent(id: string): Promise<DrsAgent | undefined> {
+    return this.drsAgents.get(id);
+  }
+
+  async saveDrsAgent(a: DrsAgent): Promise<void> {
+    this.drsAgents.set(a.id, a);
+  }
+
+  async deleteDrsAgent(id: string): Promise<void> {
+    this.drsAgents.delete(id);
+  }
+
   async listDrsClients(): Promise<DrsClient[]> {
     return [...this.drsClients.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
