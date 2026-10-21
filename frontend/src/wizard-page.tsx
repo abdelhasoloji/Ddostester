@@ -17,6 +17,8 @@ interface Draft {
   maxRps: number;
   assertion: string;
   rationale: string;
+  witnessEntry: string;
+  witnessOrigin: string;
   authorized: boolean;
 }
 
@@ -45,6 +47,8 @@ export function WizardPage() {
     maxRps: 50,
     assertion: '',
     rationale: '',
+    witnessEntry: '',
+    witnessOrigin: '',
     authorized: false,
   });
 
@@ -103,6 +107,14 @@ export function WizardPage() {
         maxRps: scopedRps,
         functionalAssertion: draft.assertion.trim() || undefined,
         rationale: draft.rationale.trim(),
+        ...(draft.witnessEntry.trim() || draft.witnessOrigin.trim()
+          ? {
+              witness: {
+                ...(draft.witnessEntry.trim() ? { entryUrl: draft.witnessEntry.trim() } : {}),
+                ...(draft.witnessOrigin.trim() ? { originUrl: draft.witnessOrigin.trim() } : {}),
+              },
+            }
+          : {}),
         authorized: draft.authorized,
       });
       app.push('success', `Campaign ${created.name} created.`);
@@ -292,6 +304,30 @@ export function WizardPage() {
               placeholder="why this level and this exposure"
             />
           </label>
+          <h2>Client witnesses (optional)</h2>
+          <p className="hint">
+            Telemetry counters the client exposes at their edge and at their origin. With them the
+            evidence observes the exposure instead of declaring it unrepresented. Without them the
+            assessment says so.
+          </p>
+          <div className="grid2">
+            <label className="field">
+              Edge witness URL
+              <input
+                value={draft.witnessEntry}
+                onChange={(e) => setDraft({ ...draft, witnessEntry: e.target.value })}
+                placeholder="https://telemetry.client.example/edge"
+              />
+            </label>
+            <label className="field">
+              Origin witness URL
+              <input
+                value={draft.witnessOrigin}
+                onChange={(e) => setDraft({ ...draft, witnessOrigin: e.target.value })}
+                placeholder="https://telemetry.client.example/origin"
+              />
+            </label>
+          </div>
           <p className="hint">
             Envelope applied: <b>{scopedRps.toLocaleString()} rps</b>
             {envelope
@@ -327,6 +363,16 @@ export function WizardPage() {
               <tr>
                 <td>Rate</td>
                 <td>{scopedRps.toLocaleString()} rps</td>
+              </tr>
+              <tr>
+                <td>Witnesses</td>
+                <td>
+                  {draft.witnessEntry || draft.witnessOrigin
+                    ? [draft.witnessEntry && 'edge', draft.witnessOrigin && 'origin']
+                        .filter(Boolean)
+                        .join(' + ')
+                    : 'none — entry and origin will be reported unrepresented'}
+                </td>
               </tr>
             </tbody>
           </table>

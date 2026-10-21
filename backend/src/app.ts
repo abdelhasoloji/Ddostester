@@ -2531,6 +2531,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       rev.plan.exposureSec = Math.min(exposureSec, rev.plan.budgets.maxDurationSec);
       rev.plan.baselineMinSec = Math.floor(baselineSec);
       rev.plan.exposureRationale = rationale;
+      // Witnesses belong to the plan: a client's telemetry endpoint is not a deployment setting.
+      const witnessRaw = (b.witness ?? {}) as { entryUrl?: unknown; originUrl?: unknown };
+      const witness = {
+        ...(text(witnessRaw.entryUrl) ? { entryUrl: text(witnessRaw.entryUrl) } : {}),
+        ...(text(witnessRaw.originUrl) ? { originUrl: text(witnessRaw.originUrl) } : {}),
+      };
+      if (Object.keys(witness).length > 0) rev.plan.witness = witness;
       rev.plan.services[0].journey = text(b.journey) || rev.plan.services[0].journey;
       if (assertion) rev.plan.services[0].functionalAssertion = assertion;
       const threshold = Number(b.successThreshold);
@@ -2585,8 +2592,12 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       // of declaring those dimensions unrepresented.
       const collector = createProbeCollectorPort({
         probeUrl: campaign.probeUrl,
-        entryWitnessUrl: process.env.DRS_ENTRY_WITNESS_URL || undefined,
-        originWitnessUrl: process.env.DRS_ORIGIN_WITNESS_URL || undefined,
+        // The plan's witnesses win; the deployment-level variables remain for lab setups that
+        // have a single telemetry endpoint for everything.
+        entryWitnessUrl:
+          rev.plan.witness?.entryUrl || process.env.DRS_ENTRY_WITNESS_URL || undefined,
+        originWitnessUrl:
+          rev.plan.witness?.originUrl || process.env.DRS_ORIGIN_WITNESS_URL || undefined,
       });
       const controller = new AbortController();
       drsRunning.set(id, controller);
@@ -2838,6 +2849,24 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
       }
     },
   );
+
+  // What bounds the platform, stated where an operator can read it instead of in an env file.
+  app.get('/api/drs/guardrails', { preHandler: guard('campaign:read') }, async () => {
+    const ceiling = serviceCeiling();
+    return {
+      hardCaps: HARD_CAPS,
+      serviceCeiling: ceiling,
+      baselineFloorSec: drsBaselineFloorSec(),
+      allowlist: await effectiveAllowlist(),
+      witnesses: {
+        entry: Boolean(process.env.DRS_ENTRY_WITNESS_URL),
+        origin: Boolean(process.env.DRS_ORIGIN_WITNESS_URL),
+        privateAllowed: process.env.DRS_ALLOW_PRIVATE_WITNESS === '1',
+      },
+      killSwitch: true,
+      certification: false,
+    };
+  });
 
   app.get('/api/drs/catalog', { preHandler: guard('campaign:read') }, async () => {
     const catalogue = drsCatalog();

@@ -13,6 +13,7 @@ import { ClientPage } from './client-page.js';
 import { WizardPage } from './wizard-page.js';
 import { AssessmentPage } from './assessment-page.js';
 import { ComparePage } from './compare-page.js';
+import { GuardrailsPage } from './guardrails-page.js';
 import { ReportsPage } from './reports-page.js';
 import { FleetPage } from './fleet-page.js';
 
@@ -63,6 +64,7 @@ function Gate() {
         <Route path="campaigns/new" element={<WizardPage />} />
         <Route path="assessments/:id" element={<AssessmentPage />} />
         <Route path="assessments/:id/compare/:with" element={<ComparePage />} />
+        <Route path="guardrails" element={<GuardrailsPage />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />

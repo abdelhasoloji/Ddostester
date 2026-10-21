@@ -6,6 +6,7 @@ import type { Store } from '../store/types.js';
 import { randomUUID } from 'node:crypto';
 import { mutationActor } from '../store/audited.js';
 import { drsReference, digest } from '../modules/drs/reference.js';
+import { createZip } from '../util/zip.js';
 import { DrsError, ensure } from '../modules/drs/model.js';
 import type { DrsPlan, DrsEvidence } from '../modules/drs/model.js';
 import {
@@ -125,6 +126,60 @@ export function registerDrsRoutes(
       }
     },
   );
+  // The client deliverable: one archive with the report in both forms, the manifest that
+  // states what bounds the assessment, and the hashes that make it checkable.
+  app.get(
+    '/api/campaigns/:id/drs/bundle',
+    { preHandler: guard('campaign:read') },
+    async (req, reply) => {
+      try {
+        const c = await store.getCampaign((req.params as { id: string }).id);
+        if (!c) return reply.code(404).send({ error: 'Campaign not found' });
+        const rev = c.drsDocument?.revisions.find(
+          (r) => r.number === c.drsDocument?.currentRevision,
+        );
+        ensure(rev?.planHash, 'Frozen revision not found');
+        const report = drsReport(rev);
+        const manifest = {
+          schema: 'shieldtester.drs.bundle/v1',
+          campaignId: c.id,
+          campaignName: c.name,
+          target: c.target,
+          client: c.client ?? null,
+          mode: rev.plan.mode,
+          revision: rev.number,
+          planHash: rev.planHash,
+          finalizedAt: rev.finalizedAt ?? null,
+          envelope: rev.plan.capacity ?? null,
+          witness: rev.plan.witness ?? null,
+          proofs: rev.proofs.map((p) => ({ id: p.id, hash: p.hash, provenance: p.provenance })),
+          synthetic: report.synthetic
+            ? { fidelity: report.synthetic.fidelity, hash: report.synthetic.hash }
+            : null,
+          assessment: report.assessment
+            ? { status: report.assessment.status, terminalLevel: report.assessment.terminalLevel }
+            : null,
+          generatedAt: new Date().toISOString(),
+        };
+        const zip = createZip([
+          { name: 'report.json', data: JSON.stringify(report, null, 2) },
+          { name: 'report.html', data: drsReportHtml(rev) },
+          { name: 'manifest.json', data: JSON.stringify(manifest, null, 2) },
+        ]);
+        return reply
+          .header('content-type', 'application/zip')
+          .header(
+            'content-disposition',
+            `attachment; filename="drs-${c.id.slice(0, 8)}-r${rev.number}.zip"`,
+          )
+          .send(zip);
+      } catch (e) {
+        if (e instanceof DrsError) return reply.code(400).send({ error: e.message });
+        throw e;
+      }
+    },
+  );
+
   for (const format of ['json', 'html'] as const)
     app.get(
       '/api/campaigns/:id/drs/report.' + format,
