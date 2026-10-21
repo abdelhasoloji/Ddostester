@@ -7895,3 +7895,43 @@ table.remediations td {
     grid-template-columns: 1fr;
   }
 }
+
+/* Campaign wizard: numbered steps and the two mode cards. */
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+.wizard-steps li {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #eef3fb;
+  color: #5b6b82;
+  font-size: 0.78rem;
+}
+.wizard-steps li.done {
+  background: #e8f3e9;
+  color: #2e7d32;
+}
+.wizard-steps li.on {
+  background: #1554a6;
+  color: #fff;
+  font-weight: 600;
+}
+.choice {
+  text-align: left;
+  cursor: pointer;
+  border: 2px solid var(--line, #d6deea);
+  background: #fff;
+}
+.choice.sel {
+  border-color: #1554a6;
+  box-shadow: 0 0 0 3px #e7eefb;
+}
+.choice ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}

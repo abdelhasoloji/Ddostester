@@ -1326,9 +1326,12 @@ export const api = {
     target: string;
     probeUrl?: string;
     client?: string;
+    clientId?: string;
     maxLevel: number;
     exposureSec: number;
     mode: 'measured' | 'synthetic-lab' | 'engine-validation';
+    baselineSec?: number;
+    maxRps?: number;
     journey?: string;
     functionalAssertion?: string;
     successThreshold?: number;

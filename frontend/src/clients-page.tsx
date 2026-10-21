@@ -88,6 +88,9 @@ export function ClientsPage() {
       </div>
 
       <p className="hint">
+        <a className="btn btn-sm btn-primary" href="/campaigns/new">
+          New campaign
+        </a>{' '}
         <button className="btn btn-sm" onClick={() => setCreating(!creating)}>
           {creating ? 'Cancel' : 'New client'}
         </button>
