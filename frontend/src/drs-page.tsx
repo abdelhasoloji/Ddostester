@@ -251,7 +251,9 @@ export function DrsPage() {
                     />
                   </td>
                   <td>
-                    <b>{campaign.name}</b>
+                    <a href={`/assessments/${campaign.id}`} onClick={(e) => e.stopPropagation()}>
+                      <b>{campaign.name}</b>
+                    </a>
                     <div className="hint">{campaign.target}</div>
                   </td>
                   <td>{mode}</td>

@@ -1952,4 +1952,36 @@ export interface DrsReportView {
   };
   reference: DrsRevisionView['reference'];
   revision: number;
+  planHash?: string;
+  scope?: { id: string; url: string; journey: string; functionalAssertion: string }[];
+  proofs?: {
+    id: string;
+    hash: string;
+    provenance: string;
+    data?: {
+      points?: {
+        sourceId: string;
+        load?: { value: number; unit: string };
+        sampleCount?: number;
+        artifactHash?: string;
+      }[];
+      legitimate_transaction_success?: { successful: number; total: number }[];
+    };
+  }[];
+  /** Present on a sealed synthetic amplifier run: the report carries no assessment. */
+  synthetic?: {
+    schema: string;
+    claimed: { rps: number; concurrency: number; durationSec: number };
+    produced: {
+      rps: number;
+      concurrency: number;
+      durationSec: number;
+      requests: number;
+      errors: number;
+    };
+    fidelity: number;
+    controls: { id: string; ok: boolean; detail: string }[];
+    sealedAt: string;
+    hash: string;
+  } | null;
 }
