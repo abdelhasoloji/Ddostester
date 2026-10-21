@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 import type { Campaign } from './api.js';
 
@@ -105,6 +105,9 @@ describe('overview', () => {
     renderWithRouter(<OverviewPage />);
     expect(await screen.findByText(/Coverage by DRS level/)).toBeTruthy();
     expect(await screen.findByText(/Stop the exposure/)).toBeTruthy();
+    // stopping is destructive: it asks once before aborting
+    fireEvent.click(screen.getByText(/Stop the exposure/));
+    expect(screen.getByText(/Confirm stop/)).toBeTruthy();
     await waitFor(() => expect(screen.getAllByText(/PARTIAL/).length).toBeGreaterThan(0));
     // one of two requirements reached → the level bar says 1 / 2
     expect(screen.getByText('1 / 2')).toBeTruthy();
