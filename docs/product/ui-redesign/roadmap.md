@@ -126,3 +126,20 @@ Total : **7 jours** de travail effectif, livrables en incréments fusionnés et 
 - Pas de nouvelle fonctionnalité DRS (pas de témoins supplémentaires, pas de niveaux supérieurs) :
   uniquement la présentation.
 - Pas de thème sombre ni de personnalisation : le produit doit d'abord être lisible.
+
+## Livré
+
+| Phase                   | État | PR               |
+| ----------------------- | ---- | ---------------- |
+| A · Socle               | ✅   | #288             |
+| B · Overview            | ✅   | #288             |
+| C · Campaigns + onglets | ✅   | #290, #291       |
+| D · Rapports            | ✅   | #292             |
+| E · Clients             | ✅   | #293             |
+| F · Flotte + plateforme | ✅   | #294, #295, #296 |
+| G · Finition            | ✅   | #297             |
+
+La gestion avancée de la flotte a été ajoutée en cours de route : entité agent avec état
+(actif / maintenance / retraité), région et tags, admission calculée sur la fraîcheur de la
+calibration (`DRS_CALIBRATION_TTL_DAYS`, 30 jours par défaut), raison d'exclusion, contribution à
+l'enveloppe et bascule d'état depuis l'écran Fleet.
