@@ -47,7 +47,15 @@ export interface DrsEvidencePort {
   baseline(
     plan: DrsRevision['plan'],
     signal: AbortSignal,
-  ): Promise<{ healthy: boolean; stable: boolean; durationSec: number }>;
+  ): Promise<{
+    healthy: boolean;
+    stable: boolean;
+    durationSec: number;
+    samples?: number;
+    availability?: number;
+    coefficientOfVariation?: number | null;
+    latency?: { samplesMs: number[]; meanMs: number | null };
+  }>;
   observe(vectorIds: string[], plan: DrsRevision['plan'], signal: AbortSignal): Promise<void>;
   recovery(plan: DrsRevision['plan'], signal: AbortSignal): Promise<void>;
   seal(vectorIds: string[], plan: DrsRevision['plan']): Promise<DrsEvidence[]>;
@@ -127,7 +135,29 @@ export async function orchestrateDrs(
         );
       }
       if (!baseline.healthy || !baseline.stable || baseline.durationSec < r.plan.baselineMinSec) {
-        transition(r, 'BASELINE', 'Baseline unhealthy, unstable or too short; no injection');
+        const reason = !baseline.healthy
+          ? 'unhealthy'
+          : !baseline.stable
+            ? 'unstable'
+            : 'incomplete';
+        // The report has a baseline section; leaving it empty made a rejection unexplainable.
+        r.baselineDiagnostic = {
+          reason,
+          elapsedSec: baseline.durationSec,
+          observedDurationSec: baseline.durationSec,
+          samples: baseline.samples ?? 0,
+          samplesMs: baseline.latency?.samplesMs ?? [],
+          availabilityPct: Math.round((baseline.availability ?? 0) * 1000) / 10,
+          meanMs: baseline.latency?.meanMs ?? null,
+          coefficientOfVariation: baseline.coefficientOfVariation ?? null,
+          tolerance: r.plan.baselineStabilityTolerance,
+          minimumSec: r.plan.baselineMinSec,
+        };
+        transition(
+          r,
+          'BASELINE',
+          `Baseline ${reason}: ${baseline.samples} samples over ${baseline.durationSec}s; no injection`,
+        );
         break;
       }
       ensure(!ports.signal.aborted, 'Assessment cancelled before injection');

@@ -205,8 +205,17 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
       baselineSeconds = Math.max(1, Math.round((now() - began) / 1000));
       const ok = baselineSamples.filter((s) => s.ok).length;
       const healthy = baselineSamples.length > 0 && ok / baselineSamples.length >= 0.9;
-      const stable = baselineStable(latency(baselineSamples).samplesMs);
-      return { healthy, stable, durationSec: baselineSeconds };
+      const lat = latency(baselineSamples);
+      const stable = baselineStable(lat.samplesMs);
+      return {
+        healthy,
+        stable,
+        durationSec: baselineSeconds,
+        samples: baselineSamples.length,
+        availability: baselineSamples.length ? ok / baselineSamples.length : 0,
+        coefficientOfVariation: lat.meanMs ? (lat.p95Ms ?? 0) / lat.meanMs : null,
+        latency: { samplesMs: lat.samplesMs, meanMs: lat.meanMs },
+      };
     },
     async observe(_vectorIds, plan, signal) {
       samples = [];
