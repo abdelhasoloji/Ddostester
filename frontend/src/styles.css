@@ -8072,3 +8072,29 @@ table.remediations td {
   font-size: 0.8rem;
   color: var(--text, #16202f);
 }
+
+/* Tabs (campaign screen). */
+.ui-tabs {
+  display: flex;
+  gap: 0.15rem;
+  border-bottom: 1px solid #e2e8f1;
+  margin: 1rem 0 1.1rem;
+}
+.ui-tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #5b6b82;
+  cursor: pointer;
+}
+.ui-tabs button:hover {
+  color: #16202f;
+}
+.ui-tabs button.on {
+  color: #0a4da2;
+  border-bottom-color: #0a4da2;
+  font-weight: 600;
+}
