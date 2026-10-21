@@ -8098,3 +8098,20 @@ table.remediations td {
   border-bottom-color: #0a4da2;
   font-weight: 600;
 }
+
+/* Client dossiers as cards: scope, verdict and activity at a glance. */
+.client-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.9rem;
+}
+.client-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.client-card .hint {
+  margin: 0 0 0.5rem;
+}

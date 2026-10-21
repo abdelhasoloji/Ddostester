@@ -6,6 +6,7 @@ import { makeApp, makeApi, renderWithRouter } from './test-utils.js';
 const fakeApi = makeApi();
 const drsClients = fakeApi.drsClients as unknown as ReturnType<typeof vi.fn>;
 const drsCapacity = fakeApi.drsCapacity as unknown as ReturnType<typeof vi.fn>;
+const drsReports = fakeApi.drsReports as unknown as ReturnType<typeof vi.fn>;
 const createDrsClient = fakeApi.createDrsClient as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./context.js', async (orig) => ({
@@ -20,6 +21,7 @@ vi.mock('./api.js', async (orig) => ({
 const { ClientsPage } = await import('./clients-page.js');
 
 beforeEach(() => {
+  drsReports.mockResolvedValue({ reports: [] });
   createDrsClient.mockReset();
   drsCapacity.mockResolvedValue({
     ceiling: { maxRps: 2000, maxConcurrency: 500, maxDurationSec: 900 },
@@ -42,7 +44,16 @@ describe('client dossiers', () => {
     drsClients.mockResolvedValue({
       clients: [
         {
+          id: 'c1',
           client: 'acme',
+          registered: true,
+          contacts: [],
+          scope: {
+            reference: 'SOW-1',
+            signedAt: '2026-10-02T10:00:00.000Z',
+            targets: ['https://a.example/', 'https://b.example/'],
+            maxRps: 8000,
+          },
           assessments: 3,
           finalized: 2,
           targets: ['https://a.example/', 'https://b.example/'],
@@ -53,14 +64,14 @@ describe('client dossiers', () => {
     });
     renderWithRouter(<ClientsPage />);
     expect(await screen.findByText('acme')).toBeTruthy();
-    expect(screen.getByText('FINAL_REPORT')).toBeTruthy();
-    expect(screen.getByText(/a\.example/)).toBeTruthy();
+    expect(screen.getByText(/last FINAL_REPORT/)).toBeTruthy();
+    expect(screen.getByText(/target\(s\)/)).toBeTruthy();
   });
 
   it('says there is no dossier yet', async () => {
     drsClients.mockResolvedValue({ clients: [] });
     renderWithRouter(<ClientsPage />);
-    expect(await screen.findByText(/No DRS assessment yet/)).toBeTruthy();
+    expect(await screen.findByText(/No client dossier yet/)).toBeTruthy();
   });
 
   it('surfaces a load failure', async () => {
