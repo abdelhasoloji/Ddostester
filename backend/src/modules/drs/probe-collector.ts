@@ -52,6 +52,24 @@ function latency(samples: Sample[]) {
   };
 }
 
+/**
+ * Is a baseline stable? Judged on the median absolute deviation, not on the extreme range: one
+ * 8 ms sample among 3 ms samples is a scheduling hiccup, not an unstable service, and the
+ * min-to-max range rejected perfectly healthy baselines. A relative band is meaningless below a
+ * millisecond, so an absolute band of 2 ms always counts as stable.
+ */
+export function baselineStable(samplesMs: number[]): boolean {
+  if (samplesMs.length === 0) return false;
+  const median = (values: number[]) => {
+    const s = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const centre = median(samplesMs);
+  const mad = median(samplesMs.map((v) => Math.abs(v - centre)));
+  return mad <= 2 || mad / (centre || 1) <= 0.5;
+}
+
 /** Parse the functional assertion the operator wrote into a checkable status, when it names
  *  one. "status 200 and body contains ok" → 200. Free text without a status is not evaluated
  *  rather than guessed. */
@@ -187,15 +205,7 @@ export function createProbeCollectorPort(opts: ProbeCollectorOptions): DrsEviden
       baselineSeconds = Math.max(1, Math.round((now() - began) / 1000));
       const ok = baselineSamples.filter((s) => s.ok).length;
       const healthy = baselineSamples.length > 0 && ok / baselineSamples.length >= 0.9;
-      const lat = latency(baselineSamples);
-      const range = lat.samplesMs.length
-        ? lat.samplesMs[lat.samplesMs.length - 1] - lat.samplesMs[0]
-        : Infinity;
-      const spread = range / (lat.meanMs || 1);
-      // A relative spread is meaningless when the service answers in fractions of a
-      // millisecond: 0.2 ms to 0.4 ms is a 100 % ratio and no instability at all. Stability
-      // therefore also accepts an absolute band.
-      const stable = spread <= 0.5 || range <= 5;
+      const stable = baselineStable(latency(baselineSamples).samplesMs);
       return { healthy, stable, durationSec: baselineSeconds };
     },
     async observe(_vectorIds, plan, signal) {
