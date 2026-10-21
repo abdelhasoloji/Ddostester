@@ -116,45 +116,12 @@ describe('Capacity page', () => {
   });
 });
 
-describe('DRS plan creation from the Capacity screen', () => {
-  it('keeps the button disabled until the plan is authorized and justified', async () => {
+describe('campaign authoring moved to the wizard', () => {
+  it('links to the wizard instead of embedding the plan form', async () => {
     drsCapacityMock.mockResolvedValue(view());
     renderWithRouter(<CapacityPage />);
-    await screen.findByText('dev-a');
-    const button = screen.getByRole('button', { name: /create plan/i }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-  });
-
-  it('posts the intent once authorized and reports the created plan', async () => {
-    drsCapacityMock.mockResolvedValue(view());
-    (fakeApi as unknown as { createDrsPlan: ReturnType<typeof vi.fn> }).createDrsPlan = vi
-      .fn()
-      .mockResolvedValue({ id: 'c1', name: 'DRS L1 — staging', status: 'PENDING_APPROVAL' });
-    renderWithRouter(<CapacityPage />);
-    await screen.findByText('dev-a');
-    fireEvent.change(screen.getByPlaceholderText('https://staging.example.com/'), {
-      target: { value: 'https://staging.example.com/' },
-    });
-    fireEvent.change(screen.getByPlaceholderText("status 200 and body contains 'ok'"), {
-      target: { value: 'status 200 and body contains ok' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('why this level and this exposure'), {
-      target: { value: 'Validate the level with a bounded exposure' },
-    });
-    fireEvent.click(screen.getByLabelText(/authorized target/i));
-    const button = screen.getByRole('button', { name: /create plan/i });
-    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(button);
-    await waitFor(() =>
-      expect(
-        (fakeApi as unknown as { createDrsPlan: ReturnType<typeof vi.fn> }).createDrsPlan,
-      ).toHaveBeenCalledTimes(1),
-    );
-    const payload = (fakeApi as unknown as { createDrsPlan: ReturnType<typeof vi.fn> })
-      .createDrsPlan.mock.calls[0][0];
-    expect(payload.maxLevel).toBe(1);
-    expect(payload.authorized).toBe(true);
-    expect(payload.functionalAssertion).toContain('status 200');
-    expect(currentApp.push).toHaveBeenCalledWith('success', expect.stringContaining('DRS L1'));
+    const link = await screen.findByRole('link', { name: /open the wizard/i });
+    expect(link).toHaveAttribute('href', '/campaigns/new');
+    expect(screen.queryByRole('button', { name: /create plan/i })).toBeNull();
   });
 });
