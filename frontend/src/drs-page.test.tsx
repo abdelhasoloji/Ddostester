@@ -8,13 +8,12 @@ const fakeApi = makeApi() as ReturnType<typeof makeApi> & {
   executeDrsPlan: ReturnType<typeof vi.fn>;
   replayDrsPlan: ReturnType<typeof vi.fn>;
   cancelDrsPlan: ReturnType<typeof vi.fn>;
-  drsCampaignReport: ReturnType<typeof vi.fn>;
 };
 fakeApi.executeDrsPlan = vi.fn();
 fakeApi.replayDrsPlan = vi.fn();
 fakeApi.cancelDrsPlan = vi.fn();
-fakeApi.drsCampaignReport = vi.fn();
 const drsCompareMock = fakeApi.drsCompare as unknown as ReturnType<typeof vi.fn>;
+const drsCampaignReportMock = fakeApi.drsCampaignReport as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./context.js', async (orig) => ({
   ...(await orig<typeof import('./context.js')>()),
@@ -59,7 +58,7 @@ const drsCampaign = (over: Partial<Campaign> = {}): Campaign =>
 
 beforeEach(() => {
   fakeApi.executeDrsPlan.mockReset();
-  fakeApi.drsCampaignReport.mockReset();
+  drsCampaignReportMock.mockReset();
   fakeApi.replayDrsPlan.mockReset();
   fakeApi.cancelDrsPlan.mockReset();
   drsCompareMock.mockReset();
@@ -114,7 +113,7 @@ describe('DRS verdict and requirement gaps', () => {
     (done.drsDocument!.revisions[0] as unknown as { finalizedAt: string }).finalizedAt =
       '2026-10-19T20:00:00.000Z';
     currentApp = makeApp({ campaigns: [done] });
-    fakeApi.drsCampaignReport.mockResolvedValue({
+    drsCampaignReportMock.mockResolvedValue({
       revision: 1,
       reference: {
         standardVersion: '3.00.00',
@@ -144,7 +143,7 @@ describe('DRS verdict and requirement gaps', () => {
     });
     renderWithRouter(<DrsPage />);
     expect(await screen.findByText(/PARTIAL · PARTIAL/)).toBeTruthy();
-    fireEvent.click(screen.getByText('DRS L1 — staging'));
+    fireEvent.click(screen.getByText('measured'));
     expect(await screen.findByText('1000 independent bots')).toBeTruthy();
     expect(screen.getByText('no')).toBeTruthy();
   });
@@ -196,7 +195,7 @@ describe('comparison', () => {
     (second.drsDocument!.revisions[0] as unknown as { finalizedAt: string }).finalizedAt =
       '2026-10-19T21:00:00.000Z';
     currentApp = makeApp({ campaigns: [first, second] });
-    fakeApi.drsCampaignReport.mockResolvedValue({ assessment: { requirementGaps: [] } });
+    drsCampaignReportMock.mockResolvedValue({ assessment: { requirementGaps: [] } });
     drsCompareMock.mockResolvedValue({
       a: {
         campaignId: 'c1',
