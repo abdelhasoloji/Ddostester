@@ -26,6 +26,7 @@ import type {
 } from '../modules/bench/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
+import type { DrsClient } from '../modules/drs/client.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const { Pool } = pg;
@@ -241,6 +242,14 @@ const MIGRATIONS: { id: number; sql: string }[] = [
       data jsonb NOT NULL
     );`,
   },
+  {
+    id: 10,
+    sql: `CREATE TABLE IF NOT EXISTS drs_clients_v1 (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      data jsonb NOT NULL
+    );`,
+  },
 ];
 
 /** settings key for the CISO-managed operational limits. */
@@ -274,6 +283,32 @@ export class PostgresStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     await this.pool.query('DELETE FROM fleet_devices_v1 WHERE id=$1', [id]);
   }
+  async listDrsClients(): Promise<DrsClient[]> {
+    const r = await this.pool.query<{ data: DrsClient }>(
+      'SELECT data FROM drs_clients_v1 ORDER BY name ASC',
+    );
+    return r.rows.map((row) => row.data);
+  }
+
+  async getDrsClient(id: string): Promise<DrsClient | undefined> {
+    const r = await this.pool.query<{ data: DrsClient }>(
+      'SELECT data FROM drs_clients_v1 WHERE id=$1',
+      [id],
+    );
+    return r.rows[0]?.data;
+  }
+
+  async saveDrsClient(c: DrsClient): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO drs_clients_v1(id,name,data) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET name=$2,data=$3',
+      [c.id, c.name, c],
+    );
+  }
+
+  async deleteDrsClient(id: string): Promise<void> {
+    await this.pool.query('DELETE FROM drs_clients_v1 WHERE id=$1', [id]);
+  }
+
   async listAgentCalibrations(): Promise<AgentCalibration[]> {
     const r = await this.pool.query<{ data: AgentCalibration }>(
       'SELECT data FROM fleet_agent_capacity_v1 ORDER BY agent_id',

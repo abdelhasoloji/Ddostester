@@ -21,6 +21,8 @@ const writes = new Set([
   'claimNextBenchRun',
   'setBenchRunResult',
   'saveBenchCoverage',
+  'saveDrsClient',
+  'deleteDrsClient',
   'saveAgentCalibration',
   'deleteAgentCalibration',
 ]);

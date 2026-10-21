@@ -10,6 +10,7 @@ import type { BenchRun, BenchVerdict, BenchCoverage } from '../modules/bench/mod
 import type { ProtectedTarget } from '../modules/targets/model.js';
 import type { Store, AccountPolicy, UserTransaction } from './types.js';
 import type { AgentCalibration } from '../modules/drs/calibration.js';
+import type { DrsClient } from '../modules/drs/client.js';
 import type { FleetDevice } from '../modules/fleet/devices.js';
 
 const SNAPSHOT_KEYS = [
@@ -29,6 +30,7 @@ const SNAPSHOT_KEYS = [
 export class MemoryStore implements Store {
   private fleetDevices = new Map<string, FleetDevice>();
   private calibrations = new Map<string, AgentCalibration>();
+  private drsClients = new Map<string, DrsClient>();
   async getFleetDevice(id: string): Promise<FleetDevice | undefined> {
     const device = this.fleetDevices.get(id);
     return device ? structuredClone(device) : undefined;
@@ -42,6 +44,22 @@ export class MemoryStore implements Store {
   async deleteFleetDevice(id: string): Promise<void> {
     this.fleetDevices.delete(id);
   }
+  async listDrsClients(): Promise<DrsClient[]> {
+    return [...this.drsClients.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async getDrsClient(id: string): Promise<DrsClient | undefined> {
+    return this.drsClients.get(id);
+  }
+
+  async saveDrsClient(c: DrsClient): Promise<void> {
+    this.drsClients.set(c.id, c);
+  }
+
+  async deleteDrsClient(id: string): Promise<void> {
+    this.drsClients.delete(id);
+  }
+
   async listAgentCalibrations(): Promise<AgentCalibration[]> {
     return [...this.calibrations.values()];
   }
