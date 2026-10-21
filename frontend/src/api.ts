@@ -1305,6 +1305,21 @@ export const api = {
       `/api/drs/clients/${encodeURIComponent(id)}`,
     ),
   createDrsClient: (body: DrsClientInput) => post<DrsClientDocument>('/api/drs/clients', body),
+  drsGuardrails: () =>
+    get<{
+      hardCaps: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
+      serviceCeiling: {
+        maxRps: number;
+        maxConcurrency: number;
+        maxDurationSec: number;
+        maxAgents: number;
+      };
+      baselineFloorSec: number;
+      allowlist: string[];
+      witnesses: { entry: boolean; origin: boolean; privateAllowed: boolean };
+      killSwitch: boolean;
+      certification: boolean;
+    }>('/api/drs/guardrails'),
   drsCompare: (campaignId: string, withId: string) =>
     get<DrsCompareView>(
       `/api/campaigns/${encodeURIComponent(campaignId)}/drs/compare?with=${encodeURIComponent(withId)}`,
@@ -1332,6 +1347,7 @@ export const api = {
     mode: 'measured' | 'synthetic-lab' | 'engine-validation';
     baselineSec?: number;
     maxRps?: number;
+    witness?: { entryUrl?: string; originUrl?: string };
     journey?: string;
     functionalAssertion?: string;
     successThreshold?: number;

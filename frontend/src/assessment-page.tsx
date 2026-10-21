@@ -310,6 +310,9 @@ export function AssessmentPage() {
         >
           Report JSON
         </a>
+        <a className="btn btn-sm" href={`/api/campaigns/${encodeURIComponent(id)}/drs/bundle`}>
+          Evidence bundle (zip)
+        </a>
         <a className="btn btn-sm" href="/drs">
           Back to assessments
         </a>

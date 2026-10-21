@@ -43,6 +43,12 @@ export interface DrsPlan {
   exposureSec: number;
   exposureRationale: string;
   recoveryTimeoutSec: number;
+  /**
+   * Independent telemetry the client provides for this campaign: an edge counter and/or a
+   * target-side counter. They belong to the plan, not to the deployment, because two clients
+   * cannot share one endpoint.
+   */
+  witness?: { entryUrl?: string; originUrl?: string };
   budgets: { maxRps: number; concurrency: number; maxAgents: number; maxDurationSec: number };
   /** Envelope the budgets were derived from, recorded so the report can state it. */
   capacity?: {
@@ -202,6 +208,37 @@ export function validatePlan(raw: DrsPlan): DrsPlan {
     'Unknown campaign mode',
   );
   ensure(Number.isInteger(p.maxLevel) && p.maxLevel >= 1 && p.maxLevel <= 7, 'Level must be 1–7');
+  if (p.witness) {
+    const check = (url: string | undefined, field: string) => {
+      if (url === undefined || url === '') return;
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        throw new DrsError(`${field} must be an absolute URL`);
+      }
+      ensure(
+        parsed.protocol === 'http:' || parsed.protocol === 'https:',
+        `${field} must be http(s)`,
+      );
+      ensure(!parsed.username && !parsed.password, `${field} must not carry credentials`);
+      const host = parsed.hostname.replace(/^\[|\]$/g, '');
+      const loopback = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+      const privateV4 =
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host);
+      // A witness is fetched by the server: never let a plan point it at infrastructure the
+      // caller could not otherwise reach.
+      ensure(
+        !(loopback || privateV4) || process.env.DRS_ALLOW_PRIVATE_WITNESS === '1',
+        `${field} points at a private address; set DRS_ALLOW_PRIVATE_WITNESS=1 to allow it`,
+      );
+    };
+    check(p.witness.entryUrl, 'witness.entryUrl');
+    check(p.witness.originUrl, 'witness.originUrl');
+  }
+
   ensure(
     Array.isArray(p.services) &&
       p.services.length > 0 &&
