@@ -347,12 +347,16 @@ export function WizardPage() {
           Back
         </button>
         {step < 3 ? (
-          <button className="btn primary" disabled={!canContinue} onClick={() => setStep(step + 1)}>
+          <button
+            className="btn btn-primary"
+            disabled={!canContinue}
+            onClick={() => setStep(step + 1)}
+          >
             Continue
           </button>
         ) : (
           <button
-            className="btn primary"
+            className="btn btn-primary"
             disabled={!draft.authorized || busy}
             onClick={() => void submit()}
           >
