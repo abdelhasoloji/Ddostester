@@ -2854,6 +2854,52 @@ export async function buildApp(opts: BuildOptions): Promise<BuiltApp> {
   );
 
   // What bounds the platform, stated where an operator can read it instead of in an env file.
+  // Every finalised revision, one row each: the client-facing index of what was delivered.
+  app.get('/api/drs/reports', { preHandler: guard('campaign:read') }, async (req) => {
+    const filter = (req.query as { client?: string }).client;
+    const campaigns = (await store.listCampaigns()).filter((c) => c.drsDocument);
+    const rows: {
+      campaignId: string;
+      campaignName: string;
+      client: string | null;
+      target: string;
+      mode: string;
+      revision: number;
+      level: number;
+      finalizedAt: string;
+      status: string;
+      proofs: number;
+      synthetic: boolean;
+    }[] = [];
+    for (const c of campaigns) {
+      if (filter && c.client !== filter) continue;
+      for (const rev of c.drsDocument!.revisions) {
+        if (!rev.finalizedAt) continue;
+        let status = 'NO_VERDICT';
+        try {
+          status = rev.synthetic ? 'SYNTHETIC' : assessDrs(rev).status;
+        } catch {
+          status = 'NO_VERDICT';
+        }
+        rows.push({
+          campaignId: c.id,
+          campaignName: c.name,
+          client: c.client ?? null,
+          target: c.target,
+          mode: rev.plan.mode,
+          revision: rev.number,
+          level: rev.plan.maxLevel,
+          finalizedAt: rev.finalizedAt,
+          status,
+          proofs: rev.proofs.length,
+          synthetic: Boolean(rev.synthetic),
+        });
+      }
+    }
+    rows.sort((a, b) => b.finalizedAt.localeCompare(a.finalizedAt));
+    return { reports: rows };
+  });
+
   app.get('/api/drs/guardrails', { preHandler: guard('campaign:read') }, async () => {
     const ceiling = serviceCeiling();
     return {

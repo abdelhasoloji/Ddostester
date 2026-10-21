@@ -1305,6 +1305,22 @@ export const api = {
       `/api/drs/clients/${encodeURIComponent(id)}`,
     ),
   createDrsClient: (body: DrsClientInput) => post<DrsClientDocument>('/api/drs/clients', body),
+  drsReports: () =>
+    get<{
+      reports: {
+        campaignId: string;
+        campaignName: string;
+        client: string | null;
+        target: string;
+        mode: string;
+        revision: number;
+        level: number;
+        finalizedAt: string;
+        status: string;
+        proofs: number;
+        synthetic: boolean;
+      }[];
+    }>('/api/drs/reports'),
   drsGuardrails: () =>
     get<{
       hardCaps: { maxRps: number; maxConcurrency: number; maxDurationSec: number };
