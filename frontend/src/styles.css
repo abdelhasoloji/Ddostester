@@ -7883,3 +7883,15 @@ table.remediations td {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Two-column card rows (client dossier, forms). */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 900px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
