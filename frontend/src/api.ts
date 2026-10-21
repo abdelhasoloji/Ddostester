@@ -1090,13 +1090,45 @@ export interface AgentCalibrationView {
   conditions?: string;
 }
 
+export interface DrsClientContact {
+  name: string;
+  email: string;
+  role?: string;
+}
+
+export interface DrsClientScope {
+  reference: string;
+  signedAt: string;
+  targets: string[];
+  maxRps: number;
+}
+
 export interface DrsClientView {
+  id: string | null;
   client: string;
+  registered: boolean;
+  contacts: DrsClientContact[];
+  scope: DrsClientScope | null;
   assessments: number;
   finalized: number;
   targets: string[];
   lastAt: string | null;
   lastState: string;
+}
+
+export interface DrsClientDocument {
+  id: string;
+  name: string;
+  contacts: DrsClientContact[];
+  scope: DrsClientScope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DrsClientInput {
+  name: string;
+  contacts: DrsClientContact[];
+  scope: DrsClientScope;
 }
 
 export interface DrsCapacityView {
@@ -1268,6 +1300,11 @@ export const api = {
     ),
   // Latest report for a campaign, without pinning a revision (the workspace list).
   drsClients: () => get<{ clients: DrsClientView[] }>('/api/drs/clients'),
+  drsClient: (id: string) =>
+    get<{ client: DrsClientDocument; campaigns: Campaign[] }>(
+      `/api/drs/clients/${encodeURIComponent(id)}`,
+    ),
+  createDrsClient: (body: DrsClientInput) => post<DrsClientDocument>('/api/drs/clients', body),
   drsCompare: (campaignId: string, withId: string) =>
     get<DrsCompareView>(
       `/api/campaigns/${encodeURIComponent(campaignId)}/drs/compare?with=${encodeURIComponent(withId)}`,

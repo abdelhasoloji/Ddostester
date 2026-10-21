@@ -9,6 +9,7 @@ import { AssistantPage } from './assistant-page.js';
 import { CapacityPage } from './capacity-page.js';
 import { DrsPage } from './drs-page.js';
 import { ClientsPage } from './clients-page.js';
+import { ClientPage } from './client-page.js';
 import { ReportsPage } from './reports-page.js';
 import { FleetPage } from './fleet-page.js';
 
@@ -55,6 +56,7 @@ function Gate() {
         <Route path="capacity" element={<CapacityPage />} />
         <Route path="drs" element={<DrsPage />} />
         <Route path="clients" element={<ClientsPage />} />
+        <Route path="clients/:id" element={<ClientPage />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="account" element={<AccountPage />} />
