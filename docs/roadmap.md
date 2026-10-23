@@ -35,7 +35,15 @@ The deployed increment shares interval-rate, finalized-failure and probe-observa
 
 The twelve-step historical suite has eight retained runs and four missing engine reports. Re-rendering those observations does not replay the generators or establish DRS 5 coverage. Physical qualification still requires independent received-load evidence, functional journeys, recovery and calibrated capacity.
 
-Rancher admission remains unavailable from this workstation at this checkpoint: `rancher.wedos.global` resolves to `10.20.0.252`, routed through `en0` via the home gateway; TCP/443 timed out and no local Kubernetes context exists. No ac02 deployment was attempted. Browser permission for the production application remains a separate unresolved constraint.
+**Update, 23 October 2026.** `ac02` is reachable (`at264@10.20.2.1` over the Wedos VPN) and
+runs `kubelet` + `containerd`: it is already a Kubernetes node. A fleet inventory agent is
+enrolled on the staging control plane and heartbeats every 5 s (device `ac02`, profile
+`generic`, no workload traffic). The worker image was published and digest-pinned:
+`ghcr.io/abdelhasoloji/ddostester-lab-control@sha256:7929b8f7…64d03ad`, single-arch amd64 —
+so it cannot run on ARM64 hosts yet. Still missing for a site deployment: a kubeconfig (none
+on the workstation or on `ac02`), an image pull secret if the package is private, and the
+choice between the staging and production control endpoints. The earlier `rancher.wedos.global`
+timeout remains an unverified route, not a blocker: the node itself is reachable.
 
 ## Individual Run Theater graphs — 18 October 2026
 
