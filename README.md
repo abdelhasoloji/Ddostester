@@ -10,6 +10,11 @@ ShieldTester is the resilience-testing application in this private `Ddostester` 
 | Synthetic laboratory | Bounded traffic in an authorized laboratory                           | Experimental evidence, with represented and missing dimensions                    |
 | Measured evaluation  | Independent generator, protection-entry, user and origin measurements | DRS interpretation-profile result; missing evidence stays partial or inconclusive |
 
+> **Target capability.** The product target is a measured DRS 5 evaluation. Today's engine
+> is a bounded HTTP generator; the path, the measured gap and the decisions it requires are
+> in [DRS 5 capability target](docs/drs5-target.md). Current limits describe the engine, not
+> the product.
+
 The immutable DRS 3.00.00 catalogue contains 131 vector rows. Seven GET rows expose bounded laboratory approximations; the other rows are reference/simulation only. Full-standard physical adapters are not enabled. Measured dispatch awaits qualified instrumentation and capacity.
 
 The registry supports 5,000 devices across 100 sites. Current physical Fleet execution is limited to **3 agents, 15 requests/s shared, concurrency 6 and 10–60 seconds**. Registry capacity is not concurrent traffic capacity. Three persistent agents are provisioned on the Linux VPS; their distinct private IPs share one public egress IP.
