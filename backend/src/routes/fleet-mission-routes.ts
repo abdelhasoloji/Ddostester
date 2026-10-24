@@ -313,7 +313,9 @@ export async function registerFleetMissionRoutes(
             .send({ error: error instanceof Error ? error.message : 'invalid_packet_mission' });
         }
         const capable = (await store.listFleetDevices()).filter(
-          (d) => d.heartbeat?.version === 'fleet-mission-agent/v2',
+          (d) =>
+            d.heartbeat?.version === 'fleet-mission-agent/v2' &&
+            fleetDeviceView(d).connection === 'online',
         );
         if (!capable.length)
           return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
@@ -539,34 +541,6 @@ export async function registerFleetMissionRoutes(
       if (!body || typeof body !== 'object' || Array.isArray(body))
         return reply.code(400).send({ error: 'invalid_message' });
       if (req.params.action === 'claim') {
-        // Le runtime qui réclame déclare le schéma qu'il sait exécuter. C'est la
-        // seule preuve de capacité v2 : un heartbeat externe ne peut pas la
-        // promettre à la place de l'agent qui exécutera la mission.
-        if (body.version === 'fleet-mission-agent/v2') {
-          await store.transaction(async (tx) => {
-            const current = await tx.getFleetDevice(device.id);
-            const now = Date.now();
-            if (!current) return;
-            // Un heartbeat v1 déjà frais ne doit pas retarder l'enregistrement de
-            // la capacité v2 ; une fois v2, on limite la fréquence d'écriture.
-            if (
-              current.heartbeat?.version === 'fleet-mission-agent/v2' &&
-              now - (current.heartbeat.receivedAt ?? 0) < 5000
-            )
-              return;
-            current.heartbeat = {
-              sequence: (current.heartbeat?.sequence ?? 0) + 1,
-              receivedAt: now,
-              version: 'fleet-mission-agent/v2',
-              uptimeSec:
-                typeof body.uptimeSec === 'number' && Number.isFinite(body.uptimeSec)
-                  ? body.uptimeSec
-                  : 0,
-              peerIp: req.ip,
-            };
-            await tx.saveFleetDevice(current);
-          });
-        }
         const rows = await database.query(
           "SELECT id,data FROM fleet_missions_v1 WHERE epoch=$1 ORDER BY data->>'createdAt' DESC LIMIT 1",
           [epoch],

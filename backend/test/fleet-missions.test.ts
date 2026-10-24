@@ -521,18 +521,18 @@ const url = process.env.DATABASE_URL_TEST;
     });
     expect(notV2.statusCode).toBe(409);
     expect(notV2.json().error).toContain('fleet-mission-agent/v2');
-    // Le claim lui-même porte la version : c'est la seule déclaration qui compte.
-    const declared = await app.inject({
-      method: 'POST',
-      url: '/api/fleet/devices/packet-agent/mission/claim',
-      headers: { authorization: 'Bearer ' + token },
-      payload: { version: 'fleet-mission-agent/v2', uptimeSec: 1 },
-    });
-    expect(declared.statusCode).toBe(200);
-    expect(declared.json().assignment).toBeNull();
-    expect((await store.getFleetDevice('packet-agent'))?.heartbeat?.version).toBe(
-      'fleet-mission-agent/v2',
-    );
+    // La capacité v2 vient du heartbeat authentifié du déploiement, jamais du
+    // claim lui-même : on simule ici ce heartbeat.
+    const stored = await store.getFleetDevice('packet-agent');
+    if (!stored) throw new Error('packet-agent fixture missing');
+    stored.heartbeat = {
+      sequence: 2,
+      receivedAt: Date.now(),
+      version: 'fleet-mission-agent/v2',
+      uptimeSec: 1,
+      peerIp: '127.0.0.1',
+    };
+    await store.saveFleetDevice(stored);
     // La cible paquet doit être nommée, jamais déduite du premier hôte autorisé.
     vi.stubEnv('FLEET_PACKET_TARGET', '');
     const unnamed = await app.inject({

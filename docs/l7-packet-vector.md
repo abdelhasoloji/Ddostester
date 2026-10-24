@@ -4,17 +4,17 @@
 
 ## Ce qui est livré (PR #303)
 
-| Élément                                                                                                     | Fichier                                                                                         |
-| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Bornes : `maxPps`, `packetPorts`                                                                            | `backend/src/config/limits.ts` (`FLEET_LIMITS`)                                                 |
-| Validation d'une demande de mission paquet                                                                  | `validatePacketMission` dans `backend/src/modules/fleet/contract.ts`                            |
-| Assignation signée v3                                                                                       | `PacketAssignment`, `packetAssignmentHash`, `validatePacketAssignment`, `buildPacketAssignment` |
-| Route : 409 limité au HTTP legacy, mission paquet validée, assignation produite (`202`, `delivered: false`) | `backend/src/routes/fleet-mission-routes.ts`                                                    |
-| Cible paquet nommée par l'opérateur (`FLEET_PACKET_TARGET`), jamais déduite du premier hôte autorisé        | `backend/src/routes/fleet-mission-routes.ts`                                                    |
-| Distribution : mission, run et shard écrits, claim routé v1/v2 vs v3                                        | `coordinator.ts`, `fleet-mission-routes.ts`                                                     |
-| Capacité v2 déclarée par le claim du runtime qui exécute, jamais par un heartbeat externe                   | `fleet-mission-routes.ts`, `scripts/fleet/mission-agent.mjs`                                    |
-| Agent d'exécution et générateur compilé dans l'image                                                        | `scripts/fleet/packet-agent.mjs`, `scripts/fleet/pktgen.c`, `backend/Dockerfile`                |
-| Compteur cible lu avant et après l'émission, remis à l'agent en `PACKET_RECEIVED`                           | `backend/src/modules/fleet/packet-counter.ts`, `agent.ts`                                       |
+| Élément                                                                                                                         | Fichier                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Bornes : `maxPps`, `packetPorts`                                                                                                | `backend/src/config/limits.ts` (`FLEET_LIMITS`)                                                 |
+| Validation d'une demande de mission paquet                                                                                      | `validatePacketMission` dans `backend/src/modules/fleet/contract.ts`                            |
+| Assignation signée v3                                                                                                           | `PacketAssignment`, `packetAssignmentHash`, `validatePacketAssignment`, `buildPacketAssignment` |
+| Route : 409 limité au HTTP legacy, mission paquet validée, assignation produite (`202`, `delivered: false`)                     | `backend/src/routes/fleet-mission-routes.ts`                                                    |
+| Cible paquet nommée par l'opérateur (`FLEET_PACKET_TARGET`), jamais déduite du premier hôte autorisé                            | `backend/src/routes/fleet-mission-routes.ts`                                                    |
+| Distribution : mission, run et shard écrits, claim routé v1/v2 vs v3                                                            | `coordinator.ts`, `fleet-mission-routes.ts`                                                     |
+| Capacité v2 déclarée par le heartbeat authentifié du déploiement (versions fermées), mission paquet refusée sans agent en ligne | `fleet-enrollment-routes.ts`, `fleet-mission-routes.ts`, `heartbeat-agent.mjs`                  |
+| Agent d'exécution et générateur compilé dans l'image                                                                            | `scripts/fleet/packet-agent.mjs`, `scripts/fleet/pktgen.c`, `backend/Dockerfile`                |
+| Compteur cible lu avant et après l'émission, remis à l'agent en `PACKET_RECEIVED`                                               | `backend/src/modules/fleet/packet-counter.ts`, `agent.ts`                                       |
 
 ## Comment la cible est mesurée
 
@@ -55,8 +55,10 @@ n'ont pas de lecteur configuré.
 ## Ce qui reste
 
 1. **Campagne de niveau 1 par l'API de production.** Elle exige, sur le site
-   d'exécution : un agent `fleet-mission-agent/v2` enrôlé, un lecteur
-   `PACKET_COUNTER_CMD` vers la cible, et la cible dans `ALLOWED_TARGETS`.
+   d'exécution : le client de présence avec `FLEET_MISSION_RUNTIME=2` (il déclare
+   `fleet-mission-agent/v2`), l'agent de mission, `PACKET_SOURCE_IP`, un lecteur
+   `PACKET_COUNTER_CMD` vers la cible, et la cible dans `ALLOWED_TARGETS` et
+   `FLEET_PACKET_TARGET`.
 2. Consigner la preuve : paquets émis, delta cible, horodatage et identité de
    l'agent dans le reçu de mission.
 

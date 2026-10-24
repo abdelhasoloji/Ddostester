@@ -162,6 +162,18 @@ it('enrolls one agent, hides credential hashes and rejects replay or excessive h
     (await app.inject({ method: 'POST', url, headers: agentHeaders, payload: heartbeat }))
       .statusCode,
   ).toBe(409);
+  // Une version inconnue ne peut pas déclarer une capacité que le binaire
+  // n'exécute pas : la liste est fermée.
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url,
+        headers: agentHeaders,
+        payload: { ...heartbeat, sequence: 2, version: 'fleet-mission-agent/v3' },
+      })
+    ).statusCode,
+  ).toBe(400);
   expect(
     (
       await app.inject({
@@ -188,7 +200,7 @@ it('rotation, revocation and identity edits invalidate the old enrollment', asyn
     agentId: device.agentId,
     privateIp: device.privateIp,
     sequence: 1,
-    version: 'test/v1',
+    version: 'inventory-heartbeat/v1',
     uptimeSec: 1,
   };
   expect(
@@ -256,7 +268,7 @@ it('expires presence and credentials without presenting stale samples as online'
   saved.heartbeat = {
     sequence: 1,
     receivedAt: Date.now() - 31000,
-    version: 'test/v1',
+    version: 'inventory-heartbeat/v1',
     uptimeSec: 1,
     peerIp: '127.0.0.1',
   };

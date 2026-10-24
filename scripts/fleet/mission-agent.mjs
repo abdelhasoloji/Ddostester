@@ -8,7 +8,6 @@ const stat = await lstat(file);
 if (!stat.isFile() || stat.mode & 0o077 || stat.size > 8192)
   throw new Error('Private enrollment required');
 const config = JSON.parse(await readFile(file, 'utf8'));
-const started = Date.now();
 const origin = new URL(config.controlUrl);
 if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/')
   throw new Error('HTTPS control origin required');
@@ -98,12 +97,7 @@ async function post(action, data) {
 try {
   while (!stop.signal.aborted) {
     try {
-      // Le claim porte la version du runtime : c'est elle, et non un
-      // heartbeat externe, qui atteste que cet agent sait exécuter un schéma v3.
-      const { assignment } = await post('claim', {
-        version: 'fleet-mission-agent/v2',
-        uptimeSec: (Date.now() - started) / 1000,
-      });
+      const { assignment } = await post('claim', {});
       if (assignment) {
         // The worker policy and exact endpoint are independent of the controller response.
         const target = new URL(assignment.target);

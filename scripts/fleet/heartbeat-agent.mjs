@@ -76,9 +76,11 @@ const send = () =>
       privateIp: config.privateIp,
       sequence,
       version:
-        process.env.FLEET_MISSION_RUNTIME === '1'
-          ? 'fleet-mission-agent/v1'
-          : 'inventory-heartbeat/v1',
+        process.env.FLEET_MISSION_RUNTIME === '2'
+          ? 'fleet-mission-agent/v2'
+          : process.env.FLEET_MISSION_RUNTIME === '1'
+            ? 'fleet-mission-agent/v1'
+            : 'inventory-heartbeat/v1',
       uptimeSec: (performance.now() - started) / 1000,
     });
     const request = (endpoint.protocol === 'https:' ? httpsRequest : httpRequest)(
