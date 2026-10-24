@@ -282,11 +282,6 @@ async function runPacketAssignment(
     clearTimeout(watchdog);
     if (signal?.aborted) return { state: 'STOPPED', reason: 'cancelled' };
     if (outcome.failure) return { state: 'FAILED', reason: outcome.failure };
-    if (!outcome.delivered)
-      return {
-        state: 'FAILED',
-        reason: 'target count was never handed to the packet agent',
-      };
     let parsed: { packetsSent?: number; packetsReceived?: number | null; accepted?: boolean } = {};
     try {
       parsed = JSON.parse(out);
@@ -297,6 +292,11 @@ async function runPacketAssignment(
       };
     }
     if (code !== 0) return { state: 'FAILED', reason: `packet generator exited ${code}` };
+    if (!outcome.delivered)
+      return {
+        state: 'FAILED',
+        reason: 'target count was never handed to the packet agent',
+      };
     if (!parsed.accepted) {
       return {
         state: 'FAILED',
