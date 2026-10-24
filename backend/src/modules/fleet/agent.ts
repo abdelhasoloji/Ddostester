@@ -11,6 +11,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startResourceMeasurement, type FleetResources } from './resources.js';
 import { compileIoTProfile } from '../../engine/iot-profile.js';
+import {
+  packetCounterCommand,
+  packetCounterSettleMs,
+  readPacketCounter,
+} from './packet-counter.js';
 
 export interface FleetAgentControl {
   renew(sequence: number, progress?: FleetProgress): Promise<{ leaseUntil: number } | null>;
@@ -186,6 +191,37 @@ async function runPacketAssignment(
   generator?: LoadTestResult;
   resources?: FleetResources;
 }> {
+  // Le compteur de la cible est la seule preuve d'arrivée. Sans lecteur
+  // configuré, la mission est refusée AVANT toute émission : envoyer du trafic
+  // qu'on ne peut pas mesurer ne prouve rien.
+  let command: string[] | null;
+  let settleMs: number;
+  try {
+    command = packetCounterCommand();
+    settleMs = packetCounterSettleMs();
+  } catch (error) {
+    return {
+      state: 'FAILED',
+      reason: error instanceof Error ? error.message : 'packet counter configuration invalid',
+    };
+  }
+  if (!command) {
+    return {
+      state: 'FAILED',
+      reason:
+        'packet counter not configured (PACKET_COUNTER_CMD); refusing to emit unmeasured traffic',
+    };
+  }
+  let before: number;
+  try {
+    before = await readPacketCounter(command);
+  } catch (error) {
+    return {
+      state: 'FAILED',
+      reason: `packet counter unavailable before emission: ${errorText(error)}`,
+    };
+  }
+
   const dir = await mkdtemp(join(tmpdir(), 'packet-'));
   const file = join(dir, 'assignment.json');
   try {
@@ -197,12 +233,46 @@ async function runPacketAssignment(
         PACKET_GENERATOR: process.env.PACKET_GENERATOR || '/usr/local/bin/drs-pktgen',
         PACKET_MAX_PPS: String(FLEET_LIMITS.maxPps),
       },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       signal,
     });
     let out = '';
-    child.stdout.on('data', (d: Buffer) => (out += d));
-    child.stderr.on('data', (d: Buffer) => (out += d));
+    const outcome: { failure: string | null } = { failure: null };
+    let handed = false;
+    // Le générateur est borné par sa durée ; ce garde-fou couvre un processus
+    // qui ne rendrait jamais la main.
+    const watchdog = setTimeout(
+      () => {
+        outcome.failure ??= 'packet agent exceeded its mission window';
+        child.kill('SIGTERM');
+      },
+      (assignment.durationSec + 30) * 1000,
+    );
+    child.on('message', (message: unknown) => {
+      if (handed) return;
+      const event = (message as { event?: unknown } | null)?.event;
+      if (event !== 'packet.emitted') return;
+      handed = true;
+      void (async () => {
+        try {
+          if (settleMs) await new Promise((resolve) => setTimeout(resolve, settleMs));
+          const after = await readPacketCounter(command);
+          if (after < before)
+            throw new Error(`target counter went backwards (${before} then ${after})`);
+          if (!child.connected) throw new Error('packet agent exited before the count arrived');
+          child.send({ event: 'packet.received', PACKET_RECEIVED: after - before });
+        } catch (error) {
+          outcome.failure = `packet counter unavailable after emission: ${errorText(error)}`;
+          child.kill('SIGTERM');
+        }
+      })();
+    });
+    child.stdout!.on('data', (d: Buffer) => (out += d));
+    child.stderr!.on('data', (d: Buffer) => (out += d));
     const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
+    clearTimeout(watchdog);
+    if (signal?.aborted) return { state: 'STOPPED', reason: 'cancelled' };
+    if (outcome.failure) return { state: 'FAILED', reason: outcome.failure };
     let parsed: { packetsSent?: number; packetsReceived?: number | null; accepted?: boolean } = {};
     try {
       parsed = JSON.parse(out);
@@ -226,4 +296,8 @@ async function runPacketAssignment(
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

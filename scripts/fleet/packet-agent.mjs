@@ -87,10 +87,25 @@ child.stdout.on('data', (d) => (out += d));
 child.stderr.on('data', (d) => (out += d));
 const code = await new Promise((resolve) => child.on('close', resolve));
 const sent = Number((out.match(/sent=(\d+)/) || [])[1] || 0);
-// Le compteur côté cible est fourni par l'orchestrateur ; sans lui, on ne
-// prétend pas savoir ce qui est arrivé.
-const received =
-  process.env.PACKET_RECEIVED === undefined ? null : Number(process.env.PACKET_RECEIVED);
+// Le compteur côté cible est lu par l'orchestrateur autour de l'émission. Il
+// nous le remet une fois le tir terminé ; sans lui, on ne prétend pas savoir
+// ce qui est arrivé. `PACKET_RECEIVED` en environnement reste accepté pour un
+// lancement hors orchestrateur.
+let received = null;
+if (typeof process.send === 'function') {
+  process.send({ event: 'packet.emitted', sent });
+  received = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), 15_000);
+    process.once('message', (message) => {
+      clearTimeout(timer);
+      const value = message?.PACKET_RECEIVED;
+      resolve(Number.isSafeInteger(value) && value >= 0 ? value : null);
+    });
+  });
+}
+if (received === null && process.env.PACKET_RECEIVED !== undefined)
+  received = Number(process.env.PACKET_RECEIVED);
+if (!Number.isSafeInteger(received) || received < 0) received = null;
 
 process.stdout.write(
   JSON.stringify(
