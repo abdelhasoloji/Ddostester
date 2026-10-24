@@ -239,3 +239,102 @@ export function validatePacketMission(
     durationSec: x.durationSec as number,
   };
 }
+
+/**
+ * Signed packet assignment (v3).
+ *
+ * A packet mission is not an HTTP assignment with another label: it carries a
+ * port and a packet rate instead of a request rate and a concurrency. It keeps
+ * its own schema so an agent that does not understand v3 refuses it instead of
+ * executing a partial mission.
+ */
+export interface PacketAssignment {
+  schema: 'ddostester.fleet.assignment/v3';
+  campaignId: string;
+  runId: string;
+  agentId: string;
+  attemptId: string;
+  target: string;
+  port: number;
+  pps: number;
+  durationSec: number;
+  notBefore: number;
+  deadline: number;
+  leaseUntil: number;
+  configHash: string;
+}
+
+export type PacketAssignmentInput = Omit<PacketAssignment, 'configHash'>;
+
+const packetKeys = [
+  'schema',
+  'campaignId',
+  'runId',
+  'agentId',
+  'attemptId',
+  'target',
+  'port',
+  'pps',
+  'durationSec',
+  'notBefore',
+  'deadline',
+  'leaseUntil',
+  'configHash',
+].sort();
+
+export function packetAssignmentHash(input: PacketAssignmentInput): string {
+  const ordered = Object.fromEntries(Object.entries(input).sort(([a], [b]) => a.localeCompare(b)));
+  return createHash('sha256').update(JSON.stringify(ordered)).digest('hex');
+}
+
+export function validatePacketAssignment(
+  value: unknown,
+  policy: {
+    agentId: string;
+    allowedHosts: string[];
+    allowedPorts: number[];
+    maxPps: number;
+    minDurationSec: number;
+    maxDurationSec: number;
+    now: number;
+  },
+): PacketAssignment {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('Invalid packet assignment');
+  const x = value as PacketAssignment;
+  if (Object.keys(x).sort().join(',') !== packetKeys.join(','))
+    throw new Error('Packet assignment fields mismatch');
+  if (x.schema !== 'ddostester.fleet.assignment/v3')
+    throw new Error('Unsupported packet assignment schema');
+  for (const key of ['campaignId', 'runId', 'agentId', 'attemptId'] as const) {
+    if (typeof x[key] !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(x[key]))
+      throw new Error('Invalid packet assignment identity');
+  }
+  if (x.agentId !== policy.agentId) throw new Error('Packet assignment belongs to another agent');
+  if (typeof x.target !== 'string') throw new Error('Invalid packet assignment destination');
+  assertDestination(x.target, policy.allowedHosts);
+  if (!Number.isSafeInteger(x.port) || !policy.allowedPorts.includes(x.port))
+    throw new Error('Packet assignment port is forbidden');
+  if (!Number.isSafeInteger(x.pps) || x.pps < 1 || x.pps > policy.maxPps)
+    throw new Error('Packet assignment exceeds the fleet bound');
+  if (
+    !Number.isSafeInteger(x.durationSec) ||
+    x.durationSec < policy.minDurationSec ||
+    x.durationSec > policy.maxDurationSec
+  )
+    throw new Error('Packet assignment duration is out of bounds');
+  for (const t of [x.notBefore, x.deadline, x.leaseUntil])
+    if (!Number.isSafeInteger(t)) throw new Error('Invalid packet assignment clock');
+  if (
+    x.notBefore > policy.now ||
+    x.deadline <= policy.now ||
+    x.leaseUntil <= policy.now ||
+    x.leaseUntil > x.deadline ||
+    x.deadline - x.notBefore > x.durationSec * 1000
+  )
+    throw new Error('Invalid or expired packet assignment lifetime');
+  const { configHash, ...input } = x;
+  if (typeof configHash !== 'string' || configHash !== packetAssignmentHash(input))
+    throw new Error('Packet assignment hash mismatch');
+  return { ...x };
+}

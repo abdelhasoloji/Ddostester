@@ -8,6 +8,8 @@ import {
   splitBudget,
   validateAssignment,
   validatePacketMission,
+  packetAssignmentHash,
+  validatePacketAssignment,
   type AssignmentInput,
 } from '../src/modules/fleet/contract.js';
 const input: AssignmentInput = {
@@ -214,5 +216,64 @@ describe('packet mission bounds', () => {
     expect(() =>
       validatePacketMission({ kind: 'syn', port: 18099, pps: 100, durationSec: 5 }, limits),
     ).toThrow(/duration is out of bounds/);
+  });
+});
+
+describe('packet assignment v3', () => {
+  const now = 1_800_000_000_000;
+  const policy = {
+    agentId: 'three',
+    allowedHosts: ['lab-target'],
+    allowedPorts: [18099],
+    maxPps: 50_000,
+    minDurationSec: 10,
+    maxDurationSec: 60,
+    now,
+  };
+  const base = {
+    schema: 'ddostester.fleet.assignment/v3' as const,
+    campaignId: 'c1',
+    runId: 'r1',
+    agentId: 'three',
+    attemptId: 'a1',
+    target: 'lab-target',
+    port: 18099,
+    pps: 25_000,
+    durationSec: 10,
+    notBefore: now - 1000,
+    deadline: now + 10_000,
+    leaseUntil: now + 10_000,
+  };
+  const signed = () => ({ ...base, configHash: packetAssignmentHash(base) });
+
+  it('accepts a signed, in-window packet assignment', () => {
+    expect(validatePacketAssignment(signed(), policy).pps).toBe(25_000);
+  });
+
+  it('refuses an assignment for another agent', () => {
+    const a = { ...signed(), agentId: 'one' };
+    expect(() => validatePacketAssignment(a, policy)).toThrow(/another agent/);
+  });
+
+  it('refuses a hash mismatch', () => {
+    const a = { ...signed(), pps: 49_000 };
+    expect(() => validatePacketAssignment(a, policy)).toThrow(/hash mismatch/);
+  });
+
+  it('refuses a rate above the bound even when signed', () => {
+    const big = { ...base, pps: 250_000 };
+    const a = { ...big, configHash: packetAssignmentHash(big) };
+    expect(() => validatePacketAssignment(a, policy)).toThrow(/exceeds the fleet bound/);
+  });
+
+  it('refuses a forbidden port and an expired lease', () => {
+    const badPort = { ...base, port: 22 };
+    expect(() =>
+      validatePacketAssignment({ ...badPort, configHash: packetAssignmentHash(badPort) }, policy),
+    ).toThrow(/port is forbidden/);
+    const expired = { ...base, leaseUntil: now - 1, deadline: now + 10_000 };
+    expect(() =>
+      validatePacketAssignment({ ...expired, configHash: packetAssignmentHash(expired) }, policy),
+    ).toThrow(/lifetime/);
   });
 });
