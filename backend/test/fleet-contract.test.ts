@@ -180,7 +180,9 @@ describe('multi-site aggregate budget (M2.4)', () => {
 describe('packet mission bounds', () => {
   const limits = { maxPps: 50_000, packetPorts: [18099], minDurationSec: 10, maxDurationSec: 60 };
   it('accepts a mission inside the bounds', () => {
-    expect(validatePacketMission({ kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 }, limits)).toEqual({
+    expect(
+      validatePacketMission({ kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 }, limits),
+    ).toEqual({
       kind: 'syn',
       port: 18099,
       pps: 25_000,
@@ -188,26 +190,29 @@ describe('packet mission bounds', () => {
     });
   });
   it('refuses a rate above the bound instead of reducing it', () => {
-    expect(() => validatePacketMission({ kind: 'syn', port: 18099, pps: 250_000, durationSec: 10 }, limits)).toThrow(
-      /rate exceeds/,
-    );
+    expect(() =>
+      validatePacketMission({ kind: 'syn', port: 18099, pps: 250_000, durationSec: 10 }, limits),
+    ).toThrow(/rate exceeds/);
   });
   it('refuses a port that is not declared', () => {
-    expect(() => validatePacketMission({ kind: 'syn', port: 22, pps: 100, durationSec: 10 }, limits)).toThrow(
-      /port is forbidden/,
-    );
+    expect(() =>
+      validatePacketMission({ kind: 'syn', port: 22, pps: 100, durationSec: 10 }, limits),
+    ).toThrow(/port is forbidden/);
   });
   it('refuses unknown fields and unknown vectors', () => {
     expect(() =>
-      validatePacketMission({ kind: 'syn', port: 18099, pps: 100, durationSec: 10, maxRps: 5 }, limits),
+      validatePacketMission(
+        { kind: 'syn', port: 18099, pps: 100, durationSec: 10, maxRps: 5 },
+        limits,
+      ),
     ).toThrow(/unknown fields/);
-    expect(() => validatePacketMission({ kind: 'udp', port: 18099, pps: 100, durationSec: 10 }, limits)).toThrow(
-      /Unsupported packet vector/,
-    );
+    expect(() =>
+      validatePacketMission({ kind: 'udp', port: 18099, pps: 100, durationSec: 10 }, limits),
+    ).toThrow(/Unsupported packet vector/);
   });
   it('refuses a duration outside the fleet window', () => {
-    expect(() => validatePacketMission({ kind: 'syn', port: 18099, pps: 100, durationSec: 5 }, limits)).toThrow(
-      /duration is out of bounds/,
-    );
+    expect(() =>
+      validatePacketMission({ kind: 'syn', port: 18099, pps: 100, durationSec: 5 }, limits),
+    ).toThrow(/duration is out of bounds/);
   });
 });

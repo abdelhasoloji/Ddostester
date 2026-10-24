@@ -232,5 +232,10 @@ export function validatePacketMission(
     (x.durationSec as number) > limits.maxDurationSec
   )
     throw new Error('Packet duration is out of bounds');
-  return { kind: 'syn', port: x.port as number, pps: x.pps as number, durationSec: x.durationSec as number };
+  return {
+    kind: 'syn',
+    port: x.port as number,
+    pps: x.pps as number,
+    durationSec: x.durationSec as number,
+  };
 }
