@@ -240,7 +240,7 @@ describe('packet assignment v3', () => {
     port: 18099,
     pps: 25_000,
     durationSec: 10,
-    notBefore: now - 1000,
+    notBefore: now,
     deadline: now + 10_000,
     leaseUntil: now + 10_000,
   };
