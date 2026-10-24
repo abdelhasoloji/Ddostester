@@ -197,3 +197,40 @@ export function assertAggregateBudget(
   if (rps > envelope.maxRps || concurrency > envelope.maxConcurrency)
     throw new Error('Fleet shards exceed authorized envelope');
 }
+
+/**
+ * Packet mission request, validated before it ever becomes a signed assignment.
+ *
+ * The packet vector is not an HTTP campaign with a different label: it has its
+ * own bound (packets per second), its own destination (a single port) and no
+ * concurrency. Anything out of bounds is refused, never reduced silently.
+ */
+export interface PacketMissionInput {
+  kind: 'syn';
+  port: number;
+  pps: number;
+  durationSec: number;
+}
+
+export function validatePacketMission(
+  value: unknown,
+  limits: { maxPps: number; packetPorts: number[]; minDurationSec: number; maxDurationSec: number },
+): PacketMissionInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('Invalid packet mission');
+  const x = value as Record<string, unknown>;
+  if (Object.keys(x).some((k) => !['kind', 'port', 'pps', 'durationSec'].includes(k)))
+    throw new Error('Packet mission carries unknown fields');
+  if (x.kind !== 'syn') throw new Error('Unsupported packet vector');
+  if (!Number.isSafeInteger(x.port) || !limits.packetPorts.includes(x.port as number))
+    throw new Error('Packet port is forbidden');
+  if (!Number.isSafeInteger(x.pps) || (x.pps as number) < 1 || (x.pps as number) > limits.maxPps)
+    throw new Error('Packet rate exceeds the fleet bound');
+  if (
+    !Number.isSafeInteger(x.durationSec) ||
+    (x.durationSec as number) < limits.minDurationSec ||
+    (x.durationSec as number) > limits.maxDurationSec
+  )
+    throw new Error('Packet duration is out of bounds');
+  return { kind: 'syn', port: x.port as number, pps: x.pps as number, durationSec: x.durationSec as number };
+}
