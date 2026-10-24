@@ -10,6 +10,7 @@ import type { Store } from '../store/index.js';
 import type { AuthState } from '../auth/guard.js';
 import { payloadFromRequest } from '../auth/guard.js';
 import { FLEET_LIMITS, type HardCaps } from '../config/limits.js';
+import { validatePacketMission } from '../modules/fleet/contract.js';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
 import { fleetDeviceView } from '../modules/fleet/devices.js';
 import { kills } from '../runtime/kills.js';
@@ -280,11 +281,38 @@ export async function registerFleetMissionRoutes(
     '/api/fleet/missions',
     { preHandler: guard('user:manage'), bodyLimit: 4096 },
     async (req, reply) => {
-      if (drsWorkflow())
+      const body = req.body as Record<string, unknown> | null;
+      // Le vecteur paquet n'est pas une « mission legacy » : il suit son propre
+      // schéma et ne doit pas être fermé par le retrait des missions HTTP.
+      const isPacket = body?.kind === 'syn';
+      if (drsWorkflow() && !isPacket)
         return reply
           .code(409)
           .send({ error: 'Legacy missions are retired; configure a DRS Fleet campaign.' });
-      const body = req.body as Record<string, unknown> | null;
+      if (isPacket) {
+        let packet;
+        try {
+          packet = validatePacketMission(body, {
+            maxPps: FLEET_LIMITS.maxPps,
+            packetPorts: FLEET_LIMITS.packetPorts,
+            minDurationSec: FLEET_LIMITS.minDurationSec,
+            maxDurationSec: FLEET_LIMITS.maxDurationSec,
+          });
+        } catch (error) {
+          return reply
+            .code(400)
+            .send({ error: error instanceof Error ? error.message : 'invalid_packet_mission' });
+        }
+        const capable = (await store.listFleetDevices()).filter(
+          (d) => d.heartbeat?.version === 'fleet-mission-agent/v2',
+        );
+        if (!capable.length)
+          return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
+        return reply.code(501).send({
+          error: 'packet_dispatch_not_wired',
+          detail: `mission validée (${packet.pps} pps, port ${packet.port}, ${packet.durationSec} s) mais la distribution paquet n'est pas encore branchée`,
+        });
+      }
       const e = envelope();
       if (
         !body ||
