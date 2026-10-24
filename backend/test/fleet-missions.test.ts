@@ -505,13 +505,36 @@ const url = process.env.DATABASE_URL_TEST;
       heartbeat: {
         sequence: 1,
         receivedAt: Date.now(),
-        version: 'fleet-mission-agent/v2',
+        version: 'inventory-heartbeat/v1',
         uptimeSec: 1,
         peerIp: '127.0.0.1',
       },
     });
     const payload = { kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 };
+    vi.stubEnv('FLEET_PACKET_TARGET', 'lab-target');
+    // Aucun agent ne peut exécuter un paquet avant de l'avoir déclaré.
+    const notV2 = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/missions',
+      headers: userHeaders,
+      payload,
+    });
+    expect(notV2.statusCode).toBe(409);
+    expect(notV2.json().error).toContain('fleet-mission-agent/v2');
+    // Le claim lui-même porte la version : c'est la seule déclaration qui compte.
+    const declared = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/devices/packet-agent/mission/claim',
+      headers: { authorization: 'Bearer ' + token },
+      payload: { version: 'fleet-mission-agent/v2', uptimeSec: 1 },
+    });
+    expect(declared.statusCode).toBe(200);
+    expect(declared.json().assignment).toBeNull();
+    expect((await store.getFleetDevice('packet-agent'))?.heartbeat?.version).toBe(
+      'fleet-mission-agent/v2',
+    );
     // La cible paquet doit être nommée, jamais déduite du premier hôte autorisé.
+    vi.stubEnv('FLEET_PACKET_TARGET', '');
     const unnamed = await app.inject({
       method: 'POST',
       url: '/api/fleet/missions',

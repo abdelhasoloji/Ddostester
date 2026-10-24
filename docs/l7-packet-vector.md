@@ -12,6 +12,7 @@
 | Route : 409 limité au HTTP legacy, mission paquet validée, assignation produite (`202`, `delivered: false`) | `backend/src/routes/fleet-mission-routes.ts`                                                    |
 | Cible paquet nommée par l'opérateur (`FLEET_PACKET_TARGET`), jamais déduite du premier hôte autorisé        | `backend/src/routes/fleet-mission-routes.ts`                                                    |
 | Distribution : mission, run et shard écrits, claim routé v1/v2 vs v3                                        | `coordinator.ts`, `fleet-mission-routes.ts`                                                     |
+| Capacité v2 déclarée par le claim du runtime qui exécute, jamais par un heartbeat externe                   | `fleet-mission-routes.ts`, `scripts/fleet/mission-agent.mjs`                                    |
 | Agent d'exécution et générateur compilé dans l'image                                                        | `scripts/fleet/packet-agent.mjs`, `scripts/fleet/pktgen.c`, `backend/Dockerfile`                |
 | Compteur cible lu avant et après l'émission, remis à l'agent en `PACKET_RECEIVED`                           | `backend/src/modules/fleet/packet-counter.ts`, `agent.ts`                                       |
 
@@ -28,7 +29,11 @@ Un chiffre d'émission ne prouve rien : seul le compteur de la cible fait foi.
    (`PACKET_RECEIVED`) par IPC.
 4. L'agent ne déclare `accepted: true` que si le delta atteint 99 % des paquets
    émis. Un compteur illisible, un compteur qui recule ou un delta absent
-   produisent `accepted: false`, jamais un succès supposé.
+   produisent un échec, jamais un succès supposé.
+
+L'orchestrateur retire `PACKET_RECEIVED` de l'environnement de l'agent : cette
+variable ne sert qu'à un lancement autonome, hors mesure orchestrée. Il exige
+aussi que le delta ait effectivement été remis avant de conclure au succès.
 
 Contrat d'environnement du processus qui exécute l'agent :
 
