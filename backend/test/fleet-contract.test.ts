@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { FLEET_LIMITS, HARD_CAPS } from '../src/config/limits.js';
+import { FleetCoordinator } from '../src/modules/fleet/coordinator.js';
 import {
   assertAggregateBudget,
   assignmentHash,
@@ -328,5 +329,76 @@ describe('packet assignment fabrication', () => {
       now,
     });
     expect(a.configHash).not.toBe(b.configHash);
+  });
+});
+
+describe('coordinator claim routing (v1/v2 unchanged, v3 validated)', () => {
+  const now = 1_800_000_000_000;
+  const packet = buildPacketAssignment({
+    campaignId: 'c1',
+    runId: 'r1',
+    agentId: 'three',
+    attemptId: 'a1',
+    target: 'http://lab-target:18099/',
+    port: 18099,
+    pps: 25_000,
+    durationSec: 10,
+    now,
+  });
+  const v2 = assignment({
+    schema: 'ddostester.fleet.assignment/v2',
+    iotProfile: { id: 'sensor-heartbeat/v1', seed: 42, deviceIndex: 0 },
+    probeUrl: 'http://target.test:8080/status',
+    notBefore: now,
+    deadline: now + 10_000,
+    leaseUntil: now + 10_000,
+  });
+
+  const claim = async (stored: unknown) => {
+    const updates: { text: string; values?: unknown[] }[] = [];
+    const client = {
+      query: async (text: string, values?: unknown[]) => {
+        if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [] };
+        if (text.startsWith('SELECT * FROM fleet_runs_v1'))
+          return {
+            rows: [
+              {
+                run_id: 'r1',
+                state: 'RUNNING',
+                deadline: now + 60_000,
+                control_lease_until: now + 60_000,
+              },
+            ],
+          };
+        if (text.startsWith('SELECT * FROM fleet_shards_v1'))
+          return { rows: [{ state: 'PENDING', assignment: stored }] };
+        updates.push({ text, values });
+        return { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const pool = { connect: async () => client };
+    const coordinator = new FleetCoordinator(pool as never, () => now);
+    return { assignment: await coordinator.claim('r1', 'three'), updates };
+  };
+
+  it('accepts a v3 assignment at claim and re-signs the shorter lease', async () => {
+    const { assignment: claimed, updates } = await claim(packet);
+    expect(claimed?.schema).toBe('ddostester.fleet.assignment/v3');
+    expect(claimed && 'pps' in claimed ? claimed.pps : undefined).toBe(25_000);
+    expect(claimed?.leaseUntil).toBe(now + FLEET_LIMITS.leaseMs);
+    expect(claimed?.configHash).not.toBe(packet.configHash);
+    expect(updates).toHaveLength(1);
+  });
+
+  it('still accepts a v2 assignment at claim', async () => {
+    const { assignment: claimed } = await claim(v2);
+    expect(claimed?.schema).toBe('ddostester.fleet.assignment/v2');
+    expect(claimed?.agentId).toBe('agent-1');
+  });
+
+  it('refuses a v3 assignment altered after signing', async () => {
+    const altered = { ...packet, pps: 30_000 };
+    await expect(claim(altered)).rejects.toThrow(/hash mismatch/);
   });
 });

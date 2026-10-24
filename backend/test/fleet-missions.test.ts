@@ -40,6 +40,7 @@ const url = process.env.DATABASE_URL_TEST;
       'Bearer ' + signJwt({ sub: 'abdelha@wedos', role: 'admin', ver: 0 }, auth.secret),
   };
   let id = '';
+  let packetMissionId = '';
   beforeAll(async () => {
     vi.stubEnv('FLEET_MISSIONS_ENABLED', '1');
     await store.saveUser({
@@ -88,10 +89,10 @@ const url = process.env.DATABASE_URL_TEST;
   });
   afterAll(async () => {
     await app.close();
-    if (id) {
-      await pool.query('DELETE FROM fleet_missions_v1 WHERE id=$1', [id]);
-      await pool.query('DELETE FROM fleet_shards_v1 WHERE run_id=$1', [id]);
-      await pool.query('DELETE FROM fleet_runs_v1 WHERE run_id=$1', [id]);
+    for (const missionId of [id, packetMissionId].filter(Boolean)) {
+      await pool.query('DELETE FROM fleet_missions_v1 WHERE id=$1', [missionId]);
+      await pool.query('DELETE FROM fleet_shards_v1 WHERE run_id=$1', [missionId]);
+      await pool.query('DELETE FROM fleet_runs_v1 WHERE run_id=$1', [missionId]);
     }
     await pool.end();
     vi.unstubAllEnvs();
@@ -485,6 +486,75 @@ const url = process.env.DATABASE_URL_TEST;
       vi.stubEnv('CAMPAIGN_CATALOG', 'legacy');
     }
   });
+  it('persists a packet mission as a v3 shard the agent can claim', async () => {
+    const token = randomBytes(32).toString('hex');
+    await store.saveFleetDevice({
+      id: 'packet-agent',
+      agentId: 'packet-agent',
+      name: 'packet',
+      group: 'VPS Lab',
+      profile: 'generic',
+      privateIp: '10.1.1.9',
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      credential: {
+        hash: createHash('sha256').update(token).digest('hex'),
+        expiresAt: Date.now() + 60_000,
+      },
+      heartbeat: {
+        sequence: 1,
+        receivedAt: Date.now(),
+        version: 'fleet-mission-agent/v2',
+        uptimeSec: 1,
+        peerIp: '127.0.0.1',
+      },
+    });
+    const launched = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/missions',
+      headers: userHeaders,
+      payload: { kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 },
+    });
+    expect(launched.statusCode).toBe(202);
+    const body = launched.json();
+    expect(body.id).toBeTruthy();
+    expect(body.missionId).toBe(body.id);
+    packetMissionId = body.id;
+
+    const mission = await pool.query('SELECT data FROM fleet_missions_v1 WHERE id=$1', [body.id]);
+    expect(mission.rows[0].data).toMatchObject({
+      kind: 'syn',
+      pps: 25_000,
+      port: 18099,
+      durationSec: 10,
+      deadline: body.assignment.deadline,
+      agentIds: ['packet-agent'],
+    });
+    const shard = await pool.query(
+      'SELECT assignment,state,site FROM fleet_shards_v1 WHERE run_id=$1 AND agent_id=$2',
+      [body.id, 'packet-agent'],
+    );
+    expect(shard.rows[0].state).toBe('PENDING');
+    expect(shard.rows[0].assignment.schema).toBe('ddostester.fleet.assignment/v3');
+    expect(shard.rows[0].assignment.pps).toBe(25_000);
+    expect(shard.rows[0].assignment.configHash).toBe(body.assignment.configHash);
+    const run = await pool.query('SELECT state FROM fleet_runs_v1 WHERE run_id=$1', [body.id]);
+    expect(run.rows[0].state).toBe('RUNNING');
+
+    const claimed = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/devices/packet-agent/mission/claim',
+      headers: { authorization: 'Bearer ' + token },
+      payload: {},
+    });
+    expect(claimed.statusCode).toBe(200);
+    const assignment = claimed.json().assignment;
+    expect(assignment.schema).toBe('ddostester.fleet.assignment/v3');
+    expect(assignment.runId).toBe(body.id);
+    expect(assignment.agentId).toBe('packet-agent');
+  });
+
   it('refuses campaign assignment without a current owner session, exact enrolled identities or admitted origin', async () => {
     const agent = new PersistentFleetHttpAgent();
     const config = {

@@ -106,6 +106,10 @@ export async function registerFleetMissionRoutes(
   const ownerValid = async (data: Record<string, unknown>) => {
     const user = await store.getUser(String(data.actor));
     const e = envelope();
+    const packet = data.kind === 'syn';
+    const budgetOk = packet
+      ? Number.isSafeInteger(data.pps) && Number(data.pps) <= FLEET_LIMITS.maxPps
+      : Number(data.maxRps) <= e.maxRps && Number(data.concurrency) <= e.maxConcurrency;
     return (
       !kills.isStopping() &&
       user?.role === 'admin' &&
@@ -114,8 +118,7 @@ export async function registerFleetMissionRoutes(
       (user.tokenVersion ?? 0) === data.version &&
       Number(data.sessionExpiresAt) > Date.now() &&
       Number(data.deadline) > Date.now() &&
-      Number(data.maxRps) <= e.maxRps &&
-      Number(data.concurrency) <= e.maxConcurrency &&
+      budgetOk &&
       Number(data.durationSec) <= e.maxDurationSec
     );
   };
@@ -308,28 +311,82 @@ export async function registerFleetMissionRoutes(
         );
         if (!capable.length)
           return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
-        // L'assignation signée est le contrat entre le plan de contrôle et l'agent :
-        // on la produit ici, la distribution vers l'agent reste à brancher.
+        const [allowedHost] = await effectiveAllowlist();
+        if (!allowedHost) return reply.code(409).send({ error: 'No allowlisted target' });
         const device = capable[0];
+        const missionId = randomUUID();
         const attemptId = randomUUID();
-        const target = new URL(
-          `http://${await (async () => (await effectiveAllowlist())[0])()}:${packet.port}/`,
-        );
+        const now = Date.now();
+        const site = fleetDeviceView(device).siteId;
+        const target = new URL(`http://${allowedHost}:${packet.port}/`);
         const assignment = buildPacketAssignment({
-          campaignId: body?.campaignId as string,
-          runId: body?.runId as string,
+          campaignId: missionId,
+          runId: missionId,
           agentId: device.agentId,
           attemptId,
           target: target.toString(),
           port: packet.port,
           pps: packet.pps,
           durationSec: packet.durationSec,
-          now: Date.now(),
+          now,
         });
+        const jwt = payloadFromRequest(auth, req);
+        const data = {
+          id: missionId,
+          kind: 'syn',
+          campaignId: missionId,
+          actor: req.authUser!.email,
+          version: jwt?.ver ?? 0,
+          sessionExpiresAt: (jwt?.exp ?? 0) * 1000,
+          createdAt: new Date(now).toISOString(),
+          deadline: assignment.deadline,
+          target: target.toString(),
+          port: packet.port,
+          pps: packet.pps,
+          durationSec: packet.durationSec,
+          deviceIds: [device.id],
+          agentIds: [device.agentId],
+          agentSites: { [device.agentId]: site },
+        };
+        if (!(await ownerValid(data)))
+          return reply.code(403).send({ error: 'owner_session_invalid' });
+        await audit(data.actor, 'packet.launch.requested', missionId);
+        const client = await database.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(
+            'INSERT INTO fleet_runs_v1(run_id,campaign_id,deadline,state,control_lease_until,expected_agents) VALUES($1,$2,$3,$4,$5,$6)',
+            [
+              missionId,
+              missionId,
+              assignment.deadline,
+              'RUNNING',
+              Math.min(assignment.deadline, now + FLEET_LIMITS.leaseMs),
+              1,
+            ],
+          );
+          await client.query(
+            'INSERT INTO fleet_shards_v1(run_id,agent_id,site,assignment,state) VALUES($1,$2,$3,$4,$5)',
+            [missionId, device.agentId, site, JSON.stringify(assignment), 'PENDING'],
+          );
+          await client.query('INSERT INTO fleet_missions_v1(id,epoch,data) VALUES($1,$2,$3)', [
+            missionId,
+            epoch,
+            data,
+          ]);
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
         return reply.code(202).send({
-          status: 'assignment_signed',
+          id: missionId,
+          missionId,
+          status: 'mission_scheduled',
           delivered: false,
-          detail: 'assignation produite ; distribution vers l’agent non branchée',
+          detail: 'mission persisted; the agent claims it via action=claim',
           agentId: device.agentId,
           assignment,
         });
