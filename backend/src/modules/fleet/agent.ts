@@ -4,9 +4,18 @@ import { FLEET_LIMITS, type HardCaps } from '../../config/limits.js';
 import { BuiltinHttpAgent } from '../../agents/builtin.js';
 import type { AttackAgent } from '../../agents/types.js';
 import type { LoadTestResult } from '../../engine/types.js';
-import { validateAssignment } from './contract.js';
+import { validateAssignment, validatePacketAssignment } from './contract.js';
+import { spawn } from 'node:child_process';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { startResourceMeasurement, type FleetResources } from './resources.js';
 import { compileIoTProfile } from '../../engine/iot-profile.js';
+import {
+  packetCounterCommand,
+  packetCounterSettleMs,
+  readPacketCounter,
+} from './packet-counter.js';
 
 export interface FleetAgentControl {
   renew(sequence: number, progress?: FleetProgress): Promise<{ leaseUntil: number } | null>;
@@ -23,9 +32,29 @@ export async function runFleetAssignment(
   reason: string;
   generator?: LoadTestResult;
   resources?: FleetResources;
+  packet?: { sent: number; received: number };
 }> {
   const startedWall = Date.now();
   const startedMono = performance.now();
+  // Une assignation paquet n'a ni débit de requêtes ni concurrence : elle suit
+  // son propre schéma et son propre exécutant. La router avant la validation v1/v2,
+  // sinon validateAssignment la rejette sur des champs qui n'existent pas.
+  if (
+    value &&
+    typeof value === 'object' &&
+    (value as { schema?: string }).schema === 'ddostester.fleet.assignment/v3'
+  ) {
+    const packet = validatePacketAssignment(value, {
+      agentId: policy.agentId,
+      allowedHosts: policy.allowedHosts,
+      allowedPorts: policy.allowedPorts,
+      maxPps: FLEET_LIMITS.maxPps,
+      minDurationSec: FLEET_LIMITS.minDurationSec,
+      maxDurationSec: FLEET_LIMITS.maxDurationSec,
+      now: startedWall,
+    });
+    return runPacketAssignment(packet, signal);
+  }
   const assignment = validateAssignment(value, { ...policy, now: startedWall });
   const resources = startResourceMeasurement();
   const now = () => startedWall + performance.now() - startedMono;
@@ -143,4 +172,158 @@ export async function runFleetAssignment(
     clearInterval(tick);
     signal?.removeEventListener('abort', cancel);
   }
+}
+
+/** Exécute une assignation paquet et rend les paquets émis et reçus. */
+async function runPacketAssignment(
+  assignment: {
+    agentId: string;
+    campaignId: string;
+    attemptId: string;
+    port: number;
+    pps: number;
+    durationSec: number;
+    target: string;
+  },
+  signal?: AbortSignal,
+): Promise<{
+  state: 'SUCCEEDED' | 'STOPPED' | 'FAILED';
+  reason: string;
+  generator?: LoadTestResult;
+  resources?: FleetResources;
+  packet?: { sent: number; received: number };
+}> {
+  // Le compteur de la cible est la seule preuve d'arrivée. Sans lecteur
+  // configuré, la mission est refusée AVANT toute émission : envoyer du trafic
+  // qu'on ne peut pas mesurer ne prouve rien.
+  let command: string[] | null;
+  let settleMs: number;
+  try {
+    command = packetCounterCommand();
+    settleMs = packetCounterSettleMs();
+  } catch (error) {
+    return {
+      state: 'FAILED',
+      reason: error instanceof Error ? error.message : 'packet counter configuration invalid',
+    };
+  }
+  if (!command) {
+    return {
+      state: 'FAILED',
+      reason:
+        'packet counter not configured (PACKET_COUNTER_CMD); refusing to emit unmeasured traffic',
+    };
+  }
+  let before: number;
+  try {
+    before = await readPacketCounter(command);
+  } catch (error) {
+    return {
+      state: 'FAILED',
+      reason: `packet counter unavailable before emission: ${errorText(error)}`,
+    };
+  }
+
+  const dir = await mkdtemp(join(tmpdir(), 'packet-'));
+  const file = join(dir, 'assignment.json');
+  try {
+    await writeFile(file, JSON.stringify(assignment), { mode: 0o600 });
+    const script = process.env.PACKET_AGENT || '/app/scripts/fleet/packet-agent.mjs';
+    // `PACKET_RECEIVED` est un repli pour un lancement autonome ; l'orchestrateur
+    // ne doit jamais l'hériter, sinon un succès pourrait venir d'une valeur
+    // d'environnement au lieu du compteur qu'il vient de lire.
+    const childEnv = { ...process.env };
+    delete childEnv.PACKET_RECEIVED;
+    const child = spawn('node', [script, file], {
+      env: {
+        ...childEnv,
+        PACKET_GENERATOR: process.env.PACKET_GENERATOR || '/usr/local/bin/drs-pktgen',
+        PACKET_MAX_PPS: String(FLEET_LIMITS.maxPps),
+      },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      signal,
+    });
+    let out = '';
+    const outcome: { failure: string | null; delivered: boolean } = {
+      failure: null,
+      delivered: false,
+    };
+    let handed = false;
+    // Le générateur est borné par sa durée ; ce garde-fou couvre un processus
+    // qui ne rendrait jamais la main.
+    const watchdog = setTimeout(
+      () => {
+        outcome.failure ??= 'packet agent exceeded its mission window';
+        child.kill('SIGTERM');
+      },
+      (assignment.durationSec + 30) * 1000,
+    );
+    child.on('message', (message: unknown) => {
+      if (handed) return;
+      const event = (message as { event?: unknown } | null)?.event;
+      if (event !== 'packet.emitted') return;
+      handed = true;
+      void (async () => {
+        try {
+          if (settleMs) await new Promise((resolve) => setTimeout(resolve, settleMs));
+          const after = await readPacketCounter(command);
+          if (after < before)
+            throw new Error(`target counter went backwards (${before} then ${after})`);
+          if (!child.connected) throw new Error('packet agent exited before the count arrived');
+          child.send({ event: 'packet.received', PACKET_RECEIVED: after - before });
+          outcome.delivered = true;
+        } catch (error) {
+          outcome.failure = `packet counter unavailable after emission: ${errorText(error)}`;
+          child.kill('SIGTERM');
+        }
+      })();
+    });
+    child.stdout!.on('data', (d: Buffer) => (out += d));
+    child.stderr!.on('data', (d: Buffer) => (out += d));
+    const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
+    clearTimeout(watchdog);
+    if (signal?.aborted) return { state: 'STOPPED', reason: 'cancelled' };
+    if (outcome.failure) return { state: 'FAILED', reason: outcome.failure };
+    let parsed: { packetsSent?: number; packetsReceived?: number | null; accepted?: boolean } = {};
+    try {
+      parsed = JSON.parse(out);
+    } catch {
+      return {
+        state: 'FAILED',
+        reason: `packet agent produced no result (exit ${code}): ${out.slice(0, 160)}`,
+      };
+    }
+    if (code !== 0) return { state: 'FAILED', reason: `packet generator exited ${code}` };
+    if (!outcome.delivered)
+      return {
+        state: 'FAILED',
+        reason: 'target count was never handed to the packet agent',
+      };
+    // Les compteurs sont conservés dans le reçu : un motif en prose ne suffit
+    // pas à prouver la livraison après la campagne.
+    const packet =
+      Number.isSafeInteger(parsed.packetsSent) &&
+      Number.isSafeInteger(parsed.packetsReceived) &&
+      parsed.packetsReceived! >= 0
+        ? { sent: parsed.packetsSent!, received: parsed.packetsReceived! }
+        : undefined;
+    if (!parsed.accepted) {
+      return {
+        state: 'FAILED',
+        reason: `packets received ${parsed.packetsReceived ?? 'unknown'} below 99 % of ${parsed.packetsSent ?? 0} sent`,
+        packet,
+      };
+    }
+    return {
+      state: 'SUCCEEDED',
+      reason: `packet mission delivered (${parsed.packetsReceived} received)`,
+      packet,
+    };
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

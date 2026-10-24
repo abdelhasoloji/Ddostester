@@ -9,9 +9,12 @@ import {
   assertAggregateBudget,
   assignmentHash,
   authorizedEnvelope,
+  packetAssignmentHash,
   splitBudget,
   validateAssignment,
+  validatePacketAssignment,
   type FleetAssignment,
+  type PacketAssignment,
 } from './contract.js';
 
 /** Durable lab coordination. No reassignment after loss: uncertainty cannot multiply a budget. */
@@ -144,7 +147,7 @@ export class FleetCoordinator {
         );
     });
   }
-  async claim(runId: string, agentId: string): Promise<FleetAssignment | null> {
+  async claim(runId: string, agentId: string): Promise<FleetAssignment | PacketAssignment | null> {
     return this.tx(async (c) => {
       const run = await c.query('SELECT * FROM fleet_runs_v1 WHERE run_id=$1 FOR UPDATE', [runId]);
       if (
@@ -159,13 +162,38 @@ export class FleetCoordinator {
         [runId, agentId],
       );
       if (!row.rows[0] || row.rows[0].state !== 'PENDING') return null;
-      const { configHash: _hash, ...data } = row.rows[0].assignment as FleetAssignment;
-      void _hash;
-      data.leaseUntil = Math.min(
-        data.deadline,
+      const stored = row.rows[0].assignment as FleetAssignment | PacketAssignment;
+      const now = this.now();
+      const leaseUntil = Math.min(
+        stored.deadline,
         Number(run.rows[0].control_lease_until),
-        this.now() + FLEET_LIMITS.leaseMs,
+        now + FLEET_LIMITS.leaseMs,
       );
+      if (stored.schema === 'ddostester.fleet.assignment/v3') {
+        // Packet assignments carry no request-rate budget: revalidate them with
+        // their own schema and bounds before re-signing the shorter lease.
+        const checked = validatePacketAssignment(stored, {
+          agentId,
+          allowedHosts: [new URL(stored.target).hostname],
+          allowedPorts: [...FLEET_LIMITS.packetPorts],
+          maxPps: FLEET_LIMITS.maxPps,
+          minDurationSec: FLEET_LIMITS.minDurationSec,
+          maxDurationSec: FLEET_LIMITS.maxDurationSec,
+          now,
+        });
+        const { configHash: _hash, ...data } = checked;
+        void _hash;
+        data.leaseUntil = leaseUntil;
+        const assignment = { ...data, configHash: packetAssignmentHash(data) };
+        await c.query(
+          "UPDATE fleet_shards_v1 SET state='RUNNING',assignment=$3 WHERE run_id=$1 AND agent_id=$2",
+          [runId, agentId, JSON.stringify(assignment)],
+        );
+        return assignment;
+      }
+      const { configHash: _hash, ...data } = stored;
+      void _hash;
+      data.leaseUntil = leaseUntil;
       const assignment = { ...data, configHash: assignmentHash(data) };
       await c.query(
         "UPDATE fleet_shards_v1 SET state='RUNNING',assignment=$3 WHERE run_id=$1 AND agent_id=$2",
@@ -383,7 +411,7 @@ export class FleetCoordinator {
    * `fleet_shards_v1` itself (PENDING rows) — there is no second work table to
    * drift out of sync. A completed, stopped or expired run yields null.
    */
-  async claimNext(agentId: string): Promise<FleetAssignment | null> {
+  async claimNext(agentId: string): Promise<FleetAssignment | PacketAssignment | null> {
     FleetCoordinator.assertAgentId(agentId);
     const active = await this.pool.query(
       `SELECT run_id FROM fleet_runs_v1

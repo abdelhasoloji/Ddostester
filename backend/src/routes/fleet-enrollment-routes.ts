@@ -103,8 +103,9 @@ export function registerFleetEnrollmentRoutes(
         !Number.isSafeInteger(body.sequence) ||
         Number(body.sequence) < 1 ||
         typeof body.version !== 'string' ||
-        body.version.length < 1 ||
-        body.version.length > 64 ||
+        !['inventory-heartbeat/v1', 'fleet-mission-agent/v1', 'fleet-mission-agent/v2'].includes(
+          body.version,
+        ) ||
         !Number.isFinite(body.uptimeSec) ||
         Number(body.uptimeSec) < 0 ||
         Number(body.uptimeSec) > 1e9

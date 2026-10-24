@@ -10,6 +10,7 @@ import type { Store } from '../store/index.js';
 import type { AuthState } from '../auth/guard.js';
 import { payloadFromRequest } from '../auth/guard.js';
 import { FLEET_LIMITS, type HardCaps } from '../config/limits.js';
+import { buildPacketAssignment, validatePacketMission } from '../modules/fleet/contract.js';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
 import { fleetDeviceView } from '../modules/fleet/devices.js';
 import { kills } from '../runtime/kills.js';
@@ -34,11 +35,15 @@ export async function registerFleetMissionRoutes(
   const enabled = process.env.FLEET_MISSIONS_ENABLED === '1';
   app.get('/api/fleet/overview', { preHandler: guard('campaign:read') }, async (_req, reply) => {
     reply.header('cache-control', 'no-store');
-    const devices = (await store.listFleetDevices()).map((d) => ({
-      ...fleetDeviceView(d),
-      missionCapable: d.heartbeat?.version === 'fleet-mission-agent/v1',
-      supportedMethods: d.heartbeat?.version === 'fleet-mission-agent/v1' ? ['GET'] : [],
-    }));
+    const devices = (await store.listFleetDevices()).map((d) => {
+      const missionV2 = d.heartbeat?.version === 'fleet-mission-agent/v2';
+      const missionV1 = d.heartbeat?.version === 'fleet-mission-agent/v1';
+      return {
+        ...fleetDeviceView(d),
+        missionCapable: missionV1 || missionV2,
+        supportedMethods: missionV2 ? ['GET', 'SYN'] : missionV1 ? ['GET'] : [],
+      };
+    });
     const rows = enabled
       ? await database.query(
           "SELECT id,data FROM fleet_missions_v1 WHERE data ? 'campaignId' ORDER BY data->>'createdAt' DESC LIMIT 10",
@@ -105,6 +110,10 @@ export async function registerFleetMissionRoutes(
   const ownerValid = async (data: Record<string, unknown>) => {
     const user = await store.getUser(String(data.actor));
     const e = envelope();
+    const packet = data.kind === 'syn';
+    const budgetOk = packet
+      ? Number.isSafeInteger(data.pps) && Number(data.pps) <= FLEET_LIMITS.maxPps
+      : Number(data.maxRps) <= e.maxRps && Number(data.concurrency) <= e.maxConcurrency;
     return (
       !kills.isStopping() &&
       user?.role === 'admin' &&
@@ -113,8 +122,7 @@ export async function registerFleetMissionRoutes(
       (user.tokenVersion ?? 0) === data.version &&
       Number(data.sessionExpiresAt) > Date.now() &&
       Number(data.deadline) > Date.now() &&
-      Number(data.maxRps) <= e.maxRps &&
-      Number(data.concurrency) <= e.maxConcurrency &&
+      budgetOk &&
       Number(data.durationSec) <= e.maxDurationSec
     );
   };
@@ -187,7 +195,9 @@ export async function registerFleetMissionRoutes(
         selected.some(
           (d) =>
             fleetDeviceView(d).connection !== 'online' ||
-            d.heartbeat?.version !== 'fleet-mission-agent/v1',
+            !['fleet-mission-agent/v1', 'fleet-mission-agent/v2'].includes(
+              d.heartbeat?.version ?? '',
+            ),
         )
       )
         throw new AgentError('All selected Fleet agents must be enrolled and online');
@@ -280,11 +290,124 @@ export async function registerFleetMissionRoutes(
     '/api/fleet/missions',
     { preHandler: guard('user:manage'), bodyLimit: 4096 },
     async (req, reply) => {
-      if (drsWorkflow())
+      const body = req.body as Record<string, unknown> | null;
+      // Le vecteur paquet n'est pas une « mission legacy » : il suit son propre
+      // schéma et ne doit pas être fermé par le retrait des missions HTTP.
+      const isPacket = body?.kind === 'syn';
+      if (drsWorkflow() && !isPacket)
         return reply
           .code(409)
           .send({ error: 'Legacy missions are retired; configure a DRS Fleet campaign.' });
-      const body = req.body as Record<string, unknown> | null;
+      if (isPacket) {
+        let packet;
+        try {
+          packet = validatePacketMission(body, {
+            maxPps: FLEET_LIMITS.maxPps,
+            packetPorts: [...FLEET_LIMITS.packetPorts],
+            minDurationSec: FLEET_LIMITS.minDurationSec,
+            maxDurationSec: FLEET_LIMITS.maxDurationSec,
+          });
+        } catch (error) {
+          return reply
+            .code(400)
+            .send({ error: error instanceof Error ? error.message : 'invalid_packet_mission' });
+        }
+        const capable = (await store.listFleetDevices()).filter(
+          (d) =>
+            d.heartbeat?.version === 'fleet-mission-agent/v2' &&
+            fleetDeviceView(d).connection === 'online',
+        );
+        if (!capable.length)
+          return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
+        // La cible paquet n'est jamais « le premier hôte autorisé » : ce serait
+        // un choix accidentel, et le premier de la liste n'est pas la cible du
+        // vecteur. Elle est nommée par l'opérateur et doit rester dans
+        // l'allowlist effective, sinon la mission est refusée.
+        const packetTarget = process.env.FLEET_PACKET_TARGET?.trim();
+        if (!packetTarget)
+          return reply
+            .code(409)
+            .send({ error: 'Packet target not configured (FLEET_PACKET_TARGET)' });
+        if (!(await effectiveAllowlist()).includes(packetTarget))
+          return reply.code(409).send({ error: 'Packet target is not allowlisted' });
+        const device = capable[0];
+        const missionId = randomUUID();
+        const attemptId = randomUUID();
+        const now = Date.now();
+        const site = fleetDeviceView(device).siteId;
+        const target = new URL(`http://${packetTarget}:${packet.port}/`);
+        const assignment = buildPacketAssignment({
+          campaignId: missionId,
+          runId: missionId,
+          agentId: device.agentId,
+          attemptId,
+          target: target.toString(),
+          port: packet.port,
+          pps: packet.pps,
+          durationSec: packet.durationSec,
+          now,
+        });
+        const jwt = payloadFromRequest(auth, req);
+        const data = {
+          id: missionId,
+          kind: 'syn',
+          campaignId: missionId,
+          actor: req.authUser!.email,
+          version: jwt?.ver ?? 0,
+          sessionExpiresAt: (jwt?.exp ?? 0) * 1000,
+          createdAt: new Date(now).toISOString(),
+          deadline: assignment.deadline,
+          target: target.toString(),
+          port: packet.port,
+          pps: packet.pps,
+          durationSec: packet.durationSec,
+          deviceIds: [device.id],
+          agentIds: [device.agentId],
+          agentSites: { [device.agentId]: site },
+        };
+        if (!(await ownerValid(data)))
+          return reply.code(403).send({ error: 'owner_session_invalid' });
+        await audit(data.actor, 'packet.launch.requested', missionId);
+        const client = await database.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(
+            'INSERT INTO fleet_runs_v1(run_id,campaign_id,deadline,state,control_lease_until,expected_agents) VALUES($1,$2,$3,$4,$5,$6)',
+            [
+              missionId,
+              missionId,
+              assignment.deadline,
+              'RUNNING',
+              Math.min(assignment.deadline, now + FLEET_LIMITS.leaseMs),
+              1,
+            ],
+          );
+          await client.query(
+            'INSERT INTO fleet_shards_v1(run_id,agent_id,site,assignment,state) VALUES($1,$2,$3,$4,$5)',
+            [missionId, device.agentId, site, JSON.stringify(assignment), 'PENDING'],
+          );
+          await client.query('INSERT INTO fleet_missions_v1(id,epoch,data) VALUES($1,$2,$3)', [
+            missionId,
+            epoch,
+            data,
+          ]);
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        } finally {
+          client.release();
+        }
+        return reply.code(202).send({
+          id: missionId,
+          missionId,
+          status: 'mission_scheduled',
+          delivered: false,
+          detail: 'mission persisted; the agent claims it via action=claim',
+          agentId: device.agentId,
+          assignment,
+        });
+      }
       const e = envelope();
       if (
         !body ||
@@ -314,7 +437,9 @@ export async function registerFleetMissionRoutes(
         selected.some(
           (d) =>
             fleetDeviceView(d).connection !== 'online' ||
-            d.heartbeat?.version !== 'fleet-mission-agent/v1' ||
+            !['fleet-mission-agent/v1', 'fleet-mission-agent/v2'].includes(
+              d.heartbeat?.version ?? '',
+            ) ||
             !/^[a-zA-Z0-9_-]{1,128}$/.test(d.agentId),
         )
       )

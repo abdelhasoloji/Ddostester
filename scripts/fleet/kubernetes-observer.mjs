@@ -29,9 +29,17 @@ if (process.argv[2] === 'prepare') {
     ['/observer/heartbeat-agent.mjs', '/work/enrollment.json', '86400'],
     { stdio: ['ignore', 'pipe', 'inherit'] },
   );
-  const worker = process.env.FLEET_MISSION_RUNTIME === '1' ? spawn(process.execPath, ['/observer/mission-agent.mjs', '/work/enrollment.json'], { stdio: 'inherit' }) : null;
+  // Le runtime 2 exécute le même worker : la capacité v2 doit lancer l'agent,
+  // pas seulement le déclarer.
+  const worker = ['1', '2'].includes(process.env.FLEET_MISSION_RUNTIME ?? '')
+    ? spawn(process.execPath, ['/observer/mission-agent.mjs', '/work/enrollment.json'], {
+        stdio: 'inherit',
+      })
+    : null;
   worker?.once('error', () => child.kill('SIGTERM'));
-  worker?.once('close', (code) => { if (code !== 0) child.kill('SIGTERM'); });
+  worker?.once('close', (code) => {
+    if (code !== 0) child.kill('SIGTERM');
+  });
   child.once('close', () => worker?.kill('SIGTERM'));
   let buffer = '';
   let marker = Promise.resolve();
@@ -46,7 +54,11 @@ if (process.argv[2] === 'prepare') {
           writeFile('/work/last-accepted', String(Date.now()), { mode: 0o600 }),
         );
   });
-  for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { child.kill(signal); worker?.kill(signal); });
+  for (const signal of ['SIGTERM', 'SIGINT'])
+    process.once(signal, () => {
+      child.kill(signal);
+      worker?.kill(signal);
+    });
   child.once('error', (error) => {
     console.error(error.message);
     process.exitCode = 1;

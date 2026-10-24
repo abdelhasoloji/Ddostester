@@ -281,6 +281,10 @@ export const FLEET_LIMITS = Object.freeze({
   maxAgents: 3,
   maxRps: 15,
   maxConcurrency: 6,
+  /** Packet vector bound: above this a mission is refused, never silently reduced. */
+  maxPps: 50_000,
+  /** Ports a packet mission may target; kept small and explicit. */
+  packetPorts: [18099, 18100],
   maxDurationSec: 60,
   minDurationSec: 10,
   stopTimeoutMs: 8000,
