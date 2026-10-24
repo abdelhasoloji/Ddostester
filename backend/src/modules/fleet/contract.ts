@@ -338,3 +338,38 @@ export function validatePacketAssignment(
     throw new Error('Packet assignment hash mismatch');
   return { ...x };
 }
+
+/**
+ * Build the signed packet assignment the coordinator hands to an agent.
+ *
+ * Clocks are derived, never guessed: the window opens now, closes after the
+ * mission duration, and the lease never outlives the deadline. The signature is
+ * the last step so any change to the inputs invalidates it.
+ */
+export function buildPacketAssignment(input: {
+  campaignId: string;
+  runId: string;
+  agentId: string;
+  attemptId: string;
+  target: string;
+  port: number;
+  pps: number;
+  durationSec: number;
+  now: number;
+}): PacketAssignment {
+  const base: PacketAssignmentInput = {
+    schema: 'ddostester.fleet.assignment/v3',
+    campaignId: input.campaignId,
+    runId: input.runId,
+    agentId: input.agentId,
+    attemptId: input.attemptId,
+    target: input.target,
+    port: input.port,
+    pps: input.pps,
+    durationSec: input.durationSec,
+    notBefore: input.now,
+    deadline: input.now + input.durationSec * 1000,
+    leaseUntil: input.now + input.durationSec * 1000,
+  };
+  return { ...base, configHash: packetAssignmentHash(base) };
+}

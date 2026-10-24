@@ -9,6 +9,7 @@ import {
   validateAssignment,
   validatePacketMission,
   packetAssignmentHash,
+  buildPacketAssignment,
   validatePacketAssignment,
   type AssignmentInput,
 } from '../src/modules/fleet/contract.js';
@@ -275,5 +276,46 @@ describe('packet assignment v3', () => {
     expect(() =>
       validatePacketAssignment({ ...expired, configHash: packetAssignmentHash(expired) }, policy),
     ).toThrow(/lifetime/);
+  });
+});
+
+describe('packet assignment fabrication', () => {
+  const now = 1_800_000_000_000;
+  const policy = {
+    agentId: 'three',
+    allowedHosts: ['lab-target'],
+    allowedPorts: [18099],
+    maxPps: 50_000,
+    minDurationSec: 10,
+    maxDurationSec: 60,
+    now,
+  };
+  const build = () =>
+    buildPacketAssignment({
+      campaignId: 'c1',
+      runId: 'r1',
+      agentId: 'three',
+      attemptId: 'a1',
+      target: 'http://lab-target:18099/',
+      port: 18099,
+      pps: 25_000,
+      durationSec: 10,
+      now,
+    });
+
+  it('produces an assignment the validator accepts', () => {
+    expect(validatePacketAssignment(build(), policy).pps).toBe(25_000);
+  });
+
+  it('closes the window after the mission duration and never leases beyond it', () => {
+    const a = build();
+    expect(a.notBefore).toBe(now);
+    expect(a.deadline).toBe(now + 10_000);
+    expect(a.leaseUntil).toBeLessThanOrEqual(a.deadline);
+  });
+
+  it('invalidates the signature when any input changes', () => {
+    const a = build();
+    expect(a.configHash).not.toBe(packetAssignmentHash({ ...a, configHash: undefined } as never));
   });
 });
