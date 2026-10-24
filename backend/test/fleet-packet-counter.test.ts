@@ -165,6 +165,9 @@ describe('packet mission target counter', () => {
     vi.stubEnv('PACKET_COUNTER_CMD', JSON.stringify([process.execPath, counter, state, '500']));
     vi.stubEnv('PACKET_TEST_MARKER', mark);
     vi.stubEnv('PACKET_TEST_SENT', '500');
+    // Un PACKET_RECEIVED hérité de l'environnement ne doit jamais remplacer la
+    // mesure : l'orchestrateur le retire de l'environnement de l'agent.
+    vi.stubEnv('PACKET_RECEIVED', '999999');
     const result = await run();
     expect(result).toMatchObject({ state: 'SUCCEEDED' });
     expect(result.reason).toContain('500 received');

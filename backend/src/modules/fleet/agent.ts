@@ -227,9 +227,14 @@ async function runPacketAssignment(
   try {
     await writeFile(file, JSON.stringify(assignment), { mode: 0o600 });
     const script = process.env.PACKET_AGENT || '/app/scripts/fleet/packet-agent.mjs';
+    // `PACKET_RECEIVED` est un repli pour un lancement autonome ; l'orchestrateur
+    // ne doit jamais l'hériter, sinon un succès pourrait venir d'une valeur
+    // d'environnement au lieu du compteur qu'il vient de lire.
+    const childEnv = { ...process.env };
+    delete childEnv.PACKET_RECEIVED;
     const child = spawn('node', [script, file], {
       env: {
-        ...process.env,
+        ...childEnv,
         PACKET_GENERATOR: process.env.PACKET_GENERATOR || '/usr/local/bin/drs-pktgen',
         PACKET_MAX_PPS: String(FLEET_LIMITS.maxPps),
       },
@@ -237,7 +242,10 @@ async function runPacketAssignment(
       signal,
     });
     let out = '';
-    const outcome: { failure: string | null } = { failure: null };
+    const outcome: { failure: string | null; delivered: boolean } = {
+      failure: null,
+      delivered: false,
+    };
     let handed = false;
     // Le générateur est borné par sa durée ; ce garde-fou couvre un processus
     // qui ne rendrait jamais la main.
@@ -261,6 +269,7 @@ async function runPacketAssignment(
             throw new Error(`target counter went backwards (${before} then ${after})`);
           if (!child.connected) throw new Error('packet agent exited before the count arrived');
           child.send({ event: 'packet.received', PACKET_RECEIVED: after - before });
+          outcome.delivered = true;
         } catch (error) {
           outcome.failure = `packet counter unavailable after emission: ${errorText(error)}`;
           child.kill('SIGTERM');
@@ -273,6 +282,11 @@ async function runPacketAssignment(
     clearTimeout(watchdog);
     if (signal?.aborted) return { state: 'STOPPED', reason: 'cancelled' };
     if (outcome.failure) return { state: 'FAILED', reason: outcome.failure };
+    if (!outcome.delivered)
+      return {
+        state: 'FAILED',
+        reason: 'target count was never handed to the packet agent',
+      };
     let parsed: { packetsSent?: number; packetsReceived?: number | null; accepted?: boolean } = {};
     try {
       parsed = JSON.parse(out);

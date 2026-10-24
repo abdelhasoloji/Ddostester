@@ -69,6 +69,8 @@ export async function readPacketCounter(
 ): Promise<number> {
   const { stdout } = await run(command[0], command.slice(1), {
     timeout: timeoutMs,
+    // A reader that ignores SIGTERM would otherwise hold the mission open.
+    killSignal: 'SIGKILL',
     maxBuffer: MAX_OUTPUT_BYTES,
     encoding: 'utf8',
     shell: false,
