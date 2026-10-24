@@ -236,7 +236,7 @@ describe('packet assignment v3', () => {
     runId: 'r1',
     agentId: 'three',
     attemptId: 'a1',
-    target: 'lab-target',
+    target: 'http://lab-target:18099/',
     port: 18099,
     pps: 25_000,
     durationSec: 10,
