@@ -16,7 +16,7 @@ RUN npm run build -w backend && npm run build -w frontend && node scripts/releas
 RUN npm prune --omit=dev --ignore-scripts && node scripts/operations/assert-portable-runtime.mjs node_modules
 
 # Générateur paquet : compilé dans une étape dédiée, l'image runtime reste sans compilateur.
-FROM --platform=$BUILDPLATFORM alpine:3.20@sha256:d9a7354e3845ea44f5c3b81b8a1d6a1e2a5f8f5a0a3b0a8c0f6a3c5a2c8f5b1e AS pktgen
+FROM --platform=$BUILDPLATFORM alpine:3.20 AS pktgen
 RUN apk add --no-cache gcc musl-dev
 COPY scripts/fleet/pktgen.c /src/pktgen.c
 RUN gcc -O2 -Wall -Wextra -o /pktgen /src/pktgen.c
