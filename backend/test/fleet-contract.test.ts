@@ -314,8 +314,19 @@ describe('packet assignment fabrication', () => {
     expect(a.leaseUntil).toBeLessThanOrEqual(a.deadline);
   });
 
-  it('invalidates the signature when any input changes', () => {
+  it('invalidates the signature when an input changes', () => {
     const a = build();
-    expect(a.configHash).not.toBe(packetAssignmentHash({ ...a, configHash: undefined } as never));
+    const b = buildPacketAssignment({
+      campaignId: 'c1',
+      runId: 'r1',
+      agentId: 'three',
+      attemptId: 'a1',
+      target: 'http://lab-target:18099/',
+      port: 18099,
+      pps: 30_000,
+      durationSec: 10,
+      now,
+    });
+    expect(a.configHash).not.toBe(b.configHash);
   });
 });
