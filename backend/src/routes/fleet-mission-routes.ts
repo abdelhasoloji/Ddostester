@@ -294,7 +294,7 @@ export async function registerFleetMissionRoutes(
         try {
           packet = validatePacketMission(body, {
             maxPps: FLEET_LIMITS.maxPps,
-            packetPorts: FLEET_LIMITS.packetPorts,
+            packetPorts: [...FLEET_LIMITS.packetPorts],
             minDurationSec: FLEET_LIMITS.minDurationSec,
             maxDurationSec: FLEET_LIMITS.maxDurationSec,
           });
