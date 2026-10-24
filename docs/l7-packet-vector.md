@@ -41,6 +41,8 @@ Contrat d'environnement du processus qui exécute l'agent :
   vers une cible dont le compteur est local :
   `["nft","list","counter","inet","drs_lab","syn_rx"]`. Pour une cible distante,
   l'argv peut être une commande `ssh` explicite (clé et hôte en arguments).
+- `PACKET_SOURCE_IP` : adresse IPv4 réelle de l'agent, obligatoire. Le générateur
+  forge l'en-tête IP ; une source forgée est filtrée par l'hébergeur en sortie.
 - `PACKET_COUNTER_SETTLE_MS` : délai entre la fin de l'émission et la lecture
   « après », 0 à 5000 ms (défaut 0).
 - `FLEET_PACKET_TARGET` (côté API) : hôte de la cible paquet, qui doit figurer

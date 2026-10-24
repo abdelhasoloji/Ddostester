@@ -67,6 +67,15 @@ if (!stat.isFile() || stat.mode & 0o077 || stat.size > 8192) {
 }
 const maxPps = Number(process.env.PACKET_MAX_PPS || 50000);
 const binary = process.env.PACKET_GENERATOR || '/app/drs-pktgen';
+// Le générateur forge l'en-tête IP : sans l'adresse réelle de l'agent, il
+// enverrait des paquets à source forgée que l'hébergeur filtre en sortie
+// (constaté : 0 arrivée). La source est donc obligatoire et vérifiée ici.
+const source = process.env.PACKET_SOURCE_IP;
+const ipv4 = (value) =>
+  typeof value === 'string' &&
+  /^(\d{1,3}\.){3}\d{1,3}$/.test(value) &&
+  value.split('.').every((part) => Number(part) <= 255);
+if (!ipv4(source)) throw new Error("PACKET_SOURCE_IP must be this agent's IPv4 source address");
 const assignment = validate(JSON.parse(await readFile(file, 'utf8')), maxPps, Date.now());
 
 const started = Date.now();
@@ -79,7 +88,7 @@ const child = spawn(
     String(assignment.durationSec),
   ],
   {
-    env: { ...process.env, ALLOW_TARGETS: new URL(assignment.target).hostname },
+    env: { ...process.env, ALLOW_TARGETS: new URL(assignment.target).hostname, SRC_IP: source },
   },
 );
 let out = '';
