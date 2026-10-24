@@ -10,7 +10,7 @@ import type { Store } from '../store/index.js';
 import type { AuthState } from '../auth/guard.js';
 import { payloadFromRequest } from '../auth/guard.js';
 import { FLEET_LIMITS, type HardCaps } from '../config/limits.js';
-import { validatePacketMission } from '../modules/fleet/contract.js';
+import { buildPacketAssignment, validatePacketMission } from '../modules/fleet/contract.js';
 import { FleetCoordinator } from '../modules/fleet/coordinator.js';
 import { fleetDeviceView } from '../modules/fleet/devices.js';
 import { kills } from '../runtime/kills.js';
@@ -308,9 +308,30 @@ export async function registerFleetMissionRoutes(
         );
         if (!capable.length)
           return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
-        return reply.code(501).send({
-          error: 'packet_dispatch_not_wired',
-          detail: `mission validée (${packet.pps} pps, port ${packet.port}, ${packet.durationSec} s) mais la distribution paquet n'est pas encore branchée`,
+        // L'assignation signée est le contrat entre le plan de contrôle et l'agent :
+        // on la produit ici, la distribution vers l'agent reste à brancher.
+        const device = capable[0];
+        const attemptId = randomUUID();
+        const target = new URL(
+          `http://${await (async () => (await effectiveAllowlist())[0])()}:${packet.port}/`,
+        );
+        const assignment = buildPacketAssignment({
+          campaignId: body?.campaignId as string,
+          runId: body?.runId as string,
+          agentId: device.agentId,
+          attemptId,
+          target: target.toString(),
+          port: packet.port,
+          pps: packet.pps,
+          durationSec: packet.durationSec,
+          now: Date.now(),
+        });
+        return reply.code(202).send({
+          status: 'assignment_signed',
+          delivered: false,
+          detail: 'assignation produite ; distribution vers l’agent non branchée',
+          agentId: device.agentId,
+          assignment,
         });
       }
       const e = envelope();
