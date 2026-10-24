@@ -311,14 +311,23 @@ export async function registerFleetMissionRoutes(
         );
         if (!capable.length)
           return reply.code(409).send({ error: 'No agent reports fleet-mission-agent/v2' });
-        const [allowedHost] = await effectiveAllowlist();
-        if (!allowedHost) return reply.code(409).send({ error: 'No allowlisted target' });
+        // La cible paquet n'est jamais « le premier hôte autorisé » : ce serait
+        // un choix accidentel, et le premier de la liste n'est pas la cible du
+        // vecteur. Elle est nommée par l'opérateur et doit rester dans
+        // l'allowlist effective, sinon la mission est refusée.
+        const packetTarget = process.env.FLEET_PACKET_TARGET?.trim();
+        if (!packetTarget)
+          return reply
+            .code(409)
+            .send({ error: 'Packet target not configured (FLEET_PACKET_TARGET)' });
+        if (!(await effectiveAllowlist()).includes(packetTarget))
+          return reply.code(409).send({ error: 'Packet target is not allowlisted' });
         const device = capable[0];
         const missionId = randomUUID();
         const attemptId = randomUUID();
         const now = Date.now();
         const site = fleetDeviceView(device).siteId;
-        const target = new URL(`http://${allowedHost}:${packet.port}/`);
+        const target = new URL(`http://${packetTarget}:${packet.port}/`);
         const assignment = buildPacketAssignment({
           campaignId: missionId,
           runId: missionId,

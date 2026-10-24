@@ -510,11 +510,31 @@ const url = process.env.DATABASE_URL_TEST;
         peerIp: '127.0.0.1',
       },
     });
+    const payload = { kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 };
+    // La cible paquet doit être nommée, jamais déduite du premier hôte autorisé.
+    const unnamed = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/missions',
+      headers: userHeaders,
+      payload,
+    });
+    expect(unnamed.statusCode).toBe(409);
+    expect(unnamed.json().error).toContain('FLEET_PACKET_TARGET');
+    vi.stubEnv('FLEET_PACKET_TARGET', 'bank.cz');
+    const outside = await app.inject({
+      method: 'POST',
+      url: '/api/fleet/missions',
+      headers: userHeaders,
+      payload,
+    });
+    expect(outside.statusCode).toBe(409);
+    expect(outside.json().error).toContain('not allowlisted');
+    vi.stubEnv('FLEET_PACKET_TARGET', 'lab-target');
     const launched = await app.inject({
       method: 'POST',
       url: '/api/fleet/missions',
       headers: userHeaders,
-      payload: { kind: 'syn', port: 18099, pps: 25_000, durationSec: 10 },
+      payload,
     });
     expect(launched.statusCode).toBe(202);
     const body = launched.json();
