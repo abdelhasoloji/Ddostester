@@ -169,7 +169,7 @@ describe('packet mission target counter', () => {
     // mesure : l'orchestrateur le retire de l'environnement de l'agent.
     vi.stubEnv('PACKET_RECEIVED', '999999');
     const result = await run();
-    expect(result).toMatchObject({ state: 'SUCCEEDED' });
+    expect(result).toMatchObject({ state: 'SUCCEEDED', packet: { sent: 500, received: 500 } });
     expect(result.reason).toContain('500 received');
     expect(await readMarker(mark)).toEqual({ sent: 500, received: 500 });
   });
@@ -183,6 +183,7 @@ describe('packet mission target counter', () => {
     const result = await run();
     expect(result.state).toBe('FAILED');
     expect(result.reason).toContain('below 99 %');
+    expect(result.packet).toEqual({ sent: 1000, received: 500 });
     expect(await readMarker(mark)).toEqual({ sent: 1000, received: 500 });
   });
 

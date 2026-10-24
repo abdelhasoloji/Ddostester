@@ -32,6 +32,7 @@ export async function runFleetAssignment(
   reason: string;
   generator?: LoadTestResult;
   resources?: FleetResources;
+  packet?: { sent: number; received: number };
 }> {
   const startedWall = Date.now();
   const startedMono = performance.now();
@@ -190,6 +191,7 @@ async function runPacketAssignment(
   reason: string;
   generator?: LoadTestResult;
   resources?: FleetResources;
+  packet?: { sent: number; received: number };
 }> {
   // Le compteur de la cible est la seule preuve d'arrivée. Sans lecteur
   // configuré, la mission est refusée AVANT toute émission : envoyer du trafic
@@ -297,15 +299,25 @@ async function runPacketAssignment(
         state: 'FAILED',
         reason: 'target count was never handed to the packet agent',
       };
+    // Les compteurs sont conservés dans le reçu : un motif en prose ne suffit
+    // pas à prouver la livraison après la campagne.
+    const packet =
+      Number.isSafeInteger(parsed.packetsSent) &&
+      Number.isSafeInteger(parsed.packetsReceived) &&
+      parsed.packetsReceived! >= 0
+        ? { sent: parsed.packetsSent!, received: parsed.packetsReceived! }
+        : undefined;
     if (!parsed.accepted) {
       return {
         state: 'FAILED',
         reason: `packets received ${parsed.packetsReceived ?? 'unknown'} below 99 % of ${parsed.packetsSent ?? 0} sent`,
+        packet,
       };
     }
     return {
       state: 'SUCCEEDED',
       reason: `packet mission delivered (${parsed.packetsReceived} received)`,
+      packet,
     };
   } finally {
     await rm(dir, { recursive: true, force: true });
