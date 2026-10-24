@@ -22,7 +22,9 @@ mécanique.
    Point d'attention : `coordinator.claim` valide probablement avec `validateAssignment`
    (v1/v2). Il doit router vers `validatePacketAssignment` sur `schema ===
 'ddostester.fleet.assignment/v3'`, sinon il rejettera l'assignation.
-2. **Agent dans l'image.** `scripts/fleet/packet-agent.mjs` doit être copié dans l'image et
+2. **Agent dans l'image.** `scripts/` est déjà copié par `backend/Dockerfile`, donc
+   `packet-agent.mjs` y est ; la source du générateur (`scripts/fleet/pktgen.c`) est
+   versionnée pour construire le binaire dans l'image ou le monter au runtime. `scripts/fleet/packet-agent.mjs` doit être copié dans l'image et
    déclenché par le worker, avec `PACKET_GENERATOR` pointant sur le binaire.
 3. **Compteur cible.** `packetsReceived` vient de l'orchestrateur (nftables côté cible).
    Sans lui l'agent rend `null` et `accepted: false` — c'est voulu.
