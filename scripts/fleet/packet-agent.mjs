@@ -25,7 +25,7 @@ const KEYS = [
 ].sort();
 
 function hash(input) {
-  const { configHash, ...rest } = input;
+  const { configHash: _signature, ...rest } = input;
   const ordered = Object.fromEntries(Object.entries(rest).sort(([a], [b]) => a.localeCompare(b)));
   return createHash('sha256').update(JSON.stringify(ordered)).digest('hex');
 }
