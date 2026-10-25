@@ -79,14 +79,12 @@ if (!ipv4(source)) throw new Error("PACKET_SOURCE_IP must be this agent's IPv4 s
 const assignment = validate(JSON.parse(await readFile(file, 'utf8')), maxPps, Date.now());
 
 const started = Date.now();
+// Le générateur attend un hôte IPv4, pas l'URL signée : passer l'URL entière
+// faisait refuser la cible et aucun paquet ne partait.
+const targetHost = new URL(assignment.target).hostname;
 const child = spawn(
   binary,
-  [
-    assignment.target,
-    String(assignment.port),
-    String(assignment.pps),
-    String(assignment.durationSec),
-  ],
+  [targetHost, String(assignment.port), String(assignment.pps), String(assignment.durationSec)],
   {
     env: { ...process.env, ALLOW_TARGETS: new URL(assignment.target).hostname, SRC_IP: source },
   },

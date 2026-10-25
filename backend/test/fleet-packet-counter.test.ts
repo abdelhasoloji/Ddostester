@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runFleetAssignment } from '../src/modules/fleet/agent.js';
 import { buildPacketAssignment } from '../src/modules/fleet/contract.js';
@@ -172,6 +173,30 @@ describe('packet mission target counter', () => {
     expect(result).toMatchObject({ state: 'SUCCEEDED', packet: { sent: 500, received: 500 } });
     expect(result.reason).toContain('500 received');
     expect(await readMarker(mark)).toEqual({ sent: 500, received: 500 });
+  });
+
+  it('passes the target host, not the signed URL, to the generator', async () => {
+    const argv = join(dir, `argv-${++sequence}.json`);
+    const generator = join(dir, 'fake-generator.mjs');
+    await writeFile(
+      generator,
+      "#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.PACKET_TEST_ARGV, JSON.stringify(process.argv.slice(2)));\nconsole.log('sent=500 elapsed=10.00s rate=50');\n",
+      { mode: 0o755 },
+    );
+    vi.stubEnv(
+      'PACKET_AGENT',
+      fileURLToPath(new URL('../../scripts/fleet/packet-agent.mjs', import.meta.url)),
+    );
+    vi.stubEnv('PACKET_GENERATOR', generator);
+    vi.stubEnv('PACKET_SOURCE_IP', '203.0.113.10');
+    vi.stubEnv('PACKET_TEST_ARGV', argv);
+    vi.stubEnv(
+      'PACKET_COUNTER_CMD',
+      JSON.stringify([process.execPath, counter, stateFile(), '500']),
+    );
+    const result = await run();
+    expect(result.state).toBe('SUCCEEDED');
+    expect(JSON.parse(await readFile(argv, 'utf8'))).toEqual(['lab-target', '18099', '500', '10']);
   });
 
   it('fails closed when the target count falls short of 99 %', async () => {
