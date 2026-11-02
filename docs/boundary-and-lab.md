@@ -1,6 +1,15 @@
 # Control plane and isolated laboratory boundary
 
-ShieldTester governs authorized bounded HTTP tests and evidence. It contains a capped HTTP generator and bounded slow-header resilience probe; external adapters delegate to installed load tools. It does not implement network amplification, source spoofing or unbounded exhaustion. Safeguards in [AGENTS.md](../AGENTS.md), `backend/src/config/limits.ts` and the target/approval/kill/audit policy remain mandatory.
+ShieldTester governs **authorized** resilience tests and the evidence they produce. The
+invariant is the authorization model — signed target, window, caps, kill switch, audit — not
+the transport. Today's engine is a capped HTTP generator plus a bounded slow-header probe;
+external adapters delegate to installed load tools. The target is a measured DRS 5
+evaluation, and reaching it requires a packet-level engine under the same safeguards, not
+around them: see [DRS 5 capability target](drs5-target.md).
+
+Network amplification, source spoofing and unbounded exhaustion remain out of scope at every
+stage. Safeguards in [AGENTS.md](../AGENTS.md), `backend/src/config/limits.ts` and the
+target/approval/kill/audit policy remain mandatory.
 
 ## Where each thing actually lives
 

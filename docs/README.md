@@ -11,6 +11,7 @@ Current product and setup, with dated implementation and deployment observations
 | Persistent IoT clients and campaign orchestration | [Fleet management](fleet-management.md), [Fleet missions](fleet-missions.md)                                                                          |
 | Kubernetes and infrastructure admission           | [Kubernetes lab](kubernetes-iot-lab.md), [Infrastructure handoff](infrastructure-handoff.md)                                                          |
 | Companion synthetic bench                         | [Boundary and lab](boundary-and-lab.md), [Lab assessment](lab-assessment.md)                                                                          |
+| Capability target                                 | [DRS 5 capability target](drs5-target.md)                                                                                                             |
 | Access, safeguards and identity                   | [Security](security-and-governance.md), [Single user](single-user.md), [Owner recovery](owner-recovery.md), [Fleet identities](fleet-certificates.md) |
 | Monitoring, comparisons and verification          | [Observability](observability.md), [Run comparison](run-comparison.md), [Testing](testing.md)                                                         |
 | Delivery and remaining work                       | [Roadmap](roadmap.md), [Source snapshots](source-snapshots.md), [Versioning](versioning.md)                                                           |

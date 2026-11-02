@@ -1,7 +1,11 @@
 # Engine module — bounded HTTP generation
 
-This directory holds the traffic generator and its measurement primitives. It is
-not a packet-level or amplification engine.
+This directory holds the traffic generator and its measurement primitives. **It is not a
+packet-level or amplification engine today**: that is a statement about the current
+implementation, not about the product's ceiling. A DRS 5 target requires a packet-level
+engine added under the same authorization model — see
+[DRS 5 capability target](../../../docs/drs5-target.md). Amplification and spoofing stay out
+of scope at every stage.
 
 - `loadTest.ts` — the built-in HTTP generator. Requests go through `undici`
   against a single allowlisted host (`validateConfig`), with a mandatory `maxRps`
